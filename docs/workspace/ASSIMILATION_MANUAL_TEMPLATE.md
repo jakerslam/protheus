@@ -106,11 +106,17 @@ Required status progression:
 Required fields:
 
 - `source_path`
+- `dossier_capability_id`
 - `status`
 - `first_batch`
 - `last_batch`
 - `deleted_to` (or `in_place` for logical burn-down)
 - `notes`
+
+Completion rule:
+
+- no file-level assimilation row may move to `status=burned_down` without a non-empty `dossier_capability_id`
+- `dossier_capability_id` must point at the capability or workflow contract established in the Assimilation Map / Priority Ledger, so burn-down stays subordinate to system understanding
 
 ## Starter Markdown Scaffolds
 
@@ -169,7 +175,7 @@ Use these sections as the initial content for each file.
 |---|---|---|---|---|---|---|---|
 
 ## Dependency Notes
-- 
+-
 ```
 
 ### `active-queue.md`
@@ -217,14 +223,14 @@ Use these sections as the initial content for each file.
 - Runtime guard implications:
 
 ## Follow-up Patches
-- 
+-
 ```
 
 ### `source-burn-down.tsv`
 
 ```tsv
-source_path	status	first_batch	last_batch	deleted_to	notes
-README.md	queued			in_place	
+source_path	dossier_capability_id	status	first_batch	last_batch	deleted_to	notes
+README.md	target_capability_example	queued			in_place
 ```
 
 ## Operator Checklist

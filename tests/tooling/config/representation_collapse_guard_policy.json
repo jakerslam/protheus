@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "description": "Current non-regression budgets for representation-collapse risks. Budgets preserve visibility of known debt while failing on newly introduced unmanaged representation growth.",
+  "current_risk_budgets": {
+    "raw_in_projection_or_cache": 143,
+    "shell_source_of_truth_language": 238,
+    "missing_detail_representation_signal": 3,
+    "duplicate_truth_domain_risk": 2
+  },
+  "controlled_failure_kinds": [
+    "controlled_raw_in_projection_violation",
+    "controlled_cache_source_of_truth_violation",
+    "controlled_duplicate_representation_violation"
+  ]
+}

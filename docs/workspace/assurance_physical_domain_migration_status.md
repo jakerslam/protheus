@@ -25,9 +25,9 @@ A domain is `compatibility_debt` when legacy paths, wrappers, or mirrors still e
 
 | Domain | Policy status | Physical status | Canonical root | Notes |
 |---|---|---|---|---|
-| Validation | `policy_complete` | `physically_migrated_with_debt` | `validation/**` | Eval definitions, release gates, scorecard contracts, benchmark budgets, regression policies, conformance contracts, schemas, and controlled-proof definitions now have Validation-owned roots. |
+| Validation | `policy_complete` | `physically_migrated_with_debt` | `validation/**` | Eval definitions, release gates, scorecard contracts, Governance contracts, benchmark budgets, regression policies, conformance contracts, schemas, and controlled-proof definitions now have Validation-owned roots. |
 | Observability | `policy_complete` | `physically_migrated_with_debt` | `observability/**` | Live evidence envelopes, source coverage, freshness, health, traces, runtime findings, and Sentinel resident-observer contracts now have Observability-owned roots. |
-| Governance | `policy_complete` | `physical_domain_pending` | pending | The active Governance registry still lives under `tests/tooling/config/assurance_governance_registry.json` as a controlled harness/compatibility location. Scorecard derivation rules used by guards are already projected into `validation/scorecards/contracts/assurance_scorecard_derivation_contract.json`. |
+| Governance | `policy_complete` | `physically_migrated` | `validation/governance/**` | The active Governance registry now lives under `validation/governance/contracts/assurance_governance_registry.json`; scorecard derivation rules used by guards remain projected into `validation/scorecards/contracts/assurance_scorecard_derivation_contract.json`. |
 | Harnesses | `support_only` | `not_an_owning_domain` | `tests/**` | Tooling scripts, CI launchers, fixtures, and gate registries may execute or verify Assurance work, but they are not owners of eval, release-gate, benchmark, telemetry, or Sentinel source definitions. |
 
 ## Canonical Definition Roots
@@ -37,6 +37,7 @@ Validation-owned definitions currently include:
 - `validation/evals/**`
 - `validation/release_gates/**`
 - `validation/scorecards/**`
+- `validation/governance/**`
 - `validation/benchmarks/**`
 - `validation/regression/**`
 - `validation/conformance/**`

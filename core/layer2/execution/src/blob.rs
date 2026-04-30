@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
+use infring_types::decode_normalized_blob_manifest;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt::{Display, Formatter};
-use infring_types::decode_normalized_blob_manifest;
 
 pub const EXECUTION_PROFILE_BLOB_ID: &str = "execution_runtime_profile";
 pub const EXECUTION_PROFILE_BLOB: &[u8] = include_bytes!("blobs/execution_runtime_profile.blob");
@@ -98,7 +98,11 @@ pub fn blob_execution_receipt(blob_id: &str, status: &str, error_kind: Option<&s
     let normalized_blob_id = sanitize_token(blob_id, 80);
     let normalized_error_kind = error_kind.and_then(|raw| {
         let token = sanitize_token(raw, 64);
-        if token.is_empty() { None } else { Some(token) }
+        if token.is_empty() {
+            None
+        } else {
+            Some(token)
+        }
     });
     let seed = json!({
         "blob_id": normalized_blob_id,
@@ -172,7 +176,11 @@ mod tests {
     #[test]
     fn blob_execution_receipt_is_deterministic_for_same_seed() {
         let left = blob_execution_receipt("Execution Runtime Profile", "ok", Some("Policy Denied"));
-        let right = blob_execution_receipt("Execution Runtime Profile", "success", Some("policy_denied"));
+        let right = blob_execution_receipt(
+            "Execution Runtime Profile",
+            "success",
+            Some("policy_denied"),
+        );
         assert_eq!(left.get("call_id"), right.get("call_id"));
         assert_eq!(left.get("status").and_then(Value::as_str), Some("success"));
         assert_eq!(

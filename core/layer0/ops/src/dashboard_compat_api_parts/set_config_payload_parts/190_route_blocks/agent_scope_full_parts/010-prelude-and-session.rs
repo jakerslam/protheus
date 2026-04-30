@@ -213,18 +213,23 @@ fn handle_agent_scope_full(
             let limit = qs.split('&').find_map(|kv| {
                 let mut p = kv.splitn(2, '=');
                 if p.next()? == "limit" { p.next()?.parse::<usize>().ok() } else { None }
-            }).unwrap_or(0);
+            }).unwrap_or(80);
             let offset = qs.split('&').find_map(|kv| {
                 let mut p = kv.splitn(2, '=');
                 if p.next()? == "offset" { p.next()?.parse::<usize>().ok() } else { None }
             }).unwrap_or(0);
             return Some(CompatApiResponse {
                 status: 200,
-                payload: if limit > 0 {
-                    session_payload_paged(root, &agent_id, limit, offset)
-                } else {
-                    session_payload(root, &agent_id)
-                },
+                payload: session_payload_paged(root, &agent_id, limit, offset),
+            });
+        }
+
+        if method == "GET" && segments.len() == 3 && segments[0] == "details" {
+            let detail_kind = decode_path_segment(&segments[1]);
+            let detail_id = decode_path_segment(&segments[2]);
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: session_detail_payload(root, &agent_id, &detail_kind, &detail_id),
             });
         }
 

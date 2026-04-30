@@ -142,15 +142,13 @@ fn stomach_template_integration_creates_phases() {
             infring_task_fabric_core_v1::StomachPhase::Ingested
         ))
         .is_some());
-    assert!(
-        !fabric
-            .graph
-            .dependencies_of(&phase_task_id(
-                "module-x",
-                infring_task_fabric_core_v1::StomachPhase::Analyzed
-            ))
-            .is_empty()
-    );
+    assert!(!fabric
+        .graph
+        .dependencies_of(&phase_task_id(
+            "module-x",
+            infring_task_fabric_core_v1::StomachPhase::Analyzed
+        ))
+        .is_empty());
 }
 
 #[test]

@@ -337,7 +337,7 @@ fn handle_request(
         if let Some(response) = dashboard_compat_api::handle_with_headers(
             root,
             &req.method,
-            path_only,
+            &req.path,
             &req.body,
             &header_refs,
             &snapshot,

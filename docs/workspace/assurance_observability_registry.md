@@ -12,6 +12,18 @@ The Observability registry is the Assurance-owned index of live system evidence.
 
 It defines the live source classes that Sentinel and Governance may consume, their authority classes, freshness requirements, coverage requirements, and whether each source can open findings or block release.
 
+## Fragmented Observability Anti-Pattern
+
+Fragmented observability is a negative Assurance state.
+
+It means Kernel receipts, Orchestration decision traces, Gateway health, Shell telemetry, Validation runs, Governance verdicts, and Sentinel findings all exist as local facts, but cannot be joined into one causal story. That failure mode blocks root-cause analysis, encourages symptom patching, and weakens RSI/assimilation because the system cannot reliably understand itself or an external target at workflow scale.
+
+The canonical response is the universal trace substrate in `observability/traces/**`, governed by `docs/workspace/universal_trace_substrate_policy.md`.
+
+The substrate has one trace identity rule: each initial user request mints exactly one `trace_id`, and that ID must flow unchanged through workflows, Orchestration decisions, tool calls, Gateway/Conduit boundaries, Kernel receipts, Validation spans, Shell projections, Sentinel observations, and final responses. Domains add spans and typed payload extensions; they do not create competing root trace IDs, drop the ID, fork it, or replace it. No exceptions.
+
+Citation: `Machine Learning Systems, Volume 1`, Chapter 5 `AI Workflow`, especially its treatment of workflow feedback loops, distributed monitoring, degradation prevention, and system-level behavior: https://mlsysbook.ai/vol1/assets/downloads/Machine-Learning-Systems-Vol1.pdf
+
 ## Sentinel Position
 
 Kernel Sentinel is a privileged Observability resident.
@@ -102,6 +114,8 @@ The Observability registry and schema now live in the physical Observability dom
 
 Related Observability-owned contracts:
 
+- `observability/traces/trace_envelope.schema.json`
+- `observability/traces/domain_trace_extension_registry.json`
 - `observability/freshness/evidence_freshness_policy.json`
 - `observability/health/health_stream_contract.json`
 - `observability/traces/sentinel_trace_source_map.json`

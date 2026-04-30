@@ -28,7 +28,7 @@ Generated: 2026-03-08T05:19:04.541Z
 | `dockerfile_fips_contract_present` | `file_contains` | `Dockerfile` | PASS | `ok` |
 | `dependabot_required_checks_contract` | `file_contains` | `.github/workflows/required-checks.yml` | PASS | `ok` |
 | `codeql_required_checks_contract` | `file_contains` | `.github/workflows/required-checks.yml` | PASS | `ok` |
-| `runtime_telemetry_policy_present` | `file_exists` | `client/runtime/config/runtime_telemetry_policy.json` | PASS | `ok` |
+| `runtime_telemetry_policy_present` | `file_exists` | `observability/telemetry/runtime_telemetry_policy.json` | PASS | `ok` |
 | `runtime_telemetry_lane_present` | `file_exists` | `client/runtime/systems/observability/runtime_telemetry_optin.ts` | PASS | `ok` |
 | `k8s_secret_runtime_manifest_present` | `file_exists` | `client/runtime/deploy/k8s/secret.runtime.example.yaml` | PASS | `ok` |
 | `helm_secret_wiring_enabled` | `file_contains` | `client/runtime/deploy/helm/infring/templates/cronjob.yaml` | PASS | `ok` |

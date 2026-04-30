@@ -225,10 +225,7 @@ mod tests {
             },
         ];
         let out = aggregate(&data);
-        assert_eq!(
-            out.get("status").and_then(|v| v.as_str()),
-            Some("degraded")
-        );
+        assert_eq!(out.get("status").and_then(|v| v.as_str()), Some("degraded"));
     }
 
     #[test]

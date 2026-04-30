@@ -1,3 +1,97 @@
+fn compact_sidebar_string(value: Option<&Value>, max_len: usize) -> Value {
+    Value::String(clean_text(value.and_then(Value::as_str).unwrap_or(""), max_len))
+}
+
+fn compact_sidebar_avatar(value: Option<&Value>) -> Value {
+    let raw = value.and_then(Value::as_str).unwrap_or("");
+    if raw.chars().count() > 4096 {
+        Value::String(String::new())
+    } else {
+        Value::String(clean_text(raw, 4096))
+    }
+}
+
+fn compact_sidebar_identity(value: Option<&Value>) -> Value {
+    let mut identity = value.cloned().unwrap_or_else(|| json!({}));
+    if let Some(map) = identity.as_object_mut() {
+        if let Some(avatar) = map.get("avatar_url").cloned() {
+            map.insert("avatar_url".to_string(), compact_sidebar_avatar(Some(&avatar)));
+        }
+    }
+    identity
+}
+
+fn compact_sidebar_roster_rows(rows: Vec<Value>) -> Vec<Value> {
+    let sidebar_keys = [
+        "id",
+        "agent_id",
+        "name",
+        "role",
+        "state",
+        "model_provider",
+        "model_provider_aliases",
+        "model_name",
+        "runtime_model",
+        "context_window",
+        "context_window_tokens",
+        "git_branch",
+        "branch",
+        "git_tree_kind",
+        "git_tree_ready",
+        "git_tree_error",
+        "workspace_rel",
+        "is_master_agent",
+        "created_at",
+        "updated_at",
+        "message_count",
+        "contract_expires_at",
+        "contract_total_ms",
+        "contract_remaining_ms",
+        "contract_finite_expiry",
+        "parent_agent_id",
+        "auto_terminate_allowed",
+        "revive_recommended",
+        "sidebar_sort_ts",
+        "sidebar_topology_key",
+        "sidebar_status_state",
+        "sidebar_status_label",
+        "sidebar_archived",
+    ];
+    rows.into_iter()
+        .map(|row| {
+            let Some(source) = row.as_object() else {
+                return row;
+            };
+            let mut out = serde_json::Map::new();
+            for key in sidebar_keys {
+                if let Some(value) = source.get(key) {
+                    out.insert(key.to_string(), value.clone());
+                }
+            }
+            out.insert(
+                "identity".to_string(),
+                compact_sidebar_identity(source.get("identity")),
+            );
+            out.insert(
+                "avatar_url".to_string(),
+                compact_sidebar_avatar(source.get("avatar_url")),
+            );
+            out.insert(
+                "system_prompt".to_string(),
+                Value::String(String::new()),
+            );
+            out.insert(
+                "fallback_models".to_string(),
+                source
+                    .get("fallback_models")
+                    .cloned()
+                    .unwrap_or_else(|| json!([])),
+            );
+            Value::Object(out)
+        })
+        .collect()
+}
+
 fn handle_primary_dashboard_routes_b(
     root: &Path,
     method: &str,
@@ -270,15 +364,27 @@ fn handle_primary_dashboard_routes_b(
     }
 
     if method == "GET" && path_only == "/api/agents" {
-        let _ = crate::dashboard_agent_state::enforce_expired_contracts(root);
         let include_terminated = query_value(path, "include_terminated")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
-        let rows = crate::dashboard_sidebar_view_model::augment_agent_roster_rows(
+        let sidebar_fast_view = query_value(path, "view")
+            .map(|v| v.eq_ignore_ascii_case("sidebar"))
+            .unwrap_or(false)
+            || query_value(path, "compact")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+        if sidebar_fast_view {
+            let rows = build_sidebar_agent_roster_fast(root, snapshot, include_terminated);
+            return Some(CompatApiResponse {
+                status: 200,
+                payload: Value::Array(compact_sidebar_roster_rows(rows)),
+            });
+        }
+        let _ = crate::dashboard_agent_state::enforce_expired_contracts(root);
+        let mut rows = crate::dashboard_sidebar_view_model::augment_agent_roster_rows(
             build_agent_roster(root, snapshot, include_terminated),
         );
-        let rows =
-            crate::dashboard_sidebar_preview_model::augment_agent_roster_with_previews(root, rows);
+        rows = crate::dashboard_sidebar_preview_model::augment_agent_roster_with_previews(root, rows);
         return Some(CompatApiResponse {
             status: 200,
             payload: Value::Array(rows),

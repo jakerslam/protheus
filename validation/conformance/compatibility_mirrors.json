@@ -2,34 +2,12 @@
   "type": "validation_conformance_compatibility_mirrors",
   "schema_version": 1,
   "owner": "validation/conformance",
-  "updated_at": "2026-04-29",
+  "updated_at": "2026-04-30",
   "canonical_domain": "validation",
-  "burn_down_required": true,
+  "burn_down_required": false,
   "burn_down_todo": "ASSURANCE-MIGRATE-010",
-  "mirrors": [
-    {
-      "legacy_path": "tests/tooling/config/assurance_validation_registry.json",
-      "canonical_path": "validation/conformance/contracts/assurance_validation_registry.json",
-      "status": "temporary_compatibility_mirror",
-      "reason": "legacy tooling may still reference the tests/tooling location while validation registry ownership migrates to Validation"
-    },
-    {
-      "legacy_path": "tests/tooling/schemas/assurance_validation_registry.schema.json",
-      "canonical_path": "validation/schemas/assurance_validation_registry.schema.json",
-      "status": "temporary_compatibility_mirror",
-      "reason": "validation registry schema ownership moved with the Validation conformance contract"
-    },
-    {
-      "legacy_path": "tests/tooling/config/assurance_consumer_boundary_contract.json",
-      "canonical_path": "validation/conformance/contracts/assurance_consumer_boundary_contract.json",
-      "status": "temporary_compatibility_mirror",
-      "reason": "consumer-boundary conformance is a Validation contract; old tests/tooling location remains compatibility-only"
-    },
-    {
-      "legacy_path": "tests/tooling/schemas/assurance_consumer_boundary_contract.schema.json",
-      "canonical_path": "validation/schemas/assurance_consumer_boundary_contract.schema.json",
-      "status": "temporary_compatibility_mirror",
-      "reason": "consumer-boundary schema ownership moved with the Validation conformance contract"
-    }
-  ]
+  "mirrors": [],
+  "status": "retired",
+  "retired_at": "2026-04-30",
+  "retired_reason": "All conformance compatibility mirrors have been burned down; Validation conformance contracts and schemas are physically owned by validation/conformance/** and validation/schemas/**."
 }

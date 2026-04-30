@@ -1,24 +1,11 @@
 {
   "type": "validation_regression_compatibility_mirrors",
   "schema_version": 1,
-  "updated_at": "2026-04-29",
+  "updated_at": "2026-04-30",
   "owner": "validation/regression",
-  "burn_down_required": true,
+  "burn_down_required": false,
   "burn_down_todo": "ASSURANCE-MIGRATE-010",
-  "mirrors": [
-    {
-      "legacy_path": "tests/tooling/config/runtime_empirical_coverage_policy.json",
-      "canonical_path": "validation/regression/policies/runtime_empirical_coverage_policy.json",
-      "reason": "runtime proof reality guard callers may still pass the old tooling config path",
-      "removal_target": "after ASSURANCE-MIGRATE-007 migrates command registry/package callers"
-    },
-    {
-      "legacy_path": "tests/tooling/config/runtime_soak_scenarios_policy.json",
-      "canonical_path": "validation/regression/policies/runtime_soak_scenarios_policy.json",
-      "reason": "runtime soak scenario guard callers may still pass the old tooling config path",
-      "removal_target": "after ASSURANCE-MIGRATE-007 migrates command registry/package callers"
-    }
-  ],
+  "mirrors": [],
   "generated_artifact_destinations": [
     {
       "path": "core/local/artifacts/runtime_proof_reality_guard_current.json",
@@ -28,5 +15,8 @@
       "path": "core/local/artifacts/runtime_soak_scenarios_current.json",
       "reason": "runtime-local artifact destination remains generated evidence; Validation owns the soak scenario policy"
     }
-  ]
+  ],
+  "status": "retired",
+  "retired_at": "2026-04-30",
+  "retired_reason": "All regression compatibility mirrors have been burned down; runtime empirical and soak policies are physically owned by validation/regression/** while generated artifact destinations remain runtime-local evidence caches."
 }

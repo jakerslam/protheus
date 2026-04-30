@@ -6,16 +6,61 @@
   "canonical_policy": "docs/workspace/assurance_plane_policy.md",
   "registry_seed": "validation/conformance/contracts/assurance_validation_registry.json",
   "subdomains": [
-    { "id": "tests", "path": "validation/tests", "owns": "controlled test definitions and test-domain metadata" },
-    { "id": "evals", "path": "validation/evals", "owns": "eval definitions, rubrics, fixtures, and scoring contracts" },
-    { "id": "benchmarks", "path": "validation/benchmarks", "owns": "benchmark definitions and performance budgets" },
-    { "id": "conformance", "path": "validation/conformance", "owns": "architecture, boundary, schema, policy conformance guards, validation registry contracts, and consumer-boundary policies" },
-    { "id": "regression", "path": "validation/regression", "owns": "named regression suites and replay scenarios" },
-    { "id": "release_gates", "path": "validation/release_gates", "owns": "release-blocking controlled checks and promotion gates" },
-    { "id": "scorecards", "path": "validation/scorecards", "owns": "evidence-derived scorecard definitions, derivation contracts, and scorecard compatibility mirrors" },
-    { "id": "schemas", "path": "validation/schemas", "owns": "Validation-owned schemas" },
-    { "id": "fixtures", "path": "validation/fixtures", "owns": "controlled fixtures used by Validation checks" },
-    { "id": "reports", "path": "validation/reports", "owns": "Validation report destinations" }
+    {
+      "id": "tests",
+      "path": "validation/tests",
+      "owns": "controlled test definitions and test-domain metadata"
+    },
+    {
+      "id": "evals",
+      "path": "validation/evals",
+      "owns": "eval definitions, rubrics, fixtures, and scoring contracts"
+    },
+    {
+      "id": "benchmarks",
+      "path": "validation/benchmarks",
+      "owns": "benchmark definitions and performance budgets"
+    },
+    {
+      "id": "conformance",
+      "path": "validation/conformance",
+      "owns": "architecture, boundary, schema, policy conformance guards, validation registry contracts, and consumer-boundary policies"
+    },
+    {
+      "id": "regression",
+      "path": "validation/regression",
+      "owns": "named regression suites and replay scenarios"
+    },
+    {
+      "id": "release_gates",
+      "path": "validation/release_gates",
+      "owns": "release-blocking controlled checks and promotion gates"
+    },
+    {
+      "id": "scorecards",
+      "path": "validation/scorecards",
+      "owns": "evidence-derived scorecard definitions, derivation contracts, and scorecard compatibility mirrors"
+    },
+    {
+      "id": "governance",
+      "path": "validation/governance",
+      "owns": "evidence-derived governance verdicts, promotion rules, issue-candidate routing, and no-auto-mutation constraints"
+    },
+    {
+      "id": "schemas",
+      "path": "validation/schemas",
+      "owns": "Validation-owned schemas"
+    },
+    {
+      "id": "fixtures",
+      "path": "validation/fixtures",
+      "owns": "controlled fixtures used by Validation checks"
+    },
+    {
+      "id": "reports",
+      "path": "validation/reports",
+      "owns": "Validation report destinations"
+    }
   ],
   "forbidden_ownership": [
     "runtime_planning",

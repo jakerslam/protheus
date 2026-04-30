@@ -288,45 +288,5 @@ fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {
         || lowered.starts_with("/browse")
         || lowered.starts_with("/batch")
         || lowered.starts_with("/tool");
-    if is_explicit_slash_tool_turn {
-        return true;
-    }
-    if message_requests_local_file_mutation(&cleaned) {
-        return true;
-    }
-    let requires_information_search = message_requires_information_search(&cleaned);
-    if !chat_workflow_tool_hints_for_message(&cleaned).is_empty() {
-        return requires_information_search;
-    }
-    let asks_file_read = lowered.contains("read file")
-        || lowered.contains("open file")
-        || lowered.contains("show file")
-        || lowered.contains("view file")
-        || lowered.contains("inspect file")
-        || lowered.starts_with("cat ");
-    let asks_memory = memory_recall_requested(&cleaned)
-        || (lowered.contains("what did we decide") && lowered.contains("about"));
-    let asks_workspace = workspace_analyze_intent_from_message(&cleaned, &lowered).is_some();
-    let asks_follow_up_tool = follow_up_suggestion_tool_intent_from_message(&cleaned).is_some();
-    let asks_live_web = natural_web_intent_from_user_message(&cleaned).is_some();
-    let asks_mixed_compare =
-        workspace_plus_web_comparison_queries_from_message(&cleaned).is_some();
-    if (asks_live_web || asks_mixed_compare) && !requires_information_search {
-        return false;
-    }
-    swarm_intent_requested(&cleaned)
-        || asks_file_read
-        || asks_memory
-        || asks_workspace
-        || asks_follow_up_tool
-        || asks_live_web
-        || asks_mixed_compare
-        || lowered.contains("multi-agent")
-        || lowered.contains("multi agent")
-        || lowered.contains("use tool")
-        || lowered.contains("run tool")
-        || lowered.contains("call tool")
-        || lowered.contains("execute tool")
-        || lowered.contains("do a tool call")
-        || lowered.contains("run a tool call")
+    is_explicit_slash_tool_turn
 }

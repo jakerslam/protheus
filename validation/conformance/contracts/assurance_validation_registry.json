@@ -146,20 +146,23 @@
       "lifecycle_state": "release_gate",
       "signal_class": "hard_gate",
       "authority_class": "controlled_validation",
-      "owner_of_truth": "Shell projection policies and guards",
+      "owner_of_truth": "Shell projection and long-chat memory policies and guards",
       "source_refs": [
         "ops:shell:projection:guard",
         "ops:shell:ui-message-contract:guard",
+        "ops:shell:long-chat-ram:guard",
         "ops:shell:truth-leak:guard",
         "docs/workspace/shell_ui_projection_policy.md"
       ],
       "evidence_output": [
         "core/local/artifacts/shell_*_current.json",
-        "local/workspace/reports/SHELL_*_CURRENT.md"
+        "local/workspace/reports/SHELL_*_CURRENT.md",
+        "core/local/artifacts/shell_long_chat_ram_regression_guard_current.json",
+        "local/workspace/reports/SHELL_LONG_CHAT_RAM_REGRESSION_GUARD_CURRENT.md"
       ],
       "self_enforcing": true,
       "harness_only": false,
-      "notes": "Shell may display Assurance results but this entry proves Shell cannot infer readiness or health truth."
+      "notes": "Shell may display Assurance results but this entry proves Shell cannot infer readiness or health truth, and release governance fails closed on long-chat heap, DOM, storage, detail-expansion, session-switch, or cleanup regression."
     },
     {
       "id": "validation.gateway_boundary_conformance",

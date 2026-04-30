@@ -8,7 +8,7 @@ This stack adds three production control-plane observability lanes:
 
 Policy:
 
-- `client/runtime/config/observability_policy.json`
+- `observability/telemetry/observability_policy.json`
 
 ## Metrics (Prometheus Snapshot)
 

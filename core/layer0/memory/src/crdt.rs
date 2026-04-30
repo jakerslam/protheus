@@ -207,6 +207,9 @@ mod tests {
         let merged_ab = merge(&a, &b);
         let merged_ba = merge(&b, &a);
         assert_eq!(merged_ab, merged_ba);
-        assert_eq!(merged_ab.get("topic").map(|v| v.value.as_str()), Some("beta"));
+        assert_eq!(
+            merged_ab.get("topic").map(|v| v.value.as_str()),
+            Some("beta")
+        );
     }
 }

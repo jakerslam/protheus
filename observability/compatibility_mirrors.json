@@ -2,28 +2,12 @@
   "type": "observability_compatibility_mirrors",
   "schema_version": 1,
   "owner": "assurance.observability",
-  "updated_at": "2026-04-29",
+  "updated_at": "2026-04-30",
   "canonical_domain": "observability",
-  "burn_down_required": true,
+  "burn_down_required": false,
   "burn_down_todo": "ASSURANCE-MIGRATE-010",
-  "mirrors": [
-    {
-      "legacy_path": "tests/tooling/config/assurance_observability_registry.json",
-      "canonical_path": "observability/source_coverage/assurance_observability_registry.json",
-      "status": "temporary_compatibility_mirror",
-      "reason": "legacy tooling and older docs may still reference the tests/tooling location while live-observation ownership migrates to Observability"
-    },
-    {
-      "legacy_path": "tests/tooling/schemas/assurance_observability_registry.schema.json",
-      "canonical_path": "observability/source_coverage/assurance_observability_registry.schema.json",
-      "status": "temporary_compatibility_mirror",
-      "reason": "schema ownership moved with the Observability source registry"
-    },
-    {
-      "legacy_path": "tests/tooling/schemas/assurance_evidence_envelope.schema.json",
-      "canonical_path": "observability/evidence_normalization/assurance_evidence_envelope.schema.json",
-      "status": "temporary_compatibility_mirror",
-      "reason": "live evidence envelopes are Observability/Assurance contracts; old tooling schema path remains a compatibility mirror"
-    }
-  ]
+  "mirrors": [],
+  "status": "retired",
+  "retired_at": "2026-04-30",
+  "retired_reason": "All Observability compatibility mirrors have been burned down; source coverage and live evidence envelope schemas are physically owned by observability/**."
 }

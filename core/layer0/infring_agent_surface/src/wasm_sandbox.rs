@@ -81,10 +81,12 @@ pub fn evaluate_wasm_policy(
         if normalized.is_empty() {
             continue;
         }
-        if !policy.allowed_modules.iter().any(|item| item == &normalized) {
-            return WasmPolicyDecision::Blocked(format!(
-                "wasm_module_denied:{normalized}"
-            ));
+        if !policy
+            .allowed_modules
+            .iter()
+            .any(|item| item == &normalized)
+        {
+            return WasmPolicyDecision::Blocked(format!("wasm_module_denied:{normalized}"));
         }
     }
     WasmPolicyDecision::Allowed
@@ -114,7 +116,10 @@ pub fn evaluate_wasm_execution_boundary(
         return WasmPolicyDecision::Blocked("wasm_watchdog_budget_exceeded".to_string());
     }
     if !policy.allowed_modules.is_empty()
-        && !policy.allowed_modules.iter().any(|allowed| allowed == &normalized)
+        && !policy
+            .allowed_modules
+            .iter()
+            .any(|allowed| allowed == &normalized)
     {
         return WasmPolicyDecision::Blocked(format!("wasm_module_denied:{normalized}"));
     }
@@ -176,8 +181,7 @@ mod tests {
             allow_network: true,
             allowed_modules: vec!["safe.module".to_string()],
         };
-        let decision =
-            evaluate_wasm_execution_boundary(&policy, "safe.module", 101, 20, false);
+        let decision = evaluate_wasm_execution_boundary(&policy, "safe.module", 101, 20, false);
         assert_eq!(
             decision,
             WasmPolicyDecision::Blocked("wasm_fuel_budget_exceeded".to_string())
@@ -193,8 +197,7 @@ mod tests {
             allow_network: false,
             allowed_modules: vec!["safe.module".to_string()],
         };
-        let decision =
-            evaluate_wasm_execution_boundary(&policy, "safe.module", 200, 30, false);
+        let decision = evaluate_wasm_execution_boundary(&policy, "safe.module", 200, 30, false);
         assert_eq!(decision, WasmPolicyDecision::Allowed);
     }
 }

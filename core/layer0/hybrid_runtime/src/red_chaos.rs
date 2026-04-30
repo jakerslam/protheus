@@ -105,7 +105,10 @@ mod tests {
     #[test]
     fn reports_positive_cycles() {
         let v = sample_report(500);
-        assert_eq!(v.get("effective_cycles").and_then(|x| x.as_u64()), Some(500));
+        assert_eq!(
+            v.get("effective_cycles").and_then(|x| x.as_u64()),
+            Some(500)
+        );
     }
 
     #[test]
@@ -120,7 +123,10 @@ mod tests {
             high.get("effective_cycles").and_then(|x| x.as_u64()),
             Some(MAX_SIM_CYCLES as u64)
         );
-        assert_eq!(high.get("cycles_clamped").and_then(|x| x.as_bool()), Some(true));
+        assert_eq!(
+            high.get("cycles_clamped").and_then(|x| x.as_bool()),
+            Some(true)
+        );
     }
 
     #[test]

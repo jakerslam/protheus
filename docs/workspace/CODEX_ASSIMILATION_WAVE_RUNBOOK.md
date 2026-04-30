@@ -18,6 +18,7 @@ Scale Codex assimilation throughput without losing ledger trust.
 - Source file burn-down is mandatory per wave:
   - every assimilated source file must be recorded in `[Target-Name]-Assimilation/source-burn-down.tsv`
   - status must be advanced to `burned_down` in the same wave that assimilates it
+  - every burned-down row must include a non-empty `dossier_capability_id`
   - if a physical archive move is used, record `deleted_to=target-repo/.assimilation_deleted/<path>`
 
 ## Strict Preflight (Required)
@@ -42,6 +43,7 @@ Scale Codex assimilation throughput without losing ledger trust.
 4. Run one integration checkpoint across the wave surface.
 5. Update source burn-down tracking for each assimilated source file in:
    - `[Target-Name]-Assimilation/source-burn-down.tsv`
+   - include `dossier_capability_id` referencing the capability/workflow contract that justified the assimilation
 
 ## Completion
 
@@ -51,6 +53,7 @@ Scale Codex assimilation throughput without losing ledger trust.
    - summary progress in `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.md`
 2. Confirm source-file burn-down closure for the wave:
    - each assimilated source file appears in `source-burn-down.tsv` with `status=burned_down`
+   - each burned-down row carries a non-empty `dossier_capability_id`
    - archive move path is recorded when using physical burn-down
 3. Commit wave code + ledger + burn-down updates together.
 4. Push.

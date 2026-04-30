@@ -203,4 +203,3 @@ fn main() {
 pub fn default_template_dir(root: &Path) -> PathBuf {
     root.join("examples")
 }
-

@@ -355,3 +355,74 @@ function infringHandleTaskbarDragEnd(page) {
   target.setTaskbarDragBodyActive(false);
   target.clearTaskbarReorderDraggingClass();
 }
+
+function infringTaskbarReorderDelegateMethods() {
+  return {
+    taskbarReorderDefaults: function(group) {
+      return infringTaskbarReorderDefaults(this, group);
+    },
+    taskbarReorderStorageKey: function(group) {
+      return infringTaskbarReorderStorageKey(this, group);
+    },
+    taskbarReorderOrderForGroup: function(group) {
+      return infringTaskbarReorderOrderForGroup(this, group);
+    },
+    setTaskbarReorderOrderForGroup: function(group, nextOrder) {
+      infringSetTaskbarReorderOrderForGroup(this, group, nextOrder);
+    },
+    normalizeTaskbarReorder: function(group, rawOrder) {
+      return infringNormalizeTaskbarReorder(this, group, rawOrder);
+    },
+    persistTaskbarReorder: function(group) {
+      infringPersistTaskbarReorder(this, group);
+    },
+    taskbarReorderOrderIndex: function(group, item) {
+      return infringTaskbarReorderOrderIndex(this, group, item);
+    },
+    taskbarReorderItemStyle: function(group, item) {
+      return infringTaskbarReorderItemStyle(this, group, item);
+    },
+    taskbarReorderItemRects: function(group) {
+      return infringTaskbarReorderItemRects(group);
+    },
+    animateTaskbarReorderFromRects: function(group, beforeRects) {
+      infringAnimateTaskbarReorderFromRects(group, beforeRects);
+    },
+    applyTaskbarReorder: function(group, dragItem, targetItem, preferAfter, animate) {
+      return infringApplyTaskbarReorder(this, group, dragItem, targetItem, preferAfter, animate);
+    },
+    handleTaskbarReorderPointerDown: function(group, ev) {
+      infringHandleTaskbarReorderPointerDown(this, group, ev);
+    },
+    cancelTaskbarDragHold: function() {
+      infringCancelTaskbarDragHold(this);
+    },
+    forceTaskbarMoveDragEffect: function(ev) {
+      infringForceTaskbarMoveDragEffect(ev);
+    },
+    setTaskbarDragBodyActive: function(active) {
+      infringSetTaskbarDragBodyActive(active);
+    },
+    handleTaskbarReorderDragStart: function(group, ev) {
+      infringHandleTaskbarReorderDragStart(this, group, ev);
+    },
+    handleTaskbarReorderDragMove: function(ev) {
+      infringHandleTaskbarReorderDragMove(this, ev);
+    },
+    handleTaskbarReorderDragEnter: function(group, ev) {
+      infringHandleTaskbarReorderDragEnter(this, group, ev);
+    },
+    handleTaskbarReorderDragOver: function(group, ev) {
+      infringHandleTaskbarReorderDragOver(this, group, ev);
+    },
+    clearTaskbarReorderDraggingClass: function() {
+      infringClearTaskbarReorderDraggingClass();
+    },
+    handleTaskbarReorderDrop: function(group, ev) {
+      infringHandleTaskbarReorderDrop(this, group, ev);
+    },
+    handleTaskbarDragEnd: function() {
+      infringHandleTaskbarDragEnd(this);
+    }
+  };
+}

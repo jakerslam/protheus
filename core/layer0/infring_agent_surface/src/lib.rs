@@ -1,6 +1,7 @@
 pub mod agent;
 pub mod capability_pack;
 pub mod mcp;
+pub mod merkle_receipt;
 pub mod provider;
 pub mod rbac_memory;
 pub mod realtime_voice;
@@ -10,15 +11,19 @@ pub mod scheduler;
 pub mod telemetry;
 pub mod template;
 pub mod wasm_sandbox;
-pub mod merkle_receipt;
 
-pub use agent::{AgentBuildError, AgentBuilder, AgentContract, AgentExecutionContext, AgentRunResult};
+pub use agent::{
+    AgentBuildError, AgentBuilder, AgentContract, AgentExecutionContext, AgentRunResult,
+};
 pub use capability_pack::{
     CapabilityPackCatalog, CapabilityPackSpec, IssueOpsCapabilityPack, LeadGenCapabilityPack,
     ResearchCapabilityPack, SocialSignalCapabilityPack, WebOpsCapabilityPack,
 };
 pub use infring_agent_derive::{infring_agent, infring_tool};
 pub use mcp::{mcp_handshake_receipt, McpBridge, McpServerConfig, McpTool};
+pub use merkle_receipt::{
+    merkle_receipt_options_from_value, merkle_receipt_payload, MerkleReceiptOptions,
+};
 pub use provider::{
     LocalEchoProvider, ProviderClient, ProviderClientRegistry, ProviderError, ProviderErrorCode,
     ProviderRequest, ProviderResponse,
@@ -47,9 +52,6 @@ pub use template::{
 pub use wasm_sandbox::{
     evaluate_wasm_execution_boundary, evaluate_wasm_policy, wasm_policy_from_value,
     wasm_policy_snapshot, WasmPolicyDecision, WasmSandboxPolicy,
-};
-pub use merkle_receipt::{
-    merkle_receipt_options_from_value, merkle_receipt_payload, MerkleReceiptOptions,
 };
 
 #[macro_export]

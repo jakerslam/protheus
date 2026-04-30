@@ -25,7 +25,10 @@ pub fn assim122_normalize_seed_lane_id(raw: &str) -> String {
         .collect::<String>()
 }
 
-pub fn assim122_seed_lane_contract(raw: &str, strict_contract: bool) -> (String, bool, &'static str) {
+pub fn assim122_seed_lane_contract(
+    raw: &str,
+    strict_contract: bool,
+) -> (String, bool, &'static str) {
     let normalized = assim122_normalize_seed_lane_id(raw);
     if normalized.is_empty() {
         return (normalized, false, "seed_lane_empty_after_normalization");

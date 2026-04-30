@@ -76,7 +76,7 @@ This directory stores internal operator lenses used for planning, audits, and de
   - `trim` mode: trim dynamic context first and continue.
   - `reject` mode: fail closed.
 - Every over-budget event is logged to:
-  - `personas/organization/telemetry.jsonl` (`metric=context_budget_guard`)
+  - `observability/telemetry/persona_telemetry.jsonl` (`metric=context_budget_guard`)
   - `personas/<name>/correspondence.md` (`Re: context budget guard`)
 
 ## Orchestration Guide
@@ -104,7 +104,7 @@ This directory stores internal operator lenses used for planning, audits, and de
 Artifacts are append-only and hash-chained:
 - Meetings: `personas/organization/meetings/ledger.jsonl`
 - Projects: `personas/organization/projects/ledger.jsonl`
-- Telemetry: `personas/organization/telemetry.jsonl`
+- Telemetry: `observability/telemetry/persona_telemetry.jsonl`
 
 Shadow mode starts enabled and exits only after metric thresholds in `personas/organization/risk_policy.json` are met.
 Breaker behavior and recovery paths are defined in `personas/organization/breaker_policy.json`.

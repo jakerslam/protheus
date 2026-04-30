@@ -468,7 +468,10 @@
           archived: false,
           state: 'running'
         });
-        var store = Alpine.store('app');
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
         if (store) {
           if (Array.isArray(store.agents)) {
             store.agents = store.agents.map(function(row) {

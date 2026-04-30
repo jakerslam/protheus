@@ -193,7 +193,11 @@ impl AgentContract {
         let mut chosen = None;
         for pack_id in &self.capability_packs {
             if let Some(interval) = catalog.default_interval_for_pack(pack_id) {
-                chosen = Some(chosen.map(|current: u64| current.min(interval)).unwrap_or(interval));
+                chosen = Some(
+                    chosen
+                        .map(|current: u64| current.min(interval))
+                        .unwrap_or(interval),
+                );
             }
         }
         if let Some(interval) = chosen {
@@ -207,7 +211,10 @@ impl AgentContract {
         self
     }
 
-    pub fn run_once(&self, context: &AgentExecutionContext<'_>) -> Result<AgentRunResult, ProviderError> {
+    pub fn run_once(
+        &self,
+        context: &AgentExecutionContext<'_>,
+    ) -> Result<AgentRunResult, ProviderError> {
         let provider = context
             .provider_registry
             .from_provider_id(self.provider.as_str())?;

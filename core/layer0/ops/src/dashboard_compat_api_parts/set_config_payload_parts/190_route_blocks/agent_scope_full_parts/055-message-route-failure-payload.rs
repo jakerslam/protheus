@@ -207,35 +207,3 @@ fn no_models_available_message_response(
     });
     response
 }
-
-fn final_response_empty_message_response(
-    root: &Path,
-    agent_id: &str,
-    message: &str,
-    provider: &str,
-    model: &str,
-    workspace_hints: Value,
-    latent_tool_candidates: Value,
-) -> CompatApiResponse {
-    let mut response = message_route_failure_response(
-        root,
-        agent_id,
-        message,
-        200,
-        "final_response_empty",
-        "The final LLM-authored response was empty after safety/finalization guards.",
-        provider,
-        model,
-        "empty_final_response",
-        workspace_hints,
-        latent_tool_candidates,
-    );
-    let persistence_receipt = append_turn_message(root, agent_id, message, "");
-    response.payload["turn_persistence"] = json!({
-        "user_message_persisted": persistence_receipt.get("ok").and_then(Value::as_bool).unwrap_or(false),
-        "assistant_message_persisted": false,
-        "diagnostics_in_chat": false,
-        "receipt": persistence_receipt
-    });
-    response
-}

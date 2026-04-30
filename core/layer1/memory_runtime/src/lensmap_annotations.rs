@@ -303,7 +303,9 @@ mod tests {
 
     #[test]
     fn strips_invisible_unicode_from_tokens() {
-        let out = parse_lensmap_annotation("@lensmap tags=me\u{200B}mory nodes=node.\u{2060}1 jot=jo\u{FEFF}t");
+        let out = parse_lensmap_annotation(
+            "@lensmap tags=me\u{200B}mory nodes=node.\u{2060}1 jot=jo\u{FEFF}t",
+        );
         assert!(out.ok);
         let ann = out.annotation.expect("annotation");
         assert_eq!(ann.tags, vec!["memory"]);

@@ -111,6 +111,14 @@ fn evidence_refs(record: &Value) -> Vec<String> {
         .unwrap_or_else(|| vec![format!("evidence://{}", clean_token(value_str(record, "id"), "control-plane-eval"))])
 }
 
+fn corroborating_deterministic_evidence_present(record: &Value) -> bool {
+    evidence_refs(record).iter().any(|ref_id| {
+        !(ref_id.starts_with("eval://")
+            || ref_id.starts_with("control_plane_eval://")
+            || ref_id.starts_with("evidence://"))
+    })
+}
+
 fn advisory_finding(record: &Value, rule: &str, severity: KernelSentinelSeverity) -> KernelSentinelFinding {
     let subject = clean_token(value_str(record, "subject"), "control_plane_eval");
     let id = clean_token(value_str(record, "id"), "control-plane-eval");
@@ -132,26 +140,36 @@ pub(super) fn build_advisory_bridge_report(records: &[Value]) -> (Value, Vec<Ker
     let mut checked_count = 0usize;
     let mut authority_claim_count = 0usize;
     let mut missing_source_reference_count = 0usize;
+    let mut advisory_only_count = 0usize;
     for record in records {
         if !source_is_control_plane_eval(record) {
             continue;
         }
         checked_count += 1;
+        let corroborated = corroborating_deterministic_evidence_present(record);
         if claims_kernel_authority(record) {
             authority_claim_count += 1;
-            findings.push(advisory_finding(
-                record,
-                "authority_claim",
-                KernelSentinelSeverity::High,
-            ));
+            if corroborated {
+                findings.push(advisory_finding(
+                    record,
+                    "authority_claim",
+                    KernelSentinelSeverity::High,
+                ));
+            } else {
+                advisory_only_count += 1;
+            }
         }
         if !source_reference_present(record) {
             missing_source_reference_count += 1;
-            findings.push(advisory_finding(
-                record,
-                "missing_source_reference",
-                KernelSentinelSeverity::Medium,
-            ));
+            if corroborated {
+                findings.push(advisory_finding(
+                    record,
+                    "missing_source_reference",
+                    KernelSentinelSeverity::Medium,
+                ));
+            } else {
+                advisory_only_count += 1;
+            }
         }
     }
     let report = json!({
@@ -159,13 +177,15 @@ pub(super) fn build_advisory_bridge_report(records: &[Value]) -> (Value, Vec<Ker
         "checked_count": checked_count,
         "authority_claim_count": authority_claim_count,
         "missing_source_reference_count": missing_source_reference_count,
+        "advisory_only_count": advisory_only_count,
         "finding_count": findings.len(),
         "constraints": {
             "control_plane_eval_authority_class": "advisory_workflow_quality",
             "may_block_release": false,
             "may_write_verdict": false,
             "may_waive_finding": false,
-            "source_reference_required": true
+            "source_reference_required": true,
+            "bridge_only_requires_corroboration_for_finding": true
         },
         "findings": findings
     });

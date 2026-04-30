@@ -74,7 +74,7 @@ fn agent_init_config_seeds_role_tailored_intro_message() {
     assert_eq!(session.status, 200);
     let messages = session
         .payload
-        .pointer("/session/sessions/0/messages")
+        .pointer("/message_window/rows")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -154,7 +154,7 @@ fn agent_init_config_infers_role_from_template_when_role_omitted() {
     .expect("session");
     let messages = session
         .payload
-        .pointer("/session/sessions/0/messages")
+        .pointer("/message_window/rows")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();

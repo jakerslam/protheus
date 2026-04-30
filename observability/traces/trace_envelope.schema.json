@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://infring.local/schemas/observability/trace_envelope.schema.json",
+  "title": "InfRing Universal Trace Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "trace_id",
+    "span_id",
+    "timestamp",
+    "source_domain",
+    "producer",
+    "authority_class",
+    "event_kind",
+    "subject",
+    "correlation"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Canonical trace ID minted once at the initial user request. All child workflow, orchestration, tool, gateway, kernel, validation, shell, Sentinel, and final-response spans for the same causal story must reuse this value unchanged. No component may remint, replace, drop, or fork this ID.",
+      "minLength": 1
+    },
+    "span_id": {
+      "type": "string",
+      "description": "Local span ID for this event within the canonical trace_id.",
+      "minLength": 1
+    },
+    "parent_span_id": {
+      "type": ["string", "null"],
+      "description": "Parent span ID. Null is allowed only for the initial user-request root span. External probes, diagnostics, validation runs, and Sentinel follow-ups must attach to a user-request or scheduled-operator-request trace.",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_domain": {
+      "type": "string",
+      "enum": [
+        "kernel",
+        "orchestration",
+        "gateway",
+        "shell",
+        "validation",
+        "observability",
+        "governance",
+        "conduit",
+        "external_target"
+      ]
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "deterministic_kernel_authority",
+        "control_plane_coordination",
+        "controlled_validation",
+        "live_observability",
+        "governance_verdict",
+        "presentation_telemetry_only",
+        "external_gateway_boundary",
+        "external_target_observation"
+      ]
+    },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "decision",
+        "state_transition",
+        "workflow_phase",
+        "tool_call",
+        "gateway_boundary",
+        "receipt",
+        "health",
+        "telemetry",
+        "validation_run",
+        "eval",
+        "benchmark",
+        "gate",
+        "runtime_finding",
+        "sentinel_observation",
+        "diagnostic_probe",
+        "error",
+        "recovery"
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["correlation_id"],
+      "properties": {
+        "correlation_id": {
+          "type": "string",
+          "description": "Stable cross-domain correlation ID. This must not replace trace_id; it exists to join legacy request/session/workflow identities under the one canonical trace.",
+          "minLength": 1
+        },
+        "initial_user_request_id": {
+          "type": ["string", "null"],
+          "description": "Identifier for the user request that minted the canonical trace_id when applicable."
+        },
+        "root_span_id": {
+          "type": ["string", "null"],
+          "description": "Span ID of the initial user-request root span or external-target root probe."
+        },
+        "request_id": {
+          "type": ["string", "null"]
+        },
+        "session_id": {
+          "type": ["string", "null"]
+        },
+        "workflow_id": {
+          "type": ["string", "null"]
+        },
+        "plan_id": {
+          "type": ["string", "null"]
+        },
+        "task_id": {
+          "type": ["string", "null"]
+        },
+        "artifact_id": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "payload_schema": {
+      "type": ["string", "null"]
+    },
+    "payload": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "receipt_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "severity": {
+      "type": ["string", "null"],
+      "enum": ["info", "low", "medium", "high", "critical", null]
+    },
+    "confidence": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

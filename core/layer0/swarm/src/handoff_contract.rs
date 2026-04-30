@@ -23,7 +23,11 @@ pub trait HandoffContract {
     type Message: SwarmMessage;
     const CONTRACT_ID: &'static str;
 
-    fn validate_handoff(_from_agent: &str, _to_agent: &str, _payload: &Self::Message) -> Result<(), HandoffError> {
+    fn validate_handoff(
+        _from_agent: &str,
+        _to_agent: &str,
+        _payload: &Self::Message,
+    ) -> Result<(), HandoffError> {
         Ok(())
     }
 }
@@ -40,7 +44,11 @@ pub struct HandoffToken<C: HandoffContract> {
 }
 
 impl<C: HandoffContract> HandoffToken<C> {
-    pub fn new(from_agent: &str, to_agent: &str, payload: C::Message) -> Result<Self, HandoffError> {
+    pub fn new(
+        from_agent: &str,
+        to_agent: &str,
+        payload: C::Message,
+    ) -> Result<Self, HandoffError> {
         let from_agent = normalized_agent(from_agent)?;
         let to_agent = normalized_agent(to_agent)?;
         C::validate_handoff(&from_agent, &to_agent, &payload)?;
@@ -60,7 +68,10 @@ impl<C: HandoffContract> HandoffToken<C> {
         C::CONTRACT_ID
     }
 
-    pub fn into_envelope(self, channel_id: &str) -> Result<TypedHandoffEnvelope<C::Message>, HandoffError> {
+    pub fn into_envelope(
+        self,
+        channel_id: &str,
+    ) -> Result<TypedHandoffEnvelope<C::Message>, HandoffError> {
         TypedHandoffEnvelope::new(
             channel_id,
             C::CONTRACT_ID,
@@ -92,7 +103,10 @@ fn digest_token<C: HandoffContract>(
 fn normalized_agent(raw: &str) -> Result<String, HandoffError> {
     let cleaned = raw.trim();
     if cleaned.is_empty() {
-        return Err(HandoffError::new("agent_id_required", "agent identifier is required"));
+        return Err(HandoffError::new(
+            "agent_id_required",
+            "agent identifier is required",
+        ));
     }
     if cleaned.len() > 120 {
         return Err(HandoffError::new(
@@ -132,7 +146,10 @@ mod tests {
             payload: &Self::Message,
         ) -> Result<(), HandoffError> {
             if payload.query.trim().is_empty() {
-                return Err(HandoffError::new("query_required", "query must be non-empty"));
+                return Err(HandoffError::new(
+                    "query_required",
+                    "query must be non-empty",
+                ));
             }
             Ok(())
         }
@@ -155,4 +172,3 @@ mod tests {
         assert_eq!(envelope.to_agent, "worker-1");
     }
 }
-

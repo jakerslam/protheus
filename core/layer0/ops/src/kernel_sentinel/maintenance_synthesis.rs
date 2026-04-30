@@ -181,9 +181,16 @@ pub fn build_maintenance_synthesis(findings: &[KernelSentinelFinding], args: &[S
     let suggestion_threshold = option_usize(args, "--suggestion-threshold", 2).max(1);
     let automation_threshold = option_usize(args, "--automation-threshold", 3).max(1);
     let clusters = build_clusters(findings);
+    let suppressed_suggestion_count = clusters
+        .values()
+        .filter(|cluster| cluster.occurrence_count >= automation_threshold)
+        .count();
     let suggestions = clusters
         .values()
-        .filter(|cluster| cluster.occurrence_count >= suggestion_threshold)
+        .filter(|cluster| {
+            cluster.occurrence_count >= suggestion_threshold
+                && cluster.occurrence_count < automation_threshold
+        })
         .map(suggestion)
         .collect::<Vec<_>>();
     let automation_candidates = clusters
@@ -207,6 +214,7 @@ pub fn build_maintenance_synthesis(findings: &[KernelSentinelFinding], args: &[S
         "v1_allowed_states": ["observe_only", "issue_draft", "suggest_patch"],
         "cluster_count": clusters.len(),
         "suggestion_count": suggestions.len(),
+        "suppressed_suggestion_count": suppressed_suggestion_count,
         "automation_candidate_count": automation_candidates.len(),
         "suggestions": suggestions,
         "automation_candidates": automation_candidates
@@ -287,6 +295,8 @@ mod tests {
             ],
             &[],
         );
+        assert_eq!(report["suggestion_count"], Value::from(0));
+        assert_eq!(report["suppressed_suggestion_count"], Value::from(1));
         assert_eq!(report["automation_candidate_count"], Value::from(1));
         assert_eq!(report["automation_candidates"][0]["state"], "issue_draft");
         assert_eq!(
@@ -316,15 +326,16 @@ mod tests {
             ],
             &[],
         );
-        assert_eq!(report["suggestion_count"], Value::from(1));
+        assert_eq!(report["suggestion_count"], Value::from(0));
+        assert_eq!(report["suppressed_suggestion_count"], Value::from(1));
         assert_eq!(report["automation_candidate_count"], Value::from(1));
         assert_eq!(
-            report["suggestions"][0]["family_fingerprint"],
+            report["automation_candidates"][0]["family_fingerprint"],
             "synthetic_user_chat_harness:misty_simulated_roundNN_failures"
         );
-        assert_eq!(report["suggestions"][0]["severity"], "high");
+        assert_eq!(report["automation_candidates"][0]["state"], "issue_draft");
         assert_eq!(
-            report["suggestions"][0]["exemplar_fingerprints"]
+            report["automation_candidates"][0]["exemplar_fingerprints"]
                 .as_array()
                 .map(Vec::len),
             Some(3)

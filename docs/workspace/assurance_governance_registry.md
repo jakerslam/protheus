@@ -1,18 +1,18 @@
 # Assurance Governance Registry
 
-Owner: Kernel / Assurance / Governance
-Status: initial seed
-Config: `tests/tooling/config/assurance_governance_registry.json`
-Schema: `tests/tooling/schemas/assurance_governance_registry.schema.json`
+Owner: Validation / Governance
+Status: physical domain owner
+Config: `validation/governance/contracts/assurance_governance_registry.json`
+Schema: `validation/schemas/assurance_governance_registry.schema.json`
 Covers: `ASSURANCE-017` through `ASSURANCE-020`
 
 ## Purpose
 
 Governance turns Validation and Observability evidence into confidence, scorecards, release verdicts, issue candidates, and retirement candidates.
 
-Scorecard derivation rules used by active Validation guards are also projected into `validation/scorecards/contracts/assurance_scorecard_derivation_contract.json` so scorecard checks have a physical Validation-domain owner while the broader Governance registry awaits a physical Governance domain migration.
+Scorecard derivation rules used by active Validation guards remain projected into `validation/scorecards/contracts/assurance_scorecard_derivation_contract.json`, while the full Governance registry now has a physical Validation-owned home under `validation/governance/**`.
 
-This means Governance is policy-complete but not yet physical-domain-complete. The active registry path under `tests/tooling/**` is a controlled compatibility location, not proof that tooling owns Governance. The migration status and debt markers are tracked in `docs/workspace/assurance_physical_domain_migration_status.md`.
+This means Governance is no longer a `tests/tooling/**` compatibility definition. Tooling may execute the guards, but the canonical verdict, promotion, and issue-candidate routing contract belongs to Validation Governance.
 
 Governance does not execute product work or apply patches. It derives verdicts from evidence and routes next actions.
 

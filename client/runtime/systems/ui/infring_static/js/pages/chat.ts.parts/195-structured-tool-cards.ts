@@ -26,6 +26,30 @@
         return String(value).slice(0, limit);
       }
     },
+    toolDisplaySummaryFromRow: function(row, fallback) {
+      var data = row && typeof row === 'object' ? row : {};
+      var text = String(data.summary || data.display_text || data.displayText || data.label || data.title || data.status || fallback || '').trim();
+      if (!text && data.blocked === true) text = 'blocked';
+      if (!text && data.is_error === true) text = 'error';
+      if (text.length > 240) return text.slice(0, 239).trimEnd() + '\u2026';
+      return text;
+    },
+    toolDetailRefFromRow: function(row, identity, kind) {
+      var data = row && typeof row === 'object' ? row : {};
+      var suffix = String(kind || 'detail').trim() || 'detail';
+      return String(
+        data[kind + '_ref'] ||
+        data.detail_ref ||
+        data.tool_detail_ref ||
+        data.receipt_ref ||
+        data.receipt_id ||
+        data.attempt_id ||
+        (identity && identity.attempt_id) ||
+        data.id ||
+        (identity && identity.id) ||
+        ''
+      ).trim() || suffix;
+    },
     normalizeToolContentType: function(value) {
       return typeof value === 'string' ? String(value).toLowerCase() : '';
     },
@@ -108,8 +132,9 @@
         name: row.name || row.tool || 'tool',
         running: false,
         expanded: false,
-        input: this.stringifyStructuredToolValue(row.input || row.arguments || row.args || '', 16000),
-        result: this.stringifyStructuredToolValue(row.result || row.output || row.summary || '', 24000),
+        summary: this.toolDisplaySummaryFromRow(row, ''),
+        input_ref: this.toolDetailRefFromRow(row, identity, 'input'),
+        result_ref: this.toolDetailRefFromRow(row, identity, 'result'),
         is_error: !!(row.is_error || row.error || row.blocked),
         blocked: row.blocked === true || String(row.status || '').toLowerCase() === 'blocked',
         status: String(row.status || '').trim().toLowerCase(),
@@ -126,19 +151,12 @@
       var rawStatus = String(attempt.status || attempt.outcome || '').trim().toLowerCase();
       var blocked = rawStatus === 'blocked' || rawStatus === 'policy_denied';
       var isError = !blocked && !!rawStatus && rawStatus !== 'ok';
-      var normalizedArgs = envelope.normalized_result && envelope.normalized_result.normalized_args
-        ? envelope.normalized_result.normalized_args
-        : null;
-      var input = '';
-      try {
-        if (normalizedArgs && typeof normalizedArgs === 'object') input = JSON.stringify(normalizedArgs);
-      } catch (_) {}
       var reason = String(envelope.error || attempt.reason || rawStatus || '').trim();
       var backend = String(attempt.backend || '').trim().replace(/_/g, ' ');
-      var result = reason;
-      if (!result && backend) result = 'Attempted via ' + backend;
-      if (!result && rawStatus === 'ok') result = 'Attempt succeeded';
-      if (!result) result = 'Attempt recorded';
+      var summary = reason;
+      if (!summary && backend) summary = 'Attempted via ' + backend;
+      if (!summary && rawStatus === 'ok') summary = 'Attempt succeeded';
+      if (!summary) summary = 'Attempt recorded';
       var identity = this.toolAttemptIdentity({
         name: toolName,
         attempt_id: attempt.attempt_id || '',
@@ -150,8 +168,9 @@
         name: toolName,
         running: false,
         expanded: false,
-        input: input,
-        result: result,
+        summary: summary,
+        input_ref: this.toolDetailRefFromRow(envelope, identity, 'input'),
+        result_ref: this.toolDetailRefFromRow(envelope, identity, 'result'),
         is_error: isError,
         blocked: blocked,
         status: blocked ? 'blocked' : (rawStatus || (isError ? 'error' : 'ok')),
@@ -178,8 +197,9 @@
             name: String(seed.name || seed.tool || 'tool').trim() || 'tool',
             running: false,
             expanded: false,
-            input: '',
-            result: '',
+            summary: '',
+            input_ref: '',
+            result_ref: '',
             is_error: false,
             blocked: false,
             status: '',
@@ -203,7 +223,8 @@
             attempt_id: this.resolveToolUseId(block),
             attempt_sequence: rows.length + 1
           }, rows.length);
-          if (!callRow.input) callRow.input = this.stringifyStructuredToolValue(this.resolveToolBlockArgs(block), 16000);
+          if (!callRow.input_ref) callRow.input_ref = this.resolveToolUseId(block) || callRow.id;
+          if (!callRow.summary) callRow.summary = 'Tool call requested';
           continue;
         }
         if (!this.isToolResultContentType(block.type)) continue;
@@ -225,7 +246,8 @@
           ),
           24000
         );
-        if (!resultRow.result && resultText) resultRow.result = resultText;
+        if (!resultRow.result_ref) resultRow.result_ref = this.resolveToolUseId(block) || resultRow.id;
+        if (!resultRow.summary && resultText) resultRow.summary = block.error ? 'Tool result error' : 'Tool result received';
         var rawStatus = String(block.status || '').trim().toLowerCase();
         var blocked = block.blocked === true || rawStatus === 'blocked' || rawStatus === 'policy_denied';
         var isError = block.is_error === true || this.normalizeToolContentType(block.type) === 'tool_result_error' || (!!rawStatus && rawStatus !== 'ok' && !blocked);
@@ -250,8 +272,9 @@
           var sameUnnamedTool = !candidate.attempt_id && String(current.name || '').toLowerCase() === String(candidate.name || '').toLowerCase();
           var adoptUnnamedBase = !sameAttempt && !current.attempt_id && !claimedBaseIndexes[j] && String(current.name || '').toLowerCase() === String(candidate.name || '').toLowerCase();
           if (!sameAttempt && !sameUnnamedTool && !adoptUnnamedBase) continue;
-          if (!current.input && candidate.input) current.input = candidate.input;
-          if ((!current.result || !String(current.result).trim()) && candidate.result) current.result = candidate.result;
+          if (!current.input_ref && candidate.input_ref) current.input_ref = candidate.input_ref;
+          if (!current.result_ref && candidate.result_ref) current.result_ref = candidate.result_ref;
+          if (!current.summary && candidate.summary) current.summary = candidate.summary;
           if (candidate.blocked) current.blocked = true;
           if (candidate.status) current.status = candidate.status;
           if (candidate.is_error) current.is_error = true;
@@ -270,16 +293,11 @@
     },
     parseStructuredToolInput: function(tool) {
       var row = tool && typeof tool === 'object' ? tool : {};
-      var input = row.input;
-      if (input && typeof input === 'object' && !Array.isArray(input)) return input;
-      var raw = typeof input === 'string' ? String(input).trim() : '';
-      if (!raw || raw.charAt(0) !== '{') return {};
-      try {
-        var parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-      } catch (_) {
-        return {};
-      }
+      var receipt = row.tool_attempt_receipt && typeof row.tool_attempt_receipt === 'object' ? row.tool_attempt_receipt : null;
+      var normalized = receipt && receipt.normalized_result && receipt.normalized_result.normalized_args
+        ? receipt.normalized_result.normalized_args
+        : null;
+      return normalized && typeof normalized === 'object' && !Array.isArray(normalized) ? normalized : {};
     },
     toolMetaCandidates: function(tool) {
       var input = this.parseStructuredToolInput(tool);
@@ -333,7 +351,7 @@
           merged.push(this.normalizeResponseToolCard({
             id: 'completion-step-' + (si + 1) + '-' + stepName,
             name: stepName,
-            result: stepStatus ? ('Missing tool_result block; last known status: ' + stepStatus) : '',
+            summary: stepStatus ? ('Missing tool_result block; last known status: ' + stepStatus) : '',
             is_error: !!stepSeed.is_error,
             status: stepStatus ? stepStatus.toLowerCase() : ''
           }, si, 'completion'));
@@ -360,8 +378,8 @@
         if (!step) continue;
         var statusText = String(step.status || '').trim();
         if (!row.status && statusText) row.status = statusText.toLowerCase();
-        if ((!row.result || !String(row.result).trim()) && statusText) {
-          row.result = 'Missing tool_result block; last known status: ' + statusText;
+        if ((!row.summary || !String(row.summary).trim()) && statusText) {
+          row.summary = 'Missing tool_result block; last known status: ' + statusText;
         }
         if (step.is_error === true && !row.blocked) row.is_error = true;
       }
@@ -422,9 +440,9 @@
       var actionableWeb = rows.find(function(tool) {
         if (!tool || tool.running || !this.isWebLikeToolName(tool.name || '')) return false;
         return (
-          this.textMentionsContextGuard(tool.result || '') ||
-          this.textLooksNoFindingsPlaceholder(tool.result || '') ||
-          this.textLooksToolAckWithoutFindings(tool.result || '')
+          this.textMentionsContextGuard(tool.summary || '') ||
+          this.textLooksNoFindingsPlaceholder(tool.summary || '') ||
+          this.textLooksToolAckWithoutFindings(tool.summary || '')
         );
       }, this);
       if (actionableWeb) {

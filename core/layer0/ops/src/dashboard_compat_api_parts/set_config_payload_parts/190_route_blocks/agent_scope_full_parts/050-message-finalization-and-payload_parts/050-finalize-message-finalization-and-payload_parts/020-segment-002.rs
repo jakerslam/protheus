@@ -49,97 +49,14 @@
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
-    let (repaired_response, repair_outcome, repair_tooling_used, repair_comparative_used) =
-        repair_visible_response_after_workflow(
-            message,
-            &finalized_response,
-            &initial_draft_response,
-            &latest_assistant_text,
-            &response_tools,
-            inline_tools_allowed,
-            memory_fallback.as_deref(),
-        );
-    if repair_outcome != "unchanged" {
-        visible_response_repaired = true;
-        final_fallback_used = true;
-        tooling_fallback_used |= repair_tooling_used;
-        comparative_fallback_used |= repair_comparative_used;
-        let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(message, repaired_response, &response_tools);
-        finalized_response = contract_finalized;
-        tool_completion = contract_report;
-        finalization_outcome = merge_response_outcomes(&finalization_outcome, &repair_outcome, 200);
-        finalization_outcome =
-            merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
-    }
     tool_completion = enrich_tool_completion_receipt(tool_completion, &response_tools);
     response_text = finalized_response;
     if response_text.trim().is_empty() {
-        let prior_manual_toolbox_pending_tool_request = response_workflow
-            .get("manual_toolbox_pending_tool_request")
-            .filter(|value| value.is_object())
-            .cloned();
-        let mut recovery_events = workflow_system_events.clone();
-        recovery_events.push(turn_workflow_event(
-            "empty_final_response_menu_recovery",
-            json!({
-                "selection_authority": "llm_only",
-                "automatic_execution_allowed": false,
-                "prior_finalization_outcome": finalization_outcome.clone(),
-                "latent_tool_candidates": latent_tool_candidates.clone()
-            }),
-        ));
-        let (recovery_provider, recovery_model) =
-            visible_response_recovery_model(&provider, &model);
-        let mut recovered_workflow = run_turn_workflow_final_response(
-            root,
-            &recovery_provider,
-            &recovery_model,
-            &active_messages,
-            message,
-            &workflow_mode,
-            &response_tools,
-            &recovery_events,
-            "",
-            &latest_assistant_text,
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "empty_final_response_no_system_retry",
+            220,
         );
-        recovered_workflow["visible_response_recovery_model"] = json!({
-            "provider": recovery_provider,
-            "model": recovery_model
-        });
-        if recovered_workflow
-            .get("manual_toolbox_pending_tool_request")
-            .filter(|value| value.is_object())
-            .is_none()
-        {
-            if let Some(pending_request) = prior_manual_toolbox_pending_tool_request {
-                recovered_workflow["manual_toolbox_pending_tool_request"] = pending_request;
-            }
-        }
-        let recovered_text = clean_chat_text(
-            recovered_workflow
-                .get("response")
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-            32_000,
-        );
-        if workflow_final_response_used(&recovered_workflow) && !recovered_text.trim().is_empty() {
-            let (contract_finalized, contract_report, contract_outcome) =
-                enforce_user_facing_finalization_contract(message, recovered_text, &response_tools);
-            if !contract_finalized.trim().is_empty() {
-                response_workflow = recovered_workflow;
-                response_text = contract_finalized;
-                tool_completion = enrich_tool_completion_receipt(contract_report, &response_tools);
-                workflow_used = true;
-                finalization_outcome = merge_response_outcomes(
-                    &finalization_outcome,
-                    "empty_final_response_recovered_by_llm_menu",
-                    220,
-                );
-                finalization_outcome =
-                    merge_response_outcomes(&finalization_outcome, &contract_outcome, 220);
-            }
-        }
     }
     let web_tool_attempted = response_tools_include_web_attempt(&response_tools);
     let web_tool_blocked = response_tools_web_blocked(&response_tools);

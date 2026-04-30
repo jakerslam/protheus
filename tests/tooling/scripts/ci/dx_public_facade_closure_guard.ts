@@ -3,7 +3,7 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-DX-PUBLIC-FACADE-CLOSURE-001';
 const LEGACY_SRS_ID = 'V11-DX-002';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const OUT_JSON = 'core/local/artifacts/dx_public_facade_closure_guard_current.json';
 const OUT_MARKDOWN = 'local/workspace/reports/DX_PUBLIC_FACADE_CLOSURE_GUARD_CURRENT.md';

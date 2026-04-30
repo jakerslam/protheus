@@ -14,8 +14,11 @@ use std::path::Path;
 
 mod capability_grants;
 mod advisory_bridge;
+mod artifact_states;
 mod boundedness;
+mod failure_citations;
 mod gateway_isolation;
+mod guard_consistency;
 mod helpers;
 mod nexus_boundaries;
 mod receipt_completeness;
@@ -23,10 +26,17 @@ mod source_catalog;
 mod state_transitions;
 mod trajectories;
 use advisory_bridge::build_advisory_bridge_report;
+use artifact_states::{artifact_state_counts, build_source_report};
 use boundedness::build_boundedness_report;
 use capability_grants::build_capability_grant_report;
+use failure_citations::append_failure_citations;
 use gateway_isolation::build_gateway_isolation_report;
-use helpers::{bool_flag, deserialize_optional_category, deserialize_optional_severity, normalize_key, option_path, option_u64};
+use guard_consistency::{build_guard_consistency_report, cap_uncorroborated_critical_findings_against_authoritative_pass};
+use helpers::{
+    bool_flag, deserialize_optional_category, deserialize_optional_severity,
+    malformed_count_by_key, normalize_key, option_path, option_u64,
+    record_freshness_age_seconds,
+};
 use nexus_boundaries::build_nexus_boundary_report;
 use receipt_completeness::build_receipt_completeness_report;
 use source_catalog::source_configs;
@@ -147,20 +157,21 @@ fn normalize_record(
     let source = source_key(config.source);
     let authority = authority_rule(config.source);
     let open_finding = authority.may_open_finding && should_open_finding(&record);
+    let id = clean_token(record.id.clone(), &format!("{source}:{line}"));
+    let mut evidence = if record.evidence.is_empty() {
+        vec![format!("{}:{line}", path.display())]
+    } else {
+        record.evidence.clone()
+    };
+    append_failure_citations(source, &id, &record, &mut evidence);
     let subject = clean_token(record.subject, "unknown_subject");
     let kind = clean_token(record.kind, "evidence_observation");
-    let id = clean_token(record.id.clone(), &format!("{source}:{line}"));
     let category = record.category.unwrap_or(config.default_category);
     let severity = cap_advisory_severity(
         config.source,
         record.severity.unwrap_or(config.default_severity),
     );
     let fingerprint = clean_token(record.fingerprint, &format!("{source}:{subject}:{kind}"));
-    let evidence = if record.evidence.is_empty() {
-        vec![format!("{}:{line}", path.display())]
-    } else {
-        record.evidence
-    };
     let details = merged_details(record.details);
     let normalized = json!({
         "source": source,
@@ -230,37 +241,6 @@ fn source_required_for_observation(config: EvidenceSourceConfig) -> bool {
     authority_rule(config.source).authority_class != KernelSentinelAuthorityClass::PresentationTelemetryOnly
 }
 
-fn malformed_count_by_key(records: &[Value], key: &str) -> BTreeMap<String, usize> {
-    let mut out = BTreeMap::<String, usize>::new();
-    for record in records {
-        let value = record
-            .get(key)
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|raw| !raw.is_empty())
-            .unwrap_or("unknown")
-            .to_string();
-        *out.entry(value).or_insert(0) += 1;
-    }
-    out
-}
-
-fn record_freshness_age_seconds(record: &Value) -> Option<u64> {
-    let details = record.get("details").unwrap_or(&Value::Null);
-    ["freshness_age_seconds", "age_seconds", "source_artifact_age_seconds"]
-        .iter()
-        .find_map(|key| {
-            details
-                .get(*key)
-                .or_else(|| record.get(*key))
-                .and_then(|raw| {
-                    raw.as_u64()
-                        .or_else(|| raw.as_i64().and_then(|value| u64::try_from(value).ok()))
-                        .or_else(|| raw.as_str().and_then(|text| text.trim().parse::<u64>().ok()))
-                })
-        })
-}
-
 pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSentinelEvidenceIngestion {
     let evidence_dir = option_path(args, "--evidence-dir", state_dir.join("evidence"));
     let require_evidence = bool_flag(args, "--require-evidence");
@@ -290,16 +270,19 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
             if require_evidence && source_required {
                 findings.push(missing_required_finding(config, &path));
             }
-            source_reports.push(json!({
-                "source": source,
-                "path": path,
-                "file_name": config.file_name,
-                "present": false,
-                "required": require_evidence && source_required,
-                "required_for_observation": source_required,
-                "collector_family": config.collector_family,
-                "authority_class": authority_rule(config.source).authority_class
-            }));
+            source_reports.push(build_source_report(
+                source,
+                &path,
+                config.file_name,
+                require_evidence && source_required,
+                source_required,
+                config.collector_family,
+                json!(authority_rule(config.source).authority_class),
+                0,
+                0,
+                0,
+                false,
+            ));
             continue;
         }
         present_source_count += 1;
@@ -310,6 +293,8 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
         }
         let raw = fs::read_to_string(&path).unwrap_or_default();
         let mut record_count = 0usize;
+        let mut malformed_record_count_for_source = 0usize;
+        let mut failed_record_count_for_source = 0usize;
         for (idx, line) in raw.lines().enumerate() {
             let trimmed = line.trim();
             if trimmed.is_empty() {
@@ -318,34 +303,42 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
             match serde_json::from_str::<RawEvidenceRecord>(trimmed) {
                 Ok(record) => {
                     record_count += 1;
+                    if should_open_finding(&record) {
+                        failed_record_count_for_source += 1;
+                    }
                     let (normalized, finding) = normalize_record(config, &path, idx + 1, record);
                     normalized_records.push(normalized);
                     if let Some(finding) = finding {
                         findings.push(finding);
                     }
                 }
-                Err(err) => malformed_records.push(json!({
-                    "source": source,
-                    "path": path,
-                    "file_name": config.file_name,
-                    "collector_family": config.collector_family,
-                    "source_kind": "kernel_sentinel_evidence",
-                    "line": idx + 1,
-                    "error": err.to_string()
-                })),
+                Err(err) => {
+                    malformed_record_count_for_source += 1;
+                    malformed_records.push(json!({
+                        "source": source,
+                        "path": path,
+                        "file_name": config.file_name,
+                        "collector_family": config.collector_family,
+                        "source_kind": "kernel_sentinel_evidence",
+                        "line": idx + 1,
+                        "error": err.to_string()
+                    }))
+                }
             }
         }
-        source_reports.push(json!({
-            "source": source,
-            "path": path,
-            "file_name": config.file_name,
-            "present": true,
-            "required": require_evidence && source_required,
-            "required_for_observation": source_required,
-            "record_count": record_count,
-            "collector_family": config.collector_family,
-            "authority_class": authority_rule(config.source).authority_class
-        }));
+        source_reports.push(build_source_report(
+            source,
+            &path,
+            config.file_name,
+            require_evidence && source_required,
+            source_required,
+            config.collector_family,
+            json!(authority_rule(config.source).authority_class),
+            record_count,
+            malformed_record_count_for_source,
+            failed_record_count_for_source,
+            true,
+        ));
     }
 
     let (receipt_completeness_report, receipt_findings) =
@@ -366,16 +359,18 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
     let (gateway_isolation_report, gateway_isolation_findings) =
         build_gateway_isolation_report(&normalized_records);
     findings.extend(gateway_isolation_findings);
-    let (advisory_bridge_report, advisory_bridge_findings) =
-        build_advisory_bridge_report(&normalized_records);
+    let (advisory_bridge_report, advisory_bridge_findings) = build_advisory_bridge_report(&normalized_records);
     findings.extend(advisory_bridge_findings);
     let (trajectory_report, trajectory_findings) = build_trajectory_report(&normalized_records);
     findings.extend(trajectory_findings);
+    cap_uncorroborated_critical_findings_against_authoritative_pass(&normalized_records, &mut findings);
+    let guard_consistency_report = build_guard_consistency_report(&normalized_records, &findings);
     let normalized_record_count = normalized_records.len();
     let malformed_record_count = malformed_records.len();
     let malformed_by_source = malformed_count_by_key(&malformed_records, "source");
     let malformed_by_path = malformed_count_by_key(&malformed_records, "path");
     let malformed_by_file_name = malformed_count_by_key(&malformed_records, "file_name");
+    let artifact_state_rollup = artifact_state_counts(&source_reports);
     let freshness_ages = normalized_records
         .iter()
         .filter_map(record_freshness_age_seconds)
@@ -406,6 +401,7 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
         "data_starved": normalized_record_count == 0,
         "partial_evidence": normalized_record_count > 0 && missing_required_source_count > 0,
         "malformed_evidence": malformed_record_count > 0,
+        "artifact_state_counts": artifact_state_rollup,
         "malformed_by_source": malformed_by_source,
         "malformed_by_path": malformed_by_path,
         "malformed_by_file_name": malformed_by_file_name,
@@ -433,6 +429,7 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
             "expected_optional_source_count": present_optional_source_count + missing_optional_source_count,
             "normalized_record_count": normalized_record_count,
             "malformed_record_count": malformed_record_count,
+            "artifact_state_counts": artifact_state_rollup,
             "stale_record_count": stale_record_count,
             "freshness_observed_record_count": freshness_observed_record_count,
             "stale_evidence_seconds": stale_evidence_seconds,
@@ -450,6 +447,7 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
         "gateway_isolation": gateway_isolation_report,
         "advisory_bridge": advisory_bridge_report,
         "trajectories": trajectory_report,
+        "guard_consistency": guard_consistency_report,
         "normalized_record_count": normalized_record_count,
         "finding_count": findings.len(),
         "malformed_record_count": malformed_record_count,
@@ -466,6 +464,7 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
             "present_optional_source_count": present_optional_source_count,
             "missing_optional_source_count": missing_optional_source_count,
             "malformed_record_count": malformed_record_count,
+            "artifact_state_counts": artifact_state_rollup,
             "malformed_by_source": malformed_by_source,
             "malformed_by_path": malformed_by_path,
             "malformed_by_file_name": malformed_by_file_name,

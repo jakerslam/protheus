@@ -145,11 +145,10 @@ pub fn build_agent_permission_contract_report(
     let clamp_ok = manifest_receipts.iter().all(|receipt| {
         receipt.allowed_count > 0
             && receipt.blocked_count > 0
-            && receipt
-                .blocked_key_lineage
-                .iter()
-                .all(|lineage| lineage.reason == "outside_parent_permission_root"
-                    || lineage.reason == "missing_allowed_patch_prefix")
+            && receipt.blocked_key_lineage.iter().all(|lineage| {
+                lineage.reason == "outside_parent_permission_root"
+                    || lineage.reason == "missing_allowed_patch_prefix"
+            })
     });
     let receipt_ok = manifest_receipts.iter().all(|receipt| {
         receipt.requested_receipt.starts_with("sha256:")
@@ -157,17 +156,20 @@ pub fn build_agent_permission_contract_report(
             && receipt.parent_manifest_receipt.starts_with("sha256:")
             && receipt.telemetry["permissions_enforcement_mode"] == policy.enforcement_mode
     });
-    let telemetry_ok = policy.manifests.iter().zip(manifest_receipts.iter()).all(
-        |(manifest, receipt)| {
-            manifest.required_telemetry_fields.iter().all(|field| {
-                receipt
-                    .telemetry
-                    .get(field)
-                    .map(|value| !value.is_null())
-                    .unwrap_or(false)
-            })
-        },
-    );
+    let telemetry_ok =
+        policy
+            .manifests
+            .iter()
+            .zip(manifest_receipts.iter())
+            .all(|(manifest, receipt)| {
+                manifest.required_telemetry_fields.iter().all(|field| {
+                    receipt
+                        .telemetry
+                        .get(field)
+                        .map(|value| !value.is_null())
+                        .unwrap_or(false)
+                })
+            });
     let lineage_ok = manifest_receipts.iter().all(|receipt| {
         receipt.blocked_key_lineage.iter().all(|lineage| {
             !lineage.requested_key.is_empty()
@@ -176,7 +178,10 @@ pub fn build_agent_permission_contract_report(
         })
     });
     let checks = vec![
-        check_row("agent_permission_enforcement_mode_fail_closed", enforcement_ok),
+        check_row(
+            "agent_permission_enforcement_mode_fail_closed",
+            enforcement_ok,
+        ),
         check_row("agent_permission_parent_bounded_patch_clamp", clamp_ok),
         check_row("agent_permission_manifest_receipt_contract", receipt_ok),
         check_row("agent_permission_required_telemetry_contract", telemetry_ok),
@@ -235,14 +240,16 @@ fn blocked_patch_key_lineage(
         .requested_patch_keys
         .iter()
         .filter_map(|key| {
-            patch_key_allowed(manifest, key).err().map(|reason| BlockedPermissionKeyLineage {
-                requested_key: key.clone(),
-                agent_id: manifest.agent_id.clone(),
-                parent_agent_id: manifest.parent_agent_id.clone(),
-                parent_permission_root: manifest.parent_permission_root.clone(),
-                nearest_allowed_prefix: nearest_allowed_prefix(manifest, key),
-                reason,
-            })
+            patch_key_allowed(manifest, key)
+                .err()
+                .map(|reason| BlockedPermissionKeyLineage {
+                    requested_key: key.clone(),
+                    agent_id: manifest.agent_id.clone(),
+                    parent_agent_id: manifest.parent_agent_id.clone(),
+                    parent_permission_root: manifest.parent_permission_root.clone(),
+                    nearest_allowed_prefix: nearest_allowed_prefix(manifest, key),
+                    reason,
+                })
         })
         .collect()
 }
@@ -262,7 +269,11 @@ fn patch_key_allowed(manifest: &AgentPermissionManifest, key: &str) -> Result<()
 }
 
 fn under_prefix(key: &str, prefix: &str) -> bool {
-    key == prefix || key.strip_prefix(prefix).map(|tail| tail.starts_with('.')).unwrap_or(false)
+    key == prefix
+        || key
+            .strip_prefix(prefix)
+            .map(|tail| tail.starts_with('.'))
+            .unwrap_or(false)
 }
 
 fn nearest_allowed_prefix(manifest: &AgentPermissionManifest, key: &str) -> Option<String> {
@@ -331,14 +342,15 @@ mod tests {
     #[test]
     fn manifest_receipts_include_enforcement_mode_and_lineage() {
         let policy = policy();
-        let report = build_agent_permission_contract_report(
-            DEFAULT_AGENT_PERMISSION_POLICY_PATH,
-            &policy,
-        );
+        let report =
+            build_agent_permission_contract_report(DEFAULT_AGENT_PERMISSION_POLICY_PATH, &policy);
         assert!(report.ok);
         let receipt = &report.manifest_receipts[0];
         assert_eq!(receipt.enforcement_mode, "fail_closed");
-        assert_eq!(receipt.telemetry["permissions_enforcement_mode"], "fail_closed");
+        assert_eq!(
+            receipt.telemetry["permissions_enforcement_mode"],
+            "fail_closed"
+        );
         assert!(receipt.manifest_receipt.starts_with("sha256:"));
         assert!(!receipt.blocked_key_lineage.is_empty());
     }
@@ -346,10 +358,8 @@ mod tests {
     #[test]
     fn required_telemetry_fields_are_fail_closed() {
         let policy = policy();
-        let report = build_agent_permission_contract_report(
-            DEFAULT_AGENT_PERMISSION_POLICY_PATH,
-            &policy,
-        );
+        let report =
+            build_agent_permission_contract_report(DEFAULT_AGENT_PERMISSION_POLICY_PATH, &policy);
         let telemetry = &report.manifest_receipts[0].telemetry;
         for field in &policy.manifests[0].required_telemetry_fields {
             assert!(telemetry.get(field).is_some(), "missing {field}");

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "owner": "validation/tests",
+  "purpose": "Fail governance when a test, gate, or suite is introduced without lifecycle registration, harness-only declaration, or explicit time-bounded exemption.",
+  "registered_registry_path": "validation/tests/contracts/validation_test_lifecycle_registry.json",
+  "suite_manifest_path": "validation/tests/contracts/test_suite_lifecycle_manifests.json",
+  "harness_only_gate_ids": [],
+  "exemptions": [],
+  "required_exemption_fields": [
+    "gate_id",
+    "owner",
+    "reason",
+    "expires_after"
+  ],
+  "rules": [
+    "Every tooling gate must be present in the lifecycle registry unless it is declared harness_only or explicitly exempted.",
+    "Harness-only gates must not own Validation definitions or runtime truth.",
+    "Exemptions require owner, reason, and YYYY-MM-DD expiry.",
+    "Expired exemptions fail closed."
+  ]
+}

@@ -1,9 +1,9 @@
 # InfRing Architecture
 
 InfRing is built as a Rust-first deterministic Kernel runtime with an explicit split between:
-- Authoritative Kernel (`core/**`)
+- Authoritative Kernel (`core/**` path compatibility)
 - Orchestration Control Plane (`orchestration/**`)
-- Presentation Shell (repo path `client/**`)
+- Presentation Shell (`client/**` path compatibility)
 
 Canonical architecture contract:
 - `docs/SYSTEM-ARCHITECTURE-SPECS.md` (InfRing Layering Specification v1.0)
@@ -15,9 +15,20 @@ Boundary axiom:
 - Shell decides how it is shown and collected.
 
 Transition note (docs-first):
-- The architecture defines orchestration as the Cognition Control Plane.
+- The canonical coordination subsystem name is Orchestration Control Plane.
+- `Tower`, `Cognition Control Plane`, and `Cognition Plane (Orchestration Control Plane)` are non-canonical historical/metaphor terms, not active ownership labels.
 - Internal code/path naming transitions remain incremental where path stability is required.
 - Shell canonicalization notes: `docs/workspace/shell_transition_notes.md`.
+
+Canonical ownership vocabulary:
+
+| Concept owner | Path / compatibility wording | Rule |
+|---|---|---|
+| Kernel | `core/**`, historical `Core` | Use Kernel for authority/truth. Use `core/**` only for filesystem paths. |
+| Orchestration Control Plane | `orchestration/**`, rejected metaphor `Tower` | Use Orchestration Control Plane for coordination ownership. Do not use Tower as a subsystem name. |
+| Shell | `client/**`, historical `Client` | Use Shell for presentation ownership. Use `client/**` only for filesystem paths. |
+| Gateways | `adapters/**`, historical `Adapters` | Use Gateways for external membrane ownership. Use `adapters/**` only for filesystem paths. |
+| Assurance | `validation/**`, `observability/**`, governance registries | Validation judges controlled behavior; Observability watches live behavior; Governance derives gates/verdicts. |
 
 ## InfRing Direction
 
@@ -38,9 +49,9 @@ InfRing is explicitly modeled as a substrate-independent metakernel with three p
    - `core/layer1/` - Policy Engine + deterministic receipts
    - `core/layer2/` - Scheduling + execution orchestration
    - `core/layer3/` - OS Personality Template (traditional OS growth layer)
-2. Cognition plane (`planes/cognition`, implemented across `orchestration/` and `client/`):
+2. Cognition plane (`planes/cognition`, historical broad plane label implemented across `orchestration/` and `client/`):
    - Orchestration Control Plane: decomposition, coordination, sequencing, recovery, and result shaping/packaging (among other things in non-canonical coordination).
-   - Presentation Shell: rendering, input, UX shells, and presentation-local state.
+   - Presentation Shell: rendering, input, UX shells, and presentation-local state. `client/**` remains a path name, not a conceptual owner.
 3. Substrate plane (`planes/substrate`): runtime/backend descriptors for CPU/MCU/GPU/NPU/QPU/neural channels with explicit degradation contracts and fallback declarations.
 
 Hard boundary:
@@ -68,7 +79,7 @@ Driver analogy:
 
 - `core/` is the drivetrain, brakes, and stability control.
 - `orchestration/` is the driving control plane (decomposition + pacing + recovery + packaging).
-- `client/` is the shell surface (steering wheel, dashboard, and infotainment).
+- `client/` is the Shell path compatibility surface (steering wheel, dashboard, and infotainment).
 - Conduit is the harness between orchestration and Kernel boundaries.
 
 REQ-27 authority implementation:
@@ -95,7 +106,7 @@ Migration note:
 | Plane | Contract Location | Implementation Location | Mutable Runtime Location |
 |---|---|---|---|
 | Safety | `planes/safety/` | `core/layer_minus_one/`, `core/layer0/`, `core/layer1/`, `core/layer2/`, `core/layer3/` | `core/local/` |
-| Cognition | `planes/cognition/` | `orchestration/` (coordination) + `client/` (shell runtime path: `systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
+| Cognition | `planes/cognition/` | `orchestration/` (Orchestration Control Plane coordination) + `client/` (Shell runtime path compatibility: `systems`, `lib`, `config`, `packages`, `tools`, `tests`, `observability`, `apps`, `developer`) | `client/runtime/local/` + `core/local/` (receipted orchestration artifacts) |
 | Substrate | `planes/substrate/` | Template gateways in `core/layer_minus_one/` + capability descriptors under `planes/substrate/` | `core/local/` + `client/runtime/local/` |
 
 Additional split rules:
@@ -204,7 +215,7 @@ flowchart TB
     L2["Layer 2: Scheduling + Execution"]
     L3["Layer 3: OS Personality Template"]
     CONDUIT["Conduit + Scrambler"]
-    ORCH["Cognition Plane (Orchestration Control Plane)"]
+    ORCH["Orchestration Control Plane"]
     UI["Presentation Shell Surface"]
     CLI["Operator Surface (infring/infringctl/infringd)"]
     RECEIPTS["Deterministic Receipts + State Artifacts"]

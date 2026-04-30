@@ -1,4 +1,5 @@
 include!("190_route_blocks/primary_a.rs");
+include!("190_route_blocks/sidebar_fast.rs");
 include!("190_route_blocks/primary_b.rs");
 include!("190_route_blocks/primary_c.rs");
 

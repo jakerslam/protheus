@@ -146,7 +146,10 @@ impl ProviderClientRegistry {
         self.clients.keys().cloned().collect()
     }
 
-    pub fn from_provider_id(&self, provider_id: &str) -> Result<Arc<dyn ProviderClient>, ProviderError> {
+    pub fn from_provider_id(
+        &self,
+        provider_id: &str,
+    ) -> Result<Arc<dyn ProviderClient>, ProviderError> {
         if let Some(provider) = self.clients.get(provider_id) {
             return Ok(provider.clone());
         }
@@ -175,4 +178,3 @@ impl ProviderClientRegistry {
         self.from_env(&env_map, "INFRING_PROVIDER")
     }
 }
-

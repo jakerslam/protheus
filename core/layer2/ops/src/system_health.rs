@@ -103,7 +103,20 @@ pub fn default_system_signals() -> Vec<SystemSignals> {
         signals("degraded", 0, 12, 3, 9, 2_500, 1, false, 0, 0, true, true),
         signals("recovering", 0, 3, 0, 2, 250, 0, true, 2, 0, true, true),
         signals("critical", 2, 92, 8, 20, 9_000, 2, false, 0, 1, false, true),
-        signals("rollback_blocked", 0, 8, 2, 7, 1_500, 0, false, 0, 0, true, false),
+        signals(
+            "rollback_blocked",
+            0,
+            8,
+            2,
+            7,
+            1_500,
+            0,
+            false,
+            0,
+            0,
+            true,
+            false,
+        ),
     ]
 }
 
@@ -177,10 +190,18 @@ pub fn detect_anomalies(
         ));
     }
     if signals.retry_count_p95 >= policy.retry_spike_threshold {
-        anomalies.push(anomaly("retry_spike", "medium", "retry_p95_threshold_exceeded"));
+        anomalies.push(anomaly(
+            "retry_spike",
+            "medium",
+            "retry_p95_threshold_exceeded",
+        ));
     }
     if signals.latency_p95_ms >= policy.latency_anomaly_p95_ms {
-        anomalies.push(anomaly("latency_anomaly", "medium", "latency_p95_threshold_exceeded"));
+        anomalies.push(anomaly(
+            "latency_anomaly",
+            "medium",
+            "latency_p95_threshold_exceeded",
+        ));
     }
     if signals.unknown_failure_clusters > 0 {
         anomalies.push(anomaly(
@@ -231,19 +252,38 @@ pub fn build_system_health_guard_report(
         .map(|signals| derive_system_health_status(policy, signals))
         .collect::<Vec<_>>();
     let gateway_capabilities = gateway_capability_graph(policy);
-    let states = statuses.iter().map(|row| row.status.as_str()).collect::<Vec<_>>();
+    let states = statuses
+        .iter()
+        .map(|row| row.status.as_str())
+        .collect::<Vec<_>>();
     let anomalies = statuses
         .iter()
-        .flat_map(|row| row.anomalies.iter().map(|anomaly| anomaly.anomaly_type.as_str()))
+        .flat_map(|row| {
+            row.anomalies
+                .iter()
+                .map(|anomaly| anomaly.anomaly_type.as_str())
+        })
         .collect::<Vec<_>>();
     let status_model_ok = ["healthy", "degraded", "recovering", "critical"]
         .iter()
         .all(|state| states.contains(state));
-    let derivation_ok = statuses.iter().any(|row| row.reasons.iter().any(|r| r == "eval_regression_signal"))
-        && statuses.iter().any(|row| row.reasons.iter().any(|r| r == "boundedness_regression_signal"))
-        && statuses.iter().any(|row| row.reasons.iter().any(|r| r == "routing_anomaly_signal"))
-        && statuses.iter().any(|row| row.reasons.iter().any(|r| r == "gateway_quarantine_signal"))
-        && statuses.iter().any(|row| row.reasons.iter().any(|r| r == "recovery_signal"));
+    let derivation_ok = statuses
+        .iter()
+        .any(|row| row.reasons.iter().any(|r| r == "eval_regression_signal"))
+        && statuses.iter().any(|row| {
+            row.reasons
+                .iter()
+                .any(|r| r == "boundedness_regression_signal")
+        })
+        && statuses
+            .iter()
+            .any(|row| row.reasons.iter().any(|r| r == "routing_anomaly_signal"))
+        && statuses
+            .iter()
+            .any(|row| row.reasons.iter().any(|r| r == "gateway_quarantine_signal"))
+        && statuses
+            .iter()
+            .any(|row| row.reasons.iter().any(|r| r == "recovery_signal"));
     let anomaly_ok = [
         "unusual_routing_patterns",
         "retry_spike",
@@ -253,12 +293,15 @@ pub fn build_system_health_guard_report(
     .iter()
     .all(|kind| anomalies.contains(kind));
     let adaptation_ok = statuses.iter().any(|row| {
-        row.status == "degraded" && row.adaptation.allowed && row.adaptation.reason == "bounded_adaptation_allowed"
-    }) && statuses.iter().any(|row| {
-        row.snapshot_id == "critical" && !row.adaptation.allowed
-    }) && statuses.iter().any(|row| {
-        row.snapshot_id == "rollback_blocked" && !row.adaptation.allowed
-    });
+        row.status == "degraded"
+            && row.adaptation.allowed
+            && row.adaptation.reason == "bounded_adaptation_allowed"
+    }) && statuses
+        .iter()
+        .any(|row| row.snapshot_id == "critical" && !row.adaptation.allowed)
+        && statuses
+            .iter()
+            .any(|row| row.snapshot_id == "rollback_blocked" && !row.adaptation.allowed);
     let gateway_capability_ok = !gateway_capabilities.is_empty()
         && gateway_capabilities.iter().all(|gateway| {
             !gateway.gateway_id.is_empty()
@@ -283,15 +326,18 @@ pub fn build_system_health_guard_report(
                 .iter()
                 .any(|reason| reason == "gateway_quarantine_signal")
         })
-        && statuses.iter().any(|row| {
-            row.reasons.iter().any(|reason| reason == "recovery_signal")
-        });
+        && statuses
+            .iter()
+            .any(|row| row.reasons.iter().any(|reason| reason == "recovery_signal"));
     let checks = vec![
         check_row("system_health_status_model_contract", status_model_ok),
         check_row("system_health_signal_derivation_contract", derivation_ok),
         check_row("system_health_anomaly_detection_contract", anomaly_ok),
         check_row("bounded_adaptation_eval_rollback_contract", adaptation_ok),
-        check_row("gateway_capability_discovery_contract", gateway_capability_ok),
+        check_row(
+            "gateway_capability_discovery_contract",
+            gateway_capability_ok,
+        ),
         check_row(
             "gateway_quarantine_recovery_health_signal_contract",
             gateway_quarantine_recovery_ok,
@@ -325,11 +371,8 @@ pub fn run_system_health_guard(
     strict: bool,
 ) -> Result<SystemHealthGuardReport, String> {
     let policy = load_system_health_policy(policy_path)?;
-    let report = build_system_health_guard_report(
-        policy_path,
-        &policy,
-        default_system_signals().as_slice(),
-    );
+    let report =
+        build_system_health_guard_report(policy_path, &policy, default_system_signals().as_slice());
     write_report(out_json, &report)?;
     if strict && !report.ok {
         return Err("system_health_guard_failed".to_string());
@@ -420,7 +463,11 @@ mod tests {
             default_system_signals().as_slice(),
         );
         assert!(report.ok);
-        let states = report.statuses.iter().map(|row| row.status.as_str()).collect::<Vec<_>>();
+        let states = report
+            .statuses
+            .iter()
+            .map(|row| row.status.as_str())
+            .collect::<Vec<_>>();
         for expected in ["healthy", "degraded", "recovering", "critical"] {
             assert!(states.contains(&expected), "missing {expected}");
         }
@@ -434,10 +481,18 @@ mod tests {
             .find(|signals| signals.snapshot_id == "critical")
             .expect("critical signals");
         let anomalies = detect_anomalies(&policy, &critical);
-        assert!(anomalies.iter().any(|row| row.anomaly_type == "unusual_routing_patterns"));
-        assert!(anomalies.iter().any(|row| row.anomaly_type == "retry_spike"));
-        assert!(anomalies.iter().any(|row| row.anomaly_type == "latency_anomaly"));
-        assert!(anomalies.iter().any(|row| row.anomaly_type == "unknown_failure_mode_cluster"));
+        assert!(anomalies
+            .iter()
+            .any(|row| row.anomaly_type == "unusual_routing_patterns"));
+        assert!(anomalies
+            .iter()
+            .any(|row| row.anomaly_type == "retry_spike"));
+        assert!(anomalies
+            .iter()
+            .any(|row| row.anomaly_type == "latency_anomaly"));
+        assert!(anomalies
+            .iter()
+            .any(|row| row.anomaly_type == "unknown_failure_mode_cluster"));
     }
 
     #[test]
@@ -460,14 +515,19 @@ mod tests {
             .find(|row| row.snapshot_id == "rollback_blocked")
             .expect("rollback blocked");
         assert!(!rollback_blocked.adaptation.allowed);
-        assert_eq!(rollback_blocked.adaptation.reason, "rollback_safety_required");
+        assert_eq!(
+            rollback_blocked.adaptation.reason,
+            "rollback_safety_required"
+        );
     }
 
     #[test]
     fn gateway_capability_discovery_publishes_limits_and_planning_graph() {
         let policy = policy();
         let capabilities = gateway_capability_graph(&policy);
-        assert!(capabilities.iter().any(|gateway| gateway.gateway_id == "ollama"));
+        assert!(capabilities
+            .iter()
+            .any(|gateway| gateway.gateway_id == "ollama"));
         assert!(capabilities.iter().all(|gateway| {
             !gateway.capabilities.is_empty()
                 && gateway.max_concurrent_requests > 0

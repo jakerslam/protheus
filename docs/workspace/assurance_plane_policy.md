@@ -62,10 +62,15 @@ Observability owns:
 - telemetry envelopes;
 - health signals;
 - runtime traces;
+- the universal trace substrate and cross-domain correlation fabric;
 - runtime findings;
 - trend samples;
 - Sentinel evidence streams;
 - source freshness and coverage state.
+
+Fragmented observability is prohibited as a target architecture. It is the negative state where local subsystem traces exist but cannot be joined into a cross-domain causal graph. The canonical policy is `docs/workspace/universal_trace_substrate_policy.md`, with the machine-readable root envelope under `observability/traces/trace_envelope.schema.json`.
+
+Every causal story starts with exactly one `trace_id` minted at the initial user request. That `trace_id` must flow unchanged through workflow, Orchestration, tool, Gateway/Conduit, Kernel, Validation, Shell, Sentinel, and final-response spans. Domains may create local spans and typed extension payloads, but they must not create alternate root trace identities, drop the ID, fork it, or replace it for the same request. No exceptions.
 
 Kernel Sentinel is a privileged resident of Observability. Sentinel watches runtime, Kernel, Gateway, Orchestration, and Shell evidence, then synthesizes findings, architectural incidents, issue candidates, self-understanding artifacts, and RSI readiness blockers.
 
@@ -194,13 +199,15 @@ The Observability registry lives at `observability/source_coverage/assurance_obs
 
 The registry defines live source classes, authority classes, default signal classes, source freshness requirements, source coverage requirements, Sentinel's privileged Observability role, and the rule that Shell telemetry remains presentation-only unless corroborated.
 
+The universal trace substrate lives under `observability/traces/**`. Domains may provide typed extension payloads, but Observability owns the root trace envelope, trace IDs, span IDs, parent-span relationships, authority class, subject identity, and correlation rules.
+
 ## Governance Registry
 
-The Governance registry lives at `tests/tooling/config/assurance_governance_registry.json`, with human-readable guidance in `docs/workspace/assurance_governance_registry.md`.
+The Governance registry lives at `validation/governance/contracts/assurance_governance_registry.json`, with schema `validation/schemas/assurance_governance_registry.schema.json` and human-readable guidance in `docs/workspace/assurance_governance_registry.md`.
 
 The registry defines verdict inputs, verdict outputs, scorecard derivation rules, advisory-to-hard-gate promotion rules, and repeated-failure issue-candidate routing. Governance may block release or produce issue candidates from evidence, but it may not auto-apply patches.
 
-Governance is currently policy-complete but not physically migrated into its own root domain. Until that migration happens, the active registry remains a controlled tooling location, while scorecard derivation contracts consumed by Validation guards live under `validation/scorecards/contracts/`. This is tracked as explicit migration debt in `docs/workspace/assurance_physical_domain_migration_status.md`.
+Governance is physically owned under `validation/governance/**`. Tooling remains harness-only: it may run Governance checks, but it must not own Governance verdict, promotion, or issue-candidate definitions.
 
 ## Consumer Boundary Contract
 

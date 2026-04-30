@@ -10,13 +10,29 @@ Documentation now defines `orchestration/` as the first-class Orchestration subs
 Internal naming and placement cleanup is an incremental transition: existing compatibility module names remain valid bridge surfaces until the internal migration closes.
 Readable control-plane flow maps live in `docs/workspace/orchestration_workflow_maps.md`.
 
+## Canonical Naming Decision
+
+The canonical concept name is **Orchestration Control Plane**.
+
+`Tower` is not a canonical InfRing architecture term. It may appear only as an informal metaphor in discussion or historical notes, not as an owning layer, source path, subsystem name, gate name, release artifact, or generated map label.
+
+`Cognition Control Plane` and `Cognition Plane (Orchestration Control Plane)` are historical transition phrases. New architecture docs, maps, gates, and TODO/SRS rows must use `Orchestration Control Plane` for the coordination subsystem and reserve `Shell` for presentation behavior.
+
 ## Boundary Axiom
 
 Kernel decides what is true and allowed.  
-Core decides what is true and allowed. (compatibility alias for Kernel)  
 Orchestration decides what should happen next.  
 Assurance proves, observes, scores, gates, and explains the work.
 Shell decides how it is shown and collected.
+
+## Canonical Names vs Compatibility Paths
+
+| Canonical concept | Compatibility/path wording | Rule |
+|---|---|---|
+| Kernel | `core/**`, historical `Core` | `core/**` is the implementation path for Kernel authority. `Core` must not be treated as a second owner. |
+| Orchestration Control Plane | `orchestration/**`, rejected `Tower` metaphor | Orchestration owns coordination only; it recommends, sequences, recovers, and packages without becoming canonical truth. |
+| Shell | `client/**`, historical `Client` | `client/**` is the Shell implementation path. `Client` must not be treated as a conceptual authority or state owner. |
+| Gateways | `adapters/**`, historical `Adapters` | Gateways own the external membrane and bounded ingress/egress; `adapters/**` is the path compatibility surface. |
 
 Canonical Nexus-Conduit-Checkpoint policy lives in `docs/workspace/nexus_conduit_checkpoint_policy.md`.
 

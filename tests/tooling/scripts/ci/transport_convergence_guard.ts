@@ -69,7 +69,7 @@ function run(args: Args): number {
 
   const adaptersRuntimeFiles = walk(path.join(ROOT, 'adapters', 'runtime'), new Set(['.ts', '.tsx']));
   const orchestrationScriptFiles = walk(
-    path.join(ROOT, 'surface', 'orchestration', 'scripts'),
+    path.join(ROOT, 'orchestration', 'scripts'),
     new Set(['.ts', '.tsx'])
   );
   const sdkTransportFiles = walk(path.join(ROOT, 'packages', 'infring-sdk', 'src'), new Set(['.ts', '.tsx']));

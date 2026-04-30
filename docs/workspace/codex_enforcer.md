@@ -47,8 +47,11 @@ Required execution behavior:
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-kernel authority and thin-shell boundaries on every implementation.
 - Terminology transition rule:
-  - Canonical presentation term is `Shell`.
-  - Repository path remains `client/**` until an explicit migration program is approved.
+  - Canonical authority term is `Kernel`; repository path `core/**` is implementation/path compatibility and `Core` is not a second owner.
+  - Canonical coordination term is `Orchestration Control Plane`; repository path `orchestration/**` is implementation/path compatibility and `Tower` is rejected as an active architecture term.
+  - Canonical presentation term is `Shell`; repository path `client/**` is implementation/path compatibility and `Client` is not a conceptual owner.
+  - Canonical external-boundary term is `Gateways`; repository path `adapters/**` is implementation/path compatibility and `Adapters` is not a second boundary owner.
+  - Validation, Observability, and Governance are Assurance domains; do not bury their ownership under Kernel, Orchestration, Gateway, or Shell wording.
 - Orchestration (Control Plane) is Rust-first by policy:
   - New control-plane authority and coordination logic must land in `orchestration/src/**` (`.rs`).
   - `orchestration/**` must remain at least `95%` Rust by tracked source lines.
@@ -149,6 +152,7 @@ Completion requires all of the following:
   - Orchestration decides what should happen next.
   - Assurance proves, observes, scores, gates, and explains the work.
   - Shell decides how it is shown and collected.
+  - Path names (`core/**`, `client/**`, `adapters/**`) describe repository placement only; they do not create separate conceptual authorities.
 - Canonical ownership rulebook: `docs/workspace/orchestration_ownership_policy.md`.
 - Canonical Nexus-Conduit-Checkpoint policy: `docs/workspace/nexus_conduit_checkpoint_policy.md`.
 - Canonical Layered Nexus Federation Resolution policy: `docs/workspace/layered_nexus_federation_resolution_policy.md`.
@@ -168,7 +172,7 @@ Completion requires all of the following:
   - Cross-boundary routes must declare Conduit/Scrambler security posture; sensitive Core/Orchestration authority routes must not silently downgrade below strong Scrambler posture.
   - Direct code-file-to-code-file cross-module paths are migration debt unless explicitly exempted with owner, expiry, and replacement Nexus checkpoint plan.
 - Architecture policy governance rule:
-  - `ops:policy-refinement:governance` is the aggregate gate for the Shell projection, Shell UI message/detail, Gateway interface, Interface Payload Budget, Shell amputation, Conduit/Scrambler posture, and cross-domain Nexus route inventory guards.
+  - `ops:policy-refinement:governance` is the aggregate gate for the Shell projection, Shell UI message/detail, Shell long-chat memory, Gateway interface, Interface Payload Budget, Shell amputation, Conduit/Scrambler posture, and cross-domain Nexus route inventory guards.
   - `ops:arch:governance` must run `ops:policy-refinement:governance` before broader architecture boundary checks.
 - Placement decision rule:
   - system authority/runtime path => Kernel authority (`core/**` compatibility path)
