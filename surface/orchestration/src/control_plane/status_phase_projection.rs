@@ -68,6 +68,17 @@ pub struct StatusProjectionPlan {
     pub telemetry_note: String,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StatusLabelCandidate {
+    pub display_label: Option<String>,
+    pub status_text: Option<String>,
+    pub thinking_status: Option<String>,
+    pub workflow_stage: Option<String>,
+    pub stage: Option<String>,
+    pub phase: Option<String>,
+    pub detail: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ShellStatusProjection {
     pub projection_type: &'static str,
@@ -226,6 +237,31 @@ pub fn project_status_event_for_shell(
             &plan.telemetry_note,
         )),
         StatusProjectionAction::RejectShellAuthoredInference { reason } => Err(reason.clone()),
+    }
+}
+
+pub fn select_status_display_label(candidate: &StatusLabelCandidate) -> Result<String, String> {
+    for label in [
+        &candidate.display_label,
+        &candidate.status_text,
+        &candidate.thinking_status,
+        &candidate.workflow_stage,
+        &candidate.stage,
+        &candidate.phase,
+    ] {
+        let Some(label) = label else {
+            continue;
+        };
+        let label = label.trim();
+        if !label.is_empty() {
+            return Ok(label.to_string());
+        }
+    }
+
+    if candidate.detail.as_deref().unwrap_or("").trim().is_empty() {
+        Err("status projection requires a display label".to_string())
+    } else {
+        Err("raw detail text must not be promoted to status label".to_string())
     }
 }
 
@@ -444,5 +480,30 @@ mod tests {
         assert_eq!(value["source"], "core_runtime");
         assert_eq!(value["activity"], "working");
         assert_eq!(value["status_text"], "Working");
+    }
+
+    #[test]
+    fn status_label_selection_uses_projection_fields_not_raw_detail() {
+        let label = select_status_display_label(&StatusLabelCandidate {
+            status_text: Some("Searching workspace".to_string()),
+            detail: Some("internal trace: file probe started".to_string()),
+            ..StatusLabelCandidate::default()
+        })
+        .expect("status_text should be accepted");
+
+        assert_eq!(label, "Searching workspace");
+    }
+
+    #[test]
+    fn status_label_selection_rejects_detail_only_inference() {
+        let result = select_status_display_label(&StatusLabelCandidate {
+            detail: Some("internal trace: web probe started".to_string()),
+            ..StatusLabelCandidate::default()
+        });
+
+        assert_eq!(
+            result,
+            Err("raw detail text must not be promoted to status label".to_string())
+        );
     }
 }
