@@ -291,7 +291,7 @@ Progress:
 
 ### SHP-AUTH-009 - Model/provider configuration and guidance are partly shell-owned
 
-Status: queued
+Status: in_progress
 Priority: P1
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_model_guidance_helpers.ts`
@@ -314,6 +314,13 @@ Acceptance:
 - Shell no longer constructs provider recovery prose or model fallback recommendations.
 - Provider writes return structured audit receipts.
 - Regression covers no-models, provider key write/delete, OAuth poll, and provider test result projection.
+
+Progress:
+- 2026-04-30: Added Rust control-plane model/provider coordination primitives in `surface/orchestration/src/control_plane/model_provider_coordination.rs`.
+- `coordinate_provider_intent` now owns non-authoritative recommendations for no-models recovery, model failover selection, provider credential mutations, OAuth polling, and provider test projection.
+- Failover recommendation skips active model variants and chooses the first admissible fallback/catalog candidate without shell-side ranking authority.
+- Core/runtime remains the intended authority for credential writes, provider tests, OAuth state, model catalog truth, and capability state; shell should transition to form submission plus receipt/projection rendering.
+- Regression tests cover no-models recovery, failover, provider key write/delete, OAuth poll, and provider test result projection.
 
 ### SHP-AUTH-010 - Settings security/network/migration page holds authority-shaped logic
 
