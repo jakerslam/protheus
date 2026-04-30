@@ -4,6 +4,8 @@ include_parts!(
     "set_config_payload_parts/020-part.rs",
     "set_config_payload_parts/030-part.rs",
     "set_config_payload_parts/040-part.rs",
+    "set_config_payload_parts/041-session-detail-projection.rs",
+    "set_config_payload_parts/042-jsonl-and-attention-helpers.rs",
     "set_config_payload_parts/050-part.rs",
     "set_config_payload_parts/060-part.rs",
     "set_config_payload_parts/070-part.rs",

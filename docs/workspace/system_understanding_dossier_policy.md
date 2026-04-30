@@ -55,6 +55,8 @@ Recommended locations:
 
 `local/state/system_understanding/traces/<target_id>/**` for runtime traces, probe logs, and evidence bundles.
 
+Runtime traces should project into the universal Observability trace substrate defined by `docs/workspace/universal_trace_substrate_policy.md`. External target probes use `source_domain: external_target`; InfRing self-study uses the same envelope for Kernel, Orchestration, Gateway, Shell, Validation, Governance, and Observability spans.
+
 Before an agent performs assimilation or RSI work, it must consult the current dossier for the target. If no adequate dossier exists, the task is understanding, not implementation.
 
 If new evidence contradicts an existing dossier, update the dossier before using it to justify code changes.
@@ -119,6 +121,8 @@ Required prompts:
 For external systems, agents should run probes where possible instead of relying on static code reading.
 
 For InfRing, the dossier should use built-in traces, receipts, Sentinel evidence, gateway lifecycle data, orchestration traces, and Kernel artifacts.
+
+Those traces should not remain fragmented by producer. The dossier should prefer universal trace IDs, span IDs, parent spans, authority class, subject identity, and evidence refs so Sentinel can connect symptoms to architecture-level causes before recommending local patches.
 
 Assurance Plane evidence is the preferred source for internal runtime understanding. Controlled Validation artifacts show how the system behaves under known checks; Observability artifacts show how it behaves while alive; Governance artifacts show confidence, gates, scorecards, and issue-candidate posture.
 

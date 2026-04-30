@@ -491,73 +491,10 @@ fn update_profile_patch(root: &Path, agent_id: &str, patch: &Value) -> Value {
     }
     crate::dashboard_agent_state::upsert_profile(root, &id, patch)
 }
-
 fn upsert_contract_patch(root: &Path, agent_id: &str, patch: &Value) -> Value {
     let id = clean_agent_id(agent_id);
     if id.is_empty() {
         return json!({"ok": false, "error": "agent_id_required"});
     }
     crate::dashboard_agent_state::upsert_contract(root, &id, patch)
-}
-fn session_payload(root: &Path, agent_id: &str) -> Value {
-    let id = clean_agent_id(agent_id);
-    if id.is_empty() {
-        return json!({"ok": false, "error": "agent_id_required"});
-    }
-    let state = load_session_state(root, &id);
-    let messages = session_messages(&state);
-    let sessions = session_rows_payload(&state);
-    json!({
-        "ok": true,
-        "agent_id": id,
-        "active_session_id": state.get("active_session_id").cloned().unwrap_or_else(|| json!("default")),
-        "messages": messages,
-        "sessions": sessions,
-        "session": state
-    })
-}
-fn session_payload_paged(root: &Path, agent_id: &str, limit: usize, offset: usize) -> Value {
-    let id = clean_agent_id(agent_id);
-    if id.is_empty() {
-        return json!({"ok": false, "error": "agent_id_required"});
-    }
-    let state = load_session_state(root, &id);
-    let (messages, total_messages) = session_messages_paged(&state, limit, offset);
-    let has_more = offset + messages.len() < total_messages;
-    let sessions = session_rows_payload(&state);
-    let mut state_slim = state.clone();
-    if let Some(arr) = state_slim.get_mut("sessions").and_then(Value::as_array_mut) {
-        for s in arr.iter_mut() {
-            if let Some(obj) = s.as_object_mut() {
-                obj.remove("messages");
-            }
-        }
-    }
-    json!({
-        "ok": true,
-        "agent_id": id,
-        "active_session_id": state.get("active_session_id").cloned().unwrap_or_else(|| json!("default")),
-        "messages": messages,
-        "total_messages": total_messages,
-        "has_more": has_more,
-        "sessions": sessions,
-        "session": state_slim
-    })
-}
-fn append_jsonl_row(path: &Path, row: &Value) {
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    if let Ok(line) = serde_json::to_string(row) {
-        let _ = fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-            .and_then(|mut file| {
-                std::io::Write::write_all(&mut file, format!("{line}\n").as_bytes())
-            });
-    }
-}
-fn attention_queue_fallback_path(root: &Path) -> PathBuf {
-    root.join("client/runtime/local/state/attention/pending_memory_events.jsonl")
 }

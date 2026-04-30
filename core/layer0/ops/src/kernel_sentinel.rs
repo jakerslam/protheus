@@ -6,8 +6,43 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_summary; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; mod self_study; mod system_understanding_dossier; mod waivers;
+mod assimilation_handoff; mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
+pub use assimilation_handoff::build_external_assimilation_transfer_plan;
+pub use diagnostic_authorization::{
+    authorize_kernel_sentinel_diagnostic_request, kernel_sentinel_diagnostic_authorization_model,
+    kernel_sentinel_diagnostic_failure_probe_policies,
+    KernelSentinelDiagnosticAuthorizationDecision,
+    KernelSentinelDiagnosticAuthorizationStatus,
+};
+pub use diagnostic_executor::{
+    execute_kernel_sentinel_read_only_topology_probe,
+    execute_kernel_sentinel_golden_replay_probe, kernel_sentinel_diagnostic_executor_model,
+    KernelSentinelGoldenReplaySnapshot, KernelSentinelTopologyHealthSnapshot,
+};
+pub use diagnostic_regression_executor::{
+    execute_kernel_sentinel_targeted_regression_probe,
+    kernel_sentinel_targeted_regression_executor_model,
+    KernelSentinelTargetedRegressionSnapshot,
+};
+pub use diagnostic_request::{
+    kernel_sentinel_diagnostic_request_model, validate_kernel_sentinel_diagnostic_request,
+    KernelSentinelDiagnosticBudgetImpact, KernelSentinelDiagnosticProbeClass,
+    KernelSentinelDiagnosticRequest, KernelSentinelDiagnosticSafetyClass,
+    KERNEL_SENTINEL_DIAGNOSTIC_REQUEST_SCHEMA_VERSION,
+};
+pub use diagnostic_result::{
+    kernel_sentinel_diagnostic_result_model, validate_kernel_sentinel_diagnostic_result,
+    KernelSentinelDiagnosticOutcome, KernelSentinelDiagnosticResult,
+    KernelSentinelDiagnosticStopReason,
+    KERNEL_SENTINEL_DIAGNOSTIC_RESULT_SCHEMA_VERSION,
+};
+pub use diagnostic_run_artifact::{
+    attach_diagnostic_context_to_issue_draft, build_kernel_sentinel_diagnostic_run_artifact,
+    build_kernel_sentinel_diagnostic_report_section,
+    KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME,
+};
+pub use dossier_comparison::build_external_assimilation_dossier_comparison;
 use cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 pub use evidence::{ingest_evidence_sources, KernelSentinelEvidenceIngestion};
 pub use failure_level::{
@@ -30,6 +65,7 @@ pub use incident_clustering::{
     cluster_kernel_sentinel_incident_events, KernelSentinelIncidentCluster,
     KernelSentinelIncidentClusterKey,
 };
+pub use incident_diagnostic_followup::build_incident_diagnostic_follow_up_request;
 pub use incident_synthesis::{
     kernel_sentinel_architectural_issue_template,
     synthesize_kernel_sentinel_architectural_incidents,
@@ -377,11 +413,15 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
             eprintln!("kernel_sentinel_write_verdict_failed: {err}");
             return 1;
         }
-        if let Err(err) = write_json(&health_path, &build_health_report(&report, &verdict, None)) {
+        if let Err(err) =
+            write_json(&health_path, &build_health_report(&report, &verdict, None, None))
+        {
             eprintln!("kernel_sentinel_write_health_failed: {err}");
             return 1;
         }
-        if let Err(err) = issue_synthesis::write_issue_drafts_jsonl(&dir.join("issues.jsonl"), &report) {
+        if let Err(err) =
+            issue_synthesis::write_issue_drafts_jsonl(&dir.join("issues.jsonl"), &report, None)
+        {
             eprintln!("kernel_sentinel_write_issues_failed: {err}");
             return 1;
         }

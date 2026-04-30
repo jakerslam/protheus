@@ -10,8 +10,7 @@
   ],
   "non_authoritative_surfaces": [
     "client/runtime",
-    "tests/tooling/scripts",
-    "benchmarks/public_harness"
+    "tests/tooling/scripts"
   ],
   "bridge_points": [
     {

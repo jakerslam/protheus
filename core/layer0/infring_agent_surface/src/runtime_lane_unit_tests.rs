@@ -47,14 +47,12 @@ fn runtime_lane_executes_with_capability_pack_defaults() {
             .and_then(serde_json::Value::as_str),
         Some("agent_run_receipt")
     );
-    assert!(
-        response
-            .contract
-            .get("receipt_merkle")
-            .and_then(|value| value.get("root"))
-            .and_then(Value::as_str)
-            .is_some()
-    );
+    assert!(response
+        .contract
+        .get("receipt_merkle")
+        .and_then(|value| value.get("root"))
+        .and_then(Value::as_str)
+        .is_some());
 }
 
 #[test]

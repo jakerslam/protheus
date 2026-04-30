@@ -143,8 +143,8 @@ impl GraphCheckpointStore for InMemoryCheckpointStore {
 }
 
 pub fn run_graph_workflow_json(input_json: &str) -> Result<String, String> {
-    let input: GraphExecutionInput =
-        serde_json::from_str(input_json).map_err(|error| format!("graph_input_parse_failed:{error}"))?;
+    let input: GraphExecutionInput = serde_json::from_str(input_json)
+        .map_err(|error| format!("graph_input_parse_failed:{error}"))?;
     let mut store = InMemoryCheckpointStore::default();
     let receipt = run_graph_workflow(&input, &mut store)?;
     serde_json::to_string(&receipt).map_err(|error| format!("graph_receipt_encode_failed:{error}"))
@@ -214,14 +214,8 @@ pub fn run_graph_workflow(
                         status: "blocked".to_string(),
                         detail: format!("hitl_rejected:{}", sanitize_detail(&decision.note)),
                     });
-                    let checkpoint = save_checkpoint(
-                        &workflow_id,
-                        &node.id,
-                        cursor,
-                        &context,
-                        &events,
-                        store,
-                    )?;
+                    let checkpoint =
+                        save_checkpoint(&workflow_id, &node.id, cursor, &context, &events, store)?;
                     return Ok(build_receipt(
                         &workflow_id,
                         "failed",
@@ -307,13 +301,16 @@ fn save_checkpoint(
 ) -> Result<GraphCheckpoint, String> {
     let created_unix_ms = now_unix_ms();
     let event_digest = digest_events(events);
-    let checkpoint_id = format!("cp_{}", stable_hash(&[
-        workflow_id.to_string(),
-        node_id.to_string(),
-        cursor.to_string(),
-        event_digest.clone(),
-        created_unix_ms.to_string(),
-    ]));
+    let checkpoint_id = format!(
+        "cp_{}",
+        stable_hash(&[
+            workflow_id.to_string(),
+            node_id.to_string(),
+            cursor.to_string(),
+            event_digest.clone(),
+            created_unix_ms.to_string(),
+        ])
+    );
     let checkpoint = GraphCheckpoint {
         checkpoint_id,
         workflow_id: workflow_id.to_string(),
@@ -370,17 +367,27 @@ fn validate_graph(workflow: &GraphWorkflowDefinition) -> Result<(), String> {
     }
     for edge in &workflow.edges {
         if !nodes.contains(&edge.from) || !nodes.contains(&edge.to) {
-            return Err(format!("graph_edge_missing_node:{}->{}", edge.from, edge.to));
+            return Err(format!(
+                "graph_edge_missing_node:{}->{}",
+                edge.from, edge.to
+            ));
         }
     }
     Ok(())
 }
 
-fn edge_condition_for_node(node: &GraphNode, context: &mut BTreeMap<String, String>) -> Option<String> {
+fn edge_condition_for_node(
+    node: &GraphNode,
+    context: &mut BTreeMap<String, String>,
+) -> Option<String> {
     match node.kind {
         GraphNodeKind::Branch => {
             let key = node.params.get("predicate_key")?;
-            let expected = node.params.get("expected_value").cloned().unwrap_or_default();
+            let expected = node
+                .params
+                .get("expected_value")
+                .cloned()
+                .unwrap_or_default();
             let actual = context.get(key).cloned().unwrap_or_default();
             if actual == expected {
                 Some("true".to_string())
@@ -416,7 +423,10 @@ fn edge_condition_for_node(node: &GraphNode, context: &mut BTreeMap<String, Stri
     }
 }
 
-fn find_node<'a>(workflow: &'a GraphWorkflowDefinition, node_id: &str) -> Result<&'a GraphNode, String> {
+fn find_node<'a>(
+    workflow: &'a GraphWorkflowDefinition,
+    node_id: &str,
+) -> Result<&'a GraphNode, String> {
     workflow
         .nodes
         .iter()
@@ -430,13 +440,24 @@ fn outgoing_edges<'a>(workflow: &'a GraphWorkflowDefinition, node_id: &str) -> V
         .iter()
         .filter(|edge| edge.from == node_id)
         .collect::<Vec<_>>();
-    edges.sort_by(|left, right| left.to.cmp(&right.to).then_with(|| left.condition.cmp(&right.condition)));
+    edges.sort_by(|left, right| {
+        left.to
+            .cmp(&right.to)
+            .then_with(|| left.condition.cmp(&right.condition))
+    });
     edges
 }
 
-fn select_edge<'a>(edges: &[&'a GraphEdge], condition: Option<&str>) -> Result<&'a GraphEdge, String> {
+fn select_edge<'a>(
+    edges: &[&'a GraphEdge],
+    condition: Option<&str>,
+) -> Result<&'a GraphEdge, String> {
     if let Some(condition) = condition {
-        if let Some(edge) = edges.iter().copied().find(|edge| edge.condition == condition) {
+        if let Some(edge) = edges
+            .iter()
+            .copied()
+            .find(|edge| edge.condition == condition)
+        {
             return Ok(edge);
         }
     }
@@ -474,7 +495,12 @@ fn now_unix_ms() -> u64 {
 fn digest_events(events: &[GraphRuntimeEvent]) -> String {
     let lines = events
         .iter()
-        .map(|event| format!("{}:{}:{}:{}", event.index, event.node_id, event.status, event.detail))
+        .map(|event| {
+            format!(
+                "{}:{}:{}:{}",
+                event.index, event.node_id, event.status, event.detail
+            )
+        })
         .collect::<Vec<_>>();
     stable_hash(&lines)
 }

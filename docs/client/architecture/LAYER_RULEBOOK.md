@@ -4,7 +4,7 @@
 
 ### 1. Directory Split (Enforced)
 The repository has seven top-level product/code roots:
-- `/core` — deterministic core stack (`layer_minus_one`, `layer0`, `layer1`, `layer2`, `layer3`) and trusted low-level logic.
+- `/core` — deterministic Kernel stack (`layer_minus_one`, `layer0`, `layer1`, `layer2`, `layer3`) and trusted low-level logic.
 - `/surface` — orchestration coordination surfaces (request shaping, sequencing, clarification, recovery, packaging) that do not canonize truth.
 - `/client` — shell surface path (developer-facing platform, SDKs, CLI, dashboards, and thin wrappers).
 - `/packages` — public SDK/package distribution surfaces, starter bundles, and installable developer-facing wrappers.
@@ -27,6 +27,16 @@ Placement is decided by authority before language.
 - If a surface exists to connect InfRing to something external, legacy, or third-party, it belongs in the Gateway layer (`adapters/**` path during compatibility transition).
 - If a surface exists only to verify behavior, it belongs in `tests` or adjacent unit-test locations.
 
+### 1.2 Canonical Naming vs Path Compatibility
+
+Use concept names for ownership and path names only for filesystem placement:
+
+- **Kernel** owns authority and truth; `core/**` is the implementation path and `Core` is compatibility wording only.
+- **Orchestration Control Plane** owns non-canonical coordination; `orchestration/**` is the implementation path and `Tower` is rejected as an active architecture name.
+- **Shell** owns presentation; `client/**` is the implementation path and `Client` is compatibility wording only.
+- **Gateways** own the external membrane; `adapters/**` is the implementation path and `Adapters` is compatibility wording only.
+- **Validation**, **Observability**, and **Governance** are Assurance domains. They prove, watch, and gate; they do not become Kernel, Orchestration, or Shell owners.
+
 ### 2. Layer Definitions (Strict)
 - **Layer -1 (Exotic Hardware Template)** — `/core/layer_minus_one/`
   Thin adapter contract for exotic substrates; capability + fallback declarations only.
@@ -43,10 +53,14 @@ Placement is decided by authority before language.
 - **Layer 3 (OS Personality Template)** — `/core/layer3/`
   Traditional OS growth surface (process/VFS/drivers/syscalls/namespaces/network/userland isolation).
 
-- **Cognition Plane (Unnumbered)** — `/orchestration/` + `/client/`
-  Orchestration in `orchestration/` for non-canonical execution coordination; Presentation Shell (compat alias: Client) in `client/` for UX and interaction shells.
+- **Cognition Plane (Unnumbered, historical broad plane label)** — `/orchestration/` + `/client/`
+  Orchestration Control Plane in `orchestration/` for non-canonical execution coordination; Presentation Shell in `client/` for UX and interaction shells. The plane label is not an owning subsystem and must not override the canonical owner names above.
 
 ### 2.1 Orchestration Contract
+Canonical name: **Orchestration Control Plane**.
+
+`Tower` is not a canonical architecture term and must not be used as an owning layer, generated-map label, release artifact family, or gate name.
+
 Orchestration code must be limited to:
 1. Request normalization/classification and clarification policy.
 2. Execution posture, sequencing, progress, retry/fallback, and result packaging.

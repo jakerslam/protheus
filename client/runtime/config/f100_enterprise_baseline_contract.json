@@ -138,7 +138,7 @@
     {
       "id": "runtime_telemetry_policy_present",
       "type": "file_exists",
-      "path": "client/runtime/config/runtime_telemetry_policy.json"
+      "path": "observability/telemetry/runtime_telemetry_policy.json"
     },
     {
       "id": "runtime_telemetry_lane_present",

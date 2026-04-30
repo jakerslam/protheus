@@ -207,7 +207,11 @@ pub fn execution_receipt(command: &str, status: &str, error_kind: Option<&str>) 
     let command_token = normalize_token(command, 96);
     let error_kind_token = error_kind.and_then(|row| {
         let token = normalize_token(row, 64);
-        if token.is_empty() { None } else { Some(token) }
+        if token.is_empty() {
+            None
+        } else {
+            Some(token)
+        }
     });
     let seed = json!({
         "authority": "core/layer2/autonomy",
@@ -312,7 +316,10 @@ mod tests {
         assert_eq!(normalize_execution_status("bogus"), "error");
 
         let receipt = execution_receipt("gate/check", "OK", Some("Policy Denied"));
-        assert_eq!(receipt.get("status").and_then(Value::as_str), Some("success"));
+        assert_eq!(
+            receipt.get("status").and_then(Value::as_str),
+            Some("success")
+        );
         assert_eq!(
             receipt.get("error_kind").and_then(Value::as_str),
             Some("policy_denied")

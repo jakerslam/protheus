@@ -427,8 +427,8 @@ fn parse_json_flag(raw: Option<&String>) -> Result<Option<Value>> {
         return Ok(None);
     }
     if let Some(path) = trimmed.strip_prefix('@') {
-        let bytes = fs::read(path)
-            .with_context(|| format!("xtask_json_flag_read_failed:{path}"))?;
+        let bytes =
+            fs::read(path).with_context(|| format!("xtask_json_flag_read_failed:{path}"))?;
         let parsed = serde_json::from_slice::<Value>(&bytes)
             .with_context(|| format!("xtask_json_flag_parse_failed:{path}"))?;
         return Ok(Some(parsed));

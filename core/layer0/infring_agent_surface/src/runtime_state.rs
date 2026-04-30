@@ -62,25 +62,23 @@ pub fn runtime_lane_state_save(path: &Path, state: &RuntimeLaneDurableState) -> 
     None
 }
 
-pub fn runtime_lane_state_record_denied_action(
-    state: &mut RuntimeLaneDurableState,
-    reason: &str,
-) {
-    state.release_gate_counters.denied_actions_total =
-        state.release_gate_counters.denied_actions_total.saturating_add(1);
+pub fn runtime_lane_state_record_denied_action(state: &mut RuntimeLaneDurableState, reason: &str) {
+    state.release_gate_counters.denied_actions_total = state
+        .release_gate_counters
+        .denied_actions_total
+        .saturating_add(1);
     runtime_lane_state_record_pause_reason(state, reason);
 }
 
-pub fn runtime_lane_state_record_pause_reason(
-    state: &mut RuntimeLaneDurableState,
-    reason: &str,
-) {
+pub fn runtime_lane_state_record_pause_reason(state: &mut RuntimeLaneDurableState, reason: &str) {
     let normalized = reason.trim().to_ascii_lowercase();
     if normalized.is_empty() {
         return;
     }
-    state.release_gate_counters.pause_reasons_total =
-        state.release_gate_counters.pause_reasons_total.saturating_add(1);
+    state.release_gate_counters.pause_reasons_total = state
+        .release_gate_counters
+        .pause_reasons_total
+        .saturating_add(1);
     let entry = state
         .release_gate_counters
         .pause_reason_counts
@@ -90,7 +88,9 @@ pub fn runtime_lane_state_record_pause_reason(
 }
 
 pub fn runtime_lane_state_record_merkle_continuity_failure(state: &mut RuntimeLaneDurableState) {
-    state.release_gate_counters.merkle_chain_continuity_failures_total = state
+    state
+        .release_gate_counters
+        .merkle_chain_continuity_failures_total = state
         .release_gate_counters
         .merkle_chain_continuity_failures_total
         .saturating_add(1);

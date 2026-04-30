@@ -86,11 +86,8 @@ fn out_of_bounds_inputs_fail_closed_with_stable_codes() {
 
 #[test]
 fn max_allowed_out_of_bounds_fails_closed_with_specific_code() {
-    let decision = evaluate_burn_oracle_budget_gate(available_request(
-        5,
-        MAX_BURN_UNITS_CAP + 1,
-        50,
-    ));
+    let decision =
+        evaluate_burn_oracle_budget_gate(available_request(5, MAX_BURN_UNITS_CAP + 1, 50));
     assert!(!decision.ok);
     assert_eq!(decision.code, "max_allowed_burn_out_of_bounds");
 }

@@ -192,23 +192,25 @@
       "max_nested_collection_items": 20,
       "max_top_level_fields": 32,
       "allowed_top_level_fields": [
-        "messages",
-        "message_ids",
-        "window_start_id",
-        "window_end_id",
-        "before_cursor",
-        "after_cursor",
+        "ok",
+        "agent_id",
+        "active_session_id",
+        "message_window",
         "message_count",
+        "total_count",
+        "has_more",
+        "sessions",
+        "session",
         "detail_refs",
         "receipt_ref",
         "correlation_id"
       ],
       "requires_cursor": true,
       "cursor_fields": [
-        "window_start_id",
-        "window_end_id",
-        "before_cursor",
-        "after_cursor"
+        "message_window.window_start_id",
+        "message_window.window_end_id",
+        "message_window.before_cursor",
+        "message_window.after_cursor"
       ],
       "requires_detail_refs": true,
       "required_ref_fields": [

@@ -86,6 +86,29 @@ Progress:
 - `dispatch_shell_command` classifies slash commands into navigation, session control, workspace tooling, runtime status, network status, model/provider, telemetry, diagnostics, or clarification.
 - Workspace `/file` and `/folder` commands now have an orchestration-owned target tool family contract (`workspace_read`, `workspace_export`) for shell replacement.
 - Regression tests cover workspace routing, missing workspace target clarification, model/provider workflow routing, and unknown command clarification.
+- 2026-04-30: Replaced shell-owned `/file` and `/folder` endpoint execution in `chat_slash_command_helpers.ts` and the split slash source with user-authored workspace tool requests.
+- Added projection guard coverage blocking direct slash-command calls to `/api/agents/*/file/read` and `/api/agents/*/folder/export`.
+- 2026-04-30: Removed the assembled `chat.ts` artifact-directive direct workspace endpoint execution path; file/folder directives now become user-authored workspace tool-route requests.
+- Extended workspace endpoint guard coverage to the assembled chat file so rebuild/merge ghosts cannot reintroduce direct `/file/read` or `/folder/export` calls there.
+- 2026-04-30: Replaced shell-owned `/status`, `/budget`, `/peers`, and `/a2a` status/network endpoint reads with user-authored runtime/network tool-route requests.
+- Added projection guard coverage blocking direct slash-command calls to `/api/status`, `/api/budget`, `/api/network/status`, and `/api/a2a/agents`.
+- 2026-04-30: Replaced shell-owned `/new`, `/compact`, and `/model` coordination in `chat_slash_command_helpers.ts` with user-authored session/model coordination requests.
+- Added projection guard coverage blocking direct slash session compact/reset and model-switch/catalog coordination authority in the slash helper.
+- 2026-04-30: Removed remaining visible `pushSystemMessage` paths from `chat_slash_command_helpers.ts`; `/help` is command-palette UX, `/usage` is a runtime usage request, `/think` is a toast-only presentation toggle, and disconnected `/verbose`/`/queue` use toasts.
+- Added projection guard coverage blocking future slash-helper visible system-message injection.
+- 2026-04-30: Removed raw websocket command authority from slash `/context`, `/verbose`, and `/queue`; context now refreshes local projection only, while verbosity and queue status become user-authored control-plane/tool-route requests.
+- Added projection guard coverage blocking raw slash-command websocket sends.
+- 2026-04-30: Removed agent-selection direct `session/reset` calls from fresh-session local projection reset paths in `chat_agent_selection_helpers.ts` and the split selection source.
+- Converted first-use welcome/help copy from visible system chat injection to toast-only shell UX and added projection guard coverage for both lifecycle leaks.
+- 2026-04-30: Converted memprobe slash diagnostics from visible system chat rows to console report plus toast acknowledgement in `chat_memprobe_helpers.ts` and the split source.
+- 2026-04-30: Converted slash alias output from visible system chat rows to shell UX/toast feedback in `chat_slash_alias_helpers.ts`.
+- 2026-04-30: Replaced API-key/model-path slash direct model discovery and visible guidance with a user-authored model-provider coordination request in `chat_slash_apikey_helpers.ts`.
+- 2026-04-30: Replaced telemetry slash direct fetch/format flows with user-authored telemetry continuity packaging requests in `chat_slash_telemetry_helpers.ts`.
+- 2026-04-30: Converted proactive telemetry alert display from visible system chat rows to console detail plus toast acknowledgement.
+- 2026-04-30: Converted model failover, HTTP send, websocket error, and command-result visible system chat rows to toast/console diagnostics.
+- Expanded visible-system-message guard coverage across the remaining error/status helper files.
+- 2026-04-30: Reclassified shell notice projection rows from `role: system` to `role: notice` in notice, model-usage notice, fresh-init empty-session, and session-load warning helpers.
+- Added projection guard coverage preventing notice projection helpers from reintroducing visible system-chat roles.
 
 ### SHP-AUTH-003 - Prompt queue truth is owned by the shell
 
@@ -118,6 +141,8 @@ Progress:
 - `coordinate_queue_intent` now owns non-authoritative sequencing recommendations for dispatch, steer, enqueue, remove, and reorder.
 - Core/runtime remains the intended authority for queue IDs and admission; shell should transition to backend queue mutation requests and projection rendering.
 - Regression tests cover holding dispatch while sending/failover, backend dispatch recommendation, steer requiring an active agent, and reorder as backend mutation.
+- 2026-04-30: Removed direct queued prompt/steer execution from extracted prompt queue helpers; queued prompts now move back into the composer for explicit send instead of shell choosing websocket/HTTP execution or requeue recovery.
+- Added projection guard coverage preventing prompt queue helpers from calling `_sendPayload`, `InfringAPI.wsSend`, direct `/message` endpoints, or stealth `from_queue`/`steer_injected` execution flags.
 
 ### SHP-AUTH-004 - Terminal execution path performs coordination and recovery hints in shell
 
@@ -151,6 +176,13 @@ Progress:
 - `package_terminal_receipt` normalizes success/error/blocked/low-signal terminal receipt packaging without shell permission-gate interpretation.
 - Core/runtime remains the intended authority for command admission, terminal session truth, permission gates, and execution receipts; shell should transition to terminal-intent submission and receipt projection.
 - Regression tests cover user command routing, missing agent target clarification, active-send hold, blocked receipt packaging, and low-signal recovery telemetry.
+- 2026-04-30: Removed direct terminal session creation, missing-session retry, websocket terminal sends, direct `/terminal` HTTP execution, and shell-synthesized terminal output/error events from the extracted terminal session helper.
+- Terminal composer submissions now become user-authored terminal tool-route requests so orchestration/core can admit and execute terminal work instead of shell selecting transport/execution.
+- Added projection guard coverage blocking direct terminal execution authority from returning to `chat_terminal_session_helpers.ts`.
+- 2026-04-30: Removed shell-authored terminal transcript rows for tool summaries and deterministic recovery hints; these now stay telemetry/notice-only so receipt/recovery packaging remains upstream.
+- Added projection guard coverage preventing terminal websocket renderers from reintroducing shell-authored tool-summary/recovery-hint transcript packaging.
+- 2026-04-30: Mirrored terminal execution and terminal recovery-packaging cleanup into the legacy split-source fragments and extended projection guard scan roots to cover those fragments directly.
+- 2026-04-30: Removed unused shell-side terminal tool-summary formatter helpers from both extracted and split-source paths so recovery/result packaging cannot drift back through orphaned UI utilities.
 
 ### SHP-AUTH-005 - Tool completion and result truth are inferred in shell
 
@@ -185,6 +217,10 @@ Progress:
 - Tool completion is represented as structured receipt projection state; visible chat text remains allowed only when assistant text exists.
 - Core/runtime remains the intended authority for canonical tool receipts and status truth; shell should transition to rendering normalized tool receipt projections only.
 - Regression tests cover success, error, blocked, low-signal, no-output, and empty-assistant-with-receipts cases.
+- 2026-04-30: Removed raw-result/text heuristics from extracted tool status and authoritative-completion helpers; shell now trusts explicit receipt/projection status fields for blocked/success labels and completion detection.
+- Preserved `display_state`/`receipt_status` through response tool-card normalization and conversation-cache projection so backend/orchestration result packaging can drive rendering.
+- Added projection guard coverage blocking raw result-text completion/status inference from returning to the extracted tool helpers.
+- 2026-04-30: Mirrored raw-result/text heuristic removal into legacy split-source tool label/status/completion fragments and extended projection guard scan roots to cover those mirrors.
 
 ### SHP-AUTH-006 - System-authored chat text still exists in shell helpers
 
@@ -321,6 +357,11 @@ Progress:
 - Failover recommendation skips active model variants and chooses the first admissible fallback/catalog candidate without shell-side ranking authority.
 - Core/runtime remains the intended authority for credential writes, provider tests, OAuth state, model catalog truth, and capability state; shell should transition to form submission plus receipt/projection rendering.
 - Regression tests cover no-models recovery, failover, provider key write/delete, OAuth poll, and provider test result projection.
+- 2026-04-30: Removed shell-authored no-models assistant prose from chat guidance; no-models recovery now projects as a notice/action instead of visible agent text.
+- 2026-04-30: Removed automatic `/api/models/discover` and provider-profile catalog reconstruction from chat send/model guidance refresh, leaving the shell to render `/api/models` projection state and request discovery through explicit model-provider coordination paths.
+- Added projection guard coverage blocking direct model discovery and no-models recovery prose from returning to `chat_model_guidance_helpers.ts`.
+- 2026-04-30: Removed shell-side automatic model failover selection, model switching, hidden retry, and visible system recovery prose from the chat failover helper. Backend failures now stage a deliberate `model_provider_coordination` request in the composer and project a notice only.
+- Added projection guard coverage blocking direct model failover selection/retry authority from returning to the modular failover helper or legacy split-source fragment.
 
 ### SHP-AUTH-010 - Settings security/network/migration page holds authority-shaped logic
 
@@ -437,6 +478,20 @@ Progress:
 - 2026-04-30: Split status projection envelope/type definitions into `status_phase_projection_types.rs` and re-exported them from the projection module to keep the control-plane contract readable without breaking callers.
 - 2026-04-30: Declared status/phase projection outputs (`status_phase_projection`, `agent_activity_projection`, `thinking_bubble_projection`, `context_warning_projection`) in the global control-plane API contract and added a boundary regression for the previously missing thinking-bubble output.
 - 2026-04-30: Added a single emitted status projection type list and regressions proving the shell envelope outputs stay synchronized with subdomain/global control-plane contract acceptance.
+- 2026-04-30: Updated the extracted websocket phase helper to consume status/activity projection envelopes and removed its temporary guard allowances for raw detail status fallback and literal activity transitions.
+- 2026-04-30: Converted the extracted live-status stop/delete transition to an explicit shell-optimistic activity projection and removed its temporary literal-activity guard allowance.
+- 2026-04-30: Converted pending-response health/failover activity updates to explicit shell-optimistic activity projections and removed the corresponding literal-activity guard allowance.
+- 2026-04-30: Quarantined the legacy websocket split fragment from raw detail status inference and literal activity transitions, then removed the final SHP-AUTH-012 phase/activity guard allowances.
+- 2026-04-30: Routed the legacy websocket/session fragment's direct system-role chat mutations through notice projections and removed its visible system-chat injection allowance.
+- 2026-04-30: Replaced the pending-response session recovery cache's full normalized-message clone with the bounded conversation-cache sanitizer and removed its normalized-full-message guard allowance.
+- 2026-04-30: Added a bounded conversation-cache persistence projection for metadata, drafts, and sanitized message rows, then removed the full-cache persistence guard allowance from the split source.
+- 2026-04-30: Replaced the window-level full conversation cache mirror with a named projection cache and removed the split-source mirror guard allowance.
+- 2026-04-30: Replaced the conversation-cache sanitizer's full-message JSON clone with selected-field projection rows and removed the split-source deep-clone guard allowance.
+- 2026-04-30: Replaced the session normalizer's fallback raw tool `input`/`result` row retention with `input_ref`/`result_ref`/summary projection fields and removed the split-source raw-tool-row guard allowance.
+- 2026-04-30: Replaced expanded Svelte tool-card raw payload rendering with display-safe tool projection sections and removed the Svelte raw-tool-render guard allowance.
+- 2026-04-30: Replaced the Svelte chat store's full filtered-message source retention with a bounded projected window and removed the final projection-guard allowance.
+- 2026-04-30: Converted extracted notice projection helpers from `role: system` chat rows to `role: notice` rows so shell-authored notices cannot masquerade as system-authored assistant-visible output.
+- 2026-04-30: Added a projection-guard ratchet blocking `role: system` in notice/model-usage/fresh-init/session-load notice helpers while leaving system-thread agent metadata out of the chat-injection rule.
 
 ## Execution Notes
 

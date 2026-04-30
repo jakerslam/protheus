@@ -1,56 +1,10 @@
 <body x-data="app" :data-theme="theme">
 
 <!-- Startup splash -->
-<div
-  class="boot-splash"
-  x-show="bootSplashVisible"
-  x-transition.opacity.duration.220ms
-  aria-hidden="true"
->
-  <div class="boot-splash-inner">
-    <div class="brand-mark boot-splash-mark infring-logo"><span class="brand-mark-glyph infring-logo-glyph">&infin;</span></div>
-    <div class="boot-splash-wordmark">INFRING</div>
-    <div
-      class="boot-splash-progress"
-      role="progressbar"
-      aria-label="Loading progress"
-      aria-valuemin="0"
-      aria-valuemax="100"
-      :aria-valuenow="Math.max(0, Math.min(100, Math.round(Number(bootProgressPercent || 0))))"
-    >
-      <span
-        class="boot-splash-progress-fill"
-        :style="'width:' + Math.max(0, Math.min(100, Number(bootProgressPercent || 0))) + '%'"
-      ></span>
-    </div>
-  </div>
-</div>
+<infring-boot-splash-shell></infring-boot-splash-shell>
 
 <!-- Auth Prompt (API Key or Username/Password) -->
-<div x-cloak x-show="$store.app.showAuthPrompt" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)" x-data="{ apiKeyInput: '', loginUser: '', loginPass: '' }">
-  <div style="background:var(--bg-card,#1e1e2e);border:1px solid var(--border,#333);border-radius:12px;padding:2rem;max-width:400px;width:90%">
-    <!-- Session login mode -->
-    <template x-if="$store.app.authMode === 'session'">
-      <div>
-        <h3 style="margin:0 0 0.5rem;font-size:1.1rem">Sign In</h3>
-        <p style="color:var(--text-dim,#888);font-size:0.85rem;margin:0 0 1rem">Enter your Shell credentials.</p>
-        <input type="text" x-model="loginUser" placeholder="Username" autocomplete="username" style="width:100%;padding:0.6rem;border-radius:6px;border:1px solid var(--border,#333);background:var(--bg-input,#151520);color:var(--text,#e0e0e0);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.5rem">
-        <input type="password" x-model="loginPass" placeholder="Password" autocomplete="current-password" @keydown.enter="$store.app.sessionLogin(loginUser, loginPass)" style="width:100%;padding:0.6rem;border-radius:6px;border:1px solid var(--border,#333);background:var(--bg-input,#151520);color:var(--text,#e0e0e0);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.75rem">
-        <button @click="$store.app.sessionLogin(loginUser, loginPass)" style="width:100%;padding:0.6rem;border-radius:6px;border:none;background:var(--accent,#7c3aed);color:#fff;font-weight:600;cursor:pointer;font-size:0.9rem">Sign In</button>
-      </div>
-    </template>
-    <!-- API key mode -->
-    <template x-if="$store.app.authMode === 'apikey'">
-      <div>
-        <h3 style="margin:0 0 0.5rem;font-size:1.1rem">API Key Required</h3>
-        <p style="color:var(--text-dim,#888);font-size:0.85rem;margin:0 0 0.5rem">This instance requires an API key. Enter the key from your <code>config.toml</code>.</p>
-        <p style="color:var(--text-dim,#666);font-size:0.75rem;margin:0 0 1rem">Add <code style="color:var(--accent-light,#a78bfa);background:var(--bg,#111);padding:1px 4px;border-radius:2px">api_key = "your-key"</code> at the <strong>top</strong> of <code>~/.infring/config.toml</code> (not under any [section]).</p>
-        <input type="password" x-model="apiKeyInput" placeholder="Enter API key..." @keydown.enter="$store.app.submitApiKey(apiKeyInput)" style="width:100%;padding:0.6rem;border-radius:6px;border:1px solid var(--border,#333);background:var(--bg-input,#151520);color:var(--text,#e0e0e0);font-size:0.9rem;box-sizing:border-box;margin-bottom:0.75rem">
-        <button @click="$store.app.submitApiKey(apiKeyInput)" style="width:100%;padding:0.6rem;border-radius:6px;border:none;background:var(--accent,#7c3aed);color:#fff;font-weight:600;cursor:pointer;font-size:0.9rem">Unlock Shell</button>
-      </div>
-    </template>
-  </div>
-</div>
+<infring-auth-prompt-shell></infring-auth-prompt-shell>
 
 <div class="app-layout" :class="{ 'focus-mode': $store.app.focusMode, 'taskbar-bottom': taskbarDockEdge === 'bottom' }">
   <!-- Sidebar -->
@@ -144,60 +98,13 @@
                   <svg x-show="chatSidebarSortMode !== 'topology'" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path><circle cx="10" cy="11" r="1"></circle><circle cx="14" cy="11" r="1"></circle><circle cx="18" cy="11" r="1"></circle></svg>
                 </button>
               </div>
-            <a
-                class="nav-item nav-sub-item nav-sub-item-action nav-sub-item-action-right nav-sub-item-action-new-agent"
-                :class="{ 'is-loading': sidebarSpawningAgent }"
-                :aria-disabled="sidebarSpawningAgent ? 'true' : 'false'"
-                @click="if (!sidebarSpawningAgent) createSidebarAgentChat()"
-              >
-                <span class="nav-icon new-agent-plus-icon-wrap">
-                  <svg viewBox="0 0 24 24" aria-hidden="true" :style="sidebarSpawningAgent ? 'opacity:0.45' : ''"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
-                  <span class="spinner-sm new-agent-plus-spinner" x-show="sidebarSpawningAgent" aria-hidden="true"></span>
-                </span>
-                <span class="nav-label" x-text="sidebarSpawningAgent ? 'Creating…' : 'New agent'"></span>
-              </a>
+              <infring-sidebar-new-agent-action-shell variant="expanded"></infring-sidebar-new-agent-action-shell>
             </div>
-            <a
-              class="nav-item nav-sub-item nav-sub-item-action nav-sub-item-action-collapsed nav-sub-item-action-new-agent"
-              :class="{ 'is-loading': sidebarSpawningAgent }"
-              x-show="sidebarCollapsed"
-              :aria-disabled="sidebarSpawningAgent ? 'true' : 'false'"
-              @click="if (!sidebarSpawningAgent) createSidebarAgentChat()"
-              @mouseenter="showDashboardPopup('sidebar-utility:new-agent', 'New agent', $event, { source: 'sidebar', side: 'right', body: sidebarSpawningAgent ? 'Agent creation already in progress' : 'Create a new agent conversation', meta_origin: 'Sidebar' })"
-              @mousemove="showDashboardPopup('sidebar-utility:new-agent', 'New agent', $event, { source: 'sidebar', side: 'right', body: sidebarSpawningAgent ? 'Agent creation already in progress' : 'Create a new agent conversation', meta_origin: 'Sidebar' })"
-              @mouseleave="hideDashboardPopup('sidebar-utility:new-agent')"
-              aria-label="New agent"
-            >
-              <span class="nav-icon new-agent-plus-icon-wrap">
-                <svg viewBox="0 0 24 24" aria-hidden="true" :style="sidebarSpawningAgent ? 'opacity:0.45' : ''"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
-                <span class="spinner-sm new-agent-plus-spinner" x-show="sidebarSpawningAgent" aria-hidden="true"></span>
-              </span>
-            </a>
-            <div
-              class="nav-sub-virtual-spacer"
-              x-show="chatSidebarVirtualized && chatSidebarVirtualPadTop > 0"
-              :style="'height:' + chatSidebarVirtualPadTop + 'px'"
-              aria-hidden="true"
-            ></div>
+            <infring-sidebar-new-agent-action-shell variant="collapsed"></infring-sidebar-new-agent-action-shell>
+            <infring-sidebar-virtual-spacer-shell edge="top"></infring-sidebar-virtual-spacer-shell>
             <infring-sidebar-agent-list-shell></infring-sidebar-agent-list-shell>
-            <div
-              class="nav-sub-virtual-spacer"
-              x-show="chatSidebarVirtualized && chatSidebarVirtualPadBottom > 0"
-              :style="'height:' + chatSidebarVirtualPadBottom + 'px'"
-              aria-hidden="true"
-            ></div>
-            <div class="nav-item nav-sub-item nav-sub-item-empty" x-show="$store.app.agentsLoading || !$store.app.agentsHydrated">
-              <span class="nav-icon nav-loading-icon" aria-hidden="true"></span>
-              <span class="nav-label">Loading agents...</span>
-            </div>
-            <div class="nav-item nav-sub-item nav-sub-item-empty" x-show="!($store.app.agentsLoading || !$store.app.agentsHydrated) && !chatSidebarRows.length && !isChatSidebarSearchActive()">
-              <span class="nav-icon" aria-hidden="true">&#8722;</span>
-              <span class="nav-label">No agents</span>
-            </div>
-            <div class="nav-item nav-sub-item nav-sub-item-empty" x-show="isChatSidebarSearchActive() && !chatSidebarSearchLoading && !chatSidebarRows.length">
-              <span class="nav-icon" aria-hidden="true">&#8722;</span>
-              <span class="nav-label">No matches</span>
-            </div>
+            <infring-sidebar-virtual-spacer-shell edge="bottom"></infring-sidebar-virtual-spacer-shell>
+            <infring-sidebar-agent-empty-state-shell></infring-sidebar-agent-empty-state-shell>
             <a
               class="nav-item sidebar-tab-item"
               :class="{ active: ['agents','sessions','approvals'].indexOf(page) >= 0 }"
@@ -276,22 +183,5 @@
           </div>
       </div>
     </div>
-      <button
-        type="button"
-        class="sidebar-scroll-indicator sidebar-scroll-indicator-top"
-        x-show="sidebarCollapsed && sidebarHasOverflowAbove"
-        @click="if ($refs.sidebarNav) { $refs.sidebarNav.scrollTo({ top: 0, behavior: 'smooth' }); scheduleSidebarScrollIndicators(); setTimeout(() => scheduleSidebarScrollIndicators(), 220); }"
-        aria-label="Scroll sidebar to top"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"></path></svg>
-      </button>
-      <button
-        type="button"
-        class="sidebar-scroll-indicator sidebar-scroll-indicator-bottom"
-        x-show="sidebarCollapsed && sidebarHasOverflowBelow"
-        @click="if ($refs.sidebarNav) { $refs.sidebarNav.scrollTo({ top: Math.max(0, Number($refs.sidebarNav.scrollHeight || 0)), behavior: 'smooth' }); scheduleSidebarScrollIndicators(); setTimeout(() => scheduleSidebarScrollIndicators(), 220); }"
-        aria-label="Scroll sidebar to bottom"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
-      </button>
+      <infring-sidebar-scroll-controls-shell></infring-sidebar-scroll-controls-shell>
     </div>

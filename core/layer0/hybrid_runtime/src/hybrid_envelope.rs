@@ -29,7 +29,8 @@ fn evaluate_envelope_contract(
 }
 
 pub fn build_envelope(within_target: bool, completed_lanes: usize) -> serde_json::Value {
-    let (safe_completed_lanes, clamped_completed_lanes) = normalize_completed_lanes(completed_lanes);
+    let (safe_completed_lanes, clamped_completed_lanes) =
+        normalize_completed_lanes(completed_lanes);
     let status = if safe_completed_lanes >= TARGET_READY_LANES && within_target {
         "ready_for_guardrail_gate"
     } else if safe_completed_lanes >= TARGET_READY_LANES {

@@ -187,9 +187,8 @@ pub fn run_sprint_contract_json(payload: &str) -> Result<String, String> {
         80,
     );
     let batch_id = normalize_token(parsed.batch_id.as_deref().unwrap_or(""), 120);
-    let requested_status = normalize_requested_status(
-        parsed.requested_status.as_deref().unwrap_or("in_progress"),
-    );
+    let requested_status =
+        normalize_requested_status(parsed.requested_status.as_deref().unwrap_or("in_progress"));
     let approval_recorded = parsed.approval_recorded.unwrap_or(false);
     let enforcer_active = parsed.enforcer_active.unwrap_or(false);
     let preamble_text = clean_text(parsed.preamble_text.as_deref().unwrap_or(""), 220);

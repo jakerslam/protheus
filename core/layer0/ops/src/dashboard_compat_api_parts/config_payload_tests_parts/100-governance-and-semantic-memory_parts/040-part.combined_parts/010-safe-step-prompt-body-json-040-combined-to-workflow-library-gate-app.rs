@@ -92,7 +92,7 @@ fn workflow_gated_turn_persists_finalization_in_session_history() {
     .expect("message");
     let state = crate::dashboard_agent_state::load_session(root.path(), &agent_id);
     let assistant = state
-        .pointer("/session/sessions/0/messages")
+        .pointer("/message_window/rows")
         .and_then(Value::as_array)
         .and_then(|rows| {
             rows.iter().rev().find(|row| {

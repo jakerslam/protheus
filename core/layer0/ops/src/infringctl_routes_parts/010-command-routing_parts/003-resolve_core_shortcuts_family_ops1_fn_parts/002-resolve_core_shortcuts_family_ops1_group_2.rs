@@ -151,7 +151,7 @@ fn resolve_core_shortcuts_family_ops1_group_2(cmd: &str, rest: &[String]) -> Opt
                     args.push("--strict=1".to_string());
                 }
                 Some(Route {
-                    script_rel: "benchmarks/public_harness/run_public_harness.ts".to_string(),
+                    script_rel: "tests/tooling/scripts/ci/public_benchmark_harness.ts".to_string(),
                     args,
                     forward_stdin: false,
                 })

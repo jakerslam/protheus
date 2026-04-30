@@ -48,7 +48,11 @@ pub fn normalize_self_audit_subject_with_contract(
 ) -> (String, bool, &'static str) {
     let normalized = normalize_self_audit_subject(raw);
     if normalized.is_empty() {
-        return (normalized, false, "self_audit_subject_empty_after_normalization");
+        return (
+            normalized,
+            false,
+            "self_audit_subject_empty_after_normalization",
+        );
     }
     if strict_contract && has_parent_segment(&normalized) {
         return (
@@ -89,8 +93,8 @@ pub fn should_retry_self_audit_transport_error(raw: &str) -> bool {
         "reset",
         "closed",
     ]
-        .iter()
-        .any(|needle| folded.contains(needle))
+    .iter()
+    .any(|needle| folded.contains(needle))
 }
 
 #[cfg(test)]
@@ -108,8 +112,14 @@ mod assim121_self_audit_runtime_tests {
     #[test]
     fn self_audit_error_kinds_are_classified() {
         assert_eq!(classify_self_audit_error_kind("request timeout"), "timeout");
-        assert_eq!(classify_self_audit_error_kind("permission denied"), "authorization");
-        assert_eq!(classify_self_audit_error_kind("record not found"), "not_found");
+        assert_eq!(
+            classify_self_audit_error_kind("permission denied"),
+            "authorization"
+        );
+        assert_eq!(
+            classify_self_audit_error_kind("record not found"),
+            "not_found"
+        );
         assert_eq!(classify_self_audit_error_kind("misc"), "unknown");
     }
 
@@ -118,6 +128,8 @@ mod assim121_self_audit_runtime_tests {
         assert!(should_retry_self_audit_transport_error(
             "request timeout while upstream unavailable"
         ));
-        assert!(!should_retry_self_audit_transport_error("authorization denied"));
+        assert!(!should_retry_self_audit_transport_error(
+            "authorization denied"
+        ));
     }
 }

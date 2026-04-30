@@ -17,15 +17,22 @@
     'routed_model: autoRoutePayload.model,',
     'lane payload routed model binding missing'
   );
-  assertContains(
-    chatSource,
-    "var result = await InfringAPI.post('/api/route/auto', {",
-    'chat preflight auto-route request missing'
+  assert.ok(
+    !chatSource.includes("var result = await InfringAPI.post('/api/route/auto', {"),
+    'chat shell must not preflight auto-route before send'
   );
   assertContains(
     chatSource,
     "var prefix = provider ? ('Auto -> ' + provider + '/' + shortModel) : ('Auto -> ' + shortModel);",
     'chat auto-route metadata formatting missing'
+  );
+  assert.ok(
+    !chatSource.includes('inferContextWindowFromModelId('),
+    'chat shell must not infer context windows from model-name heuristics'
+  );
+  assert.ok(
+    !chatSource.includes('contextWindowNeedsFloor('),
+    'chat shell must not apply provider-specific context-window floor heuristics'
   );
   assertContains(
     chatSource,
@@ -59,7 +66,7 @@
   );
   assertContains(
     chatSource,
-    "this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute || preflightRoute);",
+    "this.maybeAddAutoModelSwitchNotice(httpAutoSwitchPrevious, httpRoute);",
     'http response auto-switch notice emission missing'
   );
   assertContains(

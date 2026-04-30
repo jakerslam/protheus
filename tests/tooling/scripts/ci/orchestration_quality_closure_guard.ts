@@ -3,7 +3,7 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-ORCH-QUALITY-CLOSURE-001';
 const LEGACY_SRS_ID = 'V11-ORCH-007';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const POLICY = 'client/runtime/config/orchestration_quality_policy.json';
 const OUT_JSON = 'core/local/artifacts/orchestration_quality_closure_guard_current.json';

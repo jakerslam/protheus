@@ -58,10 +58,18 @@ pub struct OperatorCriticalReport {
 
 pub fn load_node_critical_path_plan(path: &Path) -> Result<NodeCriticalPathPlan, String> {
     let resolved = resolve_repo_path(path);
-    let raw = fs::read_to_string(&resolved)
-        .map_err(|err| format!("read_node_burndown_plan_failed:{}:{err}", resolved.display()))?;
-    serde_json::from_str(&raw)
-        .map_err(|err| format!("parse_node_burndown_plan_failed:{}:{err}", resolved.display()))
+    let raw = fs::read_to_string(&resolved).map_err(|err| {
+        format!(
+            "read_node_burndown_plan_failed:{}:{err}",
+            resolved.display()
+        )
+    })?;
+    serde_json::from_str(&raw).map_err(|err| {
+        format!(
+            "parse_node_burndown_plan_failed:{}:{err}",
+            resolved.display()
+        )
+    })
 }
 
 pub fn build_operator_critical_report(
@@ -216,7 +224,8 @@ fn rust_entrypoints_for(
         .into_iter()
         .filter(|(group, _)| mode == "all" || mode == *group)
         .map(|(group, (domains, command, artifact_path))| {
-            let covered_domains: Vec<String> = domains.iter().map(|domain| domain.to_string()).collect();
+            let covered_domains: Vec<String> =
+                domains.iter().map(|domain| domain.to_string()).collect();
             let covered_lanes = lanes
                 .iter()
                 .filter(|lane| domains.contains(&lane.domain.as_str()))

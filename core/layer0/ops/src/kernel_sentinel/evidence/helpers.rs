@@ -4,6 +4,7 @@
 use crate::kernel_sentinel::{KernelSentinelFindingCategory, KernelSentinelSeverity};
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 pub(super) fn normalize_key(raw: &str) -> String {
@@ -99,4 +100,35 @@ pub(super) fn option_u64(args: &[String], name: &str, fallback: u64) -> u64 {
     args.iter()
         .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<u64>().ok()))
         .unwrap_or(fallback)
+}
+
+pub(super) fn malformed_count_by_key(records: &[Value], key: &str) -> BTreeMap<String, usize> {
+    let mut out = BTreeMap::<String, usize>::new();
+    for record in records {
+        let value = record
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|raw| !raw.is_empty())
+            .unwrap_or("unknown")
+            .to_string();
+        *out.entry(value).or_insert(0) += 1;
+    }
+    out
+}
+
+pub(super) fn record_freshness_age_seconds(record: &Value) -> Option<u64> {
+    let details = record.get("details").unwrap_or(&Value::Null);
+    ["freshness_age_seconds", "age_seconds", "source_artifact_age_seconds"]
+        .iter()
+        .find_map(|key| {
+            details
+                .get(*key)
+                .or_else(|| record.get(*key))
+                .and_then(|raw| {
+                    raw.as_u64()
+                        .or_else(|| raw.as_i64().and_then(|value| u64::try_from(value).ok()))
+                        .or_else(|| raw.as_str().and_then(|text| text.trim().parse::<u64>().ok()))
+                })
+        })
 }

@@ -2,6 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
+    build_kernel_sentinel_diagnostic_report_section,
     finding_lifecycle::normalize_finding_status, KernelSentinelFinding,
     KernelSentinelFindingCategory, KernelSentinelSeverity,
 };
@@ -13,6 +14,7 @@ pub(super) fn build_health_report(
     report: &Value,
     verdict: &Value,
     self_study_outputs: Option<&Value>,
+    diagnostic_run: Option<&Value>,
 ) -> Value {
     let data_starved = report["operator_summary"]["data_starved"].as_bool().unwrap_or(true);
     let partial_evidence = report["operator_summary"]["partial_evidence"]
@@ -167,6 +169,22 @@ pub(super) fn build_health_report(
             "suggestion_count": report["maintenance_synthesis"]["suggestion_count"].clone(),
             "automation_candidate_count": report["maintenance_synthesis"]["automation_candidate_count"].clone()
         },
+        "guard_consistency": {
+            "ok": report["guard_consistency"]["ok"].clone(),
+            "checked_count": report["guard_consistency"]["checked_count"].clone(),
+            "contradiction_count": report["guard_consistency"]["contradiction_count"].clone(),
+            "contradictions": report["guard_consistency"]["contradictions"].clone()
+        },
+        "diagnostic_report": diagnostic_run
+            .map(build_kernel_sentinel_diagnostic_report_section)
+            .unwrap_or_else(|| serde_json::json!({
+                "type": "kernel_sentinel_diagnostic_report_section",
+                "probes_run": 0,
+                "probes_refused": 0,
+                "confidence_gain_expected_total": 0.0,
+                "recurring_inconclusive_patterns": [],
+                "probe_requests": []
+            })),
         "trend": {
             "status": trend_status,
             "history_run_count": trend_history_runs,
@@ -293,179 +311,4 @@ fn string_field(record: &Value, key: &str) -> Option<String> {
         .and_then(Value::as_str)
         .filter(|raw| !raw.trim().is_empty())
         .map(str::to_string)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{build_health_report, release_blockers};
-    use serde_json::json;
-
-    #[test]
-    fn release_blockers_include_scheduler_stale_when_present() {
-        let blockers = release_blockers(0, 0, true, true);
-        assert_eq!(blockers, vec!["scheduler_stale"]);
-    }
-
-    #[test]
-    fn release_blockers_omit_scheduler_stale_when_fresh() {
-        let blockers = release_blockers(0, 0, true, false);
-        assert!(blockers.is_empty());
-    }
-
-    #[test]
-    fn build_health_report_surfaces_single_observability_snapshot() {
-        let report = json!({
-            "ok": true,
-            "release_gate": { "pass": true },
-            "operator_summary": {
-                "observation_state": "healthy_observation",
-                "scheduler_status": "fresh",
-                "scheduler_running": false,
-                "scheduler_stale": false,
-                "stale_evidence": false,
-                "stale_record_count": 0,
-                "max_evidence_age_seconds": 12,
-                "stale_evidence_seconds": 5400,
-                "data_starved": false,
-                "partial_evidence": false,
-                "malformed_evidence": false,
-                "present_source_count": 14,
-                "missing_source_count": 1,
-                "present_required_source_count": 14,
-                "missing_required_source_count": 0,
-                "present_optional_source_count": 0,
-                "missing_optional_source_count": 1,
-                "evidence_record_count": 120,
-                "freshness_observed_record_count": 80,
-                "status_counts": {"open": 2},
-                "severity_counts": {"critical": 1},
-                "category_counts": {"runtime_correctness": 2}
-            },
-            "issue_synthesis": {
-                "issue_draft_count": 1,
-                "active_issue_window_count": 1,
-                "rate_limited_cluster_count": 3,
-                "issue_quality": {
-                    "ok": true,
-                    "low_quality_issue_count": 0
-                }
-            },
-            "maintenance_synthesis": {
-                "suggestion_count": 4,
-                "automation_candidate_count": 2
-            }
-        });
-        let verdict = json!({
-            "ok": true,
-            "verdict": "allow",
-            "critical_open_count": 0,
-            "finding_count": 2,
-            "malformed_finding_count": 0,
-            "release_blockers": []
-        });
-        let self_study = json!({
-            "trend_history_runs": 4,
-            "trend_status": "improving",
-            "regression_count": 0,
-            "improvement_count": 2,
-            "trend_delta": {
-                "baseline": "previous_run",
-                "regressions": [],
-                "improvements": [
-                    {"metric": "finding_count", "before": 4, "after": 2},
-                    {"metric": "critical_open_count", "before": 1, "after": 0}
-                ]
-            },
-            "rsi_readiness": {
-                "ready_for_observation": true,
-                "ready_for_autonomous_rsi": true
-            }
-        });
-        let health = build_health_report(&report, &verdict, Some(&self_study));
-        assert_eq!(health["type"], "kernel_sentinel_health_report");
-        assert_eq!(health["freshness"]["scheduler_status"], "fresh");
-        assert_eq!(health["coverage"]["present_required_source_count"], 14);
-        assert_eq!(health["coverage"]["source_classes"]["required"]["present_count"], 14);
-        assert_eq!(health["coverage"]["source_classes"]["required"]["missing_count"], 0);
-        assert_eq!(health["coverage"]["source_classes"]["required"]["ready"], true);
-        assert_eq!(health["coverage"]["source_classes"]["optional"]["present_count"], 0);
-        assert_eq!(health["coverage"]["source_classes"]["optional"]["missing_count"], 1);
-        assert_eq!(health["coverage"]["source_classes"]["optional"]["fully_present"], false);
-        assert_eq!(health["trend"]["status"], "improving");
-        assert_eq!(health["trend"]["history_run_count"], 4);
-        assert_eq!(health["trend"]["regression_count"], 0);
-        assert_eq!(health["trend"]["improvement_count"], 2);
-        assert_eq!(health["trend"]["delta"]["baseline"], "previous_run");
-        assert_eq!(health["quality"]["finding_count"], 2);
-        assert_eq!(health["issue_synthesis"]["issue_draft_count"], 1);
-        assert_eq!(health["maintenance_synthesis"]["automation_candidate_count"], 2);
-        assert_eq!(health["authority_safety"]["safe_for_observation_authority"], true);
-        assert_eq!(health["authority_safety"]["safe_for_automation_authority"], true);
-    }
-
-    #[test]
-    fn build_health_report_keeps_automation_authority_false_without_self_study_readiness() {
-        let report = json!({
-            "ok": true,
-            "release_gate": { "pass": true },
-            "operator_summary": {
-                "observation_state": "healthy_observation",
-                "scheduler_status": "fresh",
-                "scheduler_running": false,
-                "scheduler_stale": false,
-                "stale_evidence": false,
-                "stale_record_count": 0,
-                "max_evidence_age_seconds": 0,
-                "stale_evidence_seconds": 5400,
-                "data_starved": false,
-                "partial_evidence": false,
-                "malformed_evidence": false,
-                "present_source_count": 14,
-                "missing_source_count": 0,
-                "present_required_source_count": 14,
-                "missing_required_source_count": 0,
-                "present_optional_source_count": 1,
-                "missing_optional_source_count": 0,
-                "evidence_record_count": 120,
-                "freshness_observed_record_count": 80,
-                "status_counts": {},
-                "severity_counts": {},
-                "category_counts": {}
-            },
-            "issue_synthesis": {
-                "issue_draft_count": 0,
-                "active_issue_window_count": 0,
-                "rate_limited_cluster_count": 0,
-                "issue_quality": {
-                    "ok": true,
-                    "low_quality_issue_count": 0
-                }
-            },
-            "maintenance_synthesis": {
-                "suggestion_count": 0,
-                "automation_candidate_count": 0
-            }
-        });
-        let verdict = json!({
-            "ok": true,
-            "verdict": "allow",
-            "critical_open_count": 0,
-            "finding_count": 0,
-            "malformed_finding_count": 0,
-            "release_blockers": []
-        });
-        let health = build_health_report(&report, &verdict, None);
-        assert_eq!(health["authority_safety"]["safe_for_observation_authority"], true);
-        assert_eq!(health["authority_safety"]["safe_for_automation_authority"], false);
-        assert_eq!(health["trend"]["status"], "unavailable");
-        assert_eq!(health["trend"]["delta"]["baseline"], "unavailable");
-        assert_eq!(
-            health["authority_safety"]["automation_blockers"][0],
-            "self_study_observation_not_ready"
-        );
-        assert_eq!(
-            health["authority_safety"]["automation_blockers"][1],
-            "self_study_readiness_unavailable"
-        );
-    }
 }

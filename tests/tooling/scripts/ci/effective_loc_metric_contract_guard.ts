@@ -5,7 +5,7 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-DX-EFFECTIVE-LOC-CLOSURE-001';
 const LEGACY_SRS_ID = 'V11-DX-004';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const PACKAGE_JSON = 'package.json';
 const METRIC_RUNNER = 'tests/tooling/scripts/ci/effective_loc_metric.ts';

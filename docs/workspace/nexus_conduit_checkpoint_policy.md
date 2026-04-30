@@ -207,7 +207,7 @@ At minimum, enforcement must verify:
 - `ops:nexus:governance` includes a policy guard;
 - `ops:nexus:governance` includes the cross-domain route inventory guard;
 - `ops:arch:governance` includes `ops:policy-refinement:governance`;
-- `ops:policy-refinement:governance` runs the Shell projection, Shell UI message/detail, Gateway interface, Interface Payload Budget, Shell amputation, Conduit/Scrambler posture, and cross-domain Nexus route inventory guards together;
+- `ops:policy-refinement:governance` runs the Shell projection, Shell UI message/detail, Shell long-chat memory, Gateway interface, Interface Payload Budget, Shell amputation, Conduit/Scrambler posture, and cross-domain Nexus route inventory guards together;
 - the current Nexus source root matches the filesystem;
 - the cross-domain route inventory exists and covers required domains and route classes;
 - SRS rows do not cite missing Nexus implementation paths as done evidence;

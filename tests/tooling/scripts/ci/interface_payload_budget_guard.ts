@@ -264,6 +264,14 @@ function validateEndpoint(row: EndpointBudget, contract: Contract, forbidden: Se
   for (const duplicate of duplicateValues(fields)) {
     violations.push({ kind: 'interface_payload_duplicate_allowed_field', detail: `${row.name} repeats allowed field ${duplicate}.` });
   }
+  if (row.name === 'chat_message_window_projection') {
+    if (!fields.includes('message_window')) {
+      violations.push({ kind: 'interface_payload_message_window_missing', detail: `${row.name} must expose a named message_window envelope.` });
+    }
+    if (fields.includes('messages')) {
+      violations.push({ kind: 'interface_payload_top_level_messages_forbidden', detail: `${row.name} must not expose top-level messages on the default path.` });
+    }
+  }
   for (const field of fields) {
     if (forbidden.has(field) || RAW_FIELD_PATTERN.test(field)) {
       violations.push({ kind: 'interface_payload_forbidden_default_field', detail: `${row.name} exposes forbidden/default-heavy field ${field}.` });

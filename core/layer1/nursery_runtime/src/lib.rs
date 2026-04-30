@@ -191,9 +191,7 @@ pub fn policy_gates_from_value(raw: &Value) -> PolicyGates {
                     return None;
                 }
                 let mut action = clean_scalar(
-                    row.get("action")
-                    .and_then(Value::as_str)
-                    .unwrap_or("deny"),
+                    row.get("action").and_then(Value::as_str).unwrap_or("deny"),
                     40,
                 )
                 .to_lowercase();

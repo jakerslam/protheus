@@ -3,7 +3,7 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-CLIENT-DEAUTHORITY-CLOSURE-001';
 const LEGACY_SRS_ID = 'V11-CLIENT-009';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const POLICY = 'client/runtime/config/shell_truth_leak_policy.json';
 const FIXTURE = 'tests/tooling/fixtures/workflow_failure_recovery_matrix.json';

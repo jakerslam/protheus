@@ -6,9 +6,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
+use super::diagnostic_run_artifact::{
+    build_kernel_sentinel_diagnostic_report_section,
+    build_kernel_sentinel_diagnostic_run_artifact, KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME,
+};
 use super::report_summary::build_health_report;
 use super::self_dossier::build_infring_self_dossier;
 use super::self_dossier_markdown::render_infring_self_dossier_markdown;
+use super::rsi_handoff::build_internal_rsi_proposals;
 use super::{boot_watch, build_report, issue_synthesis, maintenance_synthesis, self_study, waivers, write_json};
 
 const DEFAULT_AUTO_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_auto_run_current.json";
@@ -53,14 +58,28 @@ fn persist_run_outputs(
     )?;
     write_json(&dir.join("kernel_sentinel_verdict.json"), verdict)?;
     let self_study_outputs = self_study::write_self_study_outputs(dir, report)?;
-    let dossier = build_infring_self_dossier(root, report, verdict, &self_study_outputs)?;
+    let diagnostic_run = build_kernel_sentinel_diagnostic_run_artifact(report);
+    write_json(&dir.join(KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME), &diagnostic_run)?;
+    let dossier = build_infring_self_dossier(
+        root,
+        report,
+        verdict,
+        &self_study_outputs,
+        &diagnostic_run,
+    )?;
+    let dossier_value = dossier.clone();
+    let parsed_dossier: super::SystemUnderstandingDossier =
+        serde_json::from_value(dossier).map_err(|err| err.to_string())?;
+    let internal_rsi_proposals = build_internal_rsi_proposals(&parsed_dossier);
     write_json(
         &root.join("local/state/system_understanding/infring_dossier.json"),
-        &dossier,
+        &dossier_value,
     )?;
-    let dossier_markdown = serde_json::from_value(dossier.clone())
-        .map(|parsed| render_infring_self_dossier_markdown(&parsed))
-        .map_err(|err| err.to_string())?;
+    write_json(
+        &dir.join("internal_rsi_proposals_current.json"),
+        &internal_rsi_proposals,
+    )?;
+    let dossier_markdown = render_infring_self_dossier_markdown(&parsed_dossier);
     let markdown_path = root.join("docs/workspace/system_understanding/infring_dossier.md");
     if let Some(parent) = markdown_path.parent() {
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
@@ -68,9 +87,13 @@ fn persist_run_outputs(
     fs::write(&markdown_path, dossier_markdown).map_err(|err| err.to_string())?;
     write_json(
         &dir.join("kernel_sentinel_health_current.json"),
-        &build_health_report(report, verdict, Some(&self_study_outputs)),
+        &build_health_report(report, verdict, Some(&self_study_outputs), Some(&diagnostic_run)),
     )?;
-    issue_synthesis::write_issue_drafts_jsonl(&dir.join("issues.jsonl"), report)?;
+    issue_synthesis::write_issue_drafts_jsonl(
+        &dir.join("issues.jsonl"),
+        report,
+        Some(&diagnostic_run),
+    )?;
     maintenance_synthesis::write_maintenance_jsonl(dir, report)?;
     boot_watch::write_watch_metadata(dir, report, args)?;
     waivers::write_waiver_audit(dir, report)?;
@@ -92,6 +115,7 @@ pub fn build_auto_run_artifact(
     let max_stale_minutes = option_usize(args, "--max-stale-minutes", DEFAULT_STALE_MINUTES);
     let report_path = dir.join("kernel_sentinel_report_current.json");
     let architectural_incident_report_path = dir.join("architectural_incident_report_current.json");
+    let diagnostic_run_path = dir.join(KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME);
     let verdict_path = dir.join("kernel_sentinel_verdict.json");
     let rsi_ready = self_study_outputs["rsi_readiness"]["ready_for_autonomous_rsi"]
         .as_bool()
@@ -107,6 +131,8 @@ pub fn build_auto_run_artifact(
         .unwrap_or("none")
         .to_string();
     let next_actions = self_study_outputs["rsi_readiness"]["next_actions"].clone();
+    let diagnostic_run = build_kernel_sentinel_diagnostic_run_artifact(report);
+    let diagnostic_report = build_kernel_sentinel_diagnostic_report_section(&diagnostic_run);
     let issue_candidate = if rsi_ready {
         Value::Null
     } else {
@@ -181,10 +207,12 @@ pub fn build_auto_run_artifact(
         "output_artifacts": [
             "kernel_sentinel_report_current.json",
             "architectural_incident_report_current.json",
+            "kernel_sentinel_diagnostic_run_current.json",
             "kernel_sentinel_verdict.json",
             "kernel_sentinel_health_current.json",
             "system_understanding/infring_dossier.json",
             "docs/workspace/system_understanding/infring_dossier.md",
+            "internal_rsi_proposals_current.json",
             "kernel_sentinel_auto_run_current.json",
             "issues.jsonl",
             "suggestions.jsonl",
@@ -198,6 +226,8 @@ pub fn build_auto_run_artifact(
         ],
         "self_study_outputs": self_study_outputs,
         "system_understanding_dossier_path": system_understanding_dossier_path,
+        "diagnostic_run_path": diagnostic_run_path,
+        "diagnostic_report": diagnostic_report,
         "verdict": verdict,
         "operator_summary": report["operator_summary"],
         "rsi_preparation_role": {

@@ -1433,7 +1433,7 @@
       "status": "done",
       "title": "Competitive Observability + Benchmark Pack (Trace/Evals + Framework Parity)",
       "problem": "Operational confidence and market credibility require explicit trace/eval UX and repeatable benchmark parity artifacts against common alternatives.",
-      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `client/runtime/config/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/Workflow Graph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`.",
+      "acceptance": "Implement `client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}` + policy `validation/benchmarks/policies/competitive_observability_benchmark_policy.json`; user-specific benchmark preferences remain in with adaptive scenario weighting in `client/cognition/adaptive/ops/benchmarks/`; permanent benchmark scenarios, trace/eval collectors, and parity report generators remain in `client/runtime/systems/ops/` + `client/runtime/config/`; outputs deterministic parity scorecards for Letta/Mastra/Workflow Graph/Infring lanes without storing user-private contents in benchmark fixtures. Verify via npm run -s lane:v3-race-174:run and npm run -s test:lane:v3-race-174; receipt must be present in state artifacts. Rollback via git revert of completion commit or canonical status reset to queued if regression is detected. Evidence: `client/runtime/systems/ops/competitive_observability_benchmark_pack.ts`, `client/runtime/systems/ops`, `config`.",
       "dependencies": [
         "RM-122",
         "RM-123",
@@ -3414,7 +3414,7 @@
       "status": "done",
       "title": "Personas bootstrap vs dynamic memory split + token budget guard",
       "problem": "Persona lens invocations could over-inject dynamic memory context, causing token waste/drift and inconsistent runtime cost in single/multi/triggered loop calls.",
-      "acceptance": "`client/runtime/systems/personas/cli.ts` now separates bootstrap context from dynamic memory context, enforces configurable pre-invocation context budget (default `2000`) with trim/reject modes, logs over-budget violations to `personas/organization/telemetry.jsonl` and persona correspondence, and emits structured `context_budget` metadata. Loop hooks now pass explicit budget flags in `client/runtime/systems/autonomy/inversion_controller.ts` and `client/cognition/adaptive/rsi/rsi_bootstrap.ts`. Regression + sovereignty checks: `tests/client-memory-tools/personas_context_budget_guard.test.ts`, `tests/client-memory-tools/personas_lens_cli.test.ts`, `tests/client-memory-tools/execution_security_gate_integration.test.ts`.",
+      "acceptance": "`client/runtime/systems/personas/cli.ts` now separates bootstrap context from dynamic memory context, enforces configurable pre-invocation context budget (default `2000`) with trim/reject modes, logs over-budget violations to `observability/telemetry/persona_telemetry.jsonl` and persona correspondence, and emits structured `context_budget` metadata. Loop hooks now pass explicit budget flags in `client/runtime/systems/autonomy/inversion_controller.ts` and `client/cognition/adaptive/rsi/rsi_bootstrap.ts`. Regression + sovereignty checks: `tests/client-memory-tools/personas_context_budget_guard.test.ts`, `tests/client-memory-tools/personas_lens_cli.test.ts`, `tests/client-memory-tools/execution_security_gate_integration.test.ts`.",
       "dependencies": [],
       "impact_score": 12,
       "risk_score": 20,
@@ -4843,7 +4843,7 @@
       "status": "done",
       "title": "Gold Eval Corpus + Blind Detector Scoring Lane",
       "problem": "Detector quality cannot compound reliably without stable objective measurement artifacts.",
-      "acceptance": "Added `client/runtime/systems/sensory/gold_eval_blind_scoring_lane.{ts,js}` + `client/runtime/config/gold_eval_blind_scoring_policy.json` to run deterministic blind-ordered scoring on labeled eval packs with precision/recall/F1/Brier outputs and promotion gate receipts under `local/state/sensory/analysis/gold_eval_blind/`; regression coverage in `tests/client-memory-tools/gold_eval_blind_scoring_lane.test.ts`.",
+      "acceptance": "Added `client/runtime/systems/sensory/gold_eval_blind_scoring_lane.{ts,js}` + `validation/evals/policies/gold_eval_blind_scoring_policy.json` to run deterministic blind-ordered scoring on labeled eval packs with precision/recall/F1/Brier outputs and promotion gate receipts under `local/state/sensory/analysis/gold_eval_blind/`; regression coverage in `tests/client-memory-tools/gold_eval_blind_scoring_lane.test.ts`.",
       "dependencies": [
         "V3-RACE-081",
         "V3-RACE-082"
@@ -18585,7 +18585,7 @@
       "review_result": "pass",
       "evidence_refs": [
         "client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}",
-        "client/runtime/config/competitive_observability_benchmark_policy.json",
+        "validation/benchmarks/policies/competitive_observability_benchmark_policy.json",
         "client/cognition/adaptive/ops/benchmarks/",
         "client/runtime/systems/ops/",
         "client/runtime/config/",
@@ -18594,7 +18594,7 @@
       ],
       "evidence_found": [
         "client/runtime/systems/ops/competitive_observability_benchmark_pack.{ts,js}",
-        "client/runtime/config/competitive_observability_benchmark_policy.json",
+        "validation/benchmarks/policies/competitive_observability_benchmark_policy.json",
         "client/runtime/systems/ops/",
         "client/runtime/config/",
         "client/runtime/systems/ops/competitive_observability_benchmark_pack.ts",
@@ -23284,13 +23284,13 @@
       "review_result": "pass",
       "evidence_refs": [
         "client/runtime/systems/sensory/gold_eval_blind_scoring_lane.{ts,js}",
-        "client/runtime/config/gold_eval_blind_scoring_policy.json",
+        "validation/evals/policies/gold_eval_blind_scoring_policy.json",
         "local/state/sensory/analysis/gold_eval_blind/",
         "tests/client-memory-tools/gold_eval_blind_scoring_lane.test.ts"
       ],
       "evidence_found": [
         "client/runtime/systems/sensory/gold_eval_blind_scoring_lane.{ts,js}",
-        "client/runtime/config/gold_eval_blind_scoring_policy.json",
+        "validation/evals/policies/gold_eval_blind_scoring_policy.json",
         "tests/client-memory-tools/gold_eval_blind_scoring_lane.test.ts"
       ],
       "evidence_missing": [

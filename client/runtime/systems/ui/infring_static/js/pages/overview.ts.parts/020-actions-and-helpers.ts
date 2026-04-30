@@ -2,9 +2,14 @@
     checklistDismissed: localStorage.getItem('of-checklist-dismissed') === 'true',
 
     get setupChecklist() {
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
+      var agents = (store && store.agents) || [];
       return [
         { key: 'provider', label: 'Configure an LLM provider', done: this.configuredProviders.length > 0, action: '#settings' },
-        { key: 'agent', label: 'Create your first agent', done: (Alpine.store('app').agents || []).length > 0, action: '#agents' },
+        { key: 'agent', label: 'Create your first agent', done: agents.length > 0, action: '#agents' },
         { key: 'chat', label: 'Send your first message', done: localStorage.getItem('of-first-msg') === 'true', action: '#chat' },
         { key: 'channel', label: 'Connect a messaging channel', done: this.channels.length > 0, action: '#channels' },
         { key: 'skill', label: 'Browse or install a skill', done: localStorage.getItem('of-skill-browsed') === 'true', action: '#skills' }
@@ -105,7 +110,11 @@
     // Resolve agent UUID to name if possible
     agentName(agentId) {
       if (!agentId) return '-';
-      var agents = Alpine.store('app').agents || [];
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
+      var agents = (store && store.agents) || [];
       var agent = agents.find(function(a) { return a.id === agentId; });
       return agent ? agent.name : agentId.substring(0, 8) + '\u2026';
     }

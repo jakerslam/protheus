@@ -2,7 +2,7 @@
 
 Generated at: `2026-04-02T05:05:58.213Z`
 Source benchmark: `docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json`
-Source snapshot: `client/runtime/config/competitive_benchmark_snapshot_2026_02.json`
+Source snapshot: `validation/benchmarks/fixtures/competitive_benchmark_snapshot_2026_02.json`
 
 | Project | Cold Start (ms) | Idle RSS (MB) | Install (MB) | Tasks/sec |
 |---|---:|---:|---:|---:|

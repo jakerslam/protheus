@@ -43,6 +43,10 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function appStore() {
     if (typeof window === 'undefined') return null;
     const service = appStoreService();
+    if (service && typeof service.root === 'function') {
+      const root = service.root();
+      if (root) return root;
+    }
     return service && typeof service.current === 'function' ? service.current() : null;
   }
 

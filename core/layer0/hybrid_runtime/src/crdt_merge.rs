@@ -28,7 +28,10 @@ fn normalize_key(raw: &str) -> Option<String> {
     if trimmed.is_empty() {
         return None;
     }
-    let normalized = trimmed.chars().take(MAX_REGISTER_KEY_CHARS).collect::<String>();
+    let normalized = trimmed
+        .chars()
+        .take(MAX_REGISTER_KEY_CHARS)
+        .collect::<String>();
     if normalized.is_empty() {
         None
     } else {

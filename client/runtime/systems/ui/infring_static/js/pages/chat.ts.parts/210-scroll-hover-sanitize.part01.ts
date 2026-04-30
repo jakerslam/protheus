@@ -52,7 +52,13 @@
           self.setStoreActiveAgentId(null);
           self.messages = [];
           InfringToast.success('Agent "' + name + '" stopped');
-          Alpine.store('app').refreshAgents();
+          var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+            ? InfringSharedShellServices.appStore
+            : null;
+          var refreshAgents = bridge && typeof bridge.method === 'function'
+            ? bridge.method('refreshAgents')
+            : null;
+          if (typeof refreshAgents === 'function') refreshAgents();
         } catch(e) {
           InfringToast.error('Failed to stop agent: ' + e.message);
         }

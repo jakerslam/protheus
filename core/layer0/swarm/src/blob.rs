@@ -79,8 +79,8 @@ pub fn generate_manifest(blobs: &[(&str, &[u8])]) -> Vec<BlobManifest> {
 }
 
 pub fn decode_manifest(bytes: &[u8]) -> Result<Vec<BlobManifest>, BlobError> {
-    let raw_manifest: Vec<BlobManifest> =
-        serde_json::from_slice(bytes).map_err(|e| BlobError::ManifestDecodeFailed(e.to_string()))?;
+    let raw_manifest: Vec<BlobManifest> = serde_json::from_slice(bytes)
+        .map_err(|e| BlobError::ManifestDecodeFailed(e.to_string()))?;
     let mut seen = BTreeSet::<String>::new();
     for entry in &raw_manifest {
         if !seen.insert(entry.id.clone()) {

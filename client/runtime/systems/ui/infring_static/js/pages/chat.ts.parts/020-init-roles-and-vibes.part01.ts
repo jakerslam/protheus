@@ -221,7 +221,10 @@
         : '';
       if (agentBranch) return agentBranch;
       try {
-        var store = Alpine.store('app');
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
         var branch = store && store.gitBranch ? String(store.gitBranch).trim() : '';
         return branch || '';
       } catch(_) {
@@ -324,10 +327,13 @@
           }
         );
         this.applyAgentGitTreeState(this.currentAgent, result && result.current ? result.current : {});
-        var store = Alpine.store('app');
-        if (store && typeof store.refreshAgents === 'function') {
-          await store.refreshAgents({ force: true });
-        }
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var refreshAgents = bridge && typeof bridge.method === 'function'
+          ? bridge.method('refreshAgents')
+          : null;
+        if (typeof refreshAgents === 'function') await refreshAgents({ force: true });
         await this.refreshGitTreeMenu(true);
         this.closeGitTreeMenu();
         InfringToast.success('Switched to branch ' + branch);

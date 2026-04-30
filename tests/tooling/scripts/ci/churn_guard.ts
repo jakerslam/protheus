@@ -24,6 +24,10 @@ const SWARM_DOC_SURFACES = new Set([
   'docs/workspace/SRS.md',
   'docs/client/requirements/REQ-38-agent-orchestration-hardening.md',
 ]);
+const ALLOWED_ASSURANCE_PHYSICAL_DOMAIN_MOVE_PAIRS = new Set([
+  'tests/tooling/config/assurance_governance_registry.json->validation/governance/contracts/assurance_governance_registry.json',
+  'tests/tooling/schemas/assurance_governance_registry.schema.json->validation/schemas/assurance_governance_registry.schema.json',
+]);
 
 function parseArgs(argv) {
   const strictRaw = readFlag(argv, 'strict');
@@ -196,6 +200,10 @@ function detectLikelyUnstagedMoves(rows) {
   return pairs;
 }
 
+function isAllowedAssurancePhysicalDomainMove(pair) {
+  return ALLOWED_ASSURANCE_PHYSICAL_DOMAIN_MOVE_PAIRS.has(`${pair.from}->${pair.to}`);
+}
+
 function detectSessionChurnSignals() {
   const issues = [];
 
@@ -298,6 +306,8 @@ function toMarkdown(payload) {
   lines.push(`- swarm_companion_gaps: ${payload.summary.swarm_companion_gaps}`);
   lines.push(`- allow_governance_doc_churn: ${payload.summary.allow_governance_doc_churn}`);
   lines.push(`- likely_unstaged_moves: ${payload.summary.likely_unstaged_moves}`);
+  lines.push(`- allowed_assurance_physical_domain_moves: ${payload.summary.allowed_assurance_physical_domain_moves}`);
+  lines.push(`- blocking_likely_unstaged_moves: ${payload.summary.blocking_likely_unstaged_moves}`);
   lines.push(`- untracked: ${payload.summary.untracked}`);
   lines.push(`- commit_gate_forbidden: ${payload.summary.commit_gate_forbidden}`);
   lines.push(`- other: ${payload.summary.other}`);
@@ -320,13 +330,21 @@ function toMarkdown(payload) {
   }
   if (payload.likely_unstaged_moves.length > 0) {
     lines.push('## Likely Unstaged Move Pairs');
-    lines.push('| From (deleted) | To (untracked) |');
-    lines.push('| --- | --- |');
+    lines.push('| From (deleted) | To (untracked) | Classification |');
+    lines.push('| --- | --- | --- |');
+    const allowed = new Set(
+      (payload.allowed_assurance_physical_domain_moves || []).map(
+        (pair) => `${pair.from}->${pair.to}`,
+      ),
+    );
     for (const pair of payload.likely_unstaged_moves.slice(0, 80)) {
-      lines.push(`| ${pair.from} | ${pair.to} |`);
+      const classification = allowed.has(`${pair.from}->${pair.to}`)
+        ? 'allowed_assurance_physical_domain_move'
+        : 'blocking_unstaged_move';
+      lines.push(`| ${pair.from} | ${pair.to} | ${classification} |`);
     }
     lines.push('');
-    lines.push('Remediation: stage moves as a single rename set (`git add -A`) before continuing.');
+    lines.push('Remediation: blocking moves should be staged as a single rename set (`git add -A`) before continuing; allowed Assurance physical-domain moves are expected during migration burn-down.');
     lines.push('');
   }
   if (payload.swarm_companion_gaps.length > 0) {
@@ -359,6 +377,12 @@ function main() {
   const rows = parseStatus();
   const sessionChurnSignals = detectSessionChurnSignals();
   const likelyUnstagedMoves = detectLikelyUnstagedMoves(rows);
+  const allowedAssurancePhysicalDomainMoves = likelyUnstagedMoves.filter(
+    isAllowedAssurancePhysicalDomainMove,
+  );
+  const blockingLikelyUnstagedMoves = likelyUnstagedMoves.filter(
+    (pair) => !isAllowedAssurancePhysicalDomainMove(pair),
+  );
   const swarmCompanionGaps = detectSwarmCompanionGaps(rows);
   const untrackedRows = rows.filter((row) => isUntracked(row.status));
   const forbiddenCommitCategories = new Set([
@@ -374,7 +398,7 @@ function main() {
   const commitGatePass =
     forbiddenCommitRows.length === 0 &&
     (args.allowGovernanceDocChurn || governanceCommitRows.length === 0 || !governanceOnlyChurn) &&
-    likelyUnstagedMoves.length === 0 &&
+    blockingLikelyUnstagedMoves.length === 0 &&
     swarmCompanionGaps.length === 0 &&
     untrackedRows.length === 0 &&
     sessionChurnSignals.length === 0;
@@ -393,6 +417,8 @@ function main() {
     swarm_companion_gaps: swarmCompanionGaps.length,
     allow_governance_doc_churn: args.allowGovernanceDocChurn,
     likely_unstaged_moves: likelyUnstagedMoves.length,
+    allowed_assurance_physical_domain_moves: allowedAssurancePhysicalDomainMoves.length,
+    blocking_likely_unstaged_moves: blockingLikelyUnstagedMoves.length,
     untracked: untrackedRows.length,
     commit_gate_forbidden: forbiddenCommitRows.length,
     other: rows.filter((r) => r.category === 'other').length,
@@ -403,7 +429,7 @@ function main() {
     summary.session_churn === 0 &&
     (summary.governance_doc_churn === 0 || args.allowGovernanceDocChurn) &&
     summary.swarm_companion_gaps === 0 &&
-    summary.likely_unstaged_moves === 0;
+    summary.blocking_likely_unstaged_moves === 0;
   summary.commit_gate_pass = commitGatePass;
   summary.pass = args.commitGate ? summary.commit_gate_pass : summary.clean_pass;
 
@@ -420,10 +446,10 @@ function main() {
       detail: sessionChurnSignals.map((row) => row.type).join(','),
     });
   }
-  if (likelyUnstagedMoves.length > 0) {
+  if (blockingLikelyUnstagedMoves.length > 0) {
     failures.push({
       id: 'likely_unstaged_moves_present',
-      detail: likelyUnstagedMoves.map((row) => `${row.from}->${row.to}`).join(',').slice(0, 500),
+      detail: blockingLikelyUnstagedMoves.map((row) => `${row.from}->${row.to}`).join(',').slice(0, 500),
     });
   }
   if (swarmCompanionGaps.length > 0) {
@@ -452,6 +478,8 @@ function main() {
     artifact_paths: [args.outJson, args.outMarkdown],
     session_churn_signals: sessionChurnSignals,
     likely_unstaged_moves: likelyUnstagedMoves,
+    allowed_assurance_physical_domain_moves: allowedAssurancePhysicalDomainMoves,
+    blocking_likely_unstaged_moves: blockingLikelyUnstagedMoves,
     swarm_companion_gaps: swarmCompanionGaps,
     rows,
   };

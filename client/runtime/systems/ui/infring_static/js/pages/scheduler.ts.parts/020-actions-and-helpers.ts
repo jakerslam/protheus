@@ -47,7 +47,11 @@
     // ── Utility ──
 
     get availableAgents() {
-      return Alpine.store('app').agents || [];
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
+      return (store && store.agents) || [];
     },
 
     agentName(agentId) {

@@ -202,12 +202,11 @@ pub fn evaluate_required_hook_completeness(
         .cloned()
         .collect::<Vec<_>>();
     let check_id = normalize_hook(check_id).unwrap_or_else(|| "unknown_check".to_string());
-    let fail_closed =
-        required_hooks.is_empty()
-            || mandatory_hooks.is_empty()
-            || check_id == "unknown_check"
-            || required_overflow
-            || mandatory_overflow;
+    let fail_closed = required_hooks.is_empty()
+        || mandatory_hooks.is_empty()
+        || check_id == "unknown_check"
+        || required_overflow
+        || mandatory_overflow;
     let ok = !fail_closed && missing_hooks.is_empty();
     let evidence = vec![
         format!("required_count={}", required_hooks.len()),

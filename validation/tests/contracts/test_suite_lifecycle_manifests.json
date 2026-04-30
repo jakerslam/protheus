@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "owner": "validation/tests",
+  "purpose": "Suite-level lifecycle manifests for controlled checks that belong to the Validation tests domain.",
+  "lifecycle_states": [
+    "proposed",
+    "active",
+    "observing",
+    "stable",
+    "retirement_candidate",
+    "retired_or_merged"
+  ],
+  "required_suite_fields": [
+    "id",
+    "classification",
+    "owner",
+    "runtime_owner",
+    "invariant",
+    "evidence_artifact",
+    "lifecycle_state",
+    "temporary"
+  ],
+  "suites": [
+    {
+      "id": "test_maturity_lifecycle_registry_suite",
+      "classification": "self_enforcement_validator",
+      "owner": "validation/tests",
+      "runtime_owner": "validation/test-lifecycle",
+      "invariant": "Every registered tooling gate has lifecycle classification, invariant, owner signal, and temporary retirement semantics when applicable.",
+      "evidence_artifact": "core/local/artifacts/test_maturity_registry_current.json",
+      "lifecycle_state": "active",
+      "temporary": false,
+      "managed_gate_ids": [
+        "ops:test-maturity:registry:guard"
+      ]
+    },
+    {
+      "id": "assurance_physical_domain_suite",
+      "classification": "architecture_drift_guard",
+      "owner": "validation/conformance",
+      "runtime_owner": "assurance/physical-domain-governance",
+      "invariant": "Validation and Observability definitions live in their owning physical domains, with compatibility mirrors registered as burn-down debt.",
+      "evidence_artifact": "core/local/artifacts/assurance_physical_domain_completion_audit_current.json",
+      "lifecycle_state": "active",
+      "temporary": false,
+      "managed_gate_ids": [
+        "ops:assurance:physical-domain-completion:audit",
+        "ops:assurance:physical-domain-placement:guard",
+        "ops:assurance:placement:guard"
+      ]
+    },
+    {
+      "id": "eval_feedback_lifecycle_suite",
+      "classification": "self_enforcement_validator",
+      "owner": "validation/evals",
+      "runtime_owner": "orchestration/eval-feedback",
+      "invariant": "Eval observations may be authoritative evidence, while issue filing and automation remain lifecycle-governed, deduped, and proposal-safe.",
+      "evidence_artifact": "core/local/artifacts/eval_feedback_lifecycle_guard_current.json",
+      "lifecycle_state": "active",
+      "temporary": false,
+      "managed_gate_ids": [
+        "ops:eval-feedback:lifecycle:guard",
+        "ops:eval:agent-self-diagnosis",
+        "ops:eval:misty-live-health:guard",
+        "ops:eval:synthetic-user-chat:harness"
+      ]
+    },
+    {
+      "id": "shell_projection_ownership_suite",
+      "classification": "architecture_drift_guard",
+      "owner": "validation/conformance",
+      "runtime_owner": "client/runtime/systems/ui projection contracts",
+      "invariant": "Shell surfaces remain projection and collection surfaces, never hidden runtime authority or a browser-side mini-OS.",
+      "evidence_artifact": "core/local/artifacts/shell_transition_tracker_current.json",
+      "lifecycle_state": "active",
+      "temporary": false,
+      "managed_gate_ids": [
+        "ops:shell:alpine-growth:guard",
+        "ops:shell:alpine-hot-path:guard",
+        "ops:shell:alpine-ownership:guard",
+        "ops:shell:alpine-retirement:guard",
+        "ops:shell:chat-ownership:guard",
+        "ops:shell:message-metadata:guard",
+        "ops:shell:taskbar-dock:guard"
+      ]
+    },
+    {
+      "id": "kernel_sentinel_release_observation_suite",
+      "classification": "release_evidence_gate",
+      "owner": "validation/release_gates",
+      "runtime_owner": "core/layer0/ops/kernel_sentinel",
+      "invariant": "Kernel Sentinel release verdict and source coverage remain fresh enough to support observation authority before release confidence is granted.",
+      "evidence_artifact": "core/local/artifacts/kernel_sentinel_release_gate_current.json",
+      "lifecycle_state": "active",
+      "temporary": false,
+      "managed_gate_ids": [
+        "ops:kernel-sentinel:release-gate"
+      ]
+    },
+    {
+      "id": "issue_candidate_actionability_suite",
+      "classification": "self_enforcement_validator",
+      "owner": "validation/evals",
+      "runtime_owner": "orchestration/issue-candidate-synthesis",
+      "invariant": "Issue candidates are evidence-backed, deduped, safe-to-file only when reviewed, and never safe to auto-apply patches by default.",
+      "evidence_artifact": "core/local/artifacts/issue_candidate_contract_guard_current.json",
+      "lifecycle_state": "active",
+      "temporary": false,
+      "managed_gate_ids": [
+        "ops:issue-candidate:backlog:assemble",
+        "ops:issue-candidate:contract:guard"
+      ]
+    }
+  ]
+}

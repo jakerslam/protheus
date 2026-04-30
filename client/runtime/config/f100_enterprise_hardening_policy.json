@@ -7,7 +7,7 @@
       "id": "f100_reliability_error_budget_gate",
       "title": "Reliability gate enforces explicit error-budget policy",
       "type": "json_fields",
-      "path": "client/runtime/config/error_budget_release_gate_policy.json",
+      "path": "validation/release_gates/policies/error_budget_release_gate_policy.json",
       "required_fields": [
         "enabled",
         "strict_default",
@@ -183,7 +183,7 @@
       "id": "f100_release_promotion_gate",
       "title": "Release promotion canary/rollback guard is configured",
       "type": "json_fields",
-      "path": "client/runtime/config/release_gate_canary_rollback_enforcer_policy.json",
+      "path": "validation/release_gates/policies/release_gate_canary_rollback_enforcer_policy.json",
       "required_fields": [
         "enabled",
         "thresholds.canary_pass_rate_min",

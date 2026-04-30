@@ -163,7 +163,9 @@ pub fn build_gateway_boundary_guard_report(
             && gateway.request_timeout_ms <= policy.max_request_timeout_ms
             && gateway.memory_limit_mb <= policy.max_memory_limit_mb
     });
-    let monitor_ok = decisions.iter().any(|decision| decision.health_status == "healthy")
+    let monitor_ok = decisions
+        .iter()
+        .any(|decision| decision.health_status == "healthy")
         && decisions
             .iter()
             .any(|decision| decision.health_status == "quarantined")
@@ -189,10 +191,19 @@ pub fn build_gateway_boundary_guard_report(
     });
     let coverage_ok = required_ids.is_superset(&observed_ids) && !decisions.is_empty();
     let checks = vec![
-        check_row("gateway_process_isolation_policy_contract", isolation_policy_ok),
-        check_row("gateway_timeout_memory_limit_policy_contract", resource_bounds_ok),
+        check_row(
+            "gateway_process_isolation_policy_contract",
+            isolation_policy_ok,
+        ),
+        check_row(
+            "gateway_timeout_memory_limit_policy_contract",
+            resource_bounds_ok,
+        ),
         check_row("gateway_health_monitor_contract", monitor_ok),
-        check_row("gateway_repeated_failure_quarantine_contract", quarantine_ok),
+        check_row(
+            "gateway_repeated_failure_quarantine_contract",
+            quarantine_ok,
+        ),
         check_row("gateway_quarantine_recovery_receipt_contract", recovery_ok),
         check_row("gateway_policy_observation_coverage_contract", coverage_ok),
     ];
@@ -256,7 +267,10 @@ fn evaluate_gateway(
         "quarantined"
     } else if recovered {
         "recovered"
-    } else if observation.liveness_ok && observation.heartbeat_seen && observation.degradation_score == 0 {
+    } else if observation.liveness_ok
+        && observation.heartbeat_seen
+        && observation.degradation_score == 0
+    {
         "healthy"
     } else {
         "degraded"
@@ -344,16 +358,17 @@ mod tests {
     use super::*;
 
     fn policy() -> GatewayBoundaryPolicy {
-        serde_json::from_str(include_str!(
-            "../config/gateway_boundary_policy.json"
-        ))
-        .expect("policy")
+        serde_json::from_str(include_str!("../config/gateway_boundary_policy.json"))
+            .expect("policy")
     }
 
     #[test]
     fn gateway_isolation_and_resource_bounds_are_enforced() {
         let policy = policy();
-        assert!(policy.gateways.iter().all(|gateway| gateway.sandbox_required));
+        assert!(policy
+            .gateways
+            .iter()
+            .all(|gateway| gateway.sandbox_required));
         assert!(policy.gateways.iter().all(|gateway| {
             gateway.isolation_mode == policy.required_isolation_mode
                 && gateway.startup_timeout_ms <= policy.max_startup_timeout_ms

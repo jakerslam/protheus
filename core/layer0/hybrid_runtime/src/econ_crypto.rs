@@ -95,7 +95,8 @@ fn evaluate_ledger_contract(
 }
 
 fn count_schema_violations(lines: &[String]) -> usize {
-    lines.iter()
+    lines
+        .iter()
         .filter(|line| {
             let Some((key, value)) = line.split_once(':') else {
                 return true;

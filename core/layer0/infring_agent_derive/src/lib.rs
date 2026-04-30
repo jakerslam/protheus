@@ -191,4 +191,3 @@ pub fn infring_agent(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into(),
     }
 }
-

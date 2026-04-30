@@ -2,7 +2,7 @@
 
 Status: Canonical architecture policy
 Owner: Jay
-Scope: Shell UI, Shell SDK/UI-facing gateways, Orchestration output packaging, and Core-facing presentation contracts
+Scope: Shell UI, Shell SDK/UI-facing gateways, Orchestration output packaging, and Kernel-facing presentation contracts
 Effective: April 2026
 
 ## Purpose
@@ -15,7 +15,7 @@ This policy exists because long-chat stress exposed a structural failure mode: i
 
 ## Core Axiom
 
-Core decides what is true and allowed.
+Kernel decides what is true and allowed (`core/**` is the implementation path only).
 
 Orchestration decides what should happen next.
 
@@ -26,6 +26,19 @@ Shell shows, collects, and requests details by reference.
 The Shell default data shape is a projection, not a runtime object.
 
 Shell-independent operation is canonicalized in `docs/workspace/shell_independent_operation_policy.md`; Core, Orchestration, CLI, and Gateway status must build and operate without browser Shell assets.
+
+## Dynamic Long-Chat Memory Regression
+
+Static Shell projection checks are necessary but not sufficient. The Shell must also prove that a synthetic long chat stays bounded across the interaction phases that historically expose projection leaks:
+
+- open a long thread;
+- scroll to a non-tail window;
+- search within the long thread;
+- expand a bounded tool/detail reference;
+- switch to another session;
+- cleanup/unload the session projection.
+
+The canonical dynamic regression is `npm run -s ops:shell:long-chat-ram:guard`. It records per-phase estimated JS heap, DOM node count, custom-element count, storage bytes, projected row count, and cleanup state. A passing Shell cannot rely on visual virtualization alone; it must keep heap, DOM, storage, detail expansion, session switching, and cleanup inside release-blocking budgets.
 
 ## What The Shell May Own
 
@@ -180,6 +193,8 @@ Message/detail contract command: `npm run -s ops:shell:ui-message-contract:guard
 Interface payload budget command: `npm run -s ops:interface:payload-budget:guard`.
 
 Architecture policy governance command: `npm run -s ops:policy-refinement:governance`.
+
+That aggregate governance command must include `npm run -s ops:shell:long-chat-ram:guard`, making long-chat heap, DOM, storage, detail-expansion, session-switch, and cleanup regressions release-blocking Shell projection failures.
 
 The companion guard for this policy must fail on:
 

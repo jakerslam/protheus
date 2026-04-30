@@ -7,16 +7,18 @@
 InfRing is a deterministic, receipt-first autonomous runtime built on a three-plane metakernel.
 It is designed for verifiable execution, fail-closed safety, and reproducible operator workflows.
 
-Kernel authority is Rust-first (`core/**`).
-Orchestration coordination lives in `orchestration/**` (non-canonical, contract-driven).
-Shell/runtime surfaces remain thin presentation wrappers around policy-governed kernel lanes.
+Kernel authority is Rust-first (`core/**` path compatibility).
+Orchestration Control Plane coordination lives in `orchestration/**` (non-canonical, contract-driven coordination).
+Shell/runtime surfaces remain thin presentation wrappers around policy-governed Kernel lanes (`client/**` path compatibility).
 
 ## Canonical Terminology (Enforced)
 
-- Authority layer: **Kernel**
-- External boundary layer: **Gateways**
-- Presentation layer: **Shell**
-- Repository implementation paths remain `core/**`, `adapters/**`, and `client/**`.
+- **Kernel** is the authority layer. `core/**` is the repository path for Kernel implementation and compatibility wording only; `Core` is not a second authority.
+- **Orchestration Control Plane** is the coordination layer. `orchestration/**` is its repository path. `Tower` is not a canonical architecture term.
+- **Gateways** are the external boundary layer. `adapters/**` is the implementation path and `Adapters` is compatibility wording only.
+- **Shell** is the presentation layer. `client/**` is the repository path for Shell implementation and compatibility wording only; `Client` is not a conceptual owner.
+- **Validation**, **Observability**, and **Governance** are Assurance domains, not Kernel, Orchestration, or Shell subfeatures.
+- When a document refers to a filesystem path, use the path form (`core/**`, `client/**`, `adapters/**`). When it refers to ownership, use the concept form (**Kernel**, **Shell**, **Gateways**).
 - Alias retirement state is governed by:
   - `docs/workspace/policy/release_terminology_transition_policy.md`
   - `client/runtime/config/terminology_transition_deprecation_tracker.json`
@@ -34,15 +36,15 @@ Shell/runtime surfaces remain thin presentation wrappers around policy-governed 
 | Plane | Role |
 |---|---|
 | Safety Plane | Deterministic guardrails, invariants, fail-closed behavior |
-| Cognition Plane | Orchestration coordination + presentation cognition surfaces (non-authoritative) |
+| Cognition Plane | Historical metakernel plane label for non-authoritative coordination and presentation; active owners are Orchestration Control Plane and Shell |
 | Substrate Plane | Runtime integration, execution surfaces, system bridges |
 
 Runtime split inside cognition:
 
-- Authoritative Kernel: `core/**`
-- Orchestration: `orchestration/**`
-- Presentation Shell: `client/**`
-- Gateway Layer: `adapters/**`
+- Authoritative Kernel: `core/**` path compatibility
+- Orchestration Control Plane: `orchestration/**`
+- Presentation Shell: `client/**` path compatibility
+- Gateway Layer: `adapters/**` path compatibility
 
 See [planes/README.md](planes/README.md) for the canonical architecture contract.
 See [docs/client/PUBLIC_OPERATOR_PROFILE.md](docs/client/PUBLIC_OPERATOR_PROFILE.md) for the public operator-facing surface and support expectations.

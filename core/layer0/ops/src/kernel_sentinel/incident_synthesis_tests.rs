@@ -1,7 +1,8 @@
 use super::*;
 use crate::kernel_sentinel::{
     cluster_kernel_sentinel_incident_events, validate_kernel_sentinel_incident_event,
-    KernelSentinelIncidentEvent, KernelSentinelIncidentEvidenceLevel,
+    KernelSentinelDiagnosticProbeClass, KernelSentinelIncidentEvent,
+    KernelSentinelIncidentEvidenceLevel,
     KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION,
 };
 use serde::Deserialize;
@@ -324,4 +325,55 @@ fn authority_shape_residue_golden_fixture_flags_policy_truth_risk() {
             .any(|reason| reason == "authority_shaped_residue"),
         "fixture must emit authority_shaped_residue"
     );
+    let follow_up = incident
+        .diagnostic_follow_up_request
+        .expect("residue fixture should request safe replay follow-up");
+    assert_eq!(
+        follow_up.failure_signature,
+        "authority_shape_residue_reemergence"
+    );
+    assert_eq!(
+        follow_up.selected_probe,
+        "golden://kernel_sentinel/authority_shape_residue"
+    );
+}
+
+#[test]
+fn source_of_truth_ambiguity_requests_safe_topology_follow_up_only_when_disambiguating() {
+    let mut cluster = cluster_kernel_sentinel_incident_events(
+        &[event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Boundary)],
+        60,
+    )
+    .remove(0);
+    cluster.evidence_refs.extend([
+        "layer://shell/taskbar_offline".to_string(),
+        "layer://gateway/healthz_not_ready".to_string(),
+        "command://infring_gateway_restart/status=success".to_string(),
+        "listener://dashboard:4173/state=listener_absent".to_string(),
+    ]);
+    cluster.summaries.push(
+        "command success but healthz not ready leaves a source-of-truth ambiguity".to_string(),
+    );
+
+    let incident = synthesize_kernel_sentinel_architectural_incidents(&[cluster]).remove(0);
+    let follow_up = incident
+        .diagnostic_follow_up_request
+        .expect("source-of-truth ambiguity should request safe topology follow-up");
+    assert_eq!(
+        follow_up.probe_class,
+        KernelSentinelDiagnosticProbeClass::DiagnosticTopologyProbe
+    );
+    assert_eq!(follow_up.failure_signature, "dashboard_healthz_not_ready");
+    assert_eq!(follow_up.selected_probe, "health://dashboard/healthz");
+}
+
+#[test]
+fn local_only_incident_does_not_request_diagnostic_follow_up() {
+    let cluster = cluster_kernel_sentinel_incident_events(
+        &[event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Event)],
+        60,
+    )
+    .remove(0);
+    let incident = synthesize_kernel_sentinel_architectural_incidents(&[cluster]).remove(0);
+    assert!(incident.diagnostic_follow_up_request.is_none());
 }

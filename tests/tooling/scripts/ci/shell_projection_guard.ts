@@ -206,6 +206,27 @@ function validatePolicyDoc(policy: Policy, violations: Violation[]): void {
   }
 }
 
+function legacyAllowanceRows(policy: Policy): Allowance[] {
+  const rows: Allowance[] = [];
+  for (const allowances of Object.values(policy.allowed_legacy_occurrences || {})) {
+    if (!Array.isArray(allowances)) continue;
+    for (const allowance of allowances) rows.push(allowance);
+  }
+  return rows;
+}
+
+function validateNoLegacyAllowances(policy: Policy, violations: Violation[]): number {
+  const rows = legacyAllowanceRows(policy);
+  for (const allowance of rows) {
+    violations.push({
+      kind: 'shell_projection_legacy_allowance_forbidden',
+      path: allowance.path,
+      detail: `Shell projection legacy allowance is no longer permitted; replacement_plan=${cleanText(allowance.replacement_plan || '', 300)}`,
+    });
+  }
+  return rows.length;
+}
+
 function sourceWindow(lines: string[], index: number, before = 8, after = 12): string {
   const start = Math.max(0, index - before);
   const end = Math.min(lines.length, index + after + 1);
@@ -265,6 +286,7 @@ function markdown(payload: any): string {
   lines.push('## Summary');
   lines.push(`- scanned_files: ${payload.summary.scanned_files}`);
   lines.push(`- forbidden_pattern_count: ${payload.summary.forbidden_pattern_count}`);
+  lines.push(`- legacy_allowance_rows: ${payload.summary.legacy_allowance_rows}`);
   lines.push(`- system_chat_injection_violations: ${payload.summary.system_chat_injection_violations}`);
   lines.push(`- strict_violations: ${payload.summary.strict_violations}`);
   lines.push(`- known_debt_matches: ${payload.summary.known_debt_matches}`);
@@ -290,6 +312,7 @@ async function run(argv = process.argv.slice(2)) {
   const hits: Hit[] = [];
   const knownDebt: Hit[] = [];
   validatePolicyDoc(policy, violations);
+  const legacyAllowanceRowCount = validateNoLegacyAllowances(policy, violations);
 
   const files = expandScanFiles(policy, args.scanRoots);
   const virtualSources: Record<string, string> = {};
@@ -347,6 +370,7 @@ async function run(argv = process.argv.slice(2)) {
     summary: {
       scanned_files: files.length,
       forbidden_pattern_count: (policy.forbidden_patterns || []).length,
+      legacy_allowance_rows: legacyAllowanceRowCount,
       system_chat_injection_violations: systemChatInjectionViolations,
       pattern_hits: hits.length,
       strict_violations: violations.length,

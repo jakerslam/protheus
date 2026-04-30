@@ -38,7 +38,7 @@ jay_haslam (Founder / Principal)
 - Risk policy source: `personas/organization/risk_policy.json`
 - Breaker policy source: `personas/organization/breaker_policy.json`
 - Soul-token policy source: `personas/organization/soul_token_policy.json`
-- Telemetry formulas source: `personas/organization/telemetry_policy.json`
+- Telemetry formulas source: `observability/telemetry/persona_telemetry_policy.json`
 - Retention policy source: `personas/organization/retention_policy.json`
 - Pre-sprint checks: `personas/pre-sprint.md`
 - Trigger prompt template: `personas/trigger_prompt.md`
@@ -47,7 +47,7 @@ jay_haslam (Founder / Principal)
 
 - Meeting artifacts: `personas/organization/meetings/ledger.jsonl` (hash-chained rows)
 - Project artifacts: `personas/organization/projects/ledger.jsonl` (hash-chained rows)
-- Telemetry artifacts: `personas/organization/telemetry.jsonl` (formula-bound metrics)
+- Telemetry artifacts: `observability/telemetry/persona_telemetry.jsonl` (formula-bound metrics)
 - Shadow mode state: `personas/organization/shadow_mode_state.json`
 - Live telemetry report: `infring orchestrate telemetry`
 - Artifact audit command: `infring orchestrate audit "<artifact_id>"`

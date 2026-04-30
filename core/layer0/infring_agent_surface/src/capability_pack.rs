@@ -88,7 +88,8 @@ impl StaticCapabilityPack for SocialSignalCapabilityPack {
     fn spec() -> CapabilityPackSpec {
         CapabilityPackSpec {
             id: "social-signal".to_string(),
-            description: "Signal monitoring across public channels with summary rollups".to_string(),
+            description: "Signal monitoring across public channels with summary rollups"
+                .to_string(),
             tools: vec![
                 "web.search".to_string(),
                 "web.fetch".to_string(),

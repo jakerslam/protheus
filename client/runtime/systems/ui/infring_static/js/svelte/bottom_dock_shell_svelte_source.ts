@@ -17,6 +17,10 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function app() {
     try {
       var service = appStoreService();
+      if (service && typeof service.root === 'function') {
+        var root = service.root();
+        if (root) return root;
+      }
       return service && typeof service.current === 'function' ? service.current() : null;
     } catch (_e) {
       return null;

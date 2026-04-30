@@ -17,10 +17,24 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function app() {
     try {
       var service = appStoreService();
+      var root = rootApp();
+      if (root) return root;
       return service && typeof service.current === 'function' ? service.current() : null;
     } catch (_e) {
       return null;
     }
+  }
+  function rootApp() {
+    try {
+      var service = appStoreService();
+      return service && typeof service.root === 'function' ? service.root() : null;
+    } catch (_e) {
+      return null;
+    }
+  }
+  function rootSidebarRows() {
+    var root = rootApp();
+    return root && Array.isArray(root.chatSidebarVisibleRows) ? root.chatSidebarVisibleRows : [];
   }
   function call(fn) {
     var s = app();
@@ -214,7 +228,17 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     var s = typeof window !== 'undefined' && window.InfringChatStore;
     if (s && s.sidebarAgents) {
       unsubs.push(s.sidebarAgents.subscribe(function(rows) {
-        sidebarAgents = Array.isArray(rows) ? rows : [];
+        var nextRows = Array.isArray(rows) ? rows : [];
+        sidebarAgents = nextRows.length ? nextRows : rootSidebarRows();
+      }));
+    }
+    var service = appStoreService();
+    if (service && typeof service.subscribe === 'function') {
+      unsubs.push(service.subscribe(function() {
+        var nextRows = s && s.sidebarAgents && typeof s.sidebarAgents.get === 'function'
+          ? s.sidebarAgents.get()
+          : [];
+        sidebarAgents = Array.isArray(nextRows) && nextRows.length ? nextRows : rootSidebarRows();
       }));
     }
     if (s && s.currentAgent) unsubs.push(s.currentAgent.subscribe(bump));

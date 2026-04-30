@@ -1,0 +1,77 @@
+{
+  "type": "observability_domain_trace_extension_registry",
+  "schema_version": 1,
+  "owner": "assurance.observability",
+  "updated_at": "2026-04-30",
+  "root_envelope_schema": "observability/traces/trace_envelope.schema.json",
+  "policy": "docs/workspace/universal_trace_substrate_policy.md",
+  "rule": "Domains may own typed payload extensions, but Observability owns the universal root trace envelope and correlation fabric.",
+  "trace_identity_rule": "One trace_id is minted at the initial user request and must flow unchanged through every workflow, orchestration decision, tool call, Gateway/Conduit boundary, Kernel receipt, Validation span, Shell projection, Sentinel observation, and final response for that causal story. No component may remint, replace, drop, or fork this ID.",
+  "extensions": [
+    {
+      "id": "orchestration_decision_trace",
+      "source_domain": "orchestration",
+      "event_kinds": ["decision", "workflow_phase", "tool_call", "recovery"],
+      "current_sources": [
+        "orchestration/src/contracts.rs::ControlPlaneDecisionTrace",
+        "orchestration/src/result_packaging.rs::decision_trace"
+      ],
+      "projection_status": "queued",
+      "required_projection": "Project selected plan, rejected alternatives, confidence, step records, capability graph, and contract family into universal trace envelope payload."
+    },
+    {
+      "id": "kernel_sentinel_evidence_trace",
+      "source_domain": "kernel",
+      "event_kinds": ["sentinel_observation", "runtime_finding", "diagnostic_probe", "receipt"],
+      "current_sources": [
+        "local/state/kernel_sentinel/evidence/*.jsonl",
+        "core/layer0/ops/src/kernel_sentinel.rs"
+      ],
+      "projection_status": "queued",
+      "required_projection": "Preserve Sentinel stream name, producer artifact, authority class, evidence state, freshness, finding category, invariant refs, and issue-candidate refs."
+    },
+    {
+      "id": "validation_run_trace",
+      "source_domain": "validation",
+      "event_kinds": ["validation_run", "eval", "benchmark", "gate"],
+      "current_sources": [
+        "validation/**",
+        "core/local/artifacts/**"
+      ],
+      "projection_status": "queued",
+      "required_projection": "Attach controlled check identity, lifecycle state, classification, result, failure signature, and artifact refs to the universal envelope."
+    },
+    {
+      "id": "gateway_boundary_trace",
+      "source_domain": "gateway",
+      "event_kinds": ["gateway_boundary", "health", "recovery", "error"],
+      "current_sources": [
+        "core/local/artifacts/*gateway*",
+        "local/state/kernel_sentinel/evidence/gateway_health.jsonl"
+      ],
+      "projection_status": "queued",
+      "required_projection": "Preserve route, listener, process identity, health probe, lifecycle state, and recovery refs."
+    },
+    {
+      "id": "shell_projection_trace",
+      "source_domain": "shell",
+      "event_kinds": ["telemetry", "health", "workflow_phase"],
+      "current_sources": [
+        "local/state/ops/shell_telemetry/**",
+        "local/state/kernel_sentinel/evidence/shell_telemetry.jsonl"
+      ],
+      "projection_status": "queued",
+      "required_projection": "Preserve presentation-only authority, bounded projection refs, UI symptom, and upstream correlation without allowing Shell readiness inference."
+    },
+    {
+      "id": "external_assimilation_probe_trace",
+      "source_domain": "external_target",
+      "event_kinds": ["diagnostic_probe", "workflow_phase", "health", "telemetry"],
+      "current_sources": [
+        "local/state/system_understanding/traces/<target_id>/**"
+      ],
+      "projection_status": "queued",
+      "required_projection": "Map external runtime probes, architecture probes, behavioral traces, and capability observations into the same envelope before assimilation transfer planning."
+    }
+  ]
+}
