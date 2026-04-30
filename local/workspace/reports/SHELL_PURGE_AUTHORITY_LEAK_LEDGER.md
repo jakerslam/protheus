@@ -24,7 +24,7 @@ A row is not `done` until the authority has moved to the correct layer, the shel
 
 ### SHP-AUTH-001 - Chat send path owns recovery and failover decisions
 
-Status: queued
+Status: in_progress
 Priority: P0
 Current files:
 - `client/runtime/systems/ui/infring_static/js/pages/chat_send_payload_helpers.ts`
@@ -181,6 +181,12 @@ Acceptance:
 - No shell helper can add user-visible chat prose with `role: system` as an assistant substitute.
 - Existing notices still appear in UI outside the chat transcript.
 - Regression covers fallback/finalization edge with no injected visible text.
+
+Progress:
+- 2026-04-30: Committed ledger, then started the shell-side hardening pass.
+- `pushSystemMessage` now records diagnostics to `systemTelemetry` only and no longer supports visible chat injection.
+- First direct visible system-message sites were converted to notice/telemetry projection in chat recovery, slash, prompt queue, context warning, session load, fresh-init, lifecycle, and voice-transcription helpers.
+- Added Rust orchestration packaging primitives in `surface/orchestration/src/control_plane/result_shaping_packaging.rs`: runtime diagnostics package as telemetry-only by default, and only final LLM output packages as chat-visible.
 
 ### SHP-AUTH-007 - Workflow builder compiles and persists executable workflow semantics in shell
 
