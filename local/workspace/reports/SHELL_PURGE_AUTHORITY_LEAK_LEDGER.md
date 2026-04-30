@@ -427,6 +427,7 @@ Progress:
 - Removed the matching known-debt allowance from the shell projection guard so any reintroduction of that fallback text fails immediately.
 - 2026-04-30: Added a projection-guard ratchet for shell-authored agent activity literal transitions (`working`, `typing`, `idle`) across websocket/status helpers, with time-bounded allowances until backend/core `agent_activity_projection` consumption replaces them.
 - 2026-04-30: Marked shell-maintained live activity entries in `app_agent_preview_helpers.ts` with `source: shell_optimistic` and `optimistic: true` metadata while preserving the visible state string.
+- 2026-04-30: Added backend/core activity projection ingestion in `app_agent_refresh_helpers.ts` for `agent_activity_projection`, `activity_projection`, and `live_activity_projection` payloads; projected rows now land with `optimistic: false` and preserve source/display metadata.
 
 ## Execution Notes
 
