@@ -117,7 +117,7 @@ fn policy_version_record(policy: &Value, policy_path: &str, version_store_path: 
         "evidence_artifacts": [
             policy_path,
             str_at(policy, &["sources", "reviewed"]).unwrap_or("artifacts/eval_learning_loop_reviewed_examples_latest.json"),
-            str_at(policy, &["sources", "holdout"]).unwrap_or("surface/orchestration/fixtures/eval/eval_learning_loop_policy_holdout.json")
+            str_at(policy, &["sources", "holdout"]).unwrap_or("validation/evals/fixtures/eval_learning_loop_policy_holdout.json")
         ],
         "rollback": {
             "rollback_path": version_store_path,

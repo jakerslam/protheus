@@ -23,7 +23,6 @@ function classify(file) {
   if (file.startsWith('client/runtime/lib/')) return 'runtime_sdk_surface';
   if (file.startsWith('client/cli/')) return 'cli_surface';
   if (file.startsWith('client/lib/')) return 'sdk_surface';
-  if (file.startsWith('client/observability/')) return 'observability_surface';
   if (file.startsWith('client/cognition/')) return 'cognition_surface';
   if (file.startsWith('client/memory/')) return 'memory_surface';
   if (file.startsWith('client/runtime/patches/')) return 'runtime_patch_surface';

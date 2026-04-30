@@ -7,7 +7,7 @@
   "policy_refs": [
     "docs/workspace/assurance_plane_policy.md",
     "docs/workspace/assurance_evidence_envelope_contract.md",
-    "tests/tooling/config/test_maturity_registry.json"
+    "validation/tests/contracts/validation_test_lifecycle_registry.json"
   ],
   "registry_policy": {
     "allowed_validation_kinds": [
@@ -82,8 +82,8 @@
       "owner_of_truth": "Assurance Validation eval definitions",
       "source_refs": [
         "validation/evals/config/eval_quality_thresholds.json",
-        "tests/tooling/fixtures/eval_gold_dataset_seed.jsonl",
-        "tests/tooling/schemas/eval_gold_dataset.schema.json",
+        "validation/evals/fixtures/eval_gold_dataset_seed.jsonl",
+        "validation/evals/schemas/eval_gold_dataset.schema.json",
         "ops:eval:quality:gate:v1",
         "ops:eval:regression:guard"
       ],
@@ -104,7 +104,8 @@
       "authority_class": "controlled_validation",
       "owner_of_truth": "validation/benchmarks",
       "source_refs": [
-        "benchmarks/public_harness/run_public_harness.ts",
+        "tests/tooling/scripts/ci/public_benchmark_harness.ts",
+        "validation/benchmarks/fixtures/public_harness_workloads.json",
         "ops:benchmark:public-harness",
         "validation/benchmarks/policies/benchmark_regression_budgets.json"
       ],
@@ -212,9 +213,9 @@
       "lifecycle_state": "retirement_candidate",
       "signal_class": "advisory",
       "authority_class": "controlled_validation",
-      "owner_of_truth": "test maturity registry",
+      "owner_of_truth": "Validation test lifecycle registry",
       "source_refs": [
-        "tests/tooling/config/test_maturity_registry.json",
+        "validation/tests/contracts/validation_test_lifecycle_registry.json",
         "ops:test-maturity:registry:guard"
       ],
       "evidence_output": [

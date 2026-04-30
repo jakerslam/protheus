@@ -6,7 +6,7 @@ import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const DEFAULT_MONITOR_PATH = 'local/state/ops/eval_agent_chat_monitor/latest.json';
-const DEFAULT_PATCH_LINKS_PATH = 'tests/tooling/config/eval_issue_patch_links.json';
+const DEFAULT_PATCH_LINKS_PATH = 'validation/evals/contracts/eval_issue_patch_links.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_issue_resolution_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_issue_resolution_latest.json';
 const DEFAULT_PANEL_PATH =

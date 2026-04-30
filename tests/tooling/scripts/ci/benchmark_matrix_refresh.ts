@@ -13,9 +13,9 @@ import {
 } from './benchmark_public_surface';
 
 const ROOT = resolve(__dirname, '..', '..', '..', '..');
-const DEFAULT_REPORT_PATH = 'docs/client/reports/benchmark_matrix_run_latest.json';
-const LEGACY_REPORT_PATH = 'docs/client/reports/benchmark_matrix_run_2026-03-06.json';
-const LEGACY_FULL_INSTALL_REPORT_PATH = 'docs/client/reports/benchmark_matrix_run_2026-03-06_full_install.json';
+const DEFAULT_REPORT_PATH = 'validation/reports/client_archive/benchmark_matrix_run_latest.json';
+const LEGACY_REPORT_PATH = 'validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json';
+const LEGACY_FULL_INSTALL_REPORT_PATH = 'validation/reports/client_archive/benchmark_matrix_run_2026-03-06_full_install.json';
 
 type Options = {
   retries: number;

@@ -5,7 +5,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_CASES_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_multiturn_simulation_cases.json";
+    "validation/evals/fixtures/eval_multiturn_simulation_cases.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_multiturn_simulation_guard_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_multiturn_simulation_guard_latest.json";
 const DEFAULT_MARKDOWN_PATH: &str =

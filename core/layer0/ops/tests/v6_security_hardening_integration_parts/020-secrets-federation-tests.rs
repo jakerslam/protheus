@@ -349,7 +349,7 @@ fn v6_sec_stub_contracts_are_now_authoritative_security_lanes() {
         (
             "supply-chain-reproducible-build-plane",
             &[
-                "--sbom-path=docs/client/reports/benchmark_matrix_run_2026-03-06.json",
+                "--sbom-path=validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json",
                 "--release-tag=v0.3.0-alpha",
                 "--strict=1",
             ],

@@ -6,14 +6,81 @@
   "canonical_policy": "docs/workspace/assurance_plane_policy.md",
   "registry_seed": "observability/source_coverage/assurance_observability_registry.json",
   "subdomains": [
-    { "id": "telemetry", "path": "observability/telemetry", "owns": "live telemetry stream contracts and envelopes" },
-    { "id": "health", "path": "observability/health", "owns": "health source contracts and status projection metadata" },
-    { "id": "traces", "path": "observability/traces", "owns": "runtime trace source maps and trace schemas" },
-    { "id": "sentinel", "path": "observability/sentinel", "owns": "Sentinel evidence stream contracts and resident observer metadata" },
-    { "id": "runtime_findings", "path": "observability/runtime_findings", "owns": "live finding schemas and issue-candidate source contracts" },
-    { "id": "evidence_normalization", "path": "observability/evidence_normalization", "owns": "normalization rules from producers into Assurance envelopes" },
-    { "id": "freshness", "path": "observability/freshness", "owns": "freshness budgets, stale-source policy, and timestamp contracts" },
-    { "id": "source_coverage", "path": "observability/source_coverage", "owns": "required and optional source coverage definitions" }
+    {
+      "id": "contracts",
+      "path": "observability/contracts",
+      "owns": "live observability plane contracts and migrated observability SRS contract records"
+    },
+    {
+      "id": "telemetry",
+      "path": "observability/telemetry",
+      "owns": "live telemetry stream contracts and envelopes"
+    },
+    {
+      "id": "health",
+      "path": "observability/health",
+      "owns": "health source contracts and status projection metadata"
+    },
+    {
+      "id": "traces",
+      "path": "observability/traces",
+      "owns": "runtime trace source maps and trace schemas"
+    },
+    {
+      "id": "sentinel",
+      "path": "observability/sentinel",
+      "owns": "Sentinel evidence stream contracts and resident observer metadata"
+    },
+    {
+      "id": "runtime_findings",
+      "path": "observability/runtime_findings",
+      "owns": "live finding schemas and issue-candidate source contracts"
+    },
+    {
+      "id": "evidence_normalization",
+      "path": "observability/evidence_normalization",
+      "owns": "normalization rules from producers into Assurance envelopes"
+    },
+    {
+      "id": "freshness",
+      "path": "observability/freshness",
+      "owns": "freshness budgets, stale-source policy, and timestamp contracts"
+    },
+    {
+      "id": "source_coverage",
+      "path": "observability/source_coverage",
+      "owns": "required and optional source coverage definitions"
+    },
+    {
+      "id": "benchmarks",
+      "path": "observability/benchmarks",
+      "owns": "observability benchmark outputs and runtime measurement reports"
+    },
+    {
+      "id": "dashboards",
+      "path": "observability/dashboards",
+      "owns": "dashboard metrics specifications and display-facing observability contracts"
+    },
+    {
+      "id": "reports",
+      "path": "observability/reports",
+      "owns": "durable observability reports and audits"
+    },
+    {
+      "id": "research",
+      "path": "observability/research",
+      "owns": "observability research notes, findings, and archived investigations"
+    },
+    {
+      "id": "runbooks",
+      "path": "observability/runbooks",
+      "owns": "incident command, postmortem, and deployment safety runbooks"
+    },
+    {
+      "id": "deploy",
+      "path": "observability/deploy",
+      "owns": "Observability stack deployment defaults and compose fixtures"
+    }
   ],
   "forbidden_ownership": [
     "controlled_eval_scoring",
@@ -24,7 +91,7 @@
     "direct_code_mutation"
   ],
   "migration_state": {
-    "compatibility_locations_allowed": true,
+    "compatibility_locations_allowed": false,
     "compatibility_mirrors": "observability/compatibility_mirrors.json",
     "new_live_evidence_contracts_default_here": true,
     "compatibility_debt_marker_required": true

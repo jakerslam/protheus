@@ -160,7 +160,7 @@ fn top1_benchmark_paths(root: &Path) -> Vec<PathBuf> {
             .join("benchmark_latest.json"),
         root.join("local/state/ops/top1_assurance/benchmark_latest.json"),
         root.join(
-            "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
+            "validation/reports/client_archive/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
         ),
     ]
 }

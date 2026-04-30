@@ -75,7 +75,7 @@ const DEFAULT_QUALITY_MARKDOWN_PATH: &str =
 const DEFAULT_FEEDBACK_PATH: &str =
     "local/state/ops/eval_agent_chat_monitor/reviewer_feedback.jsonl";
 const DEFAULT_THRESHOLDS_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_quality_thresholds.json";
+    "validation/evals/fixtures/eval_quality_thresholds.json";
 const DEFAULT_JUDGE_OUT_PATH: &str = "core/local/artifacts/eval_judge_human_agreement_current.json";
 const DEFAULT_JUDGE_OUT_LATEST_PATH: &str = "artifacts/eval_judge_human_agreement_latest.json";
 const DEFAULT_JUDGE_MARKDOWN_PATH: &str =

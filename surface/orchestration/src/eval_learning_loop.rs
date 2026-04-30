@@ -10,7 +10,7 @@ mod eval_learning_loop_issue_candidates;
 pub use eval_learning_loop_issue_candidates::run_eval_learning_loop_issue_candidates;
 
 const DEFAULT_SOURCE_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_learning_loop_traces.json";
+    "validation/evals/fixtures/eval_learning_loop_traces.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/eval_learning_loop_inbox_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_learning_loop_inbox_latest.json";
 const DEFAULT_INBOX_PATH: &str = "local/state/ops/eval_learning_loop/inbox.jsonl";

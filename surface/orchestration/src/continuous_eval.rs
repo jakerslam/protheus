@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const DEFAULT_POLICY_PATH: &str = "surface/orchestration/config/live_eval_policy.json";
+const DEFAULT_POLICY_PATH: &str = "validation/evals/policies/live_eval_policy.json";
 const DEFAULT_STREAM_PATH: &str = "local/state/ops/eval/live_eval_stream.jsonl";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/live_eval_current.json";
 const DEFAULT_LATEST_PATH: &str = "artifacts/live_eval_latest.json";

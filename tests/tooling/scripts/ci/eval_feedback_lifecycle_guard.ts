@@ -37,7 +37,7 @@ interface ArtifactRow {
   reason: string;
 }
 
-const DEFAULT_POLICY = 'tests/tooling/config/eval_feedback_lifecycle_policy.json';
+const DEFAULT_POLICY = 'validation/evals/policies/eval_feedback_lifecycle_policy.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/eval_feedback_lifecycle_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/EVAL_FEEDBACK_LIFECYCLE_GUARD_CURRENT.md';
 const MAX_INLINE_INSPECTION_BYTES = 64 * 1024 * 1024;

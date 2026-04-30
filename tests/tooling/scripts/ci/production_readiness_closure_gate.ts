@@ -58,7 +58,7 @@ const ROOT = process.cwd();
 const POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
 const VERIFY_PROFILES_PATH = path.join(ROOT, 'tests/tooling/config/verify_profiles.json');
 const GATE_REGISTRY_PATH = 'tests/tooling/config/tooling_gate_registry.json';
-const RELEASE_GATES_PATH = path.join(ROOT, 'tests/tooling/config/release_gates.yaml');
+const RELEASE_GATES_PATH = path.join(ROOT, 'validation/release_gates/config/release_gates.yaml');
 const TOPOLOGY_ARTIFACT_PATH = path.join(ROOT, 'core/local/artifacts/production_topology_diagnostic_current.json');
 const STATE_COMPAT_ARTIFACT_PATH = path.join(ROOT, 'core/local/artifacts/stateful_upgrade_rollback_gate_current.json');
 const SUPPORT_BUNDLE_ARTIFACT_PATH = path.join(ROOT, 'core/local/artifacts/support_bundle_latest.json');
@@ -329,7 +329,7 @@ function checkReleaseGateTelemetryThresholds(): Check[] {
       {
         id: 'release_gates_file',
         ok: false,
-        detail: 'tests/tooling/config/release_gates.yaml missing',
+        detail: 'validation/release_gates/config/release_gates.yaml missing',
       },
     ];
   }
@@ -471,7 +471,7 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
   const releaseProofPackPackRoot = String(releaseProofPack?.pack_root || '').trim();
   const releaseProofPackPackRootIsAbsolute =
     releaseProofPackPackRoot.length > 0 && path.isAbsolute(releaseProofPackPackRoot);
-  const releaseProofPackCanonicalRoot = path.resolve(ROOT, 'releases/proof-packs');
+  const releaseProofPackCanonicalRoot = path.resolve(ROOT, 'validation/release_gates/proof_packs');
   const releaseProofPackSourceManifestPath = String(
     releaseProofPack?.source_manifest_path || '',
   ).trim();
@@ -1394,7 +1394,7 @@ function checkReleaseEvidence(policy: Policy, args: Args): Check[] {
       id: 'release_proof_pack_source_manifest_path_canonical',
       ok:
         !finalStage ||
-        releaseProofPackSourceManifestPath === 'tests/tooling/config/release_proof_pack_manifest.json',
+        releaseProofPackSourceManifestPath === 'validation/release_gates/contracts/release_proof_pack_manifest.json',
       detail: !finalStage
         ? 'stage=prebundle;proof-pack source manifest canonical path enforced on final stage only'
         : `source_manifest_path=${releaseProofPackSourceManifestPath || 'missing'}`,

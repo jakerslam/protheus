@@ -5,7 +5,7 @@ import path from 'node:path';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
-const DEFAULT_MATRIX_PATH = 'tests/tooling/fixtures/eval_adversarial_matrix.json';
+const DEFAULT_MATRIX_PATH = 'validation/evals/fixtures/eval_adversarial_matrix.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_adversarial_guard_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_adversarial_guard_latest.json';
 const DEFAULT_MARKDOWN_PATH = 'local/workspace/reports/EVAL_ADVERSARIAL_GUARD_CURRENT.md';

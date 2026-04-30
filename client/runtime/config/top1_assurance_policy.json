@@ -18,14 +18,14 @@
     "require_static": true
   },
   "benchmark": {
-    "benchmark_path": "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
+    "benchmark_path": "validation/reports/client_archive/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
     "cold_start_max_ms": 80,
     "idle_rss_max_mb": 25,
     "tasks_per_sec_min": 5000,
     "sample_ms": 800
   },
   "comparison": {
-    "snapshot_path": "client/runtime/config/competitive_benchmark_snapshot_2026_02.json",
+    "snapshot_path": "validation/benchmarks/fixtures/competitive_benchmark_snapshot_2026_02.json",
     "output_path": "docs/comparison/infring_vs_x.md"
   },
   "outputs": {

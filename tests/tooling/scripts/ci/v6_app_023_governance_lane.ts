@@ -173,7 +173,7 @@ function main() {
   mkdirSync(directiveStateRoot, { recursive: true });
 
   const benchmarkReport = join(tempRoot, 'benchmark_matrix_run_2026-03-06.json');
-  copyFileSync(resolve('docs/client/reports/benchmark_matrix_run_2026-03-06.json'), benchmarkReport);
+  copyFileSync(resolve('validation/reports/client_archive/benchmark_matrix_run_2026-03-06.json'), benchmarkReport);
   const readmePath = join(tempRoot, 'README.md');
   writeSyncedReadme(readmePath, benchmarkReport);
 

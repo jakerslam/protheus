@@ -176,7 +176,7 @@ fn top1_benchmark_paths(root: &Path) -> Vec<PathBuf> {
             .join("benchmark_latest.json"),
         root.join("local/state/ops/top1_assurance/benchmark_latest.json"),
         root.join(
-            "docs/client/reports/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
+            "validation/reports/client_archive/runtime_snapshots/ops/proof_pack/top1_benchmark_snapshot.json",
         ),
     ]
 }
@@ -277,8 +277,8 @@ fn ensure_benchmark_audit_evidence(root: &Path) -> Option<String> {
         enterprise_state_root(root).join("f100/ops_bridge.json"),
         enterprise_state_root(root).join("moat/explorer/index.json"),
         enterprise_state_root(root).join("f100/super_gate.json"),
-        root.join("docs/client/reports/proof_pack_latest.json"),
-        root.join("docs/client/reports/runtime_snapshots/ops/proof_pack/latest.json"),
+        root.join("validation/reports/client_archive/proof_pack_latest.json"),
+        root.join("validation/reports/client_archive/runtime_snapshots/ops/proof_pack/latest.json"),
     ];
     if let Some(found) = evidence_exists(&candidates) {
         return Some(found);
@@ -287,8 +287,8 @@ fn ensure_benchmark_audit_evidence(root: &Path) -> Option<String> {
     if run_enterprise_lane(root, &["explore", "--strict=1"]) {
         return evidence_exists(&[
             enterprise_state_root(root).join("moat/explorer/index.json"),
-            root.join("docs/client/reports/proof_pack_latest.json"),
-            root.join("docs/client/reports/runtime_snapshots/ops/proof_pack/latest.json"),
+            root.join("validation/reports/client_archive/proof_pack_latest.json"),
+            root.join("validation/reports/client_archive/runtime_snapshots/ops/proof_pack/latest.json"),
         ]);
     }
     None
