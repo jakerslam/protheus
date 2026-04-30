@@ -1,0 +1,100 @@
+{
+  "type": "assurance_physical_domain_placement_exemptions",
+  "schema_version": 1,
+  "owner": "validation/conformance",
+  "updated_at": "2026-04-29",
+  "default_expiry": "2026-06-30",
+  "rule": "Existing pre-migration definition-shaped artifacts may remain only when explicitly listed here. New eval, scorecard, release-gate, benchmark, telemetry, or Sentinel-source definitions must land under validation/** or observability/** unless added here with owner, reason, and expiry.",
+  "exemptions": [
+    {
+      "path": ".github/workflows/f100-a-plus-scorecard.yml",
+      "owner": "validation/conformance",
+      "expires": "2026-06-30",
+      "reason": "legacy CI workflow harness; not a scorecard definition owner"
+    },
+    {
+      "path_prefix": "benchmarks/public_harness/",
+      "owner": "validation/benchmarks",
+      "expires": "2026-06-30",
+      "reason": "legacy benchmark harness pending physical Validation relocation"
+    },
+    {
+      "path_prefix": "client/cognition/",
+      "owner": "validation/conformance",
+      "expires": "2026-06-30",
+      "reason": "legacy cognition policy/config surfaces predating the Assurance physical-domain migration"
+    },
+    {
+      "path_prefix": "client/observability/",
+      "owner": "observability",
+      "expires": "2026-06-30",
+      "reason": "legacy client observability surface pending physical Observability relocation"
+    },
+    {
+      "path_prefix": "client/runtime/config/",
+      "owner": "validation/conformance",
+      "expires": "2026-06-30",
+      "reason": "legacy runtime policy deck predating the Assurance physical-domain migration"
+    },
+    {
+      "path_prefix": "client/runtime/deploy/observability/",
+      "owner": "observability",
+      "expires": "2026-06-30",
+      "reason": "legacy observability deployment defaults pending Observability relocation"
+    },
+    {
+      "path": "core/layer0/ops/config/live_eval_monitor_policy.json",
+      "owner": "validation/evals",
+      "expires": "2026-06-30",
+      "reason": "legacy eval monitor policy consumed by Kernel Sentinel until eval policy surfaces complete relocation"
+    },
+    {
+      "path_prefix": "docs/client/reports/",
+      "owner": "validation/reports",
+      "expires": "2026-06-30",
+      "reason": "historical report artifacts, not active definition owners"
+    },
+    {
+      "path_prefix": "planes/contracts/",
+      "owner": "validation/conformance",
+      "expires": "2026-06-30",
+      "reason": "legacy plane contract archive predating the Assurance physical-domain migration"
+    },
+    {
+      "path_prefix": "releases/proof-packs/",
+      "owner": "validation/release_gates",
+      "expires": "2026-06-30",
+      "reason": "archived release proof-pack evidence, not active definition ownership"
+    },
+    {
+      "path_prefix": "surface/orchestration/config/",
+      "owner": "validation/evals",
+      "expires": "2026-06-30",
+      "reason": "legacy control-plane eval configuration pending Validation eval relocation"
+    },
+    {
+      "path_prefix": "surface/orchestration/fixtures/eval/",
+      "owner": "validation/evals",
+      "expires": "2026-06-30",
+      "reason": "legacy eval fixtures pending Validation eval fixture relocation"
+    },
+    {
+      "path_prefix": "tests/tooling/config/eval_",
+      "owner": "validation/evals",
+      "expires": "2026-06-30",
+      "reason": "legacy eval policy/config mirrors pending full Validation relocation"
+    },
+    {
+      "path_prefix": "tests/tooling/fixtures/eval_",
+      "owner": "validation/evals",
+      "expires": "2026-06-30",
+      "reason": "legacy eval fixture mirrors pending full Validation relocation"
+    },
+    {
+      "path_prefix": "tests/tooling/schemas/eval_",
+      "owner": "validation/evals",
+      "expires": "2026-06-30",
+      "reason": "legacy eval schema mirrors pending full Validation relocation"
+    }
+  ]
+}

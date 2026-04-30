@@ -1,0 +1,14 @@
+{
+  "schema_id": "benchmark_regression_budgets.v1",
+  "description": "Validation-owned scorecard regression budgets for benchmark-derived release confidence rows.",
+  "owner": "validation/benchmarks",
+  "updated_at": "2026-04-29",
+  "applies_to": [
+    "release_scorecard"
+  ],
+  "benchmark_regression_budgets": {
+    "microkernel_shared_workload_pct_max": 0.1,
+    "governed_command_path_pct_max": 0.1,
+    "readiness_latency_pct_max": 0.1
+  }
+}

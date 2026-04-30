@@ -28,7 +28,7 @@ const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const DEFAULT_OUT = path.join(ROOT, 'core/local/artifacts/support_bundle_latest.json');
 const CLOSURE_POLICY_PATH = path.join(ROOT, 'client/runtime/config/production_readiness_closure_policy.json');
 const ASSIMILATION_V1_PATH = path.join(ROOT, 'client/runtime/config/assimilation_v1_support_contract.json');
-const BLOCKER_RUBRIC_PATH = path.join(ROOT, 'client/runtime/config/release_blocker_rubric.json');
+const BLOCKER_RUBRIC_PATH = path.join(ROOT, 'validation/release_gates/policies/release_blocker_rubric.json');
 const HARDENING_WINDOW_PATH = path.join(ROOT, 'client/runtime/config/release_hardening_window_policy.json');
 const RELEASE_SCORECARD_PATH = path.join(
   ROOT,
@@ -175,7 +175,7 @@ function collectBundleFiles() {
     checkFile('core/local/artifacts/arch_boundary_conformance_current.json'),
     checkFile('client/runtime/config/production_readiness_closure_policy.json'),
     checkFile('client/runtime/config/assimilation_v1_support_contract.json'),
-    checkFile('client/runtime/config/release_blocker_rubric.json'),
+    checkFile('validation/release_gates/policies/release_blocker_rubric.json'),
     checkFile('client/runtime/config/release_hardening_window_policy.json'),
     checkFile('client/runtime/local/state/release/scorecard/release_scorecard.json'),
     checkFile('core/local/artifacts/release_candidate_dress_rehearsal_current.json'),

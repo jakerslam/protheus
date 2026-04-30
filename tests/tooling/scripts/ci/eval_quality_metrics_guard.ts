@@ -11,9 +11,9 @@ type ThresholdTriple = {
   fpr_max: number;
 };
 
-const DEFAULT_DATASET_PATH = 'surface/orchestration/fixtures/eval/eval_gold_dataset_v1.jsonl';
+const DEFAULT_DATASET_PATH = 'validation/evals/fixtures/eval_gold_dataset_v1.jsonl';
 const DEFAULT_MONITOR_PATH = 'local/state/ops/eval_agent_chat_monitor/latest.json';
-const DEFAULT_THRESHOLDS_PATH = 'tests/tooling/config/eval_quality_thresholds.json';
+const DEFAULT_THRESHOLDS_PATH = 'validation/evals/config/eval_quality_thresholds.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/eval_quality_metrics_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/eval_quality_metrics_latest.json';
 const DEFAULT_MARKDOWN_PATH = 'local/workspace/reports/EVAL_QUALITY_METRICS_CURRENT.md';

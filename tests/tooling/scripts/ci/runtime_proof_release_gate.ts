@@ -272,7 +272,7 @@ function parseArgs(argv: string[]) {
     strict: common.strict,
     outPath: cleanText(readFlag(argv, 'out') || common.out || '', 400),
     policyPath: cleanText(
-      readFlag(argv, 'policy') || 'tests/tooling/config/release_gates.yaml',
+      readFlag(argv, 'policy') || 'validation/release_gates/config/release_gates.yaml',
       400,
     ),
     harnessPath: cleanText(

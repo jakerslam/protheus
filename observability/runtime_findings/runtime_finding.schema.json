@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://infring.local/schemas/observability/runtime_finding.schema.json",
+  "title": "Observability Runtime Finding",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "fingerprint",
+    "severity",
+    "category",
+    "summary",
+    "authority_class",
+    "signal_class",
+    "evidence",
+    "source_artifact"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "fingerprint": { "type": "string", "minLength": 1 },
+    "severity": {
+      "type": "string",
+      "enum": ["Critical", "High", "Medium", "Low", "Info", "critical", "high", "medium", "low", "info"]
+    },
+    "category": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string", "minLength": 1 },
+    "authority_class": {
+      "type": "string",
+      "enum": ["deterministic_kernel_authority", "advisory_workflow_quality", "presentation_telemetry_only"]
+    },
+    "signal_class": {
+      "type": "string",
+      "enum": ["hard_gate", "advisory", "diagnostic"]
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "source_artifact": { "type": "string", "minLength": 1 },
+    "can_block_release": { "type": "boolean" },
+    "can_open_issue_candidate": { "type": "boolean" },
+    "freshness_age_seconds": { "type": "integer", "minimum": 0 },
+    "root_frame": { "type": "string" },
+    "failure_level": { "type": "string" },
+    "remediation_level": { "type": "string" }
+  }
+}

@@ -45,7 +45,7 @@ function parseArgs(argv: string[]) {
       400,
     ),
     policyPath: cleanText(
-      readFlag(argv, 'policy') || 'tests/tooling/config/runtime_soak_scenarios_policy.json',
+      readFlag(argv, 'policy') || 'validation/regression/policies/runtime_soak_scenarios_policy.json',
       400,
     ),
     multiDaySoakPath: cleanText(

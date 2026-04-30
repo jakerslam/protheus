@@ -1,0 +1,32 @@
+{
+  "type": "observability_evidence_freshness_policy",
+  "schema_version": 1,
+  "owner": "assurance.observability",
+  "updated_at": "2026-04-29",
+  "source_registry": "observability/source_coverage/assurance_observability_registry.json",
+  "default_stale_after_seconds": 5400,
+  "release_stale_after_seconds": 1800,
+  "missing_freshness_signal_class": "diagnostic",
+  "stale_required_source_signal_class": "hard_gate",
+  "stale_optional_source_signal_class": "advisory",
+  "required_metadata_fields": [
+    "generated_at",
+    "source.id",
+    "freshness.observed",
+    "freshness.stale"
+  ],
+  "rules": [
+    {
+      "id": "freshness.required_sources_publish_metadata",
+      "description": "Required Observability sources must publish freshness metadata or be reported as diagnostic gaps."
+    },
+    {
+      "id": "freshness.release_required_sources_fail_when_stale",
+      "description": "Required Observability sources that exceed the release freshness window may become hard-gate failures through Governance."
+    },
+    {
+      "id": "freshness.optional_sources_remain_advisory",
+      "description": "Optional or presentation-only sources remain advisory when stale or missing unless corroborated by deterministic evidence."
+    }
+  ]
+}

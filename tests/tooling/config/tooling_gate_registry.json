@@ -296,6 +296,108 @@
         "local/workspace/reports/ASSIMILATION_AUTHORITY_GUARD_CURRENT.md"
       ]
     },
+    "ops:assurance:placement:guard": {
+      "owner": "ops",
+      "description": "Assurance placement guard for eval/gate/scorecard ownership boundaries.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:assurance:placement:guard",
+      "canonical_definition_paths": [
+        "validation/conformance/contracts/assurance_validation_registry.json",
+        "validation/conformance/contracts/assurance_consumer_boundary_contract.json",
+        "validation/scorecards/contracts/assurance_scorecard_derivation_contract.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/assurance_placement_guard_current.json"
+      ]
+    },
+    "ops:assurance:envelope:guard": {
+      "owner": "ops",
+      "description": "Assurance evidence envelope contract guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:assurance:envelope:guard",
+      "canonical_definition_paths": [
+        "observability/evidence_normalization/assurance_evidence_envelope.schema.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/assurance_envelope_guard_current.json"
+      ]
+    },
+    "ops:assurance:scorecard-derivation:guard": {
+      "owner": "ops",
+      "description": "Assurance scorecard derivation guard requiring evidence-backed scorecard rows.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:assurance:scorecard-derivation:guard",
+      "canonical_definition_paths": [
+        "validation/scorecards/contracts/assurance_scorecard_derivation_contract.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/assurance_scorecard_derivation_guard_current.json"
+      ]
+    },
+    "ops:assurance:shell-truth-leak:guard": {
+      "owner": "ops",
+      "description": "Assurance Shell truth-leak guard for bounded projections and presentation-only telemetry.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:assurance:shell-truth-leak:guard",
+      "canonical_definition_paths": [
+        "validation/conformance/contracts/assurance_consumer_boundary_contract.json",
+        "observability/source_coverage/assurance_observability_registry.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/assurance_shell_truth_leak_guard_current.json"
+      ]
+    },
+    "ops:assurance:physical-domain-placement:guard": {
+      "owner": "ops",
+      "description": "Assurance physical-domain placement guard for Validation and Observability definition ownership.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:assurance:physical-domain-placement:guard",
+      "canonical_definition_paths": [
+        "validation/domain_manifest.json",
+        "observability/domain_manifest.json",
+        "validation/conformance/compatibility_mirrors.json",
+        "observability/compatibility_mirrors.json",
+        "validation/conformance/contracts/assurance_physical_domain_placement_exemptions.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/assurance_physical_domain_placement_guard_current.json"
+      ]
+    },
+    "ops:assurance:physical-domain-completion:audit": {
+      "owner": "ops",
+      "description": "Assurance physical-domain completion audit for Validation and Observability ownership closure.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:assurance:physical-domain-completion:audit",
+      "canonical_definition_paths": [
+        "validation/domain_manifest.json",
+        "observability/domain_manifest.json",
+        "validation/conformance/contracts/assurance_validation_registry.json",
+        "validation/conformance/contracts/assurance_consumer_boundary_contract.json",
+        "validation/conformance/contracts/assurance_physical_domain_debt_register.json",
+        "validation/scorecards/contracts/assurance_scorecard_derivation_contract.json",
+        "observability/source_coverage/assurance_observability_registry.json",
+        "observability/evidence_normalization/assurance_evidence_envelope.schema.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/assurance_physical_domain_completion_audit_current.json"
+      ]
+    },
+    "ops:workflow-authority:audit": {
+      "owner": "ops",
+      "description": "Workflow authority transition audit for LLM-submission, system-guard, telemetry-only, and forbidden auto-decision sources.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:workflow-authority:audit",
+      "artifact_paths": [
+        "core/local/artifacts/workflow_authority_transition_audit_current.json"
+      ]
+    },
     "ops:release-blockers:gate": {
       "owner": "ops",
       "description": "Release blocker rubric gate.",

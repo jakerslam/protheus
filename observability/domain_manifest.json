@@ -1,0 +1,32 @@
+{
+  "domain": "observability",
+  "owner": "assurance.observability",
+  "status": "physical_domain_anchor",
+  "answers": "What is happening while the system runs?",
+  "canonical_policy": "docs/workspace/assurance_plane_policy.md",
+  "registry_seed": "observability/source_coverage/assurance_observability_registry.json",
+  "subdomains": [
+    { "id": "telemetry", "path": "observability/telemetry", "owns": "live telemetry stream contracts and envelopes" },
+    { "id": "health", "path": "observability/health", "owns": "health source contracts and status projection metadata" },
+    { "id": "traces", "path": "observability/traces", "owns": "runtime trace source maps and trace schemas" },
+    { "id": "sentinel", "path": "observability/sentinel", "owns": "Sentinel evidence stream contracts and resident observer metadata" },
+    { "id": "runtime_findings", "path": "observability/runtime_findings", "owns": "live finding schemas and issue-candidate source contracts" },
+    { "id": "evidence_normalization", "path": "observability/evidence_normalization", "owns": "normalization rules from producers into Assurance envelopes" },
+    { "id": "freshness", "path": "observability/freshness", "owns": "freshness budgets, stale-source policy, and timestamp contracts" },
+    { "id": "source_coverage", "path": "observability/source_coverage", "owns": "required and optional source coverage definitions" }
+  ],
+  "forbidden_ownership": [
+    "controlled_eval_scoring",
+    "release_scorecard_verdicts",
+    "kernel_policy_truth",
+    "orchestration_planning",
+    "shell_readiness_inference",
+    "direct_code_mutation"
+  ],
+  "migration_state": {
+    "compatibility_locations_allowed": true,
+    "compatibility_mirrors": "observability/compatibility_mirrors.json",
+    "new_live_evidence_contracts_default_here": true,
+    "compatibility_debt_marker_required": true
+  }
+}

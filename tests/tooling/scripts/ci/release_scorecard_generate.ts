@@ -27,6 +27,8 @@ function parseArgs(argv: string[]) {
     hardeningPath: 'core/local/artifacts/release_hardening_window_guard_current.json',
     releaseVerdictPath: 'core/local/artifacts/release_verdict_current.json',
     boundednessReleaseGatePath: 'core/local/artifacts/runtime_boundedness_release_gate_current.json',
+    scorecardContractPath: 'validation/scorecards/contracts/release_scorecard_contract.json',
+    benchmarkBudgetPolicyPath: 'validation/benchmarks/policies/benchmark_regression_budgets.json',
     ipcSoakPath: 'local/state/ops/ops_ipc_bridge_stability_soak/latest.json',
     drPath: 'local/state/ops/dr_gameday/latest.json',
     benchmarkPath: 'docs/client/reports/benchmark_matrix_run_latest.json',
@@ -64,6 +66,8 @@ function parseArgs(argv: string[]) {
     else if (token.startsWith('--hardening=')) out.hardeningPath = cleanText(token.slice(12), 400);
     else if (token.startsWith('--release-verdict=')) out.releaseVerdictPath = cleanText(token.slice(18), 400);
     else if (token.startsWith('--boundedness-release-gate=')) out.boundednessReleaseGatePath = cleanText(token.slice(27), 400);
+    else if (token.startsWith('--scorecard-contract=')) out.scorecardContractPath = cleanText(token.slice(21), 400);
+    else if (token.startsWith('--benchmark-budget-policy=')) out.benchmarkBudgetPolicyPath = cleanText(token.slice(26), 400);
     else if (token.startsWith('--ipc-soak=')) out.ipcSoakPath = cleanText(token.slice(11), 400);
     else if (token.startsWith('--dr=')) out.drPath = cleanText(token.slice(5), 400);
     else if (token.startsWith('--benchmark=')) out.benchmarkPath = cleanText(token.slice(12), 400);
@@ -215,6 +219,8 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const hardeningPath = resolveMaybe(root, normalizedArgs.hardeningPath);
   const releaseVerdictPath = resolveMaybe(root, normalizedArgs.releaseVerdictPath);
   const boundednessReleaseGatePath = resolveMaybe(root, normalizedArgs.boundednessReleaseGatePath);
+  const scorecardContractPath = resolveMaybe(root, normalizedArgs.scorecardContractPath);
+  const benchmarkBudgetPolicyPath = resolveMaybe(root, normalizedArgs.benchmarkBudgetPolicyPath);
   const ipcSoakPath = resolveMaybe(root, normalizedArgs.ipcSoakPath);
   const drPath = resolveMaybe(root, normalizedArgs.drPath);
   const benchmarkPath = resolveMaybe(root, normalizedArgs.benchmarkPath);
@@ -239,6 +245,8 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const hardening = readJsonMaybe(hardeningPath) ?? {};
   const releaseVerdict = readJsonMaybe(releaseVerdictPath) ?? {};
   const boundednessReleaseGate = readJsonMaybe(boundednessReleaseGatePath) ?? {};
+  const scorecardContract = readJsonMaybe(scorecardContractPath) ?? {};
+  const benchmarkBudgetPolicy = readJsonMaybe(benchmarkBudgetPolicyPath) ?? {};
   const ipcSoak = readJsonFirst([ipcSoakPath, ipcSoakFallbackPath]) ?? {};
   const dr = readJsonMaybe(drPath) ?? {};
   const benchmark = readJsonMaybe(benchmarkPath) ?? {};
@@ -274,7 +282,10 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
   const canaryRequired = requireReleaseArtifacts && channel === 'stable';
   const canaryGateOk = canaryRequired ? canaryOk : true;
   const thresholds = closurePolicy?.numeric_thresholds ?? {};
-  const benchmarkBudgets = closurePolicy?.benchmark_regression_budgets ?? {};
+  const benchmarkBudgets =
+    benchmarkBudgetPolicy?.benchmark_regression_budgets ??
+    closurePolicy?.benchmark_regression_budgets ??
+    {};
   const ipcRows = Array.isArray(ipcSoak?.rows) ? ipcSoak.rows : [];
   const ipcSuccessRate =
     ipcRows.length === 0 ? 0 : ipcRows.filter((row: any) => row && row.ok === true).length / ipcRows.length;
@@ -1170,6 +1181,17 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
         ? `failed_checks=${Array.isArray(supportBundle?.incident_truth_package?.failed_checks) ? supportBundle.incident_truth_package.failed_checks.length : 0}`
         : 'stage=prebundle;final_bundle_truth_not_required'
     ),
+    gateRow(
+      'release_scorecard_validation_contract_loaded',
+      Boolean(scorecardContract && typeof scorecardContract === 'object'),
+      `path=${path.relative(root, scorecardContractPath)}`
+    ),
+    gateRow(
+      'release_scorecard_validation_contract_truth_boundary',
+      scorecardContract?.scorecard_is_derived === true &&
+        scorecardContract?.scorecard_may_introduce_truth === false,
+      `derived=${String(scorecardContract?.scorecard_is_derived === true)};may_introduce_truth=${String(scorecardContract?.scorecard_may_introduce_truth === true)}`
+    ),
     optionalGateRow(
       'changelog_generated',
       requireReleaseArtifacts,
@@ -1195,6 +1217,16 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
     channel,
     tag: cleanText(semver?.next_tag ?? 'none', 120),
     version: cleanText(semver?.next_version ?? semver?.current_version ?? '0.0.0', 120),
+    validation_contract: {
+      path: path.relative(root, scorecardContractPath),
+      loaded: Boolean(scorecardContract && typeof scorecardContract === 'object'),
+      owner: cleanText(scorecardContract?.owner || '', 120),
+      scorecard_is_derived: scorecardContract?.scorecard_is_derived === true,
+      scorecard_may_introduce_truth: scorecardContract?.scorecard_may_introduce_truth === true,
+      required_source_domains: Array.isArray(scorecardContract?.required_source_domains)
+        ? scorecardContract.required_source_domains.map((row: unknown) => cleanText(row, 80)).filter(Boolean)
+        : [],
+    },
     baseline: {
       required: requireBaseline,
       available: baselineAvailable,
@@ -1205,6 +1237,8 @@ function buildReport(args = parseArgs(process.argv.slice(2))) {
     benchmark_baseline: {
       path: benchmarkBaselinePath ? path.relative(root, benchmarkBaselinePath) : '',
       available: Boolean(benchmarkBaseline && typeof benchmarkBaseline === 'object'),
+      budget_policy_path: path.relative(root, benchmarkBudgetPolicyPath),
+      budget_policy_loaded: Boolean(benchmarkBudgetPolicy && typeof benchmarkBudgetPolicy === 'object'),
       regression_budgets: {
         microkernel_shared_workload_pct_max: safeNumber(benchmarkBudgets?.microkernel_shared_workload_pct_max, 0.1),
         governed_command_path_pct_max: safeNumber(benchmarkBudgets?.governed_command_path_pct_max, 0.1),

@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const DEFAULT_CANDIDATES_PATH: &str = "artifacts/eval_learning_loop_issue_candidates_latest.json";
 const DEFAULT_LABELS_PATH: &str =
-    "surface/orchestration/fixtures/eval/eval_learning_loop_review_labels.jsonl";
+    "validation/evals/fixtures/eval_learning_loop_review_labels.jsonl";
 const DEFAULT_OUT_PATH: &str =
     "core/local/artifacts/eval_learning_loop_reviewed_examples_current.json";
 const DEFAULT_OUT_LATEST_PATH: &str = "artifacts/eval_learning_loop_reviewed_examples_latest.json";

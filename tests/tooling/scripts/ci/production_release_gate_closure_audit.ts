@@ -3,8 +3,8 @@ import { dirname } from 'path';
 
 const SRS_ID = 'V12-OPS-PRD-RELEASE-GATE-001';
 const LEGACY_SRS_ID = 'V11-OPS-PRD-001';
-const RELEASE_GATES = 'tests/tooling/config/release_gates.yaml';
-const MANIFEST = 'tests/tooling/config/release_proof_pack_manifest.json';
+const RELEASE_GATES = 'validation/release_gates/config/release_gates.yaml';
+const MANIFEST = 'validation/release_gates/contracts/release_proof_pack_manifest.json';
 const REGISTRY = 'tests/tooling/config/tooling_gate_registry.json';
 const OUT_JSON = 'core/local/artifacts/production_release_gate_closure_audit_current.json';
 const OUT_MARKDOWN = 'local/workspace/reports/PRODUCTION_RELEASE_GATE_CLOSURE_AUDIT_CURRENT.md';
