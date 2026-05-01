@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T21:15:11.122Z
+Updated: 2026-05-01T21:26:03.141Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T21:15:11.122Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-FAILURE-LEVELS` — Strengthen Sentinel failure-level classification
+  completed_at: `2026-05-01T21:26:03.140Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-07`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Teach Sentinel to classify symptom, component, boundary, policy-truth, architectural, and self-model failures before recommending remediation.
+  completion_note: Implemented Kernel Sentinel failure_class/review_depth classification, final-report failure_level_summary, and promotion candidate failure-level framing with targeted tests and live kernel-sentinel smoke.
 - `WF-AUTH` — Finish workflow gate authority cleanup
   completed_at: `2026-05-01T21:15:11.122Z`
   previous_section: `red`
