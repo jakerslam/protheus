@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T21:05:51.031Z
+Updated: 2026-05-01T21:15:11.122Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,17 +13,12 @@ Updated: 2026-05-01T21:05:51.031Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 44
-- red: 13
+- active_items: 43
+- red: 12
 - yellow: 22
 - white: 9
 
 ## Red Section (Do Immediately)
-- `WF-AUTH` — Finish workflow gate authority cleanup
-  owner: `unassigned`
-  deadline: `2026-05-05`
-  source_family: `Workflow Authority Cleanup`
-  summary: Finish workflow gate authority cleanup so every turn enters Gate 1, tool/menu submissions are LLM-authored, and visible chat cannot be system-substituted.
 - `KSENT-FAILURE-LEVELS` — Strengthen Sentinel failure-level classification
   owner: `codex`
   deadline: `2026-05-07`

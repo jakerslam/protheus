@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:05:51.031Z",
+  "updated_at": "2026-05-01T21:15:11.122Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -13,15 +13,6 @@
     ]
   },
   "items": [
-    {
-      "id": "WF-AUTH",
-      "title": "Finish workflow gate authority cleanup",
-      "section": "red",
-      "owner": "unassigned",
-      "deadline": "2026-05-05",
-      "source_family": "Workflow Authority Cleanup",
-      "summary": "Finish workflow gate authority cleanup so every turn enters Gate 1, tool/menu submissions are LLM-authored, and visible chat cannot be system-substituted."
-    },
     {
       "id": "KSENT-FAILURE-LEVELS",
       "title": "Strengthen Sentinel failure-level classification",

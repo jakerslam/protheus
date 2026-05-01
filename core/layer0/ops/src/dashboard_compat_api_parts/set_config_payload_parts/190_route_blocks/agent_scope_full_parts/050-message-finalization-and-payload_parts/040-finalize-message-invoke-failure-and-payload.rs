@@ -114,16 +114,13 @@ fn finalize_message_invoke_failure_and_payload(
         "direct_response_path": workflow_direct_response_path
     });
     response_finalization["initial_model_invoke_failed"] = Value::Bool(true);
-    let visible_response_source = visible_response_source_for_turn(
+    let visible_response_source = apply_visible_response_provenance_for_turn(
+        &mut response_workflow,
+        &mut response_finalization,
         &finalized_response,
         workflow_used,
         false,
         &finalization_outcome,
-    );
-    apply_visible_response_provenance(
-        &mut response_workflow,
-        &mut response_finalization,
-        visible_response_source,
     );
     let process_summary =
         build_turn_process_summary(message, &[], &response_workflow, &response_finalization);

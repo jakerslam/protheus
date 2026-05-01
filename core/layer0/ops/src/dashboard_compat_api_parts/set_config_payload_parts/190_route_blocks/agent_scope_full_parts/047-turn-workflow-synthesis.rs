@@ -1495,30 +1495,6 @@ fn response_answers_tool_confirmation_with_recorded_result(
     mentions_tool_result && explains_no_result
 }
 
-fn record_manual_toolbox_pending_request(workflow: &mut Value, response_text: &str, message: &str) {
-    if workflow
-        .get("manual_toolbox_pending_tool_request")
-        .filter(|value| value.is_object())
-        .is_some()
-    {
-        return;
-    }
-    let Some(pending_request) =
-        manual_toolbox_pending_request_from_response(response_text, message)
-    else {
-        return;
-    };
-    workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
-    workflow["workflow_control"]["direct_response_path"] =
-        Value::String("gate_1_yes_pending_tool_confirmation".to_string());
-    if let Some(events) = workflow.get_mut("system_events").and_then(Value::as_array_mut) {
-        events.push(turn_workflow_event(
-            "manual_toolbox_pending_tool_request",
-            pending_request,
-        ));
-    }
-}
-
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
