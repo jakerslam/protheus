@@ -1,0 +1,50 @@
+{
+  "type": "kernel_sentinel_boundedness_repair_lane",
+  "version": "1.0",
+  "owner_domain": "observability",
+  "source_todo": "KSENT-ISSUE-BOUNDEDNESS",
+  "source_family": "Sentinel Regression Audit May01",
+  "policy": {
+    "human_review_required": true,
+    "safe_to_auto_file_issue": false,
+    "safe_to_auto_apply_patch": false,
+    "quality_filter_required": true,
+    "raw_evidence_embedded": false
+  },
+  "boundedness_dimensions": [
+    "max_rss",
+    "queue_depth_p95",
+    "queue_depth_max",
+    "stale_surface_count",
+    "recovery_time_ms",
+    "report_size_bytes"
+  ],
+  "repair_lanes": [
+    {
+      "id": "workspace_tooling_boundedness_release_lane",
+      "owner": "Validation + Observability",
+      "priority": "high",
+      "failure_signature": "workspace_tooling_soak_boundedness_missing_or_unbudgeted",
+      "root_cause_hypothesis": "Workspace/file tooling evidence can pass functionally while still lacking boundedness proof for RSS, queue depth, stale surfaces, recovery time, and compact Sentinel report release behavior.",
+      "concrete_next_action": "Promote workspace tooling boundedness into a release-gated proof lane with budgeted reports, replay evidence, and Sentinel issue-candidate quality filtering before any human-reviewed promotion.",
+      "evidence_refs": [
+        "observability/reports/KERNEL_SENTINEL_FINAL_OUTPUT.md",
+        "core/layer0/ops/src/kernel_sentinel/report_budget.rs",
+        "tests/tooling/scripts/ci/workspace_tooling_context_soak.ts",
+        "tests/tooling/scripts/ci/workspace_tooling_release_proof.ts"
+      ],
+      "acceptance_criteria": [
+        "Workspace tooling proof artifacts include RSS, queue-depth p95/max, stale-surface count, recovery time, and serialized report size.",
+        "Sentinel final reports summarize boundedness findings through top findings, root-cause clusters, and artifact refs without embedding raw evidence streams.",
+        "Repeated boundedness failures collapse into one structural issue candidate with owner guess, root-cause hypothesis, concrete next action, and freshness tier.",
+        "Release evidence refuses promotion when freshness is stale_reference_only or when boundedness metrics are missing."
+      ],
+      "replay_validation_commands": [
+        "npm run -s ops:workspace-tooling:context-soak",
+        "npm run -s ops:workspace-tooling:release-proof",
+        "cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::report_budget -- --nocapture",
+        "npm run -s ops:ksent:boundedness-repair:guard"
+      ]
+    }
+  ]
+}
