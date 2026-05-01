@@ -88,6 +88,15 @@ function infringDashboardPopupService() {
   return services && services.popup ? services.popup : null;
 }
 
+function infringMirrorDashboardPopup(page) {
+  if (typeof window === 'undefined') return;
+  var store = window.InfringApp;
+  if (!store || typeof store !== 'object' || store === page) return;
+  try {
+    store.dashboardPopup = page && page.dashboardPopup ? page.dashboardPopup : null;
+  } catch(_) {}
+}
+
 function infringClearDashboardPopupState(page) {
   var service = page.dashboardPopupService();
   page.dashboardPopup = service && typeof service.emptyState === 'function'
@@ -108,6 +117,10 @@ function infringClearDashboardPopupState(page) {
       block_away: 'bottom',
       compact: false
     };
+  infringMirrorDashboardPopup(page);
+  if (typeof page.notifyShellAppStore === 'function') {
+    page.notifyShellAppStore('dashboard_popup_cleared');
+  }
 }
 
 function infringNormalizeDashboardPopupSide(page, sideValue, fallbackSide) {
@@ -427,6 +440,10 @@ function infringShowDashboardPopup(page, id, label, ev, overrides) {
       block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
       compact: false
     };
+  infringMirrorDashboardPopup(page);
+  if (typeof page.notifyShellAppStore === 'function') {
+    page.notifyShellAppStore('dashboard_popup_opened');
+  }
 }
 
 function infringShowTaskbarNavPopup(page, label, ev) {
@@ -472,6 +489,10 @@ function infringHideDashboardPopup(page, rawId) {
   var service = page.dashboardPopupService();
   if (service && typeof service.closeState === 'function') {
     page.dashboardPopup = service.closeState(page.dashboardPopup, rawId);
+    infringMirrorDashboardPopup(page);
+    if (typeof page.notifyShellAppStore === 'function') {
+      page.notifyShellAppStore('dashboard_popup_closed');
+    }
     return;
   }
   var popupId = String(rawId || '').trim();

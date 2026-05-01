@@ -21,12 +21,24 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
         var root = service.root();
         if (root) return root;
       }
-      return service && typeof service.current === 'function' ? service.current() : null;
+      if (service && typeof service.current === 'function') {
+        var current = service.current();
+        if (current) return current;
+      }
+      return null;
     } catch (_e) {
       return null;
     }
   }
   function call(fn) {
+    var service = appStoreService();
+    if (service && typeof service.method === 'function') {
+      var method = service.method(fn);
+      if (method) {
+        var methodArgs = Array.prototype.slice.call(arguments, 1);
+        try { return method.apply(null, methodArgs); } catch (_e) { return undefined; }
+      }
+    }
     var s = app();
     if (!s || typeof s[fn] !== 'function') return undefined;
     var args = Array.prototype.slice.call(arguments, 1);
@@ -122,10 +134,25 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   }
   function setHover(id, event) {
     call('setBottomDockHover', id, event);
+    var title = String(tileData(id, 'label', '') || tileData(id, 'tooltip', '') || '').trim();
+    var body = String(tileData(id, 'tooltip', '') || '').trim();
+    if (title) {
+      call('showDashboardPopup', 'bottom-dock:' + id, title, event, {
+        source: 'bottom_dock',
+        side: String(call('bottomDockOpenSide') || 'top'),
+        body: body && body !== title ? body : '',
+        meta_origin: 'Dock'
+      });
+    }
     bump();
   }
   function clearHover(id) {
     call('clearBottomDockHover', id);
+    if (id) {
+      call('hideDashboardPopup', 'bottom-dock:' + id);
+    } else {
+      call('hideDashboardPopupBySource', 'bottom_dock');
+    }
     bump();
   }
   function updatePointer(event) {
@@ -177,12 +204,16 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
         data-dock-slot-id={id}
         data-tooltip={tileData(id, 'tooltip', '')}
         on:mouseenter={(event) => setHover(id, event)}
+        on:focus={(event) => setHover(id, event)}
         on:mouseleave={() => clearHover(id)}
+        on:blur={() => clearHover(id)}
       >
         <button
           type="button"
           class={buttonClass(id, uiTick)}
           on:click={(event) => tileClick(id, event)}
+          on:focus={(event) => setHover(id, event)}
+          on:blur={() => clearHover(id)}
           on:pointerdown|preventDefault={(event) => startTileDrag(id, event)}
           style={tileStyle(id, uiTick)}
           draggable="false"
