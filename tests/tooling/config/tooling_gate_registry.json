@@ -835,11 +835,14 @@
       ]
     },
     "ops:representation-collapse:report": {
-      "owner": "validation",
-      "description": "Observational report for duplicate truth representations and raw runtime payloads in projection/cache surfaces.",
+      "owner": "assurance.validation",
+      "description": "Advisory representation-collapse report for canonical/projection/cache/detail count risks across message, session, tool result, trace, and workflow entities.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 60,
       "script": "ops:representation-collapse:report",
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/representation_collapse_report.ts"
+      ],
       "artifact_paths": [
         "core/local/artifacts/representation_collapse_report_current.json",
         "local/workspace/reports/REPRESENTATION_COLLAPSE_REPORT_CURRENT.md"
@@ -2422,6 +2425,22 @@
       "artifact_paths": [
         "core/local/artifacts/self_modification_guard_current.json",
         "local/workspace/reports/SELF_MODIFICATION_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:architecture:transition-residue:guard": {
+      "owner": "assurance.validation",
+      "description": "Transition-residue guard for virtual repo manifests, Shell Cognition burn-down, Orchestration path retirement, Shell amputation linkage, and representation-collapse reporting.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:architecture:transition-residue:guard",
+      "canonical_definition_paths": [
+        "validation/conformance/contracts/domain_virtual_repo_manifest.json",
+        "validation/conformance/contracts/orchestration_path_transition_register.json",
+        "validation/conformance/contracts/shell_cognition_burn_down_register.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/architecture_transition_residue_guard_current.json",
+        "local/workspace/reports/ARCHITECTURE_TRANSITION_RESIDUE_GUARD_CURRENT.md"
       ]
     }
   },

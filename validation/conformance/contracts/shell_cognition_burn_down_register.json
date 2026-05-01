@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "owner": "assurance.validation",
+  "status": "active",
+  "source": "docs/client/architecture/SYSTEM_MAP.md",
+  "purpose": "Track legacy Shell Cognition labels until each subsystem is confirmed presentation-local or re-homed to the correct architecture domain.",
+  "required_dispositions": [
+    "presentation_local_only",
+    "rehome_to_orchestration",
+    "rehome_to_observability",
+    "rehome_to_validation",
+    "rehome_to_kernel",
+    "rehome_to_gateways",
+    "retire"
+  ],
+  "systems": [
+    {
+      "id": "eyes_sensory_intake",
+      "label": "Eyes/Sensory Intake",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_observability",
+      "target_domain": "observability",
+      "secondary_domain": "gateways",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Live signal collection is Observability evidence; external capture must enter through Gateway membranes."
+    },
+    {
+      "id": "conversation_eye",
+      "label": "Conversation Eye",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_observability",
+      "target_domain": "observability",
+      "secondary_domain": "kernel",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Dialogue-derived findings are live evidence; canonical memory writes must be Kernel-governed."
+    },
+    {
+      "id": "memory_matrix",
+      "label": "Memory Matrix",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_kernel",
+      "target_domain": "kernel",
+      "secondary_domain": "orchestration_control_plane",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Scored memory indexes are not Shell display state and must not become browser-owned truth."
+    },
+    {
+      "id": "dream_sequencer",
+      "label": "Dream Sequencer",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_orchestration",
+      "target_domain": "orchestration_control_plane",
+      "secondary_domain": "kernel",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Sequencing relevance refreshes is coordination; durable memory receipts remain Kernel-owned."
+    },
+    {
+      "id": "memory_auto_recall",
+      "label": "Memory Auto-Recall",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_orchestration",
+      "target_domain": "orchestration_control_plane",
+      "secondary_domain": "kernel",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Recall routing is coordination over Kernel-governed memory facts, not presentation state."
+    },
+    {
+      "id": "shadow_signal_classifier",
+      "label": "Shadow Signal Classifier",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_observability",
+      "target_domain": "observability",
+      "secondary_domain": "orchestration_control_plane",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Signal classification starts as evidence and may be consumed by Orchestration, but Shell should not own the classifier."
+    },
+    {
+      "id": "shadow_dispatch_reliability",
+      "label": "Shadow Dispatch Reliability",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_orchestration",
+      "target_domain": "orchestration_control_plane",
+      "secondary_domain": "conduit",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Dispatch, retry, ack, and escalation contracts are coordination/delivery concerns."
+    },
+    {
+      "id": "browser_text_diff_lane",
+      "label": "Browser Text/Diff Lane",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_gateways",
+      "target_domain": "gateways",
+      "secondary_domain": "observability",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Browser snapshots are boundary evidence and should be bounded at Gateway/Observability, not stored as Shell cognition."
+    },
+    {
+      "id": "realtime_adaptation_loop",
+      "label": "Realtime Adaptation Loop",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_orchestration",
+      "target_domain": "orchestration_control_plane",
+      "secondary_domain": "validation",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Adaptation is coordination and must be validated before authority promotion."
+    },
+    {
+      "id": "low_burn_reflexes",
+      "label": "Low-Burn Reflexes",
+      "current_layer": "Shell Cognition",
+      "disposition": "rehome_to_orchestration",
+      "target_domain": "orchestration_control_plane",
+      "secondary_domain": "shell",
+      "owner": "codex",
+      "deadline": "2026-05-17",
+      "reason": "Reflex selection is workflow/coordination; Shell may only render or collect input for it."
+    }
+  ]
+}
