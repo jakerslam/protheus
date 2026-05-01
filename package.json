@@ -445,6 +445,7 @@
     "ops:kernel-sentinel:schedule": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- kernel-sentinel schedule --strict=0 --cadence=maintenance --schedule-artifact=core/local/artifacts/kernel_sentinel_schedule_current.json --auto-artifact=core/local/artifacts/kernel_sentinel_auto_run_current.json --quiet-success=1",
     "ops:knowledge-graph-query-acceleration:closure:guard": "npm run -s tooling:run -- --id=ops:knowledge-graph-query-acceleration:closure:guard --strict=1",
     "ops:ksent:boundedness-repair:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_boundedness_repair_lane_guard.ts --strict=1",
+    "ops:ksent:empty-response-repair:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_empty_response_repair_lane_guard.ts --strict=1",
     "ops:layer-placement:check": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer_placement_check.ts",
     "ops:layer0-ops:authority:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer0_ops_authority_domain_audit.ts --strict=1 --out=core/local/artifacts/layer0_ops_authority_domain_audit_current.json",
     "ops:layer2:parity:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer2_lane_parity_guard.ts --strict=1 --manifest=tests/tooling/config/layer2_parity_matrix.json",
