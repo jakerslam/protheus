@@ -58,11 +58,24 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
     let evidence = redacted_evidence(&cluster.evidence);
     let semantic_frame = kernel_sentinel_semantic_frame_for_finding(finding);
     let summary = issue_summary(finding, cluster.occurrence_count, &cluster.recovery_reason);
+    let component = issue_component(finding, cluster);
+    let root_cause_hypothesis = issue_root_cause_hypothesis(finding, cluster, &semantic_frame);
+    let repair_type = semantic_frame["remediation_level"]
+        .as_str()
+        .unwrap_or("targeted_repair")
+        .to_string();
+    let validation_route = issue_validation_route(cluster, &semantic_frame);
+    let acceptance_criteria = issue_acceptance_criteria(&validation_route);
     json!({
         "type": "kernel_sentinel_issue_draft",
         "status": "draft",
         "title": issue_title(finding),
         "summary": summary,
+        "component": component,
+        "observed_failure": finding.summary,
+        "root_cause_hypothesis": root_cause_hypothesis,
+        "repair_type": repair_type,
+        "validation_route": validation_route,
         "severity": finding.severity,
         "category": finding.category,
         "failure_level": semantic_frame["failure_level"].clone(),
@@ -90,12 +103,85 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
             finding.category
         ),
         "recommended_fix": finding.recommended_action,
-        "acceptance_criteria": [
-            "deterministic evidence no longer emits this fingerprint",
-            "strict Kernel Sentinel report returns allow for this scenario",
-            "regression fixture covers the failure signature"
-        ]
+        "acceptance_criteria": acceptance_criteria,
+        "todo_actionability": {
+            "todo_ready": true,
+            "component_present": true,
+            "observed_failure_present": true,
+            "root_cause_hypothesis_present": true,
+            "repair_type_present": true,
+            "validation_route_present": true,
+            "evidence_present": !evidence.is_empty(),
+            "human_review_required": true,
+            "safe_to_mutate_todo": false
+        }
     })
+}
+
+fn issue_component(finding: &KernelSentinelFinding, cluster: &FindingCluster) -> String {
+    for evidence in &cluster.evidence {
+        if let Some(component) = evidence_component(evidence) {
+            return component;
+        }
+    }
+    for candidate in [&cluster.surface, &cluster.receipt_type, &cluster.session] {
+        if !candidate.trim().is_empty() && candidate != "unknown" && candidate != "none" {
+            return candidate.to_string();
+        }
+    }
+    format!("{:?}", finding.category)
+}
+
+fn evidence_component(reference: &str) -> Option<String> {
+    let after_scheme = reference.split_once("://")?.1;
+    let component = after_scheme
+        .split(['/', ';', '?', '#'])
+        .next()
+        .unwrap_or("")
+        .trim();
+    (!component.is_empty() && component != "unknown").then(|| component.to_string())
+}
+
+fn issue_root_cause_hypothesis(
+    finding: &KernelSentinelFinding,
+    cluster: &FindingCluster,
+    semantic_frame: &Value,
+) -> String {
+    let root_frame = semantic_frame["root_frame"].as_str().unwrap_or("unknown_root_frame");
+    let invariant = cluster
+        .violated_invariants
+        .iter()
+        .next()
+        .map(String::as_str)
+        .unwrap_or("unknown_invariant");
+    format!(
+        "{root_frame} breach indicated by `{}` with invariant `{invariant}`",
+        finding.fingerprint
+    )
+}
+
+fn issue_validation_route(cluster: &FindingCluster, semantic_frame: &Value) -> Vec<Value> {
+    let root_frame = semantic_frame["root_frame"].as_str().unwrap_or("unknown_root_frame");
+    vec![json!({
+        "route": "kernel_sentinel_regression",
+        "command": "cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture",
+        "expected_result": "finding family absent or explicitly waived by reviewed evidence",
+        "cluster_key": cluster.cluster_key,
+        "root_frame": root_frame
+    })]
+}
+
+fn issue_acceptance_criteria(validation_route: &[Value]) -> Vec<String> {
+    let validation_command = validation_route
+        .first()
+        .and_then(|route| route["command"].as_str())
+        .unwrap_or("cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture");
+    vec![
+        "deterministic evidence no longer emits this fingerprint".to_string(),
+        "strict Kernel Sentinel report returns allow for this scenario".to_string(),
+        "regression fixture covers the failure signature".to_string(),
+        format!("validation route passes: {validation_command}"),
+    ]
 }
 
 fn deterministic_evidence_present(row: &Value) -> bool {
@@ -130,6 +216,11 @@ fn issue_quality_failures(drafts: &[Value]) -> Vec<Value> {
             .and_then(Value::as_array)
             .map(Vec::len)
             .unwrap_or(0);
+        let validation_route_count = draft
+            .get("validation_route")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
         let mut reasons = Vec::new();
         if title.len() < 16 || title.eq_ignore_ascii_case("issue") {
             reasons.push("vague_title");
@@ -145,6 +236,19 @@ fn issue_quality_failures(drafts: &[Value]) -> Vec<Value> {
         }
         if acceptance_count < 3 {
             reasons.push("insufficient_acceptance_criteria");
+        }
+        for (key, reason, min_len) in [
+            ("component", "missing_component", 3usize),
+            ("observed_failure", "missing_observed_failure", 16usize),
+            ("root_cause_hypothesis", "missing_root_cause_hypothesis", 24usize),
+            ("repair_type", "missing_repair_type", 3usize),
+        ] {
+            if draft.get(key).and_then(Value::as_str).unwrap_or("").trim().len() < min_len {
+                reasons.push(reason);
+            }
+        }
+        if validation_route_count == 0 {
+            reasons.push("missing_validation_route");
         }
         for required in ["failure_level", "root_frame", "remediation_level"] {
             if draft.get(required).and_then(Value::as_str).unwrap_or("").trim().is_empty() {
