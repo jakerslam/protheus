@@ -390,5 +390,44 @@ fn collector_then_auto_run_outputs_stay_consistent() {
     assert!(feedback_body.contains("kernel_sentinel_feedback_item"));
 }
 
+#[test]
+fn auto_run_timeout_writes_compact_diagnostic_artifact() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-auto-timeout-{}",
+        crate::deterministic_receipt_hash(&json!({
+            "test": "auto-timeout",
+            "nonce": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        }))
+    ));
+    let out = root.join("auto-timeout.json");
+    let args = vec![
+        "--strict=0".to_string(),
+        "--max-runtime-ms=1".to_string(),
+        "--stall-guard-test-sleep-ms=75".to_string(),
+        format!("--auto-artifact={}", out.display()),
+    ];
+
+    let exit = run_auto(&root, &args);
+    assert_eq!(exit, 124);
+
+    let body = fs::read_to_string(&out).unwrap();
+    let artifact: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(artifact["type"], "kernel_sentinel_auto_run");
+    assert_eq!(artifact["artifact_kind"], "diagnostic");
+    assert_eq!(artifact["diagnostic_artifact"], true);
+    assert_eq!(artifact["small_artifact"], true);
+    assert_eq!(artifact["failure_kind"], "sentinel_auto_timeout");
+    assert_eq!(artifact["verdict"]["verdict"], "diagnostic_timeout");
+    assert_eq!(artifact["raw_evidence_embedded"], false);
+    assert_eq!(artifact["full_report_embedded"], false);
+    assert_eq!(artifact["self_study_outputs_embedded"], false);
+    assert!(artifact.get("self_study_outputs").is_none());
+    assert!(artifact.get("findings").is_none());
+    assert!(body.len() < 8_192);
+}
+
 #[path = "auto_run_persistence_tests.rs"]
 mod auto_run_persistence_tests;
