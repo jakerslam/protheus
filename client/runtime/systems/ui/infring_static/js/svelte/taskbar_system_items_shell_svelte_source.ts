@@ -19,11 +19,15 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function app() {
     try {
       var service = appStoreService();
+      if (service && typeof service.root === 'function') {
+        var root = service.root();
+        if (root) return root;
+      }
       if (service && typeof service.current === 'function') {
         var current = service.current();
         if (current) return current;
       }
-      return service && typeof service.root === 'function' ? service.root() : null;
+      return null;
     } catch (_e) {
       return null;
     }
@@ -98,35 +102,34 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     bump();
   }
   function toggleNotifications() {
-    var s = app();
-    if (s && typeof s.toggleNotifications === 'function') s.toggleNotifications();
+    call('toggleNotifications');
     bump();
   }
   function closeNotifications() {
-    var s = app();
-    if (s) s.notificationsOpen = false;
+    var service = appStoreService();
+    if (service && typeof service.set === 'function') service.set('notificationsOpen', false);
+    else {
+      var s = app();
+      if (s) s.notificationsOpen = false;
+    }
     bump();
   }
   function clearNotifications() {
-    var s = app();
-    if (s && typeof s.clearNotifications === 'function') s.clearNotifications();
+    call('clearNotifications');
     bump();
   }
   function reopenNotification(note) {
-    var s = app();
-    if (s && typeof s.reopenNotification === 'function') s.reopenNotification(note);
+    call('reopenNotification', note);
     bump();
   }
   function dismissNotification(note, event) {
     if (event) event.stopPropagation();
-    var s = app();
-    if (s && typeof s.dismissNotification === 'function') s.dismissNotification(note && note.id);
+    call('dismissNotification', note && note.id);
     bump();
   }
   function dismissNotificationBubble(event) {
     if (event) event.stopPropagation();
-    var s = app();
-    if (s && typeof s.dismissNotificationBubble === 'function') s.dismissNotificationBubble();
+    call('dismissNotificationBubble');
     bump();
   }
   function formatNotificationTime(ts) {
