@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:07:11.507Z
+Updated: 2026-05-01T23:12:47.721Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T23:07:11.507Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 34
+- active_items: 33
 - red: 8
-- yellow: 17
+- yellow: 16
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -61,11 +61,6 @@ Updated: 2026-05-01T23:07:11.507Z
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
 
 ## Yellow Section (Do Soon)
-- `KSENT-UNDERSTANDING-WORKSHEET` — Generate recurring system-understanding worksheets
-  owner: `sentinel`
-  deadline: `2026-05-14`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Have Sentinel periodically produce a self-understanding dossier covering soul, runtime behavior, authority map, boundary map, drift, gaps, and confidence.
 - `SHELL-EXTRACT-CACHE` — Replace Shell conversation cache and search with projections
   owner: `unassigned`
   deadline: `2026-05-14`

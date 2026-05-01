@@ -75,6 +75,17 @@ fn auto_run_writes_freshness_artifact_for_clean_state() {
         root.join("docs/workspace/system_understanding/infring_dossier.md"),
     )
     .unwrap();
+    let worksheet: Value = serde_json::from_str(
+        &fs::read_to_string(
+            root.join("local/state/system_understanding/infring_worksheet_current.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let worksheet_markdown = fs::read_to_string(
+        root.join("docs/workspace/system_understanding/infring_worksheet.md"),
+    )
+    .unwrap();
     assert_eq!(health["type"], "kernel_sentinel_health_report");
     assert_eq!(health["diagnostic_report"]["type"], "kernel_sentinel_diagnostic_report_section");
     assert_eq!(
@@ -86,6 +97,12 @@ fn auto_run_writes_freshness_artifact_for_clean_state() {
     assert!(dossier_markdown.contains("# InfRing System Understanding Dossier"));
     assert!(dossier_markdown.contains("## Runtime Behavior"));
     assert!(dossier_markdown.contains("## Authority / Truth Model"));
+    assert_eq!(worksheet["type"], "kernel_sentinel_system_understanding_worksheet");
+    assert_eq!(worksheet["cadence"], "every_kernel_sentinel_auto_run");
+    assert_eq!(worksheet["phases"][0]["id"], "soul");
+    assert_eq!(worksheet["phases"][1]["id"], "runtime_behavior");
+    assert_eq!(worksheet["phases"][7]["id"], "syntax_detail");
+    assert!(worksheet_markdown.contains("Kernel Sentinel System Understanding Worksheet"));
     assert_eq!(internal_rsi_bundle["type"], "kernel_sentinel_internal_rsi_proposal_bundle");
     assert_eq!(internal_rsi_bundle["mode"], "probe_first");
     assert_eq!(diagnostic_run["type"], "kernel_sentinel_diagnostic_run");
@@ -126,7 +143,9 @@ fn auto_run_writes_freshness_artifact_for_clean_state() {
     assert!(artifact["output_artifacts"].as_array().unwrap().iter().any(|row| row.as_str() == Some("internal_rsi_proposals_current.json")));
     assert!(artifact["output_artifacts"].as_array().unwrap().iter().any(|row| row.as_str() == Some("kernel_sentinel_diagnostic_run_current.json")));
     assert!(artifact["output_artifacts"].as_array().unwrap().iter().any(|row| row.as_str() == Some("system_understanding/infring_dossier.json")));
+    assert!(artifact["output_artifacts"].as_array().unwrap().iter().any(|row| row.as_str() == Some("system_understanding/infring_worksheet_current.json")));
     assert!(artifact["output_artifacts"].as_array().unwrap().iter().any(|row| row.as_str() == Some("docs/workspace/system_understanding/infring_dossier.md")));
+    assert!(artifact["output_artifacts"].as_array().unwrap().iter().any(|row| row.as_str() == Some("docs/workspace/system_understanding/infring_worksheet.md")));
     assert!(artifact["diagnostic_run_path"]
         .as_str()
         .unwrap_or("")
