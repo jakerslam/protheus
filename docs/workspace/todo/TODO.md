@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:12:47.721Z
+Updated: 2026-05-01T23:16:26.401Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T23:12:47.721Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 33
+- active_items: 32
 - red: 8
-- yellow: 16
+- yellow: 15
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -111,11 +111,6 @@ Updated: 2026-05-01T23:12:47.721Z
   deadline: `2026-05-15`
   source_family: `Sentinel Regression Audit May01`
   summary: Treat stale observer artifacts as an Observability-layer problem by enforcing current_live_truth vs historical_reference semantics across Sentinel and related evidence consumers.
-- `TRACE` — Finish the universal trace substrate contract
-  owner: `unassigned`
-  deadline: `2026-05-16`
-  source_family: `Universal Trace Substrate / Fragmented Observability Closure`
-  summary: Finish the Observability-owned universal trace substrate contract and anti-fragmentation guard.
 - `WF-UTILITY` — Build the workflow utility spine
   owner: `unassigned`
   deadline: `2026-05-20`

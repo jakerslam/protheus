@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:12:47.721Z
+Updated: 2026-05-01T23:16:26.401Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:12:47.721Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `TRACE` — Finish the universal trace substrate contract
+  completed_at: `2026-05-01T23:16:26.400Z`
+  previous_section: `yellow`
+  owner: `unassigned`
+  deadline: `2026-05-16`
+  source_family: `Universal Trace Substrate / Fragmented Observability Closure`
+  summary: Finish the Observability-owned universal trace substrate contract and anti-fragmentation guard.
+  completion_note: Finished the Observability-owned universal trace substrate contract guard. Added universal_trace_substrate_contract.json plus ops:trace:substrate:guard to enforce single trace_id doctrine, required trace domains/events/authority classes/extensions, and anti-fragmented-observability root-schema placement. Validation: npm run -s ops:trace:substrate:guard passed; controlled violation rejected as expected.
 - `KSENT-UNDERSTANDING-WORKSHEET` — Generate recurring system-understanding worksheets
   completed_at: `2026-05-01T23:12:47.720Z`
   previous_section: `yellow`
