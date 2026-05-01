@@ -55,6 +55,65 @@ fn evidence_signal_counts(item: &Value) -> (usize, usize, usize) {
     (evidence.len(), field_citations, check_citations)
 }
 
+fn concrete_feedback_action(action: &str) -> bool {
+    action.trim() != "unknown" && action.split_whitespace().count() >= 4 && action.chars().count() >= 16
+}
+
+fn feedback_todo_actionability(item: &Value) -> Value {
+    let (evidence_count, field_citations, check_citations) = evidence_signal_counts(item);
+    let recurrence_count = usize_at(item, &["recurrence_count"]);
+    let recurrence_threshold = usize_at(item, &["recurrence_threshold"]).max(1);
+    let evidence_present = evidence_count > 0;
+    let recurrence_or_freshness_support = recurrence_count >= recurrence_threshold
+        || field_citations > 0
+        || check_citations > 0
+        || item.get("generated_at").is_some();
+    let semantic_frame_present = string_field(item, "failure_level") != "unknown"
+        && string_field(item, "root_frame") != "unknown"
+        && string_field(item, "remediation_level") != "unknown";
+    let concrete_next_action = concrete_feedback_action(&string_field(item, "recommended_action"));
+    let dedupe_key_present = string_field(item, "dedupe_key") != "unknown";
+    let mut missing = Vec::new();
+    if !evidence_present {
+        missing.push("evidence");
+    }
+    if !semantic_frame_present {
+        missing.push("semantic_root_frame");
+    }
+    if !concrete_next_action {
+        missing.push("concrete_next_action");
+    }
+    if !dedupe_key_present {
+        missing.push("dedupe_key");
+    }
+    if !recurrence_or_freshness_support {
+        missing.push("recurrence_or_freshness_support");
+    }
+    let state = if missing.is_empty() && recurrence_count >= recurrence_threshold {
+        "todo_ready"
+    } else if !evidence_present || !semantic_frame_present || !concrete_next_action {
+        "needs_root_cause_synthesis"
+    } else {
+        "triage_to_todo"
+    };
+    json!({
+        "type": "kernel_sentinel_feedback_to_todo_actionability",
+        "state": state,
+        "allowed_states": ["todo_ready", "triage_to_todo", "needs_root_cause_synthesis"],
+        "requirements": {
+            "evidence_present": evidence_present,
+            "recurrence_or_freshness_support": recurrence_or_freshness_support,
+            "semantic_frame_present": semantic_frame_present,
+            "concrete_next_action": concrete_next_action,
+            "dedupe_key_present": dedupe_key_present,
+        },
+        "missing_requirements": missing,
+        "human_review_required": true,
+        "safe_to_mutate_todo": false,
+        "policy": "sentinel_feedback_may_draft_todo_candidates_but_must_not_mutate_todo_without_review"
+    })
+}
+
 fn contains_any(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().any(|needle| haystack.contains(needle))
 }
@@ -206,9 +265,14 @@ fn feedback_quality_score(item: &Value) -> usize {
 fn refresh_feedback_quality(item: &mut Value) {
     let (evidence_count, field_citations, check_citations) = evidence_signal_counts(item);
     let operator_value_tier = operator_value_tier(item);
+    let todo_actionability = feedback_todo_actionability(item);
+    let todo_actionability_state = string_field(&todo_actionability, "state");
     item["operator_value_tier"] = json!(operator_value_tier);
     item["operator_value_rank"] = json!(operator_value_priority(operator_value_tier));
     item["feedback_quality_score"] = json!(feedback_quality_score(item));
+    item["todo_actionability_state"] = json!(todo_actionability_state);
+    item["todo_ready"] = json!(todo_actionability["state"] == "todo_ready");
+    item["todo_actionability"] = todo_actionability;
     item["quality_signals"] = json!({
         "evidence_count": evidence_count,
         "field_citation_count": field_citations,
@@ -217,6 +281,7 @@ fn refresh_feedback_quality(item: &mut Value) {
         "operator_value_rank": operator_value_priority(operator_value_tier),
         "recurrence_count": usize_at(item, &["recurrence_count"]),
         "actionable_recommendation": string_field(item, "recommended_action") != "unknown",
+        "todo_actionability_state": item["todo_actionability_state"].clone(),
         "semantic_frame_present": string_field(item, "failure_level") != "unknown"
     });
 }
