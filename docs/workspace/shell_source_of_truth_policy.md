@@ -68,6 +68,21 @@ For assembled Shell files that also have `.parts/**` mirrors:
 
 During migration, the canonical logical surface may still be represented by the assembled file, but the decomposition shards must not inflate authored-source growth numbers.
 
+## Closure Semantics
+
+Classification is not completion. A Shell surface with an assembled parent and `.parts/**` counterparts is only source-of-truth clean when the duplicate-surface inventory reports both:
+
+1. `counterpart_paths = 0`
+2. `duplicate_loc_estimate = 0`
+
+Until then, the surface state is `decomposition_debt_open`, even if the parent/parts relationship is correctly classified. The chat ownership guard must publish this closure state so operators can distinguish “known and governed” from “actually closed.”
+
+`SHELL-CLEANUP` must not be marked complete while `pages/chat.ts` still has non-zero counterpart paths or duplicate LOC. The acceptable end states are:
+
+1. `pages/chat.ts.parts/**` shards have become real imported modules in the canonical runtime graph.
+2. `pages/chat.ts.parts/**` shards have been deleted after parity proof shows the assembled runtime no longer needs mirrored decomposition debt.
+3. A stricter successor guard has replaced the assembled-plus-parts model with an equivalent module-graph proof.
+
 ## Metric Rules
 
 The following reports and guards must follow this policy:
