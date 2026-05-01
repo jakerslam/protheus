@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:16:26.401Z
+Updated: 2026-05-01T23:20:14.134Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T23:16:26.401Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 32
+- active_items: 31
 - red: 8
-- yellow: 15
+- yellow: 14
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -121,11 +121,6 @@ Updated: 2026-05-01T23:16:26.401Z
   deadline: `2026-05-23`
   source_family: `Universal Trace Runtime Implementation Checklist`
   summary: Implement end-to-end unified trace_id propagation from initial request through Orchestration, workflows, tools, Kernel receipts, Sentinel, and final response.
-- `MLSYS5` — Assimilate MLSysBook Chapter 5 systems lessons
-  owner: `unassigned`
-  deadline: `2026-05-27`
-  source_family: `MLSysBook Vol. 1 Chapter 5 Neural Computation Implementation Backlog`
-  summary: Assimilate Chapter 5 systems lessons into workload awareness, confidence routing, budgeting, and D-A-M diagnosis.
 - `ARCH-TOOLING-NEXT` — Hold important architecture and tooling deltas behind current closure work
   owner: `unassigned`
   deadline: `after_red_section`

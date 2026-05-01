@@ -1092,7 +1092,8 @@
     "ops:representation-collapse:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/representation_collapse_report.ts --out-json=core/local/artifacts/representation_collapse_report_current.json --out-markdown=local/workspace/reports/REPRESENTATION_COLLAPSE_REPORT_CURRENT.md",
     "ops:architecture:transition-residue:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/architecture_transition_residue_guard.ts --strict=1 --out-json=core/local/artifacts/architecture_transition_residue_guard_current.json --out-markdown=local/workspace/reports/ARCHITECTURE_TRANSITION_RESIDUE_GUARD_CURRENT.md",
     "ops:orchestration:naming:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/orchestration_canonical_name_guard.ts --strict=1 --out-json=core/local/artifacts/orchestration_canonical_name_guard_current.json --out-markdown=local/workspace/reports/ORCHESTRATION_CANONICAL_NAME_GUARD_CURRENT.md",
-    "ops:trace:substrate:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/universal_trace_substrate_guard.ts --strict=1 --out-json=core/local/artifacts/universal_trace_substrate_guard_current.json --out-markdown=local/workspace/reports/UNIVERSAL_TRACE_SUBSTRATE_GUARD_CURRENT.md"
+    "ops:trace:substrate:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/universal_trace_substrate_guard.ts --strict=1 --out-json=core/local/artifacts/universal_trace_substrate_guard_current.json --out-markdown=local/workspace/reports/UNIVERSAL_TRACE_SUBSTRATE_GUARD_CURRENT.md",
+    "ops:mlsys5:assimilation:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/mlsys_chapter5_assimilation_guard.ts --strict=1 --out-json=core/local/artifacts/mlsys_chapter5_assimilation_guard_current.json --out-markdown=local/workspace/reports/MLSYS_CHAPTER5_ASSIMILATION_GUARD_CURRENT.md"
   },
   "bin": {
     "infring": "./client/cli/bin/infring",

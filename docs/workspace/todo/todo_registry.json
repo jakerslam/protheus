@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:16:26.401Z",
+  "updated_at": "2026-05-01T23:20:14.134Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -147,15 +147,6 @@
       "deadline": "2026-05-23",
       "source_family": "Universal Trace Runtime Implementation Checklist",
       "summary": "Implement end-to-end unified trace_id propagation from initial request through Orchestration, workflows, tools, Kernel receipts, Sentinel, and final response."
-    },
-    {
-      "id": "MLSYS5",
-      "title": "Assimilate MLSysBook Chapter 5 systems lessons",
-      "section": "yellow",
-      "owner": "unassigned",
-      "deadline": "2026-05-27",
-      "source_family": "MLSysBook Vol. 1 Chapter 5 Neural Computation Implementation Backlog",
-      "summary": "Assimilate Chapter 5 systems lessons into workload awareness, confidence routing, budgeting, and D-A-M diagnosis."
     },
     {
       "id": "ARCH-TOOLING-NEXT",

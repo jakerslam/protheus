@@ -2538,6 +2538,21 @@
         "core/local/artifacts/universal_trace_substrate_guard_current.json",
         "local/workspace/reports/UNIVERSAL_TRACE_SUBSTRATE_GUARD_CURRENT.md"
       ]
+    },
+    "ops:mlsys5:assimilation:guard": {
+      "owner": "assurance.observability",
+      "description": "MLSysBook Chapter 5 workflow assimilation guard for workload awareness, confidence routing, resource budgeting, and D-A-M diagnosis.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:mlsys5:assimilation:guard",
+      "canonical_definition_paths": [
+        "observability/research/mlsys_chapter5_workflow_assimilation.json",
+        "observability/research/MLSYS_CHAPTER5_ASSIMILATION.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/mlsys_chapter5_assimilation_guard_current.json",
+        "local/workspace/reports/MLSYS_CHAPTER5_ASSIMILATION_GUARD_CURRENT.md"
+      ]
     }
   },
   "ops:eval:issue-authority:guard": {
