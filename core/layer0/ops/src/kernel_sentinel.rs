@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod assimilation_handoff; mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod waivers;
+mod assimilation_handoff; mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 pub use assimilation_handoff::build_external_assimilation_transfer_plan;
 pub use diagnostic_authorization::{
@@ -176,7 +176,7 @@ impl Serialize for KernelSentinelFinding {
     {
         let failure_level = kernel_sentinel_failure_level_for_finding(self);
         let root_frame = kernel_sentinel_root_frame_for_finding(self);
-        let mut state = serializer.serialize_struct("KernelSentinelFinding", 12)?;
+        let mut state = serializer.serialize_struct("KernelSentinelFinding", 14)?;
         state.serialize_field("schema_version", &self.schema_version)?;
         state.serialize_field("id", &self.id)?;
         state.serialize_field("severity", &self.severity)?;
@@ -187,8 +187,10 @@ impl Serialize for KernelSentinelFinding {
         state.serialize_field("recommended_action", &self.recommended_action)?;
         state.serialize_field("status", &self.status)?;
         state.serialize_field("failure_level", failure_level.code())?;
+        state.serialize_field("failure_class", failure_level.failure_class())?;
         state.serialize_field("root_frame", root_frame)?;
         state.serialize_field("remediation_level", failure_level.remediation_level())?;
+        state.serialize_field("review_depth", failure_level.review_depth())?;
         state.end()
     }
 }

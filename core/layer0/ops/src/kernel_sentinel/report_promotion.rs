@@ -63,6 +63,10 @@ fn promotion_candidate(index: usize, cluster: &Value, top_findings: &[Value]) ->
         "issue_state": "issue_ready",
         "owner_guess": cluster["owner_guess"].clone(),
         "category": cluster["category"].clone(),
+        "failure_level": cluster["failure_level"].clone(),
+        "failure_class": cluster["failure_class"].clone(),
+        "remediation_level": cluster["remediation_level"].clone(),
+        "review_depth": cluster["review_depth"].clone(),
         "title": compact_text(&title),
         "root_cause_hypothesis": compact_text(cluster["root_cause_hypothesis"].as_str().unwrap_or("")),
         "observed_failure": exemplar
@@ -88,9 +92,51 @@ fn triage_candidate(index: usize, finding: &Value) -> Value {
         "todo_state": "triage_to_todo",
         "issue_state": "needs_root_cause_synthesis",
         "category": finding["category"].clone(),
+        "failure_level": finding["failure_level"].clone(),
+        "failure_class": finding["failure_class"].clone(),
+        "remediation_level": finding["remediation_level"].clone(),
+        "review_depth": finding["review_depth"].clone(),
         "summary": compact_text(finding["summary"].as_str().unwrap_or("")),
         "missing_requirements": finding["quality"]["missing_requirements"].clone(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn promotion_lane_preserves_failure_level_before_recommending_work() {
+        let findings = vec![json!({
+            "id": "ksent-1",
+            "summary": "shell authority ghost",
+            "cluster": {"cluster_key": "shell|runtime|authority"}
+        })];
+        let clusters = vec![json!({
+            "cluster_key": "shell|runtime|authority",
+            "exemplar_id": "ksent-1",
+            "owner_guess": "shell",
+            "category": "runtime_correctness",
+            "failure_level": "L3_policy_truth_failure",
+            "failure_class": "policy_truth",
+            "remediation_level": "policy_realignment",
+            "review_depth": "policy_truth_review",
+            "fingerprint_family": "authority:ghost",
+            "root_cause_hypothesis": "authority ghost survived syntax cleanup",
+            "recommended_next_action": "restore canonical ownership before local patching",
+            "evidence_refs": ["evidence://authority/ghost"],
+            "occurrence_count": 2
+        })];
+        let lane = build_promotion_lane(&findings, &clusters, &[]);
+        let candidate = &lane["promotion_candidates"][0];
+        assert_eq!(candidate["failure_level"], "L3_policy_truth_failure");
+        assert_eq!(candidate["failure_class"], "policy_truth");
+        assert_eq!(candidate["review_depth"], "policy_truth_review");
+        assert_eq!(
+            candidate["recommended_action"],
+            "restore canonical ownership before local patching"
+        );
+    }
 }
 
 fn compact_array(value: &Value, limit: usize) -> Vec<String> {
