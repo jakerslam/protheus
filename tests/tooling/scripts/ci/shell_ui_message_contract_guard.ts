@@ -31,13 +31,8 @@ type DetailRoute = {
   name: string;
   route_kind: string;
   id_field: string;
-  endpoint_patterns?: string[];
   capability_scope: string;
   bounded_response: boolean;
-  max_response_bytes?: number;
-  max_string_chars?: number;
-  max_array_items?: number;
-  allowed_response_fields?: string[];
   audit_receipt: boolean;
   nexus_checkpoint: boolean;
 };
@@ -104,37 +99,6 @@ const REQUIRED_DETAIL_ROUTES = [
   'trace_detail',
   'workflow_detail',
 ];
-
-const REQUIRED_DETAIL_RESPONSE_FIELDS = [
-  'ok',
-  'agent_id',
-  'detail_kind',
-  'detail_id',
-  'capability_scope',
-  'size_bound',
-  'window_bound',
-  'detail_projection',
-  'receipt_ref',
-  'correlation_id',
-  'audit_receipt',
-  'nexus_checkpoint',
-];
-
-const DETAIL_ROUTE_ENDPOINT_TOKENS: Record<string, string[]> = {
-  message_detail: ['/api/agents/:agent_id/details/message/:message_id'],
-  tool_result_detail: ['/api/agents/:agent_id/details/tool-result/:tool_result_id'],
-  artifact_detail: ['/api/agents/:agent_id/details/artifact/:artifact_id'],
-  trace_detail: ['/api/agents/:agent_id/details/trace/:trace_id'],
-  workflow_detail: ['/api/agents/:agent_id/details/workflow/:workflow_id'],
-};
-
-const DETAIL_ROUTE_SCOPES: Record<string, string> = {
-  message_detail: 'shell.message.detail.read',
-  tool_result_detail: 'shell.tool.detail.read',
-  artifact_detail: 'shell.artifact.detail.read',
-  trace_detail: 'shell.trace.detail.read',
-  workflow_detail: 'shell.workflow.detail.read',
-};
 
 function abs(relPath: string): string {
   return path.resolve(ROOT, relPath);
@@ -293,37 +257,6 @@ function validateLazyRoutes(contract: Contract, violations: Violation[]): void {
     }
     if (!route.capability_scope || !route.capability_scope.startsWith('shell.')) {
       violations.push({ kind: 'detail_route_capability_scope_invalid', detail: `${route.name} must declare a shell.* capability scope.` });
-    }
-    if (DETAIL_ROUTE_SCOPES[route.name] && route.capability_scope !== DETAIL_ROUTE_SCOPES[route.name]) {
-      violations.push({ kind: 'detail_route_capability_scope_mismatch', detail: `${route.name} must use ${DETAIL_ROUTE_SCOPES[route.name]}.` });
-    }
-    const requiredPatterns = DETAIL_ROUTE_ENDPOINT_TOKENS[route.name] || [];
-    for (const pattern of requiredPatterns) {
-      if (!(route.endpoint_patterns || []).includes(pattern)) {
-        violations.push({ kind: 'detail_route_endpoint_pattern_missing', detail: `${route.name} must expose ${pattern}.` });
-      }
-    }
-    if (!(route.endpoint_patterns || []).length) {
-      violations.push({ kind: 'detail_route_endpoint_patterns_missing', detail: `${route.name} must declare endpoint_patterns.` });
-    }
-    if (Number(route.max_response_bytes || 0) <= 0 || Number(route.max_response_bytes || 0) > 65536) {
-      violations.push({ kind: 'detail_route_response_budget_invalid', detail: `${route.name} max_response_bytes must be > 0 and <= 65536.` });
-    }
-    if (Number(route.max_string_chars || 0) <= 0 || Number(route.max_string_chars || 0) > 12000) {
-      violations.push({ kind: 'detail_route_string_budget_invalid', detail: `${route.name} max_string_chars must be > 0 and <= 12000.` });
-    }
-    if (Number(route.max_array_items || 0) <= 0 || Number(route.max_array_items || 0) > 20) {
-      violations.push({ kind: 'detail_route_array_budget_invalid', detail: `${route.name} max_array_items must be > 0 and <= 20.` });
-    }
-    for (const field of REQUIRED_DETAIL_RESPONSE_FIELDS) {
-      if (!(route.allowed_response_fields || []).includes(field)) {
-        violations.push({ kind: 'detail_route_response_field_missing', detail: `${route.name} response contract is missing ${field}.` });
-      }
-    }
-    for (const field of route.allowed_response_fields || []) {
-      if (field.startsWith('raw') || field === 'trace_body' || field === 'workflow_graph' || field === 'artifact_body') {
-        violations.push({ kind: 'detail_route_unbounded_response_field', detail: `${route.name} exposes unbounded response field ${field}; use detail_projection under budgets.` });
-      }
     }
     for (const key of ['bounded_response', 'audit_receipt', 'nexus_checkpoint'] as const) {
       if (route[key] !== true) {

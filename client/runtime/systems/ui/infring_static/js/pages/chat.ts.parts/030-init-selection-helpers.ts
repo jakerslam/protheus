@@ -232,6 +232,7 @@
 
     get switcherViewState() {
       var modelsRef = Array.isArray(this._modelCache) ? this._modelCache : [];
+      if (!modelsRef.length && this.showModelSwitcher) modelsRef = this.activeModelFallbackRows();
       var providerFilter = String(this.modelSwitcherProviderFilter || '').trim();
       var textFilter = String(this.modelSwitcherFilter || '').trim().toLowerCase();
       var cacheTime = Number(this._modelCacheTime || 0);
@@ -529,6 +530,26 @@
         local_download_path: '',
         download_available: false,
       };
+    },
+    activeModelFallbackRows: function() {
+      var active = this.resolveActiveSwitcherModel([]);
+      if (active && active.id) return [Object.assign({ available: true }, active)];
+      return [{
+        id: 'auto',
+        provider: 'auto',
+        model: 'auto',
+        model_name: 'auto',
+        display_name: 'Auto',
+        available: true,
+        tier: 'Active'
+      }];
+    },
+    ensureModelSwitcherFallback: function() {
+      if (Array.isArray(this._modelCache) && this._modelCache.length) return;
+      var rows = this.activeModelFallbackRows();
+      this._modelCache = rows;
+      this._modelCacheTime = 0;
+      this.modelPickerList = rows;
     },
     get groupedSwitcherModels() {
       return this.switcherViewState.grouped;

@@ -404,56 +404,64 @@
     sanitizeConversationForCache(messages) {
       var source = Array.isArray(messages) ? messages : [];
       var out = [];
-      var compact = function(value, limit) {
-        var max = Number(limit || 320);
-        if (!Number.isFinite(max) || max < 40) max = 320;
-        var text = value == null ? '' : String(value);
-        text = text.replace(/\s+/g, ' ').trim();
-        return text.length > max ? text.slice(0, max - 1).trimEnd() + '\u2026' : text;
-      };
-      var ref = function(row) {
-        if (!row || typeof row !== 'object') return '';
-        return String(row.detail_ref || row.message_detail_ref || row.tool_detail_ref || row.artifact_detail_ref || row.receipt_ref || row.receipt_id || row.ref || row.id || '').trim();
-      };
-      var refs = function(rows) {
-        var list = Array.isArray(rows) ? rows : [];
-        var values = [];
-        var seen = Object.create(null);
-        for (var j = 0; j < list.length && values.length < 8; j += 1) {
-          var row = list[j] && typeof list[j] === 'object' ? list[j] : {};
-          var value = String(row.detail_ref || row.tool_detail_ref || row.artifact_detail_ref || row.receipt_ref || row.input_ref || row.result_ref || row.id || '').trim();
-          if (!value || seen[value]) continue;
-          seen[value] = true;
-          values.push(value);
-        }
-        return values;
-      };
-      for (var i = 0; i < source.length; i += 1) {
+      for (var i = 0; i < source.length; i++) {
         var msg = source[i];
         if (!msg || typeof msg !== 'object') continue;
         if (msg.thinking || msg.streaming || (msg.terminal && msg.thinking)) continue;
-        var role = String(msg.role || msg.type || '').trim().toLowerCase();
-        if (role.indexOf('assistant') >= 0) role = 'agent';
-        else if (role.indexOf('user') >= 0) role = 'user';
-        else if (role.indexOf('system') >= 0) role = 'system';
-        else if (msg.terminal) role = 'terminal';
-        else role = role || 'agent';
-        var rawText = msg.content_preview;
-        if (rawText == null) rawText = msg.text;
-        if (rawText == null) rawText = msg.message;
-        if (rawText == null) rawText = msg.assistant;
-        if (rawText == null && role === 'user') rawText = msg.user;
-        var tools = Array.isArray(msg.tools) ? msg.tools : [];
-        var artifacts = [];
-        if (msg.file_output && typeof msg.file_output === 'object') artifacts.push(msg.file_output);
-        if (msg.folder_output && typeof msg.folder_output === 'object') artifacts.push(msg.folder_output);
-        if (Array.isArray(msg.artifacts)) artifacts = artifacts.concat(msg.artifacts);
-        var progress = msg.progress && typeof msg.progress === 'object' ? msg.progress : null;
-        var preview = compact(rawText, 320);
-        var lineCount = rawText == null ? 0 : Math.min(99, String(rawText).split(/\r?\n/).length);
-        var row = { id: msg.id, role: role, status: String(msg.status || msg.receipt_status || msg.display_state || ''), content_preview: preview, text: preview, line_count: lineCount, detail_ref: ref(msg), ts: Number(msg.ts || 0) || Date.now(), agent_id: msg.agent_id, agent_name: msg.agent_name, terminal: msg.terminal === true, is_notice: msg.is_notice === true, notice_label: compact(msg.notice_label, 160), notice_type: String(msg.notice_type || ''), notice_icon: String(msg.notice_icon || ''), notice_action: msg.notice_action, progress_percent: progress ? (Number(progress.percent || 0) || 0) : 0, progress_label: progress ? compact(progress.label, 120) : '', tool_summary_count: tools.length, tool_detail_refs: refs(tools), artifact_summary_count: artifacts.length, artifact_detail_refs: refs(artifacts) };
-        if (!(row.is_notice || row.notice_label || row.notice_type || row.notice_action || row.content_preview || row.tool_summary_count || row.artifact_summary_count || row.progress_label || row.progress_percent || row.terminal)) continue;
-        out.push(row);
+        var cloned = null;
+        try {
+          cloned = JSON.parse(JSON.stringify(msg));
+        } catch(_) {
+          cloned = null;
+        }
+        if (!cloned || typeof cloned !== 'object') continue;
+        var roleRaw = String(cloned.role || cloned.type || '').trim().toLowerCase();
+        if (roleRaw.indexOf('assistant') >= 0) roleRaw = 'agent';
+        else if (roleRaw.indexOf('user') >= 0) roleRaw = 'user';
+        else if (roleRaw.indexOf('system') >= 0) roleRaw = 'system';
+        else if (cloned.terminal) roleRaw = 'terminal';
+        else roleRaw = roleRaw || 'agent';
+        cloned.role = roleRaw;
+        var rawText = cloned.text;
+        if (rawText == null && cloned.content != null) rawText = cloned.content;
+        if (rawText == null && cloned.message != null) rawText = cloned.message;
+        if (rawText == null && cloned.assistant != null) rawText = cloned.assistant;
+        if (rawText == null && cloned.user != null && roleRaw === 'user') rawText = cloned.user;
+        if (rawText == null) rawText = '';
+        if (typeof rawText !== 'string') {
+          try {
+            rawText = JSON.stringify(rawText);
+          } catch(_) {
+            rawText = String(rawText || '');
+          }
+        }
+        cloned.text = rawText;
+        delete cloned.content;
+        delete cloned.thinking;
+        delete cloned.streaming;
+        delete cloned.thoughtStreaming;
+        delete cloned._streamRawText;
+        delete cloned._cleanText;
+        delete cloned._thoughtText;
+        delete cloned._toolTextDetected;
+        delete cloned._reasoning;
+        if (Array.isArray(cloned.tools)) {
+          for (var ti = 0; ti < cloned.tools.length; ti++) {
+            if (cloned.tools[ti] && typeof cloned.tools[ti] === 'object') {
+              cloned.tools[ti].running = false;
+            }
+          }
+        }
+        var hasNotice = !!(cloned.is_notice || cloned.notice_label || cloned.notice_type || cloned.notice_action);
+        var hasText = typeof cloned.text === 'string' && cloned.text.trim().length > 0;
+        var hasTools = Array.isArray(cloned.tools) && cloned.tools.length > 0;
+        var hasArtifacts = !!(cloned.file_output || cloned.folder_output);
+        var hasProgress = !!(cloned.progress && typeof cloned.progress === 'object');
+        var hasTerminal = !!cloned.terminal;
+        if (!hasNotice && !hasText && !hasTools && !hasArtifacts && !hasProgress && !hasTerminal) {
+          continue;
+        }
+        out.push(cloned);
       }
       return out;
     },

@@ -1174,7 +1174,7 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "chrono",
- "infring-layer1-provenance",
+ "infring_types",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -1187,6 +1187,7 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "chrono",
+ "infring_types",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -1526,10 +1527,14 @@ name = "infring_types"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "blake3",
+ "chrono",
  "hex",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 1.0.69",
+ "uuid",
 ]
 
 [[package]]

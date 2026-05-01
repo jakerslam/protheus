@@ -65,8 +65,7 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   overflow: hidden;
 }
 .model-switcher-dropdown-inline {
-  --taskbar-overlay-left: auto;
-  --taskbar-overlay-right: 0;
+  max-width: min(90vw, 340px);
 }
 .composer-model-btn.active {
   color: var(--text);

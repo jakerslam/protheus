@@ -41,10 +41,20 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement="infring-taskb
 
   function anchorRect() {
     const id = String(anchorid || '').trim();
-    if (!id || typeof document === 'undefined') return null;
-    const node = document.getElementById(id);
+    if (typeof document === 'undefined') return null;
+    const node = id ? document.getElementById(id) : inferredAnchorNode();
     if (!node || typeof node.getBoundingClientRect !== 'function') return null;
     return node.getBoundingClientRect();
+  }
+
+  function inferredAnchorNode() {
+    const host = hostElement();
+    if (!host || typeof host.closest !== 'function') return null;
+    try {
+      return host.closest('[data-popup-origin-anchor], .composer-plus-wrap, .composer-menu-pill, .taskbar-text-menu-anchor, .taskbar-hero-menu-anchor, .notif-wrap');
+    } catch (_e) {
+      return null;
+    }
   }
 
   function dropdownClass() {
@@ -58,7 +68,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement="infring-taskb
   function syncDropdownClass() {
     const host = hostElement();
     if (!host) return;
-    if (!String(anchorid || '').trim()) {
+    if (!String(anchorid || '').trim() && !inferredAnchorNode()) {
       MANAGED_CLASSES.forEach(function(name) { host.classList.remove(name); });
       return;
     }
