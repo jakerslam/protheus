@@ -33,3 +33,6 @@ include!(
 include!(
     "100-governance-and-semantic-memory.combined_parts/1220-workflow-live-provider-self-play-smoke.rs"
 );
+include!(
+    "100-governance-and-semantic-memory.combined_parts/1230-workflow-finalization-trace-diagnostics.rs"
+);

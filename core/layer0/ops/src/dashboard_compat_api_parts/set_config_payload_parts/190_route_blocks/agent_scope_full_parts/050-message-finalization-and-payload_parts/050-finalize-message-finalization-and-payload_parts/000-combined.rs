@@ -373,13 +373,6 @@ fn finalize_message_finalization_and_payload(
         visible_response_repaired,
         &finalization_outcome,
     );
-    let process_summary = build_turn_process_summary(
-        message,
-        &response_tools,
-        &response_workflow,
-        &response_finalization,
-    );
-    let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);
     let turn_transaction = crate::dashboard_tool_turn_loop::turn_transaction_payload(
         "complete",
         if response_tools.is_empty() {
@@ -404,6 +397,13 @@ fn finalize_message_finalization_and_payload(
         );
         response_finalization["outcome"] = json!(finalization_outcome.clone());
     }
+    let process_summary = build_turn_process_summary(
+        message,
+        &response_tools,
+        &response_workflow,
+        &response_finalization,
+    );
+    let workflow_visibility = workflow_visibility_payload(&response_workflow, &response_finalization);
     let turn_receipt = append_turn_receipt_with_metadata(
         root,
         agent_id,

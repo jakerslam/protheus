@@ -85,6 +85,105 @@ fn workflow_visibility_trace_payload(
     })
 }
 
+fn workflow_finalization_diagnostic_class(
+    response_workflow: &Value,
+    response_finalization: &Value,
+) -> &'static str {
+    let outcome = response_finalization
+        .get("outcome")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let source = response_finalization
+        .get("visible_response_source")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let final_status = response_workflow
+        .pointer("/final_llm_response/status")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let pending_tool = response_finalization.get("pending_tool_request").is_some();
+    let guard_withheld = outcome.contains("final_response_guard_no_system_retry")
+        || outcome.contains("visible_response_contamination_withheld")
+        || response_finalization
+            .pointer("/current_turn_dominance/withheld")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        || response_finalization
+            .pointer("/contamination_guard/detected")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+    let empty_visible = source == "none" || outcome.contains("empty_");
+
+    if pending_tool && empty_visible {
+        "pending_tool_waiting_for_llm_input"
+    } else if !empty_visible {
+        "visible_llm_response_preserved"
+    } else if guard_withheld {
+        "guard_withheld_visible_response"
+    } else if final_status.is_empty() || final_status != "synthesized" {
+        "llm_finalization_unavailable_no_system_fallback"
+    } else {
+        "empty_llm_visible_response_no_system_fallback"
+    }
+}
+
+fn workflow_finalization_diagnostics_payload(
+    response_workflow: &Value,
+    response_finalization: &Value,
+) -> Value {
+    let outcome = clean_text(
+        response_finalization
+            .get("outcome")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        220,
+    );
+    let visible_response_source = clean_text(
+        response_finalization
+            .get("visible_response_source")
+            .and_then(Value::as_str)
+            .unwrap_or("none"),
+        80,
+    );
+    let final_llm_status = clean_text(
+        response_workflow
+            .pointer("/final_llm_response/status")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown"),
+        80,
+    );
+    let pending_tool_request = response_finalization.get("pending_tool_request").is_some();
+    let empty_visible_response =
+        visible_response_source == "none" || outcome.contains("empty_final_response");
+    let guard_withheld_response = outcome.contains("final_response_guard_no_system_retry")
+        || outcome.contains("visible_response_contamination_withheld")
+        || response_finalization
+            .pointer("/current_turn_dominance/withheld")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        || response_finalization
+            .pointer("/contamination_guard/detected")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+
+    json!({
+        "contract": "workflow_finalization_diagnostics_v1",
+        "diagnostic_class": workflow_finalization_diagnostic_class(response_workflow, response_finalization),
+        "outcome": outcome,
+        "final_llm_status": final_llm_status,
+        "visible_response_source": visible_response_source,
+        "empty_visible_response": empty_visible_response,
+        "pending_tool_request": pending_tool_request,
+        "guard_withheld_response": guard_withheld_response,
+        "system_chat_injection_used": response_finalization
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "chat_injection_allowed": false,
+        "trace_sufficient_for_diagnosis": true
+    })
+}
+
 fn workflow_visibility_payload(response_workflow: &Value, response_finalization: &Value) -> Value {
     let visibility = response_workflow
         .get("visibility")
@@ -157,6 +256,7 @@ fn workflow_visibility_payload(response_workflow: &Value, response_finalization:
         "chat_injection_allowed": false,
         "system_injected_chat_text_allowed": false,
         "system_chat_injection_used": system_chat_injection_used,
-        "visible_response_source": visible_response_source
+        "visible_response_source": visible_response_source,
+        "finalization_diagnostics": workflow_finalization_diagnostics_payload(response_workflow, response_finalization)
     })
 }

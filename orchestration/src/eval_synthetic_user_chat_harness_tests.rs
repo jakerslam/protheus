@@ -387,6 +387,79 @@ fn synthetic_user_harness_accepts_pending_tool_progress() {
 }
 
 #[test]
+fn synthetic_user_harness_requires_executed_tool_synthesis_when_requested() {
+    let turn = json!({
+        "user_message": "Search the web and summarize what changed.",
+        "expect": {
+            "require_tool_execution_evidence": true,
+            "require_final_synthesis": true,
+            "require_tool_result_synthesis": true
+        }
+    });
+    let thresholds = json!({});
+    let pending_only_payload = json!({
+        "response": "I would choose web search and wait for confirmation.",
+        "pending_tool_request": {"status": "pending_confirmation", "tool_name": "batch_query"},
+        "response_workflow": {
+            "final_llm_response": {"status": "synthesized"},
+            "stage_statuses": [{"stage": "gate_2_tool_family_menu", "status": "selected_web_search"}]
+        },
+        "tools": [],
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+
+    let pending_failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "Search the web and summarize what changed.",
+        response_text: "I would choose web search and wait for confirmation.",
+        previous_response: "",
+        payload: &pending_only_payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 8,
+        workflow_stage_count: 1,
+    });
+    assert!(
+        pending_failures
+            .iter()
+            .any(|row| row == "missing_tool_execution_evidence"),
+        "{pending_failures:?}"
+    );
+
+    let executed_payload = json!({
+        "response": "The search result says the framework added native workflow traces.",
+        "response_workflow": {
+            "final_llm_response": {"status": "synthesized"},
+            "stage_statuses": [{"stage": "final_llm_response", "status": "synthesized"}]
+        },
+        "tools": [{"name": "batch_query", "status": "success", "receipt": "tool-receipt-1"}],
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+    let executed_failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "Search the web and summarize what changed.",
+        response_text: "The search result says the framework added native workflow traces.",
+        previous_response: "",
+        payload: &executed_payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 10,
+        workflow_stage_count: 1,
+    });
+    assert!(
+        !executed_failures.iter().any(|row| row
+            == "missing_tool_execution_evidence"
+            || row == "missing_final_synthesis_status"
+            || row == "tool_execution_without_final_synthesis"),
+        "{executed_failures:?}"
+    );
+}
+
+#[test]
 fn synthetic_user_harness_flags_unbacked_tool_result_claims() {
     let turn = json!({
         "user_message": "what? why are you repeating the same fallback text?",

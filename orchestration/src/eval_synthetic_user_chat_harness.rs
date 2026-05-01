@@ -409,6 +409,26 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     if bool_at(turn, &["expect", "require_tool_progress"], false) && !has_tool_progress {
         failures.push("missing_tool_progress_evidence".to_string());
     }
+    let has_tool_execution = payload_has_tool_execution_evidence(payload);
+    if bool_at(
+        turn,
+        &["expect", "require_tool_execution_evidence"],
+        false,
+    ) && !has_tool_execution
+    {
+        failures.push("missing_tool_execution_evidence".to_string());
+    }
+    if bool_at(turn, &["expect", "require_final_synthesis"], false)
+        && !payload_final_llm_synthesized(payload)
+    {
+        failures.push("missing_final_synthesis_status".to_string());
+    }
+    if bool_at(turn, &["expect", "require_tool_result_synthesis"], false)
+        && has_tool_execution
+        && (!payload_final_llm_synthesized(payload) || response_text.trim().is_empty())
+    {
+        failures.push("tool_execution_without_final_synthesis".to_string());
+    }
     if bool_at(
         turn,
         &["expect", "forbid_unresolved_tool_need_without_progress"],
@@ -553,6 +573,30 @@ fn payload_has_tool_progress(payload: &Value) -> bool {
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false)
+}
+
+fn payload_has_tool_execution_evidence(payload: &Value) -> bool {
+    payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+        || payload
+            .pointer("/response_finalization/tool_completion/tool_attempts")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false)
+}
+
+fn payload_final_llm_synthesized(payload: &Value) -> bool {
+    payload
+        .pointer("/response_workflow/final_llm_response/status")
+        .and_then(Value::as_str)
+        == Some("synthesized")
+        || payload
+            .pointer("/workflow_visibility/finalization_diagnostics/final_llm_status")
+            .and_then(Value::as_str)
+            == Some("synthesized")
 }
 
 fn payload_has_pending_tool(payload: &Value) -> bool {
