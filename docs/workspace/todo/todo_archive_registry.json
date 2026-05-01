@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:33:39.039Z",
+  "updated_at": "2026-05-01T23:36:45.301Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -385,6 +385,17 @@
       "summary": "Investigate and close the release_evidence and receipt_integrity bridge failures that currently drive Kernel Sentinel release_fail verdicts.",
       "completed_at": "2026-05-01T23:33:39.037Z",
       "completion_note": "Added an Observability-owned release bridge repair lane for release-evidence and receipt-integrity Sentinel blockers. The lane requires current evidence, exact bridge field coverage, owner guess, replay command, blocker class, artifact refs, and no auto-apply policy. Validation: release bridge guard passed; controlled violation failed closed; JSON parsed; targeted release-gate synthesis and strict critical-finding cargo tests passed."
+    },
+    {
+      "id": "OBS-CURRENT-TRUTH-GUARD",
+      "title": "Strengthen Observability current-truth vs stale-reference handling",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Treat stale observer artifacts as an Observability-layer problem by enforcing current_live_truth vs historical_reference semantics across Sentinel and related evidence consumers.",
+      "completed_at": "2026-05-01T23:36:45.297Z",
+      "completion_note": "Added an Observability current-truth freshness contract and guard. The contract makes current_live_truth the only decision-authoritative tier, treats recent/historical/stale artifacts as non-authoritative until refreshed or reviewed, validates required Sentinel consumers, and proves missing freshness fails closed to stale_reference_only. Validation: current-truth guard passed; controlled violation failed closed; JSON parsed; targeted freshness cargo tests passed 2/2."
     }
   ]
 }

@@ -509,6 +509,7 @@
     "ops:nightly:turn-loop-analytics": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/nightly_turn_loop_analytics.ts",
     "ops:node-critical-path:inventory": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/node_critical_path_inventory.ts --strict=1 --burn-plan=client/runtime/config/node_critical_path_burndown_plan.json --out=core/local/artifacts/node_critical_path_inventory_current.json --out-markdown=local/workspace/reports/NODE_CRITICAL_PATH_INVENTORY_CURRENT.md",
     "ops:observability-defaults:generate": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/observability_deployment_defaults.ts generate",
+    "ops:observability:current-truth:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/observability_current_truth_guard.ts --strict=1",
     "ops:offsite:diagnose": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/offsite_backup.ts diagnose",
     "ops:operator-critical:guard": "cargo run --quiet --manifest-path core/layer2/ops/Cargo.toml --bin operator_critical_paths_guard -- --mode=all --strict=1",
     "ops:operator-critical:recovery": "cargo run --quiet --manifest-path core/layer2/ops/Cargo.toml --bin operator_critical_paths_guard -- --mode=recovery --strict=0 --out-json=core/local/artifacts/operator_critical_recovery_current.json --out-markdown=local/workspace/reports/OPERATOR_CRITICAL_RECOVERY_CURRENT.md",
