@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:05:51.031Z",
+  "updated_at": "2026-05-01T21:15:11.122Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -198,6 +198,17 @@
       "summary": "Add a proposed-finding pipeline with todo_ready, issue_ready, needs_triage, and stale_do_not_use states so Sentinel drafts candidates first and Codex or a human approves promotion before the main TODO or GitHub is mutated.",
       "completed_at": "2026-05-01T21:05:51.030Z",
       "completion_note": "Implemented Kernel Sentinel draft-only promotion lane: final reports now emit human-review-required promotion_candidates and triage_candidates with todo_ready/issue_ready/needs_triage states while forbidding Sentinel TODO/GitHub mutation or patch auto-apply."
+    },
+    {
+      "id": "WF-AUTH",
+      "title": "Finish workflow gate authority cleanup",
+      "section": "red",
+      "owner": "unassigned",
+      "deadline": "2026-05-05",
+      "source_family": "Workflow Authority Cleanup",
+      "summary": "Finish workflow gate authority cleanup so every turn enters Gate 1, tool/menu submissions are LLM-authored, and visible chat cannot be system-substituted.",
+      "completed_at": "2026-05-01T21:15:11.122Z",
+      "completion_note": "Completed workflow gate authority cleanup wave: visible responses now carry explicit LLM-authored/system-substitution provenance, system fallback cannot be mislabeled as LLM-authored chat, and Gate 1 manual-toolbox candidate choices can promote to pending confirmation only from candidate-menu context."
     }
   ]
 }

@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T21:05:51.031Z
+Updated: 2026-05-01T21:15:11.122Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T21:05:51.031Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `WF-AUTH` — Finish workflow gate authority cleanup
+  completed_at: `2026-05-01T21:15:11.122Z`
+  previous_section: `red`
+  owner: `unassigned`
+  deadline: `2026-05-05`
+  source_family: `Workflow Authority Cleanup`
+  summary: Finish workflow gate authority cleanup so every turn enters Gate 1, tool/menu submissions are LLM-authored, and visible chat cannot be system-substituted.
+  completion_note: Completed workflow gate authority cleanup wave: visible responses now carry explicit LLM-authored/system-substitution provenance, system fallback cannot be mislabeled as LLM-authored chat, and Gate 1 manual-toolbox candidate choices can promote to pending confirmation only from candidate-menu context.
 - `KSENT-CANDIDATE-PIPELINE` — Stage Sentinel findings through a candidate pipeline before TODO or GitHub promotion
   completed_at: `2026-05-01T21:05:51.030Z`
   previous_section: `yellow`
