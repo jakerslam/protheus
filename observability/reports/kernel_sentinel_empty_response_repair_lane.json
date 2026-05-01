@@ -1,0 +1,48 @@
+{
+  "type": "kernel_sentinel_empty_response_repair_lane",
+  "version": "1.0",
+  "owner_domain": "observability",
+  "source_todo": "KSENT-ISSUE-EMPTY-RESPONSES",
+  "source_family": "Sentinel Regression Audit May01",
+  "policy": {
+    "human_review_required": true,
+    "safe_to_auto_file_issue": false,
+    "safe_to_auto_apply_patch": false,
+    "quality_filter_required": true,
+    "system_authored_visible_fallback_allowed": false
+  },
+  "symptom_signatures": [
+    "empty_assistant_response",
+    "final_llm_empty",
+    "tool_pending_without_final_synthesis",
+    "system_fallback_suppressed_without_operator_diagnostic"
+  ],
+  "repair_lanes": [
+    {
+      "id": "empty_response_finalization_diagnostic_lane",
+      "owner": "Validation + Observability",
+      "priority": "high",
+      "implementation_target": "workflow finalization and eval diagnostics",
+      "failure_signature": "empty_assistant_response_without_actionable_finalization_trace",
+      "root_cause_hypothesis": "Repeated empty responses become hard to repair when the trace cannot separate empty LLM output, missing final synthesis after tools, pending tool-menu progress, prompt-echo rejection, and intentionally suppressed system fallback text.",
+      "concrete_next_action": "Promote repeated empty-response Sentinel findings into a repair issue only when the finalization trace includes the failed phase, rejected fallback reason, evidence refs, recurrence, owner guess, and a specific next replay command.",
+      "evidence_refs": [
+        "observability/reports/KERNEL_SENTINEL_FINAL_OUTPUT.md",
+        "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/047aa-workflow-visibility-payload.rs",
+        "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1230-workflow-finalization-trace-diagnostics.rs",
+        "validation/evals/fixtures/synthetic_user_chat_harness_cases.json"
+      ],
+      "acceptance_criteria": [
+        "Every promoted empty-response finding carries a finalization phase, failed condition, evidence refs, recurrence count, freshness tier, owner guess, root-cause hypothesis, and concrete next action.",
+        "Pending tool-menu progress is not counted as tool execution or final answer synthesis.",
+        "Suppressed system fallback text remains diagnostics-only and never becomes visible chat content.",
+        "Repeated empty-response symptoms cluster by finalization phase and failure signature before TODO or issue promotion."
+      ],
+      "replay_validation_commands": [
+        "cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_visibility_diagnostics_classify_empty_llm_reply_without_system_injection -- --nocapture",
+        "cargo test --manifest-path core/layer0/ops/Cargo.toml --lib workflow_self_play_empty_reply_keeps_trace_diagnostic_from_beginning_to_end -- --nocapture",
+        "npm run -s ops:ksent:empty-response-repair:guard"
+      ]
+    }
+  ]
+}

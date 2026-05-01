@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:27:24.164Z
+Updated: 2026-05-01T23:30:41.084Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:27:24.164Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-ISSUE-EMPTY-RESPONSES` — Triage synthetic empty-response failures from Sentinel
+  completed_at: `2026-05-01T23:30:41.083Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Convert repeated synthetic user harness empty_assistant_response findings into a concrete issue lane covering routing, finalization, and synthesis failure causes.
+  completion_note: Added an Observability-owned empty-response repair lane with symptom signatures, evidence refs, owner, root-cause hypothesis, concrete next action, acceptance criteria, no-visible-system-fallback policy, and validation commands. Validation: empty-response guard passed; controlled violation failed closed; JSON parsed; two targeted core workflow finalization diagnostics tests passed.
 - `KSENT-ISSUE-BOUNDEDNESS` — Triage Sentinel boundedness findings into concrete repair work
   completed_at: `2026-05-01T23:27:24.163Z`
   previous_section: `yellow`

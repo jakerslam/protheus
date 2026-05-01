@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:27:24.164Z",
+  "updated_at": "2026-05-01T23:30:41.084Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -363,6 +363,17 @@
       "summary": "Turn the workspace tooling boundedness findings into a concrete repair lane with owner, acceptance criteria, and replay/validation commands.",
       "completed_at": "2026-05-01T23:27:24.163Z",
       "completion_note": "Added an Observability-owned Kernel Sentinel boundedness repair lane with owner, root-cause hypothesis, concrete next action, required boundedness dimensions, evidence refs, acceptance criteria, replay commands, and human-review/no-auto-apply policy. Validation: npm run -s ops:ksent:boundedness-repair:guard passed; controlled violation failed closed; JSON parsed; metrics:effective-loc reported Rust share 89.4%."
+    },
+    {
+      "id": "KSENT-ISSUE-EMPTY-RESPONSES",
+      "title": "Triage synthetic empty-response failures from Sentinel",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Convert repeated synthetic user harness empty_assistant_response findings into a concrete issue lane covering routing, finalization, and synthesis failure causes.",
+      "completed_at": "2026-05-01T23:30:41.083Z",
+      "completion_note": "Added an Observability-owned empty-response repair lane with symptom signatures, evidence refs, owner, root-cause hypothesis, concrete next action, acceptance criteria, no-visible-system-fallback policy, and validation commands. Validation: empty-response guard passed; controlled violation failed closed; JSON parsed; two targeted core workflow finalization diagnostics tests passed."
     }
   ]
 }

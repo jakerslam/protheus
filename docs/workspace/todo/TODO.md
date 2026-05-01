@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:27:24.164Z
+Updated: 2026-05-01T23:30:41.084Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T23:27:24.164Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 29
+- active_items: 28
 - red: 8
-- yellow: 12
+- yellow: 11
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -86,11 +86,6 @@ Updated: 2026-05-01T23:27:24.164Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
-- `KSENT-ISSUE-EMPTY-RESPONSES` — Triage synthetic empty-response failures from Sentinel
-  owner: `codex`
-  deadline: `2026-05-15`
-  source_family: `Sentinel Regression Audit May01`
-  summary: Convert repeated synthetic user harness empty_assistant_response findings into a concrete issue lane covering routing, finalization, and synthesis failure causes.
 - `KSENT-ISSUE-RELEASE-BRIDGES` — Repair Sentinel release-evidence and receipt-integrity blockers
   owner: `codex`
   deadline: `2026-05-15`
