@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "updated_at": "2026-05-01T05:34:09.812Z",
+  "historical_snapshot": {
+    "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
+    "total_rows": 4145,
+    "queued": 192,
+    "in_progress": 10,
+    "blocked": 2,
+    "blocked_external_prepared": 32,
+    "done": 1616,
+    "existing_coverage_validated": 2302
+  },
+  "items": [
+    {
+      "id": "CGPT-GOV-006",
+      "title": "Create virtual-repo manifests for every top-level domain",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-14",
+      "source_family": "ChatGPT Governance Audit Apr30",
+      "summary": "Declare Kernel, Orchestration, Gateways, Shell, Validation, Observability, Governance, Conduit, Layer 3, and Adapters as virtual repos with owned contracts and dependency boundaries.",
+      "completed_at": "2026-05-01T05:34:08.529Z",
+      "completion_note": "Implemented domain_virtual_repo_manifest.json and architecture_transition_residue_guard validation for required virtual repo domains."
+    },
+    {
+      "id": "CGPT-GOV-008",
+      "title": "Retire or explicitly govern surface/orchestration",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-10",
+      "source_family": "ChatGPT Governance Audit Apr30",
+      "summary": "Define whether surface/orchestration is a compatibility mirror or active path, assign owner/expiry, and prevent drift from canonical orchestration/.",
+      "completed_at": "2026-05-01T05:34:08.850Z",
+      "completion_note": "Governed retired surface/orchestration via transition register and rewired active package/guard references to orchestration/."
+    },
+    {
+      "id": "CGPT-GOV-009",
+      "title": "Create Shell Cognition burn-down register",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-10",
+      "source_family": "ChatGPT Governance Audit Apr30",
+      "summary": "Classify every Shell Cognition subsystem as presentation-local or re-home it to Orchestration, Observability, Validation, Kernel, Gateways, or compatibility debt.",
+      "completed_at": "2026-05-01T05:34:09.163Z",
+      "completion_note": "Added Shell Cognition burn-down register covering all ten generated Shell Cognition subsystems with target domains and deadlines."
+    },
+    {
+      "id": "CGPT-GOV-010",
+      "title": "Verify Shell amputation guard executable linkage",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-14",
+      "source_family": "ChatGPT Governance Audit Apr30",
+      "summary": "Keep policy docs, package scripts, tooling registry, and actual shell-amputation guard path aligned so shell replaceability remains executable.",
+      "completed_at": "2026-05-01T05:34:09.492Z",
+      "completion_note": "Verified and repaired Shell amputation executable linkage; guard now fixtures/scans orchestration instead of retired surface path."
+    },
+    {
+      "id": "CGPT-GOV-012",
+      "title": "Wire representation-collapse reporting into governance",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-14",
+      "source_family": "ChatGPT Governance Audit Apr30",
+      "summary": "Track representation count for message, session, tool result, trace, workflow, task, evidence, and issue candidate so projections do not become new truth stores.",
+      "completed_at": "2026-05-01T05:34:09.811Z",
+      "completion_note": "Wired representation-collapse reporting into package scripts and tooling registry with artifacts for representation risk triage."
+    }
+  ]
+}

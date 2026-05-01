@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "owner": "assurance.validation",
+  "status": "active",
+  "canonical_path": "orchestration/",
+  "legacy_paths": [
+    {
+      "path": "surface/orchestration/",
+      "state": "retired_absent",
+      "classification": "former compatibility mirror",
+      "owner": "orchestration_control_plane",
+      "expires": "2026-05-31",
+      "replacement": "orchestration/",
+      "rule": "Active commands, gates, generated maps, and manifests must use orchestration/ directly. surface/orchestration may appear only in this transition register, historical TODO/archive text, or explicit compatibility notes."
+    }
+  ],
+  "required_actions": [
+    "rewrite active package scripts to orchestration/",
+    "rewrite active tooling guards to orchestration/",
+    "fail if surface/orchestration/ reappears as a live directory without an explicit new migration row"
+  ]
+}

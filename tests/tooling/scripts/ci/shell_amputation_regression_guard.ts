@@ -12,8 +12,6 @@ const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_amputation_regression_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_AMPUTATION_REGRESSION_GUARD_CURRENT.md';
 const POLICY_DOC = 'docs/workspace/shell_independent_operation_policy.md';
-const DEFAULT_SMOKE_COMMAND_TIMEOUT_MS = 180_000;
-const MAX_SMOKE_COMMAND_TIMEOUT_MS = 300_000;
 
 type Args = {
   strict: boolean;
@@ -22,7 +20,6 @@ type Args = {
   includeControlledViolation: boolean;
   keepFixture: boolean;
   skipSmoke: boolean;
-  smokeTimeoutMs: number;
 };
 
 type Violation = {
@@ -38,9 +35,6 @@ type SmokeResult = {
   status: number | null;
   signal: string | null;
   ok: boolean;
-  timed_out: boolean;
-  duration_ms: number;
-  error?: string;
   stdout_tail: string;
   stderr_tail: string;
 };
@@ -126,15 +120,7 @@ function parseArgs(argv: string[]): Args {
     includeControlledViolation: parseBool(readFlag(argv, 'include-controlled-violation'), false),
     keepFixture: parseBool(readFlag(argv, 'keep-fixture'), false),
     skipSmoke: parseBool(readFlag(argv, 'skip-smoke'), false),
-    smokeTimeoutMs: parseSmokeTimeout(readFlag(argv, 'smoke-timeout-ms') || process.env.INFRING_SHELL_AMPUTATION_SMOKE_TIMEOUT_MS),
   };
-}
-
-function parseSmokeTimeout(value: string | undefined): number {
-  if (!value) return DEFAULT_SMOKE_COMMAND_TIMEOUT_MS;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_SMOKE_COMMAND_TIMEOUT_MS;
-  return Math.min(parsed, MAX_SMOKE_COMMAND_TIMEOUT_MS);
 }
 
 function shouldSkipCopy(absPath: string): boolean {
@@ -248,12 +234,11 @@ function truncateOutput(value: unknown): string {
   return text.slice(-1600);
 }
 
-function runSmokeCommand(fixtureRoot: string, name: string, command: string[], timeoutMs: number): SmokeResult {
-  const startedAt = Date.now();
+function runSmokeCommand(fixtureRoot: string, name: string, command: string[]): SmokeResult {
   const result = spawnSync(command[0], command.slice(1), {
     cwd: fixtureRoot,
     encoding: 'utf8',
-    timeout: timeoutMs,
+    timeout: 180_000,
     env: {
       ...process.env,
       CARGO_TARGET_DIR: path.join(ROOT, 'target/shell-amputation-regression'),
@@ -265,44 +250,34 @@ function runSmokeCommand(fixtureRoot: string, name: string, command: string[], t
       NO_COLOR: '1',
     },
   });
-  const durationMs = Date.now() - startedAt;
-  const error = result.error ? String(result.error.message || result.error) : undefined;
-  const timedOut = Boolean(result.error && /timed out|timeout/i.test(error || '')) || result.signal === 'SIGTERM';
   return {
     name,
     command,
     cwd: fixtureRoot,
     status: result.status,
     signal: result.signal,
-    ok: result.status === 0 && !timedOut,
-    timed_out: timedOut,
-    duration_ms: durationMs,
-    error,
+    ok: result.status === 0,
     stdout_tail: truncateOutput(result.stdout),
     stderr_tail: truncateOutput(result.stderr),
   };
 }
 
-function opsBinaryPath(): string {
-  const binaryName = process.platform === 'win32' ? 'infring-ops.exe' : 'infring-ops';
-  return path.join(ROOT, 'target/shell-amputation-regression/debug', binaryName);
-}
-
-function runSmoke(fixtureRoot: string, timeoutMs: number): SmokeResult[] {
-  const opsBinary = opsBinaryPath();
+function runSmoke(fixtureRoot: string): SmokeResult[] {
   return [
-    runSmokeCommand(fixtureRoot, 'orchestration_cargo_check', [
+    runSmokeCommand(fixtureRoot, 'orchestration_surface_cargo_check', [
       'cargo', 'check', '--manifest-path', 'orchestration/Cargo.toml', '--quiet',
-    ], timeoutMs),
-    runSmokeCommand(fixtureRoot, 'core_ops_cli_cargo_build', [
-      'cargo', 'build', '--manifest-path', 'core/layer0/ops/Cargo.toml', '--bin', 'infring-ops', '--quiet',
-    ], timeoutMs),
+    ]),
+    runSmokeCommand(fixtureRoot, 'core_ops_cli_cargo_check', [
+      'cargo', 'check', '--manifest-path', 'core/layer0/ops/Cargo.toml', '--bin', 'infring-ops', '--quiet',
+    ]),
     runSmokeCommand(fixtureRoot, 'rust_cli_command_registry_smoke', [
-      opsBinary, 'command-list-kernel', '--mode=help',
-    ], timeoutMs),
+      'cargo', 'run', '--quiet', '--manifest-path', 'core/layer0/ops/Cargo.toml', '--bin', 'infring-ops', '--',
+      'command-list-kernel', '--mode=help',
+    ]),
     runSmokeCommand(fixtureRoot, 'gateway_status_contract_smoke', [
-      opsBinary, 'daemon-control', 'status', '--json', '--gateway-persist=0',
-    ], timeoutMs),
+      'cargo', 'run', '--quiet', '--manifest-path', 'core/layer0/ops/Cargo.toml', '--bin', 'infring-ops', '--',
+      'daemon-control', 'status', '--json', '--gateway-persist=0',
+    ]),
   ];
 }
 
@@ -341,9 +316,7 @@ function markdownReport(report: Record<string, any>): string {
     '## Smoke',
   ];
   for (const row of report.smoke_results as SmokeResult[]) {
-    const reason = row.timed_out ? `timed out after ${row.duration_ms}ms` : `${row.status ?? row.signal ?? 'no-status'}`;
-    lines.push(`- ${row.name}: ${row.ok ? 'pass' : 'fail'} (${reason})`);
-    if (row.error) lines.push(`  - error: ${row.error}`);
+    lines.push(`- ${row.name}: ${row.ok ? 'pass' : 'fail'} (${row.status ?? row.signal ?? 'no-status'})`);
   }
   lines.push('', '## Violations');
   if (report.violations.length === 0) {
@@ -376,15 +349,13 @@ function main(): number {
   assertShellAssetsAbsent(fixtureRoot, violations);
   const sourceFilesChecked = scanRuntimeDependencies(ROOT, 'source', violations);
   const fixtureFilesChecked = scanRuntimeDependencies(fixtureRoot, 'fixture', violations);
-  const smokeResults = args.skipSmoke ? [] : runSmoke(fixtureRoot, args.smokeTimeoutMs);
+  const smokeResults = args.skipSmoke ? [] : runSmoke(fixtureRoot);
   for (const smoke of smokeResults) {
     if (!smoke.ok) {
       violations.push({
-        kind: smoke.timed_out ? 'shell_amputation_smoke_timed_out' : 'shell_amputation_smoke_failed',
+        kind: 'shell_amputation_smoke_failed',
         path: smoke.name,
-        detail: smoke.timed_out
-          ? `Command exceeded ${args.smokeTimeoutMs}ms timeout: ${smoke.command.join(' ')}`
-          : `Command failed: ${smoke.command.join(' ')}`,
+        detail: `Command failed: ${smoke.command.join(' ')}`,
       });
     }
   }
@@ -401,7 +372,6 @@ function main(): number {
     removed_browser_shell_paths: REMOVED_BROWSER_SHELL_PATHS,
     static_scan: { roots: STATIC_SCAN_ROOTS, source_files_checked: sourceFilesChecked, fixture_files_checked: fixtureFilesChecked },
     smoke_skipped: args.skipSmoke,
-    smoke_timeout_ms: args.smokeTimeoutMs,
     smoke_results: smokeResults,
     violations,
   };

@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "owner": "assurance.validation",
+  "status": "active",
+  "purpose": "Declare top-level architecture domains as virtual repos with explicit ownership, public contract expectations, dependency rules, and debt visibility.",
+  "required_domains": [
+    "kernel",
+    "orchestration_control_plane",
+    "gateways",
+    "shell",
+    "validation",
+    "observability",
+    "governance",
+    "conduit",
+    "layer3",
+    "adapters"
+  ],
+  "domains": [
+    {
+      "id": "kernel",
+      "canonical_owner": "Kernel authority",
+      "paths": ["core/"],
+      "public_contracts": ["receipts", "policy decisions", "capability checks", "authoritative state"],
+      "allowed_dependencies": ["conduit", "observability"],
+      "forbidden_dependencies": ["shell", "validation verdict authorship", "orchestration planning ownership"]
+    },
+    {
+      "id": "orchestration_control_plane",
+      "canonical_owner": "Orchestration Control Plane",
+      "paths": ["orchestration/"],
+      "public_contracts": ["plans", "workflow selection", "decision traces", "result packages"],
+      "allowed_dependencies": ["kernel contracts", "gateways", "observability", "validation outputs"],
+      "forbidden_dependencies": ["kernel policy truth", "shell presentation state", "direct browser assets"]
+    },
+    {
+      "id": "gateways",
+      "canonical_owner": "Gateways",
+      "paths": ["adapters/"],
+      "public_contracts": ["request ingress", "event/output egress", "health/status", "detail fetch", "bounded search/query"],
+      "allowed_dependencies": ["conduit", "kernel contracts", "orchestration contracts"],
+      "forbidden_dependencies": ["authority mirrors", "full runtime state dumps", "shell-local cache truth"]
+    },
+    {
+      "id": "shell",
+      "canonical_owner": "Shell",
+      "paths": ["client/runtime/systems/ui/", "client/cli/"],
+      "public_contracts": ["bounded projections", "input collection", "detail refs", "display preferences"],
+      "allowed_dependencies": ["gateways", "observability projections"],
+      "forbidden_dependencies": ["kernel truth ownership", "orchestration internals", "raw tool payload defaults", "workflow authority"]
+    },
+    {
+      "id": "validation",
+      "canonical_owner": "Assurance.Validation",
+      "paths": ["validation/"],
+      "public_contracts": ["tests", "evals", "benchmarks", "conformance", "regression", "release gates", "scorecards"],
+      "allowed_dependencies": ["observability evidence", "kernel receipts", "gateway projections"],
+      "forbidden_dependencies": ["runtime planning", "production mutation", "live telemetry truth ownership"]
+    },
+    {
+      "id": "observability",
+      "canonical_owner": "Assurance.Observability",
+      "paths": ["observability/"],
+      "public_contracts": ["telemetry", "health", "traces", "sentinel findings", "runtime evidence"],
+      "allowed_dependencies": ["kernel receipts", "gateway events", "validation schemas"],
+      "forbidden_dependencies": ["controlled eval scoring", "release verdict authorship", "direct code mutation"]
+    },
+    {
+      "id": "governance",
+      "canonical_owner": "Assurance.Governance",
+      "paths": ["validation/governance/"],
+      "public_contracts": ["verdicts", "thresholds", "promotion rules", "issue-candidate routing"],
+      "allowed_dependencies": ["validation results", "observability evidence"],
+      "forbidden_dependencies": ["planning execution", "kernel policy truth", "shell presentation state"]
+    },
+    {
+      "id": "conduit",
+      "canonical_owner": "Conduit",
+      "paths": ["core/layer2/conduit/"],
+      "public_contracts": ["leased internal delivery", "checkpoint context", "receipt-carrying boundary traffic"],
+      "allowed_dependencies": ["kernel contracts", "gateway contracts", "orchestration contracts"],
+      "forbidden_dependencies": ["external ingress ownership", "shell presentation behavior"]
+    },
+    {
+      "id": "layer3",
+      "canonical_owner": "Layer 3 OS Personality",
+      "paths": ["core/layer3/"],
+      "public_contracts": ["process model", "service model", "namespace model", "syscall boundary"],
+      "allowed_dependencies": ["kernel contracts", "conduit"],
+      "forbidden_dependencies": ["shell UI authority", "validation verdict authorship"]
+    },
+    {
+      "id": "adapters",
+      "canonical_owner": "Gateway implementation compatibility",
+      "paths": ["adapters/"],
+      "public_contracts": ["external integration adapters", "gateway membranes", "bounded detail routes"],
+      "allowed_dependencies": ["gateways", "conduit", "kernel contracts"],
+      "forbidden_dependencies": ["scheduler/admission truth", "shell cache ownership"]
+    }
+  ]
+}
