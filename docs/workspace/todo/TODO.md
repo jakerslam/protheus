@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T05:34:09.812Z
+Updated: 2026-05-01T20:58:04.032Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -14,8 +14,8 @@ Updated: 2026-05-01T05:34:09.812Z
 
 ## Rollup
 - active_items: 45
-- red: 17
-- yellow: 19
+- red: 13
+- yellow: 23
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -69,21 +69,11 @@ Updated: 2026-05-01T05:34:09.812Z
   deadline: `2026-05-07`
   source_family: `Shell Authority Purge Completion Backlog`
   summary: Finish the Shell authority purge so the Shell becomes projection/input only and stops acting like a shadow runtime.
-- `CGPT-GOV-001` — Keep Tower metaphor out of active subsystem names
+- `KSENT-FRESHNESS-GUARD` — Enforce fresh Sentinel truth before using findings
   owner: `codex`
   deadline: `2026-05-08`
-  source_family: `ChatGPT Governance Audit Apr30`
-  summary: Enforce that Tower remains historical/metaphor-only and cannot appear in active subsystem names, routes, generated maps, CI gates, or manifests.
-- `CGPT-GOV-002` — Prove all external surfaces enter through Gateways
-  owner: `codex`
-  deadline: `2026-05-08`
-  source_family: `ChatGPT Governance Audit Apr30`
-  summary: Audit Shell, CLI, SDK, issue-submission, eval-submission, and future app/mobile ingress so every external surface is Gateway-only with no first-party shell exception.
-- `CGPT-GOV-003` — Runtime-check Shell session/message/event payload budgets
-  owner: `codex`
-  deadline: `2026-05-08`
-  source_family: `ChatGPT Governance Audit Apr30`
-  summary: Verify live session, messages, and websocket event paths conform to bounded Gateway projection contracts at runtime, not just in policy files.
+  source_family: `Sentinel Regression Audit May01`
+  summary: Prevent stale Sentinel artifacts from being treated as current truth by requiring freshness windows, generated_at checks, and stale_do_not_use labeling for old findings.
 - `SRS-ACTIVE` — Keep active SRS intake items moving
   owner: `unassigned`
   deadline: `2026-05-09`
@@ -94,28 +84,8 @@ Updated: 2026-05-01T05:34:09.812Z
   deadline: `2026-05-10`
   source_family: `Shell Alpine Purge Wave`
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
-- `CGPT-GOV-004` — Compress chat.ts responsibilities
-  owner: `codex`
-  deadline: `2026-05-10`
-  source_family: `ChatGPT Governance Audit Apr30`
-  summary: Continue splitting chat.ts into projection rendering, input collection, detail fetch, and local display preferences while moving workflow, terminal, model, and tool coordination out.
-- `CGPT-GOV-005` — Add tiered browser-rendered long-chat heap proof
-  owner: `codex`
-  deadline: `2026-05-10`
-  source_family: `ChatGPT Governance Audit Apr30`
-  summary: Add Tier 2 browser-rendered heap/DOM/storage regression and Tier 3 gateway-to-shell projection stress proof on top of the deterministic store-projection guard.
 
 ## Yellow Section (Do Soon)
-- `CGPT-GOV-007` — Keep tests/tooling as harness-only, not an ungoverned domain
-  owner: `codex`
-  deadline: `2026-05-14`
-  source_family: `ChatGPT Governance Audit Apr30`
-  summary: Ensure definition-shaped eval, benchmark, conformance, regression, release-gate, and scorecard truth lives under Validation/Observability while tests/tooling remains executor glue.
-- `CGPT-GOV-011` — Expose PrepareContext in plan displays and eval traces
-  owner: `codex`
-  deadline: `2026-05-14`
-  source_family: `ChatGPT Governance Audit Apr30`
-  summary: Make context preparation operator-visible whenever a read-like plan mutates session context so read/write semantics stay explicit.
 - `KSENT-ACTION-SYNTHESIS` — Improve issue/TODO synthesis specificity
   owner: `codex`
   deadline: `2026-05-14`
@@ -171,6 +141,36 @@ Updated: 2026-05-01T05:34:09.812Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
+- `KSENT-CANDIDATE-PIPELINE` — Stage Sentinel findings through a candidate pipeline before TODO or GitHub promotion
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Add a proposed-finding pipeline with todo_ready, issue_ready, needs_triage, and stale_do_not_use states so Sentinel drafts candidates first and Codex or a human approves promotion before the main TODO or GitHub is mutated.
+- `KSENT-FINAL-REPORT` — Publish Sentinel final output docs for top findings
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Emit compact final output docs that summarize release blockers, top findings, evidence refs, and next actions instead of forcing operators to inspect huge raw state artifacts.
+- `KSENT-ISSUE-BOUNDEDNESS` — Triage Sentinel boundedness findings into concrete repair work
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Turn the workspace tooling boundedness findings into a concrete repair lane with owner, acceptance criteria, and replay/validation commands.
+- `KSENT-ISSUE-EMPTY-RESPONSES` — Triage synthetic empty-response failures from Sentinel
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Convert repeated synthetic user harness empty_assistant_response findings into a concrete issue lane covering routing, finalization, and synthesis failure causes.
+- `KSENT-ISSUE-RELEASE-BRIDGES` — Repair Sentinel release-evidence and receipt-integrity blockers
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Investigate and close the release_evidence and receipt_integrity bridge failures that currently drive Kernel Sentinel release_fail verdicts.
+- `OBS-CURRENT-TRUTH-GUARD` — Strengthen Observability current-truth vs stale-reference handling
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Treat stale observer artifacts as an Observability-layer problem by enforcing current_live_truth vs historical_reference semantics across Sentinel and related evidence consumers.
 - `TRACE` — Finish the universal trace substrate contract
   owner: `unassigned`
   deadline: `2026-05-16`
