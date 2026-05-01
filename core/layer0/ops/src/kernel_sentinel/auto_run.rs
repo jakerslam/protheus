@@ -4,6 +4,9 @@
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use super::cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 use super::diagnostic_run_artifact::{
@@ -18,6 +21,8 @@ use super::{boot_watch, build_report, issue_synthesis, maintenance_synthesis, se
 
 const DEFAULT_AUTO_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_auto_run_current.json";
 const DEFAULT_STALE_MINUTES: usize = 90;
+const DEFAULT_MAX_RUNTIME_MS: usize = 600_000;
+const AUTO_TIMEOUT_EXIT_CODE: i32 = 124;
 
 fn has_option(args: &[String], name: &str) -> bool {
     args.iter()
@@ -42,6 +47,101 @@ fn effective_args(args: &[String]) -> Vec<String> {
 
 fn auto_artifact_path(root: &Path, args: &[String]) -> PathBuf {
     option_path(args, "--auto-artifact", root.join(DEFAULT_AUTO_ARTIFACT))
+}
+
+fn max_runtime_ms(args: &[String]) -> usize {
+    option_usize(args, "--max-runtime-ms", DEFAULT_MAX_RUNTIME_MS)
+}
+
+fn elapsed_ms(started_at: Instant) -> u64 {
+    started_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+}
+
+fn build_auto_run_diagnostic_artifact(
+    root: &Path,
+    args: &[String],
+    status: &str,
+    stage: &str,
+    failure_kind: Option<&str>,
+    exit_code: i32,
+    started_at: Instant,
+) -> Value {
+    let dir = state_dir_from_args(root, args);
+    let out = auto_artifact_path(root, args);
+    let max_runtime = max_runtime_ms(args);
+    let cadence = option_string(args, "--cadence", "maintenance");
+    let mut artifact = json!({
+        "ok": false,
+        "type": "kernel_sentinel_auto_run",
+        "artifact_kind": "diagnostic",
+        "diagnostic_artifact": true,
+        "small_artifact": true,
+        "automatic": true,
+        "canonical_name": super::KERNEL_SENTINEL_NAME,
+        "module_id": super::KERNEL_SENTINEL_MODULE_ID,
+        "cadence": cadence,
+        "status": status,
+        "stage": stage,
+        "failure_kind": failure_kind,
+        "generated_at": crate::now_iso(),
+        "elapsed_ms": elapsed_ms(started_at),
+        "max_runtime_ms": max_runtime,
+        "strict": bool_flag(args, "--strict"),
+        "exit_code": exit_code,
+        "state_dir": dir,
+        "auto_artifact_path": out,
+        "raw_evidence_embedded": false,
+        "full_report_embedded": false,
+        "self_study_outputs_embedded": false,
+        "verdict": {
+            "ok": false,
+            "verdict": if failure_kind.is_some() { "diagnostic_timeout" } else { "diagnostic_running" },
+            "strict": bool_flag(args, "--strict"),
+            "release_blockers": if failure_kind.is_some() {
+                json!(["kernel_sentinel_auto_timeout"])
+            } else {
+                json!([])
+            }
+        },
+        "operator_summary": {
+            "status": status,
+            "stage": stage,
+            "failure_kind": failure_kind,
+            "diagnostic": "Kernel Sentinel auto-run is bounded by a stall guard; full evidence remains in Sentinel evidence streams.",
+            "next_action": if failure_kind.is_some() {
+                "inspect this compact diagnostic, then run targeted Sentinel/report-size checks before retrying auto-run"
+            } else {
+                "wait for completion or timeout; do not treat stale previous Sentinel output as current truth"
+            }
+        }
+    });
+    artifact["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&artifact));
+    artifact
+}
+
+fn write_auto_run_diagnostic(
+    root: &Path,
+    args: &[String],
+    status: &str,
+    stage: &str,
+    failure_kind: Option<&str>,
+    exit_code: i32,
+    started_at: Instant,
+) -> Result<Value, String> {
+    let artifact =
+        build_auto_run_diagnostic_artifact(root, args, status, stage, failure_kind, exit_code, started_at);
+    write_json(&auto_artifact_path(root, args), &artifact)?;
+    Ok(artifact)
+}
+
+#[cfg(not(test))]
+fn exit_after_worker_failure(code: i32) -> i32 {
+    std::process::exit(code);
+}
+
+#[cfg(test)]
+fn exit_after_worker_failure(code: i32) -> i32 {
+    code
 }
 
 fn persist_run_outputs(
@@ -266,24 +366,28 @@ pub fn build_auto_run_artifact(
     artifact
 }
 
-pub fn run_auto(root: &Path, args: &[String]) -> i32 {
-    let effective = effective_args(args);
-    let (report, verdict, exit) = build_report(root, &effective);
-    let dir = state_dir_from_args(root, &effective);
-    let self_study_outputs = match persist_run_outputs(root, &dir, &report, &verdict, &effective) {
+fn run_auto_inner(root: &Path, effective: &[String]) -> i32 {
+    #[cfg(test)]
+    if has_option(effective, "--stall-guard-test-sleep-ms") {
+        let sleep_ms = option_usize(effective, "--stall-guard-test-sleep-ms", 25);
+        thread::sleep(Duration::from_millis(sleep_ms as u64));
+    }
+    let (report, verdict, exit) = build_report(root, effective);
+    let dir = state_dir_from_args(root, effective);
+    let self_study_outputs = match persist_run_outputs(root, &dir, &report, &verdict, effective) {
         Ok(outputs) => outputs,
         Err(err) => {
         eprintln!("kernel_sentinel_auto_persist_failed: {err}");
         return 1;
         }
     };
-    let artifact = build_auto_run_artifact(root, &effective, &report, &verdict, exit, &self_study_outputs);
-    let out = auto_artifact_path(root, &effective);
+    let artifact = build_auto_run_artifact(root, effective, &report, &verdict, exit, &self_study_outputs);
+    let out = auto_artifact_path(root, effective);
     if let Err(err) = write_json(&out, &artifact) {
         eprintln!("kernel_sentinel_auto_write_artifact_failed: {err}");
         return 1;
     }
-    if !(bool_flag(&effective, "--quiet-success") && exit == 0) {
+    if !(bool_flag(effective, "--quiet-success") && exit == 0) {
         println!(
             "{}",
             serde_json::to_string_pretty(&artifact)
@@ -291,6 +395,90 @@ pub fn run_auto(root: &Path, args: &[String]) -> i32 {
         );
     }
     exit
+}
+
+pub fn run_auto(root: &Path, args: &[String]) -> i32 {
+    let effective = effective_args(args);
+    let started_at = Instant::now();
+    let _ = write_auto_run_diagnostic(
+        root,
+        &effective,
+        "running",
+        "auto_run_started",
+        None,
+        0,
+        started_at,
+    );
+    let max_runtime = max_runtime_ms(&effective);
+    if max_runtime == 0 {
+        return run_auto_inner(root, &effective);
+    }
+    let root_buf = root.to_path_buf();
+    let worker_args = effective.clone();
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let exit = run_auto_inner(&root_buf, &worker_args);
+        let _ = tx.send(exit);
+    });
+    match rx.recv_timeout(Duration::from_millis(max_runtime as u64)) {
+        Ok(exit) => exit,
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            let artifact = match write_auto_run_diagnostic(
+                root,
+                &effective,
+                "timeout",
+                "auto_run_worker",
+                Some("sentinel_auto_timeout"),
+                AUTO_TIMEOUT_EXIT_CODE,
+                started_at,
+            ) {
+                Ok(artifact) => artifact,
+                Err(err) => {
+                    eprintln!("kernel_sentinel_auto_timeout_artifact_failed: {err}");
+                    return exit_after_worker_failure(1);
+                }
+            };
+            eprintln!(
+                "kernel_sentinel_auto_timeout: exceeded {}ms; wrote compact diagnostic to {}",
+                max_runtime,
+                auto_artifact_path(root, &effective).display()
+            );
+            if !bool_flag(&effective, "--quiet-success") {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&artifact)
+                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                );
+            }
+            exit_after_worker_failure(AUTO_TIMEOUT_EXIT_CODE)
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            let artifact = match write_auto_run_diagnostic(
+                root,
+                &effective,
+                "failed",
+                "auto_run_worker",
+                Some("sentinel_auto_worker_disconnected"),
+                1,
+                started_at,
+            ) {
+                Ok(artifact) => artifact,
+                Err(err) => {
+                    eprintln!("kernel_sentinel_auto_disconnect_artifact_failed: {err}");
+                    return exit_after_worker_failure(1);
+                }
+            };
+            eprintln!("kernel_sentinel_auto_worker_disconnected");
+            if !bool_flag(&effective, "--quiet-success") {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&artifact)
+                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                );
+            }
+            exit_after_worker_failure(1)
+        }
+    }
 }
 
 #[cfg(test)]
