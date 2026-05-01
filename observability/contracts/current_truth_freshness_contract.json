@@ -1,0 +1,57 @@
+{
+  "type": "observability_current_truth_freshness_contract",
+  "version": "1.0",
+  "owner_domain": "observability",
+  "source_todo": "OBS-CURRENT-TRUTH-GUARD",
+  "principle": "Runtime decisions may rely only on current live truth; stale and historical artifacts are reference material until refreshed.",
+  "freshness_tiers": [
+    {
+      "id": "current_live_truth",
+      "decision_authoritative": true,
+      "promotion_allowed": true,
+      "meaning": "Fresh enough to drive Sentinel release decisions, blocker promotion, and operator-facing issue candidates."
+    },
+    {
+      "id": "recent_but_not_current",
+      "decision_authoritative": false,
+      "promotion_allowed": "conditional_review",
+      "meaning": "Useful for triage, but must be refreshed or human-reviewed before release-blocker authority."
+    },
+    {
+      "id": "historical_trend",
+      "decision_authoritative": false,
+      "promotion_allowed": false,
+      "meaning": "Useful only for trend context and recurrence support."
+    },
+    {
+      "id": "stale_reference_only",
+      "decision_authoritative": false,
+      "promotion_allowed": false,
+      "meaning": "Historical reference only; must not drive release blockers, TODO promotion, or issue filing."
+    }
+  ],
+  "required_consumers": [
+    {
+      "id": "kernel_sentinel_report_budget",
+      "path": "core/layer0/ops/src/kernel_sentinel/report_budget/freshness.rs"
+    },
+    {
+      "id": "kernel_sentinel_final_output",
+      "path": "observability/reports/KERNEL_SENTINEL_FINAL_OUTPUT.md"
+    },
+    {
+      "id": "boundedness_repair_lane",
+      "path": "observability/reports/kernel_sentinel_boundedness_repair_lane.json"
+    },
+    {
+      "id": "release_bridge_repair_lane",
+      "path": "observability/reports/kernel_sentinel_release_bridge_repair_lane.json"
+    }
+  ],
+  "forbidden_patterns": [
+    "stale_reference_only promotion_allowed true",
+    "historical_trend decision_authoritative true",
+    "recent_but_not_current decision_authoritative true",
+    "missing_freshness_defaults_to_current"
+  ]
+}

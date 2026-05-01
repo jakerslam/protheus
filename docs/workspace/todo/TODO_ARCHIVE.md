@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:33:39.039Z
+Updated: 2026-05-01T23:36:45.301Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:33:39.039Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `OBS-CURRENT-TRUTH-GUARD` — Strengthen Observability current-truth vs stale-reference handling
+  completed_at: `2026-05-01T23:36:45.297Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Treat stale observer artifacts as an Observability-layer problem by enforcing current_live_truth vs historical_reference semantics across Sentinel and related evidence consumers.
+  completion_note: Added an Observability current-truth freshness contract and guard. The contract makes current_live_truth the only decision-authoritative tier, treats recent/historical/stale artifacts as non-authoritative until refreshed or reviewed, validates required Sentinel consumers, and proves missing freshness fails closed to stale_reference_only. Validation: current-truth guard passed; controlled violation failed closed; JSON parsed; targeted freshness cargo tests passed 2/2.
 - `KSENT-ISSUE-RELEASE-BRIDGES` — Repair Sentinel release-evidence and receipt-integrity blockers
   completed_at: `2026-05-01T23:33:39.037Z`
   previous_section: `yellow`
