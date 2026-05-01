@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T20:58:04.032Z
+Updated: 2026-05-01T21:05:51.031Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T20:58:04.032Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-CANDIDATE-PIPELINE` — Stage Sentinel findings through a candidate pipeline before TODO or GitHub promotion
+  completed_at: `2026-05-01T21:05:51.030Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Add a proposed-finding pipeline with todo_ready, issue_ready, needs_triage, and stale_do_not_use states so Sentinel drafts candidates first and Codex or a human approves promotion before the main TODO or GitHub is mutated.
+  completion_note: Implemented Kernel Sentinel draft-only promotion lane: final reports now emit human-review-required promotion_candidates and triage_candidates with todo_ready/issue_ready/needs_triage states while forbidding Sentinel TODO/GitHub mutation or patch auto-apply.
 - `KSENT-ROOT-CAUSE-CLUSTERING` — Cluster Sentinel symptoms into structural root-cause findings
   completed_at: `2026-05-01T20:58:04.031Z`
   previous_section: `yellow`
