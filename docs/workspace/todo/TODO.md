@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T20:58:04.032Z
+Updated: 2026-05-01T21:05:51.031Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T20:58:04.032Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 45
+- active_items: 44
 - red: 13
-- yellow: 23
+- yellow: 22
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -141,11 +141,6 @@ Updated: 2026-05-01T20:58:04.032Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
-- `KSENT-CANDIDATE-PIPELINE` — Stage Sentinel findings through a candidate pipeline before TODO or GitHub promotion
-  owner: `codex`
-  deadline: `2026-05-15`
-  source_family: `Sentinel Regression Audit May01`
-  summary: Add a proposed-finding pipeline with todo_ready, issue_ready, needs_triage, and stale_do_not_use states so Sentinel drafts candidates first and Codex or a human approves promotion before the main TODO or GitHub is mutated.
 - `KSENT-FINAL-REPORT` — Publish Sentinel final output docs for top findings
   owner: `codex`
   deadline: `2026-05-15`

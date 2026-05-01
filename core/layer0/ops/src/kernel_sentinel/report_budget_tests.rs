@@ -211,6 +211,26 @@ fn final_report_clusters_release_ready_symptoms_by_root_cause() {
         .unwrap()
         .iter()
         .any(|finding| finding["cluster"]["occurrence_count"] == 2));
+    assert_eq!(final_report["promotion_lane"]["mode"], "draft_only");
+    assert_eq!(final_report["promotion_lane"]["human_review_required"], true);
+    assert_eq!(final_report["promotion_lane"]["safe_to_mutate_todo"], false);
+    assert_eq!(
+        final_report["promotion_lane"]["candidate_state_counts"]["todo_ready"],
+        2
+    );
+    assert_eq!(
+        final_report["promotion_lane"]["candidate_state_counts"]["issue_ready"],
+        2
+    );
+    assert_eq!(
+        final_report["promotion_lane"]["promotion_candidates"][0]["promotion_state"],
+        "human_review_required"
+    );
+    assert!(final_report["promotion_lane"]["promotion_candidates"][0]["acceptance_criteria"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|row| row.as_str() == Some("todo_or_issue_is_created_by_reviewed_promotion_not_sentinel_auto_mutation")));
 }
 
 #[test]

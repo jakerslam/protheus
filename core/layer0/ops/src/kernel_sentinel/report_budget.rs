@@ -4,7 +4,6 @@
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::Path;
-
 pub(super) const DEFAULT_FINAL_REPORT_FINDING_LIMIT: usize = 10;
 pub(super) const DEFAULT_FINAL_REPORT_BYTE_BUDGET: usize = 32_768;
 const MAX_TEXT_CHARS: usize = 360;
@@ -101,6 +100,7 @@ fn assemble_final_report(
         "root_cause_clusters": root_cause_clusters,
         "top_findings": findings,
         "triage_findings": triage_findings,
+        "promotion_lane": super::report_promotion::build_promotion_lane(findings, root_cause_clusters, triage_findings),
         "issue_synthesis": {
             "issue_draft_count": report["issue_synthesis"]["issue_draft_count"].clone(),
             "active_issue_window_count": report["issue_synthesis"]["active_issue_window_count"].clone(),
