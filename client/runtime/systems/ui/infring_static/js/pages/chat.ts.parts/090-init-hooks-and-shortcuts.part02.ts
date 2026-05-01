@@ -134,6 +134,9 @@
       if (cached.length) {
         self._modelCache = cached;
         self.modelPickerList = cached;
+      } else if (typeof self.ensureModelSwitcherFallback === 'function') {
+        self.ensureModelSwitcherFallback();
+        cached = Array.isArray(self._modelCache) ? self._modelCache : [];
       }
       this.modelSwitcherFilter = '';
       this.modelSwitcherProviderFilter = '';
@@ -148,20 +151,14 @@
       var cachedAvailable = self.availableModelRowsCount ? self.availableModelRowsCount(cached) : 0;
       var shouldRefresh = !cacheFresh || cached.length < 8 || cachedAvailable < 4;
       if (!shouldRefresh) return;
-      self.refreshModelCatalogAndGuidance({ discover: true, guidance: true }).catch(function(e) {
-        return self.loadModelCatalogSafely({
-          prefer_cached: true,
-          suppress_errors: true
-        }).then(function(models) {
-          if (!models.length && (!self.modelPickerList || !self.modelPickerList.length)) {
-            var active = self.resolveActiveSwitcherModel([]);
-            self.modelPickerList = active ? [active] : [];
-          }
-          self.modelApiKeyStatus = models.length
-            ? 'Unable to refresh model list (showing cached entries)'
-            : 'Unable to refresh model list right now';
-          InfringToast.error('Failed to refresh models: ' + e.message);
-        });
+      self.menuRequestTimeout(
+        self.refreshModelCatalogAndGuidance({ discover: true, guidance: true }),
+        'model_switcher',
+        4500
+      ).catch(function(e) {
+        if (typeof self.ensureModelSwitcherFallback === 'function') self.ensureModelSwitcherFallback();
+        self.modelApiKeyStatus = 'Unable to refresh model list right now; showing current selection';
+        InfringToast.error('Failed to refresh models: ' + ((e && e.timeout) ? 'request timed out' : e.message));
       });
     },
 

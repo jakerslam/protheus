@@ -185,8 +185,11 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
         .core_contract_calls
         .contains(&CoreContractCall::VerifierRequest));
     assert!(!package.alternative_plans.is_empty());
-    assert!(package.alternative_plans.iter().any(|row| row.variant
-        == infring_orchestration_v1::contracts::PlanVariant::ClarificationFirst));
+    assert!(package
+        .alternative_plans
+        .iter()
+        .any(|row| row.variant
+            == infring_orchestration_v1::contracts::PlanVariant::ClarificationFirst));
     let mut signatures = std::iter::once(&package.selected_plan)
         .chain(package.alternative_plans.iter())
         .map(|plan| {
@@ -321,8 +324,7 @@ fn comparative_read_plan_exposes_explicit_context_preparation_metadata() {
         .contains(&infring_orchestration_v1::contracts::Capability::PrepareContext));
     assert!(prepared.steps.iter().any(|step| {
         step.operation == "prepare_session_context_explicit"
-            && step.capability
-                == infring_orchestration_v1::contracts::Capability::PrepareContext
+            && step.capability == infring_orchestration_v1::contracts::Capability::PrepareContext
             && step
                 .rationale
                 .iter()
@@ -571,12 +573,12 @@ fn degraded_comparative_request_preserves_multiple_probe_failures() {
         .degradation
         .as_ref()
         .expect("degradation state");
-    assert!(degradation.reasons.contains(
-        &infring_orchestration_v1::contracts::DegradationReason::ToolUnavailable
-    ));
-    assert!(degradation.reasons.contains(
-        &infring_orchestration_v1::contracts::DegradationReason::TransportFailure
-    ));
+    assert!(degradation
+        .reasons
+        .contains(&infring_orchestration_v1::contracts::DegradationReason::ToolUnavailable));
+    assert!(degradation
+        .reasons
+        .contains(&infring_orchestration_v1::contracts::DegradationReason::TransportFailure));
 }
 
 #[test]

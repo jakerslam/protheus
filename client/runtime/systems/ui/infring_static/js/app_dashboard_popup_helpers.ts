@@ -88,6 +88,14 @@ function infringDashboardPopupService() {
   return services && services.popup ? services.popup : null;
 }
 
+function infringNotifyDashboardPopupChanged(reason) {
+  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+  var bridge = services && services.appStore ? services.appStore : null;
+  if (bridge && typeof bridge.notify === 'function') {
+    try { bridge.notify(reason || 'dashboard_popup_changed'); } catch(_) {}
+  }
+}
+
 function infringClearDashboardPopupState(page) {
   var service = page.dashboardPopupService();
   page.dashboardPopup = service && typeof service.emptyState === 'function'
@@ -427,6 +435,7 @@ function infringShowDashboardPopup(page, id, label, ev, overrides) {
       block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
       compact: false
     };
+  infringNotifyDashboardPopupChanged('dashboard_popup_open');
 }
 
 function infringShowTaskbarNavPopup(page, label, ev) {
@@ -472,10 +481,12 @@ function infringHideDashboardPopup(page, rawId) {
   var service = page.dashboardPopupService();
   if (service && typeof service.closeState === 'function') {
     page.dashboardPopup = service.closeState(page.dashboardPopup, rawId);
+    infringNotifyDashboardPopupChanged('dashboard_popup_close');
     return;
   }
   var popupId = String(rawId || '').trim();
   var currentId = String(page.dashboardPopup && page.dashboardPopup.id || '').trim();
   if (popupId && currentId && popupId !== currentId) return;
   page.clearDashboardPopupState();
+  infringNotifyDashboardPopupChanged('dashboard_popup_close');
 }

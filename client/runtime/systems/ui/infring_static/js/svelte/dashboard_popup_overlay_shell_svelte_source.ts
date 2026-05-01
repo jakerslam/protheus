@@ -124,12 +124,14 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     timer = window.setInterval(refresh, 80);
     window.addEventListener('resize', refresh, { passive: true });
     window.addEventListener('scroll', refresh, true);
+    window.addEventListener('infring:shell-app-store-changed', refresh);
   });
 
   onDestroy(function() {
     if (timer) window.clearInterval(timer);
     window.removeEventListener('resize', refresh);
     window.removeEventListener('scroll', refresh, true);
+    window.removeEventListener('infring:shell-app-store-changed', refresh);
   });
 
   $: metaVisible = text(popup.meta_origin).length > 0 || text(popup.meta_time).length > 0;

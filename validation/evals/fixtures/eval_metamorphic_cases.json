@@ -20,7 +20,7 @@
       "variants": [
         {
           "id": "local-file-unix-path",
-          "prompt_suffix": "Use docs/workspace/TODO.md as the path.",
+          "prompt_suffix": "Use docs/workspace/todo/TODO.md as the path.",
           "perturbation_family": "path_style",
           "predicted": {
             "route": "workspace",

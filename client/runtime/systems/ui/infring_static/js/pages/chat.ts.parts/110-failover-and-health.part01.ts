@@ -1,12 +1,7 @@
         this.tokenCount = 0;
         this._clearTypingTimeout();
         this._clearPendingWsRequest(agentId);
-        this.setAgentLiveActivity(agentId, {
-          activity: 'idle',
-          display_label: 'Idle',
-          source: 'shell_optimistic',
-          optimistic: true
-        });
+        this.setAgentLiveActivity(agentId, 'idle');
         await this._sendPayload(
           payload.final_text,
           Array.isArray(payload.uploaded_files) ? payload.uploaded_files : [],
@@ -75,12 +70,7 @@
         self.tokenCount = 0;
         self._inflightPayload = null;
         self._clearPendingWsRequest();
-        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', {
-          activity: 'idle',
-          display_label: 'Idle',
-          source: 'shell_optimistic',
-          optimistic: true
-        });
+        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle');
         self.scheduleConversationPersist();
       }, 120000);
     },
@@ -550,7 +540,7 @@
         : null;
       var pendingStatusText = pending && String(pending.status_text || '').trim()
         ? String(pending.status_text || '').trim()
-        : '';
+        : 'Waiting for workflow completion...';
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var hasVisiblePending = false;
       var now = Date.now();
@@ -672,24 +662,14 @@
         var keepBusyAgentId = '';
         if (pending && pending.agent_id) keepBusyAgentId = String(pending.agent_id || '').trim();
         if (!keepBusyAgentId) keepBusyAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
-        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, {
-          activity: 'working',
-          display_label: 'Working',
-          source: 'shell_optimistic',
-          optimistic: true
-        });
+        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, 'working');
       }
       if (hasVisiblePending || hasPendingWs) return false;
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
       this._clearTypingTimeout();
-      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', {
-        activity: 'idle',
-        display_label: 'Idle',
-        source: 'shell_optimistic',
-        optimistic: true
-      });
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle');
       return true;
     },
     _setPendingWsRequest: function(agentId, messageText, options) {
@@ -698,7 +678,8 @@
       var opts = options && typeof options === 'object' ? options : {};
       var startedAt = Number(opts.started_at || 0);
       if (!Number.isFinite(startedAt) || startedAt <= 0) startedAt = Date.now();
-      var statusText = String(opts.status_text || '').trim();
+      var statusText = String(opts.status_text || 'Waiting for workflow completion...').trim();
+      if (!statusText) statusText = 'Waiting for workflow completion...';
       this._pendingWsRequest = {
         agent_id: id,
         message_text: String(messageText || '').trim(),
@@ -741,16 +722,10 @@
       var id = String(agentId || '').trim();
       if (!id) return;
       try {
-        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-          ? InfringSharedShellServices.appStore
-          : null;
-        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
+        var store = Alpine.store('app');
         if (!store) return;
-        var markAgentPreviewUnread = bridge && typeof bridge.method === 'function'
-          ? bridge.method('markAgentPreviewUnread')
-          : null;
-        if (typeof markAgentPreviewUnread === 'function') {
-          markAgentPreviewUnread(id, unread !== false);
+        if (typeof store.markAgentPreviewUnread === 'function') {
+          store.markAgentPreviewUnread(id, unread !== false);
         } else if (store.agentChatPreviews && store.agentChatPreviews[id]) {
           store.agentChatPreviews[id].unread_response = unread !== false;
         }
@@ -847,9 +822,9 @@
           break;
         }
         try {
-          var sessionData = await InfringAPI.get('/api/agents/' + encodeURIComponent(agentId) + '/session?limit=80');
+          var sessionData = await InfringAPI.get('/api/agents/' + encodeURIComponent(agentId) + '/session');
           if (!recoveryStillCurrent()) break;
-          var normalized = this.normalizeSessionMessages(sessionData, { requireWindow: true });
+          var normalized = this.normalizeSessionMessages(sessionData);
           var hasFreshAgentReply =
             this._pendingRequestReplyObserved(normalized, pending, startedAt) ||
             this._recentAgentReplyObserved(normalized, startedAt);
@@ -857,27 +832,21 @@
             await new Promise(function(resolve) { setTimeout(resolve, 650); });
             continue;
           }
-          var cachedMessages = typeof this.sanitizeConversationForCache === 'function'
-            ? this.sanitizeConversationForCache(normalized || [])
-            : (Array.isArray(normalized) ? normalized.slice() : []);
           if (!this.conversationCache) this.conversationCache = {};
           this.conversationCache[String(agentId)] = {
             saved_at: Date.now(),
             token_count: Number(this.contextApproxTokens || 0),
-            messages: cachedMessages,
+            messages: JSON.parse(JSON.stringify(normalized || [])),
           };
           try {
-            var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-              ? InfringSharedShellServices.appStore
-              : null;
-            var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
-              ? bridge.method('saveAgentChatPreview')
-              : null;
-            if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, cachedMessages);
+            var appStore = Alpine.store('app');
+            if (appStore && typeof appStore.saveAgentChatPreview === 'function') {
+              appStore.saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
+            }
           } catch(_) {}
           var isActive = !!(this.currentAgent && String(this.currentAgent.id || '') === agentId);
           if (isActive) {
-            this.messages = this.mergeModelNoticesForAgent(agentId, this.normalizeSessionMessages({ messages: normalized || [] }));
+            this.messages = this.mergeModelNoticesForAgent(agentId, JSON.parse(JSON.stringify(normalized || [])));
             this.scrollToBottom();
           } else {
             this._markAgentPreviewUnread(agentId, true);
@@ -921,12 +890,7 @@
         this._pendingWsRecovering = false;
         return;
       }
-      this.setAgentLiveActivity(agentId, {
-        activity: 'idle',
-        display_label: 'Idle',
-        source: 'shell_optimistic',
-        optimistic: true
-      });
+      this.setAgentLiveActivity(agentId, 'idle');
       if (stillActiveAgent) {
         this.sending = false;
         this._responseStartedAt = 0;

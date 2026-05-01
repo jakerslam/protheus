@@ -11,19 +11,20 @@
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'verbose', args: cmdArgs });
           } else {
-            InfringToast.info('Connect to an agent before changing verbosity.');
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Not connected. Connect to an agent first.', meta: '', tools: [], system_origin: 'slash:verbose' });
           }
           break;
         case '/queue':
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'queue', args: '' });
           } else {
-            InfringToast.info('Connect to an agent before requesting the queue.');
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Not connected.', meta: '', tools: [], system_origin: 'slash:queue' });
           }
           break;
         case '/status':
-          self.inputText = 'Use the runtime_status tool route to report current system status with a structured receipt.';
-          await self.sendMessage();
+          InfringAPI.get('/api/status').then(function(s) {
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**System Status**\n- Agents: ' + (s.agent_count || 0) + '\n- Uptime: ' + (s.uptime_seconds || 0) + 's\n- Version: ' + (s.version || '?'), meta: '', tools: [], system_origin: 'slash:status' });
+          }).catch(function() {});
           break;
         case '/alerts':
           await self.runSlashAlerts();
@@ -49,14 +50,59 @@
         case '/model':
           if (self.currentAgent) {
             if (cmdArgs) {
-              self.inputText = 'Use the model_provider_coordination route to switch this agent model to exactly: ' + String(cmdArgs || '').trim();
-              await self.sendMessage();
+              var resolvedSlashModel = typeof self.resolveModelCatalogOption === 'function'
+                ? self.resolveModelCatalogOption(
+                  cmdArgs,
+                  String((self.currentAgent && self.currentAgent.model_provider) || '').trim(),
+                  typeof self.modelCatalogRows === 'function' ? self.modelCatalogRows() : []
+                )
+                : null;
+              self.switchAgentModelWithGuards(resolvedSlashModel || { id: cmdArgs }, {
+                agent_id: self.currentAgent.id
+              }).catch(function(e) {
+                InfringToast.error('Model switch failed: ' + e.message);
+              });
             } else {
-              self.inputText = 'Use the model_provider_coordination route to report this agent current selected and runtime model with a structured receipt.';
-              await self.sendMessage();
+              var catalogRows = typeof self.modelCatalogRows === 'function' ? self.modelCatalogRows() : [];
+              var selectedModelRef = typeof self.normalizeQualifiedModelRef === 'function'
+                ? self.normalizeQualifiedModelRef(
+                  String((self.currentAgent && (self.currentAgent.model_name || self.currentAgent.runtime_model)) || ''),
+                  String((self.currentAgent && self.currentAgent.model_provider) || '').trim(),
+                  catalogRows
+                )
+                : String((self.currentAgent && (self.currentAgent.model_name || self.currentAgent.runtime_model)) || '').trim();
+              var runtimeModelRef = typeof self.normalizeQualifiedModelRef === 'function'
+                ? self.normalizeQualifiedModelRef(
+                  String((self.currentAgent && (self.currentAgent.runtime_model || self.currentAgent.model_name)) || ''),
+                  String((self.currentAgent && self.currentAgent.model_provider) || '').trim(),
+                  catalogRows
+                )
+                : String((self.currentAgent && (self.currentAgent.runtime_model || self.currentAgent.model_name)) || '').trim();
+              var selectedDisplay = typeof self.formatQualifiedModelDisplay === 'function'
+                ? self.formatQualifiedModelDisplay(selectedModelRef)
+                : selectedModelRef;
+              var runtimeDisplay = typeof self.formatQualifiedModelDisplay === 'function'
+                ? self.formatQualifiedModelDisplay(runtimeModelRef)
+                : runtimeModelRef;
+              var availableCount = Array.isArray(catalogRows)
+                ? catalogRows.filter(function(row) { return row && row.available !== false; }).length
+                : 0;
+              self.pushSystemMessage({
+                id: ++msgId,
+                role: 'system',
+                text: '**Current Model**\n' +
+                  '- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n' +
+                  '- Selected: `' + (selectedDisplay || selectedModelRef || '?') + '`\n' +
+                  '- Runtime: `' + (runtimeDisplay || runtimeModelRef || '?') + '`\n' +
+                  '- Available catalog models: ' + availableCount + '\n' +
+                  '- Usage: `/model <provider/model>` or `/model <model>`',
+                meta: '',
+                tools: [],
+                system_origin: 'slash:model'
+              });
             }
           } else {
-            InfringToast.info('Select an agent before requesting model coordination.');
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:model' });
           }
           break;
         case '/apikey':
@@ -64,29 +110,72 @@
           break;
         case '/file':
           if (!self.currentAgent) {
-            InfringToast.info('Select an agent before requesting a workspace file.');
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:file' });
             break;
           }
-          var fileTargetPath = String(cmdArgs || '').trim();
-          if (!fileTargetPath) {
-            InfringToast.info('Usage: /file <path>');
+          if (!cmdArgs || !String(cmdArgs).trim()) {
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Usage: `/file <path>`', meta: '', tools: [], system_origin: 'slash:file' });
             break;
           }
-          self.inputText = 'Use the workspace_read tool to read this workspace file path exactly: ' + fileTargetPath;
-          await self.sendMessage();
+          try {
+            var fileRes = await InfringAPI.post('/api/agents/' + self.currentAgent.id + '/file/read', {
+              path: String(cmdArgs || '').trim()
+            });
+            var fileMeta = fileRes && fileRes.file ? fileRes.file : null;
+            if (!fileMeta || !fileMeta.ok) {
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: failed to read file output.', meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
+            } else {
+              var bytes = Number(fileMeta.bytes || 0);
+              var fileMetaText = (bytes > 0 ? (bytes + ' bytes') : '');
+              if (fileMeta.truncated) {
+                var maxBytes = Number(fileMeta.max_bytes || 0);
+                fileMetaText += (fileMetaText ? ' | ' : '') + 'truncated to ' + (maxBytes > 0 ? maxBytes : 'limit') + ' bytes';
+              }
+              self.messages.push({
+                id: ++msgId, role: 'agent', text: '', meta: fileMetaText, tools: [], ts: Date.now(),
+                file_output: { path: String(fileMeta.path || cmdArgs || ''), content: String(fileMeta.content || ''), truncated: !!fileMeta.truncated, bytes: bytes }
+              });
+            }
+            self.scrollToBottom();
+          } catch (e) {
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: ' + (e && e.message ? e.message : 'file read failed'), meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
+          }
           break;
         case '/folder':
           if (!self.currentAgent) {
-            InfringToast.info('Select an agent before requesting a workspace folder.');
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:folder' });
             break;
           }
-          var folderTargetPath = String(cmdArgs || '').trim();
-          if (!folderTargetPath) {
-            InfringToast.info('Usage: /folder <path>');
+          if (!cmdArgs || !String(cmdArgs).trim()) {
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Usage: `/folder <path>`', meta: '', tools: [], system_origin: 'slash:folder' });
             break;
           }
-          self.inputText = 'Use the workspace_export tool to export this workspace folder path exactly: ' + folderTargetPath;
-          await self.sendMessage();
+          try {
+            var folderRes = await InfringAPI.post('/api/agents/' + self.currentAgent.id + '/folder/export', {
+              path: String(cmdArgs || '').trim()
+            });
+            var folderMeta = folderRes && folderRes.folder ? folderRes.folder : null;
+            var archiveMeta = folderRes && folderRes.archive ? folderRes.archive : null;
+            if (!folderMeta || !folderMeta.ok) {
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: failed to export folder output.', meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
+            } else {
+              var entryCount = Number(folderMeta.entries || 0);
+              var folderMetaText = (entryCount > 0 ? (entryCount + ' entries') : '');
+              if (folderMeta.truncated) folderMetaText += (folderMetaText ? ' | ' : '') + 'tree truncated';
+              if (archiveMeta && archiveMeta.file_name) folderMetaText += (folderMetaText ? ' | ' : '') + archiveMeta.file_name;
+              self.messages.push({
+                id: ++msgId, role: 'agent', text: '', meta: folderMetaText, tools: [], ts: Date.now(),
+                folder_output: {
+                  path: String(folderMeta.path || cmdArgs || ''), tree: String(folderMeta.tree || ''), entries: entryCount, truncated: !!folderMeta.truncated,
+                  download_url: archiveMeta && archiveMeta.download_url ? String(archiveMeta.download_url) : '', archive_name: archiveMeta && archiveMeta.file_name ? String(archiveMeta.file_name) : '',
+                  archive_bytes: Number(archiveMeta && archiveMeta.bytes ? archiveMeta.bytes : 0)
+                }
+              });
+            }
+            self.scrollToBottom();
+          } catch (e2) {
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: ' + (e2 && e2.message ? e2.message : 'folder export failed'), meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
+          }
           break;
         case '/clear':
           self.messages = [];
@@ -100,16 +189,31 @@
           window.dispatchEvent(new Event('close-chat'));
           break;
         case '/budget':
-          self.inputText = 'Use the runtime_budget tool route to report current budget status with a structured receipt.';
-          await self.sendMessage();
+          InfringAPI.get('/api/budget').then(function(b) {
+            var fmt = function(v) { return v > 0 ? '$' + v.toFixed(2) : 'unlimited'; };
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**Budget Status**\n' +
+              '- Hourly: $' + (b.hourly_spend||0).toFixed(4) + ' / ' + fmt(b.hourly_limit) + '\n' +
+              '- Daily: $' + (b.daily_spend||0).toFixed(4) + ' / ' + fmt(b.daily_limit) + '\n' +
+              '- Monthly: $' + (b.monthly_spend||0).toFixed(4) + ' / ' + fmt(b.monthly_limit), meta: '', tools: [], system_origin: 'slash:budget' });
+          }).catch(function() {});
           break;
         case '/peers':
-          self.inputText = 'Use the network_status tool route to report current peer/network status with a structured receipt.';
-          await self.sendMessage();
+          InfringAPI.get('/api/network/status').then(function(ns) {
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**OFP Network**\n' +
+              '- Status: ' + (ns.enabled ? 'Enabled' : 'Disabled') + '\n' +
+              '- Connected peers: ' + (ns.connected_peers||0) + ' / ' + (ns.total_peers||0), meta: '', tools: [], system_origin: 'slash:peers' });
+          }).catch(function() {});
           break;
         case '/a2a':
-          self.inputText = 'Use the a2a_discovery tool route to report discovered A2A agents with a structured receipt.';
-          await self.sendMessage();
+          InfringAPI.get('/api/a2a/agents').then(function(res) {
+            var agents = res.agents || [];
+            if (!agents.length) {
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No external A2A agents discovered.', meta: '', tools: [], system_origin: 'slash:a2a' });
+            } else {
+              var lines = agents.map(function(a) { return '- **' + a.name + '** — ' + a.url; });
+              self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**A2A Agents (' + agents.length + ')**\n' + lines.join('\n'), meta: '', tools: [], system_origin: 'slash:a2a' });
+            }
+          }).catch(function() {});
           break;
         case '/memprobe':
           // Heap diagnostic: snapshots the chat page's memory footprint and
@@ -133,7 +237,6 @@
           console.table(report.heap);
           console.table(report.dom_counts);
           console.table(report.custom_element_counts);
-          console.table(report.storage_bytes);
           console.table(report.suspected_accumulators);
           console.log('full_report:', report);
           if (report.delta) console.log('delta_vs_previous:', report.delta);
@@ -146,10 +249,10 @@
       }
       // Compact chat ack with the headline numbers; the heavy detail stays in console.
       var heap = report.heap || {};
+      var msgIdLocal = ++msgId;
       var heapMb = (Number(heap.used_js_heap_mb) || 0).toFixed(1);
       var heapTotalMb = (Number(heap.total_js_heap_mb) || 0).toFixed(1);
       var domNodes = (report.dom_counts && report.dom_counts.total_nodes) || 0;
-      var storageBytes = (report.storage_bytes && report.storage_bytes.total_storage_bytes) || 0;
       var bubbles = (report.custom_element_counts && report.custom_element_counts['infring-chat-bubble-render']) || 0;
       var placeholders = (report.custom_element_counts && report.custom_element_counts['infring-message-placeholder-shell']) || 0;
       var messageCount = Array.isArray(this.messages) ? this.messages.length : 0;
@@ -157,22 +260,25 @@
         '**memprobe ' + report.capture_index + '**',
         '- heap_used: ' + heapMb + ' MB / total: ' + heapTotalMb + ' MB' + (heap.heap_unsupported ? ' (performance.memory unavailable)' : ''),
         '- dom_nodes: ' + domNodes,
-        '- storage_bytes: ' + storageBytes,
         '- chat_bubble_render instances: ' + bubbles,
         '- message_placeholder_shell instances: ' + placeholders,
         '- messages: ' + messageCount,
       ];
       if (report.delta) {
         var d = report.delta;
-        lines.push('- delta vs prev: heap ' + (d.used_js_heap_mb >= 0 ? '+' : '') + d.used_js_heap_mb.toFixed(1) + ' MB, dom ' + (d.total_nodes >= 0 ? '+' : '') + d.total_nodes + ' nodes, storage ' + (d.total_storage_bytes >= 0 ? '+' : '') + d.total_storage_bytes + ' bytes, bubbles ' + (d.bubble_count >= 0 ? '+' : '') + d.bubble_count + ', elapsed ' + d.elapsed_ms + ' ms');
+        lines.push('- delta vs prev: heap ' + (d.used_js_heap_mb >= 0 ? '+' : '') + d.used_js_heap_mb.toFixed(1) + ' MB, dom ' + (d.total_nodes >= 0 ? '+' : '') + d.total_nodes + ' nodes, bubbles ' + (d.bubble_count >= 0 ? '+' : '') + d.bubble_count + ', elapsed ' + d.elapsed_ms + ' ms');
       } else {
         lines.push('- (run /memprobe again after 30s to see delta)');
       }
       lines.push('- full report logged to DevTools console');
-      try {
-        console.log('[memprobe summary]', lines.join('\n'));
-      } catch (_) {}
-      InfringToast.info('memprobe captured; full report is in DevTools console.');
+      this.pushSystemMessage({
+        id: msgIdLocal,
+        role: 'system',
+        text: lines.join('\n'),
+        meta: '',
+        tools: [],
+        system_origin: 'slash:memprobe',
+      });
     },
 
     collectMemprobeReport: function(cmdArgs) {
@@ -239,24 +345,6 @@
           return JSON.stringify(value).length;
         } catch (_) { return -1; }
       };
-      var storageByteSize = function(storage) {
-        try {
-          if (!storage || typeof storage.length !== 'number') return 0;
-          var total = 0;
-          for (var s = 0; s < storage.length; s++) {
-            var key = String(storage.key(s) || '');
-            total += key.length + String(storage.getItem(key) || '').length;
-          }
-          return total;
-        } catch (_) { return -1; }
-      };
-      var localStorageBytes = typeof localStorage !== 'undefined' ? storageByteSize(localStorage) : 0;
-      var sessionStorageBytes = typeof sessionStorage !== 'undefined' ? storageByteSize(sessionStorage) : 0;
-      var storageBytesReport = {
-        local_storage_bytes: localStorageBytes,
-        session_storage_bytes: sessionStorageBytes,
-        total_storage_bytes: Math.max(0, localStorageBytes) + Math.max(0, sessionStorageBytes),
-      };
       var messages = Array.isArray(this.messages) ? this.messages : [];
       var totalMessageTextBytes = 0;
       var totalMessageStreamBufferBytes = 0;
@@ -308,7 +396,6 @@
         heap: heap,
         dom_counts: domCounts,
         custom_element_counts: customElementCounts,
-        storage_bytes: storageBytesReport,
         suspected_accumulators: suspectedAccumulators,
         page_visible: typeof document !== 'undefined' && document && document.visibilityState ? document.visibilityState : 'unknown',
       };
@@ -318,15 +405,12 @@
         var nextHeapMb = Number(heap.used_js_heap_mb || 0);
         var prevNodes = Number((prev.dom_counts && prev.dom_counts.total_nodes) || 0);
         var nextNodes = Number(domCounts.total_nodes || 0);
-        var prevStorage = Number((prev.storage_bytes && prev.storage_bytes.total_storage_bytes) || 0);
-        var nextStorage = Number(storageBytesReport.total_storage_bytes || 0);
         var prevBubbles = Number((prev.custom_element_counts && prev.custom_element_counts['infring-chat-bubble-render']) || 0);
         var nextBubbles = Number(customElementCounts['infring-chat-bubble-render'] || 0);
         report.delta = {
           elapsed_ms: now - Number(prev.captured_at_ms),
           used_js_heap_mb: Math.round((nextHeapMb - prevHeapMb) * 100) / 100,
           total_nodes: nextNodes - prevNodes,
-          total_storage_bytes: nextStorage - prevStorage,
           bubble_count: nextBubbles - prevBubbles,
           message_count: messages.length - Number(prev.suspected_accumulators && prev.suspected_accumulators.message_count || 0),
         };
@@ -337,26 +421,17 @@
       return report;
     },
     maybeDiscardPendingFreshAgent: function(nextAgentId) {
-      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-        ? InfringSharedShellServices.appStore
-        : null;
-      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
+      var store = Alpine.store('app');
       if (!store) return;
       var pendingId = String(store.pendingFreshAgentId || '').trim();
       if (!pendingId) return;
       var targetId = String(nextAgentId || '').trim();
       if (!targetId || targetId === pendingId) return;
-      if (bridge && typeof bridge.assign === 'function') bridge.assign({ pendingFreshAgentId: null, pendingAgent: null });
-      else {
-        store.pendingFreshAgentId = null;
-        store.pendingAgent = null;
-      }
+      store.pendingFreshAgentId = null;
+      store.pendingAgent = null;
       InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
-      var refreshAgents = bridge && typeof bridge.method === 'function'
-        ? bridge.method('refreshAgents')
-        : null;
-      if (typeof refreshAgents === 'function') {
-        setTimeout(function() { refreshAgents({ force: true }).catch(function() {}); }, 0);
+      if (typeof store.refreshAgents === 'function') {
+        setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
       }
     },
     selectAgent(agent) {
@@ -375,10 +450,7 @@
         }
       }
       this._markAgentPreviewUnread(resolved.id, false);
-      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-        ? InfringSharedShellServices.appStore
-        : null;
-      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
+      var store = Alpine.store('app');
       var pendingFreshId = store && store.pendingFreshAgentId ? String(store.pendingFreshAgentId) : '';
       var forceFreshSession = pendingFreshId && String(resolved.id) === pendingFreshId;
       this.clearHoveredMessageHard();
@@ -419,6 +491,7 @@
             delete this.conversationCache[String(resolved.id)];
             this.persistConversationCache();
           }
+          InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
           this.connectWs(resolved.id);
           this.loadSessions(resolved.id);
           this.requestContextTelemetry(true);
@@ -459,6 +532,7 @@
       if (forceFreshSession && this.conversationCache) {
         delete this.conversationCache[String(resolved.id)];
         this.persistConversationCache();
+        InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
       }
       var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
       if (!restored) {
@@ -482,9 +556,25 @@
       }
       this._reconcileSendingState();
       this.connectWs(resolved.id);
-      // Show welcome tips on first use as shell UX, never as chat content.
+      // Show welcome tips on first use
       if (!restored && !this.showFreshArchetypeTiles && !localStorage.getItem('of-chat-tips-seen')) {
-        InfringToast.info('Type / for commands. Ctrl+/ opens the command palette.');
+        this.messages.push({
+          id: ++msgId,
+          role: 'system',
+          text: '**Welcome to Infring Chat!**\n\n' +
+            '- Type `/` to see available commands\n' +
+            '- `/help` shows all commands\n' +
+            '- `/think on` enables extended reasoning\n' +
+            '- `/context` shows context window usage\n' +
+            '- `/verbose off` hides tool details\n' +
+            '- `Ctrl+Shift+F` toggles focus mode\n' +
+            '- `Ctrl+F` opens file picker\n' +
+            '- Drag & drop files to attach them\n' +
+            '- `Ctrl+/` opens the command palette',
+          meta: '',
+          tools: [],
+          system_origin: 'chat:welcome'
+        });
         localStorage.setItem('of-chat-tips-seen', 'true');
       }
       if (!forceFreshSession) {

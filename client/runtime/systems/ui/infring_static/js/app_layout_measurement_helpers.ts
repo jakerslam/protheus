@@ -2,24 +2,6 @@
 // Loaded before app.ts by the dashboard asset router.
 'use strict';
 
-function infringDragbarService() {
-  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
-  return services && services.dragbar ? services.dragbar : null;
-}
-
-function infringTaskbarDockSharedService() {
-  var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
-  return services && services.taskbarDock ? services.taskbarDock : null;
-}
-
-function infringAppsIconBottomRowFill(page, index) {
-  var idx = Number(index);
-  if (!Number.isFinite(idx) || idx < 0) idx = 0;
-  idx = Math.floor(idx);
-  var colors = Array.isArray(page && page.appsIconBottomRowColors) ? page.appsIconBottomRowColors : [];
-  return String(colors[idx] || '#22c55e');
-}
-
 function infringDragSurfaceMoveDurationMs(page, rawValue, fallbackMs) {
   var target = page && typeof page === 'object' ? page : {};
   var service = typeof target.dragbarService === 'function' ? target.dragbarService() : null;
