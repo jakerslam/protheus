@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:42:34.323Z",
+  "updated_at": "2026-05-01T23:50:02.175Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -407,6 +407,17 @@
       "summary": "Track whether Sentinel findings were accepted, rejected, actionable, resolved, or merely symptom patches so feedback quality improves over time.",
       "completed_at": "2026-05-01T23:42:34.321Z",
       "completion_note": "Added Kernel Sentinel feedback-quality self-review in core with accepted/rejected/actionable/resolved/symptom_patch statuses, quality scoring, accepted_for_learning, strengthens_sentinel, symptom_patch_risk, and follow-up routing. Added Observability documentation for review semantics. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib feedback_quality -- --nocapture passed 5/5; file-size check kept kernel_sentinel.rs at 490 lines and feedback_quality.rs at 202 lines; metrics:effective-loc reported Rust share 89.4%."
+    },
+    {
+      "id": "KSENT-BIGPICTURE",
+      "title": "Add big-picture regression mode",
+      "section": "white",
+      "owner": "sentinel",
+      "deadline": "after_red_section",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "When many subsystem symptoms co-occur, have Sentinel pause local-ticket generation and emit a structural diagnosis with recommended rebuild/realignment mode.",
+      "completed_at": "2026-05-01T23:50:02.174Z",
+      "completion_note": "Added Kernel Sentinel big-picture regression mode in core. The model pauses local-ticket generation when co-occurring subsystem symptoms indicate structural diagnosis or rebuild/realignment, while preserving local ticketing for isolated defects. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib big_picture_regression -- --nocapture passed 3/3; file-size check kept kernel_sentinel.rs at 496 lines and big_picture_regression.rs at 201 lines."
     }
   ]
 }
