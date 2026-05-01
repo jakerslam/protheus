@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:42:34.323Z",
+  "updated_at": "2026-05-01T23:50:02.175Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -165,15 +165,6 @@
       "deadline": "after_red_section",
       "source_family": "Actionable SRS Items (Queued/In Progress)",
       "summary": "Queue the next SRS stream after the red intake set so the active SRS flow stays coherent instead of fragmenting into too many parallel themes."
-    },
-    {
-      "id": "KSENT-BIGPICTURE",
-      "title": "Add big-picture regression mode",
-      "section": "white",
-      "owner": "sentinel",
-      "deadline": "after_red_section",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "When many subsystem symptoms co-occur, have Sentinel pause local-ticket generation and emit a structural diagnosis with recommended rebuild/realignment mode."
     },
     {
       "id": "SHELL-NEXT",

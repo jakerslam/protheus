@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:42:34.323Z
+Updated: 2026-05-01T23:50:02.175Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,10 +13,10 @@ Updated: 2026-05-01T23:42:34.323Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 25
+- active_items: 24
 - red: 8
 - yellow: 9
-- white: 8
+- white: 7
 
 ## Red Section (Do Immediately)
 - `SHELL-CLEANUP` — Finish the Shell source-of-truth cleanup
@@ -108,11 +108,6 @@ Updated: 2026-05-01T23:42:34.323Z
   summary: Queue the next SRS stream after the red intake set so the active SRS flow stays coherent instead of fragmenting into too many parallel themes.
 
 ## White Section (Do At Leisure)
-- `KSENT-BIGPICTURE` — Add big-picture regression mode
-  owner: `sentinel`
-  deadline: `after_red_section`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: When many subsystem symptoms co-occur, have Sentinel pause local-ticket generation and emit a structural diagnosis with recommended rebuild/realignment mode.
 - `SHELL-NEXT` — Build Shell-next only after authority extraction proofs
   owner: `unassigned`
   deadline: `after_red_section`
