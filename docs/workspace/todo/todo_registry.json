@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:07:11.507Z",
+  "updated_at": "2026-05-01T23:12:47.721Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -84,15 +84,6 @@
       "deadline": "2026-05-10",
       "source_family": "Shell Alpine Purge Wave",
       "summary": "Remove the remaining Alpine boot/runtime dependency once the retirement guard is green."
-    },
-    {
-      "id": "KSENT-UNDERSTANDING-WORKSHEET",
-      "title": "Generate recurring system-understanding worksheets",
-      "section": "yellow",
-      "owner": "sentinel",
-      "deadline": "2026-05-14",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "Have Sentinel periodically produce a self-understanding dossier covering soul, runtime behavior, authority map, boundary map, drift, gaps, and confidence."
     },
     {
       "id": "SHELL-EXTRACT-CACHE",
