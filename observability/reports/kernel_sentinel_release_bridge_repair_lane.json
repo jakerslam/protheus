@@ -1,0 +1,49 @@
+{
+  "type": "kernel_sentinel_release_bridge_repair_lane",
+  "version": "1.0",
+  "owner_domain": "observability",
+  "source_todo": "KSENT-ISSUE-RELEASE-BRIDGES",
+  "source_family": "Sentinel Regression Audit May01",
+  "policy": {
+    "human_review_required": true,
+    "safe_to_auto_file_issue": false,
+    "safe_to_auto_apply_patch": false,
+    "quality_filter_required": true,
+    "release_blocker_authority": "Kernel Sentinel verdict only after current evidence"
+  },
+  "required_bridge_fields": [
+    "release_evidence_artifact",
+    "receipt_integrity_status",
+    "source_artifact_freshness",
+    "bridge_owner",
+    "replay_command",
+    "blocker_class"
+  ],
+  "repair_lanes": [
+    {
+      "id": "release_evidence_receipt_integrity_bridge_lane",
+      "owner": "Kernel Sentinel + Observability",
+      "priority": "high",
+      "failure_signature": "release_fail_from_release_evidence_or_receipt_integrity_bridge",
+      "root_cause_hypothesis": "Release-fail verdicts remain hard to repair when release evidence and receipt-integrity bridge failures do not identify the missing artifact, stale source, receipt mismatch, owner, replay command, and blocker class.",
+      "concrete_next_action": "Require every release-evidence or receipt-integrity Sentinel blocker to carry current evidence, exact bridge name, owner guess, replay command, blocker class, and artifact refs before promotion.",
+      "evidence_refs": [
+        "observability/reports/KERNEL_SENTINEL_FINAL_OUTPUT.md",
+        "core/layer0/ops/src/kernel_sentinel/release_gate_synthesis.rs",
+        "core/layer0/ops/src/kernel_sentinel/issue_synthesis.rs",
+        "core/layer0/ops/src/kernel_sentinel/root_tests.rs"
+      ],
+      "acceptance_criteria": [
+        "Release-evidence blockers identify the missing or stale artifact and cite a current-live-truth or recent-but-not-current freshness tier.",
+        "Receipt-integrity blockers name the failed receipt surface, expected invariant, observed mismatch, and replay command.",
+        "Sentinel final reports group release-evidence and receipt-integrity failures separately from optimization suggestions.",
+        "A release-fail verdict cannot promote a bridge issue candidate without owner guess, blocker class, evidence refs, and concrete next action."
+      ],
+      "replay_validation_commands": [
+        "cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::release_gate_synthesis -- --nocapture",
+        "cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::root_tests::strict_report_fails_on_open_critical_findings -- --exact --nocapture",
+        "npm run -s ops:ksent:release-bridge-repair:guard"
+      ]
+    }
+  ]
+}
