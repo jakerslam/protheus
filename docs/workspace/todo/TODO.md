@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T21:48:36.514Z
+Updated: 2026-05-01T22:34:40.407Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,8 +13,8 @@ Updated: 2026-05-01T21:48:36.514Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 40
-- red: 9
+- active_items: 39
+- red: 8
 - yellow: 22
 - white: 9
 
@@ -49,11 +49,6 @@ Updated: 2026-05-01T21:48:36.514Z
   deadline: `2026-05-07`
   source_family: `Shell Authority Purge Completion Backlog`
   summary: Finish the Shell authority purge so the Shell becomes projection/input only and stops acting like a shadow runtime.
-- `KSENT-FRESHNESS-GUARD` — Enforce fresh Sentinel truth before using findings
-  owner: `codex`
-  deadline: `2026-05-08`
-  source_family: `Sentinel Regression Audit May01`
-  summary: Prevent stale Sentinel artifacts from being treated as current truth by requiring freshness windows, generated_at checks, and stale_do_not_use labeling for old findings.
 - `SRS-ACTIVE` — Keep active SRS intake items moving
   owner: `unassigned`
   deadline: `2026-05-09`

@@ -4,6 +4,10 @@
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::Path;
+
+mod freshness;
+
+use freshness::{classify_finding_freshness, RELEASE_FINDING_STALE_AFTER_SECONDS};
 pub(super) const DEFAULT_FINAL_REPORT_FINDING_LIMIT: usize = 10;
 pub(super) const DEFAULT_FINAL_REPORT_BYTE_BUDGET: usize = 32_768;
 const MAX_TEXT_CHARS: usize = 360;
@@ -179,13 +183,8 @@ fn quality_filtered_findings(report: &Value, limit: usize) -> (Vec<Value>, Vec<V
     let duplicate_count = released_finding_count.saturating_sub(root_cause_clusters.len());
     let filter = json!({
         "type": "kernel_sentinel_finding_release_quality_filter",
-        "required_fields": [
-            "evidence",
-            "recurrence_or_freshness_support",
-            "owner_guess",
-            "root_cause_hypothesis",
-            "concrete_next_action"
-        ],
+        "required_fields": ["evidence", "recurrence_or_freshness_support", "owner_guess", "root_cause_hypothesis", "concrete_next_action", "current_truth_freshness_window"],
+        "release_stale_after_seconds": RELEASE_FINDING_STALE_AFTER_SECONDS,
         "candidate_finding_count": candidate_count,
         "released_finding_count": released_finding_count,
         "clustered_top_finding_count": released.len(),
@@ -337,6 +336,7 @@ fn compact_finding(finding: &Value) -> Value {
         "recommended_action": compact_text(finding["recommended_action"].as_str().unwrap_or("")),
         "evidence_refs": evidence_refs,
         "evidence_ref_count": finding["evidence"].as_array().map(Vec::len).unwrap_or(0),
+        "freshness": classify_finding_freshness(finding).to_json(),
         "owner_guess": owner_guess(finding),
         "root_cause_hypothesis": root_cause_hypothesis(finding),
     })
@@ -347,7 +347,8 @@ struct FindingQuality {
     missing_requirements: Vec<&'static str>,
     owner_guess: String,
     root_cause_hypothesis: String,
-    recurrence_or_freshness_support: bool,
+    recurrence_or_freshness_support: bool, current_truth_freshness_window: bool,
+    stale_do_not_use: bool, freshness: Value,
     concrete_next_action: bool,
 }
 
@@ -360,6 +361,9 @@ impl FindingQuality {
             "owner_guess": self.owner_guess,
             "root_cause_hypothesis": self.root_cause_hypothesis,
             "recurrence_or_freshness_support": self.recurrence_or_freshness_support,
+            "current_truth_freshness_window": self.current_truth_freshness_window,
+            "stale_do_not_use": self.stale_do_not_use,
+            "freshness": self.freshness,
             "concrete_next_action": self.concrete_next_action,
         })
     }
@@ -373,7 +377,7 @@ fn triage_finding(finding: &Value, quality: &FindingQuality) -> Value {
         "status": finding["status"].clone(), "failure_level": finding["failure_level"].clone(), "failure_class": finding["failure_class"].clone(), "remediation_level": finding["remediation_level"].clone(), "review_depth": finding["review_depth"].clone(),
         "fingerprint": compact_text(finding["fingerprint"].as_str().unwrap_or("unknown")),
         "summary": compact_text(finding["summary"].as_str().unwrap_or("")),
-        "actionability_state": "needs_triage",
+        "actionability_state": if quality.stale_do_not_use { "stale_do_not_use" } else { "needs_triage" },
         "quality": quality.to_json("needs_triage"),
     })
 }
@@ -384,7 +388,8 @@ fn finding_quality(finding: &Value) -> FindingQuality {
         .map(|refs| refs.iter().filter_map(Value::as_str).collect::<Vec<_>>())
         .unwrap_or_default();
     let has_evidence = !evidence_refs.is_empty();
-    let recurrence_or_freshness_support = has_freshness_metadata(finding)
+    let freshness = classify_finding_freshness(finding);
+    let recurrence_or_freshness_support = freshness.current_truth
         || evidence_refs.iter().any(|reference| trusted_evidence_ref(reference));
     let owner_guess = owner_guess(finding);
     let root_cause_hypothesis = root_cause_hypothesis(finding);
@@ -392,21 +397,16 @@ fn finding_quality(finding: &Value) -> FindingQuality {
         concrete_next_action(finding["recommended_action"].as_str().unwrap_or(""));
     let status = finding["status"].as_str().unwrap_or("").to_ascii_lowercase();
     let mut missing_requirements = Vec::new();
-    if !has_evidence {
-        missing_requirements.push("evidence");
+    if !has_evidence { missing_requirements.push("evidence"); }
+    if !recurrence_or_freshness_support { missing_requirements.push("recurrence_or_freshness_support"); }
+    if freshness.stale_do_not_use {
+        missing_requirements.push("stale_do_not_use");
+    } else if !freshness.current_truth {
+        missing_requirements.push("current_truth_freshness_window");
     }
-    if !recurrence_or_freshness_support {
-        missing_requirements.push("recurrence_or_freshness_support");
-    }
-    if owner_guess.is_empty() {
-        missing_requirements.push("owner_guess");
-    }
-    if root_cause_hypothesis.is_empty() {
-        missing_requirements.push("root_cause_hypothesis");
-    }
-    if !concrete_next_action {
-        missing_requirements.push("concrete_next_action");
-    }
+    if owner_guess.is_empty() { missing_requirements.push("owner_guess"); }
+    if root_cause_hypothesis.is_empty() { missing_requirements.push("root_cause_hypothesis"); }
+    if !concrete_next_action { missing_requirements.push("concrete_next_action"); }
     if matches!(
         status.as_str(),
         "draft" | "triage" | "needs_root_cause_synthesis" | "stale_do_not_use"
@@ -419,6 +419,9 @@ fn finding_quality(finding: &Value) -> FindingQuality {
         owner_guess,
         root_cause_hypothesis,
         recurrence_or_freshness_support,
+        current_truth_freshness_window: freshness.current_truth,
+        stale_do_not_use: freshness.stale_do_not_use,
+        freshness: freshness.to_json(),
         concrete_next_action,
     }
 }
@@ -444,13 +447,6 @@ fn root_cause_hypothesis(finding: &Value) -> String {
         return String::new();
     }
     compact_text(&format!("{root_frame} via {fingerprint}"))
-}
-
-fn has_freshness_metadata(finding: &Value) -> bool {
-    finding.get("generated_at").is_some()
-        || finding.get("observed_at").is_some()
-        || finding.get("freshness_age_seconds").is_some()
-        || finding.get("recurrence_count").and_then(Value::as_u64).unwrap_or(0) > 1
 }
 
 fn trusted_evidence_ref(reference: &str) -> bool {
