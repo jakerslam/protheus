@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T22:55:50.189Z
+Updated: 2026-05-01T22:58:52.384Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T22:55:50.189Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-AUTHORITY-GHOSTS` — Detect authority ghosts after refactors
+  completed_at: `2026-05-01T22:58:52.383Z`
+  previous_section: `yellow`
+  owner: `sentinel`
+  deadline: `2026-05-14`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Add first-class authority_ghost findings for projection layers, caches, shims, or adapters that preserve old authority shape after syntax-level cleanup.
+  completion_note: Implemented first-class Kernel Sentinel authority ghost findings: Nexus boundary evidence now recognizes projection/cache/shim/adapter authority ghost aliases and emits critical authority_ghost fingerprints. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::evidence::nexus_boundaries -- --nocapture passed 4/4.
 - `KSENT-ANTI-PATCHING` — Detect symptom-patching loops
   completed_at: `2026-05-01T22:55:50.186Z`
   previous_section: `yellow`
