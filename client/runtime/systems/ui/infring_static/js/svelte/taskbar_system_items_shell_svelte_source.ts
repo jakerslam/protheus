@@ -23,10 +23,25 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
         var current = service.current();
         if (current) return current;
       }
-      return service && typeof service.root === 'function' ? service.root() : null;
+      if (service && typeof service.root === 'function') {
+        var root = service.root();
+        if (root) return root;
+      }
+      return null;
     } catch (_e) {
       return null;
     }
+  }
+  function stateStore() {
+    var service = appStoreService();
+    if (service && typeof service.current === 'function') {
+      var current = service.current();
+      if (current) return current;
+    }
+    if (typeof window !== 'undefined' && window.InfringApp && typeof window.InfringApp === 'object') {
+      return window.InfringApp;
+    }
+    return app();
   }
   function call(fn) {
     var service = appStoreService();
@@ -57,14 +72,14 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     return String(call('taskbarReorderItemStyle', 'right', item) || '');
   }
   function notifications(_tick) {
-    var s = app() || {};
+    var s = stateStore() || {};
     return Array.isArray(s.notifications) ? s.notifications : [];
   }
   function notificationBubble(_tick) {
-    return (app() || {}).notificationBubble || null;
+    return (stateStore() || {}).notificationBubble || null;
   }
   function unreadCount(_tick) {
-    var value = Number((app() || {}).unreadNotifications || 0);
+    var value = Number((stateStore() || {}).unreadNotifications || 0);
     return Number.isFinite(value) ? value : 0;
   }
   function themeMode(_tick) {
@@ -74,7 +89,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     return String((app() || {}).theme || '');
   }
   function notificationsOpen(_tick) {
-    return !!((app() || {}).notificationsOpen);
+    return !!((stateStore() || {}).notificationsOpen);
   }
   function classFromCall(fn, _tick) {
     return String(call(fn) || '');
@@ -98,34 +113,34 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     bump();
   }
   function toggleNotifications() {
-    var s = app();
+    var s = stateStore();
     if (s && typeof s.toggleNotifications === 'function') s.toggleNotifications();
     bump();
   }
   function closeNotifications() {
-    var s = app();
+    var s = stateStore();
     if (s) s.notificationsOpen = false;
     bump();
   }
   function clearNotifications() {
-    var s = app();
+    var s = stateStore();
     if (s && typeof s.clearNotifications === 'function') s.clearNotifications();
     bump();
   }
   function reopenNotification(note) {
-    var s = app();
+    var s = stateStore();
     if (s && typeof s.reopenNotification === 'function') s.reopenNotification(note);
     bump();
   }
   function dismissNotification(note, event) {
     if (event) event.stopPropagation();
-    var s = app();
+    var s = stateStore();
     if (s && typeof s.dismissNotification === 'function') s.dismissNotification(note && note.id);
     bump();
   }
   function dismissNotificationBubble(event) {
     if (event) event.stopPropagation();
-    var s = app();
+    var s = stateStore();
     if (s && typeof s.dismissNotificationBubble === 'function') s.dismissNotificationBubble();
     bump();
   }

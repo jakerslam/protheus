@@ -17,32 +17,56 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function app() {
     try {
       var service = appStoreService();
-      var root = rootApp();
-      if (root) return root;
-      return service && typeof service.current === 'function' ? service.current() : null;
+      if (service && typeof service.root === 'function') {
+        var root = service.root();
+        if (root) return root;
+      }
+      if (service && typeof service.current === 'function') {
+        var current = service.current();
+        if (current) return current;
+      }
+      return null;
     } catch (_e) {
       return null;
     }
-  }
-  function rootApp() {
-    try {
-      var service = appStoreService();
-      return service && typeof service.root === 'function' ? service.root() : null;
-    } catch (_e) {
-      return null;
-    }
-  }
-  function rootSidebarRows() {
-    var root = rootApp();
-    return root && Array.isArray(root.chatSidebarVisibleRows) ? root.chatSidebarVisibleRows : [];
   }
   function call(fn) {
+    var service = appStoreService();
+    if (service && typeof service.method === 'function') {
+      var method = service.method(fn);
+      if (method) {
+        var methodArgs = Array.prototype.slice.call(arguments, 1);
+        try { return method.apply(null, methodArgs); } catch (_e) { return undefined; }
+      }
+    }
     var s = app();
     if (!s || typeof s[fn] !== 'function') return undefined;
     var args = Array.prototype.slice.call(arguments, 1);
     try { return s[fn].apply(s, args); } catch (_e) { return undefined; }
   }
+  function chatStore() {
+    return typeof window !== 'undefined' ? window.InfringChatStore : null;
+  }
+  function setSidebarAgents(rows) {
+    sidebarAgents = Array.isArray(rows) ? rows : [];
+  }
+  function appSidebarRows() {
+    var s = app() || {};
+    if (Array.isArray(s.chatSidebarVisibleRows)) return s.chatSidebarVisibleRows;
+    if (Array.isArray(s.chatSidebarRows)) return s.chatSidebarRows;
+    return [];
+  }
+  function refreshSidebarAgents() {
+    var rows = appSidebarRows();
+    setSidebarAgents(rows);
+    var store = chatStore();
+    if (store && store.sidebarAgents && typeof store.sidebarAgents.set === 'function') {
+      var current = typeof store.sidebarAgents.get === 'function' ? store.sidebarAgents.get() : null;
+      if (current !== rows) store.sidebarAgents.set(rows);
+    }
+  }
   function bump() {
+    refreshSidebarAgents();
     uiTick += 1;
   }
   function agentId(agent) {
@@ -140,8 +164,39 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function showCollapsedAgent(agent, event) {
     if (isCollapsed()) call('showCollapsedSidebarAgentPopup', agent, event);
   }
+  function normalizedPreviewText(agent) {
+    var rowPreview = preview(agent);
+    var text = String(rowPreview.text || '').trim();
+    var normalized = call('normalizeSidebarPopupText', text);
+    if (typeof normalized === 'string') text = normalized;
+    if (!text && !isSystem(agent)) text = String(previewText(agent) || '').trim();
+    normalized = call('normalizeSidebarPopupText', text);
+    return typeof normalized === 'string' ? normalized : text;
+  }
+  function showAgentPreview(agent, event) {
+    if (isCollapsed()) {
+      showCollapsedAgent(agent, event);
+      return;
+    }
+    var id = agentId(agent);
+    var title = String((agent && (agent.name || agent.id)) || '').trim();
+    var rowPreview = preview(agent);
+    var body = normalizedPreviewText(agent);
+    if (!id || !title || isSystem(agent) || !body) {
+      call('hideDashboardPopupBySource', 'sidebar');
+      return;
+    }
+    call('showDashboardPopup', 'sidebar-agent:' + id, title, event, {
+      source: 'sidebar',
+      side: 'right',
+      body: body,
+      meta_origin: call('sidebarPopupMetaOrigin', rowPreview, 'Agent') || 'Agent',
+      meta_time: previewTime(agent),
+      unread: !!rowPreview.unread_response
+    });
+  }
   function hideSidebarPopup() {
-    if (isCollapsed()) call('hideDashboardPopupBySource', 'sidebar');
+    call('hideDashboardPopupBySource', 'sidebar');
   }
   function showStatus(agent, event) {
     var label = statusLabel(agent);
@@ -225,20 +280,11 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   }
 
   onMount(function() {
-    var s = typeof window !== 'undefined' && window.InfringChatStore;
+    refreshSidebarAgents();
+    var s = chatStore();
     if (s && s.sidebarAgents) {
       unsubs.push(s.sidebarAgents.subscribe(function(rows) {
-        var nextRows = Array.isArray(rows) ? rows : [];
-        sidebarAgents = nextRows.length ? nextRows : rootSidebarRows();
-      }));
-    }
-    var service = appStoreService();
-    if (service && typeof service.subscribe === 'function') {
-      unsubs.push(service.subscribe(function() {
-        var nextRows = s && s.sidebarAgents && typeof s.sidebarAgents.get === 'function'
-          ? s.sidebarAgents.get()
-          : [];
-        sidebarAgents = Array.isArray(nextRows) && nextRows.length ? nextRows : rootSidebarRows();
+        setSidebarAgents(rows);
       }));
     }
     if (s && s.currentAgent) unsubs.push(s.currentAgent.subscribe(bump));
@@ -265,9 +311,11 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     on:dragover={(event) => overTopologyDrag(agent, event)}
     on:drop={(event) => dropTopology(agent, event)}
     on:dragend={endTopologyDrag}
-    on:mouseenter={(event) => showCollapsedAgent(agent, event)}
-    on:mousemove={(event) => showCollapsedAgent(agent, event)}
+    on:mouseenter={(event) => showAgentPreview(agent, event)}
+    on:mousemove={(event) => showAgentPreview(agent, event)}
+    on:focus={(event) => showAgentPreview(agent, event)}
     on:mouseleave={hideSidebarPopup}
+    on:blur={hideSidebarPopup}
   >
     <span class="nav-icon nav-agent-icon">
       <span class={"nav-agent-avatar-wrap " + avatarWrapClass(agent)}>
