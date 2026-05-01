@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:48:36.514Z",
+  "updated_at": "2026-05-01T22:34:40.407Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -242,6 +242,17 @@
       "summary": "Group repeated UI/runtime/tool/eval findings into root-cause clusters so Sentinel detects structural failure families instead of isolated symptoms.",
       "completed_at": "2026-05-01T21:48:36.512Z",
       "completion_note": "Implemented Kernel Sentinel root-cause symptom clustering for feedback rows, including structural surface-family cluster metadata, repeated-cluster promotion signals, SRS evidence, file-size split, and targeted Sentinel regression coverage."
+    },
+    {
+      "id": "KSENT-FRESHNESS-GUARD",
+      "title": "Enforce fresh Sentinel truth before using findings",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-08",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Prevent stale Sentinel artifacts from being treated as current truth by requiring freshness windows, generated_at checks, and stale_do_not_use labeling for old findings.",
+      "completed_at": "2026-05-01T22:34:40.385Z",
+      "completion_note": "Implemented Kernel Sentinel current-truth freshness classification for final reports; stale findings are labeled stale_do_not_use, excluded from top_findings, and blocked from TODO/GitHub promotion. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel::report_budget -- --nocapture passed 5/5."
     }
   ]
 }

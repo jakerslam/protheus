@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T21:48:36.514Z
+Updated: 2026-05-01T22:34:40.407Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T21:48:36.514Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-FRESHNESS-GUARD` — Enforce fresh Sentinel truth before using findings
+  completed_at: `2026-05-01T22:34:40.385Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-08`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Prevent stale Sentinel artifacts from being treated as current truth by requiring freshness windows, generated_at checks, and stale_do_not_use labeling for old findings.
+  completion_note: Implemented Kernel Sentinel current-truth freshness classification for final reports; stale findings are labeled stale_do_not_use, excluded from top_findings, and blocked from TODO/GitHub promotion. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel::report_budget -- --nocapture passed 5/5.
 - `KSENT-SYMPTOM-CLUSTERS` — Cluster symptoms into root-cause families
   completed_at: `2026-05-01T21:48:36.512Z`
   previous_section: `red`
