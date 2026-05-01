@@ -390,28 +390,5 @@
 
     <!-- Page: Analytics -->
     <template x-if="page === 'analytics'">
-      <infring-analytics-page-shell shellprimitive="simple-page-panel" pageid="analytics" panelrole="page" routecontract="analytics" parentowneddata="true">
-      <div x-data="analyticsPage">
-        <div class="page-header page-header-subtabs-center">
-          <div>
-            <div class="tabs mt-3" role="tablist">
-              <div class="tab" role="tab" :class="{ active: page === 'runtime' }" @click="navigate('runtime')">Runtime</div>
-              <div class="tab" role="tab" :class="{ active: page === 'analytics' }" @click="navigate('analytics')">Analytics</div>
-              <div class="tab" role="tab" :class="{ active: page === 'logs' }" @click="navigate('logs')">Logs</div>
-            </div>
-          </div>
-        </div>
-        <div class="page-body" x-init="loadUsage()">
-          <div x-show="loading" class="loading-state"><div class="spinner"></div><span>Loading usage data...</span></div>
-          <div x-show="!loading && loadError" class="error-state">
-            <span class="error-icon">!</span>
-            <p x-text="loadError"></p>
-            <button class="btn btn-ghost btn-sm" @click="loadData()">Retry</button>
-          </div>
-          <div x-show="!loading && !loadError">
-          <div class="stats-row">
-            <div class="stat-card"><div class="stat-value" x-text="formatTokens((summary.total_input_tokens || 0) + (summary.total_output_tokens || 0))"></div><div class="stat-label">Total Tokens</div></div>
-            <div class="stat-card"><div class="stat-value" x-text="formatCost(summary.total_cost_usd)"></div><div class="stat-label">Estimated Cost</div></div>
-            <div class="stat-card"><div class="stat-value" x-text="summary.call_count || 0"></div><div class="stat-label">API Calls</div></div>
-            <div class="stat-card"><div class="stat-value" x-text="summary.total_tool_calls || 0"></div><div class="stat-label">Tool Calls</div></div>
-          </div>
+      <infring-analytics-page-shell shellprimitive="simple-page-panel" pageid="analytics" panelrole="page" routecontract="analytics" parentowneddata="false"></infring-analytics-page-shell>
+    </template>

@@ -67,7 +67,7 @@ function classifyPath(path) {
     return 'local_simulation_churn';
   }
   if (
-    path === 'docs/workspace/todo/TODO.md' ||
+    path === 'docs/workspace/TODO.md' ||
     path === 'docs/workspace/SRS.md' ||
     path === 'docs/workspace/UPGRADE_BACKLOG.md' ||
     /^local\/workspace\/reports\/CODEX_FILE_LEDGER_.*\.(md|tsv)$/i.test(path) ||

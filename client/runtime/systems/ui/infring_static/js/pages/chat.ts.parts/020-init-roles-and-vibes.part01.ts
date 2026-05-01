@@ -221,7 +221,10 @@
         : '';
       if (agentBranch) return agentBranch;
       try {
-        var store = Alpine.store('app');
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
         var branch = store && store.gitBranch ? String(store.gitBranch).trim() : '';
         return branch || '';
       } catch(_) {
@@ -251,49 +254,6 @@
       if (!keep.git) this.closeGitTreeMenu();
     },
 
-    menuRequestTimeout: function(promise, label, timeoutMs) {
-      var ms = Number(timeoutMs || 0);
-      if (!Number.isFinite(ms) || ms <= 0) ms = 3500;
-      return new Promise(function(resolve, reject) {
-        var settled = false;
-        var timer = setTimeout(function() {
-          if (settled) return;
-          settled = true;
-          var err = new Error(String(label || 'menu_request') + '_timeout') as any;
-          err.timeout = true;
-          reject(err);
-        }, ms);
-        Promise.resolve(promise).then(function(value) {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(value);
-        }).catch(function(error) {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          reject(error);
-        });
-      });
-    },
-
-    currentGitTreeFallbackRows: function() {
-      var branch = this.normalizeBranchName(this.activeGitBranchLabel || this.activeGitBranchMenuLabel || 'main');
-      if (!branch) branch = 'main';
-      return [{
-        branch: branch,
-        current: true,
-        main: branch === 'main' || branch === 'master',
-        kind: 'current',
-        in_use_by_agents: 0
-      }];
-    },
-
-    ensureGitTreeMenuFallback: function() {
-      if (Array.isArray(this.gitTreeMenuItems) && this.gitTreeMenuItems.length) return;
-      this.gitTreeMenuItems = this.currentGitTreeFallbackRows();
-    },
-
     toggleAttachMenu: function() {
       var nextOpen = !this.showAttachMenu;
       this.closeComposerMenus(nextOpen ? { attach: true } : {});
@@ -311,35 +271,25 @@
         this.gitTreeMenuError = '';
         return;
       }
-      this.ensureGitTreeMenuFallback();
       if (!force && this.gitTreeMenuLoading) return;
       this.gitTreeMenuLoading = true;
       this.gitTreeMenuError = '';
       try {
-        var payload = await this.menuRequestTimeout(
-          InfringAPI.get('/api/agents/' + encodeURIComponent(this.currentAgent.id) + '/git-trees'),
-          'git_tree_menu',
-          3500
-        );
+        var payload = await InfringAPI.get('/api/agents/' + encodeURIComponent(this.currentAgent.id) + '/git-trees');
         var options = Array.isArray(payload && payload.options) ? payload.options : [];
-        if (!options.length && Array.isArray(payload && payload.branches)) options = payload.branches;
-        if (!options.length && Array.isArray(payload && payload.items)) options = payload.items;
-        if (!options.length && Array.isArray(payload && payload.trees)) options = payload.trees;
         this.gitTreeMenuItems = options.map(function(row) {
-          var branch = String((row && (row.branch || row.name || row.ref || row.label)) || '').trim();
           return {
-            branch: branch,
+            branch: String((row && row.branch) || '').trim(),
             current: !!(row && row.current),
             main: !!(row && row.main),
             kind: String((row && row.kind) || '').trim(),
             in_use_by_agents: Number((row && row.in_use_by_agents) || 0) || 0
           };
         }).filter(function(row) { return !!row.branch; });
-        if (!this.gitTreeMenuItems.length) this.gitTreeMenuItems = this.currentGitTreeFallbackRows();
         this.applyAgentGitTreeState(this.currentAgent, payload && payload.current ? payload.current : {});
       } catch (e) {
-        this.gitTreeMenuItems = this.currentGitTreeFallbackRows();
-        this.gitTreeMenuError = (e && e.timeout) ? 'Git tree route timed out; showing current branch' : ((e && e.message) ? String(e.message) : 'failed_to_load_git_trees');
+        this.gitTreeMenuItems = [];
+        this.gitTreeMenuError = (e && e.message) ? String(e.message) : 'failed_to_load_git_trees';
       } finally {
         this.gitTreeMenuLoading = false;
       }
@@ -353,7 +303,6 @@
       }
       this.closeComposerMenus({ git: true });
       this.showGitTreeMenu = true;
-      this.ensureGitTreeMenuFallback();
       await this.refreshGitTreeMenu(true);
     },
 
@@ -378,10 +327,13 @@
           }
         );
         this.applyAgentGitTreeState(this.currentAgent, result && result.current ? result.current : {});
-        var store = Alpine.store('app');
-        if (store && typeof store.refreshAgents === 'function') {
-          await store.refreshAgents({ force: true });
-        }
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var refreshAgents = bridge && typeof bridge.method === 'function'
+          ? bridge.method('refreshAgents')
+          : null;
+        if (typeof refreshAgents === 'function') await refreshAgents({ force: true });
         await this.refreshGitTreeMenu(true);
         this.closeGitTreeMenu();
         InfringToast.success('Switched to branch ' + branch);

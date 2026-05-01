@@ -32,3 +32,15 @@ function chatBuildLargePasteMarkdownAttachment(rawText) {
     return null;
   }
 }
+
+function infringChatPasteDelegateMethods() {
+  return {
+    shouldConvertLargePasteToAttachment(rawText) {
+      return chatShouldConvertLargePasteToAttachment(this, rawText);
+    },
+
+    buildLargePasteMarkdownAttachment(rawText) {
+      return chatBuildLargePasteMarkdownAttachment(rawText);
+    },
+  };
+}

@@ -313,8 +313,47 @@ function agentsPage() {
       });
     },
 
+    shellAppStoreBridge() {
+      return typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+    },
+
+    shellAppStore() {
+      var bridge = this.shellAppStoreBridge();
+      return bridge && typeof bridge.current === 'function' ? bridge.current() : null;
+    },
+
+    shellAppStoreMethod(name) {
+      var bridge = this.shellAppStoreBridge();
+      return bridge && typeof bridge.method === 'function' ? bridge.method(name) : null;
+    },
+
+    async refreshAgentsViaShellStore(options) {
+      var refreshAgents = this.shellAppStoreMethod('refreshAgents');
+      if (typeof refreshAgents === 'function') await refreshAgents(options);
+    },
+
+    assignShellAppStore(values) {
+      var bridge = this.shellAppStoreBridge();
+      if (bridge && typeof bridge.assign === 'function') return bridge.assign(values);
+      var store = this.shellAppStore();
+      if (store && values && typeof values === 'object') Object.assign(store, values);
+      return store;
+    },
+
+    setActiveAgentIdViaShellStore(agentId) {
+      var setActiveAgentId = this.shellAppStoreMethod('setActiveAgentId');
+      if (typeof setActiveAgentId === 'function') {
+        setActiveAgentId(agentId || null);
+        return;
+      }
+      var bridge = this.shellAppStoreBridge();
+      if (bridge && typeof bridge.set === 'function') bridge.set('activeAgentId', agentId || null);
+    },
+
     get agents() {
-      var store = Alpine.store('app');
+      var store = this.shellAppStore();
       var rows = Array.isArray(store && store.agents) ? store.agents : [];
       var pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
       rows = rows.filter(function(agent) {

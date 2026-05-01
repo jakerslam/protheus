@@ -9,7 +9,6 @@
       } else {
         this.theme = mode;
       }
-      this.syncThemeToShellStore('theme_changed');
     },
     isChatSidebarSearchActive() {
       return String(this.chatSidebarQuery || '').trim().length > 0;

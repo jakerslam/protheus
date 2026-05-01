@@ -163,15 +163,19 @@ function chatCacheAgentConversation(page, agentId) {
     if (mode === 'terminal') next.draft_terminal = draft;
     else next.draft_chat = draft;
     page.conversationCache[key] = next;
-    var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-      ? InfringSharedShellServices.appStore
-      : null;
-    var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
-      ? bridge.method('saveAgentChatPreview')
-      : null;
-    if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, page.conversationCache[key].messages);
+    chatSaveAgentChatPreview(agentId, page.conversationCache[key].messages);
     page.persistConversationCache();
   } catch {}
+}
+
+function chatSaveAgentChatPreview(agentId, messages) {
+  var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+    ? InfringSharedShellServices.appStore
+    : null;
+  var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
+    ? bridge.method('saveAgentChatPreview')
+    : null;
+  if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, messages);
 }
 
 function chatCacheCurrentConversation(page) {
@@ -184,4 +188,269 @@ function chatScheduleConversationPersist(page) {
   page._persistTimer = setTimeout(function() {
     chatCacheCurrentConversation(page);
   }, 80);
+}
+
+function infringChatConversationCacheDelegateMethods() {
+  return {
+    resolveConversationInputMode(agentId) {
+      return chatResolveConversationInputMode(this, agentId);
+    },
+
+    currentConversationInputMode(agentId) {
+      return chatCurrentConversationInputMode(this, agentId);
+    },
+
+    applyConversationInputMode(agentId, options) {
+      return chatApplyConversationInputMode(this, agentId, options);
+    },
+
+    sanitizeConversationDraftText(rawText) {
+      return chatSanitizeConversationDraftText(rawText);
+    },
+
+    conversationCacheMaxEntries: function() {
+      return chatConversationCacheMaxEntries();
+    },
+
+    pruneConversationCacheEntries: function() {
+      chatPruneConversationCacheEntries(this);
+    },
+
+    touchConversationCacheEntry: function(agentId, patch) {
+      return chatTouchConversationCacheEntry(this, agentId, patch);
+    },
+
+    captureConversationDraft(agentId, explicitMode) {
+      chatCaptureConversationDraft(this, agentId, explicitMode);
+    },
+
+    restoreConversationDraft(agentId, explicitMode) {
+      return chatRestoreConversationDraft(this, agentId, explicitMode);
+    },
+
+    cacheAgentConversation(agentId) {
+      chatCacheAgentConversation(this, agentId);
+    },
+
+    saveAgentChatPreview(agentId, messages) {
+      return chatSaveAgentChatPreview(agentId, messages);
+    },
+
+    cacheCurrentConversation() {
+      chatCacheCurrentConversation(this);
+    },
+
+    scheduleConversationPersist() {
+      chatScheduleConversationPersist(this);
+    },
+  };
+}
+
+function infringChatConversationCachePersistenceMethods() {
+  return {
+    sanitizeConversationForCache(messages) {
+      var source = Array.isArray(messages) ? messages : [];
+      var out = [];
+      var compactPreviewText = function(rawText, limit) {
+        var max = Number(limit || 0);
+        if (!Number.isFinite(max) || max < 40) max = 320;
+        var text = rawText == null ? '' : String(rawText);
+        text = text.replace(/\s+/g, ' ').trim();
+        if (!text) return '';
+        if (text.length > max) return text.slice(0, Math.max(0, max - 1)).trimEnd() + '\u2026';
+        return text;
+      };
+      var detailRefFor = function(row) {
+        if (!row || typeof row !== 'object') return '';
+        return String(
+          row.detail_ref ||
+          row.message_detail_ref ||
+          row.tool_detail_ref ||
+          row.artifact_detail_ref ||
+          row.receipt_ref ||
+          row.receipt_id ||
+          row.ref ||
+          row.id ||
+          ''
+        ).trim();
+      };
+      var detailRefsFor = function(rows) {
+        var list = Array.isArray(rows) ? rows : [];
+        var refs = [];
+        var seen = Object.create(null);
+        for (var j = 0; j < list.length && refs.length < 8; j += 1) {
+          var row = list[j] && typeof list[j] === 'object' ? list[j] : {};
+          var ref = String(
+            row.detail_ref ||
+            row.tool_detail_ref ||
+            row.artifact_detail_ref ||
+            row.receipt_ref ||
+            row.input_ref ||
+            row.result_ref ||
+            row.id ||
+            ''
+          ).trim();
+          if (!ref || seen[ref]) continue;
+          seen[ref] = true;
+          refs.push(ref);
+        }
+        return refs;
+      };
+      for (var i = 0; i < source.length; i++) {
+        var msg = source[i];
+        if (!msg || typeof msg !== 'object') continue;
+        if (msg.thinking || msg.streaming || (msg.terminal && msg.thinking)) continue;
+        var roleRaw = String(msg.role || msg.type || '').trim().toLowerCase();
+        if (roleRaw.indexOf('assistant') >= 0) roleRaw = 'agent';
+        else if (roleRaw.indexOf('user') >= 0) roleRaw = 'user';
+        else if (roleRaw.indexOf('system') >= 0) roleRaw = 'system';
+        else if (msg.terminal) roleRaw = 'terminal';
+        else roleRaw = roleRaw || 'agent';
+        var rawText = msg.content_preview;
+        if (rawText == null) rawText = msg.text;
+        if (rawText == null) rawText = msg.message;
+        if (rawText == null) rawText = msg.assistant;
+        if (rawText == null && roleRaw === 'user') rawText = msg.user;
+        var contentPreview = compactPreviewText(rawText, 320);
+        var rawLineText = rawText == null ? '' : String(rawText);
+        var lineCount = rawLineText ? rawLineText.split(/\r?\n/).length : 0;
+        if (lineCount > 99) lineCount = 99;
+        var tools = Array.isArray(msg.tools) ? msg.tools : [];
+        var artifactRows = [];
+        if (msg.file_output && typeof msg.file_output === 'object') artifactRows.push(msg.file_output);
+        if (msg.folder_output && typeof msg.folder_output === 'object') artifactRows.push(msg.folder_output);
+        if (Array.isArray(msg.artifacts)) artifactRows = artifactRows.concat(msg.artifacts);
+        var progress = msg.progress && typeof msg.progress === 'object' ? msg.progress : null;
+        var preview = {
+          id: msg.id,
+          role: roleRaw,
+          status: String(msg.status || msg.receipt_status || msg.display_state || ''),
+          content_preview: contentPreview,
+          text: contentPreview,
+          line_count: lineCount,
+          detail_ref: detailRefFor(msg),
+          ts: Number(msg.ts || 0) || Date.now(),
+          agent_id: msg.agent_id,
+          agent_name: msg.agent_name,
+          terminal: msg.terminal === true,
+          is_notice: msg.is_notice === true,
+          notice_label: compactPreviewText(msg.notice_label, 160),
+          notice_type: String(msg.notice_type || ''),
+          notice_icon: String(msg.notice_icon || ''),
+          notice_action: msg.notice_action,
+          progress_percent: progress ? (Number(progress.percent || 0) || 0) : 0,
+          progress_label: progress ? compactPreviewText(progress.label, 120) : '',
+          tool_summary_count: tools.length,
+          tool_detail_refs: detailRefsFor(tools),
+          artifact_summary_count: artifactRows.length,
+          artifact_detail_refs: detailRefsFor(artifactRows),
+        };
+        var hasNotice = !!(preview.is_notice || preview.notice_label || preview.notice_type || preview.notice_action);
+        var hasText = typeof preview.content_preview === 'string' && preview.content_preview.trim().length > 0;
+        var hasTools = preview.tool_summary_count > 0;
+        var hasArtifacts = preview.artifact_summary_count > 0;
+        var hasProgress = !!(preview.progress_label || preview.progress_percent);
+        var hasTerminal = !!preview.terminal;
+        if (!hasNotice && !hasText && !hasTools && !hasArtifacts && !hasProgress && !hasTerminal) continue;
+        out.push(preview);
+      }
+      return out;
+    },
+    restoreAgentConversation(agentId) {
+      if (!agentId || !this.conversationCache) return false;
+      if (!(typeof this.isSystemThreadId === 'function' && this.isSystemThreadId(agentId))) {
+        return false;
+      }
+      const cached = this.conversationCache[String(agentId)];
+      if (!cached || !Array.isArray(cached.messages)) return false;
+      var scopeKey = typeof this.resolveConversationCacheScopeKey === 'function'
+        ? this.resolveConversationCacheScopeKey(agentId)
+        : String(agentId || '').trim();
+      var cachedScopeKey = String(cached.session_scope_key || '').trim();
+      if (scopeKey && cachedScopeKey && scopeKey !== cachedScopeKey) return false;
+      try {
+        if (this.applyConversationInputMode) this.applyConversationInputMode(agentId);
+        var rawCachedMessages = cached.messages || [];
+        var sanitized = this.sanitizeConversationForCache(cached.messages || []);
+        var cacheChanged = false;
+        try {
+          cacheChanged = JSON.stringify(sanitized) !== JSON.stringify(rawCachedMessages);
+        } catch(_) {
+          cacheChanged = sanitized.length !== rawCachedMessages.length;
+        }
+        this.messages = this.mergeModelNoticesForAgent(
+          agentId,
+          this.normalizeSessionMessages({ messages: sanitized })
+        );
+        this.tokenCount = Number(cached.token_count || 0);
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this._clearPendingWsRequest();
+        if (cacheChanged) {
+          this.conversationCache[String(agentId)].messages = sanitized;
+          this.persistConversationCache();
+        }
+        this.recomputeContextEstimate();
+        if (typeof this.restoreConversationDraft === 'function') {
+          this.restoreConversationDraft(agentId);
+        }
+        this.$nextTick(() => this.scrollToBottomImmediate());
+        return true;
+
+      } catch {
+        return false;
+      }
+    },
+
+    loadConversationCache() {
+      try {
+        var cacheVersion = localStorage.getItem(this.conversationCacheVersionKey);
+        if (cacheVersion !== this.conversationCacheVersion) {
+          localStorage.removeItem(this.conversationCacheKey);
+          localStorage.setItem(this.conversationCacheVersionKey, this.conversationCacheVersion);
+          return {};
+        }
+        var raw = localStorage.getItem(this.conversationCacheKey);
+        if (!raw) return {};
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return {};
+        return parsed;
+      } catch {
+        return {};
+      }
+    },
+
+    projectConversationCacheForPersistence(cache) {
+      var source = cache && typeof cache === 'object' ? cache : {};
+      var projected = {};
+      var keys = Object.keys(source);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var entry = source[key] && typeof source[key] === 'object' ? source[key] : {};
+        var next = {
+          saved_at: Number(entry.saved_at || 0) || Date.now(),
+          session_scope_key: String(entry.session_scope_key || ''),
+          session_label: String(entry.session_label || ''),
+          token_count: Number(entry.token_count || 0) || 0,
+          default_terminal: entry.default_terminal === true,
+          cache_shape: 'preview_rows_v1',
+          draft_chat: this.sanitizeConversationDraftText(entry.draft_chat),
+          draft_terminal: this.sanitizeConversationDraftText(entry.draft_terminal),
+          messages: typeof this.sanitizeConversationForCache === 'function'
+            ? this.sanitizeConversationForCache(entry.messages || [])
+            : []
+        };
+        projected[key] = next;
+      }
+      return projected;
+    },
+
+    persistConversationCache() {
+      try {
+        localStorage.setItem(this.conversationCacheVersionKey, this.conversationCacheVersion);
+        var projectedCache = this.projectConversationCacheForPersistence(this.conversationCache || {});
+        localStorage.setItem(this.conversationCacheKey, JSON.stringify(projectedCache));
+      } catch {}
+    },
+  };
 }

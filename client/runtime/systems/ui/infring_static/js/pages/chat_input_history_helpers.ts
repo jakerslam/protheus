@@ -249,3 +249,71 @@ function chatNavigateInputHistory(page, direction, event) {
   if (event && typeof event.preventDefault === 'function') event.preventDefault();
   return true;
 }
+
+function infringChatInputHistoryDelegateMethods() {
+  return {
+    inputHistoryMode: function(explicitMode) {
+      return chatInputHistoryMode(this, explicitMode);
+    },
+
+    inputHistoryLimit: function() {
+      return chatInputHistoryLimit(this);
+    },
+
+    normalizeInputHistoryEntry: function(value) {
+      return chatNormalizeInputHistoryEntry(value);
+    },
+
+    normalizeInputHistoryRows: function(rows) {
+      return chatNormalizeInputHistoryRows(this, rows);
+    },
+
+    inputHistoryLegacyAgentKey: function(explicitAgentId) {
+      return chatInputHistoryLegacyAgentKey(this, explicitAgentId);
+    },
+
+    inputHistorySessionScopeKey: function(explicitAgentId) {
+      return chatInputHistorySessionScopeKey(this, explicitAgentId);
+    },
+
+    inputHistoryAgentKey: function(explicitAgentId) {
+      return chatInputHistoryAgentKey(this, explicitAgentId);
+    },
+
+    inputHistoryBucketRows: function(cache, agentKey, legacyKey, mode) {
+      return chatInputHistoryBucketRows(this, cache, agentKey, legacyKey, mode);
+    },
+
+    loadInputHistoryCache: function() {
+      chatLoadInputHistoryCache(this);
+    },
+
+    persistInputHistoryCache: function() {
+      chatPersistInputHistoryCache(this);
+    },
+
+    hydrateInputHistoryFromCache: function(explicitMode, explicitAgentId) {
+      chatHydrateInputHistoryFromCache(this, explicitMode, explicitAgentId);
+    },
+
+    syncInputHistoryToCache: function(explicitMode, explicitAgentId) {
+      chatSyncInputHistoryToCache(this, explicitMode, explicitAgentId);
+    },
+
+    inputHistoryEntries: function(explicitMode) {
+      return chatInputHistoryEntries(this, explicitMode);
+    },
+
+    resetInputHistoryNavigation: function(explicitMode) {
+      chatResetInputHistoryNavigation(this, explicitMode);
+    },
+
+    pushInputHistoryEntry: function(explicitMode, rawText) {
+      chatPushInputHistoryEntry(this, explicitMode, rawText);
+    },
+
+    navigateInputHistory: function(direction, event) {
+      return chatNavigateInputHistory(this, direction, event);
+    },
+  };
+}

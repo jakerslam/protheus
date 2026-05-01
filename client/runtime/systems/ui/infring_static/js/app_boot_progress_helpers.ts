@@ -118,3 +118,40 @@ function infringQueueConnectionIndicatorState(page, state) {
     target._lastConnectionIndicatorAt = Date.now();
   }, delay);
 }
+
+function infringReleaseBootSplash(page, force) {
+  if (!page.bootSplashVisible) return;
+  var now = Date.now();
+  var elapsed = Math.max(0, now - Number(page._bootSplashStartedAt || now));
+  var minRemain = Math.max(0, Number(page._bootSplashMinMs || 0) - elapsed);
+  var store = page.getAppStore();
+  var ready = !!force || !store || store.booting === false;
+  if (!ready) return;
+  if (typeof page.setBootProgressEvent === 'function') page.setBootProgressEvent('releasing', { bootStage: store && store.bootStage });
+  if (page._bootSplashHideTimer) {
+    clearTimeout(page._bootSplashHideTimer);
+    page._bootSplashHideTimer = 0;
+  }
+  var progressNow = typeof page.bootProgressClamped === 'function'
+    ? page.bootProgressClamped(page.bootProgressPercent)
+    : Math.max(0, Math.min(100, Number(page.bootProgressPercent || 0)));
+  var completionAnimationDelayMs = progressNow < 100 ? 500 : 0;
+  var hideDelayMs = Math.max(minRemain, completionAnimationDelayMs);
+  if (typeof page.setBootProgressEvent === 'function') page.setBootProgressEvent('complete', { bootStage: store && store.bootStage });
+  if (hideDelayMs <= 0) {
+    page.bootSplashVisible = false;
+    if (page._bootSplashMaxTimer) {
+      clearTimeout(page._bootSplashMaxTimer);
+      page._bootSplashMaxTimer = 0;
+    }
+    return;
+  }
+  page._bootSplashHideTimer = window.setTimeout(function() {
+    page.bootSplashVisible = false;
+    page._bootSplashHideTimer = 0;
+    if (page._bootSplashMaxTimer) {
+      clearTimeout(page._bootSplashMaxTimer);
+      page._bootSplashMaxTimer = 0;
+    }
+  }, hideDelayMs);
+}

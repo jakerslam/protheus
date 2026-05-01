@@ -238,3 +238,80 @@ function infringClosePopupWindow(page, kind) {
   }
   target.popupWindowSetOpenState(key, false);
 }
+
+function infringPopupWindowDelegateMethods() {
+  return {
+    popupWindowStorageKey: function(kind, axis) {
+      return infringPopupWindowStorageKey(kind, axis);
+    },
+    popupWindowWallLockStorageKey: function(kind) {
+      return infringPopupWindowWallLockStorageKey(kind);
+    },
+    popupWindowWallLock: function(kind) {
+      return infringPopupWindowWallLock(kind);
+    },
+    popupWindowSetWallLock: function(kind, wallRaw) {
+      return infringPopupWindowSetWallLock(this, kind, wallRaw);
+    },
+    popupWindowOpenState: function(kind) {
+      return infringPopupWindowOpenState(this, kind);
+    },
+    popupWindowSetOpenState: function(kind, open) {
+      infringPopupWindowSetOpenState(this, kind, open);
+    },
+    readPopupWindowElement: function(kind) {
+      return infringReadPopupWindowElement(kind);
+    },
+    popupWindowDefaultSize: function(kind) {
+      return infringPopupWindowDefaultSize(kind);
+    },
+    readPopupWindowSize: function(kind) {
+      return infringReadPopupWindowSize(this, kind);
+    },
+    popupWindowBounds: function(kind, widthRaw, heightRaw) {
+      return infringPopupWindowBounds(this, kind, widthRaw, heightRaw);
+    },
+    popupWindowClampPlacement: function(kind, leftRaw, topRaw) {
+      return infringPopupWindowClampPlacement(this, kind, leftRaw, topRaw);
+    },
+    popupWindowHardBounds: function(kind) {
+      return infringPopupWindowHardBounds(this, kind);
+    },
+    popupWindowEnsurePlacement: function(kind, forceCenter) {
+      return infringPopupWindowEnsurePlacement(this, kind, forceCenter);
+    },
+    popupWindowPersistPlacement: function(kind, leftRaw, topRaw) {
+      infringPopupWindowPersistPlacement(this, kind, leftRaw, topRaw);
+    },
+    popupWindowResolvedLeft: function(kind) {
+      return infringPopupWindowResolvedLeft(this, kind);
+    },
+    popupWindowResolvedTop: function(kind) {
+      return infringPopupWindowResolvedTop(this, kind);
+    },
+    popupWindowStyle: function(kind) {
+      return infringPopupWindowStyle(this, kind);
+    },
+    openPopupWindow: function(kind) {
+      infringOpenPopupWindow(this, kind);
+    },
+    closePopupWindow: function(kind) {
+      infringClosePopupWindow(this, kind);
+    },
+    bindPopupWindowPointerListeners: function() {
+      infringBindPopupWindowPointerListeners(this);
+    },
+    unbindPopupWindowPointerListeners: function() {
+      infringUnbindPopupWindowPointerListeners(this);
+    },
+    startPopupWindowPointerDrag: function(kind, ev) {
+      infringStartPopupWindowPointerDrag(this, kind, ev);
+    },
+    handlePopupWindowPointerMove: function(ev) {
+      infringHandlePopupWindowPointerMove(this, ev);
+    },
+    endPopupWindowPointerDrag: function() {
+      infringEndPopupWindowPointerDrag(this);
+    }
+  };
+}

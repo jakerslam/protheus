@@ -27,14 +27,6 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     }
   }
   function call(fn) {
-    var service = appStoreService();
-    if (service && typeof service.method === 'function') {
-      var method = service.method(fn);
-      if (method) {
-        var methodArgs = Array.prototype.slice.call(arguments, 1);
-        try { return method.apply(null, methodArgs); } catch (_e) { return undefined; }
-      }
-    }
     var s = app();
     if (!s || typeof s[fn] !== 'function') return undefined;
     var args = Array.prototype.slice.call(arguments, 1);

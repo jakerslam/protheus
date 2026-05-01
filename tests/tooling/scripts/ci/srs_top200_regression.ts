@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
 const SRS_PATH = 'docs/workspace/SRS.md';
-const TODO_PATH = 'docs/workspace/todo/TODO.md';
+const TODO_PATH = 'docs/workspace/TODO.md';
 const FULL_REGRESSION_JSON = 'core/local/artifacts/srs_full_regression_current.json';
 const OUT_JSON = 'core/local/artifacts/srs_top200_regression_2026-03-10.json';
 const OUT_MD = 'local/workspace/archive/docs-workspace/SRS_TOP_200_REGRESSION_2026-03-10.md';
@@ -138,12 +138,12 @@ function countIdHits(id, nonBacklog = false) {
   const q = quoteForSingleShell(id);
   if (nonBacklog) {
     const out = shell(
-      `rg -F --no-messages -n ${q} core client apps adapters scripts tests .github docs -g '!docs/workspace/SRS.md' -g '!docs/workspace/todo/TODO.md' -g '!docs/workspace/UPGRADE_BACKLOG.md' -g '!docs/workspace/SRS_*REGRESSION*.md' -g '!core/local/artifacts/srs_*regression*.json' | wc -l | awk '{print $1}'`,
+      `rg -F --no-messages -n ${q} core client apps adapters scripts tests .github docs -g '!docs/workspace/SRS.md' -g '!docs/workspace/TODO.md' -g '!docs/workspace/UPGRADE_BACKLOG.md' -g '!docs/workspace/SRS_*REGRESSION*.md' -g '!core/local/artifacts/srs_*regression*.json' | wc -l | awk '{print $1}'`,
     );
     return Number(out.trim() || '0');
   }
   const out = shell(
-    `rg -F --no-messages -n ${q} docs/workspace/SRS.md docs/workspace/todo/TODO.md core client apps adapters scripts tests .github docs | wc -l | awk '{print $1}'`,
+    `rg -F --no-messages -n ${q} docs/workspace/SRS.md docs/workspace/TODO.md core client apps adapters scripts tests .github docs | wc -l | awk '{print $1}'`,
   );
   return Number(out.trim() || '0');
 }

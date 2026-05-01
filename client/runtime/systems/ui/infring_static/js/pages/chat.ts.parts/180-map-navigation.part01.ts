@@ -46,29 +46,6 @@
       return 'chat-map';
     },
 
-    shellRootMethod: function(name) {
-      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-        ? InfringSharedShellServices.appStore
-        : null;
-      if (!bridge || typeof bridge.method !== 'function') return null;
-      return bridge.method(name);
-    },
-
-    showDashboardPopup: function(id, label, ev, overrides) {
-      var method = this.shellRootMethod('showDashboardPopup');
-      if (typeof method === 'function') return method(id, label, ev, overrides);
-    },
-
-    hideDashboardPopup: function(id) {
-      var method = this.shellRootMethod('hideDashboardPopup');
-      if (typeof method === 'function') return method(id);
-    },
-
-    hideDashboardPopupBySource: function(source) {
-      var method = this.shellRootMethod('hideDashboardPopupBySource');
-      if (typeof method === 'function') return method(source);
-    },
-
     messageMapPopupTitle: function(msg) {
       if (!msg) return 'Message';
       return this.messageActorLabel(msg);
@@ -491,7 +468,10 @@
           archived: false,
           state: 'running'
         });
-        var store = Alpine.store('app');
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
         if (store) {
           if (Array.isArray(store.agents)) {
             store.agents = store.agents.map(function(row) {

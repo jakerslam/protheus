@@ -3,14 +3,8 @@
         var name = self.toolDisplayName(tool);
         var status = self.toolStatusText(tool);
         var summary = status ? (name + ' [' + status + ']') : name;
-        var inputPreview = compactToolText(tool.input, 96);
-        var resultPreview = compactToolText(tool.result, 120);
-        var detail = '';
-        if (inputPreview && resultPreview) {
-          detail = inputPreview + ' -> ' + resultPreview;
-        } else {
-          detail = inputPreview || resultPreview;
-        }
+        var detail = String(tool.summary || tool.display_text || tool.result_ref || tool.input_ref || '').replace(/\s+/g, ' ').trim();
+        if (detail && detail.length > 120) detail = detail.slice(0, 117) + '...';
         if (detail) summary += ': ' + detail;
         return summary;
       }).filter(function(part) { return !!part; });
@@ -344,7 +338,7 @@
       for (var i = 0; i < tools.length && i < 8; i += 1) {
         var tool = tools[i] || {};
         var name = String(tool.name || '').trim().toLowerCase();
-        var result = String(tool.result || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        var result = String(tool.summary || tool.display_text || tool.result_ref || '').replace(/\s+/g, ' ').trim().toLowerCase();
         if (result.length > 180) result = result.slice(0, 180);
         var state = tool && tool.is_error ? 'error' : (tool && tool.running ? 'running' : 'ok');
         if (name || result) toolParts.push(name + ':' + state + ':' + result);
@@ -418,8 +412,8 @@
           var id = String(tool.id || '').trim();
           if (id) return 'id:' + id;
           var name = String(tool.name || '').trim().toLowerCase();
-          var input = String(tool.input || '').trim();
-          return 'sig:' + name + '::' + input;
+          var inputRef = String(tool.input_ref || tool.detail_ref || '').trim();
+          return 'sig:' + name + '::' + inputRef;
         };
         var index = Object.create(null);
         for (var i = 0; i < base.length; i++) {
@@ -444,8 +438,9 @@
             base[pos] = next;
             continue;
           }
-          if (!String(prior.result || '').trim() && String(next.result || '').trim()) prior.result = next.result;
-          if (!String(prior.input || '').trim() && String(next.input || '').trim()) prior.input = next.input;
+          if (!String(prior.summary || '').trim() && String(next.summary || '').trim()) prior.summary = next.summary;
+          if (!String(prior.result_ref || '').trim() && String(next.result_ref || '').trim()) prior.result_ref = next.result_ref;
+          if (!String(prior.input_ref || '').trim() && String(next.input_ref || '').trim()) prior.input_ref = next.input_ref;
           if (!String(prior.id || '').trim() && String(next.id || '').trim()) prior.id = next.id;
           if (next.is_error) prior.is_error = true;
           if (prior.running && next.running === false) prior.running = false;

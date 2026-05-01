@@ -4,6 +4,10 @@
 'use strict';
 
 window.InfringChatStore = (function() {
+  if (window.InfringChatStore && typeof window.InfringChatStore.syncMessages === 'function') {
+    return window.InfringChatStore;
+  }
+
   function writable(initialValue) {
     var _value = initialValue;
     var _subscribers = [];
@@ -45,6 +49,14 @@ window.InfringChatStore = (function() {
     stickToBottom: writable(true),
     mapStepIndex: writable(-1),
     mapRows: writable([]),
+    threadProjectionMeta: writable({
+      beforeCursor: null,
+      afterCursor: null,
+      windowStartIndex: 0,
+      windowEndIndex: -1,
+      totalCount: 0,
+      projectionLimit: 80
+    }),
     renderWindowVersion: writable(0),
     focusMode: writable(false),
     connectionState: writable(''),
@@ -54,7 +66,8 @@ window.InfringChatStore = (function() {
   var queuedMessageSync = false;
   var pendingMessages = [];
   var pendingFilteredMessages = [];
-  var lastFilteredMessageSource = [];
+  var pendingThreadProjectionMeta = store.threadProjectionMeta.get();
+  var lastFilteredMessageProjection = [];
   var threadProjectionCenterIndex = -1;
   var threadProjectionLimit = 80;
   function chatPage() {
@@ -130,13 +143,22 @@ window.InfringChatStore = (function() {
       queuedMessageSync = false;
       store.messages.set(pendingMessages);
       store.filteredMessages.set(pendingFilteredMessages);
+      store.threadProjectionMeta.set(pendingThreadProjectionMeta);
     };
     if (typeof queueMicrotask === 'function') return queueMicrotask(flush);
     Promise.resolve().then(flush).catch(function() { setTimeout(flush, 0); });
   }
   function projectThreadMessages(rows) {
     var list = Array.isArray(rows) ? rows : [];
-    if (list.length <= threadProjectionLimit) return list;
+    var meta = {
+      beforeCursor: null,
+      afterCursor: null,
+      windowStartIndex: 0,
+      windowEndIndex: list.length ? list.length - 1 : -1,
+      totalCount: list.length,
+      projectionLimit: threadProjectionLimit
+    };
+    if (list.length <= threadProjectionLimit) return { rows: list, meta: meta };
     var center = Number(threadProjectionCenterIndex);
     if (!Number.isFinite(center) || center < 0) center = list.length - 1;
     center = Math.max(0, Math.min(list.length - 1, Math.round(center)));
@@ -144,12 +166,18 @@ window.InfringChatStore = (function() {
     var start = Math.max(0, center - before);
     var end = Math.min(list.length, start + threadProjectionLimit);
     start = Math.max(0, end - threadProjectionLimit);
-    return list.slice(start, end);
+    meta.beforeCursor = start > 0 ? String(start - 1) : null;
+    meta.afterCursor = end < list.length ? String(end) : null;
+    meta.windowStartIndex = start;
+    meta.windowEndIndex = end - 1;
+    return { rows: list.slice(start, end), meta: meta };
   }
   store.syncMessages = function(messages, filteredMessages) {
     store.mapRows.set(buildMapRows(messages));
-    lastFilteredMessageSource = Array.isArray(filteredMessages) ? filteredMessages : [];
-    pendingFilteredMessages = projectThreadMessages(lastFilteredMessageSource);
+    var projection = projectThreadMessages(filteredMessages);
+    lastFilteredMessageProjection = projection.rows;
+    pendingThreadProjectionMeta = projection.meta;
+    pendingFilteredMessages = projection.rows;
     pendingMessages = pendingFilteredMessages;
     scheduleMessageStoreFlush();
   };
@@ -162,7 +190,10 @@ window.InfringChatStore = (function() {
     next = Math.round(next);
     if (next === threadProjectionCenterIndex) return;
     threadProjectionCenterIndex = next;
-    pendingFilteredMessages = projectThreadMessages(lastFilteredMessageSource);
+    var projection = projectThreadMessages(lastFilteredMessageProjection);
+    lastFilteredMessageProjection = projection.rows;
+    pendingThreadProjectionMeta = projection.meta;
+    pendingFilteredMessages = projection.rows;
     pendingMessages = pendingFilteredMessages;
     scheduleMessageStoreFlush();
   };

@@ -46,14 +46,17 @@
 
     toolStatusText: function(tool) {
       if (!tool) return '';
-      if (tool.running) return 'running...';
+      var state = typeof this.toolReceiptDisplayState === 'function'
+        ? this.toolReceiptDisplayState(tool)
+        : String(tool.status || '').trim().toLowerCase();
+      if (tool.running || state === 'running') return 'running...';
       if (this.isThoughtTool(tool)) return 'thought';
       if (this.isBlockedTool(tool)) return 'blocked';
-      if (tool.is_error) return 'error';
-      if (tool.result) {
-        return tool.result.length > 500 ? Math.round(tool.result.length / 1024) + 'KB' : 'done';
-      }
-      return 'done';
+      if (state === 'error') return 'error';
+      if (state === 'low_signal') return 'low signal';
+      if (state === 'no_output') return 'no output';
+      if (state === 'success' || state === 'ok' || state === 'done' || state === 'ready') return 'done';
+      return state || '';
     },
 
     // Mark chat-rendered error messages for styling
@@ -140,7 +143,7 @@
         var tool = tools[i] || {};
         var toolName = this.toolDisplayName(tool);
         var status = String(tool.status || '').trim();
-        var rendered = this.formatToolOutputForClipboard(tool.result || '');
+        var rendered = this.formatToolOutputForClipboard(tool.summary || tool.display_text || tool.result_ref || '');
         var preview = rendered ? this.truncateToolOutputPreview(rendered) : '';
         var line = '- ' + toolName;
         if (status) line += ' (' + status + ')';

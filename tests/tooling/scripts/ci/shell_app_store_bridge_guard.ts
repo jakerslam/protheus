@@ -223,11 +223,15 @@ async function run(argv = process.argv.slice(2)) {
 
     violations.push(...requireTokens(args.routerPath, readText(args.routerPath), [
       "readForkScript(staticDir, 'js/shell/app_store_shell_services')",
+      "readForkScript(staticDir, 'js/chat_store')",
+      "readForkScript(staticDir, 'js/svelte/sidebar_agent_list_shell.bundle')",
       "readForkScript(staticDir, 'js/svelte/taskbar_system_items_shell.bundle')",
       "readForkScript(staticDir, 'js/svelte/bottom_dock_shell.bundle')",
     ], 'app_store_bridge_router_not_loaded', 'Dashboard asset router must load the app-store bridge before active Svelte shell callers.'));
 
     violations.push(...requireTokens(args.appPartPath, readText(args.appPartPath), [
+      'function infringEnsureChatStoreBridge()',
+      'infringEnsureChatStoreBridge();',
       'function infringShellAppStoreBridge()',
       'function infringShellAppStoreCurrent()',
       'var appStoreDefinition = {',

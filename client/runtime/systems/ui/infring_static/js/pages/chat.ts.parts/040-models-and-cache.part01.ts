@@ -197,8 +197,13 @@
 
     isArchivedAgentRecord(agent) {
       if (!agent || typeof agent !== 'object') return false;
-      var store = Alpine.store('app');
-      if (store && typeof store.isArchivedLikeAgent === 'function' && store.isArchivedLikeAgent(agent)) return true;
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var isArchivedLikeAgent = bridge && typeof bridge.method === 'function'
+        ? bridge.method('isArchivedLikeAgent')
+        : null;
+      if (typeof isArchivedLikeAgent === 'function' && isArchivedLikeAgent(agent)) return true;
       if (agent.archived === true) return true;
       var state = String(agent.state || '').trim().toLowerCase();
       if (state.indexOf('archived') >= 0 || state.indexOf('inactive') >= 0 || state.indexOf('terminated') >= 0) return true;
@@ -236,7 +241,10 @@
       var id = typeof agentOrId === 'string' ? agentOrId : agentOrId.id;
       if (!id) return null;
       if (this.isSystemThreadId(id)) return this.makeSystemThreadAgent();
-      var store = Alpine.store('app');
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
       var list = (store && store.agents) || [];
       for (var i = 0; i < list.length; i++) {
         if (list[i] && String(list[i].id) === String(id)) return list[i];
@@ -257,7 +265,10 @@
 
     ensureValidCurrentAgent: function(options) {
       var opts = options && typeof options === 'object' ? options : {};
-      var store = Alpine.store('app');
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
       if (this.currentAgent && this.isSystemThreadAgent(this.currentAgent)) {
         this.currentAgent = this.makeSystemThreadAgent();
         return this.currentAgent;
@@ -288,19 +299,35 @@
     },
 
     refreshAgentRosterAuthoritative: async function() {
-      var store = Alpine.store('app');
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
       var rows = await InfringAPI.get('/api/agents?view=sidebar&authority=runtime');
       var list = (Array.isArray(rows) ? rows : []).filter((row) => {
         if (!row || !row.id) return false;
         return !(this.isArchivedAgentRecord && this.isArchivedAgentRecord(row));
       });
       if (store) {
-        store.agents = list;
-        store.agentsHydrated = true;
-        store.agentsLoading = false;
-        store.agentsLastError = '';
-        store.agentCount = list.length;
-        store._lastAgentsRefreshAt = Date.now();
+        if (bridge && typeof bridge.assign === 'function') {
+          bridge.assign({
+            agents: list,
+            agentsHydrated: true,
+            agentsLoading: false,
+            agentsLastError: '',
+            agentCount: list.length,
+            _lastAgentsRefreshAt: Date.now()
+          });
+        } else {
+          Object.assign(store, {
+            agents: list,
+            agentsHydrated: true,
+            agentsLoading: false,
+            agentsLastError: '',
+            agentCount: list.length,
+            _lastAgentsRefreshAt: Date.now()
+          });
+        }
         if (store.activeAgentId) {
           var stillActive = list.some(function(row) {
             return !!(row && String(row.id || '') === String(store.activeAgentId || ''));
@@ -312,7 +339,11 @@
             stillActive = true;
           }
           if (!stillActive) {
-            if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
+            var setActiveAgentId = bridge && typeof bridge.method === 'function'
+              ? bridge.method('setActiveAgentId')
+              : null;
+            if (typeof setActiveAgentId === 'function') setActiveAgentId(null);
+            else if (bridge && typeof bridge.set === 'function') bridge.set('activeAgentId', null);
             else store.activeAgentId = null;
           }
         }
@@ -324,7 +355,10 @@
       var opts = options && typeof options === 'object' ? options : {};
       var preferredId = String(opts.preferred_id || '').trim();
       var clearWhenMissing = opts.clear_when_missing !== false;
-      var store = Alpine.store('app');
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
       var rows = [];
       try {
         rows = await this.refreshAgentRosterAuthoritative();
@@ -425,13 +459,20 @@
     },
 
     setStoreActiveAgentId: function(agentId) {
-      var store = Alpine.store('app');
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
       if (!store) return;
-      if (typeof store.setActiveAgentId === 'function') {
-        store.setActiveAgentId(agentId || null);
+      var setActiveAgentId = bridge && typeof bridge.method === 'function'
+        ? bridge.method('setActiveAgentId')
+        : null;
+      if (typeof setActiveAgentId === 'function') {
+        setActiveAgentId(agentId || null);
         return;
       }
-      store.activeAgentId = agentId || null;
+      if (bridge && typeof bridge.set === 'function') bridge.set('activeAgentId', agentId || null);
+      else store.activeAgentId = agentId || null;
       try {
         if (store.activeAgentId) localStorage.setItem('infring-last-active-agent-id', String(store.activeAgentId));
         else localStorage.removeItem('infring-last-active-agent-id');
@@ -602,10 +643,13 @@
         if (mode === 'terminal') next.draft_terminal = draft;
         else next.draft_chat = draft;
         this.conversationCache[key] = next;
-        var appStore = Alpine.store('app');
-        if (appStore && typeof appStore.saveAgentChatPreview === 'function') {
-          appStore.saveAgentChatPreview(agentId, this.conversationCache[key].messages);
-        }
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
+          ? bridge.method('saveAgentChatPreview')
+          : null;
+        if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, this.conversationCache[key].messages);
         this.persistConversationCache();
       } catch {}
     },

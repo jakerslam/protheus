@@ -118,6 +118,27 @@ async function infringRefreshAgents(page, opts) {
         if (!Number.isFinite(ts) || (now - ts) > ttlMs) return;
         nextActivity[id] = entry;
       });
+      nextAgents.forEach(function(agent) {
+        if (!agent || !agent.id) return;
+        var projection = agent.agent_activity_projection || agent.activity_projection || agent.live_activity_projection || null;
+        if (!projection || typeof projection !== 'object') return;
+        var projectedState = String(projection.state || projection.activity || '').trim().toLowerCase();
+        if (!projectedState) return;
+        var projectedTs = Number(projection.ts || projection.updated_at || now);
+        if (!Number.isFinite(projectedTs) || projectedTs <= 0) projectedTs = now;
+        var id = String(agent.id);
+        if (projectedState === 'idle' || projectedState === 'done' || projectedState === 'stop' || projectedState === 'stopped') {
+          delete nextActivity[id];
+          return;
+        }
+        nextActivity[id] = {
+          state: projectedState,
+          ts: projectedTs,
+          source: String(projection.source || 'core_runtime').trim() || 'core_runtime',
+          optimistic: false,
+          display_label: String(projection.display_label || projection.status_label || '').trim()
+        };
+      });
       store.agentLiveActivity = nextActivity;
       if (store.activeAgentId) {
         var activeId = String(store.activeAgentId || '');

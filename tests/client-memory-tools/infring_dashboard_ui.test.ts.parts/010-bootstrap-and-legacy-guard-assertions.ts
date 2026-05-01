@@ -661,8 +661,14 @@ function assertChatEnhancementFeatures() {
   // Prompt suggestion chips above composer
   assertContains(chatSource, 'refreshPromptSuggestions', 'prompt suggestion refresh flow missing');
   assertContains(chatSource, "/api/agents/' + encodeURIComponent(agentId) + '/suggestions", 'suggestion API client call missing');
-  assertContains(chatSource, 'collectPromptSuggestionContext()', 'prompt suggestion context extractor missing');
-  assertContains(chatSource, 'payload.recent_context = String(context.signature).trim();', 'prompt suggestion request should include recent context signature');
+  assert.ok(
+    !chatSource.includes('collectPromptSuggestionContext()'),
+    'prompt suggestions should not derive context from shell-local message history'
+  );
+  assert.ok(
+    !chatSource.includes('payload.recent_context ='),
+    'prompt suggestion requests should not include shell-derived recent_context'
+  );
   assertContains(chatSource, '/^(post-(response|silent|error|terminal)|init|refresh)$/i.test(cleanHint)', 'prompt suggestion hint sanitizer missing in chat client');
   assertContains(chatSource, 'row = clampWords(row, 10);', 'suggestion normalizer should preserve full 10-word budget');
   assertContains(chatSource, 'if (words < 3 || words > 10) return true;', 'suggestion normalizer word budget guard missing');
@@ -714,6 +720,26 @@ function assertChatEnhancementFeatures() {
   // Artifact output: full file and folder tree + downloadable archive
   assertContains(chatSource, "case '/file':", 'slash command /file missing');
   assertContains(chatSource, "case '/folder':", 'slash command /folder missing');
+  assertContains(
+    chatSource,
+    'if (matched && this.isShellOwnedSlashCommand(matched.cmd)) {',
+    'chat send path must gate shell-owned slash execution explicitly'
+  );
+  const shellOwnedSlashBlockStart = chatSource.indexOf('isShellOwnedSlashCommand: function(cmd) {');
+  assert.ok(shellOwnedSlashBlockStart >= 0, 'shell-owned slash command classifier missing');
+  const shellOwnedSlashBlockEnd = chatSource.indexOf('\n    runSlashMemprobe:', shellOwnedSlashBlockStart);
+  assert.ok(shellOwnedSlashBlockEnd > shellOwnedSlashBlockStart, 'shell-owned slash command classifier boundary missing');
+  const shellOwnedSlashBlock = chatSource.slice(shellOwnedSlashBlockStart, shellOwnedSlashBlockEnd);
+  assertContains(shellOwnedSlashBlock, "case '/help':", 'shell-owned slash classifier should keep local help handling');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/file':"), 'workflow-owned /file slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/folder':"), 'workflow-owned /folder slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/memory':"), 'workflow-owned /memory slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/browse':"), 'workflow-owned /browse slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/search':"), 'workflow-owned /search slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/batch':"), 'workflow-owned /batch slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/capabilities':"), 'workflow-owned /capabilities slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/cron':"), 'workflow-owned /cron slash command must not stay shell-owned');
+  assert.ok(!shellOwnedSlashBlock.includes("case '/undo':"), 'workflow-owned /undo slash command must not stay shell-owned');
   assertContains(laneSource, "parts[3] === 'file' && parts[4] === 'read'", 'lane file-read endpoint missing');
   assertContains(laneSource, "parts[3] === 'folder' && parts[4] === 'export'", 'lane folder-export endpoint missing');
   assertContains(laneSource, "pathname.startsWith('/api/chat/export/')", 'chat export download endpoint missing');
@@ -787,16 +813,28 @@ function assertChatEnhancementFeatures() {
   assertContains(chatSource, "rtool.name || '').toLowerCase() === 'thought_process'", 'ws response thought-tool hydration guard missing');
   assertContains(chatSource, 'streamedTools = responseTools;', 'ws response tool fallback should hydrate final tool cards when stream events are sparse');
   assertContains(chatSource, 'this.assistantTurnMetadataFromPayload(data, streamedTools)', 'ws response path should preserve structured turn metadata from payloads');
-  assertContains(chatSource, 'fallbackAssistantTextFromPayload: function(payload, tools)', 'chat UI must expose a shared fallback-summary helper for blank assistant turns');
+  assert.ok(
+    !chatSource.includes('fallbackAssistantTextFromPayload: function(payload, tools)'),
+    'chat UI should not expose shell-side assistant fallback text replacement'
+  );
   assertContains(chatSource, 'responseWorkflowFromPayload: function(payload)', 'chat UI must preserve workflow metadata for history repair and regression checks');
   assertContains(chatSource, 'workflowResponseTextFromPayload: function(payload)', 'chat UI must expose workflow-authored response extraction for synthesized turns');
   assertContains(chatSource, 'var workflowText = this.workflowResponseTextFromPayload(data);', 'chat UI should prefer workflow-authored response text before placeholder assistant prose');
   assertContains(chatSource, 'out.response_workflow = data.response_workflow;', 'chat history metadata must preserve workflow state on assistant rows');
   assertContains(chatSource, 'if (role === \'agent\' && !isTerminal && !String(text || \'\').trim()) {', 'session normalization must repair blank assistant rows even when tool cards are sparse');
-  assertContains(chatSource, 'self.fallbackAssistantTextFromPayload(m, tools)', 'session normalization should repair blank assistant rows from workflow/finalization metadata');
-  assertContains(chatSource, 'this.normalizeSessionMessages({ messages: sanitized })', 'cached session restore should re-normalize persisted tool metadata');
+  assert.ok(
+    !chatSource.includes('self.fallbackAssistantTextFromPayload(m, tools)'),
+    'session normalization should not repair assistant history rows from workflow/finalization metadata inside the shell'
+  );
+  assert.ok(
+    !chatSource.includes('this.normalizeSessionMessages({ messages: sanitized })'),
+    'cached session restore should not re-normalize persisted tool metadata back into shell-owned session truth'
+  );
   assertContains(chatSource, 'duplicate.response_finalization = payload.response_finalization;', 'dedupe merge should preserve response finalization metadata on agent rows');
-  assertContains(chatSource, 'this.fallbackAssistantTextFromPayload(duplicate, duplicate.tools || [])', 'dedupe merge should rehydrate visible assistant text from preserved workflow metadata');
+  assert.ok(
+    !chatSource.includes('this.fallbackAssistantTextFromPayload(duplicate, duplicate.tools || [])'),
+    'dedupe merge should preserve workflow metadata without rehydrating visible assistant text inside the shell'
+  );
   assertContains(chatSource, "id: 'completion-step-' + (si + 1) + '-' + stepName", 'tool completion repair should synthesize visible tool rows when only completion metadata was persisted');
 }
 

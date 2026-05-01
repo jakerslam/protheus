@@ -5,13 +5,10 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   import { onMount, onDestroy } from 'svelte';
 
   let sidebarAgents = [];
-  let localFallbackAgents = [];
   let uiTick = 0;
   let localConfirmArchiveId = '';
   let unsubs = [];
   let tickTimer = 0;
-  let fallbackFetchInFlight = false;
-  let lastFallbackFetchAt = 0;
 
   function appStoreService() {
     var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
@@ -20,69 +17,30 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function app() {
     try {
       var service = appStoreService();
-      var root = service && typeof service.root === 'function' ? service.root() : null;
+      var root = rootApp();
       if (root) return root;
       return service && typeof service.current === 'function' ? service.current() : null;
     } catch (_e) {
       return null;
     }
   }
+  function rootApp() {
+    try {
+      var service = appStoreService();
+      return service && typeof service.root === 'function' ? service.root() : null;
+    } catch (_e) {
+      return null;
+    }
+  }
+  function rootSidebarRows() {
+    var root = rootApp();
+    return root && Array.isArray(root.chatSidebarVisibleRows) ? root.chatSidebarVisibleRows : [];
+  }
   function call(fn) {
     var s = app();
     if (!s || typeof s[fn] !== 'function') return undefined;
     var args = Array.prototype.slice.call(arguments, 1);
     try { return s[fn].apply(s, args); } catch (_e) { return undefined; }
-  }
-  function storeRows(name) {
-    var s = app();
-    if (!s) return [];
-    try {
-      var rows = s[name];
-      return Array.isArray(rows) ? rows : [];
-    } catch (_e) {
-      return [];
-    }
-  }
-  function visibleAgents() {
-    uiTick;
-    if (Array.isArray(sidebarAgents) && sidebarAgents.length) return sidebarAgents;
-    var visible = storeRows('chatSidebarVisibleRows');
-    if (visible.length) return visible;
-    var rows = storeRows('chatSidebarRows');
-    if (rows.length) return rows;
-    var agents = storeRows('chatSidebarAgents');
-    if (agents.length) return agents;
-    var storeAgents = storeRows('agents');
-    if (storeAgents.length) return storeAgents;
-    return Array.isArray(localFallbackAgents) ? localFallbackAgents : [];
-  }
-  async function fetchFallbackAgents(force) {
-    var currentRows = visibleAgents();
-    if (!force && currentRows.length) return;
-    var now = Date.now();
-    if (!force && lastFallbackFetchAt && (now - lastFallbackFetchAt) < 2000) return;
-    if (fallbackFetchInFlight) return;
-    fallbackFetchInFlight = true;
-    lastFallbackFetchAt = now;
-    try {
-      var rows = null;
-      if (typeof window !== 'undefined' && window.InfringAPI && typeof window.InfringAPI.get === 'function') {
-        rows = await window.InfringAPI.get('/api/agents?view=sidebar&authority=runtime&compact=1');
-      } else if (typeof fetch === 'function') {
-        var response = await fetch('/api/agents?view=sidebar&authority=runtime&compact=1');
-        rows = response && response.ok ? await response.json() : null;
-      }
-      if (Array.isArray(rows)) {
-        localFallbackAgents = rows.filter(function(row) {
-          return row && row.id;
-        });
-        bump();
-      }
-    } catch (_e) {
-      // Keep the sidebar fail-soft; the normal root/store hydration path may recover.
-    } finally {
-      fallbackFetchInFlight = false;
-    }
   }
   function bump() {
     uiTick += 1;
@@ -268,20 +226,24 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
 
   onMount(function() {
     var s = typeof window !== 'undefined' && window.InfringChatStore;
-    var appStore = appStoreService();
     if (s && s.sidebarAgents) {
       unsubs.push(s.sidebarAgents.subscribe(function(rows) {
-        sidebarAgents = Array.isArray(rows) ? rows : [];
+        var nextRows = Array.isArray(rows) ? rows : [];
+        sidebarAgents = nextRows.length ? nextRows : rootSidebarRows();
+      }));
+    }
+    var service = appStoreService();
+    if (service && typeof service.subscribe === 'function') {
+      unsubs.push(service.subscribe(function() {
+        var nextRows = s && s.sidebarAgents && typeof s.sidebarAgents.get === 'function'
+          ? s.sidebarAgents.get()
+          : [];
+        sidebarAgents = Array.isArray(nextRows) && nextRows.length ? nextRows : rootSidebarRows();
       }));
     }
     if (s && s.currentAgent) unsubs.push(s.currentAgent.subscribe(bump));
     if (s && s.agents) unsubs.push(s.agents.subscribe(bump));
-    if (appStore && typeof appStore.subscribe === 'function') unsubs.push(appStore.subscribe(bump));
-    fetchFallbackAgents(false);
-    tickTimer = window.setInterval(function() {
-      bump();
-      fetchFallbackAgents(false);
-    }, 1000);
+    tickTimer = window.setInterval(bump, 1000);
   });
 
   onDestroy(function() {
@@ -292,7 +254,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   });
 </script>
 
-{#each visibleAgents() as agent (agentKey(agent))}
+{#each sidebarAgents as agent (agentKey(agent))}
   <a
     class={"nav-item nav-sub-item nav-agent-row " + rowClass(agent)}
     data-agent-id={agentId(agent)}

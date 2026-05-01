@@ -25,16 +25,6 @@
       var bridge = this.shellAppStoreBridge();
       if (bridge && typeof bridge.notify === 'function') bridge.notify(reason || 'shell_root_changed');
     },
-    syncThemeToShellStore(reason) {
-      var bridge = this.shellAppStoreBridge();
-      var values = { themeMode: this.themeMode, theme: this.theme };
-      if (bridge && typeof bridge.assign === 'function') {
-        bridge.assign(values);
-      } else if (typeof window !== 'undefined' && window.InfringApp && window.InfringApp !== this) {
-        Object.assign(window.InfringApp, values);
-      }
-      this.notifyShellAppStore(reason || 'theme_changed');
-    },
     getAppStore() {
       var bridge = this.shellAppStoreBridge();
       if (bridge && typeof bridge.current === 'function') {
@@ -262,7 +252,6 @@
       if (appStoreBridge && typeof appStoreBridge.registerShellRoot === 'function') {
         appStoreBridge.registerShellRoot(this);
       }
-      if (typeof this.syncThemeToShellStore === 'function') this.syncThemeToShellStore('theme_initialized');
       this._bootSplashStartedAt = Date.now();
       this.bootSplashVisible = true;
       this.applyOverlayGlassTemplate('simple-glass', true);
@@ -280,7 +269,6 @@
         if (self.themeMode === 'system') {
           self.beginInstantThemeFlip();
           self.theme = e.matches ? 'dark' : 'light';
-          if (typeof self.syncThemeToShellStore === 'function') self.syncThemeToShellStore('system_theme_changed');
         }
       });
       var validPages = ['chat','agents','sessions','approvals','comms','workflows','scheduler','channels','eyes','skills','hands','overview','analytics','logs','runtime','settings','wizard'];
@@ -374,9 +362,6 @@
 
       this.pollStatus();
       var initStore = this.getAppStore();
-      if (initStore && typeof initStore.refreshAgents === 'function') {
-        initStore.refreshAgents({ force: true }).catch(function() {});
-      }
       if (initStore && typeof initStore.checkOnboarding === 'function') initStore.checkOnboarding();
       if (initStore && typeof initStore.checkAuth === 'function') initStore.checkAuth();
       if (!this._dashboardClockTimer) this._dashboardClockTimer = setInterval(function() { self.clockTick = Date.now(); }, 1000);
