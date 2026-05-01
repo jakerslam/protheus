@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:36:45.301Z",
+  "updated_at": "2026-05-01T23:42:34.323Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -174,15 +174,6 @@
       "deadline": "after_red_section",
       "source_family": "Kernel Sentinel Feedback Quality Upgrade",
       "summary": "When many subsystem symptoms co-occur, have Sentinel pause local-ticket generation and emit a structural diagnosis with recommended rebuild/realignment mode."
-    },
-    {
-      "id": "KSENT-SELF-REVIEW",
-      "title": "Add Sentinel feedback quality self-review",
-      "section": "white",
-      "owner": "sentinel",
-      "deadline": "after_red_section",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "Track whether Sentinel findings were accepted, rejected, actionable, resolved, or merely symptom patches so feedback quality improves over time."
     },
     {
       "id": "SHELL-NEXT",

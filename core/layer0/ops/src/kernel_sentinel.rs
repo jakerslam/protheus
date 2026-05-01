@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod assimilation_handoff; mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
+mod assimilation_handoff; mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod feedback_quality; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 pub use assimilation_handoff::build_external_assimilation_transfer_plan;
 pub use diagnostic_authorization::{
@@ -50,6 +50,11 @@ pub use failure_level::{
     kernel_sentinel_failure_level_taxonomy, kernel_sentinel_root_frame_for_finding,
     kernel_sentinel_semantic_frame_for_finding, kernel_sentinel_semantic_frame_for_parts,
     KernelSentinelFailureLevel, KERNEL_SENTINEL_FAILURE_LEVELS,
+};
+pub use feedback_quality::{
+    kernel_sentinel_feedback_quality_model, review_kernel_sentinel_feedback_quality,
+    KernelSentinelFeedbackQualityReview, KernelSentinelFeedbackReviewInput,
+    KernelSentinelFeedbackReviewStatus, KERNEL_SENTINEL_FEEDBACK_QUALITY_SCHEMA_VERSION,
 };
 pub use invariant_registry::{
     kernel_sentinel_invariant_by_id, kernel_sentinel_invariant_registry,

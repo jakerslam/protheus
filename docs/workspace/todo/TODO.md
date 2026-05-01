@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:36:45.301Z
+Updated: 2026-05-01T23:42:34.323Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,10 +13,10 @@ Updated: 2026-05-01T23:36:45.301Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 26
+- active_items: 25
 - red: 8
 - yellow: 9
-- white: 9
+- white: 8
 
 ## Red Section (Do Immediately)
 - `SHELL-CLEANUP` — Finish the Shell source-of-truth cleanup
@@ -113,11 +113,6 @@ Updated: 2026-05-01T23:36:45.301Z
   deadline: `after_red_section`
   source_family: `Kernel Sentinel Feedback Quality Upgrade`
   summary: When many subsystem symptoms co-occur, have Sentinel pause local-ticket generation and emit a structural diagnosis with recommended rebuild/realignment mode.
-- `KSENT-SELF-REVIEW` — Add Sentinel feedback quality self-review
-  owner: `sentinel`
-  deadline: `after_red_section`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Track whether Sentinel findings were accepted, rejected, actionable, resolved, or merely symptom patches so feedback quality improves over time.
 - `SHELL-NEXT` — Build Shell-next only after authority extraction proofs
   owner: `unassigned`
   deadline: `after_red_section`
