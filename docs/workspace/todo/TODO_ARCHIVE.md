@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:30:41.084Z
+Updated: 2026-05-01T23:33:39.039Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:30:41.084Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-ISSUE-RELEASE-BRIDGES` — Repair Sentinel release-evidence and receipt-integrity blockers
+  completed_at: `2026-05-01T23:33:39.037Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Investigate and close the release_evidence and receipt_integrity bridge failures that currently drive Kernel Sentinel release_fail verdicts.
+  completion_note: Added an Observability-owned release bridge repair lane for release-evidence and receipt-integrity Sentinel blockers. The lane requires current evidence, exact bridge field coverage, owner guess, replay command, blocker class, artifact refs, and no auto-apply policy. Validation: release bridge guard passed; controlled violation failed closed; JSON parsed; targeted release-gate synthesis and strict critical-finding cargo tests passed.
 - `KSENT-ISSUE-EMPTY-RESPONSES` — Triage synthetic empty-response failures from Sentinel
   completed_at: `2026-05-01T23:30:41.083Z`
   previous_section: `yellow`
