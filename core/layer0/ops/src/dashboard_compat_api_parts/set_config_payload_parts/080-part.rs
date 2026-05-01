@@ -1037,6 +1037,9 @@ fn response_prompt_echo_detected(user_message: &str, response_text: &str) -> boo
     if message.is_empty() || response.is_empty() {
         return false;
     }
+    if response_contains_prompt_scaffold(&response) {
+        return true;
+    }
     if response == message
         || response.starts_with(&message)
         || response.contains(&format!("\"{message}\""))
@@ -1057,6 +1060,18 @@ fn response_prompt_echo_detected(user_message: &str, response_text: &str) -> boo
     let overlap_ratio = overlap / denominator;
     let response_word_count = response.split_whitespace().count();
     response_word_count <= 60 && overlap_ratio >= 0.9
+}
+
+fn response_contains_prompt_scaffold(response_text: &str) -> bool {
+    let response = clean_text(response_text, 2_400).to_ascii_lowercase();
+    !response.is_empty()
+        && ((response.contains("<instructions>")
+            && response.contains("</instructions>")
+            && response.contains("<output_format"))
+            || (response.contains("reply naturally as the assistant")
+                && response.contains("write the assistant reply now"))
+            || (response.contains("user:")
+                && response.contains("write the assistant reply now")))
 }
 
 fn response_has_evidence_tags(text: &str) -> bool {
