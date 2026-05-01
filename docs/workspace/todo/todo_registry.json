@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T22:58:52.384Z",
+  "updated_at": "2026-05-01T23:01:18.605Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -84,15 +84,6 @@
       "deadline": "2026-05-10",
       "source_family": "Shell Alpine Purge Wave",
       "summary": "Remove the remaining Alpine boot/runtime dependency once the retirement guard is green."
-    },
-    {
-      "id": "KSENT-CONTRADICTIONS",
-      "title": "Add policy-vs-runtime contradiction detection",
-      "section": "yellow",
-      "owner": "sentinel",
-      "deadline": "2026-05-14",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "Compare doctrine, contracts, code paths, and artifacts to surface semantic contradictions such as projection-only policy with runtime-state mirrors."
     },
     {
       "id": "KSENT-FRESHNESS-TIERS",
