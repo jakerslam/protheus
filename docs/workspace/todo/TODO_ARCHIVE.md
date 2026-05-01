@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:42:34.323Z
+Updated: 2026-05-01T23:50:02.175Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:42:34.323Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-BIGPICTURE` — Add big-picture regression mode
+  completed_at: `2026-05-01T23:50:02.174Z`
+  previous_section: `white`
+  owner: `sentinel`
+  deadline: `after_red_section`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: When many subsystem symptoms co-occur, have Sentinel pause local-ticket generation and emit a structural diagnosis with recommended rebuild/realignment mode.
+  completion_note: Added Kernel Sentinel big-picture regression mode in core. The model pauses local-ticket generation when co-occurring subsystem symptoms indicate structural diagnosis or rebuild/realignment, while preserving local ticketing for isolated defects. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib big_picture_regression -- --nocapture passed 3/3; file-size check kept kernel_sentinel.rs at 496 lines and big_picture_regression.rs at 201 lines.
 - `KSENT-SELF-REVIEW` — Add Sentinel feedback quality self-review
   completed_at: `2026-05-01T23:42:34.321Z`
   previous_section: `white`
