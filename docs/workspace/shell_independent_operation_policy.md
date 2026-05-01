@@ -2,7 +2,7 @@
 
 Status: Canonical architecture policy
 Owner: Jay
-Scope: Core, Orchestration, CLI, Gateways, Shell UI assets, and Shell deletion/amputation tests
+Scope: Core, Orchestration Surface, CLI, Gateways, Shell UI assets, and Shell deletion/amputation tests
 Effective: April 2026
 
 ## Purpose
@@ -11,7 +11,7 @@ The system must operate without the browser Shell.
 
 The Shell is useful, but it is not part of runtime authority. If the dashboard,
 browser bundle, Svelte islands, CSS, images, and other presentation assets vanish,
-Core, Orchestration, CLI command paths, Gateway status, and authoritative
+Core, Orchestration Surface, CLI command paths, Gateway status, and authoritative
 runtime contracts must still build and operate.
 
 This policy exists because long-chat stress exposed that the Shell can accidentally
@@ -57,7 +57,7 @@ These surfaces must keep working when browser Shell assets are removed in a
 disposable fixture:
 
 - Core build and authority crates.
-- Orchestration build and contract checks.
+- Orchestration Surface build and contract checks.
 - CLI command registry and basic headless commands.
 - Gateway status/health contracts.
 - Nexus-Conduit-Checkpoint policy guards.
@@ -68,7 +68,7 @@ That guard must prove the above surfaces in a no-browser-Shell fixture.
 
 ## Prohibited Dependencies
 
-Core, Orchestration, CLI, and Gateway authority paths must not require:
+Core, Orchestration Surface, CLI, and Gateway authority paths must not require:
 
 - `infring_static` browser assets;
 - Svelte component bundles;
@@ -115,7 +115,7 @@ compatibility debt, but the implementation must be inspected by role:
 - If it exposes a bounded Gateway/API projection, it is Gateway or adapter glue.
 - If it decides truth, admission, policy, or receipts, it is misplaced and must
 move to Core.
-- If it coordinates workflow flow, it belongs in Orchestration.
+- If it coordinates workflow flow, it belongs in Orchestration Surface.
 
 Compatibility naming does not grant permission for browser Shell assets to become
 runtime dependencies.
@@ -125,7 +125,7 @@ runtime dependencies.
 Shell independence must be tested by deletion, not assumption.
 
 The guard must create or use a disposable workspace fixture, remove browser Shell
-asset paths, and prove that Core, Orchestration, CLI, and Gateway status
+asset paths, and prove that Core, Orchestration Surface, CLI, and Gateway status
 still build or smoke successfully. The fixture must not delete non-browser CLI/SDK
 compatibility wrappers unless a later migration explicitly separates those paths.
 
@@ -170,6 +170,6 @@ Executable enforcement is owned by `POLICY-REFINE-007`, the Shell amputation
 regression guard: `npm run -s ops:shell:amputation:guard`.
 
 The guard must create a disposable no-browser-Shell fixture, omit browser Shell
-asset paths, prove Core, Orchestration, CLI command registry, and Gateway
+asset paths, prove Core, Orchestration Surface, CLI command registry, and Gateway
 status/health smoke paths still run, and fail if non-UI runtime paths import,
 embed, execute, or read browser Shell assets.

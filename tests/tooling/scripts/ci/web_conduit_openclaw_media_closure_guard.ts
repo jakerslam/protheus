@@ -47,7 +47,7 @@ const TEST_HOST = 'core/layer0/ops/src/web_conduit_parts/098-openclaw-media-host
 const TEST_OUTBOUND = 'core/layer0/ops/src/web_conduit_parts/100-openclaw-outbound-audio-tests.rs';
 const TEST_STORE = 'core/layer0/ops/src/web_conduit_parts/101-openclaw-media-store-tests.rs';
 const SRS = 'docs/workspace/SRS.md';
-const TODO = 'docs/workspace/TODO.md';
+const TODO = 'docs/workspace/todo/TODO.md';
 
 type Check = { id: string; ok: boolean; detail?: string };
 

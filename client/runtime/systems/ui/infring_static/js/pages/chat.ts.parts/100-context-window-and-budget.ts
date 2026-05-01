@@ -316,31 +316,52 @@
       return { raw: raw, summary: summary };
     },
 
-    stageModelRecoveryCoordinationRequest: function(source, failure) {
-      var previousModel = String(
-        (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || 'unknown'
-      ).trim() || 'unknown';
-      var previousProvider = String(
-        (this.currentAgent && this.currentAgent.model_provider) || ''
-      ).trim() || 'unknown';
-      var recoveryRequest = [
-        'Use the model_provider_coordination route to recover from a model backend failure.',
-        'Do not switch models or retry automatically from the shell.',
-        'Source: ' + String(source || 'runtime'),
-        'Previous model: ' + previousModel,
-        'Previous provider: ' + previousProvider,
-        'Failure: ' + String(failure && failure.summary ? failure.summary : 'unknown')
-      ].join('\n');
-      if (!String(this.inputText || '').trim()) {
-        this.inputText = recoveryRequest;
+    collectFailoverModelCandidates: async function() {
+      var self = this;
+      var activeSet = this.collectModelIdVariants(this.activeModelCandidateIds());
+      var out = [];
+      var seen = {};
+      var push = function(id) {
+        var modelId = String(id || '').trim();
+        if (!modelId || modelId.toLowerCase() === 'auto') return;
+        var variants = self.collectModelIdVariants(modelId);
+        var keys = Object.keys(variants);
+        for (var i = 0; i < keys.length; i++) {
+          if (activeSet[keys[i]]) return;
+        }
+        var normalized = modelId.toLowerCase();
+        if (seen[normalized]) return;
+        seen[normalized] = true;
+        out.push(modelId);
+      };
+
+      var agent = this.currentAgent || {};
+      var fallbacks = Array.isArray(agent.fallback_models)
+        ? agent.fallback_models
+        : (this.agentDrawer && Array.isArray(this.agentDrawer._fallbacks) ? this.agentDrawer._fallbacks : []);
+      for (var f = 0; f < fallbacks.length; f++) {
+        push(this.normalizeFailoverCandidateId(fallbacks[f]));
       }
-      this.addNoticeEvent({
-        notice_label: 'Model backend failed. A recovery request was staged in the composer for deliberate submission.',
-        notice_type: 'warn',
-        ts: Date.now()
+
+      var models = await this.ensureFailoverModelCache();
+      var sorted = (Array.isArray(models) ? models.slice() : []).filter(function(row) {
+        return !!(row && row.id);
       });
-      this.scrollToBottom();
-      this.scheduleConversationPersist();
+      sorted.sort(function(a, b) {
+        var aId = String((a && a.id) || '').trim();
+        var bId = String((b && b.id) || '').trim();
+        var aUsage = self.modelUsageTimestamp(aId);
+        var bUsage = self.modelUsageTimestamp(bId);
+        if (bUsage !== aUsage) return bUsage - aUsage;
+        var aProvider = String((a && a.provider) || '').toLowerCase();
+        var bProvider = String((b && b.provider) || '').toLowerCase();
+        if (aProvider !== bProvider) return aProvider.localeCompare(bProvider);
+        return aId.toLowerCase().localeCompare(bId.toLowerCase());
+      });
+      for (var m = 0; m < sorted.length; m++) {
+        push(this.normalizeFailoverCandidateId(sorted[m]));
+      }
+      return out;
     },
 
     attemptAutomaticFailoverRecovery: async function(source, rawFailure, options) {
@@ -361,6 +382,11 @@
       payload.failover_source = String(source || 'runtime');
 
       try {
+        var candidates = await this.collectFailoverModelCandidates();
+        if (!candidates.length) return false;
+        var targetModel = String(candidates[0] || '').trim();
+        if (!targetModel) return false;
+
         if (opts.remove_last_agent_failure) {
           var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (last && last.role === 'agent') {
@@ -371,21 +397,34 @@
           }
         }
 
-        this.stageModelRecoveryCoordinationRequest(source, failure);
+        this.messages.push({
+          id: ++msgId,
+          role: 'system',
+          text:
+            'Model backend failed (' +
+            failure.summary +
+            '). Switching to ' +
+            targetModel +
+            ' and retrying the last request automatically.',
+          meta: '',
+          tools: [],
+          system_origin: 'model:auto-recover',
+          ts: Date.now()
+        });
+        this.scrollToBottom();
+        this.scheduleConversationPersist();
+
+        var previousModel = String(
+          (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || 'unknown'
+        ).trim() || 'unknown';
+        var previousProvider = String(
+          (this.currentAgent && this.currentAgent.model_provider) || ''
+        ).trim();
+        await this.switchAgentModelWithGuards({ id: targetModel }, {
+          agent_id: agentId,
+          previous_model: previousModel,
+          previous_provider: previousProvider
+        });
 
         this.sending = false;
         this._responseStartedAt = 0;
-        this.tokenCount = 0;
-        this._clearTypingTimeout();
-        this._clearPendingWsRequest(agentId);
-        this.setAgentLiveActivity(agentId, 'idle');
-        return true;
-      } catch (error) {
-        var modelRecoveryError = String(error && error.message ? error.message : error);
-        console.warn('[model recovery staging failed]', modelRecoveryError);
-        InfringToast.error('Model recovery staging failed. See console for details.');
-        return false;
-      } finally {
-        this._inflightFailoverInProgress = false;
-      }
-    },

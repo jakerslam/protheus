@@ -168,6 +168,14 @@
       return services && services.popup ? services.popup : null;
     },
 
+    notifyDashboardPopupChanged(reason) {
+      var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
+      var bridge = services && services.appStore ? services.appStore : null;
+      if (bridge && typeof bridge.notify === 'function') {
+        try { bridge.notify(reason || 'dashboard_popup_changed'); } catch(_) {}
+      }
+    },
+
     clearDashboardPopupState() {
       var service = this.dashboardPopupService();
       this.dashboardPopup = service && typeof service.emptyState === 'function'
@@ -512,6 +520,7 @@
           block_away: anchor.block_away === 'top' ? 'top' : 'bottom',
           compact: false
         };
+      this.notifyDashboardPopupChanged('dashboard_popup_open');
     },
 
     showTaskbarNavPopup(label, ev) {
@@ -557,12 +566,14 @@
       var service = this.dashboardPopupService();
       if (service && typeof service.closeState === 'function') {
         this.dashboardPopup = service.closeState(this.dashboardPopup, rawId);
+        this.notifyDashboardPopupChanged('dashboard_popup_close');
         return;
       }
       var popupId = String(rawId || '').trim();
       var currentId = String(this.dashboardPopup && this.dashboardPopup.id || '').trim();
       if (popupId && currentId && popupId !== currentId) return;
       this.clearDashboardPopupState();
+      this.notifyDashboardPopupChanged('dashboard_popup_close');
     },
 
     bottomDockIsDraggingVisual(id) {

@@ -9,7 +9,7 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 const ROOT = process.cwd();
 
 const DEFAULT_SRS_PATH = 'docs/workspace/SRS.md';
-const DEFAULT_TODO_PATH = 'docs/workspace/TODO.md';
+const DEFAULT_TODO_PATH = 'docs/workspace/todo/TODO_SRS_SYNC.md';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/srs_todo_section_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md';
 
@@ -296,7 +296,7 @@ function main() {
       violations.push({
         type: 'todo_rollup_missing',
         detail:
-          'docs/workspace/TODO.md is missing one or more required Global Rollup keys (total_rows, queued, in_progress, blocked, blocked_external_prepared, done, existing_coverage_validated)',
+          'docs/workspace/todo/TODO.md is missing one or more required Global Rollup keys (total_rows, queued, in_progress, blocked, blocked_external_prepared, done, existing_coverage_validated)',
       });
     } else {
       const rollupKeys: Array<keyof RollupSummary> = [

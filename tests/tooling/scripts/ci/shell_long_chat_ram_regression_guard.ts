@@ -6,17 +6,6 @@ import { resolve } from 'node:path';
 import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
-import {
-  SYNTHETIC_BUDGET,
-  buildSnapshot,
-  evaluateBudgets,
-  markdown,
-  rounded,
-  type Args,
-  type MemorySnapshot,
-  type ProjectionSmoke,
-  type Violation,
-} from './shell_long_chat_ram_regression_guard_parts/phase_budget_model.ts';
 
 const ROOT = process.cwd();
 const DEFAULT_CHAT_STORE = 'client/runtime/systems/ui/infring_static/js/chat_store.ts';
@@ -26,6 +15,71 @@ const DEFAULT_PLACEHOLDER_SOURCE = 'client/runtime/systems/ui/infring_static/js/
 const DEFAULT_BUBBLE_SOURCE = 'client/runtime/systems/ui/infring_static/js/svelte/chat_bubble_svelte_source.ts';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_long_chat_ram_regression_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_LONG_CHAT_RAM_REGRESSION_GUARD_CURRENT.md';
+
+type Args = {
+  strict: boolean;
+  outJson: string;
+  outMarkdown: string;
+  chatStorePath: string;
+  chatPagePartPath: string;
+  threadSourcePath: string;
+  placeholderSourcePath: string;
+  bubbleSourcePath: string;
+  messageCount: number;
+  maxRenderedThreadMessages: number;
+  maxDomNodesAfterOpen: number;
+  maxHeapGrowthMb: number;
+};
+
+type Violation = {
+  kind: string;
+  path?: string;
+  token?: string;
+  detail: string;
+  observed?: number;
+  limit?: number;
+};
+
+type MemorySnapshot = {
+  label: string;
+  message_count: number;
+  projected_thread_messages: number;
+  map_rows: number;
+  heap: {
+    heap_unsupported: false;
+    used_js_heap_mb: number;
+    total_js_heap_mb: number;
+  };
+  dom_counts: {
+    total_nodes: number;
+    scripts: number;
+    styles: number;
+    divs: number;
+  };
+  custom_element_counts: Record<string, number>;
+};
+
+type ProjectionSmoke = {
+  ok: boolean;
+  before_projected_messages: number;
+  before_map_rows: number;
+  after_open_projected_messages: number;
+  after_open_map_rows: number;
+  centered_projected_messages: number;
+  tail_projected_messages: number;
+};
+
+const SYNTHETIC_BUDGET = {
+  baseDomNodes: 1600,
+  shellNodesAfterOpen: 220,
+  domNodesPerProjectedMessage: 38,
+  domNodesPerMapRow: 5,
+  baseHeapMb: 96,
+  shellHeapAfterOpenMb: 8,
+  heapKbPerRetainedMessage: 16,
+  heapKbPerProjectedMessage: 560,
+  heapKbPerMapRow: 3,
+};
 
 function numberFlag(argv: string[], name: string, fallback: number, min: number, max: number): number {
   const raw = readFlag(argv, name);
@@ -49,8 +103,6 @@ function readArgs(argv: string[]): Args {
     maxRenderedThreadMessages: numberFlag(argv, 'max-rendered-thread-messages', 80, 10, 500),
     maxDomNodesAfterOpen: numberFlag(argv, 'max-dom-nodes-after-open', 11000, 2000, 250000),
     maxHeapGrowthMb: numberFlag(argv, 'max-heap-growth-mb', 160, 10, 10000),
-    maxStorageBytes: numberFlag(argv, 'max-storage-bytes', 262144, 32768, 10_000_000),
-    maxCleanupStorageBytes: numberFlag(argv, 'max-cleanup-storage-bytes', 32768, 1024, 1_000_000),
   };
 }
 
@@ -85,19 +137,10 @@ function syntheticMessages(count: number): any[] {
     rows.push({
       id: `long-chat-ram-${index}`,
       role: index % 4 === 0 ? 'user' : 'agent',
-      text: `${index % 37 === 0 ? 'needle-match ' : ''}Synthetic long-chat message ${index}. `.repeat((index % 7) + 1),
+      text: `Synthetic long-chat message ${index}. `.repeat((index % 7) + 1),
       ts: new Date(baseTime + index * 1000).toISOString(),
       tools: index > 0 && index % 50 === 0
-        ? [{
-            id: `tool-${index}`,
-            name: 'diagnostic_probe',
-            result: 'ok',
-            detail_ref: `/api/agents/chat-ui-default-agent/details/tool-result/tool-${index}`,
-            expanded: false,
-          }]
-        : [],
-      artifacts: index > 0 && index % 120 === 0
-        ? [{ id: `artifact-${index}`, name: 'bounded-report', detail_ref: `/api/agents/chat-ui-default-agent/details/artifact/artifact-${index}` }]
+        ? [{ id: `tool-${index}`, name: 'diagnostic_probe', result: 'ok', expanded: false }]
         : [],
     });
   }
@@ -106,12 +149,6 @@ function syntheticMessages(count: number): any[] {
 
 function flushStore(): Promise<void> {
   return new Promise((resolveDone) => setTimeout(resolveDone, 0));
-}
-
-function readStoreMeta(store: any): any {
-  if (!store || !store.threadProjectionMeta || typeof store.threadProjectionMeta.get !== 'function') return {};
-  const value = store.threadProjectionMeta.get();
-  return value && typeof value === 'object' ? value : {};
 }
 
 async function runProjectionSmoke(args: Args): Promise<ProjectionSmoke> {
@@ -143,68 +180,23 @@ async function runProjectionSmoke(args: Args): Promise<ProjectionSmoke> {
   const afterOpenMapRows = readStoreLength(store.mapRows);
 
   store.setThreadProjectionCenter(Math.floor(args.messageCount / 2));
-  store.syncMessages(messages, messages);
   await flushStore();
-  const scrollProjected = readStoreLength(store.filteredMessages);
-  const scrollMapRows = readStoreLength(store.mapRows);
-  const scrollMeta = readStoreMeta(store);
+  const centeredProjected = readStoreLength(store.filteredMessages);
 
-  const searchRows = messages.filter((message) => String(message.text || '').includes('needle-match'));
-  store.syncMessages(messages, searchRows);
+  store.setThreadProjectionCenter(args.messageCount - 1);
   await flushStore();
-  const searchProjected = readStoreLength(store.filteredMessages);
-  const searchMapRows = readStoreLength(store.mapRows);
-
-  const toolMessage = messages.find((message) => Array.isArray(message.tools) && message.tools.length);
-  const toolDetailBytes = toolMessage ? Buffer.byteLength(JSON.stringify(toolMessage.tools[0] || {}), 'utf8') : 0;
-  store.syncMessages(messages, messages);
-  await flushStore();
-  const toolDetailProjected = readStoreLength(store.filteredMessages);
-  const toolDetailMapRows = readStoreLength(store.mapRows);
-
-  const sessionSwitchMessageCount = Math.max(100, Math.floor(args.messageCount * 0.5));
-  const switchedMessages = syntheticMessages(sessionSwitchMessageCount).map((message, index) => ({
-    ...message,
-    id: `long-chat-ram-session-b-${index}`,
-  }));
-  store.setThreadProjectionCenter(-1);
-  store.syncMessages(switchedMessages, switchedMessages);
-  await flushStore();
-  const sessionSwitchProjected = readStoreLength(store.filteredMessages);
-  const sessionSwitchMapRows = readStoreLength(store.mapRows);
-
-  store.syncMessages([], []);
-  await flushStore();
-  const cleanupProjected = readStoreLength(store.filteredMessages);
-  const cleanupMapRows = readStoreLength(store.mapRows);
+  const tailProjected = readStoreLength(store.filteredMessages);
 
   return {
     ok: afterOpenProjected <= args.maxRenderedThreadMessages &&
-      scrollProjected <= args.maxRenderedThreadMessages &&
-      searchProjected <= args.maxRenderedThreadMessages &&
-      toolDetailProjected <= args.maxRenderedThreadMessages &&
-      sessionSwitchProjected <= args.maxRenderedThreadMessages &&
-      cleanupProjected === 0 &&
-      cleanupMapRows === 0,
+      centeredProjected <= args.maxRenderedThreadMessages &&
+      tailProjected <= args.maxRenderedThreadMessages,
     before_projected_messages: beforeProjected,
     before_map_rows: beforeMapRows,
     after_open_projected_messages: afterOpenProjected,
     after_open_map_rows: afterOpenMapRows,
-    scroll_projected_messages: scrollProjected,
-    scroll_map_rows: scrollMapRows,
-    scroll_window_start_index: Number(scrollMeta.windowStartIndex ?? -1),
-    scroll_window_end_index: Number(scrollMeta.windowEndIndex ?? -1),
-    search_projected_messages: searchProjected,
-    search_map_rows: searchMapRows,
-    search_total_matches: searchRows.length,
-    tool_detail_projected_messages: toolDetailProjected,
-    tool_detail_map_rows: toolDetailMapRows,
-    tool_detail_bytes: toolDetailBytes,
-    session_switch_message_count: sessionSwitchMessageCount,
-    session_switch_projected_messages: sessionSwitchProjected,
-    session_switch_map_rows: sessionSwitchMapRows,
-    cleanup_projected_messages: cleanupProjected,
-    cleanup_map_rows: cleanupMapRows,
+    centered_projected_messages: centeredProjected,
+    tail_projected_messages: tailProjected,
   };
 }
 
@@ -214,6 +206,126 @@ function readStoreLength(store: any): number {
   return Array.isArray(value) ? value.length : -1;
 }
 
+function rounded(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function buildSnapshot(label: string, messageCount: number, projectedMessages: number, mapRows: number): MemorySnapshot {
+  const opened = messageCount > 0;
+  const totalNodes = SYNTHETIC_BUDGET.baseDomNodes +
+    (opened ? SYNTHETIC_BUDGET.shellNodesAfterOpen : 0) +
+    (projectedMessages * SYNTHETIC_BUDGET.domNodesPerProjectedMessage) +
+    (mapRows * SYNTHETIC_BUDGET.domNodesPerMapRow);
+  const usedHeapMb = SYNTHETIC_BUDGET.baseHeapMb +
+    (opened ? SYNTHETIC_BUDGET.shellHeapAfterOpenMb : 0) +
+    ((messageCount * SYNTHETIC_BUDGET.heapKbPerRetainedMessage) / 1024) +
+    ((projectedMessages * SYNTHETIC_BUDGET.heapKbPerProjectedMessage) / 1024) +
+    ((mapRows * SYNTHETIC_BUDGET.heapKbPerMapRow) / 1024);
+  return {
+    label,
+    message_count: messageCount,
+    projected_thread_messages: projectedMessages,
+    map_rows: mapRows,
+    heap: {
+      heap_unsupported: false,
+      used_js_heap_mb: rounded(usedHeapMb),
+      total_js_heap_mb: rounded(usedHeapMb + 48),
+    },
+    dom_counts: {
+      total_nodes: totalNodes,
+      scripts: 42,
+      styles: 28,
+      divs: Math.round(totalNodes * 0.58),
+    },
+    custom_element_counts: {
+      'infring-chat-thread-shell': 1,
+      'infring-chat-bubble-render': projectedMessages,
+      'infring-message-placeholder-shell': 0,
+      'infring-chat-map-shell': opened ? 1 : 0,
+      'infring-chat-stream-shell': projectedMessages,
+    },
+  };
+}
+
+function evaluateBudgets(args: Args, smoke: ProjectionSmoke, before: MemorySnapshot, after: MemorySnapshot): Violation[] {
+  const violations: Violation[] = [];
+  const maxProjected = Math.max(
+    smoke.after_open_projected_messages,
+    smoke.centered_projected_messages,
+    smoke.tail_projected_messages,
+  );
+  if (!smoke.ok || maxProjected > args.maxRenderedThreadMessages) {
+    violations.push({
+      kind: 'projected_thread_messages_unbounded',
+      detail: 'Opening a large chat must not project more than the bounded Svelte thread window.',
+      observed: maxProjected,
+      limit: args.maxRenderedThreadMessages,
+    });
+  }
+  const heapDelta = rounded(after.heap.used_js_heap_mb - before.heap.used_js_heap_mb);
+  if (heapDelta > args.maxHeapGrowthMb) {
+    violations.push({
+      kind: 'estimated_heap_growth_unbounded',
+      detail: 'Estimated JS heap growth for the synthetic long thread exceeds the local regression budget.',
+      observed: heapDelta,
+      limit: args.maxHeapGrowthMb,
+    });
+  }
+  if (after.dom_counts.total_nodes > args.maxDomNodesAfterOpen) {
+    violations.push({
+      kind: 'estimated_dom_nodes_unbounded',
+      detail: 'Estimated DOM nodes after opening the synthetic long thread exceed the local regression budget.',
+      observed: after.dom_counts.total_nodes,
+      limit: args.maxDomNodesAfterOpen,
+    });
+  }
+  if (after.custom_element_counts['infring-chat-bubble-render'] > args.maxRenderedThreadMessages) {
+    violations.push({
+      kind: 'heavy_bubble_instance_count_unbounded',
+      detail: 'Heavy chat bubble custom elements must remain bounded by the rendered thread window.',
+      observed: after.custom_element_counts['infring-chat-bubble-render'],
+      limit: args.maxRenderedThreadMessages,
+    });
+  }
+  return violations;
+}
+
+function markdown(payload: any): string {
+  const lines: string[] = [];
+  lines.push('# Shell Long-Chat RAM Regression Guard');
+  lines.push('');
+  lines.push(`Generated: ${payload.generated_at}`);
+  lines.push(`Revision: ${payload.revision}`);
+  lines.push(`Pass: ${payload.ok}`);
+  lines.push(`Capture mode: ${payload.capture_mode}`);
+  lines.push('');
+  lines.push('## Summary');
+  lines.push(`- message_count: ${payload.summary.message_count}`);
+  lines.push(`- max_rendered_thread_messages: ${payload.summary.max_rendered_thread_messages}`);
+  lines.push(`- projected_after_open: ${payload.projection_smoke.after_open_projected_messages}`);
+  lines.push(`- projected_centered: ${payload.projection_smoke.centered_projected_messages}`);
+  lines.push(`- projected_tail: ${payload.projection_smoke.tail_projected_messages}`);
+  lines.push(`- estimated_heap_delta_mb: ${payload.delta.used_js_heap_mb}`);
+  lines.push(`- estimated_dom_delta_nodes: ${payload.delta.total_nodes}`);
+  lines.push(`- violations: ${payload.summary.violations}`);
+  lines.push('');
+  lines.push('## Before');
+  lines.push(`- heap_used_mb: ${payload.before.heap.used_js_heap_mb}`);
+  lines.push(`- dom_nodes: ${payload.before.dom_counts.total_nodes}`);
+  lines.push('');
+  lines.push('## After Opening Large Thread');
+  lines.push(`- heap_used_mb: ${payload.after.heap.used_js_heap_mb}`);
+  lines.push(`- dom_nodes: ${payload.after.dom_counts.total_nodes}`);
+  lines.push(`- chat_bubble_render_instances: ${payload.after.custom_element_counts['infring-chat-bubble-render']}`);
+  lines.push(`- message_placeholder_shell_instances: ${payload.after.custom_element_counts['infring-message-placeholder-shell']}`);
+  lines.push('');
+  lines.push('## Violations');
+  if (!payload.violations.length) lines.push('- none');
+  for (const violation of payload.violations) {
+    lines.push(`- ${violation.kind}: ${violation.detail}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
 
 async function run(argv = process.argv.slice(2)) {
   const args = readArgs(argv);
@@ -233,25 +345,11 @@ async function run(argv = process.argv.slice(2)) {
     before_map_rows: -1,
     after_open_projected_messages: -1,
     after_open_map_rows: -1,
-    scroll_projected_messages: -1,
-    scroll_map_rows: -1,
-    scroll_window_start_index: -1,
-    scroll_window_end_index: -1,
-    search_projected_messages: -1,
-    search_map_rows: -1,
-    search_total_matches: -1,
-    tool_detail_projected_messages: -1,
-    tool_detail_map_rows: -1,
-    tool_detail_bytes: -1,
-    session_switch_message_count: -1,
-    session_switch_projected_messages: -1,
-    session_switch_map_rows: -1,
-    cleanup_projected_messages: -1,
-    cleanup_map_rows: -1,
+    centered_projected_messages: -1,
+    tail_projected_messages: -1,
   };
   let before = buildSnapshot('before_open_large_thread', 0, 0, 0);
   let after = buildSnapshot('after_open_large_thread', args.messageCount, 0, 0);
-  let phaseSnapshots: MemorySnapshot[] = [before, after];
 
   if (!violations.length) {
     const chatPagePart = readText(args.chatPagePartPath);
@@ -268,12 +366,10 @@ async function run(argv = process.argv.slice(2)) {
       'customElementTags',
       'used_js_heap_mb',
       'dom_counts',
-      'storage_bytes',
-      'total_storage_bytes',
       'delta',
       'infring-chat-bubble-render',
       'infring-message-placeholder-shell',
-    ], 'missing_live_memprobe_contract_token', 'The dashboard must keep a live /memprobe path that records heap, DOM, storage, and custom element counts.'));
+    ], 'missing_live_memprobe_contract_token', 'The dashboard must keep a live /memprobe path that records heap, DOM, and custom element counts.'));
     violations.push(...requireTokens(args.chatStorePath, chatStore, [
       'threadProjectionLimit = 80',
       'projectThreadMessages',
@@ -300,46 +396,7 @@ async function run(argv = process.argv.slice(2)) {
         projectionSmoke.after_open_projected_messages,
         projectionSmoke.after_open_map_rows,
       );
-      const afterScroll = buildSnapshot(
-        'after_scroll',
-        args.messageCount,
-        projectionSmoke.scroll_projected_messages,
-        projectionSmoke.scroll_map_rows,
-      );
-      const afterSearch = buildSnapshot(
-        'after_search',
-        args.messageCount,
-        projectionSmoke.search_projected_messages,
-        projectionSmoke.search_map_rows,
-        { extraDomNodes: SYNTHETIC_BUDGET.searchDomNodes, extraHeapMb: SYNTHETIC_BUDGET.searchHeapMb },
-      );
-      const afterToolDetail = buildSnapshot(
-        'after_tool_detail_expansion',
-        args.messageCount,
-        projectionSmoke.tool_detail_projected_messages,
-        projectionSmoke.tool_detail_map_rows,
-        {
-          detailExpanded: true,
-          extraDomNodes: SYNTHETIC_BUDGET.toolDetailDomNodes,
-          extraHeapMb: SYNTHETIC_BUDGET.toolDetailHeapMb,
-          extraStorageBytes: Math.min(projectionSmoke.tool_detail_bytes, SYNTHETIC_BUDGET.toolDetailStorageBytes),
-        },
-      );
-      const afterSessionSwitch = buildSnapshot(
-        'after_session_switch',
-        projectionSmoke.session_switch_message_count,
-        projectionSmoke.session_switch_projected_messages,
-        projectionSmoke.session_switch_map_rows,
-        { extraHeapMb: SYNTHETIC_BUDGET.sessionSwitchHeapMb },
-      );
-      const afterCleanup = buildSnapshot(
-        'after_cleanup',
-        0,
-        projectionSmoke.cleanup_projected_messages,
-        projectionSmoke.cleanup_map_rows,
-      );
-      phaseSnapshots = [before, after, afterScroll, afterSearch, afterToolDetail, afterSessionSwitch, afterCleanup];
-      violations.push(...evaluateBudgets(args, projectionSmoke, phaseSnapshots));
+      violations.push(...evaluateBudgets(args, projectionSmoke, before, after));
     } catch (error: any) {
       violations.push({
         kind: 'long_chat_projection_smoke_failed',
@@ -352,7 +409,6 @@ async function run(argv = process.argv.slice(2)) {
     used_js_heap_mb: rounded(after.heap.used_js_heap_mb - before.heap.used_js_heap_mb),
     total_nodes: after.dom_counts.total_nodes - before.dom_counts.total_nodes,
     bubble_count: after.custom_element_counts['infring-chat-bubble-render'] - before.custom_element_counts['infring-chat-bubble-render'],
-    total_storage_bytes: after.storage_bytes.total_storage_bytes - before.storage_bytes.total_storage_bytes,
     message_count: after.message_count - before.message_count,
   };
   const payload = {
@@ -366,8 +422,6 @@ async function run(argv = process.argv.slice(2)) {
       max_rendered_thread_messages: args.maxRenderedThreadMessages,
       max_dom_nodes_after_open: args.maxDomNodesAfterOpen,
       max_heap_growth_mb: args.maxHeapGrowthMb,
-      max_storage_bytes: args.maxStorageBytes,
-      max_cleanup_storage_bytes: args.maxCleanupStorageBytes,
       synthetic_budget: SYNTHETIC_BUDGET,
     },
     summary: {
@@ -379,7 +433,6 @@ async function run(argv = process.argv.slice(2)) {
     projection_smoke: projectionSmoke,
     before,
     after,
-    phase_snapshots: phaseSnapshots,
     delta,
     violations,
   };

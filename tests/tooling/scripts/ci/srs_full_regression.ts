@@ -9,7 +9,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const SRS_PATH = 'docs/workspace/SRS.md';
-const TODO_PATH = 'docs/workspace/TODO.md';
+const TODO_PATH = 'docs/workspace/todo/TODO.md';
 const OUT_JSON =
   readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_JSON', 'INFRING_SRS_FULL_REGRESSION_OUT_JSON')
   || 'core/local/artifacts/srs_full_regression_current.json';
@@ -380,7 +380,7 @@ function buildRegressionPayload() {
   // SRS: V12-SRS-SURFACE-EVIDENCE-001
   const evidencePaths = [
     'docs/workspace/SRS.md',
-    'docs/workspace/TODO.md',
+    'docs/workspace/todo/TODO.md',
     'core',
     'surface',
     'client',
@@ -399,7 +399,7 @@ function buildRegressionPayload() {
     ['core', 'surface', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github', 'docs'],
     [
       '!docs/workspace/SRS.md',
-      '!docs/workspace/TODO.md',
+      '!docs/workspace/todo/TODO.md',
       '!docs/workspace/UPGRADE_BACKLOG.md',
       '!docs/workspace/SRS_*REGRESSION*.md',
       '!core/local/artifacts/srs_*regression*.json',

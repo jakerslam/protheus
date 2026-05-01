@@ -203,12 +203,110 @@ fn feedback_quality_score(item: &Value) -> usize {
         + usize::from(item["issue_candidate_ready"].as_bool().unwrap_or(false)) * 4
 }
 
+fn recommendation_is_generic(action: &str) -> bool {
+    let normalized = action.trim().to_ascii_lowercase();
+    normalized.is_empty()
+        || normalized == "unknown"
+        || normalized == "inspect deterministic kernel evidence and restore fail-closed behavior"
+        || normalized == "inspect kernel evidence"
+}
+
+fn root_cause_kind(item: &Value) -> &'static str {
+    let text = feedback_search_text(item);
+    if contains_any(
+        &text,
+        &[
+            "shell_truth_leak", "truth leak", "full_state", "mirror_state",
+            "raw_runtime_state", "source-of-truth", "source of truth", "authority",
+            "projection",
+        ],
+    ) {
+        "authority_ghost"
+    } else if contains_any(&text, &["empty_assistant_response", "empty response", "no_response"]) {
+        "finalization_gap"
+    } else if contains_any(&text, &["release_proof_pack", "release_verdict", "runtime_proof"]) {
+        "release_evidence_gap"
+    } else if contains_any(&text, &["drift_events", "timestamp_drift", "receipt drift"]) {
+        "receipt_drift"
+    } else {
+        "unclassified_root_cause"
+    }
+}
+
+fn structural_signal(item: &Value) -> bool {
+    matches!(
+        string_field(item, "failure_level").as_str(),
+        "L3_policy_truth_failure"
+            | "L4_architectural_misalignment"
+            | "L5_self_model_failure"
+    ) || root_cause_kind(item) == "authority_ghost"
+}
+
+fn symptom_patching_risk(item: &Value) -> bool {
+    let text = feedback_search_text(item);
+    root_cause_kind(item) == "authority_ghost"
+        || (structural_signal(item)
+            && contains_any(
+                &text,
+                &[
+                    "render", "bubble", "metadata", "connectivity", "indicator", "cache",
+                    "ui", "browser",
+                ],
+            ))
+}
+
+fn todo_actionability_state(item: &Value) -> &'static str {
+    let action = string_field(item, "recommended_action");
+    let root_frame = string_field(item, "root_frame");
+    let remediation_level = string_field(item, "remediation_level");
+    let (evidence_count, field_citations, check_citations) = evidence_signal_counts(item);
+    let has_specific_evidence = evidence_count > 0 && (field_citations > 0 || check_citations > 0);
+    let has_semantic_frame = root_frame != "unknown" && remediation_level != "unknown";
+    let recurrent = usize_at(item, &["recurrence_count"]) >= 2;
+    let issue_ready = item["issue_candidate_ready"].as_bool().unwrap_or(false);
+    let structural = structural_signal(item);
+
+    if has_semantic_frame
+        && !recommendation_is_generic(&action)
+        && (has_specific_evidence || issue_ready || structural)
+    {
+        "todo_ready"
+    } else if recurrent && has_semantic_frame {
+        "triage_to_todo"
+    } else {
+        "needs_root_cause_synthesis"
+    }
+}
+
 fn refresh_feedback_quality(item: &mut Value) {
     let (evidence_count, field_citations, check_citations) = evidence_signal_counts(item);
     let operator_value_tier = operator_value_tier(item);
+    let actionability_state = todo_actionability_state(item);
+    let root_kind = root_cause_kind(item);
+    let structural = structural_signal(item);
+    let patching_risk = symptom_patching_risk(item);
     item["operator_value_tier"] = json!(operator_value_tier);
     item["operator_value_rank"] = json!(operator_value_priority(operator_value_tier));
     item["feedback_quality_score"] = json!(feedback_quality_score(item));
+    item["todo_actionability_state"] = json!(actionability_state);
+    item["root_cause_profile"] = json!({
+        "kind": root_kind,
+        "failure_level": string_field(item, "failure_level"),
+        "root_frame": string_field(item, "root_frame"),
+        "remediation_level": string_field(item, "remediation_level"),
+        "structural_signal": structural,
+        "symptom_patching_risk": patching_risk,
+        "next_step": if actionability_state == "todo_ready" { "promote_to_actionable_todo" } else { "synthesize_root_cause_before_todo" }
+    });
+    item["feedback_to_todo_contract"] = json!({
+        "state": actionability_state,
+        "requires_component": true,
+        "requires_observed_failure": true,
+        "requires_root_cause_hypothesis": true,
+        "requires_acceptance_criteria": true,
+        "requires_validation_route": true,
+        "generic_recommendation_blocks_auto_todo": recommendation_is_generic(&string_field(item, "recommended_action"))
+    });
     item["quality_signals"] = json!({
         "evidence_count": evidence_count,
         "field_citation_count": field_citations,
@@ -217,7 +315,12 @@ fn refresh_feedback_quality(item: &mut Value) {
         "operator_value_rank": operator_value_priority(operator_value_tier),
         "recurrence_count": usize_at(item, &["recurrence_count"]),
         "actionable_recommendation": string_field(item, "recommended_action") != "unknown",
-        "semantic_frame_present": string_field(item, "failure_level") != "unknown"
+        "generic_recommendation": recommendation_is_generic(&string_field(item, "recommended_action")),
+        "semantic_frame_present": string_field(item, "failure_level") != "unknown",
+        "root_cause_kind": root_kind,
+        "structural_signal": structural,
+        "symptom_patching_risk": patching_risk,
+        "todo_actionability_state": actionability_state
     });
 }
 

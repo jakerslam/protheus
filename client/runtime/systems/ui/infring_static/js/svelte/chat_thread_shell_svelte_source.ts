@@ -200,6 +200,13 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
           <span class="agent-mark infring-logo infring-logo--agent-default" aria-hidden="true"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span>
         </div>
         <div class="message-body">
+          <div
+            class={"message-agent-name " + callStr('messageTitleClass', msg) + (msg.terminal ? ' terminal-actor-label' : '')}
+            style:display={callBool('showMessageTitle', msg, idx, messages) ? '' : 'none'}
+          >
+            <span class="message-agent-name-bracket" aria-hidden="true">[</span><span class="message-agent-name-label">{callStr('messageTitleLabel', msg)}</span><span class="message-agent-name-bracket" aria-hidden="true">]</span>
+          </div>
+
           <div class="message-bubble message-bubble-thinking" style:display={msg.thinking ? '' : 'none'}>
             <span class="thinking-orb-link" aria-hidden="true">
               <span class="thinking-orb-link-dot thinking-orb-link-dot-1"></span>
@@ -210,42 +217,31 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
             <div class="typing-dots"><span></span><span></span><span></span></div>
           </div>
 
-          <div
-            class={"message-bubble" + bubbleClass(msg)}
-            data-message-bubble-content-shell="true"
-            style:display={bubbleVisible(msg, idx) || (msg.terminal && callBool('terminalMessageCollapsed', msg, idx, messages)) ? '' : 'none'}
-          >
-            <div
-              class={"message-agent-name " + callStr('messageTitleClass', msg) + (msg.terminal ? ' terminal-actor-label' : '')}
-              style:display={callBool('showMessageTitle', msg, idx, messages) ? '' : 'none'}
-            >
-              <span class="message-agent-name-bracket" aria-hidden="true">[</span><span class="message-agent-name-label">{callStr('messageTitleLabel', msg)}</span><span class="message-agent-name-bracket" aria-hidden="true">]</span>
-            </div>
+          {#if msg.terminal && callBool('terminalMessageCollapsed', msg, idx, messages)}
+            <infring-message-terminal-shell>
+              <div
+                class={"terminal-toolbox " + callStr('terminalToolboxSideClass', msg)}
+                role="button"
+                tabindex="0"
+                title="Click to expand full output"
+                on:click={() => expandTerminal(msg, idx)}
+                on:keydown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); expandTerminal(msg, idx); } }}
+              >
+                <span class="terminal-toolbox-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false"><path d="m4 6 6 6-6 6"></path><path d="M12 18h8"></path></svg>
+                </span>
+                <span class="terminal-toolbox-copy">
+                  <span class="terminal-toolbox-title">Terminal Output</span>
+                  <span class="terminal-toolbox-preview">{callStr('terminalToolboxPreview', msg)}</span>
+                </span>
+              </div>
+            </infring-message-terminal-shell>
+          {/if}
 
-            {#if msg.terminal && callBool('terminalMessageCollapsed', msg, idx, messages)}
-              <infring-message-terminal-shell>
-                <div
-                  class={"terminal-toolbox " + callStr('terminalToolboxSideClass', msg)}
-                  role="button"
-                  tabindex="0"
-                  title="Click to expand full output"
-                  on:click={() => expandTerminal(msg, idx)}
-                  on:keydown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); expandTerminal(msg, idx); } }}
-                >
-                  <span class="terminal-toolbox-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false"><path d="m4 6 6 6-6 6"></path><path d="M12 18h8"></path></svg>
-                  </span>
-                  <span class="terminal-toolbox-copy">
-                    <span class="terminal-toolbox-title">Terminal Output</span>
-                    <span class="terminal-toolbox-preview">{callStr('terminalToolboxPreview', msg)}</span>
-                  </span>
-                </div>
-              </infring-message-terminal-shell>
-            {/if}
-
-            {#if bubbleVisible(msg, idx) && shouldRenderContent(msg, idx, renderWindowVersion)}
+          <div class={"message-bubble" + bubbleClass(msg)} style:display={bubbleVisible(msg, idx) ? '' : 'none'}>
+            {#if shouldRenderContent(msg, idx, renderWindowVersion)}
               <infring-chat-bubble-render typing={!!msg._typingVisual ? '1' : '0'} html={callStr('messageBubbleHtml', msg)} plain={String(msg.text || '')}></infring-chat-bubble-render>
-            {:else if bubbleVisible(msg, idx)}
+            {:else}
               <infring-message-placeholder-shell>
                 <div class="message-placeholder-shell message-placeholder-shell-inline" style={callStr('messagePlaceholderStyle', msg, idx, messages)}>
                   {#each callArr('messagePlaceholderLineIndices', msg, idx, messages) as lineIdx}
@@ -254,6 +250,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
                 </div>
               </infring-message-placeholder-shell>
             {/if}
+          </div>
 
           <infring-message-context-shell>
             <div class="message-source-chips" style:display={shouldRenderContent(msg, idx, renderWindowVersion) && callBool('messageHasSourceChips', msg) ? '' : 'none'}>
@@ -385,12 +382,18 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
 
                 {#if tool.expanded}
                   <div class="tool-card-body">
-                    {#each callArr('toolProjectionSections', tool) as section (section.id)}
+                    {#if tool.input}
                       <div style="margin-bottom:6px">
-                        <div class="tool-section-label">{section.label}</div>
-                        <pre class="tool-pre">{section.text}</pre>
+                        <div class="tool-section-label">Input</div>
+                        <pre class="tool-pre">{callStr('formatToolJson', tool.input)}</pre>
                       </div>
-                    {/each}
+                    {/if}
+                    {#if tool.result}
+                      <div>
+                        <div class="tool-section-label">Result {#if tool.result && tool.result.length > 200}<span class="text-xs text-muted">({tool.result.length} chars)</span>{/if}</div>
+                        <pre class={"tool-pre" + (tool.is_error ? ' tool-pre-error' : !tool.is_error && tool.result && tool.result.length < 100 ? ' tool-pre-short' : !tool.is_error && tool.result && tool.result.length < 500 ? ' tool-pre-medium' : '')}>{callStr('formatToolJson', tool.result)}</pre>
+                      </div>
+                    {/if}
                   </div>
                 {/if}
               </div>
@@ -401,7 +404,6 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
             state={callStr('messageMetadataShellState', msg, idx, messages)}
             on:message-meta-action={e => onMetaAction(e, msg, idx)}
           ></infring-message-meta-shell>
-          </div>
         </div>
       </infring-chat-stream-shell>
     </div>

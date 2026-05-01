@@ -366,17 +366,13 @@
           ts: Date.now()
         });
         try {
-          var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-            ? InfringSharedShellServices.appStore
-            : null;
-          if (bridge && typeof bridge.assign === 'function') {
-            bridge.assign({ pendingFreshAgentId: null, pendingAgent: null });
-          }
-          var refreshAgents = bridge && typeof bridge.method === 'function'
-            ? bridge.method('refreshAgents')
-            : null;
-          if (typeof refreshAgents === 'function') {
-            await refreshAgents();
+          var store = Alpine.store('app');
+          if (store) {
+            store.pendingFreshAgentId = null;
+            store.pendingAgent = null;
+            if (typeof store.refreshAgents === 'function') {
+              await store.refreshAgents();
+            }
           }
         } catch(_) {}
         await this.syncDrawerAgentAfterChange();
@@ -555,17 +551,16 @@
       var sessions = this.normalizeSessionsList(Array.isArray(state.sessions) ? state.sessions : [], fallbackAgentId);
       var sourceRows = [];
       var seenSessionScopes = {};
-      if (payload && payload.message_window && Array.isArray(payload.message_window.rows)) {
-        for (var w = 0; w < payload.message_window.rows.length; w++) sourceRows.push(payload.message_window.rows[w]);
-      } else {
-        for (var i = 0; i < sessions.length; i++) {
-          var session = sessions[i] || {};
-          var scopeKey = String(session._scope_key || '').trim();
-          if (scopeKey && seenSessionScopes[scopeKey]) continue;
-          if (scopeKey) seenSessionScopes[scopeKey] = true;
-          var messages = Array.isArray(session.messages) ? session.messages : [];
-          for (var j = 0; j < messages.length; j++) sourceRows.push(messages[j]);
-        }
+      for (var i = 0; i < sessions.length; i++) {
+        var session = sessions[i] || {};
+        var scopeKey = String(session._scope_key || '').trim();
+        if (scopeKey && seenSessionScopes[scopeKey]) continue;
+        if (scopeKey) seenSessionScopes[scopeKey] = true;
+        var messages = Array.isArray(session.messages) ? session.messages : [];
+        for (var j = 0; j < messages.length; j++) sourceRows.push(messages[j]);
+      }
+      if (Array.isArray(payload.messages)) {
+        for (var m = 0; m < payload.messages.length; m++) sourceRows.push(payload.messages[m]);
       }
       if (!sourceRows.length) {
         this.chatInputHistory = [];

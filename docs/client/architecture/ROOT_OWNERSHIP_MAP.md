@@ -21,7 +21,7 @@ Defines ownership intent for repository-root entries after the core/client split
 
 ## Root File Classes
 
-- Governance + narrative: `docs/workspace/SRS.md`, `docs/workspace/TODO.md`, `docs/workspace/UPGRADE_BACKLOG.md`, `docs/workspace/AGENTS.md`, `docs/workspace/AGENT-CONSTITUTION.md`.
+- Governance + narrative: `docs/workspace/SRS.md`, `docs/workspace/todo/TODO.md`, `docs/workspace/UPGRADE_BACKLOG.md`, `docs/workspace/AGENTS.md`, `docs/workspace/AGENT-CONSTITUTION.md`.
 - Product/repo metadata: `README.md`, `LICENSE`, `docs/workspace/CONTRIBUTING.md`, `SECURITY.md`, `docs/workspace/CHANGELOG.md`.
 - Build and package manifests: `Cargo.toml`, `Cargo.lock`, `package.json`, `package-lock.json`.
 - Runtime/infra bootstrap: `Dockerfile`, `docker-compose.yml`, `install.sh`, `install.ps1`, `tsconfig*.json`, `vitest.config.ts`.

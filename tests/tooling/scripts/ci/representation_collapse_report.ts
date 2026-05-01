@@ -90,7 +90,7 @@ const IGNORE_PARTS = [
   '/vendor/',
   '.min.ts',
   'docs/workspace/SRS.md',
-  'docs/workspace/TODO.md',
+  'docs/workspace/todo/TODO.md',
   'docs/workspace/UPGRADE_BACKLOG.md',
 ];
 
