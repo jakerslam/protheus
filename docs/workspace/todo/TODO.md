@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T22:55:50.189Z
+Updated: 2026-05-01T22:58:52.384Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T22:55:50.189Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 37
+- active_items: 36
 - red: 8
-- yellow: 20
+- yellow: 19
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -61,11 +61,6 @@ Updated: 2026-05-01T22:55:50.189Z
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
 
 ## Yellow Section (Do Soon)
-- `KSENT-AUTHORITY-GHOSTS` — Detect authority ghosts after refactors
-  owner: `sentinel`
-  deadline: `2026-05-14`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Add first-class authority_ghost findings for projection layers, caches, shims, or adapters that preserve old authority shape after syntax-level cleanup.
 - `KSENT-CONTRADICTIONS` — Add policy-vs-runtime contradiction detection
   owner: `sentinel`
   deadline: `2026-05-14`
