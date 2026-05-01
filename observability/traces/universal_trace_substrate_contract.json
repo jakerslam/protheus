@@ -1,0 +1,94 @@
+{
+  "type": "universal_trace_substrate_contract",
+  "schema_version": 1,
+  "owner": "assurance.observability",
+  "status": "canonical",
+  "policy_path": "docs/workspace/universal_trace_substrate_policy.md",
+  "readme_path": "observability/traces/README.md",
+  "root_envelope_schema_path": "observability/traces/trace_envelope.schema.json",
+  "extension_registry_path": "observability/traces/domain_trace_extension_registry.json",
+  "required_policy_tokens": [
+    "Fragmented observability is a negative architecture state",
+    "Each user request mints exactly one canonical `trace_id`",
+    "This rule has no exceptions",
+    "fail closed for trace completeness",
+    "Observability owns the trace envelope and correlation fabric"
+  ],
+  "required_readme_tokens": [
+    "Fragmented observability is a negative architecture state",
+    "One `trace_id` is minted at the initial user request",
+    "Machine Learning Systems, Volume 1"
+  ],
+  "required_schema_fields": [
+    "schema_version",
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "timestamp",
+    "source_domain",
+    "producer",
+    "authority_class",
+    "event_kind",
+    "subject",
+    "correlation",
+    "payload_schema",
+    "payload",
+    "evidence_refs",
+    "receipt_refs",
+    "severity",
+    "confidence"
+  ],
+  "required_source_domains": [
+    "kernel",
+    "orchestration",
+    "gateway",
+    "shell",
+    "validation",
+    "observability",
+    "governance",
+    "conduit",
+    "external_target"
+  ],
+  "required_event_kinds": [
+    "decision",
+    "state_transition",
+    "workflow_phase",
+    "tool_call",
+    "gateway_boundary",
+    "receipt",
+    "health",
+    "telemetry",
+    "validation_run",
+    "eval",
+    "benchmark",
+    "gate",
+    "runtime_finding",
+    "sentinel_observation",
+    "diagnostic_probe",
+    "error",
+    "recovery"
+  ],
+  "required_authority_classes": [
+    "deterministic_kernel_authority",
+    "control_plane_coordination",
+    "controlled_validation",
+    "live_observability",
+    "governance_verdict",
+    "presentation_telemetry_only",
+    "external_gateway_boundary",
+    "external_target_observation"
+  ],
+  "required_extension_ids": [
+    "orchestration_decision_trace",
+    "kernel_sentinel_evidence_trace",
+    "validation_run_trace",
+    "gateway_boundary_trace",
+    "shell_projection_trace",
+    "external_assimilation_probe_trace"
+  ],
+  "allowed_root_trace_schema_paths": [
+    "observability/traces/trace_envelope.schema.json",
+    "observability/traces/universal_trace_substrate_contract.json"
+  ],
+  "anti_fragmentation_rule": "No competing root trace schema, contract, or envelope may appear outside observability/traces/**. Domain-specific extensions must register in domain_trace_extension_registry.json and project into trace_envelope.schema.json."
+}

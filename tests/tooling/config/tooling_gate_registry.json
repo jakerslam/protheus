@@ -768,6 +768,23 @@
         "local/workspace/reports/SHELL_LONG_CHAT_RAM_REGRESSION_GUARD_CURRENT.md"
       ]
     },
+    "ops:shell:tiered-long-chat-heap:guard": {
+      "owner": "assurance.validation",
+      "description": "Tiered Shell long-chat proof covering deterministic store projection, rendered fixture heap/DOM/storage budgets, and Gateway-to-Shell projection stress.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:tiered-long-chat-heap:guard",
+      "canonical_definition_paths": [
+        "validation/regression/contracts/shell_tiered_long_chat_heap_contract.json",
+        "tests/tooling/scripts/ci/shell_tiered_long_chat_heap_guard.ts",
+        "tests/tooling/scripts/ci/shell_long_chat_ram_regression_guard.ts",
+        "validation/regression/contracts/shell_runtime_payload_budget_contract.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/shell_tiered_long_chat_heap_guard_current.json",
+        "local/workspace/reports/SHELL_TIERED_LONG_CHAT_HEAP_GUARD_CURRENT.md"
+      ]
+    },
     "ops:shell:alpine-retirement:guard": {
       "owner": "ops",
       "description": "Fail until live shell Alpine usage, Alpine bootstrap/init calls, and dashboard Alpine vendor loading are all removed.",
@@ -2382,6 +2399,21 @@
       ],
       "timeout_sec": 60
     },
+    "ops:tooling:harness-only:guard": {
+      "owner": "assurance.validation",
+      "description": "Fail when tests/tooling owns unregistered definition-shaped truth instead of remaining harness-only executor glue with declared Assurance-domain migration debt.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:tooling:harness-only:guard",
+      "canonical_definition_paths": [
+        "validation/tests/contracts/tooling_harness_only_policy.json",
+        "tests/tooling/scripts/ci/tooling_harness_only_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/tooling_harness_only_guard_current.json",
+        "local/workspace/reports/TOOLING_HARNESS_ONLY_GUARD_CURRENT.md"
+      ]
+    },
     "ops:tool-routing:authority:guard": {
       "owner": "ops",
       "description": "Tool routing authority guard for probe-driven routing, exact missing-probe diagnostics, decision traces, and misclassification regressions.",
@@ -2441,6 +2473,70 @@
       "artifact_paths": [
         "core/local/artifacts/architecture_transition_residue_guard_current.json",
         "local/workspace/reports/ARCHITECTURE_TRANSITION_RESIDUE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:orchestration:naming:guard": {
+      "owner": "assurance.validation",
+      "description": "Canonical Orchestration Control Plane naming guard for active maps, manifests, package scripts, gate registries, and policy-doc historical context.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:orchestration:naming:guard",
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/orchestration_canonical_name_guard.ts",
+        "docs/workspace/orchestration_ownership_policy.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_canonical_name_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_CANONICAL_NAME_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway:external-surface:guard": {
+      "owner": "assurance.validation",
+      "description": "Gateway-only external surface guard proving Shell, CLI, SDK, issue/eval submission, plugin/external-agent, and future app/mobile surfaces have no first-party bypass around Gateway routes.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:gateway:external-surface:guard",
+      "canonical_definition_paths": [
+        "validation/conformance/contracts/gateway_external_surface_contract.json",
+        "tests/tooling/scripts/ci/gateway_external_surface_guard.ts",
+        "docs/workspace/gateway_ingress_egress_policy.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_external_surface_guard_current.json",
+        "local/workspace/reports/GATEWAY_EXTERNAL_SURFACE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell:runtime-payload-budget:guard": {
+      "owner": "assurance.validation",
+      "description": "Runtime-shaped Shell session, message-window, and event projection payload guard measured against Gateway interface payload budgets.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell:runtime-payload-budget:guard",
+      "canonical_definition_paths": [
+        "validation/regression/contracts/shell_runtime_payload_budget_contract.json",
+        "tests/tooling/scripts/ci/shell_runtime_payload_budget_guard.ts",
+        "client/runtime/config/interface_payload_budget_contract.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/shell_runtime_payload_budget_guard_current.json",
+        "local/workspace/reports/SHELL_RUNTIME_PAYLOAD_BUDGET_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:trace:substrate:guard": {
+      "owner": "assurance.observability",
+      "description": "Universal trace substrate contract and anti-fragmented-observability guard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:trace:substrate:guard",
+      "canonical_definition_paths": [
+        "observability/traces/universal_trace_substrate_contract.json",
+        "observability/traces/trace_envelope.schema.json",
+        "observability/traces/domain_trace_extension_registry.json",
+        "docs/workspace/universal_trace_substrate_policy.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/universal_trace_substrate_guard_current.json",
+        "local/workspace/reports/UNIVERSAL_TRACE_SUBSTRATE_GUARD_CURRENT.md"
       ]
     }
   },

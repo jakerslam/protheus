@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:12:47.721Z",
+  "updated_at": "2026-05-01T23:16:26.401Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -129,15 +129,6 @@
       "deadline": "2026-05-14",
       "source_family": "Shell Authority Extraction Without Legacy Shell Mutation",
       "summary": "Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text."
-    },
-    {
-      "id": "TRACE",
-      "title": "Finish the universal trace substrate contract",
-      "section": "yellow",
-      "owner": "unassigned",
-      "deadline": "2026-05-16",
-      "source_family": "Universal Trace Substrate / Fragmented Observability Closure",
-      "summary": "Finish the Observability-owned universal trace substrate contract and anti-fragmentation guard."
     },
     {
       "id": "WF-UTILITY",

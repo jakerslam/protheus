@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:12:47.721Z",
+  "updated_at": "2026-05-01T23:16:26.401Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -319,6 +319,17 @@
       "summary": "Have Sentinel periodically produce a self-understanding dossier covering soul, runtime behavior, authority map, boundary map, drift, gaps, and confidence.",
       "completed_at": "2026-05-01T23:12:47.720Z",
       "completion_note": "Implemented recurring Kernel Sentinel system-understanding worksheet artifacts emitted on auto-run. The worksheet walks soul, runtime behavior, authority map, boundary map, drift, gaps, confidence, and syntax_detail in order, with confidence gates and required next probes. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::system_understanding_worksheet -- --nocapture passed 1/1; cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::auto_run::tests::auto_run_persistence_tests::auto_run_writes_freshness_artifact_for_clean_state -- --exact --nocapture passed 1/1."
+    },
+    {
+      "id": "TRACE",
+      "title": "Finish the universal trace substrate contract",
+      "section": "yellow",
+      "owner": "unassigned",
+      "deadline": "2026-05-16",
+      "source_family": "Universal Trace Substrate / Fragmented Observability Closure",
+      "summary": "Finish the Observability-owned universal trace substrate contract and anti-fragmentation guard.",
+      "completed_at": "2026-05-01T23:16:26.400Z",
+      "completion_note": "Finished the Observability-owned universal trace substrate contract guard. Added universal_trace_substrate_contract.json plus ops:trace:substrate:guard to enforce single trace_id doctrine, required trace domains/events/authority classes/extensions, and anti-fragmented-observability root-schema placement. Validation: npm run -s ops:trace:substrate:guard passed; controlled violation rejected as expected."
     }
   ]
 }
