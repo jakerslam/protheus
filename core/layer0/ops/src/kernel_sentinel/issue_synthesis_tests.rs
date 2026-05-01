@@ -36,6 +36,21 @@
             report["issue_drafts"][0]["remediation_level"],
             "boundary_repair"
         );
+        assert_eq!(report["issue_drafts"][0]["component"], "ollama");
+        assert_eq!(
+            report["issue_drafts"][0]["observed_failure"],
+            "ollama gateway flapped without quarantine"
+        );
+        assert!(report["issue_drafts"][0]["root_cause_hypothesis"]
+            .as_str()
+            .unwrap()
+            .contains("cross_boundary_contract"));
+        assert_eq!(report["issue_drafts"][0]["repair_type"], "boundary_repair");
+        assert_eq!(report["issue_drafts"][0]["todo_actionability"]["todo_ready"], true);
+        assert_eq!(
+            report["issue_drafts"][0]["validation_route"][0]["route"],
+            "kernel_sentinel_regression"
+        );
     }
 
     #[test]
@@ -146,10 +161,17 @@
             "evidence": ["semantic://summary-only"],
             "impact": "",
             "recommended_fix": "",
-            "acceptance_criteria": ["look again"]
+            "acceptance_criteria": ["look again"],
+            "component": "",
+            "observed_failure": "",
+            "root_cause_hypothesis": "",
+            "repair_type": "",
+            "validation_route": []
         })]);
         assert_eq!(failures.len(), 1);
         assert!(failures[0]["reasons"].as_array().unwrap().contains(&Value::from("missing_deterministic_evidence")));
+        assert!(failures[0]["reasons"].as_array().unwrap().contains(&Value::from("missing_component")));
+        assert!(failures[0]["reasons"].as_array().unwrap().contains(&Value::from("missing_validation_route")));
         assert_eq!(failures[0]["blocks_release"], true);
     }
 
@@ -226,4 +248,30 @@
         assert!(summary.contains("gateway_isolation:gateway_missing_quarantine:ollama"));
         assert!(summary.contains("quarantine"));
         assert!(summary.contains("Exemplar: ollama gateway flapped without quarantine"));
+    }
+
+    #[test]
+    fn issue_draft_carries_todo_specific_repair_contract() {
+        let finding = repeated_finding();
+        let report = build_issue_synthesis(&[finding.clone(), finding], &[]);
+        let draft = &report["issue_drafts"][0];
+
+        for key in [
+            "component",
+            "observed_failure",
+            "root_cause_hypothesis",
+            "repair_type",
+            "validation_route",
+            "evidence",
+        ] {
+            assert!(draft.get(key).is_some(), "missing {key}");
+        }
+        assert_eq!(draft["todo_actionability"]["component_present"], true);
+        assert_eq!(draft["todo_actionability"]["validation_route_present"], true);
+        assert_eq!(draft["todo_actionability"]["safe_to_mutate_todo"], false);
+        assert!(draft["acceptance_criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row.as_str().unwrap().contains("validation route passes")));
     }

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T22:34:40.407Z",
+  "updated_at": "2026-05-01T22:47:40.632Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -253,6 +253,17 @@
       "summary": "Prevent stale Sentinel artifacts from being treated as current truth by requiring freshness windows, generated_at checks, and stale_do_not_use labeling for old findings.",
       "completed_at": "2026-05-01T22:34:40.385Z",
       "completion_note": "Implemented Kernel Sentinel current-truth freshness classification for final reports; stale findings are labeled stale_do_not_use, excluded from top_findings, and blocked from TODO/GitHub promotion. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel::report_budget -- --nocapture passed 5/5."
+    },
+    {
+      "id": "KSENT-ACTION-SYNTHESIS",
+      "title": "Improve issue/TODO synthesis specificity",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-14",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Require component, observed failure, root-cause hypothesis, repair type, acceptance criteria, validation route, and evidence before promoting feedback to TODOs.",
+      "completed_at": "2026-05-01T22:47:40.629Z",
+      "completion_note": "Implemented Kernel Sentinel issue/TODO specificity: issue drafts now require component, observed failure, root-cause hypothesis, repair type, validation route, evidence, acceptance criteria, and human-review/no-auto-mutation actionability before promotion. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis -- --nocapture passed 10/10."
     }
   ]
 }

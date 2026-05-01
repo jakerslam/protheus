@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T22:34:40.407Z
+Updated: 2026-05-01T22:47:40.632Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T22:34:40.407Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 39
+- active_items: 38
 - red: 8
-- yellow: 22
+- yellow: 21
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -61,11 +61,6 @@ Updated: 2026-05-01T22:34:40.407Z
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
 
 ## Yellow Section (Do Soon)
-- `KSENT-ACTION-SYNTHESIS` — Improve issue/TODO synthesis specificity
-  owner: `codex`
-  deadline: `2026-05-14`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Require component, observed failure, root-cause hypothesis, repair type, acceptance criteria, validation route, and evidence before promoting feedback to TODOs.
 - `KSENT-ANTI-PATCHING` — Detect symptom-patching loops
   owner: `sentinel`
   deadline: `2026-05-14`
