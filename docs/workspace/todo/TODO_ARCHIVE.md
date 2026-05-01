@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:36:45.301Z
+Updated: 2026-05-01T23:42:34.323Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:36:45.301Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-SELF-REVIEW` — Add Sentinel feedback quality self-review
+  completed_at: `2026-05-01T23:42:34.321Z`
+  previous_section: `white`
+  owner: `sentinel`
+  deadline: `after_red_section`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Track whether Sentinel findings were accepted, rejected, actionable, resolved, or merely symptom patches so feedback quality improves over time.
+  completion_note: Added Kernel Sentinel feedback-quality self-review in core with accepted/rejected/actionable/resolved/symptom_patch statuses, quality scoring, accepted_for_learning, strengthens_sentinel, symptom_patch_risk, and follow-up routing. Added Observability documentation for review semantics. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib feedback_quality -- --nocapture passed 5/5; file-size check kept kernel_sentinel.rs at 490 lines and feedback_quality.rs at 202 lines; metrics:effective-loc reported Rust share 89.4%.
 - `OBS-CURRENT-TRUTH-GUARD` — Strengthen Observability current-truth vs stale-reference handling
   completed_at: `2026-05-01T23:36:45.297Z`
   previous_section: `yellow`

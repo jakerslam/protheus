@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:36:45.301Z",
+  "updated_at": "2026-05-01T23:42:34.323Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -396,6 +396,17 @@
       "summary": "Treat stale observer artifacts as an Observability-layer problem by enforcing current_live_truth vs historical_reference semantics across Sentinel and related evidence consumers.",
       "completed_at": "2026-05-01T23:36:45.297Z",
       "completion_note": "Added an Observability current-truth freshness contract and guard. The contract makes current_live_truth the only decision-authoritative tier, treats recent/historical/stale artifacts as non-authoritative until refreshed or reviewed, validates required Sentinel consumers, and proves missing freshness fails closed to stale_reference_only. Validation: current-truth guard passed; controlled violation failed closed; JSON parsed; targeted freshness cargo tests passed 2/2."
+    },
+    {
+      "id": "KSENT-SELF-REVIEW",
+      "title": "Add Sentinel feedback quality self-review",
+      "section": "white",
+      "owner": "sentinel",
+      "deadline": "after_red_section",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Track whether Sentinel findings were accepted, rejected, actionable, resolved, or merely symptom patches so feedback quality improves over time.",
+      "completed_at": "2026-05-01T23:42:34.321Z",
+      "completion_note": "Added Kernel Sentinel feedback-quality self-review in core with accepted/rejected/actionable/resolved/symptom_patch statuses, quality scoring, accepted_for_learning, strengthens_sentinel, symptom_patch_risk, and follow-up routing. Added Observability documentation for review semantics. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib feedback_quality -- --nocapture passed 5/5; file-size check kept kernel_sentinel.rs at 490 lines and feedback_quality.rs at 202 lines; metrics:effective-loc reported Rust share 89.4%."
     }
   ]
 }
