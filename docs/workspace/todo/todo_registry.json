@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:48:36.514Z",
+  "updated_at": "2026-05-01T22:34:40.407Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -318,15 +318,6 @@
       "deadline": "none",
       "source_family": "Tauri Desktop App Migration + Memory Fix Wave",
       "summary": "Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway."
-    },
-    {
-      "id": "KSENT-FRESHNESS-GUARD",
-      "title": "Enforce fresh Sentinel truth before using findings",
-      "section": "red",
-      "owner": "codex",
-      "deadline": "2026-05-08",
-      "source_family": "Sentinel Regression Audit May01",
-      "summary": "Prevent stale Sentinel artifacts from being treated as current truth by requiring freshness windows, generated_at checks, and stale_do_not_use labeling for old findings."
     },
     {
       "id": "KSENT-FINAL-REPORT",

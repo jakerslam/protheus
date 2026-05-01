@@ -23,6 +23,11 @@ pub(super) fn build_promotion_lane(
         .enumerate()
         .map(|(index, finding)| triage_candidate(index, finding))
         .collect::<Vec<_>>();
+    let stale_candidate_count = triage_candidates
+        .iter()
+        .filter(|candidate| candidate["promotion_state"] == "stale_do_not_use")
+        .count();
+    let needs_triage_count = triage_candidates.len().saturating_sub(stale_candidate_count);
 
     json!({
         "type": "kernel_sentinel_human_review_promotion_lane",
@@ -35,8 +40,8 @@ pub(super) fn build_promotion_lane(
         "candidate_state_counts": {
             "todo_ready": promotion_candidates.len(),
             "issue_ready": promotion_candidates.len(),
-            "needs_triage": triage_candidates.len(),
-            "stale_do_not_use": 0,
+            "needs_triage": needs_triage_count,
+            "stale_do_not_use": stale_candidate_count,
         },
         "promotion_candidates": promotion_candidates,
         "triage_candidates": triage_candidates,
@@ -85,12 +90,14 @@ fn promotion_candidate(index: usize, cluster: &Value, top_findings: &[Value]) ->
 }
 
 fn triage_candidate(index: usize, finding: &Value) -> Value {
+    let stale = finding["actionability_state"].as_str() == Some("stale_do_not_use")
+        || finding["quality"]["stale_do_not_use"].as_bool().unwrap_or(false);
     json!({
         "candidate_id": format!("ksent-triage-{index}"),
         "source_finding_id": finding["id"].clone(),
-        "promotion_state": "needs_triage",
-        "todo_state": "triage_to_todo",
-        "issue_state": "needs_root_cause_synthesis",
+        "promotion_state": if stale { "stale_do_not_use" } else { "needs_triage" },
+        "todo_state": if stale { "do_not_promote" } else { "triage_to_todo" },
+        "issue_state": if stale { "do_not_file" } else { "needs_root_cause_synthesis" },
         "category": finding["category"].clone(),
         "failure_level": finding["failure_level"].clone(),
         "failure_class": finding["failure_class"].clone(),

@@ -5,6 +5,13 @@ use super::*;
 use serde_json::Value;
 use std::fs;
 
+fn finding_row(finding: KernelSentinelFinding, freshness_age_seconds: u64) -> String {
+    let mut finding = finding;
+    finding.evidence.push(format!("freshness://age_seconds/{freshness_age_seconds}"));
+    let value = serde_json::to_value(finding).unwrap();
+    serde_json::to_string(&value).unwrap()
+}
+
 #[test]
 fn final_report_is_budgeted_and_excludes_raw_evidence_payloads() {
     let root = std::env::temp_dir().join(format!(
@@ -16,7 +23,7 @@ fn final_report_is_budgeted_and_excludes_raw_evidence_payloads() {
     let mut rows = Vec::new();
     for index in 0..40 {
         rows.push(
-            serde_json::to_string(&KernelSentinelFinding {
+            finding_row(KernelSentinelFinding {
                 schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
                 id: format!("ks-budget-{index}"),
                 severity: KernelSentinelSeverity::High,
@@ -26,8 +33,7 @@ fn final_report_is_budgeted_and_excludes_raw_evidence_payloads() {
                 summary: format!("large summary should be compacted {}", "s".repeat(2048)),
                 recommended_action: format!("large action should be compacted {}", "a".repeat(2048)),
                 status: "open".to_string(),
-            })
-            .unwrap(),
+            }, 30),
         );
     }
     fs::write(&findings_path, rows.join("\n")).unwrap();
@@ -95,7 +101,7 @@ fn final_report_releases_only_quality_filtered_findings() {
         &findings_path,
         format!(
             "{}\n{}",
-            serde_json::to_string(&good).unwrap(),
+            finding_row(good, 30),
             serde_json::to_string(&weak).unwrap()
         ),
     )
@@ -131,6 +137,72 @@ fn final_report_releases_only_quality_filtered_findings() {
         .unwrap()
         .iter()
         .any(|row| row.as_str() == Some("concrete_next_action")));
+}
+
+#[test]
+fn final_report_marks_stale_findings_do_not_use_before_promotion() {
+    let root = std::env::temp_dir().join(format!(
+        "kernel-sentinel-final-report-stale-filter-{}",
+        crate::deterministic_receipt_hash(&json!({"test": "final-report-stale-filter"}))
+    ));
+    fs::create_dir_all(&root).unwrap();
+    let findings_path = root.join("findings.jsonl");
+    let fresh = KernelSentinelFinding {
+        schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
+        id: "ks-fresh".to_string(),
+        severity: KernelSentinelSeverity::Critical,
+        category: KernelSentinelFindingCategory::RuntimeCorrectness,
+        fingerprint: "runtime:current:truth".to_string(),
+        evidence: vec!["evidence://runtime/current".to_string()],
+        summary: "runtime current truth failed with fresh evidence".to_string(),
+        recommended_action: "repair runtime truth source and add replay coverage".to_string(),
+        status: "open".to_string(),
+    };
+    let stale = KernelSentinelFinding {
+        id: "ks-stale".to_string(),
+        fingerprint: "runtime:stale:truth".to_string(),
+        evidence: vec!["evidence://runtime/stale".to_string()],
+        summary: "runtime stale reference should not drive work".to_string(),
+        recommended_action: "refresh stale runtime evidence before filing work".to_string(),
+        ..fresh.clone()
+    };
+    fs::write(
+        &findings_path,
+        format!("{}\n{}", finding_row(fresh, 30), finding_row(stale, 7200)),
+    )
+    .unwrap();
+
+    let args = vec![
+        format!("--findings-path={}", findings_path.display()),
+        "--final-report-finding-limit=10".to_string(),
+        "--final-report-byte-budget=16000".to_string(),
+    ];
+    let (report, _verdict, _exit) = build_report(&root, &args);
+    let final_report = &report["final_report"];
+    assert_eq!(final_report["top_findings"].as_array().unwrap().len(), 1);
+    assert_eq!(final_report["top_findings"][0]["id"], "ks-fresh");
+    assert_eq!(final_report["triage_findings"][0]["id"], "ks-stale");
+    assert_eq!(
+        final_report["triage_findings"][0]["actionability_state"],
+        "stale_do_not_use"
+    );
+    assert_eq!(
+        final_report["triage_findings"][0]["quality"]["freshness"]["state"],
+        "stale_do_not_use"
+    );
+    assert!(final_report["triage_findings"][0]["quality"]["missing_requirements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|row| row.as_str() == Some("stale_do_not_use")));
+    assert_eq!(
+        final_report["promotion_lane"]["candidate_state_counts"]["stale_do_not_use"],
+        1
+    );
+    assert_eq!(
+        final_report["promotion_lane"]["triage_candidates"][0]["promotion_state"],
+        "stale_do_not_use"
+    );
 }
 
 #[test]
@@ -172,11 +244,12 @@ fn final_report_clusters_release_ready_symptoms_by_root_cause() {
     };
     fs::write(
         &findings_path,
-        [bounded_a, bounded_b, gateway]
-            .iter()
-            .map(|finding| serde_json::to_string(finding).unwrap())
-            .collect::<Vec<_>>()
-            .join("\n"),
+        [
+            finding_row(bounded_a, 30),
+            finding_row(bounded_b, 40),
+            finding_row(gateway, 20),
+        ]
+        .join("\n"),
     )
     .unwrap();
 
@@ -243,7 +316,7 @@ fn final_report_collapses_findings_when_budget_is_tiny() {
     let findings_path = root.join("findings.jsonl");
     fs::write(
         &findings_path,
-        serde_json::to_string(&KernelSentinelFinding {
+        finding_row(KernelSentinelFinding {
             schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
             id: "ks-budget-tiny".to_string(),
             severity: KernelSentinelSeverity::High,
@@ -253,8 +326,7 @@ fn final_report_collapses_findings_when_budget_is_tiny() {
             summary: "large report surface".to_string(),
             recommended_action: "keep raw evidence out of final reports".to_string(),
             status: "open".to_string(),
-        })
-        .unwrap(),
+        }, 30),
     )
     .unwrap();
     let args = vec![
