@@ -20,26 +20,11 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function store() {
     return (typeof window !== 'undefined' && window.InfringChatStore) || null;
   }
-  function appStoreService() {
-    var services = typeof window !== 'undefined' ? window.InfringSharedShellServices : null;
-    return services && services.appStore ? services.appStore : null;
-  }
-  function sharedCall(fn) {
-    var service = appStoreService();
-    if (!service || typeof service.method !== 'function') return undefined;
-    var method = service.method(fn);
-    if (!method) return undefined;
-    var args = Array.prototype.slice.call(arguments, 1);
-    try { return method.apply(null, args); } catch (_e) { return undefined; }
-  }
   function call(fn) {
     var page = cp();
+    if (!page || typeof page[fn] !== 'function') return undefined;
     var args = Array.prototype.slice.call(arguments, 1);
-    if (page && typeof page[fn] === 'function') return page[fn].apply(page, args);
-    return sharedCall.apply(null, [fn].concat(args));
-  }
-  function text(value) {
-    return String(value == null ? '' : value).trim();
+    return page[fn].apply(page, args);
   }
   function getMessage(row) {
     var page = cp();
@@ -75,23 +60,10 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     if (!msg) return;
     hoveredIndex = Number(row.index);
     call('showMapItemPopup', msg, Number(row.index), event);
-    var domId = text(call('messageDomId', msg, Number(row.index)) || row.domId || row.key || row.index);
-    var title = text(call('messageMapPopupTitle', msg) || row.markerTitle || 'Message');
-    var body = text(call('messageMapPopupBody', msg) || row.markerTitle || msg.text || msg.content || '');
-    if (domId && title) {
-      sharedCall('showDashboardPopup', 'chat-map-item:' + domId, title, event, {
-        source: 'chat-map',
-        side: 'left',
-        body: body,
-        meta_origin: 'Chat map',
-        meta_time: text(call('messageTimestampLabel', msg) || '')
-      });
-    }
   }
   function hideItem() {
     hoveredIndex = -1;
     call('hideMapItemPopup');
-    call('hideDashboardPopupBySource', 'chat-map');
   }
   function jump(row) {
     var msg = getMessage(row);
@@ -108,20 +80,9 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     var msg = getMessage(row);
     if (!msg) return;
     call('showMapDayPopup', msg, event);
-    var dayKey = text(call('messageDayKey', msg) || row.dayKey || row.dayLabel || row.key);
-    var dayLabel = text(call('messageDayLabel', msg) || row.dayLabel || 'Messages');
-    if (dayKey && dayLabel) {
-      sharedCall('showDashboardPopup', 'chat-map-day:' + dayKey, dayLabel, event, {
-        source: 'chat-map',
-        side: 'left',
-        body: row.dayCollapsed ? 'Expand this day in the chat map' : 'Collapse this day in the chat map',
-        meta_origin: 'Chat map'
-      });
-    }
   }
   function hideDay() {
     call('hideMapDayPopup');
-    call('hideDashboardPopupBySource', 'chat-map');
   }
 
   onMount(function() {

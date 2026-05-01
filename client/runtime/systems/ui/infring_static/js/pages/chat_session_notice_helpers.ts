@@ -63,31 +63,3 @@ function chatClearSeenSessionNotice(scopeKey, noticeKey) {
   delete memory[normalizedNoticeKey];
   chatSaveSessionNoticeMemory(scopeKey, memory);
 }
-
-function infringChatSessionNoticeDelegateMethods() {
-  return {
-    sessionNoticeMemoryStorageKey(scopeKey) {
-      return chatSessionNoticeMemoryStorageKey(scopeKey);
-    },
-
-    loadSessionNoticeMemory(scopeKey) {
-      return chatLoadSessionNoticeMemory(scopeKey);
-    },
-
-    saveSessionNoticeMemory(scopeKey, nextMemory) {
-      chatSaveSessionNoticeMemory(scopeKey, nextMemory);
-    },
-
-    hasSeenSessionNotice(scopeKey, noticeKey) {
-      return chatHasSeenSessionNotice(scopeKey, noticeKey);
-    },
-
-    markSeenSessionNotice(scopeKey, noticeKey) {
-      chatMarkSeenSessionNotice(scopeKey, noticeKey);
-    },
-
-    clearSeenSessionNotice(scopeKey, noticeKey) {
-      chatClearSeenSessionNotice(scopeKey, noticeKey);
-    },
-  };
-}

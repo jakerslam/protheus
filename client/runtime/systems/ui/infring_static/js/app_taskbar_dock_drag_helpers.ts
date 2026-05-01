@@ -11,56 +11,6 @@ function infringBindTaskbarDockPointerListeners(page) {
   window.addEventListener('mouseup', target._taskbarDockPointerUpHandler, true);
 }
 
-function infringTaskbarDockDelegateMethods() {
-  return {
-    taskbarDockEdgeNormalized: function(raw) {
-      return infringTaskbarDockEdgeNormalized(this, raw);
-    },
-    taskbarPersistDockEdge: function() {
-      infringTaskbarPersistDockEdge(this);
-    },
-    taskbarReadHeight: function() {
-      return infringTaskbarReadHeight();
-    },
-    taskbarReadViewportHeight: function() {
-      return infringTaskbarReadViewportHeight();
-    },
-    chatOverlayViewportWidth: function() {
-      return infringChatOverlayViewportWidth();
-    },
-    taskbarAnchorForDockEdge: function(edgeRaw) {
-      return infringTaskbarAnchorForDockEdge(this, edgeRaw);
-    },
-    taskbarClampDragY: function(yRaw) {
-      return infringTaskbarClampDragY(this, yRaw);
-    },
-    taskbarNearestDockEdge: function(yRaw) {
-      return infringTaskbarNearestDockEdge(this, yRaw);
-    },
-    taskbarContainerStyle: function() {
-      return infringTaskbarContainerStyle(this);
-    },
-    shouldIgnoreTaskbarDockDragTarget: function(target) {
-      return infringShouldIgnoreTaskbarDockDragTarget(this, target);
-    },
-    bindTaskbarDockPointerListeners: function() {
-      infringBindTaskbarDockPointerListeners(this);
-    },
-    unbindTaskbarDockPointerListeners: function() {
-      infringUnbindTaskbarDockPointerListeners(this);
-    },
-    startTaskbarDockPointerDrag: function(ev) {
-      infringStartTaskbarDockPointerDrag(this, ev);
-    },
-    handleTaskbarDockPointerMove: function(ev) {
-      infringHandleTaskbarDockPointerMove(this, ev);
-    },
-    endTaskbarDockPointerDrag: function() {
-      infringEndTaskbarDockPointerDrag(this);
-    }
-  };
-}
-
 function infringUnbindTaskbarDockPointerListeners(page) {
   var target = page && typeof page === 'object' ? page : {};
   if (typeof window === 'undefined') return;

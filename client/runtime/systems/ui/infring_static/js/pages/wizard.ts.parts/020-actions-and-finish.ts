@@ -86,13 +86,7 @@
           this.createdAgent = { id: res.agent_id, name: res.name || name };
           this.setupSummary.agent = res.name || name;
           InfringToast.success('Agent "' + (res.name || name) + '" created');
-          var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
-            ? InfringSharedShellServices.appStore
-            : null;
-          var refreshAgents = bridge && typeof bridge.method === 'function'
-            ? bridge.method('refreshAgents')
-            : null;
-          if (typeof refreshAgents === 'function') await refreshAgents();
+          await Alpine.store('app').refreshAgents();
         } else {
           InfringToast.error('Failed: ' + (res.error || 'Unknown error'));
         }
@@ -163,3 +157,4 @@
     },
 
     // ── Step 6: Finish ──
+

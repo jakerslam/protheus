@@ -386,7 +386,12 @@
       var elapsed = Math.max(0, now - Number(this._bootSplashStartedAt || now));
       var minRemain = Math.max(0, Number(this._bootSplashMinMs || 0) - elapsed);
       var store = this.getAppStore();
-      var ready = !!force || !store || store.booting === false;
+      var ready = !!force || !store || store.booting === false || (
+        store &&
+        String(store.connectionState || '').toLowerCase() === 'connected' &&
+        store.agentsHydrated === true &&
+        store.agentsLoading !== true
+      );
       if (!ready) return;
       if (typeof this.setBootProgressEvent === 'function') this.setBootProgressEvent('releasing', { bootStage: store && store.bootStage });
       if (this._bootSplashHideTimer) {
