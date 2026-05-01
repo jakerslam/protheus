@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T21:33:53.793Z
+Updated: 2026-05-01T21:48:36.514Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T21:33:53.793Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-SYMPTOM-CLUSTERS` — Cluster symptoms into root-cause families
+  completed_at: `2026-05-01T21:48:36.512Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-07`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Group repeated UI/runtime/tool/eval findings into root-cause clusters so Sentinel detects structural failure families instead of isolated symptoms.
+  completion_note: Implemented Kernel Sentinel root-cause symptom clustering for feedback rows, including structural surface-family cluster metadata, repeated-cluster promotion signals, SRS evidence, file-size split, and targeted Sentinel regression coverage.
 - `KSENT-FEEDBACK-CONTRACT` — Add Sentinel feedback-to-TODO actionability contract
   completed_at: `2026-05-01T21:33:53.792Z`
   previous_section: `red`

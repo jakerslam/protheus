@@ -125,6 +125,69 @@ fn synthetic_round_failures_collapse_to_one_feedback_item() {
 }
 
 #[test]
+fn repeated_symptoms_are_clustered_by_structural_root_cause_family() {
+    let report = json!({
+        "findings": [
+            {
+                "status": "open",
+                "severity": "high",
+                "category": "runtime_correctness",
+                "fingerprint": "shell_chat_tool_boxes_outside_bubble",
+                "summary": "shell chat rendered tool boxes outside the chat bubble",
+                "recommended_action": "repair the shell projection boundary and rerun the chat projection guard",
+                "evidence": ["field://shell/chat/tool_box_parent=false"]
+            },
+            {
+                "status": "open",
+                "severity": "medium",
+                "category": "runtime_correctness",
+                "fingerprint": "shell_taskbar_connectivity_offline",
+                "summary": "dashboard taskbar connectivity indicator stayed offline while runtime was active",
+                "recommended_action": "repair the shell projection boundary and rerun the connectivity projection guard",
+                "evidence": ["field://shell/taskbar/connectivity_projected=false"]
+            },
+            {
+                "status": "open",
+                "severity": "medium",
+                "category": "runtime_correctness",
+                "fingerprint": "gateway_health_probe_stale",
+                "summary": "gateway health projection was stale",
+                "recommended_action": "repair the gateway health projection and rerun the status guard",
+                "evidence": ["field://gateway/health/stale=true"]
+            }
+        ]
+    });
+
+    let rows = build_feedback_inbox(&report, "2026-05-01T00:00:00Z");
+    let shell_rows = rows
+        .iter()
+        .filter(|row| row["symptom_surface_family"] == "shell_projection_runtime")
+        .collect::<Vec<_>>();
+    let gateway_rows = rows
+        .iter()
+        .filter(|row| row["symptom_surface_family"] == "gateway_boundary_runtime")
+        .collect::<Vec<_>>();
+
+    assert_eq!(shell_rows.len(), 2);
+    assert_eq!(gateway_rows.len(), 1);
+    for row in shell_rows {
+        assert_eq!(row["root_cause_cluster_repeated"], true);
+        assert_eq!(row["root_cause_cluster_member_count"], 2);
+        assert_eq!(
+            row["root_cause_cluster"]["policy"],
+            "repeated_symptoms_must_be_triaged_as_one_structural_failure_family_before_opening_separate_local_tickets"
+        );
+        assert_eq!(row["root_cause_cluster"]["members"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            row["todo_actionability"]["root_cause_cluster_ready"],
+            true
+        );
+    }
+    assert_eq!(gateway_rows[0]["root_cause_cluster_repeated"], false);
+    assert_eq!(gateway_rows[0]["root_cause_cluster_member_count"], 1);
+}
+
+#[test]
 fn feedback_quality_ranking_prefers_specific_actionable_evidence_with_same_severity() {
     let report = json!({
         "findings": [

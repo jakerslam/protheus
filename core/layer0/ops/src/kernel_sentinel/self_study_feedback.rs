@@ -6,6 +6,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::kernel_sentinel::kernel_sentinel_semantic_frame_for_parts;
 
+#[path = "self_study_feedback_clusters.rs"]
+mod self_study_feedback_clusters;
+
+use self_study_feedback_clusters::annotate_root_cause_symptom_clusters;
+
 fn string_field(row: &Value, key: &str) -> String {
     row.get(key)
         .and_then(Value::as_str)
@@ -432,6 +437,7 @@ pub(super) fn build_feedback_inbox(report: &Value, generated_at: &str) -> Vec<Va
         refresh_feedback_quality(row);
     }
     annotate_empty_response_parent_downrank(&mut rows);
+    annotate_root_cause_symptom_clusters(&mut rows);
     rows.sort_by(|left, right| {
         usize_at(left, &["duplicate_family_rank"])
             .cmp(&usize_at(right, &["duplicate_family_rank"]))
