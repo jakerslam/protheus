@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod assimilation_handoff; mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod waivers;
+mod assimilation_handoff; mod authority; mod auto_run; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 pub use assimilation_handoff::build_external_assimilation_transfer_plan;
 pub use diagnostic_authorization::{
@@ -85,6 +85,9 @@ use report_summary::{
     build_health_report, count_by_category, count_by_severity, count_by_status,
     count_malformed_by_source, count_malformed_by_source_kind, critical_open_count,
     release_blockers,
+};
+use report_budget::{
+    build_final_report, DEFAULT_FINAL_REPORT_BYTE_BUDGET, DEFAULT_FINAL_REPORT_FINDING_LIMIT,
 };
 
 pub const KERNEL_SENTINEL_NAME: &str = "Kernel Sentinel";
@@ -243,6 +246,16 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     let maintenance_synthesis = maintenance_synthesis::build_maintenance_synthesis(&findings, args);
     let deduped = dedupe_findings(findings);
     let report_finding_limit = option_usize(args, "--report-finding-limit", DEFAULT_REPORT_FINDING_LIMIT);
+    let final_report_finding_limit = option_usize(
+        args,
+        "--final-report-finding-limit",
+        DEFAULT_FINAL_REPORT_FINDING_LIMIT,
+    );
+    let final_report_byte_budget = option_usize(
+        args,
+        "--final-report-byte-budget",
+        DEFAULT_FINAL_REPORT_BYTE_BUDGET,
+    );
     let report_findings = deduped
         .iter()
         .cloned()
@@ -298,7 +311,7 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     });
     let mut verdict = verdict;
     verdict["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&verdict));
-    let report = json!({
+    let mut report = json!({
         "ok": verdict["ok"],
         "type": "kernel_sentinel_report",
         "canonical_name": KERNEL_SENTINEL_NAME,
@@ -312,6 +325,8 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
             "malformed_by_source_kind": count_malformed_by_source_kind(&malformed),
             "malformed_by_source": count_malformed_by_source(&malformed),
             "report_finding_limit": report_finding_limit,
+            "final_report_finding_limit": final_report_finding_limit,
+            "final_report_byte_budget": final_report_byte_budget,
             "reported_finding_count": report_findings.len(),
             "truncated_finding_count": truncated_finding_count,
             "release_gate_pass": release_gate_pass,
@@ -365,6 +380,14 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         "malformed_findings": malformed,
         "verdict": verdict
     });
+    let final_report = build_final_report(
+        &report,
+        &dir,
+        final_report_finding_limit,
+        final_report_byte_budget,
+    );
+    report["report_budget"] = final_report["report_budget"].clone();
+    report["final_report"] = final_report;
     let exit = if strict
         && (critical_open_count > 0
             || !release_gate_pass
@@ -382,7 +405,7 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let command = args.first().map(String::as_str).unwrap_or("help");
     if command == "help" || command == "--help" || command == "-h" {
-        println!("infring-ops kernel-sentinel <run|status|report|auto|collect|schedule|heartbeat|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--collector-artifact=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=maintenance|release|heartbeat] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>]");
+        println!("infring-ops kernel-sentinel <run|status|report|auto|collect|schedule|heartbeat|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--collector-artifact=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=maintenance|release|heartbeat] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>] [--max-runtime-ms=<n>] [--final-report-finding-limit=<n>] [--final-report-byte-budget=<n>]");
         println!("{}", serde_json::to_string_pretty(&kernel_sentinel_contract()).unwrap());
         return 0;
     }
@@ -402,11 +425,16 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     let (report, verdict, exit) = build_report(root, &rest);
     let dir = state_dir_from_args(root, &rest);
     let report_path = dir.join("kernel_sentinel_report_current.json");
+    let final_report_path = dir.join("kernel_sentinel_final_report_current.json");
     let verdict_path = dir.join("kernel_sentinel_verdict.json");
     let health_path = dir.join("kernel_sentinel_health_current.json");
     if matches!(command, "run" | "report") {
         if let Err(err) = write_json(&report_path, &report) {
             eprintln!("kernel_sentinel_write_report_failed: {err}");
+            return 1;
+        }
+        if let Err(err) = write_json(&final_report_path, &report["final_report"]) {
+            eprintln!("kernel_sentinel_write_final_report_failed: {err}");
             return 1;
         }
         if let Err(err) = write_json(&verdict_path, &verdict) {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T05:34:09.812Z",
+  "updated_at": "2026-05-01T20:58:04.032Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -356,67 +356,67 @@
       "summary": "Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway."
     },
     {
-      "id": "CGPT-GOV-001",
-      "title": "Keep Tower metaphor out of active subsystem names",
+      "id": "KSENT-FRESHNESS-GUARD",
+      "title": "Enforce fresh Sentinel truth before using findings",
       "section": "red",
       "owner": "codex",
       "deadline": "2026-05-08",
-      "source_family": "ChatGPT Governance Audit Apr30",
-      "summary": "Enforce that Tower remains historical/metaphor-only and cannot appear in active subsystem names, routes, generated maps, CI gates, or manifests."
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Prevent stale Sentinel artifacts from being treated as current truth by requiring freshness windows, generated_at checks, and stale_do_not_use labeling for old findings."
     },
     {
-      "id": "CGPT-GOV-002",
-      "title": "Prove all external surfaces enter through Gateways",
-      "section": "red",
-      "owner": "codex",
-      "deadline": "2026-05-08",
-      "source_family": "ChatGPT Governance Audit Apr30",
-      "summary": "Audit Shell, CLI, SDK, issue-submission, eval-submission, and future app/mobile ingress so every external surface is Gateway-only with no first-party shell exception."
-    },
-    {
-      "id": "CGPT-GOV-003",
-      "title": "Runtime-check Shell session/message/event payload budgets",
-      "section": "red",
-      "owner": "codex",
-      "deadline": "2026-05-08",
-      "source_family": "ChatGPT Governance Audit Apr30",
-      "summary": "Verify live session, messages, and websocket event paths conform to bounded Gateway projection contracts at runtime, not just in policy files."
-    },
-    {
-      "id": "CGPT-GOV-004",
-      "title": "Compress chat.ts responsibilities",
-      "section": "red",
-      "owner": "codex",
-      "deadline": "2026-05-10",
-      "source_family": "ChatGPT Governance Audit Apr30",
-      "summary": "Continue splitting chat.ts into projection rendering, input collection, detail fetch, and local display preferences while moving workflow, terminal, model, and tool coordination out."
-    },
-    {
-      "id": "CGPT-GOV-005",
-      "title": "Add tiered browser-rendered long-chat heap proof",
-      "section": "red",
-      "owner": "codex",
-      "deadline": "2026-05-10",
-      "source_family": "ChatGPT Governance Audit Apr30",
-      "summary": "Add Tier 2 browser-rendered heap/DOM/storage regression and Tier 3 gateway-to-shell projection stress proof on top of the deterministic store-projection guard."
-    },
-    {
-      "id": "CGPT-GOV-007",
-      "title": "Keep tests/tooling as harness-only, not an ungoverned domain",
+      "id": "KSENT-FINAL-REPORT",
+      "title": "Publish Sentinel final output docs for top findings",
       "section": "yellow",
       "owner": "codex",
-      "deadline": "2026-05-14",
-      "source_family": "ChatGPT Governance Audit Apr30",
-      "summary": "Ensure definition-shaped eval, benchmark, conformance, regression, release-gate, and scorecard truth lives under Validation/Observability while tests/tooling remains executor glue."
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Emit compact final output docs that summarize release blockers, top findings, evidence refs, and next actions instead of forcing operators to inspect huge raw state artifacts."
     },
     {
-      "id": "CGPT-GOV-011",
-      "title": "Expose PrepareContext in plan displays and eval traces",
+      "id": "KSENT-ISSUE-BOUNDEDNESS",
+      "title": "Triage Sentinel boundedness findings into concrete repair work",
       "section": "yellow",
       "owner": "codex",
-      "deadline": "2026-05-14",
-      "source_family": "ChatGPT Governance Audit Apr30",
-      "summary": "Make context preparation operator-visible whenever a read-like plan mutates session context so read/write semantics stay explicit."
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Turn the workspace tooling boundedness findings into a concrete repair lane with owner, acceptance criteria, and replay/validation commands."
+    },
+    {
+      "id": "KSENT-ISSUE-EMPTY-RESPONSES",
+      "title": "Triage synthetic empty-response failures from Sentinel",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Convert repeated synthetic user harness empty_assistant_response findings into a concrete issue lane covering routing, finalization, and synthesis failure causes."
+    },
+    {
+      "id": "KSENT-ISSUE-RELEASE-BRIDGES",
+      "title": "Repair Sentinel release-evidence and receipt-integrity blockers",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Investigate and close the release_evidence and receipt_integrity bridge failures that currently drive Kernel Sentinel release_fail verdicts."
+    },
+    {
+      "id": "OBS-CURRENT-TRUTH-GUARD",
+      "title": "Strengthen Observability current-truth vs stale-reference handling",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Treat stale observer artifacts as an Observability-layer problem by enforcing current_live_truth vs historical_reference semantics across Sentinel and related evidence consumers."
+    },
+    {
+      "id": "KSENT-CANDIDATE-PIPELINE",
+      "title": "Stage Sentinel findings through a candidate pipeline before TODO or GitHub promotion",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Add a proposed-finding pipeline with todo_ready, issue_ready, needs_triage, and stale_do_not_use states so Sentinel drafts candidates first and Codex or a human approves promotion before the main TODO or GitHub is mutated."
     }
   ]
 }
