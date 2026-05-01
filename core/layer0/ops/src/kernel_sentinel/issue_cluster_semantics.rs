@@ -19,6 +19,8 @@ pub(super) struct FindingCluster {
     pub receipt_type: String,
     pub recovery_reason: String,
     pub evidence: std::collections::BTreeSet<String>,
+    pub issue_family_fingerprints: std::collections::BTreeSet<String>,
+    pub symptom_patch_signal_count: usize,
 }
 
 pub(super) fn severity_rank(severity: KernelSentinelSeverity) -> u8 {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T22:47:40.632Z",
+  "updated_at": "2026-05-01T22:55:50.189Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -84,15 +84,6 @@
       "deadline": "2026-05-10",
       "source_family": "Shell Alpine Purge Wave",
       "summary": "Remove the remaining Alpine boot/runtime dependency once the retirement guard is green."
-    },
-    {
-      "id": "KSENT-ANTI-PATCHING",
-      "title": "Detect symptom-patching loops",
-      "section": "yellow",
-      "owner": "sentinel",
-      "deadline": "2026-05-14",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "Flag repeated patches that change visible symptoms while the same boundary, policy, or ownership violation remains unresolved."
     },
     {
       "id": "KSENT-AUTHORITY-GHOSTS",

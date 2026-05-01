@@ -154,6 +154,40 @@
     }
 
     #[test]
+    fn repeated_visible_symptom_patches_are_flagged_as_structural_loop() {
+        let mut first = repeated_finding();
+        first.fingerprint = "gateway_isolation:taskbar_offline_symptom".to_string();
+        first.summary = "visible symptom patch left the taskbar connectivity indicator offline".to_string();
+        first.recommended_action =
+            "stop_patching symptoms and repair the gateway boundary".to_string();
+
+        let mut second = first.clone();
+        second.id = "finding-2".to_string();
+        second.fingerprint = "gateway_isolation:duplicate_dashboard_restart_symptom".to_string();
+        second.summary = "local patch hid one startup symptom but duplicate gateway restart remained"
+            .to_string();
+
+        let report = build_issue_synthesis(&[first, second], &[]);
+        let draft = &report["issue_drafts"][0];
+
+        assert_eq!(report["active_issue_window_count"], Value::from(1));
+        assert_eq!(report["anti_patching_loop_count"], Value::from(1));
+        assert_eq!(
+            draft["anti_patching"]["symptom_patching_loop_detected"],
+            true
+        );
+        assert_eq!(draft["anti_patching"]["structural_root_required"], true);
+        assert_eq!(
+            draft["anti_patching"]["distinct_symptom_fingerprint_count"],
+            Value::from(2)
+        );
+        assert_eq!(
+            draft["anti_patching"]["next_action"],
+            "stop_local_symptom_patching_and_repair_structural_root"
+        );
+    }
+
+    #[test]
     fn issue_quality_guard_rejects_advisory_only_vague_drafts() {
         let failures = issue_quality_failures(&[json!({
             "title": "issue",

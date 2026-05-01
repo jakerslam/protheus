@@ -66,6 +66,7 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
         .to_string();
     let validation_route = issue_validation_route(cluster, &semantic_frame);
     let acceptance_criteria = issue_acceptance_criteria(&validation_route);
+    let anti_patching = anti_patching_assessment(cluster);
     json!({
         "type": "kernel_sentinel_issue_draft",
         "status": "draft",
@@ -81,6 +82,7 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
         "failure_level": semantic_frame["failure_level"].clone(),
         "root_frame": semantic_frame["root_frame"].clone(),
         "remediation_level": semantic_frame["remediation_level"].clone(),
+        "anti_patching": anti_patching,
         "violated_invariants": cluster.violated_invariants,
         "fingerprint": cluster.issue_family_fingerprint,
         "issue_family_kind": cluster.issue_family_kind,
@@ -116,6 +118,38 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
             "safe_to_mutate_todo": false
         }
     })
+}
+
+fn anti_patching_assessment(cluster: &FindingCluster) -> Value {
+    let distinct_symptom_fingerprint_count = cluster.issue_family_fingerprints.len();
+    let loop_detected =
+        distinct_symptom_fingerprint_count > 1 || cluster.symptom_patch_signal_count > 0;
+    json!({
+        "symptom_patching_loop_detected": loop_detected,
+        "structural_root_required": loop_detected,
+        "distinct_symptom_fingerprint_count": distinct_symptom_fingerprint_count,
+        "symptom_patch_signal_count": cluster.symptom_patch_signal_count,
+        "policy": "multiple visible symptoms under one structural root must collapse into one root-cause repair before opening separate local tickets",
+        "next_action": if loop_detected {
+            "stop_local_symptom_patching_and_repair_structural_root"
+        } else {
+            "continue_standard_issue_triage"
+        }
+    })
+}
+
+fn symptom_patch_signal(finding: &KernelSentinelFinding) -> bool {
+    let text = format!(
+        "{} {} {}",
+        finding.fingerprint, finding.summary, finding.recommended_action
+    )
+    .to_ascii_lowercase();
+    text.contains("stop_patching")
+        || text.contains("symptom patch")
+        || text.contains("patching symptoms")
+        || text.contains("cosmetic fix")
+        || text.contains("visible symptom")
+        || text.contains("local patch")
 }
 
 fn issue_component(finding: &KernelSentinelFinding, cluster: &FindingCluster) -> String {
@@ -280,6 +314,7 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
         }
         let (session, surface, receipt_type, recovery_reason) = cluster_fields(finding);
         let issue_family_fingerprint = issue_family_fingerprint(&finding.fingerprint);
+        let current_issue_family_fingerprint = issue_family_fingerprint.clone();
         let scenario_id = synthetic_issue_scenario_id(&issue_family_fingerprint);
         let issue_family_kind = issue_family_kind(&scenario_id);
         let violated_invariants = violated_invariants(finding);
@@ -306,6 +341,8 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
                 receipt_type,
                 recovery_reason,
                 evidence: BTreeSet::new(),
+                issue_family_fingerprints: BTreeSet::new(),
+                symptom_patch_signal_count: 0,
             });
         entry.occurrence_count += 1;
         entry.last_seen_index = index;
@@ -313,6 +350,12 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
             entry.exemplar = finding.clone();
         }
         entry.evidence.extend(finding.evidence.iter().cloned());
+        entry
+            .issue_family_fingerprints
+            .insert(current_issue_family_fingerprint);
+        if symptom_patch_signal(finding) {
+            entry.symptom_patch_signal_count += 1;
+        }
     }
     let issue_drafts = clusters
         .values()
@@ -321,6 +364,14 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
         .collect::<Vec<_>>();
     let issue_quality_failures = issue_quality_failures(&issue_drafts);
     let active_issue_window_count = issue_drafts.len();
+    let anti_patching_loop_count = issue_drafts
+        .iter()
+        .filter(|draft| {
+            draft["anti_patching"]["symptom_patching_loop_detected"]
+                .as_bool()
+                .unwrap_or(false)
+        })
+        .count();
     let rate_limited_cluster_count = clusters
         .values()
         .filter(|cluster| cluster.occurrence_count < threshold)
@@ -333,6 +384,7 @@ pub fn build_issue_synthesis(findings: &[KernelSentinelFinding], args: &[String]
         "cluster_count": clusters.len(),
         "active_issue_window_count": active_issue_window_count,
         "rate_limited_cluster_count": rate_limited_cluster_count,
+        "anti_patching_loop_count": anti_patching_loop_count,
         "cluster_dimensions": ["root_frame", "violated_invariants"],
         "issue_draft_count": issue_drafts.len(),
         "issue_quality": {
