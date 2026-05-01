@@ -142,9 +142,13 @@ var InfringSharedShellServices = (function(existing) {
   }
 
   function method(name) {
-    var store = current();
-    var fn = store && store[name];
-    return typeof fn === 'function' ? fn.bind(store) : null;
+    var candidates = [current(), root(), legacySource()];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var owner = candidates[i];
+      var fn = owner && owner[name];
+      if (typeof fn === 'function') return fn.bind(owner);
+    }
+    return null;
   }
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
