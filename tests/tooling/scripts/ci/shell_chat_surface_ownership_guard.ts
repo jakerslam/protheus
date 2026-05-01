@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
+import { cleanText, parseBool, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
@@ -16,6 +16,7 @@ const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_CHAT_SURFACE_OWNERSH
 
 type Args = {
   strict: boolean;
+  requireClosed: boolean;
   outJson: string;
   outMarkdown: string;
   chatPath: string;
@@ -35,6 +36,7 @@ function readArgs(argv: string[]): Args {
   const common = parseStrictOutArgs(argv, { strict: true, out: DEFAULT_OUT_JSON });
   return {
     strict: common.strict,
+    requireClosed: parseBool(readFlag(argv, 'require-closed'), false),
     outJson: cleanText(readFlag(argv, 'out-json') || common.out || DEFAULT_OUT_JSON, 400),
     outMarkdown: cleanText(readFlag(argv, 'out-markdown') || DEFAULT_OUT_MARKDOWN, 400),
     chatPath: cleanText(readFlag(argv, 'chat') || DEFAULT_CHAT, 400),
@@ -72,6 +74,17 @@ function markdown(payload: any): string {
   lines.push(`- violations: ${payload.summary.violations}`);
   lines.push(`- inventory_counterparts: ${payload.summary.inventory_counterparts}`);
   lines.push(`- inventory_duplicate_loc_estimate: ${payload.summary.inventory_duplicate_loc_estimate}`);
+  lines.push(`- closure_state: ${payload.summary.closure_state}`);
+  lines.push('');
+  lines.push('## Closure');
+  lines.push(`- require_closed: ${payload.inputs.require_closed}`);
+  lines.push(`- closure_required: ${payload.closure.closure_required}`);
+  lines.push(`- state: ${payload.closure.state}`);
+  lines.push(`- counterpart_paths: ${payload.closure.counterpart_paths}`);
+  lines.push(`- duplicate_loc_estimate: ${payload.closure.duplicate_loc_estimate}`);
+  lines.push('- next_actions:');
+  if (!payload.closure.next_actions.length) lines.push('  - none');
+  for (const action of payload.closure.next_actions) lines.push(`  - ${action}`);
   lines.push('');
   lines.push('## Violations');
   if (!payload.violations.length) lines.push('- none');
@@ -94,6 +107,8 @@ function run(argv = process.argv.slice(2)): number {
 
   let inventoryCounterparts = 0;
   let inventoryDuplicateLocEstimate = 0;
+  let closureState = 'not_evaluated';
+  const closureNextActions: string[] = [];
 
   if (pathsReady) {
     const chat = readText(args.chatPath);
@@ -164,7 +179,23 @@ function run(argv = process.argv.slice(2)): number {
           detail: 'The duplicate-surface inventory found chat.ts but no chat.ts.parts/** counterparts.',
         });
       }
+      if (inventoryCounterparts === 0 && inventoryDuplicateLocEstimate === 0) {
+        closureState = 'closed';
+      } else {
+        closureState = 'decomposition_debt_open';
+        closureNextActions.push('Convert chat.ts.parts/** shards into real imported modules or delete them after the runtime no longer needs mirrored decomposition debt.');
+        closureNextActions.push('Keep chat.ts as the canonical assembled entry only until the module graph proves parity.');
+        closureNextActions.push('Do not mark SHELL-CLEANUP complete while counterpart_paths or duplicate_loc_estimate remain non-zero.');
+      }
     }
+  }
+
+  if (args.requireClosed && closureState !== 'closed') {
+    violations.push({
+      kind: 'chat_surface_closure_incomplete',
+      path: args.chatPath,
+      detail: `Shell chat surface is ${closureState}; ${inventoryCounterparts} counterpart paths and ${inventoryDuplicateLocEstimate} duplicate LOC remain.`,
+    });
   }
 
   const payload = {
@@ -177,11 +208,21 @@ function run(argv = process.argv.slice(2)): number {
       parts_readme_path: args.partsReadmePath,
       policy_path: args.policyPath,
       inventory_path: args.inventoryPath,
+      require_closed: args.requireClosed,
     },
     summary: {
       violations: violations.length,
       inventory_counterparts: inventoryCounterparts,
       inventory_duplicate_loc_estimate: inventoryDuplicateLocEstimate,
+      closure_state: closureState,
+      closure_next_action_count: closureNextActions.length,
+    },
+    closure: {
+      closure_required: true,
+      state: closureState,
+      counterpart_paths: inventoryCounterparts,
+      duplicate_loc_estimate: inventoryDuplicateLocEstimate,
+      next_actions: closureNextActions,
     },
     violations,
   };
