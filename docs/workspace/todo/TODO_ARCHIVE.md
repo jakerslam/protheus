@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T22:58:52.384Z
+Updated: 2026-05-01T23:01:18.605Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T22:58:52.384Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-CONTRADICTIONS` — Add policy-vs-runtime contradiction detection
+  completed_at: `2026-05-01T23:01:18.604Z`
+  previous_section: `yellow`
+  owner: `sentinel`
+  deadline: `2026-05-14`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Compare doctrine, contracts, code paths, and artifacts to surface semantic contradictions such as projection-only policy with runtime-state mirrors.
+  completion_note: Implemented first-class policy-vs-runtime contradiction findings: Nexus boundary evidence now recognizes doctrine/runtime, contract/artifact, and projection-policy/runtime-mirror contradictions and emits critical policy_runtime_contradiction fingerprints. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::evidence::nexus_boundaries -- --nocapture passed 5/5.
 - `KSENT-AUTHORITY-GHOSTS` — Detect authority ghosts after refactors
   completed_at: `2026-05-01T22:58:52.383Z`
   previous_section: `yellow`

@@ -15,12 +15,13 @@ struct BoundaryRule {
     recommended_action: &'static str,
 }
 
-const CHECKED_BOUNDARY_RULES: [&str; 8] = [
+const CHECKED_BOUNDARY_RULES: [&str; 9] = [
     "non_nexus_direct_authority_path",
     "direct_authority_path",
     "nexus_bypass",
     "shell_truth_leak",
     "authority_ghost",
+    "policy_runtime_contradiction",
     "gateway_scheduler_admission_touch",
     "orchestration_policy_ownership",
     "orchestration_receipt_authority",
@@ -154,6 +155,17 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "remove retained authority shape from the projection/cache/shim/adapter and prove Kernel remains the only authority source",
                 });
             }
+            "policy_runtime_contradiction" | "doctrine_runtime_contradiction"
+            | "contract_artifact_contradiction" | "projection_policy_runtime_state_mirror"
+            | "policy_says_projection_only_runtime_mirrors_state" => {
+                return Some(BoundaryRule {
+                    rule: "policy_runtime_contradiction",
+                    category: KernelSentinelFindingCategory::SecurityBoundary,
+                    severity: KernelSentinelSeverity::Critical,
+                    recommended_action:
+                        "realign runtime behavior with the declared policy/contract and add a regression artifact proving the contradiction is gone",
+                });
+            }
             "gateway_scheduler_admission_touch" | "gateway_admission_touch"
             | "gateway_scheduler_touch" => {
                 return Some(BoundaryRule {
@@ -209,10 +221,12 @@ fn boundary_finding(record: &Value, rule: BoundaryRule) -> KernelSentinelFinding
     let action_id = value_str(record, "id");
     let subject = clean_token(value_str(record, "subject"), "unknown_boundary_subject");
     let owner_layer = clean_token(value_str(record, "owner_layer"), "unknown_layer");
-    let fingerprint = if rule.rule == "authority_ghost" {
-        format!("authority_ghost:{owner_layer}:{subject}")
-    } else {
-        format!("nexus_boundary:{}:{}:{}", rule.rule, owner_layer, subject)
+    let fingerprint = match rule.rule {
+        "authority_ghost" => format!("authority_ghost:{owner_layer}:{subject}"),
+        "policy_runtime_contradiction" => {
+            format!("policy_runtime_contradiction:{owner_layer}:{subject}")
+        }
+        _ => format!("nexus_boundary:{}:{}:{}", rule.rule, owner_layer, subject),
     };
     KernelSentinelFinding {
         schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
@@ -315,6 +329,29 @@ mod tests {
         assert!(findings[0]
             .recommended_action
             .contains("remove retained authority shape"));
+    }
+
+    #[test]
+    fn policy_runtime_contradiction_opens_first_class_finding() {
+        let records = vec![json!({
+            "source": "runtime_observation",
+            "id": "contradiction-1",
+            "subject": "message-window-projection",
+            "violation_kind": "policy_says_projection_only_runtime_mirrors_state",
+            "owner_layer": "gateway_projection",
+            "details": {
+                "policy": "projection_only",
+                "runtime_observed": "full_runtime_state_mirror"
+            },
+            "evidence": ["contract://shell_projection/lens_not_mirror", "runtime://message-window/full_state_mirror"]
+        })];
+        let (report, findings) = build_nexus_boundary_report(&records);
+        assert_eq!(report["finding_count"], Value::from(1));
+        assert_eq!(
+            findings[0].fingerprint,
+            "policy_runtime_contradiction:gateway_projection:message-window-projection"
+        );
+        assert!(findings[0].recommended_action.contains("declared policy"));
     }
 
     #[test]

@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T22:58:52.384Z
+Updated: 2026-05-01T23:01:18.605Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T22:58:52.384Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 36
+- active_items: 35
 - red: 8
-- yellow: 19
+- yellow: 18
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -61,11 +61,6 @@ Updated: 2026-05-01T22:58:52.384Z
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
 
 ## Yellow Section (Do Soon)
-- `KSENT-CONTRADICTIONS` — Add policy-vs-runtime contradiction detection
-  owner: `sentinel`
-  deadline: `2026-05-14`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Compare doctrine, contracts, code paths, and artifacts to surface semantic contradictions such as projection-only policy with runtime-state mirrors.
 - `KSENT-FRESHNESS-TIERS` — Separate current truth from stale Sentinel reference
   owner: `sentinel`
   deadline: `2026-05-14`
