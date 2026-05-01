@@ -88,6 +88,28 @@ impl KernelSentinelFailureLevel {
         }
     }
 
+    pub const fn failure_class(self) -> &'static str {
+        match self {
+            Self::L0LocalDefect => "symptom",
+            Self::L1ComponentRegression => "component",
+            Self::L2BoundaryContractBreach => "boundary",
+            Self::L3PolicyTruthFailure => "policy_truth",
+            Self::L4ArchitecturalMisalignment => "architectural",
+            Self::L5SelfModelFailure => "self_model",
+        }
+    }
+
+    pub const fn review_depth(self) -> &'static str {
+        match self {
+            Self::L0LocalDefect => "local_symptom_review",
+            Self::L1ComponentRegression => "component_owner_review",
+            Self::L2BoundaryContractBreach => "cross_boundary_contract_review",
+            Self::L3PolicyTruthFailure => "policy_truth_review",
+            Self::L4ArchitecturalMisalignment => "architecture_review",
+            Self::L5SelfModelFailure => "self_model_review",
+        }
+    }
+
     pub const fn priority(self) -> u8 {
         match self {
             Self::L0LocalDefect => 0,
@@ -108,9 +130,11 @@ pub fn kernel_sentinel_failure_level_taxonomy() -> Value {
                 json!({
                     "code": level.code(),
                     "label": level.label(),
+                    "failure_class": level.failure_class(),
                     "priority": level.priority(),
                     "captures": level.captures(),
                     "remediation_level": level.remediation_level(),
+                    "review_depth": level.review_depth(),
                     "sentinel_use": "classify the highest-level failure frame before selecting remediation"
                 })
             })
@@ -132,6 +156,9 @@ pub fn kernel_sentinel_failure_level_for_parts(
         || text.contains("rsi")
         || text.contains("system_understanding")
         || text.contains("understand itself")
+        || text.contains("blindspot")
+        || text.contains("fixated on symptoms")
+        || text.contains("missed architectural")
     {
         return KernelSentinelFailureLevel::L5SelfModelFailure;
     }
@@ -141,11 +168,19 @@ pub fn kernel_sentinel_failure_level_for_parts(
         || text.contains("source of truth")
         || text.contains("mini os")
         || text.contains("subsystem in the shell")
+        || text.contains("systemic")
+        || text.contains("structural")
+        || text.contains("rebuild")
+        || text.contains("realign")
     {
         return KernelSentinelFailureLevel::L4ArchitecturalMisalignment;
     }
     if text.contains("policy")
         || text.contains("authority")
+        || text.contains("authority ghost")
+        || text.contains("ghost authority")
+        || text.contains("canonical")
+        || text.contains("invariant")
         || text.contains("truth")
         || text.contains("receipt")
         || text.contains("capability")
@@ -182,6 +217,9 @@ pub fn kernel_sentinel_failure_level_for_finding(
         || text.contains("rsi")
         || text.contains("system_understanding")
         || text.contains("understand itself")
+        || text.contains("blindspot")
+        || text.contains("fixated on symptoms")
+        || text.contains("missed architectural")
     {
         return KernelSentinelFailureLevel::L5SelfModelFailure;
     }
@@ -191,8 +229,24 @@ pub fn kernel_sentinel_failure_level_for_finding(
         || text.contains("source of truth")
         || text.contains("mini os")
         || text.contains("subsystem in the shell")
+        || text.contains("systemic")
+        || text.contains("structural")
+        || text.contains("rebuild")
+        || text.contains("realign")
     {
         return KernelSentinelFailureLevel::L4ArchitecturalMisalignment;
+    }
+    if text.contains("policy")
+        || text.contains("authority")
+        || text.contains("authority ghost")
+        || text.contains("ghost authority")
+        || text.contains("canonical")
+        || text.contains("invariant")
+        || text.contains("truth")
+        || text.contains("receipt")
+        || text.contains("capability")
+    {
+        return KernelSentinelFailureLevel::L3PolicyTruthFailure;
     }
     match finding.category {
         KernelSentinelFindingCategory::ReceiptIntegrity
@@ -261,8 +315,10 @@ pub fn kernel_sentinel_semantic_frame_for_parts(
     );
     json!({
         "failure_level": failure_level.code(),
+        "failure_class": failure_level.failure_class(),
         "root_frame": kernel_sentinel_root_frame_for_level(failure_level),
-        "remediation_level": failure_level.remediation_level()
+        "remediation_level": failure_level.remediation_level(),
+        "review_depth": failure_level.review_depth()
     })
 }
 
@@ -270,8 +326,10 @@ pub fn kernel_sentinel_semantic_frame_for_finding(finding: &KernelSentinelFindin
     let failure_level = kernel_sentinel_failure_level_for_finding(finding);
     json!({
         "failure_level": failure_level.code(),
+        "failure_class": failure_level.failure_class(),
         "root_frame": kernel_sentinel_root_frame_for_level(failure_level),
-        "remediation_level": failure_level.remediation_level()
+        "remediation_level": failure_level.remediation_level(),
+        "review_depth": failure_level.review_depth()
     })
 }
 
@@ -305,5 +363,52 @@ mod tests {
             KernelSentinelFailureLevel::L5SelfModelFailure.remediation_level(),
             "self_model_repair"
         );
+        assert_eq!(KernelSentinelFailureLevel::L0LocalDefect.failure_class(), "symptom");
+        assert_eq!(
+            KernelSentinelFailureLevel::L4ArchitecturalMisalignment.review_depth(),
+            "architecture_review"
+        );
+    }
+
+    #[test]
+    fn failure_level_classifier_keeps_higher_frames_out_of_symptom_patching() {
+        let cases = [
+            (
+                "runtime_correctness",
+                "high",
+                "shell:mini_os",
+                "shell recreated a mini OS and the architecture needs realignment",
+                "stop local patching and realign authority",
+                KernelSentinelFailureLevel::L4ArchitecturalMisalignment,
+            ),
+            (
+                "runtime_correctness",
+                "medium",
+                "sentinel:blindspot",
+                "sentinel fixated on symptoms and missed architectural failure",
+                "improve the self-model before generating issues",
+                KernelSentinelFailureLevel::L5SelfModelFailure,
+            ),
+            (
+                "runtime_correctness",
+                "high",
+                "authority:ghost",
+                "authority ghost survived syntax cleanup",
+                "restore canonical policy truth",
+                KernelSentinelFailureLevel::L3PolicyTruthFailure,
+            ),
+        ];
+        for (category, severity, fingerprint, summary, action, expected) in cases {
+            assert_eq!(
+                kernel_sentinel_failure_level_for_parts(
+                    category,
+                    severity,
+                    fingerprint,
+                    summary,
+                    action
+                ),
+                expected
+            );
+        }
     }
 }

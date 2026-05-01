@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T21:15:11.122Z
+Updated: 2026-05-01T21:26:03.141Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,17 +13,12 @@ Updated: 2026-05-01T21:15:11.122Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 43
-- red: 12
+- active_items: 42
+- red: 11
 - yellow: 22
 - white: 9
 
 ## Red Section (Do Immediately)
-- `KSENT-FAILURE-LEVELS` — Strengthen Sentinel failure-level classification
-  owner: `codex`
-  deadline: `2026-05-07`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Teach Sentinel to classify symptom, component, boundary, policy-truth, architectural, and self-model failures before recommending remediation.
 - `KSENT-FEEDBACK-CONTRACT` — Add Sentinel feedback-to-TODO actionability contract
   owner: `codex`
   deadline: `2026-05-07`

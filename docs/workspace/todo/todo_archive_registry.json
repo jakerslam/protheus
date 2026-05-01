@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:15:11.122Z",
+  "updated_at": "2026-05-01T21:26:03.141Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -209,6 +209,17 @@
       "summary": "Finish workflow gate authority cleanup so every turn enters Gate 1, tool/menu submissions are LLM-authored, and visible chat cannot be system-substituted.",
       "completed_at": "2026-05-01T21:15:11.122Z",
       "completion_note": "Completed workflow gate authority cleanup wave: visible responses now carry explicit LLM-authored/system-substitution provenance, system fallback cannot be mislabeled as LLM-authored chat, and Gate 1 manual-toolbox candidate choices can promote to pending confirmation only from candidate-menu context."
+    },
+    {
+      "id": "KSENT-FAILURE-LEVELS",
+      "title": "Strengthen Sentinel failure-level classification",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-07",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Teach Sentinel to classify symptom, component, boundary, policy-truth, architectural, and self-model failures before recommending remediation.",
+      "completed_at": "2026-05-01T21:26:03.140Z",
+      "completion_note": "Implemented Kernel Sentinel failure_class/review_depth classification, final-report failure_level_summary, and promotion candidate failure-level framing with targeted tests and live kernel-sentinel smoke."
     }
   ]
 }
