@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:01:18.605Z
+Updated: 2026-05-01T23:07:11.507Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:01:18.605Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-FRESHNESS-TIERS` — Separate current truth from stale Sentinel reference
+  completed_at: `2026-05-01T23:07:11.506Z`
+  previous_section: `yellow`
+  owner: `sentinel`
+  deadline: `2026-05-14`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Classify Sentinel outputs as current_live_truth, recent_but_not_current, historical_trend, or stale_reference_only before using them for decisions.
+  completion_note: Implemented four-tier Kernel Sentinel freshness classification: current_live_truth, recent_but_not_current, historical_trend, and stale_reference_only. Only current_live_truth is decision-authoritative; missing/explicitly stale/old evidence fails closed as stale_reference_only. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::report_budget -- --nocapture passed 7/7.
 - `KSENT-CONTRADICTIONS` — Add policy-vs-runtime contradiction detection
   completed_at: `2026-05-01T23:01:18.604Z`
   previous_section: `yellow`

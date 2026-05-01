@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:01:18.605Z",
+  "updated_at": "2026-05-01T23:07:11.507Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -84,15 +84,6 @@
       "deadline": "2026-05-10",
       "source_family": "Shell Alpine Purge Wave",
       "summary": "Remove the remaining Alpine boot/runtime dependency once the retirement guard is green."
-    },
-    {
-      "id": "KSENT-FRESHNESS-TIERS",
-      "title": "Separate current truth from stale Sentinel reference",
-      "section": "yellow",
-      "owner": "sentinel",
-      "deadline": "2026-05-14",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "Classify Sentinel outputs as current_live_truth, recent_but_not_current, historical_trend, or stale_reference_only before using them for decisions."
     },
     {
       "id": "KSENT-UNDERSTANDING-WORKSHEET",
