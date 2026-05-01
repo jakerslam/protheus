@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T22:34:40.407Z",
+  "updated_at": "2026-05-01T22:47:40.632Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -84,15 +84,6 @@
       "deadline": "2026-05-10",
       "source_family": "Shell Alpine Purge Wave",
       "summary": "Remove the remaining Alpine boot/runtime dependency once the retirement guard is green."
-    },
-    {
-      "id": "KSENT-ACTION-SYNTHESIS",
-      "title": "Improve issue/TODO synthesis specificity",
-      "section": "yellow",
-      "owner": "codex",
-      "deadline": "2026-05-14",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "Require component, observed failure, root-cause hypothesis, repair type, acceptance criteria, validation route, and evidence before promoting feedback to TODOs."
     },
     {
       "id": "KSENT-ANTI-PATCHING",

@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T22:34:40.407Z
+Updated: 2026-05-01T22:47:40.632Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T22:34:40.407Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-ACTION-SYNTHESIS` — Improve issue/TODO synthesis specificity
+  completed_at: `2026-05-01T22:47:40.629Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-14`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Require component, observed failure, root-cause hypothesis, repair type, acceptance criteria, validation route, and evidence before promoting feedback to TODOs.
+  completion_note: Implemented Kernel Sentinel issue/TODO specificity: issue drafts now require component, observed failure, root-cause hypothesis, repair type, validation route, evidence, acceptance criteria, and human-review/no-auto-mutation actionability before promotion. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis -- --nocapture passed 10/10.
 - `KSENT-FRESHNESS-GUARD` — Enforce fresh Sentinel truth before using findings
   completed_at: `2026-05-01T22:34:40.385Z`
   previous_section: `red`
