@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T21:33:53.793Z
+Updated: 2026-05-01T21:48:36.514Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,17 +13,12 @@ Updated: 2026-05-01T21:33:53.793Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 41
-- red: 10
+- active_items: 40
+- red: 9
 - yellow: 22
 - white: 9
 
 ## Red Section (Do Immediately)
-- `KSENT-SYMPTOM-CLUSTERS` — Cluster symptoms into root-cause families
-  owner: `codex`
-  deadline: `2026-05-07`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Group repeated UI/runtime/tool/eval findings into root-cause clusters so Sentinel detects structural failure families instead of isolated symptoms.
 - `SHELL-CLEANUP` — Finish the Shell source-of-truth cleanup
   owner: `unassigned`
   deadline: `2026-05-07`

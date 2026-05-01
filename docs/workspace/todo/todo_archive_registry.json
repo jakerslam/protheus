@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:33:53.793Z",
+  "updated_at": "2026-05-01T21:48:36.514Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -231,6 +231,17 @@
       "summary": "Make each Sentinel feedback item declare whether it is todo_ready, triage_to_todo, or needs_root_cause_synthesis, with explicit evidence/actionability requirements.",
       "completed_at": "2026-05-01T21:33:53.792Z",
       "completion_note": "Implemented Kernel Sentinel feedback-to-TODO actionability states (todo_ready, triage_to_todo, needs_root_cause_synthesis) with explicit evidence/actionability requirements, tests, and live auto-run feedback inbox smoke."
+    },
+    {
+      "id": "KSENT-SYMPTOM-CLUSTERS",
+      "title": "Cluster symptoms into root-cause families",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-07",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Group repeated UI/runtime/tool/eval findings into root-cause clusters so Sentinel detects structural failure families instead of isolated symptoms.",
+      "completed_at": "2026-05-01T21:48:36.512Z",
+      "completion_note": "Implemented Kernel Sentinel root-cause symptom clustering for feedback rows, including structural surface-family cluster metadata, repeated-cluster promotion signals, SRS evidence, file-size split, and targeted Sentinel regression coverage."
     }
   ]
 }
