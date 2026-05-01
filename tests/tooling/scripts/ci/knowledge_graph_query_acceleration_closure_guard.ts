@@ -27,7 +27,7 @@ const RUNTIME_SOURCE = 'core/layer2/memory/src/graph_query_acceleration_runtime.
 const SUBSYSTEM_SOURCE = 'core/layer2/memory/src/graph_subsystem.rs';
 const REGRESSION_SOURCE = 'core/layer2/memory/src/graph_query_acceleration_tests.rs';
 const SRS = 'docs/workspace/SRS.md';
-const TODO = 'docs/workspace/todo/TODO.md';
+const TODO = 'docs/workspace/TODO.md';
 
 type Check = { id: string; ok: boolean; detail?: string };
 

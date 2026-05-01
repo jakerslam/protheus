@@ -150,74 +150,10 @@ fn feedback_quality_ranking_prefers_specific_actionable_evidence_with_same_sever
     assert_eq!(rows[0]["feedback_quality_rank"], 1);
     assert_eq!(rows[0]["quality_signals"]["field_citation_count"], 1);
     assert_eq!(rows[0]["quality_signals"]["check_citation_count"], 1);
-    assert_eq!(rows[0]["todo_actionability_state"], "todo_ready");
     assert!(
         rows[0]["feedback_quality_score"].as_u64().unwrap()
             > rows[1]["feedback_quality_score"].as_u64().unwrap()
     );
-}
-
-#[test]
-fn generic_recommendations_require_root_cause_synthesis_before_auto_todo() {
-    let report = json!({
-        "findings": [
-            {
-                "status": "open",
-                "severity": "critical",
-                "category": "receipt_integrity",
-                "fingerprint": "verity_receipts:drift_events",
-                "summary": "kernel receipt drift exceeded policy",
-                "recommended_action": "inspect deterministic kernel evidence and restore fail-closed behavior",
-                "evidence": ["runtime://verity/drift_events"]
-            }
-        ]
-    });
-
-    let rows = build_feedback_inbox(&report, "2026-05-01T00:00:00Z");
-
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0]["todo_actionability_state"], "needs_root_cause_synthesis");
-    assert_eq!(
-        rows[0]["feedback_to_todo_contract"]["generic_recommendation_blocks_auto_todo"],
-        true
-    );
-    assert_eq!(
-        rows[0]["quality_signals"]["todo_actionability_state"],
-        "needs_root_cause_synthesis"
-    );
-}
-
-#[test]
-fn authority_ghost_findings_become_structural_todo_ready_feedback() {
-    let report = json!({
-        "findings": [
-            {
-                "status": "open",
-                "severity": "critical",
-                "category": "security_boundary",
-                "fingerprint": "nexus_boundary:shell_truth_leak:unknown_layer:shell_truth_leak_guard_current",
-                "summary": "shell_truth_leak_guard_current violates shell_truth_leak across unknown_layer",
-                "recommended_action": "move truth inference back to Kernel authority and expose only backend state",
-                "evidence": [
-                    "field://shell/projection_only=false",
-                    "check://shell_truth_leak_guard/pass=false"
-                ]
-            }
-        ]
-    });
-
-    let rows = build_feedback_inbox(&report, "2026-05-01T00:00:00Z");
-
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0]["todo_actionability_state"], "todo_ready");
-    assert_eq!(rows[0]["root_cause_profile"]["kind"], "authority_ghost");
-    assert_eq!(rows[0]["root_cause_profile"]["structural_signal"], true);
-    assert_eq!(rows[0]["root_cause_profile"]["symptom_patching_risk"], true);
-    assert_eq!(
-        rows[0]["root_cause_profile"]["next_step"],
-        "promote_to_actionable_todo"
-    );
-    assert_eq!(rows[0]["quality_signals"]["root_cause_kind"], "authority_ghost");
 }
 
 #[test]

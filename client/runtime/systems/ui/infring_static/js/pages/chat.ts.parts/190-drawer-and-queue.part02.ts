@@ -1,27 +1,26 @@
+    toolReceiptDisplayState: function(tool) {
+      if (!tool || typeof tool !== 'object') return '';
+      return String(
+        tool.display_state ||
+        tool.receipt_status ||
+        tool.tool_receipt_status ||
+        tool.status ||
+        ''
+      ).trim().toLowerCase();
+    },
+
     isBlockedTool: function(tool) {
       if (!tool) return false;
-      if (tool.blocked === true) return true;
-      var txt = String(tool.result || '').toLowerCase();
-      if (String(tool.status || '').toLowerCase() === 'blocked') return true;
-      if (!tool.is_error) return false;
-      return (
-        txt.indexOf('blocked') >= 0 ||
-        txt.indexOf('policy') >= 0 ||
-        txt.indexOf('denied') >= 0 ||
-        txt.indexOf('not allowed') >= 0 ||
-        txt.indexOf('forbidden') >= 0 ||
-        txt.indexOf('approval') >= 0 ||
-        txt.indexOf('permission') >= 0 ||
-        txt.indexOf('fail-closed') >= 0
-      );
+      var state = this.toolReceiptDisplayState(tool);
+      return tool.blocked === true || state === 'blocked' || state === 'policy_denied';
     },
 
     isToolSuccessful: function(tool) {
       if (!tool) return false;
       if (tool.running) return false;
       if (this.isBlockedTool(tool)) return false;
-      if (tool.is_error) return false;
-      return true;
+      var state = this.toolReceiptDisplayState(tool);
+      return state === 'success' || state === 'ok' || state === 'done' || state === 'ready';
     },
 
     isThoughtTool: function(tool) {
@@ -38,18 +37,13 @@
 
     toolInputPayload: function(tool) {
       if (!tool || typeof tool !== 'object') return null;
-      var raw = String(tool.input || tool.args || tool.arguments || '').trim();
-      if (!raw) return null;
-      if (raw.indexOf('<function=') >= 0 && raw.indexOf('{') >= 0) {
-        raw = raw.slice(raw.indexOf('{')).trim();
-      }
-      if (!(raw.charAt(0) === '{' || raw.charAt(0) === '[')) return null;
-      try {
-        var parsed = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? parsed : null;
-      } catch (_) {
-        return null;
-      }
+      var receipt = tool.tool_attempt_receipt && typeof tool.tool_attempt_receipt === 'object'
+        ? tool.tool_attempt_receipt
+        : null;
+      var normalized = receipt && receipt.normalized_result && receipt.normalized_result.normalized_args
+        ? receipt.normalized_result.normalized_args
+        : null;
+      return normalized && typeof normalized === 'object' ? normalized : null;
     },
 
     toolPayloadCount: function(payload, keys) {
@@ -226,13 +220,15 @@
         var matchesIdentity = String(card.identity_key || '').trim() && String(card.identity_key || '').trim() === String(identity.identity_key || '').trim();
         if (!matchesIdentity && String(card.name || '') !== name) continue;
         if (markRunning && card.running) {
-          if (typeof toolInput === 'string') card.input = toolInput;
+          if (!card.summary) card.summary = 'Tool running';
+          if (!card.input_ref && opts.input_ref) card.input_ref = String(opts.input_ref || '');
           if (identity.id) card.id = identity.id;
           if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           return card;
         }
         if (!markRunning && card.running) {
-          if (typeof toolInput === 'string') card.input = toolInput;
+          if (!card.summary) card.summary = 'Tool finished';
+          if (!card.input_ref && opts.input_ref) card.input_ref = String(opts.input_ref || '');
           if (identity.id) card.id = identity.id;
           if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           card.running = false;
@@ -240,7 +236,7 @@
         }
       }
       if (!allowCreate) return null;
-      var created = { id: identity.id, name: name, running: markRunning, expanded: false, input: typeof toolInput === 'string' ? toolInput : '', result: '', is_error: false, attempt_id: identity.attempt_id, attempt_sequence: identity.attempt_sequence, identity_key: identity.identity_key };
+      var created = { id: identity.id, name: name, running: markRunning, expanded: false, summary: markRunning ? 'Tool running' : 'Tool recorded', input_ref: String(opts.input_ref || identity.attempt_id || identity.id || ''), result_ref: String(opts.result_ref || identity.attempt_id || identity.id || ''), is_error: false, attempt_id: identity.attempt_id, attempt_sequence: identity.attempt_sequence, identity_key: identity.identity_key };
       msg.tools.push(created);
       return created;
     },

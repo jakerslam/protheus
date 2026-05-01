@@ -1,5 +1,4 @@
-        this.conversationCache = Object.assign({}, persistedCache, runtimeCache);
-        window.__infringChatCache = this.conversationCache;
+        this.conversationCache = Object.assign({}, persistedCache);
       }
       // Load session + session list when agent changes
       this.$watch('currentAgent', function(agent) {
@@ -86,13 +85,16 @@
       });
 
       // Check for pending agent from Agents page (set before chat mounted)
-      var store = Alpine.store('app');
-      if (store.pendingAgent) {
+      var appStoreBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var store = appStoreBridge && typeof appStoreBridge.current === 'function' ? appStoreBridge.current() : null;
+      if (store && store.pendingAgent) {
         self.selectAgent(store.pendingAgent);
-      } else if (store.activeAgentId) {
+      } else if (store && store.activeAgentId) {
         self.selectAgent(store.activeAgentId);
       } else {
-        var preferred = self.pickDefaultAgent(store.agents || []);
+        var preferred = self.pickDefaultAgent((store && store.agents) || []);
         if (preferred) self.selectAgent(preferred);
       }
 
@@ -133,7 +135,10 @@
 
       // Auto-select the first available agent in chat mode.
       this.$watch('$store.app.agents', function(agents) {
-        var store = Alpine.store('app');
+        var appStoreBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = appStoreBridge && typeof appStoreBridge.current === 'function' ? appStoreBridge.current() : null;
         var rows = Array.isArray(agents) ? agents : [];
         var chatStore = window.InfringChatStore;
         if (chatStore && chatStore.agents) chatStore.agents.set(rows);
@@ -180,7 +185,7 @@
             }
           }
         }
-        if (store.activeAgentId) {
+        if (store && store.activeAgentId) {
           var resolved = self.resolveAgent(store.activeAgentId);
           if (resolved) {
             if (!self.currentAgent || self.currentAgent.id !== resolved.id) {
@@ -300,7 +305,10 @@
         if (!chatStore) return;
         if (typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
         if (chatStore.currentAgent) chatStore.currentAgent.set(self.currentAgent || null);
-        var appStore = typeof Alpine !== 'undefined' && Alpine.store('app');
+        var appStoreBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var appStore = appStoreBridge && typeof appStoreBridge.current === 'function' ? appStoreBridge.current() : null;
         if (chatStore.agents) chatStore.agents.set(Array.isArray(appStore && appStore.agents) ? appStore.agents : []);
         if (chatStore.sidebarAgents) chatStore.sidebarAgents.set(Array.isArray(appStore && appStore.chatSidebarVisibleRows) ? appStore.chatSidebarVisibleRows : []);
         if (chatStore.sessionLoading) chatStore.sessionLoading.set(!!self.sessionLoading);
@@ -323,7 +331,12 @@
         }
       }());
       window.InfringChatPage = self;
-      if (typeof Alpine !== 'undefined' && !window.InfringApp) window.InfringApp = Alpine.store('app');
+      if (!window.InfringApp) {
+        var appStoreBridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        window.InfringApp = appStoreBridge && typeof appStoreBridge.current === 'function' ? appStoreBridge.current() : null;
+      }
     },
 
     toggleTerminalMode() {

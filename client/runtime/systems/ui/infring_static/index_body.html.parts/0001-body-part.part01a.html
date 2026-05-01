@@ -1,51 +1,13 @@
     <div class="sidebar-settings-anchor sidebar-tab-section">
-      <a
-        class="nav-item sidebar-settings-item sidebar-tab-item"
-        :class="{ active: page === 'settings' }"
-        @click="navigate('settings')"
-        :aria-current="page === 'settings' ? 'page' : false"
-        @mouseenter="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
-        @mousemove="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
-        @mouseleave="if (sidebarCollapsed) hideDashboardPopupBySource('sidebar')"
-      >
-        <span class="nav-icon"><svg class="settings-cog-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1-.33H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1-.33 1.65 1.65 0 0 0 .6-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 1 1 7.13 3.6l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .33 1 1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 20.4 7.13l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .38.13.74.36 1.03.23.29.57.5.94.57H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1 .4c-.29.24-.5.57-.57.94z"/></svg></span>
-        <span class="nav-label">Settings</span>
-      </a>
+      <infring-sidebar-nav-link-shell label="Settings" route="settings" activeroutes="settings" icon="settings" popup="hide"></infring-sidebar-nav-link-shell>
     </div>
 
-    <div class="sidebar-footer" x-show="$store.app.sessionUser">
-      <div x-show="$store.app.sessionUser" style="padding:4px 16px;display:flex;align-items:center;justify-content:space-between">
-        <span class="text-xs text-dim" x-text="$store.app.sessionUser" style="letter-spacing:0.5px"></span>
-        <button @click="$store.app.sessionLogout()" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px;opacity:0.7" title="Sign out">Logout</button>
-      </div>
-    </div>
+    <infring-sidebar-session-footer-shell></infring-sidebar-session-footer-shell>
 
-    <button
-      x-show="page === 'chat'"
-      class="overlay-pulltab-object sidebar-pulltab drag-bar drag-bar-pulltab overlay-shared-surface pulltab-border-top-active pulltab-border-right-active pulltab-border-bottom-active pulltab-border-left-inactive"
-      data-dragbar-pulltab="chat-sidebar"
-      :class="{ 'is-container-dragging': !!chatSidebarDragActive }"
-      :style="chatSidebarPulltabStyle()"
-      @click="toggleSidebar()"
-      @pointerdown.capture="startChatSidebarPointerDrag($event)"
-      @mousedown.capture="startChatSidebarPointerDrag($event)"
-      @mouseenter="showDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')), sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar', $event, { source: 'sidebar', side: 'left', body: sidebarCollapsed ? 'Open the chat navigation rail' : 'Hide the chat navigation rail', meta_origin: 'Sidebar' })"
-      @mousemove="showDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')), sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar', $event, { source: 'sidebar', side: 'left', body: sidebarCollapsed ? 'Open the chat navigation rail' : 'Hide the chat navigation rail', meta_origin: 'Sidebar' })"
-      @mouseleave="hideDashboardPopup('sidebar-utility:' + ((sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar').toLowerCase().replace(/[^a-z0-9_-]+/g, '-')))"
-      aria-label="Toggle sidebar"
-    >
-      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-top-left" aria-hidden="true"></span>
-      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-top-right" aria-hidden="true"></span>
-      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-bottom-left" aria-hidden="true"></span>
-      <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-bottom-right" aria-hidden="true"></span>
-      <svg class="overlay-pulltab-object-icon sidebar-pulltab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path x-show="!sidebarCollapsed" d="m15 6-6 6 6 6"></path>
-        <path x-show="sidebarCollapsed" d="m9 6 6 6-6 6"></path>
-      </svg>
-    </button>
+    <infring-sidebar-pulltab-shell></infring-sidebar-pulltab-shell>
   </infring-sidebar-rail-shell>
 
-  <div class="sidebar-overlay" @click="mobileMenuOpen = false"></div>
+  <infring-sidebar-mobile-overlay-shell class="sidebar-overlay"></infring-sidebar-mobile-overlay-shell>
 
   <!-- Main Content -->
   <main class="main-content">
@@ -53,111 +15,9 @@
       <div class="global-reflection-overlay"></div>
       <div class="chat-grid-overlay global-grid-overlay"></div>
     </section>
-    <div
-      class="global-taskbar"
-      data-shell-primitive="taskbar-dock"
-      data-taskbar-dock-surface="global-taskbar"
-      :class="{ 'is-dock-dragging': !!taskbarDockDragActive, 'is-docked-bottom': taskbarDockEdge === 'bottom', 'is-docked-top': taskbarDockEdge !== 'bottom' }"
-      :style="taskbarContainerStyle()"
-      @pointerdown.capture="startTaskbarDockPointerDrag($event)"
-    >
+    <infring-taskbar-dock-shell class="global-taskbar" data-shell-primitive="taskbar-dock" data-taskbar-dock-surface="global-taskbar">
       <div class="global-taskbar-left">
         <div class="taskbar-visual-group taskbar-visual-group-left" aria-label="Primary taskbar items">
-        <infring-taskbar-hero-menu-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-hero" parentownedmechanics="true">
-        <div id="taskbar-hero-menu-anchor" class="taskbar-hero-menu-anchor" x-ref="taskbarHeroMenuAnchor" @click.outside="closeTaskbarHeroMenu()">
-          <button class="taskbar-brand taskbar-brand-trigger" type="button" @click.stop="toggleTaskbarHeroMenu()" :aria-expanded="taskbarHeroMenuOpen ? 'true' : 'false'" aria-haspopup="menu" title="System actions">
-            <div class="brand-mark infring-logo" aria-hidden="true"><span class="brand-mark-glyph infring-logo-glyph">&infin;</span></div>
-            <div><div class="taskbar-brand-title">INFRING</div></div>
-          </button>
-          <infring-taskbar-menu-shell class="taskbar-hero-menu dashboard-dropdown-surface" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" anchorid="taskbar-hero-menu-anchor" fallbackside="bottom" layoutkey="taskbar-hero-menu" x-cloak x-show="taskbarHeroMenuOpen" x-transition:enter="transition ease-out duration-120" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0" x-transition:leave="transition ease-in duration-90" x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 -translate-y-1">
-            <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('restart')" :disabled="!!taskbarHeroActionPending"><svg class="taskbar-refresh-icon taskbar-hero-menu-icon" :style="'transform: rotate(' + (($store.app.taskbarRefreshTurns || 0) * 360) + 'deg)'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg><span>Restart</span></button>
-            <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('update')" :disabled="!!taskbarHeroActionPending"><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8"></path><path d="m8.5 12.5 3.5 3.5 3.5-3.5"></path></svg><span>Update</span></button>
-            <button class="taskbar-hero-menu-item" type="button" @click="runTaskbarHeroCommand('shutdown')" :disabled="!!taskbarHeroActionPending"><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"></path><path d="M8.2 5.8A8 8 0 1 0 15.8 5.8"></path></svg><span>Shut down</span></button>
-            <div class="taskbar-hero-menu-version" x-text="'v' + version"></div>
-          </infring-taskbar-menu-shell>
-        </div>
-        </infring-taskbar-hero-menu-shell>
-        <div
-          class="taskbar-reorder-box taskbar-reorder-box-left"
-          @pointerdown="handleTaskbarReorderPointerDown('left', $event)"
-          @pointerup="cancelTaskbarDragHold()"
-          @pointercancel="cancelTaskbarDragHold()"
-          @pointerleave="cancelTaskbarDragHold()"
-          @dragstart="handleTaskbarReorderDragStart('left', $event)"
-          @drag="handleTaskbarReorderDragMove($event)"
-          @dragenter="handleTaskbarReorderDragEnter('left', $event)"
-          @dragover="handleTaskbarReorderDragOver('left', $event)"
-          @drop="handleTaskbarReorderDrop('left', $event)"
-          @dragend="handleTaskbarDragEnd()"
-        >
-          <infring-taskbar-nav-cluster-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-nav" parentownedmechanics="true">
-          <div class="taskbar-reorder-item taskbar-reorder-nav-cluster taskbar-nav-pill" data-taskbar-item="nav_cluster" :style="taskbarReorderItemStyle('left', 'nav_cluster')" draggable="true">
-            <button
-              class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-nav-btn taskbar-back-btn"
-              :class="{ 'is-disabled': !canNavigateBack() }"
-              @click="navigateBackPage()"
-              @mouseenter="showTaskbarNavPopup('Back', $event)"
-              @mousemove="showTaskbarNavPopup('Back', $event)"
-              @mouseleave="hideDashboardPopup('taskbar-nav:back')"
-              @focus="showTaskbarNavPopup('Back', $event)"
-              @blur="hideDashboardPopup('taskbar-nav:back')"
-              :aria-disabled="!canNavigateBack() ? 'true' : 'false'"
-              aria-label="Back"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m15 18-6-6 6-6"></path>
-              </svg>
-            </button>
-            <button
-              class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-nav-btn taskbar-forward-btn"
-              :class="{ 'is-disabled': !canNavigateForward() }"
-              @click="navigateForwardPage()"
-              @mouseenter="showTaskbarNavPopup('Forward', $event)"
-              @mousemove="showTaskbarNavPopup('Forward', $event)"
-              @mouseleave="hideDashboardPopup('taskbar-nav:forward')"
-              @focus="showTaskbarNavPopup('Forward', $event)"
-              @blur="hideDashboardPopup('taskbar-nav:forward')"
-              :aria-disabled="!canNavigateForward() ? 'true' : 'false'"
-              aria-label="Forward"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m9 18 6-6-6-6"></path>
-              </svg>
-            </button>
-          </div>
-          </infring-taskbar-nav-cluster-shell>
-        </div>
-        <infring-taskbar-dropdown-cluster-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-dropdowns" parentownedmechanics="true">
-          <infring-taskbar-menu-shell class="taskbar-text-menus" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" menu="help" :open="taskbarTextMenuIsOpen('help')">
-            <div id="taskbar-help-menu-anchor" class="taskbar-text-menu-anchor" x-ref="taskbarHelpMenuAnchor" @click.outside="closeTaskbarTextMenu()">
-              <button
-                class="taskbar-text-menu-btn"
-                type="button"
-                @click.stop="toggleTaskbarTextMenu('help')"
-                :aria-expanded="taskbarTextMenuIsOpen('help') ? 'true' : 'false'"
-                aria-haspopup="menu"
-                aria-label="Help menu"
-              >Help</button>
-              <infring-taskbar-menu-shell
-                class="taskbar-text-menu-dropdown dashboard-dropdown-surface"
-                shellprimitive="taskbar-dock"
-                wrapperrole="taskbar-menu"
-                parentownedmechanics="true"
-                anchorid="taskbar-help-menu-anchor"
-                fallbackside="bottom"
-                layoutkey="taskbar-help-menu"
-                x-cloak
-                x-show="taskbarTextMenuIsOpen('help')"
-                x-transition:enter="transition ease-out duration-120"
-                x-transition:enter-start="opacity-0 -translate-y-1"
-                x-transition:enter-end="opacity-100 translate-y-0"
-                x-transition:leave="transition ease-in duration-90"
-                x-transition:leave-start="opacity-100 translate-y-0"
-                x-transition:leave-end="opacity-0 -translate-y-1"
-              >
-                <button class="taskbar-text-menu-item" type="button" @click="handleTaskbarHelpManual()">Manual</button>
-                <button class="taskbar-text-menu-item" type="button" @click="handleTaskbarHelpReportIssue()">Report an issue</button>
-              </infring-taskbar-menu-shell>
-            </div>
-          </infring-taskbar-menu-shell>
-        </infring-taskbar-dropdown-cluster-shell>
+        <infring-taskbar-hero-menu-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-hero" parentownedmechanics="true"></infring-taskbar-hero-menu-shell>
+        <infring-taskbar-nav-cluster-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-nav" parentownedmechanics="true"></infring-taskbar-nav-cluster-shell>
+        <infring-taskbar-dropdown-cluster-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-dropdowns" parentownedmechanics="true"></infring-taskbar-dropdown-cluster-shell>
