@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:33:53.793Z",
+  "updated_at": "2026-05-01T21:48:36.514Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -13,15 +13,6 @@
     ]
   },
   "items": [
-    {
-      "id": "KSENT-SYMPTOM-CLUSTERS",
-      "title": "Cluster symptoms into root-cause families",
-      "section": "red",
-      "owner": "codex",
-      "deadline": "2026-05-07",
-      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
-      "summary": "Group repeated UI/runtime/tool/eval findings into root-cause clusters so Sentinel detects structural failure families instead of isolated symptoms."
-    },
     {
       "id": "SHELL-CLEANUP",
       "title": "Finish the Shell source-of-truth cleanup",
