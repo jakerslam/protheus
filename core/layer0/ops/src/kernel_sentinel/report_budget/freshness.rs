@@ -5,6 +5,8 @@ use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub(super) const RELEASE_FINDING_STALE_AFTER_SECONDS: u64 = 1_800;
+const RECENT_NOT_CURRENT_AFTER_SECONDS: u64 = 7_200;
+const HISTORICAL_TREND_AFTER_SECONDS: u64 = 604_800;
 
 #[derive(Clone, Debug)]
 pub(super) struct FindingFreshness {
@@ -19,6 +21,7 @@ impl FindingFreshness {
     pub(super) fn to_json(&self) -> Value {
         json!({
             "state": self.state,
+            "truth_tier": self.state,
             "signal": self.signal,
             "current_truth": self.current_truth,
             "stale_do_not_use": self.stale_do_not_use,
@@ -30,43 +33,41 @@ impl FindingFreshness {
 
 pub(super) fn classify_finding_freshness(finding: &Value) -> FindingFreshness {
     if bool_field(finding, "stale").unwrap_or(false) {
-        return freshness("stale_do_not_use", "explicit_stale_flag", false, true, age_seconds(finding));
+        return freshness("stale_reference_only", "explicit_stale_flag", false, true, age_seconds(finding));
     }
     if let Some(age) = age_seconds(finding) {
-        let stale = age > RELEASE_FINDING_STALE_AFTER_SECONDS;
-        return freshness(
-            if stale { "stale_do_not_use" } else { "current_live_truth" },
-            "bounded_age_seconds",
-            !stale,
-            stale,
-            Some(age),
-        );
+        return freshness_for_age(age, "bounded_age_seconds");
     }
     if let Some(age) = evidence_freshness_age_seconds(finding) {
-        let stale = age > RELEASE_FINDING_STALE_AFTER_SECONDS;
-        return freshness(
-            if stale { "stale_do_not_use" } else { "current_live_truth" },
-            "evidence_ref_age_seconds",
-            !stale,
-            stale,
-            Some(age),
-        );
+        return freshness_for_age(age, "evidence_ref_age_seconds");
     }
     if let Some(generated_at) = u64_field(finding, "generated_at_epoch_seconds") {
         let age = unix_now().saturating_sub(generated_at);
-        let stale = age > RELEASE_FINDING_STALE_AFTER_SECONDS;
-        return freshness(
-            if stale { "stale_do_not_use" } else { "current_live_truth" },
-            "generated_at_epoch_seconds",
-            !stale,
-            stale,
-            Some(age),
-        );
+        return freshness_for_age(age, "generated_at_epoch_seconds");
     }
     if has_text_field(finding, "generated_at") || has_text_field(finding, "observed_at") {
-        return freshness("freshness_unverified", "timestamp_without_age", false, false, None);
+        return freshness("recent_but_not_current", "timestamp_without_age", false, false, None);
     }
-    freshness("missing_freshness", "missing_freshness_metadata", false, false, None)
+    freshness("stale_reference_only", "missing_freshness_metadata", false, true, None)
+}
+
+fn freshness_for_age(age: u64, signal: &'static str) -> FindingFreshness {
+    let state = if age <= RELEASE_FINDING_STALE_AFTER_SECONDS {
+        "current_live_truth"
+    } else if age <= RECENT_NOT_CURRENT_AFTER_SECONDS {
+        "recent_but_not_current"
+    } else if age <= HISTORICAL_TREND_AFTER_SECONDS {
+        "historical_trend"
+    } else {
+        "stale_reference_only"
+    };
+    freshness(
+        state,
+        signal,
+        state == "current_live_truth",
+        state == "stale_reference_only",
+        Some(age),
+    )
 }
 
 fn freshness(
@@ -139,4 +140,34 @@ fn unix_now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn age_seconds_maps_to_four_truth_tiers() {
+        let cases = [
+            (30, "current_live_truth", true, false),
+            (3_600, "recent_but_not_current", false, false),
+            (86_400, "historical_trend", false, false),
+            (900_000, "stale_reference_only", false, true),
+        ];
+        for (age, tier, current, stale) in cases {
+            let row = json!({"freshness_age_seconds": age});
+            let freshness = classify_finding_freshness(&row);
+            assert_eq!(freshness.state, tier);
+            assert_eq!(freshness.current_truth, current);
+            assert_eq!(freshness.stale_do_not_use, stale);
+        }
+    }
+
+    #[test]
+    fn missing_freshness_fails_closed_as_stale_reference_only() {
+        let freshness = classify_finding_freshness(&json!({}));
+        assert_eq!(freshness.state, "stale_reference_only");
+        assert_eq!(freshness.current_truth, false);
+        assert_eq!(freshness.stale_do_not_use, true);
+    }
 }
