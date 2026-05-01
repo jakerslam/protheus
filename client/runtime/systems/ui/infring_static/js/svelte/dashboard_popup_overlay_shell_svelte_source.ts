@@ -47,7 +47,11 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
       const root = service.root();
       if (root) return root;
     }
-    return service && typeof service.current === 'function' ? service.current() : null;
+    if (service && typeof service.current === 'function') {
+      const current = service.current();
+      if (current) return current;
+    }
+    return null;
   }
 
   function serviceOrigin(service, overrides) {
