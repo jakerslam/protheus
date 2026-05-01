@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:07:11.507Z
+Updated: 2026-05-01T23:12:47.721Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:07:11.507Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-UNDERSTANDING-WORKSHEET` — Generate recurring system-understanding worksheets
+  completed_at: `2026-05-01T23:12:47.720Z`
+  previous_section: `yellow`
+  owner: `sentinel`
+  deadline: `2026-05-14`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Have Sentinel periodically produce a self-understanding dossier covering soul, runtime behavior, authority map, boundary map, drift, gaps, and confidence.
+  completion_note: Implemented recurring Kernel Sentinel system-understanding worksheet artifacts emitted on auto-run. The worksheet walks soul, runtime behavior, authority map, boundary map, drift, gaps, confidence, and syntax_detail in order, with confidence gates and required next probes. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::system_understanding_worksheet -- --nocapture passed 1/1; cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::auto_run::tests::auto_run_persistence_tests::auto_run_writes_freshness_artifact_for_clean_state -- --exact --nocapture passed 1/1.
 - `KSENT-FRESHNESS-TIERS` — Separate current truth from stale Sentinel reference
   completed_at: `2026-05-01T23:07:11.506Z`
   previous_section: `yellow`

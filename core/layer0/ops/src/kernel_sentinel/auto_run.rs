@@ -16,6 +16,7 @@ use super::diagnostic_run_artifact::{
 use super::report_summary::build_health_report;
 use super::self_dossier::build_infring_self_dossier;
 use super::self_dossier_markdown::render_infring_self_dossier_markdown;
+use super::system_understanding_worksheet::{build_system_understanding_worksheet, render_system_understanding_worksheet_markdown};
 use super::rsi_handoff::build_internal_rsi_proposals;
 use super::{boot_watch, build_report, issue_synthesis, maintenance_synthesis, self_study, waivers, write_json};
 
@@ -171,20 +172,24 @@ fn persist_run_outputs(
     let parsed_dossier: super::SystemUnderstandingDossier =
         serde_json::from_value(dossier).map_err(|err| err.to_string())?;
     let internal_rsi_proposals = build_internal_rsi_proposals(&parsed_dossier);
+    let worksheet = build_system_understanding_worksheet(&parsed_dossier, report, &self_study_outputs, &diagnostic_run);
     write_json(
         &root.join("local/state/system_understanding/infring_dossier.json"),
         &dossier_value,
     )?;
+    write_json(&root.join("local/state/system_understanding/infring_worksheet_current.json"), &worksheet)?;
     write_json(
         &dir.join("internal_rsi_proposals_current.json"),
         &internal_rsi_proposals,
     )?;
     let dossier_markdown = render_infring_self_dossier_markdown(&parsed_dossier);
+    let worksheet_markdown = render_system_understanding_worksheet_markdown(&worksheet);
     let markdown_path = root.join("docs/workspace/system_understanding/infring_dossier.md");
     if let Some(parent) = markdown_path.parent() {
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     }
     fs::write(&markdown_path, dossier_markdown).map_err(|err| err.to_string())?;
+    fs::write(root.join("docs/workspace/system_understanding/infring_worksheet.md"), worksheet_markdown).map_err(|err| err.to_string())?;
     write_json(
         &dir.join("kernel_sentinel_health_current.json"),
         &build_health_report(report, verdict, Some(&self_study_outputs), Some(&diagnostic_run)),
@@ -311,7 +316,9 @@ pub fn build_auto_run_artifact(
             "kernel_sentinel_verdict.json",
             "kernel_sentinel_health_current.json",
             "system_understanding/infring_dossier.json",
+            "system_understanding/infring_worksheet_current.json",
             "docs/workspace/system_understanding/infring_dossier.md",
+            "docs/workspace/system_understanding/infring_worksheet.md",
             "internal_rsi_proposals_current.json",
             "kernel_sentinel_auto_run_current.json",
             "issues.jsonl",
