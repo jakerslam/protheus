@@ -343,7 +343,7 @@
     },
 
     sessionHasAnyHistory: function(data) {
-      if (data && Array.isArray(data.messages) && data.messages.length > 0) return true;
+      if (data && data.message_window && Array.isArray(data.message_window.rows) && data.message_window.rows.length > 0) return true;
       var pools = [];
       if (data && Array.isArray(data.sessions)) pools = pools.concat(data.sessions);
       if (data && data.session && Array.isArray(data.session.sessions)) {
@@ -419,9 +419,15 @@
         (this.currentAgent && String(this.currentAgent.id || '') === targetId ? this.currentAgent : null);
       if (resolved && this.agentHasInitialContract(resolved)) {
         try {
-          var appStore = Alpine.store('app');
+          var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+            ? InfringSharedShellServices.appStore
+            : null;
+          var appStore = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
           var pendingForResolved = String(appStore && appStore.pendingFreshAgentId ? appStore.pendingFreshAgentId : '').trim();
-          if (pendingForResolved === targetId) appStore.pendingFreshAgentId = '';
+          if (pendingForResolved === targetId) {
+            if (bridge && typeof bridge.set === 'function') bridge.set('pendingFreshAgentId', '');
+            else appStore.pendingFreshAgentId = '';
+          }
         } catch(_) {}
         return false;
       }
@@ -436,7 +442,10 @@
       }
       var pendingFreshId = '';
       try {
-        var store = Alpine.store('app');
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
         pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
       } catch(_) {}
       return !!pendingFreshId && pendingFreshId === targetId;
@@ -448,7 +457,10 @@
       if (this.isSystemThreadId && this.isSystemThreadId(targetId)) return true;
       if (this.isFreshInitInProgressFor(targetId)) return true;
       try {
-        var store = Alpine.store('app');
+        var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+          ? InfringSharedShellServices.appStore
+          : null;
+        var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
         var pendingFreshId = String(store && store.pendingFreshAgentId ? store.pendingFreshAgentId : '').trim();
         var currentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
         if (pendingFreshId && currentId && pendingFreshId === targetId && currentId === targetId) {

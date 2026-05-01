@@ -30,11 +30,6 @@ var InfringSharedShellServices = (function(existing) {
   }
 
   function root() {
-    if (shellRoot && typeof shellRoot === 'object') return shellRoot;
-    if (typeof window !== 'undefined' && window.InfringShellRoot && typeof window.InfringShellRoot === 'object') {
-      shellRoot = window.InfringShellRoot;
-      return shellRoot;
-    }
     return shellRoot && typeof shellRoot === 'object' ? shellRoot : null;
   }
 
@@ -114,7 +109,6 @@ var InfringSharedShellServices = (function(existing) {
   function registerShellRoot(rootState) {
     if (rootState && typeof rootState === 'object') {
       shellRoot = rootState;
-      if (typeof window !== 'undefined') window.InfringShellRoot = rootState;
       emit('root_registered');
     }
     return shellRoot;
@@ -150,10 +144,6 @@ var InfringSharedShellServices = (function(existing) {
   function method(name) {
     var store = current();
     var fn = store && store[name];
-    if (typeof fn !== 'function') {
-      store = root();
-      fn = store && store[name];
-    }
     return typeof fn === 'function' ? fn.bind(store) : null;
   }
 

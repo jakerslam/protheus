@@ -48,8 +48,6 @@ Layered Nexus Federation resolution is canonicalized in `docs/workspace/layered_
 
 Cross-domain Nexus route inventory is canonicalized in `docs/workspace/cross_domain_nexus_route_inventory.md`; declared routes must name source checkpoint, target checkpoint, Conduit path, posture, lease/capability, lifecycle gate, owner of truth, and receipt requirement.
 
-The live non-Shell violation and exemption inventory is canonicalized in `docs/workspace/nexus_violation_inventory.md`.
-
 ## Required Definitions
 
 ### Module

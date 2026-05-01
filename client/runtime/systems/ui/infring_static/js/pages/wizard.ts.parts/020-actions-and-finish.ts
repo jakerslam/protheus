@@ -86,7 +86,13 @@
           this.createdAgent = { id: res.agent_id, name: res.name || name };
           this.setupSummary.agent = res.name || name;
           InfringToast.success('Agent "' + (res.name || name) + '" created');
-          await Alpine.store('app').refreshAgents();
+          var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+            ? InfringSharedShellServices.appStore
+            : null;
+          var refreshAgents = bridge && typeof bridge.method === 'function'
+            ? bridge.method('refreshAgents')
+            : null;
+          if (typeof refreshAgents === 'function') await refreshAgents();
         } else {
           InfringToast.error('Failed: ' + (res.error || 'Unknown error'));
         }

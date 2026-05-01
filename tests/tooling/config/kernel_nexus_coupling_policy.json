@@ -74,6 +74,14 @@
         "reason": "observability profile embeds memory-owned profile blobs pending shared contract extraction",
         "expires": "2026-06-15",
         "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_package": "infring_layer1_primitives",
+        "to_crate": "infring_layer1_provenance",
+        "owner": "jay",
+        "reason": "primitive receipts depend on provenance types pending shared receipt contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
       }
     ],
     "cargo_path_edges": [
@@ -114,6 +122,14 @@
         "to_path": "../../layer0/memory",
         "owner": "jay",
         "reason": "observability profile embeds memory-owned profile blobs pending shared contract extraction",
+        "expires": "2026-06-15",
+        "replacement_nexus": "infring_nexus_core_v1 contract extraction"
+      },
+      {
+        "from_manifest": "core/layer1/primitives/Cargo.toml",
+        "to_path": "../provenance",
+        "owner": "jay",
+        "reason": "primitive receipts depend on provenance types pending shared receipt contract extraction",
         "expires": "2026-06-15",
         "replacement_nexus": "infring_nexus_core_v1 contract extraction"
       }

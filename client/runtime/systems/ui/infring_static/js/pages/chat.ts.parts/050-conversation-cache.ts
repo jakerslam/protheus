@@ -21,10 +21,35 @@
       }
     },
 
+    projectConversationCacheForPersistence(cache) {
+      var source = cache && typeof cache === 'object' ? cache : {};
+      var projected = {};
+      var keys = Object.keys(source);
+      for (var i = 0; i < keys.length; i++) {
+        var key = keys[i];
+        var entry = source[key] && typeof source[key] === 'object' ? source[key] : {};
+        var next = {
+          saved_at: Number(entry.saved_at || 0) || Date.now(),
+          session_scope_key: String(entry.session_scope_key || ''),
+          session_label: String(entry.session_label || ''),
+          token_count: Number(entry.token_count || 0) || 0,
+          default_terminal: entry.default_terminal === true, cache_shape: 'preview_rows_v1',
+          draft_chat: this.sanitizeConversationDraftText(entry.draft_chat),
+          draft_terminal: this.sanitizeConversationDraftText(entry.draft_terminal),
+          messages: typeof this.sanitizeConversationForCache === 'function'
+            ? this.sanitizeConversationForCache(entry.messages || [])
+            : []
+        };
+        projected[key] = next;
+      }
+      return projected;
+    },
+
     persistConversationCache() {
       try {
         localStorage.setItem(this.conversationCacheVersionKey, this.conversationCacheVersion);
-        localStorage.setItem(this.conversationCacheKey, JSON.stringify(this.conversationCache || {}));
+        var projectedCache = this.projectConversationCacheForPersistence(this.conversationCache || {});
+        localStorage.setItem(this.conversationCacheKey, JSON.stringify(projectedCache));
       } catch {}
     },
 

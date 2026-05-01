@@ -509,7 +509,9 @@
           );
         }
         var shouldHydrateHealth = force || store.connectionState !== 'connected' || !store.runtimeSync;
-        if (shouldHydrateHealth) await self.loadDashboardHealthSummary(store.connectionState !== 'connected');
+        if (shouldHydrateHealth) {
+          Promise.resolve(self.loadDashboardHealthSummary(store.connectionState !== 'connected')).catch(function() {});
+        }
         var now = Date.now();
         var shouldRefreshAgents =
           force ||

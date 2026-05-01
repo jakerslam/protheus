@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Plane ownership: Layer 1 direct primitives.
 
-use infring_types::{ProvenanceError, ReceiptDraft, ReceiptEmitter, ReceiptSink};
+use infring_layer1_provenance::{ProvenanceError, ReceiptDraft, ReceiptEmitter, ReceiptSink};
 use serde::Serialize;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -133,7 +133,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infring_types::{InMemoryReceiptSink, ReceiptEmitter};
+    use infring_layer1_provenance::{InMemoryReceiptSink, ReceiptEmitter};
     use serde_json::json;
 
     #[test]

@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const SRS_PATH = 'docs/workspace/SRS.md';
-const TODO_PATH = 'docs/workspace/todo/TODO_SRS_SYNC.md';
+const TODO_PATH = 'docs/workspace/TODO.md';
 const OUT_JSON = 'core/local/artifacts/srs_todo_sync_current.json';
 
 type SrsStatus =

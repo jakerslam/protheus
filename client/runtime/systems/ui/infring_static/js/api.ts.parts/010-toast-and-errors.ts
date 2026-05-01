@@ -109,6 +109,9 @@ var InfringAPI = (function() {
   var _reconnectAttempt = 0;
   var _connectionListeners = [];
   var HTTP_RETRY_DELAYS_MS = [0, 1000, 1000, 1000, 1000];
+  var HTTP_DEFAULT_TIMEOUT_MS = 12000;
+  var HTTP_STATUS_TIMEOUT_MS = 4500;
+  var HTTP_AGENT_LIST_TIMEOUT_MS = 5000;
 
   function setAuthToken(token) { _authToken = token; }
 
@@ -134,6 +137,35 @@ var InfringAPI = (function() {
     return status === 502 || status === 503 || status === 504;
   }
 
+  function requestTimeoutMs(path) {
+    var requestPath = String(path || '');
+    if (requestPath === '/api/status' || requestPath === '/api/version') return HTTP_STATUS_TIMEOUT_MS;
+    if (requestPath.indexOf('/api/agents') === 0 && requestPath.indexOf('view=sidebar') >= 0) return HTTP_AGENT_LIST_TIMEOUT_MS;
+    return HTTP_DEFAULT_TIMEOUT_MS;
+  }
+
+  function requestMaxAttempts(path) {
+    var requestPath = String(path || '');
+    if (requestPath === '/api/status' || requestPath === '/api/version') return 1;
+    if (requestPath.indexOf('/api/agents') === 0 && requestPath.indexOf('view=sidebar') >= 0) return 1;
+    return HTTP_RETRY_DELAYS_MS.length;
+  }
+
+  function fetchWithTimeout(url, opts, timeoutMs) {
+    if (typeof AbortController === 'undefined') return fetch(url, opts);
+    var controller = new AbortController();
+    var requestOpts = Object.assign({}, opts, { signal: controller.signal });
+    var timer = setTimeout(function() { controller.abort(); }, timeoutMs);
+    return fetch(url, requestOpts).finally(function() {
+      clearTimeout(timer);
+    });
+  }
+
+  function isFetchTimeoutError(err) {
+    if (!err) return false;
+    return err.name === 'AbortError';
+  }
+
   function isFetchDisconnectError(err) {
     if (!err) return false;
     var message = String(err && err.message ? err.message : '');
@@ -143,23 +175,28 @@ var InfringAPI = (function() {
 
   function request(method, path, body) {
     var opts = { method: method, headers: headers() };
+    var maxAttempts = requestMaxAttempts(path);
+    var timeoutMs = requestTimeoutMs(path);
     if (body !== undefined) opts.body = JSON.stringify(body);
     if (_connectionState === 'disconnected') setConnectionState('connecting');
     function attemptRequest(attempt) {
       var delayMs = HTTP_RETRY_DELAYS_MS[Math.max(0, Math.min(HTTP_RETRY_DELAYS_MS.length - 1, attempt))] || 0;
       var start = delayMs > 0 ? waitMs(delayMs) : Promise.resolve();
       return start.then(function() {
-        return fetch(BASE + path, opts).then(function(r) {
+        return fetchWithTimeout(BASE + path, opts, timeoutMs).then(function(r) {
           if (_connectionState !== 'connected') setConnectionState('connected');
           if (!r.ok) {
             // On 401, auto-show auth prompt so the user can re-enter their key
             if (r.status === 401 && typeof Alpine !== 'undefined') {
               try {
-                var store = Alpine.store('app');
+                var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+                  ? InfringSharedShellServices.appStore
+                  : null;
+                var store = bridge && typeof bridge.current === 'function' ? bridge.current() : null;
                 if (store && !store.showAuthPrompt) {
                   _authToken = '';
                   localStorage.removeItem('infring-api-key');
-                  store.showAuthPrompt = true;
+                  if (bridge && typeof bridge.set === 'function') bridge.set('showAuthPrompt', true);
                 }
               } catch(e2) { /* ignore Alpine errors */ }
             }
@@ -185,14 +222,18 @@ var InfringAPI = (function() {
       }).catch(function(e) {
         var errAny = /** @type {any} */ (e);
         var status = Number(errAny && errAny.status ? errAny.status : 0);
-        var retryable = isFetchDisconnectError(e) || isRetryableHttpStatus(status);
-        var hasMoreRetries = (attempt + 1) < HTTP_RETRY_DELAYS_MS.length;
+        var retryable = isFetchDisconnectError(e) || isFetchTimeoutError(e) || isRetryableHttpStatus(status);
+        var hasMoreRetries = (attempt + 1) < maxAttempts;
         if (retryable && hasMoreRetries) {
           return attemptRequest(attempt + 1);
         }
+        if (isFetchTimeoutError(e)) {
+          setConnectionState('reconnecting');
+          throw new Error('Request timed out after ' + timeoutMs + 'ms: ' + path);
+        }
         if (isFetchDisconnectError(e)) {
           setConnectionState('reconnecting');
-          throw new Error('Cannot connect to daemon after 5 attempts — is infring running?');
+          throw new Error('Cannot connect to daemon after ' + maxAttempts + ' attempts — is infring running?');
         }
         throw e;
       });

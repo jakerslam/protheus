@@ -89,10 +89,13 @@
       targetRows.push(message);
       if (canDedupe && canonicalText) this._systemMessageDedupeIndex[dedupeKey] = { id: message.id, ts: ts };
 
-      var store = Alpine.store('app');
-      if (store && typeof store.saveAgentChatPreview === 'function') {
-        store.saveAgentChatPreview(targetId, targetRows);
-      }
+      var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
+        ? InfringSharedShellServices.appStore
+        : null;
+      var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
+        ? bridge.method('saveAgentChatPreview')
+        : null;
+      if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(targetId, targetRows);
       if (activeThread) {
         if (payload.auto_scroll !== false) this.scrollToBottom();
         this.scheduleConversationPersist();
