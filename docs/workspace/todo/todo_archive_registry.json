@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T22:47:40.632Z",
+  "updated_at": "2026-05-01T22:55:50.189Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -264,6 +264,17 @@
       "summary": "Require component, observed failure, root-cause hypothesis, repair type, acceptance criteria, validation route, and evidence before promoting feedback to TODOs.",
       "completed_at": "2026-05-01T22:47:40.629Z",
       "completion_note": "Implemented Kernel Sentinel issue/TODO specificity: issue drafts now require component, observed failure, root-cause hypothesis, repair type, validation route, evidence, acceptance criteria, and human-review/no-auto-mutation actionability before promotion. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis -- --nocapture passed 10/10."
+    },
+    {
+      "id": "KSENT-ANTI-PATCHING",
+      "title": "Detect symptom-patching loops",
+      "section": "yellow",
+      "owner": "sentinel",
+      "deadline": "2026-05-14",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Flag repeated patches that change visible symptoms while the same boundary, policy, or ownership violation remains unresolved.",
+      "completed_at": "2026-05-01T22:55:50.186Z",
+      "completion_note": "Implemented Kernel Sentinel anti-patching detection: issue synthesis now flags repeated visible symptom patches under one structural root, publishes anti_patching metadata, and collapses them into one structural repair issue. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis -- --nocapture passed 11/11."
     }
   ]
 }

@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T22:47:40.632Z
+Updated: 2026-05-01T22:55:50.189Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T22:47:40.632Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-ANTI-PATCHING` — Detect symptom-patching loops
+  completed_at: `2026-05-01T22:55:50.186Z`
+  previous_section: `yellow`
+  owner: `sentinel`
+  deadline: `2026-05-14`
+  source_family: `Kernel Sentinel Feedback Quality Upgrade`
+  summary: Flag repeated patches that change visible symptoms while the same boundary, policy, or ownership violation remains unresolved.
+  completion_note: Implemented Kernel Sentinel anti-patching detection: issue synthesis now flags repeated visible symptom patches under one structural root, publishes anti_patching metadata, and collapses them into one structural repair issue. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis -- --nocapture passed 11/11.
 - `KSENT-ACTION-SYNTHESIS` — Improve issue/TODO synthesis specificity
   completed_at: `2026-05-01T22:47:40.629Z`
   previous_section: `yellow`
