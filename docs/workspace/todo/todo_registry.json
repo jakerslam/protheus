@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:20:14.134Z",
+  "updated_at": "2026-05-01T23:23:52.745Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -246,15 +246,6 @@
       "deadline": "none",
       "source_family": "Tauri Desktop App Migration + Memory Fix Wave",
       "summary": "Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway."
-    },
-    {
-      "id": "KSENT-FINAL-REPORT",
-      "title": "Publish Sentinel final output docs for top findings",
-      "section": "yellow",
-      "owner": "codex",
-      "deadline": "2026-05-15",
-      "source_family": "Sentinel Regression Audit May01",
-      "summary": "Emit compact final output docs that summarize release blockers, top findings, evidence refs, and next actions instead of forcing operators to inspect huge raw state artifacts."
     },
     {
       "id": "KSENT-ISSUE-BOUNDEDNESS",

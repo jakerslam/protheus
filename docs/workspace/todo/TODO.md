@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:20:14.134Z
+Updated: 2026-05-01T23:23:52.745Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T23:20:14.134Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 31
+- active_items: 30
 - red: 8
-- yellow: 14
+- yellow: 13
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -86,11 +86,6 @@ Updated: 2026-05-01T23:20:14.134Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
-- `KSENT-FINAL-REPORT` — Publish Sentinel final output docs for top findings
-  owner: `codex`
-  deadline: `2026-05-15`
-  source_family: `Sentinel Regression Audit May01`
-  summary: Emit compact final output docs that summarize release blockers, top findings, evidence refs, and next actions instead of forcing operators to inspect huge raw state artifacts.
 - `KSENT-ISSUE-BOUNDEDNESS` — Triage Sentinel boundedness findings into concrete repair work
   owner: `codex`
   deadline: `2026-05-15`
