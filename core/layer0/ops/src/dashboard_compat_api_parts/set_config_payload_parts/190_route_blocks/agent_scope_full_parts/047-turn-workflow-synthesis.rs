@@ -1893,7 +1893,8 @@ fn run_turn_workflow_final_response(
                         &recent_context,
                         &retried_text,
                     );
-                let prompt_echo_reply = if direct_simple_conversation_turn
+                let prompt_scaffold_reply = response_contains_prompt_scaffold(&retried_text);
+                let prompt_echo_reply = prompt_scaffold_reply || if direct_simple_conversation_turn
                     && !clean_text(message, 240)
                         .eq_ignore_ascii_case(&clean_text(&retried_text, 240))
                 {

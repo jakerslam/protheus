@@ -208,6 +208,57 @@
       ]
     },
     {
+      "id": "completed_web_tool_synthesis",
+      "turns": [
+        {
+          "turn_id": "web_done_001",
+          "user_message": "After web search returns, synthesize the current framework comparison from the tool result.",
+          "mock_response": {
+            "response": "The web result says agent frameworks are converging on explicit workflow traces, tool receipts, and sandboxed execution. Infring should keep the LLM-controlled toolbox but require receipt-backed synthesis after tools run.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "final_llm_response": {
+                "status": "synthesized"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_5_tool_observation",
+                  "status": "tool_result_received"
+                },
+                {
+                  "stage": "gate_6_llm_final_output",
+                  "status": "synthesized"
+                }
+              ]
+            },
+            "tools": [
+              {
+                "name": "batch_query",
+                "status": "success",
+                "receipt": "fixture-web-tool-receipt",
+                "summary": "Agent frameworks are emphasizing workflow traces, receipts, and sandboxed execution."
+              }
+            ],
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["web result", "receipt-backed synthesis"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "require_tool_execution_evidence": true,
+            "require_final_synthesis": true,
+            "require_tool_result_synthesis": true
+          }
+        }
+      ]
+    },
+    {
       "id": "frustrated_user_recovery",
       "turns": [
         {
