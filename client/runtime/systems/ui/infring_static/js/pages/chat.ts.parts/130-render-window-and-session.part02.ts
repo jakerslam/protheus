@@ -27,10 +27,7 @@
         if (self.currentAgent && String(self.currentAgent.id || '') === String(agentId || '')) {
           self.applyAgentGitTreeState(self.currentAgent, data || {});
         }
-        var messageWindow = data && data.message_window && typeof data.message_window === 'object'
-          ? data.message_window
-          : {};
-        var normalized = self.mergeModelNoticesForAgent(agentId, self.normalizeSessionMessages(data, { requireWindow: true }));
+        var normalized = self.mergeModelNoticesForAgent(agentId, self.normalizeSessionMessages(data));
         var shouldApplyAuthoritativeMessages = true;
         var pendingRequest = self._pendingWsRequest && self._pendingWsRequest.agent_id
           ? self._pendingWsRequest
@@ -60,7 +57,7 @@
           if (shouldApplyAuthoritativeMessages) {
             // Always prefer server-authoritative session state over potentially stale cache.
             self.messages = normalized;
-            self._hasMoreMessages = !!(messageWindow && messageWindow.has_more);
+            self._hasMoreMessages = !!(data && data.has_more);
             self._messagePageOffset = normalized.length;
             self.clearHoveredMessageHard();
             self.recomputeContextEstimate();

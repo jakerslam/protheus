@@ -134,7 +134,16 @@
       if (Array.isArray(row.tools)) {
         for (var i = 0; i < row.tools.length && candidates.length < 24; i += 1) {
           var tool = row.tools[i] || {};
-          this._collectSourceCandidatesFromValue(tool.citations || tool.sources || tool.source_refs || tool.evidence || null, candidates, seenUrls, 0);
+          var parsedResult = null;
+          if (tool.result && typeof tool.result === 'string') {
+            var trimmed = String(tool.result || '').trim();
+            if (trimmed && (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[')) {
+              try { parsedResult = JSON.parse(trimmed); } catch (_) {}
+            }
+          } else if (tool.result && typeof tool.result === 'object') {
+            parsedResult = tool.result;
+          }
+          this._collectSourceCandidatesFromValue(parsedResult, candidates, seenUrls, 0);
           if (Array.isArray(tool._imageUrls)) {
             for (var ui = 0; ui < tool._imageUrls.length && candidates.length < 24; ui += 1) {
               this._collectSourceCandidatesFromValue(tool._imageUrls[ui], candidates, seenUrls, 0);
