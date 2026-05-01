@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:23:52.745Z",
+  "updated_at": "2026-05-01T23:27:24.164Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -246,15 +246,6 @@
       "deadline": "none",
       "source_family": "Tauri Desktop App Migration + Memory Fix Wave",
       "summary": "Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway."
-    },
-    {
-      "id": "KSENT-ISSUE-BOUNDEDNESS",
-      "title": "Triage Sentinel boundedness findings into concrete repair work",
-      "section": "yellow",
-      "owner": "codex",
-      "deadline": "2026-05-15",
-      "source_family": "Sentinel Regression Audit May01",
-      "summary": "Turn the workspace tooling boundedness findings into a concrete repair lane with owner, acceptance criteria, and replay/validation commands."
     },
     {
       "id": "KSENT-ISSUE-EMPTY-RESPONSES",

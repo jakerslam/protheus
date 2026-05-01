@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:23:52.745Z
+Updated: 2026-05-01T23:27:24.164Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:23:52.745Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-ISSUE-BOUNDEDNESS` — Triage Sentinel boundedness findings into concrete repair work
+  completed_at: `2026-05-01T23:27:24.163Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Turn the workspace tooling boundedness findings into a concrete repair lane with owner, acceptance criteria, and replay/validation commands.
+  completion_note: Added an Observability-owned Kernel Sentinel boundedness repair lane with owner, root-cause hypothesis, concrete next action, required boundedness dimensions, evidence refs, acceptance criteria, replay commands, and human-review/no-auto-apply policy. Validation: npm run -s ops:ksent:boundedness-repair:guard passed; controlled violation failed closed; JSON parsed; metrics:effective-loc reported Rust share 89.4%.
 - `KSENT-FINAL-REPORT` — Publish Sentinel final output docs for top findings
   completed_at: `2026-05-01T23:23:52.744Z`
   previous_section: `yellow`
