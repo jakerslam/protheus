@@ -1,0 +1,94 @@
+{
+  "type": "mlsys_chapter5_workflow_assimilation",
+  "schema_version": 1,
+  "owner": "assurance.observability",
+  "status": "canonical_research_contract",
+  "source": {
+    "title": "Machine Learning Systems, Volume 1 - Chapter 5: AI Workflow",
+    "url": "https://www.mlsysbook.ai/contents/core/workflow/workflow.html",
+    "license_note": "Open textbook page; summarized as system-design lessons for InfRing."
+  },
+  "source_lessons": [
+    {
+      "id": "feedback_loops_are_primary",
+      "summary": "Later-stage monitoring, deployment, and evaluation evidence must inform earlier design, data, model, workflow, and runtime decisions."
+    },
+    {
+      "id": "workflow_is_not_linear",
+      "summary": "AI systems are iterative and empirical; treating lifecycle stages as independent or final creates hidden production failures."
+    },
+    {
+      "id": "validation_is_continuous",
+      "summary": "Validation belongs throughout the lifecycle, not only at the end; skipping validation creates production-only failure modes."
+    },
+    {
+      "id": "production_differs_from_development",
+      "summary": "Development metrics can fail to predict production behavior because production has data quality, latency, resource, and adversarial constraints."
+    },
+    {
+      "id": "systems_thinking_controls_transfer",
+      "summary": "Data quality, runtime constraints, deployment realities, and monitoring feedback influence each other; local optimization is insufficient."
+    }
+  ],
+  "infring_assimilation_dimensions": [
+    {
+      "id": "workload_awareness",
+      "required_behavior": "Runtime evidence must classify workload shape, freshness, volume, latency pressure, source coverage, and production-like constraints before confidence is promoted.",
+      "owned_by": "observability",
+      "evidence_refs": [
+        "docs/workspace/universal_trace_substrate_policy.md",
+        "observability/traces/universal_trace_substrate_contract.json",
+        "core/layer0/ops/src/kernel_sentinel/report_budget/freshness.rs"
+      ]
+    },
+    {
+      "id": "confidence_routing",
+      "required_behavior": "Low-confidence or stale evidence routes to bounded probes, worksheets, or validation runs instead of implementation or issue auto-promotion.",
+      "owned_by": "kernel_sentinel",
+      "evidence_refs": [
+        "core/layer0/ops/src/kernel_sentinel/system_understanding_worksheet.rs",
+        "core/layer0/ops/src/kernel_sentinel/self_dossier.rs",
+        "core/layer0/ops/src/kernel_sentinel/rsi_handoff.rs"
+      ]
+    },
+    {
+      "id": "resource_budgeting",
+      "required_behavior": "Default paths must preserve explicit payload, runtime, and report-size budgets so monitoring/feedback loops do not become new failure sources.",
+      "owned_by": "governance.validation",
+      "evidence_refs": [
+        "docs/workspace/interface_payload_budget_policy.md",
+        "core/layer0/ops/src/kernel_sentinel/report_budget.rs",
+        "observability/traces/universal_trace_substrate_contract.json"
+      ]
+    },
+    {
+      "id": "dam_diagnosis",
+      "required_behavior": "Findings should follow Diagnose -> Act -> Monitor: identify root-cause hypothesis, route a concrete action, then attach follow-up monitoring/proof before closure.",
+      "owned_by": "kernel_sentinel",
+      "evidence_refs": [
+        "core/layer0/ops/src/kernel_sentinel/issue_synthesis.rs",
+        "core/layer0/ops/src/kernel_sentinel/incident_diagnostic_followup.rs",
+        "core/layer0/ops/src/kernel_sentinel/system_understanding_worksheet.rs"
+      ]
+    }
+  ],
+  "guardrails": [
+    "Do not treat one clean run as production readiness.",
+    "Do not promote development-only metrics without production-like workload evidence.",
+    "Do not skip validation to accelerate implementation.",
+    "Do not let monitoring outputs grow without report-size budgets.",
+    "Do not route low-confidence observations into closed-loop mutation."
+  ],
+  "minimum_done_contract": {
+    "requires_source_url": true,
+    "requires_at_least_five_source_lessons": true,
+    "requires_all_four_infring_dimensions": [
+      "workload_awareness",
+      "confidence_routing",
+      "resource_budgeting",
+      "dam_diagnosis"
+    ],
+    "requires_evidence_refs_per_dimension": true,
+    "requires_validation_guard": "ops:mlsys5:assimilation:guard"
+  }
+}

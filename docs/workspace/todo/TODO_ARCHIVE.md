@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:16:26.401Z
+Updated: 2026-05-01T23:20:14.134Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:16:26.401Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `MLSYS5` — Assimilate MLSysBook Chapter 5 systems lessons
+  completed_at: `2026-05-01T23:20:14.133Z`
+  previous_section: `yellow`
+  owner: `unassigned`
+  deadline: `2026-05-27`
+  source_family: `MLSysBook Vol. 1 Chapter 5 Neural Computation Implementation Backlog`
+  summary: Assimilate Chapter 5 systems lessons into workload awareness, confidence routing, budgeting, and D-A-M diagnosis.
+  completion_note: Assimilated MLSysBook Chapter 5 workflow lessons into Observability governance. Added a research contract, note, and ops:mlsys5:assimilation:guard covering workload awareness, confidence routing, resource budgeting, and D-A-M diagnosis. Validation: npm run -s ops:mlsys5:assimilation:guard passed; controlled violation rejected as expected.
 - `TRACE` — Finish the universal trace substrate contract
   completed_at: `2026-05-01T23:16:26.400Z`
   previous_section: `yellow`
