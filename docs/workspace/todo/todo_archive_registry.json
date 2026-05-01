@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:30:41.084Z",
+  "updated_at": "2026-05-01T23:33:39.039Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -374,6 +374,17 @@
       "summary": "Convert repeated synthetic user harness empty_assistant_response findings into a concrete issue lane covering routing, finalization, and synthesis failure causes.",
       "completed_at": "2026-05-01T23:30:41.083Z",
       "completion_note": "Added an Observability-owned empty-response repair lane with symptom signatures, evidence refs, owner, root-cause hypothesis, concrete next action, acceptance criteria, no-visible-system-fallback policy, and validation commands. Validation: empty-response guard passed; controlled violation failed closed; JSON parsed; two targeted core workflow finalization diagnostics tests passed."
+    },
+    {
+      "id": "KSENT-ISSUE-RELEASE-BRIDGES",
+      "title": "Repair Sentinel release-evidence and receipt-integrity blockers",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Investigate and close the release_evidence and receipt_integrity bridge failures that currently drive Kernel Sentinel release_fail verdicts.",
+      "completed_at": "2026-05-01T23:33:39.037Z",
+      "completion_note": "Added an Observability-owned release bridge repair lane for release-evidence and receipt-integrity Sentinel blockers. The lane requires current evidence, exact bridge field coverage, owner guess, replay command, blocker class, artifact refs, and no auto-apply policy. Validation: release bridge guard passed; controlled violation failed closed; JSON parsed; targeted release-gate synthesis and strict critical-finding cargo tests passed."
     }
   ]
 }
