@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:20:14.134Z",
+  "updated_at": "2026-05-01T23:23:52.745Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -341,6 +341,17 @@
       "summary": "Assimilate Chapter 5 systems lessons into workload awareness, confidence routing, budgeting, and D-A-M diagnosis.",
       "completed_at": "2026-05-01T23:20:14.133Z",
       "completion_note": "Assimilated MLSysBook Chapter 5 workflow lessons into Observability governance. Added a research contract, note, and ops:mlsys5:assimilation:guard covering workload awareness, confidence routing, resource budgeting, and D-A-M diagnosis. Validation: npm run -s ops:mlsys5:assimilation:guard passed; controlled violation rejected as expected."
+    },
+    {
+      "id": "KSENT-FINAL-REPORT",
+      "title": "Publish Sentinel final output docs for top findings",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-15",
+      "source_family": "Sentinel Regression Audit May01",
+      "summary": "Emit compact final output docs that summarize release blockers, top findings, evidence refs, and next actions instead of forcing operators to inspect huge raw state artifacts.",
+      "completed_at": "2026-05-01T23:23:52.744Z",
+      "completion_note": "Published the Observability operator guide for Kernel Sentinel final output. The guide documents compact artifact refs, release blockers, top findings, triage findings, root-cause clusters, promotion lane, stale-reference handling, and report-budget expectations. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::report_budget -- --nocapture passed 7/7."
     }
   ]
 }

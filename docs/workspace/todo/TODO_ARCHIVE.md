@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:20:14.134Z
+Updated: 2026-05-01T23:23:52.745Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-01T23:20:14.134Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-FINAL-REPORT` — Publish Sentinel final output docs for top findings
+  completed_at: `2026-05-01T23:23:52.744Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-15`
+  source_family: `Sentinel Regression Audit May01`
+  summary: Emit compact final output docs that summarize release blockers, top findings, evidence refs, and next actions instead of forcing operators to inspect huge raw state artifacts.
+  completion_note: Published the Observability operator guide for Kernel Sentinel final output. The guide documents compact artifact refs, release blockers, top findings, triage findings, root-cause clusters, promotion lane, stale-reference handling, and report-budget expectations. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::report_budget -- --nocapture passed 7/7.
 - `MLSYS5` — Assimilate MLSysBook Chapter 5 systems lessons
   completed_at: `2026-05-01T23:20:14.133Z`
   previous_section: `yellow`
