@@ -168,7 +168,7 @@ fn final_report_marks_stale_findings_do_not_use_before_promotion() {
     };
     fs::write(
         &findings_path,
-        format!("{}\n{}", finding_row(fresh, 30), finding_row(stale, 7200)),
+        format!("{}\n{}", finding_row(fresh, 30), finding_row(stale, 900_000)),
     )
     .unwrap();
 
@@ -188,7 +188,7 @@ fn final_report_marks_stale_findings_do_not_use_before_promotion() {
     );
     assert_eq!(
         final_report["triage_findings"][0]["quality"]["freshness"]["state"],
-        "stale_do_not_use"
+        "stale_reference_only"
     );
     assert!(final_report["triage_findings"][0]["quality"]["missing_requirements"]
         .as_array()

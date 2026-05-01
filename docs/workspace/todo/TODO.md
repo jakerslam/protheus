@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:01:18.605Z
+Updated: 2026-05-01T23:07:11.507Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T23:01:18.605Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 35
+- active_items: 34
 - red: 8
-- yellow: 18
+- yellow: 17
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -61,11 +61,6 @@ Updated: 2026-05-01T23:01:18.605Z
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
 
 ## Yellow Section (Do Soon)
-- `KSENT-FRESHNESS-TIERS` — Separate current truth from stale Sentinel reference
-  owner: `sentinel`
-  deadline: `2026-05-14`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Classify Sentinel outputs as current_live_truth, recent_but_not_current, historical_trend, or stale_reference_only before using them for decisions.
 - `KSENT-UNDERSTANDING-WORKSHEET` — Generate recurring system-understanding worksheets
   owner: `sentinel`
   deadline: `2026-05-14`

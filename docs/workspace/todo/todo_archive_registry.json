@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:01:18.605Z",
+  "updated_at": "2026-05-01T23:07:11.507Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -297,6 +297,17 @@
       "summary": "Compare doctrine, contracts, code paths, and artifacts to surface semantic contradictions such as projection-only policy with runtime-state mirrors.",
       "completed_at": "2026-05-01T23:01:18.604Z",
       "completion_note": "Implemented first-class policy-vs-runtime contradiction findings: Nexus boundary evidence now recognizes doctrine/runtime, contract/artifact, and projection-policy/runtime-mirror contradictions and emits critical policy_runtime_contradiction fingerprints. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::evidence::nexus_boundaries -- --nocapture passed 5/5."
+    },
+    {
+      "id": "KSENT-FRESHNESS-TIERS",
+      "title": "Separate current truth from stale Sentinel reference",
+      "section": "yellow",
+      "owner": "sentinel",
+      "deadline": "2026-05-14",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Classify Sentinel outputs as current_live_truth, recent_but_not_current, historical_trend, or stale_reference_only before using them for decisions.",
+      "completed_at": "2026-05-01T23:07:11.506Z",
+      "completion_note": "Implemented four-tier Kernel Sentinel freshness classification: current_live_truth, recent_but_not_current, historical_trend, and stale_reference_only. Only current_live_truth is decision-authoritative; missing/explicitly stale/old evidence fails closed as stale_reference_only. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::report_budget -- --nocapture passed 7/7."
     }
   ]
 }
