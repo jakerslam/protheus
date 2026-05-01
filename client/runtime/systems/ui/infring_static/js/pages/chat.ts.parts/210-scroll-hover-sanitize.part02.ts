@@ -239,11 +239,11 @@
       var attempts = Array.isArray(completion && completion.tool_attempts) ? completion.tool_attempts : [];
       if (attempts.length) return true;
       if (finalization && finalization.findings_available === true) return true;
-      var packageProjection = payload && payload.tool_result_package_projection && typeof payload.tool_result_package_projection === 'object'
-        ? payload.tool_result_package_projection
-        : null;
-      if (packageProjection && Number(packageProjection.authoritative_receipt_count || 0) > 0) return true;
-      return false;
+      return rows.some(function(tool) {
+        if (!tool || tool.running) return false;
+        if (tool.blocked || tool.is_error) return true;
+        return !!String(tool.result || tool.status || '').trim();
+      });
     },
     completedToolOnlySummary: function(tools) {
       var _ = tools;

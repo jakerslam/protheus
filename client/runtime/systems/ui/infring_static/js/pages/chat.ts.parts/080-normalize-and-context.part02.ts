@@ -253,14 +253,13 @@
       return parts.join('\n').toLowerCase().indexOf(normalizedQuery) >= 0;
     },
 
-    normalizeSessionMessages(data, options) {
+    normalizeSessionMessages(data) {
       var source = [];
-      var requireWindow = !!(options && options.requireWindow);
-      if (data && data.message_window && Array.isArray(data.message_window.rows)) {
-        source = data.message_window.rows;
-      } else if (!requireWindow && data && Array.isArray(data.messages)) {
+      if (data && Array.isArray(data.messages)) {
         source = data.messages;
-      } else if (!requireWindow && data && Array.isArray(data.turns)) {
+      } else if (data && data.message_window && Array.isArray(data.message_window.rows)) {
+        source = data.message_window.rows;
+      } else if (data && Array.isArray(data.turns)) {
         var turns = data.turns;
         var turnRows = [];
         turns.forEach(function(turn) {
@@ -316,17 +315,14 @@
         var tools = typeof self.responseToolRowsFromPayload === 'function'
           ? self.responseToolRowsFromPayload(m, 'hist-tool')
           : ((m && Array.isArray(m.tools) ? m.tools : []).map(function(t, idx) {
-              var toolName = String(t && (t.name || t.tool || t.id) ? (t.name || t.tool || t.id) : 'unknown');
-              var toolId = String(t && t.id ? t.id : (toolName + '-hist-' + idx));
               return {
-                id: toolId,
-                name: toolName,
+                id: (t.name || 'tool') + '-hist-' + idx,
+                name: t.name || 'unknown',
                 running: false,
                 expanded: false,
-                input_ref: String(t && t.input_ref ? t.input_ref : ''),
-                result_ref: String(t && t.result_ref ? t.result_ref : ''),
-                summary: String(t && (t.summary || t.display_text || t.status) ? (t.summary || t.display_text || t.status) : ''),
-                is_error: !!(t && t.is_error)
+                input: t.input || '',
+                result: t.result || '',
+                is_error: !!t.is_error
               };
             }));
         if (role === 'agent' && !isTerminal) {
@@ -480,4 +476,6 @@
       var self = this;
 
       if (typeof window !== 'undefined') {
+        window.__infringChatCache = window.__infringChatCache || {};
         var persistedCache = this.loadConversationCache();
+        var runtimeCache = window.__infringChatCache || {};

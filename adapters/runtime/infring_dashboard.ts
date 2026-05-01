@@ -737,22 +737,35 @@ async function runServe(flags) {
     startup_error: '',
   };
   let backendStartPromise = null;
-  backendStartPromise = ensureBackend(flags)
-    .then((result) => {
+  if (!backend.ready) {
+    backendStartPromise = ensureBackend(flags)
+      .then((result) => {
+        backend.child = result && result.child ? result.child : null;
+        backend.reused = !!(result && result.reused);
+        backend.ready = true;
+        backend.freshness = result && result.freshness ? result.freshness : null;
+        backend.startup_error = '';
+        return result;
+      })
+      .catch((error) => {
+        backend.ready = false;
+        backend.startup_error = cleanText(error && error.message ? error.message : String(error), 200);
+        return null;
+      });
+  } else {
+    try {
+      const result = await ensureBackend(flags);
       backend.child = result && result.child ? result.child : null;
       backend.reused = !!(result && result.reused);
       backend.ready = true;
       backend.freshness = result && result.freshness ? result.freshness : null;
       backend.startup_error = '';
-      return result;
-    })
-    .catch((error) => {
-      backend.ready = false;
-      backend.reused = !!backend.ready;
+    } catch (error) {
+      backend.reused = true;
       backend.freshness = backendFreshnessSnapshot(flags);
       backend.startup_error = cleanText(error && error.message ? error.message : String(error), 200);
-      return null;
-    });
+    }
+  }
   const wsBridge = createAgentWsBridge({ flags, cleanText, fetchBackend, fetchBackendJson });
   const status = {
     ok: true,
@@ -934,10 +947,7 @@ async function runServe(flags) {
   process.on('SIGTERM', cleanup);
   process.on('exit', cleanup);
   await new Promise((resolve, reject) => {
-    server.once('error', (error) => {
-      cleanup();
-      reject(error);
-    });
+    server.once('error', reject);
     server.listen(flags.port, flags.host, () => {
       server.off('error', reject);
       persistStatus();
