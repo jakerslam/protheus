@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T21:26:03.141Z",
+  "updated_at": "2026-05-01T21:33:53.793Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -220,6 +220,17 @@
       "summary": "Teach Sentinel to classify symptom, component, boundary, policy-truth, architectural, and self-model failures before recommending remediation.",
       "completed_at": "2026-05-01T21:26:03.140Z",
       "completion_note": "Implemented Kernel Sentinel failure_class/review_depth classification, final-report failure_level_summary, and promotion candidate failure-level framing with targeted tests and live kernel-sentinel smoke."
+    },
+    {
+      "id": "KSENT-FEEDBACK-CONTRACT",
+      "title": "Add Sentinel feedback-to-TODO actionability contract",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-07",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Make each Sentinel feedback item declare whether it is todo_ready, triage_to_todo, or needs_root_cause_synthesis, with explicit evidence/actionability requirements.",
+      "completed_at": "2026-05-01T21:33:53.792Z",
+      "completion_note": "Implemented Kernel Sentinel feedback-to-TODO actionability states (todo_ready, triage_to_todo, needs_root_cause_synthesis) with explicit evidence/actionability requirements, tests, and live auto-run feedback inbox smoke."
     }
   ]
 }

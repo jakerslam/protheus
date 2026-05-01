@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T21:26:03.141Z
+Updated: 2026-05-01T21:33:53.793Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,17 +13,12 @@ Updated: 2026-05-01T21:26:03.141Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 42
-- red: 11
+- active_items: 41
+- red: 10
 - yellow: 22
 - white: 9
 
 ## Red Section (Do Immediately)
-- `KSENT-FEEDBACK-CONTRACT` — Add Sentinel feedback-to-TODO actionability contract
-  owner: `codex`
-  deadline: `2026-05-07`
-  source_family: `Kernel Sentinel Feedback Quality Upgrade`
-  summary: Make each Sentinel feedback item declare whether it is todo_ready, triage_to_todo, or needs_root_cause_synthesis, with explicit evidence/actionability requirements.
 - `KSENT-SYMPTOM-CLUSTERS` — Cluster symptoms into root-cause families
   owner: `codex`
   deadline: `2026-05-07`
