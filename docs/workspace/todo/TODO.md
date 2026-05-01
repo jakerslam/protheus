@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:33:39.039Z
+Updated: 2026-05-01T23:36:45.301Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-01T23:33:39.039Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 27
+- active_items: 26
 - red: 8
-- yellow: 10
+- yellow: 9
 - white: 9
 
 ## Red Section (Do Immediately)
@@ -86,11 +86,6 @@ Updated: 2026-05-01T23:33:39.039Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
-- `OBS-CURRENT-TRUTH-GUARD` — Strengthen Observability current-truth vs stale-reference handling
-  owner: `codex`
-  deadline: `2026-05-15`
-  source_family: `Sentinel Regression Audit May01`
-  summary: Treat stale observer artifacts as an Observability-layer problem by enforcing current_live_truth vs historical_reference semantics across Sentinel and related evidence consumers.
 - `WF-UTILITY` — Build the workflow utility spine
   owner: `unassigned`
   deadline: `2026-05-20`
