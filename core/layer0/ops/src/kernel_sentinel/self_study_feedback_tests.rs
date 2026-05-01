@@ -110,6 +110,16 @@ fn synthetic_round_failures_collapse_to_one_feedback_item() {
     assert_eq!(rows[0]["recurrence_count"], 2);
     assert_eq!(rows[0]["recurrence_threshold"], 2);
     assert_eq!(rows[0]["issue_candidate_ready"], true);
+    assert_eq!(rows[0]["todo_actionability_state"], "todo_ready");
+    assert_eq!(rows[0]["todo_ready"], true);
+    assert_eq!(
+        rows[0]["todo_actionability"]["requirements"]["evidence_present"],
+        true
+    );
+    assert_eq!(
+        rows[0]["todo_actionability"]["requirements"]["semantic_frame_present"],
+        true
+    );
     assert!(rows[0]["feedback_quality_score"].as_u64().unwrap() > 0);
     assert_eq!(rows[0]["feedback_quality_rank"], 1);
 }
@@ -154,6 +164,53 @@ fn feedback_quality_ranking_prefers_specific_actionable_evidence_with_same_sever
         rows[0]["feedback_quality_score"].as_u64().unwrap()
             > rows[1]["feedback_quality_score"].as_u64().unwrap()
     );
+    assert_eq!(rows[0]["todo_actionability_state"], "triage_to_todo");
+    assert_eq!(rows[1]["todo_actionability_state"], "needs_root_cause_synthesis");
+    assert_eq!(
+        rows[1]["todo_actionability"]["missing_requirements"],
+        json!(["concrete_next_action"])
+    );
+}
+
+#[test]
+fn every_feedback_item_declares_todo_actionability_contract() {
+    let report = json!({
+        "findings": [
+            {
+                "status": "open",
+                "severity": "medium",
+                "category": "runtime_correctness",
+                "fingerprint": "single_actionable_failure",
+                "summary": "runtime failed with a bounded evidence trail",
+                "recommended_action": "repair the runtime route and rerun the evidence check",
+                "evidence": ["field://runtime/ok=false"]
+            },
+            {
+                "status": "open",
+                "severity": "medium",
+                "category": "runtime_correctness",
+                "fingerprint": "weak_failure",
+                "summary": "runtime failed",
+                "recommended_action": "unknown",
+                "evidence": []
+            }
+        ]
+    });
+
+    let rows = build_feedback_inbox(&report, "2026-05-01T00:00:00Z");
+
+    assert_eq!(rows.len(), 2);
+    for row in rows {
+        let state = row["todo_actionability_state"].as_str().unwrap();
+        assert!(matches!(
+            state,
+            "todo_ready" | "triage_to_todo" | "needs_root_cause_synthesis"
+        ));
+        assert_eq!(row["todo_actionability"]["human_review_required"], true);
+        assert_eq!(row["todo_actionability"]["safe_to_mutate_todo"], false);
+        assert!(row["todo_actionability"]["requirements"].is_object());
+        assert!(row["todo_actionability"]["missing_requirements"].is_array());
+    }
 }
 
 #[test]
