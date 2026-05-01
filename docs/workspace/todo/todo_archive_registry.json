@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T22:55:50.189Z",
+  "updated_at": "2026-05-01T22:58:52.384Z",
   "historical_snapshot": {
     "preserved_archive_path": "docs/workspace/todo/TODO_ARCHIVE_LEGACY.md",
     "total_rows": 4145,
@@ -275,6 +275,17 @@
       "summary": "Flag repeated patches that change visible symptoms while the same boundary, policy, or ownership violation remains unresolved.",
       "completed_at": "2026-05-01T22:55:50.186Z",
       "completion_note": "Implemented Kernel Sentinel anti-patching detection: issue synthesis now flags repeated visible symptom patches under one structural root, publishes anti_patching metadata, and collapses them into one structural repair issue. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::issue_synthesis -- --nocapture passed 11/11."
+    },
+    {
+      "id": "KSENT-AUTHORITY-GHOSTS",
+      "title": "Detect authority ghosts after refactors",
+      "section": "yellow",
+      "owner": "sentinel",
+      "deadline": "2026-05-14",
+      "source_family": "Kernel Sentinel Feedback Quality Upgrade",
+      "summary": "Add first-class authority_ghost findings for projection layers, caches, shims, or adapters that preserve old authority shape after syntax-level cleanup.",
+      "completed_at": "2026-05-01T22:58:52.383Z",
+      "completion_note": "Implemented first-class Kernel Sentinel authority ghost findings: Nexus boundary evidence now recognizes projection/cache/shim/adapter authority ghost aliases and emits critical authority_ghost fingerprints. Validation: cargo test --manifest-path core/layer0/ops/Cargo.toml --lib kernel_sentinel::evidence::nexus_boundaries -- --nocapture passed 4/4."
     }
   ]
 }

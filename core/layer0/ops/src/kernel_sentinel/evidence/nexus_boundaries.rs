@@ -15,11 +15,12 @@ struct BoundaryRule {
     recommended_action: &'static str,
 }
 
-const CHECKED_BOUNDARY_RULES: [&str; 7] = [
+const CHECKED_BOUNDARY_RULES: [&str; 8] = [
     "non_nexus_direct_authority_path",
     "direct_authority_path",
     "nexus_bypass",
     "shell_truth_leak",
+    "authority_ghost",
     "gateway_scheduler_admission_touch",
     "orchestration_policy_ownership",
     "orchestration_receipt_authority",
@@ -143,6 +144,16 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "move truth inference back to Kernel authority and expose only backend state",
                 });
             }
+            "authority_ghost" | "authority_shape_residue" | "projection_authority_ghost"
+            | "cache_authority_ghost" | "shim_authority_ghost" | "adapter_authority_ghost" => {
+                return Some(BoundaryRule {
+                    rule: "authority_ghost",
+                    category: KernelSentinelFindingCategory::SecurityBoundary,
+                    severity: KernelSentinelSeverity::Critical,
+                    recommended_action:
+                        "remove retained authority shape from the projection/cache/shim/adapter and prove Kernel remains the only authority source",
+                });
+            }
             "gateway_scheduler_admission_touch" | "gateway_admission_touch"
             | "gateway_scheduler_touch" => {
                 return Some(BoundaryRule {
@@ -198,12 +209,17 @@ fn boundary_finding(record: &Value, rule: BoundaryRule) -> KernelSentinelFinding
     let action_id = value_str(record, "id");
     let subject = clean_token(value_str(record, "subject"), "unknown_boundary_subject");
     let owner_layer = clean_token(value_str(record, "owner_layer"), "unknown_layer");
+    let fingerprint = if rule.rule == "authority_ghost" {
+        format!("authority_ghost:{owner_layer}:{subject}")
+    } else {
+        format!("nexus_boundary:{}:{}:{}", rule.rule, owner_layer, subject)
+    };
     KernelSentinelFinding {
         schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
         id: format!("nexus_boundary:{action_id}"),
         severity: rule.severity,
         category: rule.category,
-        fingerprint: format!("nexus_boundary:{}:{}:{}", rule.rule, owner_layer, subject),
+        fingerprint,
         evidence: evidence_refs(record),
         summary: format!("{subject} violates {} across {owner_layer}", rule.rule),
         recommended_action: rule.recommended_action.to_string(),
@@ -273,6 +289,32 @@ mod tests {
             KernelSentinelFindingCategory::SecurityBoundary
         );
         assert_eq!(findings[0].severity, KernelSentinelSeverity::Critical);
+    }
+
+    #[test]
+    fn authority_ghost_projection_cache_or_shim_opens_first_class_finding() {
+        let records = vec![json!({
+            "source": "runtime_observation",
+            "id": "ghost-1",
+            "subject": "projection-cache/chat-preview",
+            "kind": "cache_authority_ghost",
+            "owner_layer": "projection_cache",
+            "details": {
+                "removed_authority_syntax": true,
+                "retained_shape": "authority_payload"
+            },
+            "evidence": ["shape://projection-cache/data_shape=authority_payload"]
+        })];
+        let (report, findings) = build_nexus_boundary_report(&records);
+        assert_eq!(report["finding_count"], Value::from(1));
+        assert_eq!(
+            findings[0].fingerprint,
+            "authority_ghost:projection_cache:projection-cache/chat-preview"
+        );
+        assert!(findings[0].summary.contains("authority_ghost"));
+        assert!(findings[0]
+            .recommended_action
+            .contains("remove retained authority shape"));
     }
 
     #[test]
