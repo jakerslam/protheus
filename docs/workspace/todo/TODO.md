@@ -110,7 +110,7 @@ Updated: 2026-05-02T19:35:11.370Z
   owner: `codex`
   deadline: `2026-05-14`
   source_family: `Shell Socket 2.0 Infrastructure`
-  summary: Build a headless/CLI socket probe that runs without browser assets and exercises runtime status, agent list, session list, message window, submit input, event stream, message detail, approval, and internal issue/eval submission through Gateway.
+  summary: Build a headless/CLI socket probe that runs without browser assets and exercises runtime status, agent list, session list, message window, submit input, event stream, message detail, approval, and internal issue/eval submission through Gateway. Current evidence: `ops:shell-socket:headless-probe` exercises all 13 socket capabilities against a Gateway-shaped fixture; live `/api/shell-socket/**` read projections and ingress validation now exist in `core/layer0/ops`, with approval decisions intentionally fail-closed until a canonical approval authority binding is added.
 - `WF-UTILITY` — Build the workflow utility spine
   owner: `unassigned`
   deadline: `2026-05-20`
