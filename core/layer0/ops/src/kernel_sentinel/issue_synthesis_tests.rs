@@ -1,6 +1,7 @@
     use super::*;
     use crate::kernel_sentinel::{
-        KernelSentinelFindingCategory, KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
+        KernelSentinelFindingCategory, KernelSentinelSeverity,
+        KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
     };
     use std::fs;
 

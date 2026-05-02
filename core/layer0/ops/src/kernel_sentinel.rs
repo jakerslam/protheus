@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod assimilation_handoff; mod authority; mod auto_run; mod big_picture_regression; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod feedback_quality; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_output; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
+mod assimilation_handoff; mod authority; mod auto_run; mod big_picture_regression; mod boot_watch; mod causal_calibration; mod causal_hypothesis; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod feedback_quality; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_output; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 pub use assimilation_handoff::build_external_assimilation_transfer_plan;
 pub use big_picture_regression::{assess_kernel_sentinel_big_picture_regression, kernel_sentinel_big_picture_regression_model, KernelSentinelBigPictureAssessment, KernelSentinelBigPictureInput, KernelSentinelBigPictureMode, KERNEL_SENTINEL_BIG_PICTURE_SCHEMA_VERSION};
@@ -44,6 +44,8 @@ pub use diagnostic_run_artifact::{
     KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME,
 };
 pub use dossier_comparison::build_external_assimilation_dossier_comparison;
+pub use causal_calibration::kernel_sentinel_causal_calibration_model;
+pub use causal_hypothesis::kernel_sentinel_causal_hypothesis_model;
 use cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 pub use evidence::{ingest_evidence_sources, KernelSentinelEvidenceIngestion};
 pub use failure_level::{
@@ -250,6 +252,17 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     findings.extend(governance_findings);
     let architectural_incident_report =
         incident_report::kernel_sentinel_architectural_incident_report_section(&findings);
+    let causal_hypothesis_synthesis =
+        causal_hypothesis::build_kernel_sentinel_causal_hypotheses(
+            &findings,
+            &architectural_incident_report,
+            args,
+        );
+    let causal_calibration = causal_calibration::build_kernel_sentinel_causal_calibration(
+        &dir,
+        &causal_hypothesis_synthesis,
+        args,
+    );
     let issue_synthesis = issue_synthesis::build_issue_synthesis(&findings, args);
     let maintenance_synthesis = maintenance_synthesis::build_maintenance_synthesis(&findings, args);
     let deduped = dedupe_findings(findings);
@@ -338,6 +351,9 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
             "reported_finding_count": report_findings.len(),
             "truncated_finding_count": truncated_finding_count,
             "release_gate_pass": release_gate_pass,
+            "causal_hypothesis_count": causal_hypothesis_synthesis["hypothesis_count"],
+            "causal_calibrated_hypothesis_count": causal_calibration["calibrated_hypothesis_count"],
+            "causal_promotion_ready_count": causal_calibration["promotion_ready_count"],
             "observation_state": evidence_report["observation_state"],
             "data_starved": evidence_report["data_starved"],
             "partial_evidence": evidence_report["partial_evidence"],
@@ -380,6 +396,8 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         "boot_watch": boot_watch_report,
         "governance_preflight": governance_preflight,
         "architectural_incident_report": architectural_incident_report,
+        "causal_hypothesis_synthesis": causal_hypothesis_synthesis,
+        "causal_calibration": causal_calibration,
         "waivers": waiver_report,
         "release_gate": release_gate,
         "issue_synthesis": issue_synthesis,
