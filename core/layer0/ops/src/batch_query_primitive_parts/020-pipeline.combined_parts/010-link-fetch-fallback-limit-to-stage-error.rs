@@ -71,30 +71,6 @@ fn payload_links_for_fallback(payload: &Value, max_links: usize) -> Vec<String> 
     non_search_engine_links(payload, max_links)
 }
 
-fn framework_catalog_official_urls(query: &str) -> Vec<String> {
-    if !is_framework_catalog_intent(query) {
-        return Vec::new();
-    }
-    vec![
-        "https://www.langchain.com/langgraph".to_string(),
-        "https://openai.github.io/openai-agents-python/".to_string(),
-        "https://microsoft.github.io/autogen/".to_string(),
-        "https://crewai.com/".to_string(),
-        "https://github.com/huggingface/smolagents".to_string(),
-    ]
-}
-
-fn framework_catalog_candidate_coverage(candidates: &[Candidate]) -> usize {
-    let mut seen = HashSet::<String>::new();
-    for candidate in candidates {
-        let combined = format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator);
-        for framework in framework_names_in_text(&combined) {
-            seen.insert(framework.to_ascii_lowercase());
-        }
-    }
-    seen.len()
-}
-
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
     let query_tokens = tokenize_relevance(query, 40);
     if query_tokens.is_empty() {

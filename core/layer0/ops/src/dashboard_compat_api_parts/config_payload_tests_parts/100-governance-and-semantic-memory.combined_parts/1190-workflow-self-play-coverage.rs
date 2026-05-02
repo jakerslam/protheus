@@ -472,3 +472,109 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
     );
     assert_workflow_self_play_clean(&web_done.payload, ghost);
 }
+
+#[test]
+fn workflow_scripted_agent_self_play_withholds_prompt_analysis_leak() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let agent_id =
+        workflow_self_play_agent(root.path(), &snapshot, "workflow-self-play-leak-guard-agent");
+    assert!(!agent_id.is_empty());
+
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [{
+                "response": "We are in the runtime context of 2026-05-02T06:14:40Z. The user asks for a reply in exactly five words. We must reply in one short sentence."
+            }],
+            "calls": []
+        }),
+    );
+
+    let response = workflow_self_play_message(
+        root.path(),
+        &snapshot,
+        &agent_id,
+        "hey, reply in five words, no tools",
+    );
+    assert_eq!(response.status, 200);
+    let response_text = response
+        .payload
+        .get("response")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert_eq!(response_text, "", "{}", response.payload);
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/fallback_source")
+            .and_then(Value::as_str),
+        Some("withheld_workflow_prompt_analysis"),
+        "{}",
+        response.payload
+    );
+    assert_workflow_self_play_clean(&response.payload, "GHOST PROMPT ANALYSIS SHOULD NEVER APPEAR");
+}
+
+#[test]
+fn workflow_scripted_agent_self_play_natural_web_choice_creates_pending_tool() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let agent_id = workflow_self_play_agent(
+        root.path(),
+        &snapshot,
+        "workflow-self-play-natural-web-choice-agent",
+    );
+    assert!(!agent_id.is_empty());
+
+    let ghost = "GHOST NATURAL WEB CHOICE SHOULD NEVER APPEAR";
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({
+            "queue": [
+                {"response": "I would choose web search for one current OpenHands source."},
+                {"response": "I would choose web search for one current OpenHands source."},
+                {"response": ghost}
+            ],
+            "calls": []
+        }),
+    );
+
+    let response = workflow_self_play_message(
+        root.path(),
+        &snapshot,
+        &agent_id,
+        "Use web search to find one current sentence about OpenHands, then answer in one sentence.",
+    );
+    assert_eq!(response.status, 200);
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/tool_name")
+            .and_then(Value::as_str),
+        Some("batch_query"),
+        "{}",
+        response.payload
+    );
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("")
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/input/query")
+            .and_then(Value::as_str),
+        Some("one current OpenHands source"),
+        "{}",
+        response.payload
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/workflow_visibility/workflow_trace/confirmation_state")
+            .and_then(Value::as_str),
+        Some("pending_confirmation")
+    );
+    assert_workflow_self_play_clean(&response.payload, ghost);
+}

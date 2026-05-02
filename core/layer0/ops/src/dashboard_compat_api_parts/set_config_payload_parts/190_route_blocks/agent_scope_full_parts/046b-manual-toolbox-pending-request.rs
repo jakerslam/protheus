@@ -35,13 +35,14 @@ fn manual_toolbox_natural_pending_request(
     let (tool_name, family, label, input) = if lowered.contains("web search")
         || lowered.contains("search")
     {
+        let query = manual_toolbox_natural_web_query(&response)?;
         (
             "batch_query",
             "web_search",
             "web search",
             json!({
                 "source": "web",
-                "query": clean_text(message, 600),
+                "query": query,
                 "aperture": "medium"
             }),
         )
@@ -67,6 +68,70 @@ fn manual_toolbox_natural_pending_request(
         "chat_injection_allowed": false,
         "execution_claim_allowed": false
     }))
+}
+
+fn manual_toolbox_natural_web_query(response_text: &str) -> Option<String> {
+    let cleaned = clean_text(response_text, 600);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    let marker_start = lowered
+        .find("web search")
+        .or_else(|| lowered.find("search"))?;
+    let after_marker = cleaned
+        .get(marker_start..)
+        .unwrap_or("")
+        .split_once(" for ")
+        .map(|(_, tail)| tail)
+        .or_else(|| {
+            cleaned
+                .get(marker_start..)
+                .unwrap_or("")
+                .split_once(" about ")
+                .map(|(_, tail)| tail)
+        })
+        .or_else(|| {
+            cleaned
+                .get(marker_start..)
+                .unwrap_or("")
+                .split_once(" on ")
+                .map(|(_, tail)| tail)
+        })?;
+    let query_candidate = after_marker
+        .split("Tool candidates:")
+        .next()
+        .unwrap_or(after_marker)
+        .split("Latest user request:")
+        .next()
+        .unwrap_or(after_marker)
+        .split("Write only")
+        .next()
+        .unwrap_or(after_marker)
+        .lines()
+        .next()
+        .unwrap_or(after_marker);
+    let query = clean_text(
+        query_candidate
+            .trim()
+            .trim_start_matches(':')
+            .trim()
+            .trim_matches(['.', ',', ';', ':', '"', '\'', '`']),
+        600,
+    );
+    let lowered_query = query.to_ascii_lowercase();
+    if query.split_whitespace().count() < 2
+        || lowered_query == "that"
+        || lowered_query == "this"
+        || lowered_query == "the request"
+        || lowered_query.contains("tool candidates")
+        || lowered_query.contains("latest user request")
+        || lowered_query.contains("write only")
+    {
+        None
+    } else {
+        Some(query)
+    }
 }
 
 fn record_manual_toolbox_pending_request(

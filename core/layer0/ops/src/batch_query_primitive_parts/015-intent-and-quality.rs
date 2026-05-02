@@ -42,6 +42,7 @@ fn is_framework_catalog_intent(query: &str) -> bool {
     ranking_marker && framework_marker
 }
 
+#[cfg(test)]
 fn canonical_framework_catalog_focus(query: &str) -> Option<String> {
     if !is_framework_catalog_intent(query) {
         return None;
@@ -67,6 +68,7 @@ fn canonical_framework_catalog_focus(query: &str) -> Option<String> {
     }
 }
 
+#[cfg(test)]
 fn preferred_query_rewrite(base: &str) -> String {
     if looks_like_instructional_query(base) {
         return normalize_instructional_query(base)

@@ -150,41 +150,6 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
         }
     }
 
-    if is_framework_catalog_intent(query) && framework_catalog_candidate_coverage(&candidates) < 4 {
-        for url in framework_catalog_official_urls(query) {
-            if !fetched_links.insert(url.clone()) {
-                continue;
-            }
-            let fetch_payload = stage_fetch_payload(root, "framework_official", &url);
-            if !fetch_payload
-                .get("ok")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-            {
-                issues.push(format!(
-                    "framework_official:{}",
-                    stage_error(&fetch_payload, "web_fetch_failed")
-                ));
-                continue;
-            }
-            match candidate_from_search_payload(query, &fetch_payload) {
-                Ok(mut candidate) => {
-                    if candidate.locator.is_empty()
-                        || is_search_engine_domain(&candidate_domain_hint(&candidate))
-                    {
-                        candidate.locator = url.clone();
-                    }
-                    if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
-                        candidates.push(candidate);
-                    } else {
-                        issues.push("framework_official:fetch_candidate_low_relevance".to_string());
-                    }
-                }
-                Err(err) => issues.push(format!("framework_official:fetch_candidate:{err}")),
-            }
-        }
-    }
-
     if candidates.is_empty() {
         if issues.is_empty() {
             Err("no_usable_summary".to_string())

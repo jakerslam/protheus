@@ -223,51 +223,13 @@ fn extract_request_query_row(row: &Value, max_len: usize) -> Option<String> {
     if cleaned.is_empty() {
         None
     } else {
-        Some(resolve_deictic_framework_reference(&cleaned))
+        Some(cleaned)
     }
 }
 
 fn max_explicit_queries_for_budget(primary_query: &str, budget: ApertureBudget) -> usize {
-    if is_framework_catalog_intent(primary_query) && budget.max_query_rewrites > 0 {
-        return 8;
-    }
+    let _ = primary_query;
     budget.max_evidence.clamp(2, 6)
-}
-
-fn derived_framework_catalog_queries(query: &str, budget: ApertureBudget) -> Option<Vec<String>> {
-    if !is_framework_catalog_intent(query) || budget.max_query_rewrites == 0 {
-        return None;
-    }
-    let mut dedup = HashSet::<String>::new();
-    let mut queries = Vec::<String>::new();
-    let max_queries = max_explicit_queries_for_budget(query, budget);
-    let push_query =
-        |value: &str, dedup: &mut HashSet<String>, queries: &mut Vec<String>| {
-            let cleaned = resolve_deictic_framework_reference(&clean_text(value, 600));
-            if cleaned.is_empty() {
-                return;
-            }
-            let key = cleaned.to_ascii_lowercase();
-            if dedup.insert(key) {
-                queries.push(cleaned);
-            }
-        };
-    push_query(query, &mut dedup, &mut queries);
-    for value in [
-        "AI agent frameworks landscape LangGraph OpenAI Agents SDK AutoGen CrewAI smolagents",
-        "site:langchain.com LangGraph agent framework overview",
-        "site:openai.github.io/openai-agents-python OpenAI Agents SDK overview",
-        "site:microsoft.github.io AutoGen framework overview",
-        "site:crewai.com CrewAI agent framework overview",
-        "site:github.com huggingface/smolagents smolagents framework overview",
-        "OpenAI Agents SDK official docs overview",
-    ] {
-        if queries.len() >= max_queries {
-            break;
-        }
-        push_query(value, &mut dedup, &mut queries);
-    }
-    (queries.len() > 1).then_some(queries)
 }
 
 fn normalize_requested_queries(
@@ -287,7 +249,7 @@ fn normalize_requested_queries(
                 queries.push(value);
             }
         };
-    let normalized_primary = resolve_deictic_framework_reference(&clean_text(primary_query, 600));
+    let normalized_primary = clean_text(primary_query, 600);
     if !normalized_primary.is_empty() {
         push_query(normalized_primary, &mut dedup, &mut queries);
     }
@@ -306,11 +268,6 @@ fn normalize_requested_queries(
 }
 
 fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> QueryPlanSelection {
-    let benchmark_instructional_rerank = if is_benchmark_or_comparison_intent(query) {
-        normalize_instructional_query(query).unwrap_or_default()
-    } else {
-        String::new()
-    };
     let explicit_queries = normalize_requested_queries(request, query, budget);
     let explicit_query_pack_used = !explicit_queries.is_empty()
         && (query.is_empty()
@@ -320,63 +277,29 @@ fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> Q
                 .map(|value| !value.eq_ignore_ascii_case(query))
                 .unwrap_or(false));
     if explicit_query_pack_used {
-        let rerank_query = if benchmark_instructional_rerank.is_empty() {
-            clean_text(
-                explicit_queries.first().map(String::as_str).unwrap_or(query),
-                600,
-            )
-        } else {
-            clean_text(&benchmark_instructional_rerank, 600)
-        };
+        let rerank_query = clean_text(
+            explicit_queries.first().map(String::as_str).unwrap_or(query),
+            600,
+        );
         let rewrite_set = explicit_queries.iter().skip(1).cloned().collect::<Vec<_>>();
         return QueryPlanSelection {
             rewrite_applied: explicit_queries.len() > 1,
             queries: explicit_queries,
             rewrite_set,
             rerank_query,
-            query_plan_source: if benchmark_instructional_rerank.is_empty() {
-                "explicit_request_pack"
-            } else {
-                "explicit_request_pack_instructional_rerank"
-            },
+            query_plan_source: "explicit_request_pack",
         };
     }
-    if let Some(queries) = derived_framework_catalog_queries(query, budget) {
-        let rewrite_set = queries.iter().skip(1).cloned().collect::<Vec<_>>();
-        return QueryPlanSelection {
-            rerank_query: if benchmark_instructional_rerank.is_empty() {
-                clean_text(query, 600)
-            } else {
-                clean_text(&benchmark_instructional_rerank, 600)
-            },
-            rewrite_applied: true,
-            queries,
-            rewrite_set,
-            query_plan_source: "derived_rewrite",
-        };
-    }
-    let (queries, rewrite_set, rewrite_applied) = build_query_plan(query, budget);
-    let rerank_query = if !benchmark_instructional_rerank.is_empty() {
-        clean_text(&benchmark_instructional_rerank, 600)
-    } else if rewrite_applied {
-        queries
-            .last()
-            .cloned()
-            .unwrap_or_else(|| clean_text(query, 600))
-    } else {
-        clean_text(query, 600)
-    };
+    let queries = cache_identity_query_plan(query, &explicit_queries);
+    let rerank_query = queries
+        .first()
+        .cloned()
+        .unwrap_or_else(|| clean_text(query, 600));
     QueryPlanSelection {
         queries,
-        rewrite_set,
-        rewrite_applied,
+        rewrite_set: Vec::new(),
+        rewrite_applied: false,
         rerank_query,
-        query_plan_source: if !benchmark_instructional_rerank.is_empty() {
-            "instructional_rerank_focus"
-        } else if rewrite_applied {
-            "derived_rewrite"
-        } else {
-            "single_query"
-        },
+        query_plan_source: "agent_submitted_single_query",
     }
 }
