@@ -6,15 +6,10 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod assimilation_handoff; mod authority; mod auto_run; mod big_picture_regression; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod feedback_quality; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
+mod assimilation_handoff; mod authority; mod auto_run; mod big_picture_regression; mod boot_watch; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod feedback_quality; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_output; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
 pub use authority::{authority_rule, kernel_sentinel_contract};
 pub use assimilation_handoff::build_external_assimilation_transfer_plan;
-pub use big_picture_regression::{
-    assess_kernel_sentinel_big_picture_regression,
-    kernel_sentinel_big_picture_regression_model, KernelSentinelBigPictureAssessment,
-    KernelSentinelBigPictureInput, KernelSentinelBigPictureMode,
-    KERNEL_SENTINEL_BIG_PICTURE_SCHEMA_VERSION,
-};
+pub use big_picture_regression::{assess_kernel_sentinel_big_picture_regression, kernel_sentinel_big_picture_regression_model, KernelSentinelBigPictureAssessment, KernelSentinelBigPictureInput, KernelSentinelBigPictureMode, KERNEL_SENTINEL_BIG_PICTURE_SCHEMA_VERSION};
 pub use diagnostic_authorization::{
     authorize_kernel_sentinel_diagnostic_request, kernel_sentinel_diagnostic_authorization_model,
     kernel_sentinel_diagnostic_failure_probe_policies,
@@ -441,9 +436,17 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     let final_report_path = dir.join("kernel_sentinel_final_report_current.json");
     let verdict_path = dir.join("kernel_sentinel_verdict.json");
     let health_path = dir.join("kernel_sentinel_health_current.json");
+    let write_full_internal_report = report_output::should_write_full_internal_report(&rest);
+    let bounded_report = report_output::bounded_report_index(&report, &dir, write_full_internal_report);
     if matches!(command, "run" | "report") {
-        if let Err(err) = write_json(&report_path, &report) {
+        if let Err(err) = write_json(&report_path, &bounded_report) {
             eprintln!("kernel_sentinel_write_report_failed: {err}");
+            return 1;
+        }
+        if let Err(err) =
+            report_output::write_full_internal_report_if_requested(&dir, &report, write_full_internal_report)
+        {
+            eprintln!("kernel_sentinel_write_internal_report_failed: {err}");
             return 1;
         }
         if let Err(err) = write_json(&final_report_path, &report["final_report"]) {
@@ -481,7 +484,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     }
     println!(
         "{}",
-        serde_json::to_string_pretty(if command == "status" { &verdict } else { &report })
+        serde_json::to_string_pretty(if command == "status" { &verdict } else { &bounded_report })
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
     if matches!(command, "run" | "status" | "report") {

@@ -18,7 +18,7 @@ use super::self_dossier::build_infring_self_dossier;
 use super::self_dossier_markdown::render_infring_self_dossier_markdown;
 use super::system_understanding_worksheet::{build_system_understanding_worksheet, render_system_understanding_worksheet_markdown};
 use super::rsi_handoff::build_internal_rsi_proposals;
-use super::{boot_watch, build_report, issue_synthesis, maintenance_synthesis, self_study, waivers, write_json};
+use super::{boot_watch, build_report, issue_synthesis, maintenance_synthesis, report_output, self_study, waivers, write_json};
 
 const DEFAULT_AUTO_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_auto_run_current.json";
 const DEFAULT_STALE_MINUTES: usize = 90;
@@ -152,7 +152,12 @@ fn persist_run_outputs(
     verdict: &Value,
     args: &[String],
 ) -> Result<Value, String> {
-    write_json(&dir.join("kernel_sentinel_report_current.json"), report)?;
+    let write_full_internal_report = report_output::should_write_full_internal_report(args);
+    let bounded_report =
+        report_output::bounded_report_index(report, dir, write_full_internal_report);
+    write_json(&dir.join("kernel_sentinel_report_current.json"), &bounded_report)?;
+    write_json(&dir.join("kernel_sentinel_final_report_current.json"), &report["final_report"])?;
+    report_output::write_full_internal_report_if_requested(dir, report, write_full_internal_report)?;
     write_json(
         &dir.join("architectural_incident_report_current.json"),
         &report["architectural_incident_report"],
