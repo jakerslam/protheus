@@ -17,6 +17,14 @@ a stateful runtime service.
 - `client/`: thin transport clients that call Gateway routes only.
 - `probe/`: headless or CLI proof harnesses for socket parity.
 
+## Local Route Targets
+
+- `http://127.0.0.1:5173` is the local Gateway/backend route surface used by
+  live Shell Socket probes in this workspace.
+- `http://127.0.0.1:4173` is the legacy browser host plug. It may proxy API
+  traffic, but it is not the canonical Shell Socket target and must not be used
+  as proof that a clean shell plug is independent of Shell 1.0.
+
 Gateway route implementations do not live here. Gateway reads or conforms to the
 socket contracts, exposes `/api/shell-socket/**` routes, and forwards accepted
 traffic through the appropriate Nexus/Conduit path to Kernel, Orchestration, or

@@ -1904,6 +1904,23 @@
         "local/workspace/reports/SHELL_SOCKET_HEADLESS_PROBE_CURRENT.md"
       ]
     },
+    "ops:shell-socket:live-probe": {
+      "owner": "ops",
+      "description": "Live Shell Socket probe for the canonical Gateway/backend route surface; soft-passes when live is absent unless SHELL_SOCKET_REQUIRE_LIVE=1.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell-socket:live-probe",
+      "canonical_definition_paths": [
+        "shell/socket/probe/shell_socket_live_probe.ts",
+        "shell/socket/client/shell_socket_gateway_client.ts",
+        "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/shell_socket.rs",
+        "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/shell_socket_parts/020-routes.rs"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/shell_socket_live_probe_current.json",
+        "local/workspace/reports/SHELL_SOCKET_LIVE_PROBE_CURRENT.md"
+      ]
+    },
     "ops:shell:amputation:guard": {
       "owner": "ops",
       "description": "Shell amputation regression guard proving Core, Orchestration, CLI command registry, Gateway status/health, and policy surfaces operate without browser Shell assets.",
