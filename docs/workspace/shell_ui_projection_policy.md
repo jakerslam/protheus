@@ -5,6 +5,14 @@ Owner: Jay
 Scope: Shell UI, Shell SDK/UI-facing gateways, Orchestration output packaging, and Kernel-facing presentation contracts
 Effective: April 2026
 
+## Active Shell Instance
+
+The current operator-facing implementation is `desktop UI shell 1.0`.
+
+Use `desktop UI shell 1.0` when referring to the active dashboard/desktop UI
+implementation currently in use. Use `Shell` when referring to the architecture
+boundary that can be implemented by multiple shells.
+
 ## Purpose
 
 The Shell is a lens, not a mirror.
@@ -26,6 +34,127 @@ Shell shows, collects, and requests details by reference.
 The Shell default data shape is a projection, not a runtime object.
 
 Shell-independent operation is canonicalized in `docs/workspace/shell_independent_operation_policy.md`; Core, Orchestration, CLI, and Gateway status must build and operate without browser Shell assets.
+
+## Shell Socket Contract
+
+The Shell Socket is the stable presentation/input contract that every concrete
+Shell plug must implement. It is a contract, not a persistent middleware layer,
+not a stateful runtime component, and not a new authority boundary.
+
+The canonical socket home is `shell/socket/**`. That directory is the
+clean Shell 2.0 substrate: contracts under `shell/socket/contract/**`,
+thin transport clients under `shell/socket/client/**`, and headless
+proof plugs under `shell/socket/probe/**`. Do not place canonical Shell
+Socket infrastructure under legacy `client/**` or Gateway/integration
+`adapters/**`; those paths are compatibility surfaces, not the clean socket
+owner.
+Do not place Shell Socket or Orchestration Control Plane artifacts under a
+top-level `surface/**` path; that root is retired and must not become a new
+architecture bucket.
+
+Concrete Shell plugs include browser/dashboard UI, terminal/CLI UI, desktop/Tauri
+UI, mobile UI, embedded UI, and future operator-facing presentation surfaces.
+Each plug implements the same Shell Socket Contract and talks only through
+Gateway routes.
+
+The corrected shape is:
+
+```text
+Browser / Terminal / Desktop / Mobile / Embedded Shell Plug
+        implements
+Shell Socket Contract
+        calls only
+Gateway Routes
+        then reaches
+Kernel / Orchestration / Assurance
+```
+
+The rejected shape is:
+
+```text
+Kernel / Orchestration
+        -> Gateway
+        -> stateful Shell Socket runtime
+        -> Shell plugs
+```
+
+That rejected shape risks turning the socket into another runtime authority or
+state mirror. The socket must stay an interface that constrains shell behavior.
+
+### Parallel Implementation Rule
+
+The Shell Socket Contract should be implemented in parallel to the current
+`desktop UI shell 1.0`, not by first rewiring the current dashboard.
+
+Execution plan: `docs/workspace/shell_socket_parallel_execution_plan.md`.
+
+The current dashboard is legacy compatibility. It can continue using legacy
+compatibility routes while the clean socket is proven by a CLI/headless plug or
+another clean Shell plug. A legacy dashboard seam may move to the socket only
+after the replacement Gateway route has parity evidence and a rollback/fallback
+path.
+
+This rule exists to prevent the socket project from becoming another broad
+dashboard refactor. Building the socket must reduce dependency on the fragile
+browser Shell; it must not require editing the browser Shell as the critical path.
+
+### Required Socket Capabilities
+
+Every Shell plug should be able to express these capabilities through bounded
+Gateway contracts:
+
+```text
+submit_input(input) -> ingress_ack
+subscribe_events(session_id, cursor) -> shell_event_projection stream
+get_message_window(session_id, cursor, limit) -> message_window_projection
+get_message_detail(detail_ref) -> message_detail_projection
+get_runtime_status() -> runtime_status_projection
+search(query) -> bounded_search_results
+submit_issue(issue_projection) -> ingress_ack
+list_agents(cursor, limit) -> agent_roster_projection
+list_sessions(agent_id, cursor, limit) -> session_list_projection
+submit_approval_decision(approval_id, decision) -> receipt
+set_model(agent_id, model_ref) -> receipt
+set_git_tree(agent_id, tree_ref) -> receipt
+submit_terminal_command(target_ref, command) -> receipt_or_stream_ref
+```
+
+The exact transport may differ by plug. A browser plug may use HTTP/SSE/WebSocket,
+a terminal plug may use CLI-friendly JSON or streaming text, and an embedded plug
+may use another adapter. The contract and payload boundaries must remain the same.
+
+### Plug Ownership
+
+A Shell plug may own:
+
+- layout, theme, and presentation preferences;
+- input buffers, focus, hover, selection, and expansion state;
+- scroll position and visible-window placement;
+- local keybindings and command entry affordances;
+- bounded visible rows, IDs, cursors, and refs;
+- small disposable preview caches.
+
+A Shell plug must not own:
+
+- canonical truth;
+- workflow/planner state;
+- policy or authorization truth;
+- Gateway policy;
+- Kernel state;
+- raw tool outputs, raw traces, full plan graphs, or eval payloads;
+- full conversation trees or unbounded runtime mirrors;
+- mutation semantics for retry, replay, fork, approval, config, model, git, or terminal execution.
+
+### Shell Plug Versus Gateway Adapter Plug
+
+Only presentation/input media are Shell plugs.
+
+External systems that are not presentation/input media are Gateway adapter plugs,
+not Shell plugs. Examples include SDK consumers, CI bots, external automation,
+issue submitters, third-party integrations, and machine-to-machine clients.
+
+Both Shell plugs and Gateway adapter plugs use Gateway routes, but only Shell
+plugs implement Shell rendering/input behavior.
 
 ## Dynamic Long-Chat Memory Regression
 

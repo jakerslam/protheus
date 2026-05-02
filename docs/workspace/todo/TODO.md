@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-01T23:50:02.175Z
+Updated: 2026-05-02T19:35:11.370Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,10 +13,10 @@ Updated: 2026-05-01T23:50:02.175Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 24
-- red: 8
-- yellow: 9
-- white: 7
+- active_items: 30
+- red: 10
+- yellow: 12
+- white: 8
 
 ## Red Section (Do Immediately)
 - `SHELL-CLEANUP` — Finish the Shell source-of-truth cleanup
@@ -44,6 +44,16 @@ Updated: 2026-05-01T23:50:02.175Z
   deadline: `2026-05-07`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Create the headless capability matrix and prove which Shell-visible operations already work through CLI/Gateway without browser assets before touching legacy dashboard code.
+- `SHELL-SOCKET-CONTRACT` — Define the Shell Socket contract artifacts
+  owner: `codex`
+  deadline: `2026-05-07`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Create the canonical `shell/socket/contract/shell_socket_contract.json` with socket capabilities, request and response shapes, projection families, payload budgets, detail refs, forbidden fields, and policy references. This is socket-only work with no UI or legacy dashboard wiring.
+- `SHELL-SOCKET-GATEWAY` — Map Shell Socket capabilities to Gateway routes
+  owner: `codex`
+  deadline: `2026-05-07`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Create shell_socket_gateway_contract.json mapping every socket capability to a Gateway route class, owner of truth, capability or lease requirement, audit receipt, Nexus checkpoint, Conduit posture, and payload budget.
 - `SHPURGE` — Finish the Shell authority purge
   owner: `unassigned`
   deadline: `2026-05-07`
@@ -86,6 +96,21 @@ Updated: 2026-05-01T23:50:02.175Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
+- `SHELL-SOCKET-CLIENT` — Build the typed Shell Socket Gateway client
+  owner: `codex`
+  deadline: `2026-05-14`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Implement a transport-neutral typed Gateway client in `shell/socket/client` that exposes only socket methods, keeps no canonical state, imports no dashboard/Svelte/Alpine/browser globals, and routes only to declared Gateway endpoints.
+- `SHELL-SOCKET-GUARDS` — Add Shell Socket contract and route guards
+  owner: `codex`
+  deadline: `2026-05-14`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Add fail-closed socket contract and Gateway route guards with positive and controlled-negative fixtures so missing route mappings, raw/default full-state fields, direct Shell-to-authority calls, and missing cursor/detail/audit/Nexus constraints are blocked.
+- `SHELL-SOCKET-PROBE` — Prove the socket with a headless Shell probe
+  owner: `codex`
+  deadline: `2026-05-14`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Build a headless/CLI socket probe that runs without browser assets and exercises runtime status, agent list, session list, message window, submit input, event stream, message detail, approval, and internal issue/eval submission through Gateway.
 - `WF-UTILITY` — Build the workflow utility spine
   owner: `unassigned`
   deadline: `2026-05-20`
@@ -113,6 +138,11 @@ Updated: 2026-05-01T23:50:02.175Z
   deadline: `after_red_section`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Start the clean Shell-next route as a projection/input-only UI after the headless capability matrix and high-risk authority extraction routes are proven.
+- `SHELL-SOCKET-LEGACY` — Quarantine Shell 1.0 as a legacy plug
+  owner: `codex`
+  deadline: `after_red_section`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Add a LegacyBrowserShellPlug manifest and guard so Shell 1.0 is limited to critical fixes, parity bridge work, and retirement support while Shell 2.0 socket work proceeds independently.
 - `SVELTE` — Keep remaining Svelte migration subordinate to Shell authority purge
   owner: `unassigned`
   deadline: `after_red_section`
