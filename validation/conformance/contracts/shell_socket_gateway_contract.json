@@ -75,7 +75,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "standard_scrambler",
       "detail_ref_behavior": "none_by_default",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "list_agents",
@@ -93,7 +93,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "standard_scrambler",
       "detail_ref_behavior": "agent details by detail_ref only",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "list_sessions",
@@ -111,7 +111,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "standard_scrambler",
       "detail_ref_behavior": "session details by detail_ref only",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "get_message_window",
@@ -129,7 +129,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "standard_scrambler",
       "detail_ref_behavior": "message/tool/artifact/trace details by detail_ref only",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "get_message_detail",
@@ -147,7 +147,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "strong_scrambler",
       "detail_ref_behavior": "one referenced object per request; no graph expansion by default",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "submit_input",
@@ -165,7 +165,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "strong_scrambler",
       "detail_ref_behavior": "accepted request returns receipt/follow_up_ref; events stream separately",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "subscribe_events",
@@ -183,7 +183,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "standard_scrambler",
       "detail_ref_behavior": "large event details by detail_ref only",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "search",
@@ -201,7 +201,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "standard_scrambler",
       "detail_ref_behavior": "search hits return snippets and detail_refs, not raw payloads",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "submit_issue",
@@ -219,7 +219,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "strong_scrambler",
       "detail_ref_behavior": "issue context uses selected refs; raw context upload is prohibited",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "submit_approval_decision",
@@ -237,7 +237,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "strong_scrambler",
       "detail_ref_behavior": "approval state/details remain authority-owned and ref-fetched",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "set_model",
@@ -255,7 +255,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "strong_scrambler",
       "detail_ref_behavior": "model catalog/details by refs; provider secrets never enter shell",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "set_git_tree",
@@ -273,7 +273,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "strong_scrambler",
       "detail_ref_behavior": "git tree state/details by refs; raw git state is prohibited by default",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     },
     {
       "capability_id": "submit_terminal_command",
@@ -291,7 +291,7 @@
       "nexus_checkpoint_required": true,
       "conduit_scrambler_posture": "strong_scrambler",
       "detail_ref_behavior": "terminal output streams/events by follow_up_ref; raw streams are not bundled into ack",
-      "implementation_status": "planned"
+      "implementation_status": "live_gateway_bound"
     }
   ],
   "missing_route_policy": {

@@ -152,6 +152,55 @@ fn command_deny(root: &Path, argv: &[String]) -> Value {
     )
 }
 
+pub(crate) fn apply_approval_decision(
+    root: &Path,
+    action_id: &str,
+    decision: &str,
+    reason: Option<&str>,
+) -> Value {
+    let queue_path = resolve_queue_path(root, &[]);
+    let action_id = action_id.trim();
+    if action_id.is_empty() {
+        return cli_error(
+            "approval_gate_kernel_decide",
+            "approval_gate_kernel_action_id_missing",
+        );
+    }
+    let normalized = decision.trim().to_ascii_lowercase();
+    let deny_reason = match normalized.as_str() {
+        "approve" | "approved" | "allow" | "allowed" => None,
+        "reject" | "rejected" | "deny" | "denied" => {
+            Some(reason.unwrap_or("User denied").trim())
+        }
+        _ => {
+            return cli_error(
+                "approval_gate_kernel_decide",
+                "approval_gate_kernel_decision_invalid",
+            )
+        }
+    };
+    let mut queue = match read_queue(&queue_path) {
+        Ok(queue) => queue,
+        Err(error) => return cli_error("approval_gate_kernel_decide", &error),
+    };
+    let result = match transition_entry(&mut queue, action_id, deny_reason) {
+        Ok(result) => result,
+        Err(error) => return cli_error("approval_gate_kernel_decide", &error),
+    };
+    if let Err(error) = write_queue(&queue_path, &queue) {
+        return cli_error("approval_gate_kernel_decide", &error);
+    }
+    cli_receipt(
+        "approval_gate_kernel_decide",
+        json!({
+            "ok": true,
+            "queue_path": queue_path.to_string_lossy(),
+            "queue": queue,
+            "result": result
+        }),
+    )
+}
+
 fn command_was_approved(root: &Path, argv: &[String]) -> Value {
     let queue_path = resolve_queue_path(root, argv);
     let Some(action_id) = lane_utils::parse_flag(argv, "action-id", false) else {

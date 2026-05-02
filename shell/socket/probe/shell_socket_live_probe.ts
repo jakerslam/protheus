@@ -282,8 +282,8 @@ async function run(): Promise<Record<string, unknown>> {
       'submit_approval_decision',
       ['accepted', 'rejected', 'reason_code', 'receipt_ref'],
       { approval_id: 'probe-approval' },
-      {},
-      (status, payload) => status >= 200 && status < 300 && payload.rejected === true,
+      { decision: 'approve' },
+      (status, payload) => status >= 400 && status < 500 && payload.rejected === true,
     );
     steps.push(approval.step);
 
