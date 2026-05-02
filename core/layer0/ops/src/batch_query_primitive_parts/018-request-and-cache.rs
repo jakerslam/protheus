@@ -25,6 +25,34 @@ fn contains_antibot_marker(text: &str) -> bool {
         "anomaly-modal",
         "captcha",
         "verify you are human",
+        "checking your browser before accessing",
+        "cf-challenge",
+        "cloudflare ray id",
+        "just a moment...",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn contains_web_junk_marker(text: &str) -> bool {
+    let lowered = clean_text(text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    if contains_antibot_marker(&lowered) {
+        return true;
+    }
+    [
+        "please enable javascript",
+        "enable javascript and cookies",
+        "access denied",
+        "403 forbidden",
+        "login required",
+        "subscribe to continue",
+        "please log in to continue",
+        "this content is not available in your region",
+        "we use cookies to improve your experience",
+        "manage your cookie preferences",
     ]
     .iter()
     .any(|marker| lowered.contains(marker))

@@ -157,6 +157,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             &evidence_refs,
             &partial_failure_details,
         );
+        let tool_result_quality = cached.get("tool_result_quality").cloned().unwrap_or_else(|| {
+            cached_web_tool_quality_report(&query, &status, &partial_failure_details, &evidence_refs)
+        });
         let parallel_retrieval_used = cached
             .get("parallel_retrieval_used")
             .and_then(Value::as_bool)
@@ -195,6 +198,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
             "parallel_retrieval_used": parallel_retrieval_used,
             "partial_failure_details": [],
+            "tool_result_quality": tool_result_quality.clone(),
             "status": status
         });
         let receipt_id = crate::deterministic_receipt_hash(&receipt);
@@ -230,6 +234,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 "query_plan_source": query_plan_source
             },
             "partial_failure_details": partial_failure_details,
+            "tool_result_quality": tool_result_quality,
             "cache_status": "hit"
         });
         if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
@@ -343,20 +348,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
 
     let rerank_query = query_plan.rerank_query.clone();
     let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
-    let mut ranked = candidates
+    let ranked = candidates
         .iter()
-        .cloned()
-        .map(|row| {
-            let score = rerank_score(&rerank_query, &row);
-            (row, score)
-        })
+        .map(|row| (row.clone(), rerank_score(&rerank_query, row)))
         .collect::<Vec<_>>();
-    ranked.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then_with(|| a.0.title.cmp(&b.0.title))
-    });
-    ranked.truncate(budget.max_evidence);
+    let ranked = select_diverse_ranked_candidates(ranked, budget.max_evidence);
 
     let min_synthesis_score = minimum_synthesis_score(benchmark_intent);
     let mut actionable_ranked = ranked
@@ -545,6 +541,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             )
         }
     };
+    let tool_result_quality = web_tool_quality_report(&query, status, before_dedup, evidence_refs.len(), &partial_failures, &hard_partial_failures, &actionable_ranked);
 
     let provider_snapshot = json!({
         "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": queries})),
@@ -580,6 +577,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
         "parallel_retrieval_used": parallel_allowed,
         "partial_failure_details": hard_partial_failures,
+        "tool_result_quality": tool_result_quality.clone(),
         "status": status
     });
     let receipt_id = crate::deterministic_receipt_hash(&receipt);
@@ -610,6 +608,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_plan_source": query_plan.query_plan_source
         },
         "partial_failure_details": hard_partial_failures.clone(),
+        "tool_result_quality": tool_result_quality.clone(),
         "cache_status": "miss"
     });
     store_cached_response(
@@ -623,6 +622,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "query_plan": queries,
             "query_plan_source": query_plan.query_plan_source,
             "partial_failure_details": hard_partial_failures,
+            "tool_result_quality": tool_result_quality,
             "parallel_retrieval_used": parallel_allowed
         }),
         status,
