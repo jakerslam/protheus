@@ -141,3 +141,51 @@ fn shell_socket_ingress_routes_fail_closed_when_required_fields_are_missing() {
         Some("agent_id_and_message_required")
     );
 }
+
+#[test]
+fn shell_socket_approval_decision_uses_kernel_approval_queue() {
+    let root = shell_socket_fixture_root();
+    let queue_path = root
+        .path()
+        .join("client/runtime/local/state/approvals_queue.yaml");
+    std::fs::create_dir_all(queue_path.parent().expect("queue parent")).expect("create queue dir");
+    std::fs::write(
+        &queue_path,
+        r#"pending:
+- action_id: socket-approval-1
+  timestamp: "2026-05-02T00:00:00Z"
+  directive_id: T0_invariants
+  type: shell_socket_probe
+  summary: Approve socket probe
+  reason: needs operator decision
+  status: PENDING
+  payload_pointer: socket-approval-1
+approved: []
+denied: []
+history: []
+"#,
+    )
+    .expect("write queue");
+
+    let approved = handle(
+        root.path(),
+        "POST",
+        "/api/shell-socket/approvals/socket-approval-1/decision",
+        br#"{"decision":"approve"}"#,
+        &json!({"ok": true}),
+    )
+    .expect("approval decision");
+    assert_eq!(approved.status, 202);
+    assert_eq!(
+        approved.payload.get("accepted").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        approved.payload.get("reason_code").and_then(Value::as_str),
+        Some("accepted")
+    );
+
+    let saved = std::fs::read_to_string(&queue_path).expect("read queue");
+    assert!(saved.contains("status: APPROVED"));
+    assert!(saved.contains("action: approved"));
+}
