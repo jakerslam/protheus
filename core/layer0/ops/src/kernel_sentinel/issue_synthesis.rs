@@ -9,7 +9,7 @@ use super::{
         cluster_fields, issue_cluster_key, issue_family_fingerprint, issue_family_kind,
         issue_summary, issue_title, severity_rank, synthetic_issue_scenario_id, FindingCluster,
     },
-    KernelSentinelFinding, KernelSentinelSeverity,
+    KernelSentinelFinding,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -66,6 +66,8 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
         .to_string();
     let validation_route = issue_validation_route(cluster, &semantic_frame);
     let acceptance_criteria = issue_acceptance_criteria(&validation_route);
+    let recommended_fix =
+        issue_recommended_fix(finding, cluster, &semantic_frame, &component, &validation_route);
     let anti_patching = anti_patching_assessment(cluster);
     json!({
         "type": "kernel_sentinel_issue_draft",
@@ -104,7 +106,7 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
             "Repeated {:?} Kernel Sentinel finding can degrade runtime correctness, security, or release confidence.",
             finding.category
         ),
-        "recommended_fix": finding.recommended_action,
+        "recommended_fix": recommended_fix,
         "acceptance_criteria": acceptance_criteria,
         "todo_actionability": {
             "todo_ready": true,
@@ -191,6 +193,38 @@ fn issue_root_cause_hypothesis(
     format!(
         "{root_frame} breach indicated by `{}` with invariant `{invariant}`",
         finding.fingerprint
+    )
+}
+
+fn issue_recommended_fix(
+    finding: &KernelSentinelFinding,
+    cluster: &FindingCluster,
+    semantic_frame: &Value,
+    component: &str,
+    validation_route: &[Value],
+) -> String {
+    let root_frame = semantic_frame["root_frame"].as_str().unwrap_or("unknown_root_frame");
+    let invariant = cluster
+        .violated_invariants
+        .iter()
+        .next()
+        .map(String::as_str)
+        .unwrap_or("unknown_invariant");
+    let validation_command = validation_route
+        .first()
+        .and_then(|route| route["command"].as_str())
+        .unwrap_or("cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture");
+    let upstream = finding.recommended_action.trim();
+    let prefix = if upstream.is_empty()
+        || upstream == "inspect deterministic kernel evidence and restore fail-closed behavior"
+    {
+        format!("Repair `{component}` at `{root_frame}`")
+    } else {
+        format!("{upstream}; repair `{component}` at `{root_frame}`")
+    };
+    format!(
+        "{prefix} by resolving `{}` against invariant `{invariant}` for `{}`; then rerun `{validation_command}` and keep this draft open until the evidence stream stops emitting `{}`.",
+        cluster.recovery_reason, finding.summary, finding.fingerprint
     )
 }
 

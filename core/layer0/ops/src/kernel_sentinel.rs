@@ -88,7 +88,7 @@ pub use incident_report::kernel_sentinel_architectural_incident_report_section;
 use finding_lifecycle::{dedupe_findings, sanitize_finding};
 use findings_io::read_jsonl_findings;
 use report_summary::{
-    build_health_report, count_by_category, count_by_severity, count_by_status,
+    count_by_category, count_by_severity, count_by_status,
     count_malformed_by_source, count_malformed_by_source_kind, critical_open_count,
     release_blockers,
 };
@@ -430,69 +430,7 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     if command == "heartbeat" {
         return scheduler::run_heartbeat(root, &rest);
     }
-    let (report, verdict, exit) = build_report(root, &rest);
-    let dir = state_dir_from_args(root, &rest);
-    let report_path = dir.join("kernel_sentinel_report_current.json");
-    let final_report_path = dir.join("kernel_sentinel_final_report_current.json");
-    let verdict_path = dir.join("kernel_sentinel_verdict.json");
-    let health_path = dir.join("kernel_sentinel_health_current.json");
-    let write_full_internal_report = report_output::should_write_full_internal_report(&rest);
-    let bounded_report = report_output::bounded_report_index(&report, &dir, write_full_internal_report);
-    if matches!(command, "run" | "report") {
-        if let Err(err) = write_json(&report_path, &bounded_report) {
-            eprintln!("kernel_sentinel_write_report_failed: {err}");
-            return 1;
-        }
-        if let Err(err) =
-            report_output::write_full_internal_report_if_requested(&dir, &report, write_full_internal_report)
-        {
-            eprintln!("kernel_sentinel_write_internal_report_failed: {err}");
-            return 1;
-        }
-        if let Err(err) = write_json(&final_report_path, &report["final_report"]) {
-            eprintln!("kernel_sentinel_write_final_report_failed: {err}");
-            return 1;
-        }
-        if let Err(err) = write_json(&verdict_path, &verdict) {
-            eprintln!("kernel_sentinel_write_verdict_failed: {err}");
-            return 1;
-        }
-        if let Err(err) =
-            write_json(&health_path, &build_health_report(&report, &verdict, None, None))
-        {
-            eprintln!("kernel_sentinel_write_health_failed: {err}");
-            return 1;
-        }
-        if let Err(err) =
-            issue_synthesis::write_issue_drafts_jsonl(&dir.join("issues.jsonl"), &report, None)
-        {
-            eprintln!("kernel_sentinel_write_issues_failed: {err}");
-            return 1;
-        }
-        if let Err(err) = maintenance_synthesis::write_maintenance_jsonl(&dir, &report) {
-            eprintln!("kernel_sentinel_write_maintenance_failed: {err}");
-            return 1;
-        }
-        if let Err(err) = boot_watch::write_watch_metadata(&dir, &report, &rest) {
-            eprintln!("kernel_sentinel_write_watch_metadata_failed: {err}");
-            return 1;
-        }
-        if let Err(err) = waivers::write_waiver_audit(&dir, &report) {
-            eprintln!("kernel_sentinel_write_waiver_audit_failed: {err}");
-            return 1;
-        }
-    }
-    println!(
-        "{}",
-        serde_json::to_string_pretty(if command == "status" { &verdict } else { &bounded_report })
-            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
-    );
-    if matches!(command, "run" | "status" | "report") {
-        exit
-    } else {
-        eprintln!("kernel_sentinel_unknown_command: {command}");
-        1
-    }
+    report_output::run_report_command(root, command, &rest)
 }
 
 #[cfg(test)]
