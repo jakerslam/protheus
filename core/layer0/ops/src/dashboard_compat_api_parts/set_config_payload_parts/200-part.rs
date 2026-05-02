@@ -155,4 +155,5 @@ mod tests {
     include!("../config_payload_tests_parts/100-governance-and-semantic-memory.rs");
     include!("../config_payload_tests_parts/110-agent-capability-gauntlet.rs");
     include!("../config_payload_tests_parts/120-receipts-lineage-route.rs");
+    include!("../config_payload_tests_parts/130-shell-socket-routes.rs");
 }
