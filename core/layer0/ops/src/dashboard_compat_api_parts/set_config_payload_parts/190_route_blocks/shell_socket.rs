@@ -84,28 +84,34 @@ fn shell_socket_messages_paged(messages: &[Value], limit: usize, offset: usize) 
     messages[start..end].to_vec()
 }
 
-fn shell_socket_runtime_status(root: &Path, snapshot: &Value, request_host: &str) -> Value {
-    let legacy = status_payload(root, snapshot, request_host);
-    let connected = legacy
-        .get("connected")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let degraded = legacy
+fn shell_socket_runtime_status(_root: &Path, snapshot: &Value, _request_host: &str) -> Value {
+    let connected = snapshot.get("ok").and_then(Value::as_bool).unwrap_or(true)
+        && snapshot
+            .get("connected")
+            .and_then(Value::as_bool)
+            .unwrap_or(true);
+    let degraded = snapshot
         .get("degraded")
         .and_then(Value::as_bool)
-        .unwrap_or(false);
+        .unwrap_or(!connected);
     let state = if connected && !degraded { "ready" } else { "degraded" };
-    let label = if connected { "Runtime connected" } else { "Runtime unavailable" };
+    let label = if connected && !degraded {
+        "Runtime connected"
+    } else if connected {
+        "Runtime degraded"
+    } else {
+        "Runtime unavailable"
+    };
     json!({
         "state": state,
         "label": label,
         "source": "gateway.dashboard_compat_api",
-        "source_sequence": legacy.get("receipt_hash").cloned().unwrap_or(Value::Null),
+        "source_sequence": snapshot.get("receipt_hash").cloned().unwrap_or(Value::Null),
         "age_seconds": 0,
         "stale": false,
-        "degraded_reason": clean_text(legacy.get("warning").and_then(Value::as_str).unwrap_or(""), 160),
+        "degraded_reason": clean_text(snapshot.get("warning").and_then(Value::as_str).unwrap_or(""), 160),
         "next_retry_hint": Value::Null,
-        "receipt_ref": shell_socket_receipt_ref("get_runtime_status", &legacy),
+        "receipt_ref": shell_socket_receipt_ref("get_runtime_status", snapshot),
         "correlation_id": "shell_socket.runtime_status"
     })
 }
