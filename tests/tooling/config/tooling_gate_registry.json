@@ -1904,6 +1904,23 @@
         "local/workspace/reports/SHELL_SOCKET_HEADLESS_PROBE_CURRENT.md"
       ]
     },
+    "ops:shell-socket:legacy:guard": {
+      "owner": "ops",
+      "description": "Legacy browser Shell guard proving 4173 is quarantined as non-canonical compatibility and cannot count as Shell Socket proof.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:shell-socket:legacy:guard",
+      "canonical_definition_paths": [
+        "shell/legacy/legacy_browser_shell_manifest.json",
+        "tests/tooling/scripts/ci/legacy_browser_shell_guard.ts",
+        "shell/socket/contract/shell_socket_contract.json",
+        "validation/conformance/contracts/shell_socket_gateway_contract.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/legacy_browser_shell_guard_current.json",
+        "local/workspace/reports/LEGACY_BROWSER_SHELL_GUARD_CURRENT.md"
+      ]
+    },
     "ops:shell-socket:live-probe": {
       "owner": "ops",
       "description": "Live Shell Socket probe for the canonical Gateway/backend route surface; soft-passes when live is absent unless SHELL_SOCKET_REQUIRE_LIVE=1.",
