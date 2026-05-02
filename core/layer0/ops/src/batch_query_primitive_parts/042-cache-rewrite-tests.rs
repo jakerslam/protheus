@@ -141,7 +141,7 @@ mod cache_rewrite_tests {
     }
 
     #[test]
-    fn derived_framework_catalog_query_plan_expands_official_domain_queries() {
+    fn single_framework_catalog_query_plan_does_not_add_hidden_queries() {
         let payload = json!({
             "source": "web",
             "query": "top AI agentic frameworks",
@@ -149,16 +149,9 @@ mod cache_rewrite_tests {
         });
         let query = request_query_text(&payload, 600);
         let plan = resolve_query_plan(&payload, &query, aperture_budget("medium").expect("budget"));
-        assert_eq!(plan.query_plan_source, "derived_rewrite");
-        assert!(plan.queries.len() >= 6, "{:?}", plan.queries);
-        assert!(plan
-            .queries
-            .iter()
-            .any(|row| row.contains("site:openai.github.io/openai-agents-python")), "{:?}", plan.queries);
-        assert!(plan
-            .queries
-            .iter()
-            .any(|row| row.contains("site:crewai.com")), "{:?}", plan.queries);
+        assert_eq!(plan.query_plan_source, "agent_submitted_single_query");
+        assert_eq!(plan.queries, vec!["top AI agentic frameworks".to_string()]);
+        assert!(plan.rewrite_set.is_empty(), "{:?}", plan.rewrite_set);
     }
 
     #[test]
