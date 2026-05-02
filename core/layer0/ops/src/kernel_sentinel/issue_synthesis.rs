@@ -2,6 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
+    causal_hypothesis::root_cause_hypothesis_text,
     diagnostic_run_artifact::attach_diagnostic_context_to_issue_draft,
     incident_report::violated_invariants,
     kernel_sentinel_semantic_frame_for_finding,
@@ -190,10 +191,9 @@ fn issue_root_cause_hypothesis(
         .next()
         .map(String::as_str)
         .unwrap_or("unknown_invariant");
-    format!(
-        "{root_frame} breach indicated by `{}` with invariant `{invariant}`",
-        finding.fingerprint
-    )
+    let evidence_refs = cluster.evidence.iter().cloned().collect::<Vec<_>>();
+    let causal = root_cause_hypothesis_text(finding, &evidence_refs, invariant, semantic_frame);
+    format!("{root_frame} breach; {causal}")
 }
 
 fn issue_recommended_fix(
