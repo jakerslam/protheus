@@ -121,7 +121,8 @@ fn assemble_final_report(
             "stream_refs": evidence_stream_refs(state_dir),
         },
         "artifact_refs": {
-            "full_internal_report": state_dir.join("kernel_sentinel_report_current.json").display().to_string(),
+            "report_index": state_dir.join("kernel_sentinel_report_current.json").display().to_string(),
+            "full_internal_report_opt_in": state_dir.join("kernel_sentinel_internal_report_current.json").display().to_string(),
             "verdict": state_dir.join("kernel_sentinel_verdict.json").display().to_string(),
             "health": state_dir.join("kernel_sentinel_health_current.json").display().to_string(),
             "findings": report["findings_path"].clone(),
