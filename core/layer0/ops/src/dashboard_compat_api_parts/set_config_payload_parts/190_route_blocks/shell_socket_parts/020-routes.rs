@@ -83,9 +83,45 @@ fn handle_shell_socket_routes(
     }
     if method == "POST" && parts.len() == 3 && parts[0] == "approvals" && parts[2] == "decision" {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let decision = clean_text(
+            request
+                .get("decision")
+                .or_else(|| request.get("action"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            40,
+        );
+        let reason = clean_text(
+            request
+                .get("reason")
+                .or_else(|| request.get("deny_reason"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            400,
+        );
+        let authority = crate::approval_gate_kernel::apply_approval_decision(
+            root,
+            &parts[1],
+            &decision,
+            if reason.is_empty() { None } else { Some(&reason) },
+        );
+        let accepted = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        let reason_code = if accepted {
+            "accepted"
+        } else {
+            authority
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("approval_gateway_rejected")
+        };
         return Some(CompatApiResponse {
-            status: 200,
-            payload: shell_socket_ingress_ack("submit_approval_decision", false, "approval_gateway_binding_missing", &json!({"approval_id": parts[1], "request": request})),
+            status: if accepted { 202 } else { 400 },
+            payload: shell_socket_ingress_ack(
+                "submit_approval_decision",
+                accepted,
+                reason_code,
+                &json!({"approval_id": parts[1], "request": request, "authority": authority}),
+            ),
         });
     }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "model" {
