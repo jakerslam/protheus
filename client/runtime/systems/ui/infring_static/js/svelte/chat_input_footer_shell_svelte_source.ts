@@ -68,7 +68,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   }
   function pageValue(name, fallback) {
     const p = cp();
-    return p && Object.prototype.hasOwnProperty.call(p, name) ? p[name] : fallback;
+    return p && name in p ? p[name] : fallback;
   }
   function bool(name) { return !!pageValue(name, false); }
   function list(name) {
@@ -82,6 +82,13 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     if (!focused || nextText === '' || nextText !== inputText) inputText = nextText;
     const terminalMode = !!p.terminalMode;
     const archived = !!(p.currentAgent && typeof p.isCurrentAgentArchived === 'function' && p.isCurrentAgentArchived());
+    let modelRows = list('renderedSwitcherModels');
+    if (!modelRows.length && p.showModelSwitcher && typeof p.fallbackModelCatalogRows === 'function') {
+      modelRows = p.fallbackModelCatalogRows();
+      p._modelCache = modelRows;
+      p._modelCacheTime = Date.now();
+      p.modelPickerList = modelRows;
+    }
     state = {
       currentAgent: p.currentAgent || null,
       archived,
@@ -120,7 +127,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
       gitTreeLoading: !!p.gitTreeMenuLoading,
       gitTreeError: String(p.gitTreeMenuError || ''),
       gitTreeSwitching: !!p.gitTreeSwitching,
-      modelRows: list('renderedSwitcherModels'),
+      modelRows,
       modelSwitching: !!p.modelSwitching,
       modelSwitcherFilter: String(p.modelSwitcherFilter || ''),
       modelSwitcherProviderFilter: String(p.modelSwitcherProviderFilter || ''),

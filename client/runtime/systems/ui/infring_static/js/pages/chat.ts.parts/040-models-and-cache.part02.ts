@@ -94,6 +94,74 @@
       return merged;
     },
 
+    fallbackModelCatalogRows: function() {
+      var seeds = [
+        ['openai', 'gpt-5.5', 'GPT-5.5'],
+        ['openai', 'gpt-5.4', 'GPT-5.4'],
+        ['openai', 'gpt-5.4-mini', 'GPT-5.4 Mini'],
+        ['openai', 'gpt-5.3-codex', 'GPT-5.3 Codex'],
+        ['openai', 'gpt-5.3-codex-spark', 'GPT-5.3 Codex Spark'],
+        ['anthropic', 'claude-4.2', 'Claude 4.2'],
+        ['anthropic', 'claude-opus-4-6', 'Claude Opus 4.6'],
+        ['google', 'gemini-3', 'Gemini 3'],
+        ['deepseek', 'deepseek-chat', 'DeepSeek Chat'],
+        ['deepseek', 'deepseek-reasoner', 'DeepSeek Reasoner'],
+        ['ollama', 'qwen2.5:3b-instruct', 'Qwen 2.5 3B Instruct']
+      ];
+      return this.sanitizeModelCatalogRows(seeds.map(function(seed) {
+        var provider = seed[0];
+        var model = seed[1];
+        return {
+          id: provider + '/' + model,
+          provider: provider,
+          model: model,
+          model_name: model,
+          runtime_model: model,
+          display_name: seed[2],
+          available: true,
+          shell_catalog_seed: true
+        };
+      }));
+    },
+
+    loadProviderModelCatalogSafely: function(options) {
+      var opts = options && typeof options === 'object' ? options : {};
+      var self = this;
+      var cachedRows = self.sanitizeModelCatalogRows(self._modelCache || self.modelPickerList || []);
+      var useRows = function(rows) {
+        var models = self.sanitizeModelCatalogRows(rows);
+        self._modelCache = models;
+        self._modelCacheTime = Date.now();
+        self.modelPickerList = models;
+        return models;
+      };
+      var timeoutMs = Number(opts.timeout_ms || 2000);
+      var timeoutFallback = new Promise(function(resolve) {
+        setTimeout(function() { resolve(null); }, timeoutMs > 0 ? timeoutMs : 2000);
+      });
+      return Promise.race([
+        InfringAPI.get('/api/providers'),
+        timeoutFallback
+      ]).then(function(providersPayload) {
+        if (!providersPayload) {
+          return useRows(cachedRows.length ? cachedRows : self.fallbackModelCatalogRows());
+        }
+        var providerRows = self.sanitizeModelCatalogRows(
+          self.providerPayloadToModelCatalogRows(providersPayload)
+        );
+        if (!providerRows.length) {
+          return useRows(cachedRows.length ? cachedRows : self.fallbackModelCatalogRows());
+        }
+        var existingRows = opts.merge_existing === false
+          ? []
+          : cachedRows;
+        var models = self.mergeModelCatalogRows(existingRows, providerRows);
+        return useRows(models);
+      }).catch(function() {
+        return useRows(cachedRows.length ? cachedRows : self.fallbackModelCatalogRows());
+      });
+    },
+
     modelCatalogRows: function(rows) {
       var list = Array.isArray(rows) && rows.length
         ? rows
@@ -375,15 +443,12 @@
         var available = this.countAvailableModelRows(models);
         // Recover from partial catalog responses by rebuilding rows from provider model_profiles.
         if (models.length < 8 || available < 4) {
-          var providersPayload = await InfringAPI.get('/api/providers').catch(function() { return null; });
-          if (providersPayload) {
-            var providerRows = this.sanitizeModelCatalogRows(
-              this.providerPayloadToModelCatalogRows(providersPayload)
-            );
-            if (providerRows.length) {
-              models = this.mergeModelCatalogRows(models, providerRows);
-              available = this.countAvailableModelRows(models);
-            }
+          var providerFallbackRows = await this.loadProviderModelCatalogSafely({
+            merge_existing: true
+          }).catch(function() { return []; });
+          if (providerFallbackRows.length) {
+            models = this.mergeModelCatalogRows(models, providerFallbackRows);
+            available = this.countAvailableModelRows(models);
           }
         }
         this._modelCache = models;
