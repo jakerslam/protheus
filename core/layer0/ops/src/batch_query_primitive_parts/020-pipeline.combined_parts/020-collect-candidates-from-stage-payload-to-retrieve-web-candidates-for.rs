@@ -46,13 +46,16 @@ fn collect_candidates_from_stage_payload(
     if contains_antibot_marker(&summary) || contains_antibot_marker(&content) {
         issues.push(format!("{stage}:anti_bot_challenge"));
     }
+    if contains_web_junk_marker(&summary) || contains_web_junk_marker(&content) {
+        issues.push(format!("{stage}:junk_page"));
+    }
     let should_fetch_links = candidates.is_empty()
         || looks_like_low_signal_search_summary(&summary)
         || candidates
             .iter()
             .all(|candidate| candidate_needs_link_fetch(query, candidate));
     if should_fetch_links {
-        for link in payload_links_for_fallback(payload, LINK_FETCH_FALLBACK_LIMIT) {
+        for link in payload_links_for_fallback(query, payload, LINK_FETCH_FALLBACK_LIMIT) {
             if !fetched_links.insert(link.clone()) {
                 continue;
             }
