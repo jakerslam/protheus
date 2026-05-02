@@ -45,6 +45,7 @@ pub(super) fn bounded_report_index(
         "operator_summary": report["operator_summary"].clone(),
         "report_budget": report["report_budget"].clone(),
         "final_report": report["final_report"].clone(),
+        "causal_calibration": report["causal_calibration"]["final_report_summary"].clone(),
         "issue_synthesis": {
             "issue_draft_count": report["issue_synthesis"]["issue_draft_count"].clone(),
             "active_issue_window_count": report["issue_synthesis"]["active_issue_window_count"].clone(),
@@ -187,6 +188,7 @@ fn write_built_outputs(
     write_full_internal_report_if_requested(dir, report, write_full_internal_report)?;
     super::write_json(&dir.join("kernel_sentinel_final_report_current.json"), &report["final_report"])?;
     super::write_json(&dir.join("kernel_sentinel_verdict.json"), verdict)?;
+    super::causal_calibration::write_causal_calibration_artifacts(dir, report)?;
     super::write_json(&dir.join("kernel_sentinel_health_current.json"), &build_health_report(report, verdict, None, None))?;
     super::issue_synthesis::write_issue_drafts_jsonl(&dir.join("issues.jsonl"), report, None)?;
     super::maintenance_synthesis::write_maintenance_jsonl(dir, report)?;

@@ -101,6 +101,8 @@ fn assemble_final_report(
             "duplicate_symptom_count": quality_filter["clustered_duplicate_finding_count"].clone(),
             "policy": "release_ready_symptoms_share_a_single_structural_cluster_before_operator_promotion",
         },
+        "causal_hypothesis_synthesis": {"hypothesis_count": report["causal_hypothesis_synthesis"]["hypothesis_count"].clone(), "quality_gate": report["causal_hypothesis_synthesis"]["quality_gate"].clone(), "top_hypotheses": report["causal_hypothesis_synthesis"]["top_hypotheses"].clone()},
+        "causal_calibration": report["causal_calibration"]["final_report_summary"].clone(),
         "root_cause_clusters": root_cause_clusters, "failure_level_summary": super::report_failure_levels::build_failure_level_summary(findings, root_cause_clusters, triage_findings),
         "top_findings": findings,
         "triage_findings": triage_findings,
