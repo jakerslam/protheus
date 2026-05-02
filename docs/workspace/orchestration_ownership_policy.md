@@ -204,7 +204,7 @@ Control-plane wrapper lock (transition phase):
 - `orchestration/scripts/cognition/**` are shell-compatible shims only and must delegate to `adapters/runtime/orchestration_cognition_impl/**`.
 - Control-plane authority and coordination decisions must be implemented in Rust (`orchestration/src/**`), not TypeScript.
 - `adapters/runtime/orchestration_cognition_impl/**` must remain Rust-facing transport glue (`orchestration invoke` op bridges), not a second coordination authority.
-- Delegate target should match file identity (`foo.ts` bridge delegates to `surface/.../foo.ts`) to avoid wrapper drift.
+- Delegate target should match file identity (`foo.ts` bridge delegates to `orchestration/scripts/.../foo.ts` or `adapters/runtime/.../foo.ts`, according to bridge layer) to avoid wrapper drift.
 - Shell and orchestration cognition bridge trees are parity-governed: relative file paths must match, and mirrored schema assets (for example `schemas/*.json`) must stay byte-identical.
 - New decomposition/coordination/sequencing/recovery/packaging logic in shell/client wrappers is prohibited; implement under `orchestration/**` and bridge from shell.
 

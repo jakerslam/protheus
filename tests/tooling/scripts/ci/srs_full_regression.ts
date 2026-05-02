@@ -9,7 +9,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeJsonArtifact, writeTextArtifact } from '../../lib/result.ts';
 
 const SRS_PATH = 'docs/workspace/SRS.md';
-const TODO_PATH = 'docs/workspace/TODO.md';
+const TODO_PATH = 'docs/workspace/todo/TODO.md';
 const OUT_JSON =
   readAliasedEnv('INFRING_SRS_FULL_REGRESSION_OUT_JSON', 'INFRING_SRS_FULL_REGRESSION_OUT_JSON')
   || 'core/local/artifacts/srs_full_regression_current.json';
@@ -377,12 +377,13 @@ function buildRegressionPayload() {
   const v8RuntimeProofPath = resolve('core/layer0/ops/tests/v8_runtime_proof.rs');
   const v8RuntimeProofSource = existsSync(v8RuntimeProofPath) ? readFileSync(v8RuntimeProofPath, 'utf8') : '';
 
-  // SRS: V12-SRS-SURFACE-EVIDENCE-001
+  // SRS evidence roots include canonical architecture roots directly.
   const evidencePaths = [
     'docs/workspace/SRS.md',
-    'docs/workspace/TODO.md',
+    'docs/workspace/todo/TODO.md',
     'core',
-    'surface',
+    'orchestration',
+    'shell',
     'client',
     'apps',
     'adapters',
@@ -396,10 +397,10 @@ function buildRegressionPayload() {
 
   const nonBacklogEvidenceCounts = countHitsById(
     uniqueIds,
-    ['core', 'surface', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github', 'docs'],
+    ['core', 'orchestration', 'shell', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github', 'docs'],
     [
       '!docs/workspace/SRS.md',
-      '!docs/workspace/TODO.md',
+      '!docs/workspace/todo/TODO.md',
       '!docs/workspace/UPGRADE_BACKLOG.md',
       '!docs/workspace/SRS_*REGRESSION*.md',
       '!core/local/artifacts/srs_*regression*.json',
@@ -408,7 +409,7 @@ function buildRegressionPayload() {
 
   const codeLikeEvidenceCounts = countHitsById(
     uniqueIds,
-    ['core', 'surface', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github'],
+    ['core', 'orchestration', 'shell', 'client', 'apps', 'adapters', 'scripts', 'tests', '.github'],
     ['!docs/workspace/SRS_*REGRESSION*.md', '!core/local/artifacts/srs_*regression*.json'],
   );
 

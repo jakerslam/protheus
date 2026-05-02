@@ -1,45 +1,50 @@
 {
   "version": "2026-04-10",
   "code_roots": [
-    "core",
-    "surface",
-    "client",
-    "packages",
-    "apps",
     "adapters",
+    "apps",
+    "client",
+    "core",
+    "orchestration",
+    "packages",
+    "shell",
     "tests"
   ],
   "root_rules": {
-    "core": {
-      "allowed_extensions": [
-        "rs",
-        "c",
-        "cc",
-        "cpp",
-        "h",
-        "hpp",
-        "sh"
-      ],
-      "notes": "Rust-first authority substrate. C/C++ only for low-level and hardware-adjacent paths."
-    },
-    "surface": {
-      "target_extensions": [
-        "rs",
-        "ts",
-        "tsx"
-      ],
-      "legacy_debt_extensions": [
-        "js",
-        "py",
-        "sh"
-      ],
+    "adapters": {
       "allowed_extensions": [
         "rs",
         "ts",
         "tsx",
-        "sh"
+        "js",
+        "jsx",
+        "py",
+        "sh",
+        "toml",
+        "json",
+        "yaml",
+        "yml"
       ],
-      "notes": "Orchestration is non-canonical coordination. Durable truth remains in core contracts."
+      "notes": "Polyglot integration shims for external systems."
+    },
+    "apps": {
+      "allowed_extensions": [
+        "rs",
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "html",
+        "css",
+        "scss",
+        "sh",
+        "toml",
+        "json",
+        "yaml",
+        "yml"
+      ],
+      "notes": "Standalone app surfaces that remain deletable without changing system authority behavior."
     },
     "client": {
       "target_extensions": [
@@ -57,6 +62,31 @@
       ],
       "notes": "Presentation/runtime wrappers and UX only."
     },
+    "core": {
+      "allowed_extensions": [
+        "rs",
+        "c",
+        "cc",
+        "cpp",
+        "h",
+        "hpp",
+        "sh"
+      ],
+      "notes": "Rust-first authority substrate. C/C++ only for low-level and hardware-adjacent paths."
+    },
+    "orchestration": {
+      "target_extensions": [
+        "rs",
+        "ts",
+        "tsx"
+      ],
+      "legacy_debt_extensions": [
+        "js",
+        "py",
+        "sh"
+      ],
+      "notes": "Rust-first Orchestration Control Plane. TS/TSX is allowed only for thin ingress/packaging shims."
+    },
     "packages": {
       "allowed_extensions": [
         "ts",
@@ -71,40 +101,13 @@
       ],
       "notes": "Public SDK/package distribution surfaces; non-authoritative."
     },
-    "apps": {
+    "shell": {
       "allowed_extensions": [
-        "ts",
-        "tsx",
-        "js",
-        "jsx",
-        "py",
-        "rs",
-        "html",
-        "css",
-        "scss",
-        "sh",
-        "toml",
         "json",
-        "yaml",
-        "yml"
+        "md",
+        "ts"
       ],
-      "notes": "Standalone app surfaces that remain deletable without changing system authority behavior."
-    },
-    "adapters": {
-      "allowed_extensions": [
-        "ts",
-        "tsx",
-        "js",
-        "jsx",
-        "py",
-        "rs",
-        "sh",
-        "toml",
-        "json",
-        "yaml",
-        "yml"
-      ],
-      "notes": "Polyglot integration shims for external systems."
+      "notes": "Canonical Shell Socket contracts, thin socket clients, and headless plug probes. No legacy dashboard substrate or runtime authority."
     },
     "tests": {
       "allowed_extensions": [

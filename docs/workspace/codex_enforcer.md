@@ -43,7 +43,7 @@ Required execution behavior:
 
 ## Standard Implementation Rules (Mandatory)
 - Implement all requested items as production code, not receipt scaffolds.
-- Authorized modification scope includes `core/`, `surface/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
+- Authorized modification scope includes `core/`, `orchestration/`, `shell/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-kernel authority and thin-shell boundaries on every implementation.
 - Terminology transition rule:
@@ -117,7 +117,7 @@ Completion requires all of the following:
 - Do not migrate `client/cognition/adaptive/**` into Rust unless the path is under `client/runtime/systems/adaptive/**`.
 - Keep user-flex surfaces (`habits`, `reflexes`, `eyes` user-specific paths) non-Rust by default unless explicitly approved.
 - Treat these TCB prefixes as Rust-authoritative migration targets: `client/runtime/systems/security/`, `client/runtime/systems/ops/`, `client/runtime/systems/memory/`, `client/runtime/systems/sensory/`, `client/runtime/systems/autonomy/`, `client/runtime/systems/assimilation/`.
-- Keep these surface prefixes TypeScript-first unless explicitly overridden: `client/runtime/systems/ui/`, `client/runtime/systems/marketplace/`, `client/runtime/systems/extensions/`.
+- Keep these UX prefixes TypeScript-first unless explicitly overridden: `client/runtime/systems/ui/`, `client/runtime/systems/marketplace/`, `client/runtime/systems/extensions/`.
 
 ## Language Allowlist Rules (Mandatory)
 - Approved implementation languages are:
@@ -137,11 +137,11 @@ Completion requires all of the following:
 - If explicit permission is missing for any file-type change or language migration, mark the task `BLOCKED — missing explicit file-type migration permission` and stop.
 
 ## Repository Placement Rules (Mandatory)
-- Canonical code locations are limited to: `core/`, `surface/`, `client/`, `tests/`, and `adapters/`.
+- Canonical code locations are limited to: `core/`, `orchestration/`, `shell/`, `client/`, `tests/`, and `adapters/`.
 - `apps/` is app-only. It may contain only standalone apps that run on top of the shell/runtime boundary.
-- Any path under `apps/` must be deletable without changing core/surface/client/adapters/tests behavior.
+- Any path under `apps/` must be deletable without changing core/orchestration/shell/client/adapters/tests behavior.
 - Any path under `apps/` must be deletable without changing core/client/adapters/tests behavior.
-- System code must not import from `apps/**`. If system code needs shared logic, move that logic into `core/`, `surface/`, `client/`, `tests/`, or `adapters/` first.
+- System code must not import from `apps/**`. If system code needs shared logic, move that logic into `core/`, `orchestration/`, `shell/`, `client/`, `tests/`, or `adapters/` first.
 - `apps/` is never a script/tool dump. Shared helpers, wrappers, and runtime bridges are prohibited in `apps/`.
 - Top-level `scripts/` is prohibited. Do not create or reintroduce it.
 - CI/dev/test tooling scripts must live under `tests/tooling/scripts/`.
@@ -172,11 +172,12 @@ Completion requires all of the following:
   - Cross-boundary routes must declare Conduit/Scrambler security posture; sensitive Core/Orchestration authority routes must not silently downgrade below strong Scrambler posture.
   - Direct code-file-to-code-file cross-module paths are migration debt unless explicitly exempted with owner, expiry, and replacement Nexus checkpoint plan.
 - Architecture policy governance rule:
-  - `ops:policy-refinement:governance` is the aggregate gate for the Shell projection, Shell UI message/detail, Shell long-chat memory, Gateway interface, Interface Payload Budget, Shell amputation, Conduit/Scrambler posture, and cross-domain Nexus route inventory guards.
+  - `ops:policy-refinement:governance` is the aggregate gate for the Shell projection, Shell UI message/detail, Shell long-chat memory, Shell tiered long-chat heap proof, Gateway interface, Gateway external-surface coverage, Interface Payload Budget, Shell runtime payload budget, Shell amputation, Conduit/Scrambler posture, and cross-domain Nexus route inventory guards.
   - `ops:arch:governance` must run `ops:policy-refinement:governance` before broader architecture boundary checks.
 - Placement decision rule:
   - system authority/runtime path => Kernel authority (`core/**` compatibility path)
   - control-plane coordination path (non-authoritative) => `orchestration/**`
+  - clean Shell Socket contracts/plugs/probes => `shell/**`
   - shell runtime wrappers/UX path => `client/runtime/systems/**` (thin runtime/shell surface only)
   - system authority/runtime path => Kernel authority (`core/**` compatibility path) (or `client/runtime/systems/**` only as thin runtime/shell surface)
   - control-plane coordination path (non-canonical decomposition/coordination/sequencing/recovery/packaging) => `orchestration/**`

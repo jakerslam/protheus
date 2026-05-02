@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-01T23:50:02.175Z",
+  "updated_at": "2026-05-02T19:35:11.370Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -228,6 +228,60 @@
       "deadline": "none",
       "source_family": "Tauri Desktop App Migration + Memory Fix Wave",
       "summary": "Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway."
+    },
+    {
+      "id": "SHELL-SOCKET-CONTRACT",
+      "title": "Define the Shell Socket contract artifacts",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-07",
+      "source_family": "Shell Socket 2.0 Infrastructure",
+      "summary": "Create the canonical `shell/socket/contract/shell_socket_contract.json` with socket capabilities, request and response shapes, projection families, payload budgets, detail refs, forbidden fields, and policy references. This is socket-only work with no UI or legacy dashboard wiring."
+    },
+    {
+      "id": "SHELL-SOCKET-GATEWAY",
+      "title": "Map Shell Socket capabilities to Gateway routes",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-07",
+      "source_family": "Shell Socket 2.0 Infrastructure",
+      "summary": "Create shell_socket_gateway_contract.json mapping every socket capability to a Gateway route class, owner of truth, capability or lease requirement, audit receipt, Nexus checkpoint, Conduit posture, and payload budget."
+    },
+    {
+      "id": "SHELL-SOCKET-GUARDS",
+      "title": "Add Shell Socket contract and route guards",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-14",
+      "source_family": "Shell Socket 2.0 Infrastructure",
+      "summary": "Add fail-closed socket contract and Gateway route guards with positive and controlled-negative fixtures so missing route mappings, raw/default full-state fields, direct Shell-to-authority calls, and missing cursor/detail/audit/Nexus constraints are blocked."
+    },
+    {
+      "id": "SHELL-SOCKET-CLIENT",
+      "title": "Build the typed Shell Socket Gateway client",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-14",
+      "source_family": "Shell Socket 2.0 Infrastructure",
+      "summary": "Implement a transport-neutral typed Gateway client in `shell/socket/client` that exposes only socket methods, keeps no canonical state, imports no dashboard/Svelte/Alpine/browser globals, and routes only to declared Gateway endpoints."
+    },
+    {
+      "id": "SHELL-SOCKET-PROBE",
+      "title": "Prove the socket with a headless Shell probe",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-14",
+      "source_family": "Shell Socket 2.0 Infrastructure",
+      "summary": "Build a headless/CLI socket probe that runs without browser assets and exercises runtime status, agent list, session list, message window, submit input, event stream, message detail, approval, and internal issue/eval submission through Gateway."
+    },
+    {
+      "id": "SHELL-SOCKET-LEGACY",
+      "title": "Quarantine Shell 1.0 as a legacy plug",
+      "section": "white",
+      "owner": "codex",
+      "deadline": "after_red_section",
+      "source_family": "Shell Socket 2.0 Infrastructure",
+      "summary": "Add a LegacyBrowserShellPlug manifest and guard so Shell 1.0 is limited to critical fixes, parity bridge work, and retirement support while Shell 2.0 socket work proceeds independently."
     }
   ]
 }

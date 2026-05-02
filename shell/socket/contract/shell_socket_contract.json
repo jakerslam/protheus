@@ -1,0 +1,596 @@
+{
+  "type": "shell_socket_contract",
+  "schema_version": 1,
+  "version": "2026-05-02",
+  "owner": "shell.presentation_contract",
+  "status": "contracted",
+  "policy_refs": [
+    "docs/workspace/shell_ui_projection_policy.md",
+    "docs/workspace/shell_independent_operation_policy.md",
+    "docs/workspace/gateway_ingress_egress_policy.md",
+    "docs/workspace/interface_payload_budget_policy.md",
+    "docs/workspace/nexus_conduit_checkpoint_policy.md",
+    "docs/workspace/conduit_scrambler_posture_policy.md",
+    "docs/workspace/shell_socket_parallel_execution_plan.md"
+  ],
+  "gateway_mapping_contract": "validation/conformance/contracts/shell_socket_gateway_contract.json",
+  "axioms": {
+    "socket_is_contract_not_runtime": true,
+    "socket_owns_no_authority": true,
+    "socket_owns_no_canonical_state": true,
+    "shell_plugs_call_gateway_only": true,
+    "default_payloads_are_projections": true,
+    "heavy_payloads_are_lazy_detail_refs": true,
+    "legacy_dashboard_is_not_canonical_socket": true
+  },
+  "allowed_shell_plug_state": [
+    "layout",
+    "theme",
+    "input_buffer",
+    "focus_state",
+    "hover_state",
+    "selection_state",
+    "expanded_ids",
+    "scroll_position",
+    "visible_window_rows",
+    "cursors",
+    "detail_refs",
+    "small_preview_cache"
+  ],
+  "forbidden_shell_plug_state": [
+    "canonical_truth",
+    "workflow_truth",
+    "planner_truth",
+    "policy_truth",
+    "authorization_truth",
+    "gateway_policy",
+    "kernel_state",
+    "raw_tool_outputs",
+    "raw_traces",
+    "full_plan_graphs",
+    "eval_payloads",
+    "full_conversation_trees",
+    "unbounded_runtime_mirrors"
+  ],
+  "forbidden_default_payload_fields": [
+    "raw",
+    "root",
+    "full_state",
+    "all_state",
+    "mirror_state",
+    "all_messages",
+    "conversation_tree",
+    "raw_payload",
+    "raw_runtime_state",
+    "tool_input",
+    "tool_result",
+    "tool_result_body",
+    "raw_tool_result",
+    "trace_body",
+    "decision_trace",
+    "plan_graph",
+    "workflow_graph",
+    "execution_observation",
+    "runtime_quality",
+    "eval_payload",
+    "artifact_body",
+    "file_output",
+    "folder_tree",
+    "policy_decision",
+    "authorization_state"
+  ],
+  "default_payload_budget": {
+    "inherits": "client/runtime/config/interface_payload_budget_contract.json#/global_default_payload_budget",
+    "max_response_bytes": 65536,
+    "max_array_items": 100,
+    "max_object_depth": 4,
+    "max_string_chars": 12000,
+    "max_nested_collection_items": 20,
+    "max_top_level_fields": 32
+  },
+  "projection_types": [
+    {
+      "name": "RuntimeStatusProjection",
+      "description": "Bounded readiness/status truth from the owning runtime surfaces.",
+      "allowed_top_level_fields": [
+        "state",
+        "label",
+        "source",
+        "source_sequence",
+        "age_seconds",
+        "stale",
+        "degraded_reason",
+        "next_retry_hint",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": false
+    },
+    {
+      "name": "AgentRosterProjection",
+      "description": "Windowed agent roster for shell navigation.",
+      "allowed_top_level_fields": [
+        "agents",
+        "agent_ids",
+        "active_agent_id",
+        "labels",
+        "status_counts",
+        "last_activity_preview",
+        "next_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 32768,
+      "requires_cursor": true,
+      "requires_detail_refs": true
+    },
+    {
+      "name": "SessionListProjection",
+      "description": "Windowed session list for a selected agent or operator scope.",
+      "allowed_top_level_fields": [
+        "sessions",
+        "session_ids",
+        "active_session_id",
+        "last_message_previews",
+        "message_counts",
+        "next_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 32768,
+      "requires_cursor": true,
+      "requires_detail_refs": true
+    },
+    {
+      "name": "MessageWindowProjection",
+      "description": "Bounded chat/message window; not a full conversation mirror.",
+      "allowed_top_level_fields": [
+        "ok",
+        "agent_id",
+        "session_id",
+        "active_session_id",
+        "message_window",
+        "message_count",
+        "total_count",
+        "has_more",
+        "before_cursor",
+        "after_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "max_array_items": 80,
+      "requires_cursor": true,
+      "requires_detail_refs": true
+    },
+    {
+      "name": "MessageDetailProjection",
+      "description": "Capability-scoped detail expansion for one referenced message, tool, trace, artifact, or workflow detail.",
+      "allowed_top_level_fields": [
+        "detail_id",
+        "detail_kind",
+        "requested_view",
+        "detail_projection",
+        "size_bound",
+        "next_cursor",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "requires_cursor": false,
+      "requires_detail_refs": false
+    },
+    {
+      "name": "ShellEventProjection",
+      "description": "Bounded event stream projection for display/update only.",
+      "allowed_top_level_fields": [
+        "event_id",
+        "event_kind",
+        "agent_id",
+        "session_id",
+        "display_projection",
+        "status_label",
+        "cursor_refs",
+        "detail_refs",
+        "receipt_refs",
+        "correlation_id"
+      ],
+      "max_response_bytes": 32768,
+      "max_array_items": 40,
+      "requires_cursor": true,
+      "requires_detail_refs": true
+    },
+    {
+      "name": "BoundedSearchResults",
+      "description": "Bounded search hits over indexed projections, not raw payload mirrors.",
+      "allowed_top_level_fields": [
+        "query_id",
+        "hits",
+        "hit_ids",
+        "snippets",
+        "labels",
+        "counts",
+        "next_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 32768,
+      "requires_cursor": true,
+      "requires_detail_refs": true
+    },
+    {
+      "name": "IngressAck",
+      "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
+      "allowed_top_level_fields": [
+        "accepted",
+        "rejected",
+        "reason_code",
+        "receipt_ref",
+        "follow_up_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "get_runtime_status",
+      "purpose": "Display bounded runtime readiness and degraded-state truth.",
+      "route_class": "health_status",
+      "request_shape": "RuntimeStatusRequest",
+      "response_shape": "RuntimeStatusProjection",
+      "default_projection": "RuntimeStatusProjection",
+      "cursor_required": false,
+      "detail_ref_required": false,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "kernel_or_gateway_status_owner",
+      "shell_may_hold": [
+        "state",
+        "label",
+        "age_seconds",
+        "stale",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "raw_runtime_state",
+        "authorization_state",
+        "policy_decision"
+      ]
+    },
+    {
+      "id": "list_agents",
+      "purpose": "Display a bounded agent roster for navigation.",
+      "route_class": "bounded_search_query",
+      "request_shape": "AgentRosterWindowRequest",
+      "response_shape": "AgentRosterProjection",
+      "default_projection": "AgentRosterProjection",
+      "cursor_required": true,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_ids",
+        "labels",
+        "status_counts",
+        "last_activity_preview",
+        "next_cursor",
+        "detail_refs"
+      ],
+      "shell_must_not_hold": [
+        "full_agent_records",
+        "secrets",
+        "authorization_state"
+      ]
+    },
+    {
+      "id": "list_sessions",
+      "purpose": "Display a bounded session list for one agent or operator scope.",
+      "route_class": "bounded_search_query",
+      "request_shape": "SessionListWindowRequest",
+      "response_shape": "SessionListProjection",
+      "default_projection": "SessionListProjection",
+      "cursor_required": true,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "kernel_session_store",
+      "shell_may_hold": [
+        "session_ids",
+        "last_message_previews",
+        "message_counts",
+        "next_cursor",
+        "detail_refs"
+      ],
+      "shell_must_not_hold": [
+        "full_conversation_trees",
+        "all_messages",
+        "raw_payload"
+      ]
+    },
+    {
+      "id": "get_message_window",
+      "purpose": "Load a bounded message window for display without mirroring the whole conversation.",
+      "route_class": "event_output_egress",
+      "request_shape": "MessageWindowRequest",
+      "response_shape": "MessageWindowProjection",
+      "default_projection": "MessageWindowProjection",
+      "cursor_required": true,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "kernel_message_store",
+      "shell_may_hold": [
+        "message_window",
+        "message_count",
+        "total_count",
+        "before_cursor",
+        "after_cursor",
+        "detail_refs"
+      ],
+      "shell_must_not_hold": [
+        "all_messages",
+        "conversation_tree",
+        "raw_tool_result",
+        "trace_body",
+        "workflow_graph"
+      ]
+    },
+    {
+      "id": "get_message_detail",
+      "purpose": "Fetch one explicitly referenced message/tool/trace/artifact/workflow detail.",
+      "route_class": "detail_fetch",
+      "request_shape": "MessageDetailRequest",
+      "response_shape": "MessageDetailProjection",
+      "default_projection": "MessageDetailProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_or_orchestration_detail_owner",
+      "shell_may_hold": [
+        "detail_id",
+        "detail_kind",
+        "requested_view",
+        "detail_projection",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "unbounded_trace_body",
+        "unbounded_tool_result",
+        "full_plan_graph",
+        "eval_payload"
+      ]
+    },
+    {
+      "id": "submit_input",
+      "purpose": "Submit operator/user input for authoritative admission and execution.",
+      "route_class": "request_ingress",
+      "request_shape": "ShellInput",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": false,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_message_execution",
+      "shell_may_hold": [
+        "input_buffer_until_submit",
+        "receipt_ref",
+        "follow_up_ref",
+        "correlation_id"
+      ],
+      "shell_must_not_hold": [
+        "execution_admission_truth",
+        "retry_policy",
+        "workflow_plan"
+      ]
+    },
+    {
+      "id": "subscribe_events",
+      "purpose": "Subscribe to bounded runtime/workflow/message projections by cursor.",
+      "route_class": "event_output_egress",
+      "request_shape": "ShellEventSubscriptionRequest",
+      "response_shape": "ShellEventProjection",
+      "default_projection": "ShellEventProjection",
+      "cursor_required": true,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "orchestration_event_stream",
+      "shell_may_hold": [
+        "event_id",
+        "event_kind",
+        "display_projection",
+        "status_label",
+        "cursor_refs",
+        "detail_refs"
+      ],
+      "shell_must_not_hold": [
+        "raw_runtime_state",
+        "event_plus_trace_body",
+        "workflow_graph"
+      ]
+    },
+    {
+      "id": "search",
+      "purpose": "Request bounded indexed search results without stringifying raw payloads in a shell plug.",
+      "route_class": "bounded_search_query",
+      "request_shape": "BoundedSearchQuery",
+      "response_shape": "BoundedSearchResults",
+      "default_projection": "BoundedSearchResults",
+      "cursor_required": true,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "kernel_or_assurance_search_index",
+      "shell_may_hold": [
+        "hit_ids",
+        "snippets",
+        "labels",
+        "counts",
+        "next_cursor",
+        "detail_refs"
+      ],
+      "shell_must_not_hold": [
+        "search_plus_raw_payloads",
+        "raw_tool_result",
+        "folder_tree",
+        "file_output"
+      ]
+    },
+    {
+      "id": "submit_issue",
+      "purpose": "Submit a bounded issue/eval request through Gateway controls.",
+      "route_class": "request_ingress",
+      "request_shape": "IssueSubmissionProjection",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "assurance_eval_issue_owner",
+      "shell_may_hold": [
+        "selected_message_refs",
+        "issue_summary",
+        "receipt_ref",
+        "follow_up_ref"
+      ],
+      "shell_must_not_hold": [
+        "raw_context_upload",
+        "eval_policy",
+        "github_mutation_policy"
+      ]
+    },
+    {
+      "id": "submit_approval_decision",
+      "purpose": "Submit an explicit approval/rejection decision for an authority-owned pending approval.",
+      "route_class": "request_ingress",
+      "request_shape": "ApprovalDecisionRequest",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_approval_authority",
+      "shell_may_hold": [
+        "approval_id",
+        "decision",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "shell_must_not_hold": [
+        "authorization_truth",
+        "mutation_approval_policy",
+        "approval_queue_truth"
+      ]
+    },
+    {
+      "id": "set_model",
+      "purpose": "Request a model/provider selection change through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "ModelSelectionRequest",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_model_config_authority",
+      "shell_may_hold": [
+        "model_ref",
+        "display_label",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "model_policy_truth",
+        "fallback_decision_truth"
+      ]
+    },
+    {
+      "id": "set_git_tree",
+      "purpose": "Request a git tree/branch/workspace selection change through Gateway admission.",
+      "route_class": "request_ingress",
+      "request_shape": "GitTreeSelectionRequest",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_git_workspace_authority",
+      "shell_may_hold": [
+        "tree_ref",
+        "display_label",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "git_mutation_policy",
+        "workspace_truth",
+        "raw_git_state"
+      ]
+    },
+    {
+      "id": "submit_terminal_command",
+      "purpose": "Submit a capability-gated terminal command request without shell-owned execution authority.",
+      "route_class": "request_ingress",
+      "request_shape": "TerminalCommandRequest",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_terminal_execution_authority",
+      "shell_may_hold": [
+        "target_ref",
+        "command_preview",
+        "receipt_ref",
+        "follow_up_ref"
+      ],
+      "shell_must_not_hold": [
+        "terminal_execution_authority",
+        "command_policy_truth",
+        "raw_terminal_stream"
+      ]
+    }
+  ]
+}
