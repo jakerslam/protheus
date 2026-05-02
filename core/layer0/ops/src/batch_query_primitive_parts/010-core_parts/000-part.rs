@@ -19,6 +19,7 @@ struct ApertureBudget {
     max_candidates: usize,
     max_evidence: usize,
     max_summary_tokens: usize,
+    #[cfg(test)]
     max_query_rewrites: usize,
 }
 
@@ -119,12 +120,14 @@ fn aperture_budget(aperture: &str) -> Option<ApertureBudget> {
             max_candidates: 8,
             max_evidence: 2,
             max_summary_tokens: 180,
+            #[cfg(test)]
             max_query_rewrites: 0,
         }),
         "medium" => Some(ApertureBudget {
             max_candidates: 20,
             max_evidence: 6,
             max_summary_tokens: 350,
+            #[cfg(test)]
             max_query_rewrites: 1,
         }),
         "large" => None,
@@ -187,6 +190,7 @@ fn query_timeout(policy: &Value) -> Duration {
     Duration::from_millis(timeout_ms)
 }
 
+#[cfg(test)]
 fn exact_match_regexes() -> &'static [Regex] {
     static REGEXES: OnceLock<Vec<Regex>> = OnceLock::new();
     REGEXES.get_or_init(|| {
@@ -201,6 +205,7 @@ fn exact_match_regexes() -> &'static [Regex] {
     })
 }
 
+#[cfg(test)]
 fn is_exact_match_pattern(query: &str) -> bool {
     exact_match_regexes().iter().any(|re| re.is_match(query))
 }
@@ -215,6 +220,7 @@ fn instruction_frame_regex() -> &'static Regex {
     })
 }
 
+#[cfg(test)]
 fn instruction_tail_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
@@ -237,6 +243,7 @@ fn looks_like_instructional_query(query: &str) -> bool {
     instruction_frame_regex().is_match(&base)
 }
 
+#[cfg(test)]
 fn is_instruction_stop_token(token: &str) -> bool {
     matches!(
         token,
@@ -274,6 +281,7 @@ fn is_instruction_stop_token(token: &str) -> bool {
     )
 }
 
+#[cfg(test)]
 fn normalize_instructional_query(query: &str) -> Option<String> {
     let base = clean_text(query, 600);
     if base.is_empty() {
@@ -320,6 +328,7 @@ fn resolve_deictic_framework_reference(query: &str) -> String {
     clean_text(replaced.as_ref(), 600)
 }
 
+#[cfg(test)]
 fn build_query_plan(query: &str, budget: ApertureBudget) -> (Vec<String>, Vec<String>, bool) {
     let base = resolve_deictic_framework_reference(query);
     if base.is_empty() {

@@ -11,6 +11,7 @@ fn looks_like_instructional_query(query: &str) -> bool {
     instruction_frame_regex().is_match(&base)
 }
 
+#[cfg(test)]
 fn is_instruction_stop_token(token: &str) -> bool {
     matches!(
         token,
@@ -48,6 +49,7 @@ fn is_instruction_stop_token(token: &str) -> bool {
     )
 }
 
+#[cfg(test)]
 fn normalize_instructional_query(query: &str) -> Option<String> {
     let base = clean_text(query, 600);
     if base.is_empty() {
@@ -94,6 +96,7 @@ fn resolve_deictic_framework_reference(query: &str) -> String {
     clean_text(replaced.as_ref(), 600)
 }
 
+#[cfg(test)]
 fn build_query_plan(query: &str, budget: ApertureBudget) -> (Vec<String>, Vec<String>, bool) {
     let base = resolve_deictic_framework_reference(query);
     if base.is_empty() {

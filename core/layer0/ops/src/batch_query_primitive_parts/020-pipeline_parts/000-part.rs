@@ -71,30 +71,6 @@ fn payload_links_for_fallback(payload: &Value, max_links: usize) -> Vec<String> 
     non_search_engine_links(payload, max_links)
 }
 
-fn framework_catalog_official_urls(query: &str) -> Vec<String> {
-    if !is_framework_catalog_intent(query) {
-        return Vec::new();
-    }
-    vec![
-        "https://www.langchain.com/langgraph".to_string(),
-        "https://openai.github.io/openai-agents-python/".to_string(),
-        "https://microsoft.github.io/autogen/".to_string(),
-        "https://crewai.com/".to_string(),
-        "https://github.com/huggingface/smolagents".to_string(),
-    ]
-}
-
-fn framework_catalog_candidate_coverage(candidates: &[Candidate]) -> usize {
-    let mut seen = HashSet::<String>::new();
-    for candidate in candidates {
-        let combined = format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator);
-        for framework in framework_names_in_text(&combined) {
-            seen.insert(framework.to_ascii_lowercase());
-        }
-    }
-    seen.len()
-}
-
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
     let query_tokens = query
         .split(|ch: char| !ch.is_ascii_alphanumeric())
@@ -353,41 +329,6 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
                 }
             }
             Err(err) => issues.push(format!("duckduckgo_instant:{err}")),
-        }
-    }
-
-    if is_framework_catalog_intent(query) && framework_catalog_candidate_coverage(&candidates) < 4 {
-        for url in framework_catalog_official_urls(query) {
-            if !fetched_links.insert(url.clone()) {
-                continue;
-            }
-            let fetch_payload = stage_fetch_payload(root, "framework_official", &url);
-            if !fetch_payload
-                .get("ok")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-            {
-                issues.push(format!(
-                    "framework_official:{}",
-                    stage_error(&fetch_payload, "web_fetch_failed")
-                ));
-                continue;
-            }
-            match candidate_from_search_payload(query, &fetch_payload) {
-                Ok(mut candidate) => {
-                    if candidate.locator.is_empty()
-                        || is_search_engine_domain(&candidate_domain_hint(&candidate))
-                    {
-                        candidate.locator = url.clone();
-                    }
-                    if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
-                        candidates.push(candidate);
-                    } else {
-                        issues.push("framework_official:fetch_candidate_low_relevance".to_string());
-                    }
-                }
-                Err(err) => issues.push(format!("framework_official:fetch_candidate:{err}")),
-            }
         }
     }
 

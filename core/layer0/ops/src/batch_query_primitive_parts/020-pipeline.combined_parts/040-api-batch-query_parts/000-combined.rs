@@ -178,6 +178,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "rewrite_set": rewrite_set,
             "query_plan": query_plan_value,
             "query_plan_source": query_plan_source,
+            "query_contract": {
+                "authority": "agent_submitted",
+                "query_used": query,
+                "hidden_query_expansion": false,
+                "query_plan_source": query_plan_source
+            },
             "adapter_version": "web_conduit_v1",
             "provider_snapshot": provider_snapshot,
             "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
@@ -217,6 +223,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 .get("query_plan_source")
                 .cloned()
                 .unwrap_or_else(|| json!(query_plan.query_plan_source)),
+            "query_contract": {
+                "authority": "agent_submitted",
+                "query_used": query,
+                "hidden_query_expansion": false,
+                "query_plan_source": query_plan_source
+            },
             "partial_failure_details": partial_failure_details,
             "cache_status": "hit"
         });
@@ -551,6 +563,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "rewrite_set": rewrite_set,
         "query_plan": queries,
         "query_plan_source": query_plan.query_plan_source,
+        "query_contract": {
+            "authority": "agent_submitted",
+            "query_used": query,
+            "hidden_query_expansion": false,
+            "query_plan_source": query_plan.query_plan_source
+        },
         "adapter_version": "web_conduit_v1",
         "provider_snapshot": provider_snapshot,
         "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
@@ -585,6 +603,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "rewrite_set": rewrite_set.clone(),
         "query_plan": queries.clone(),
         "query_plan_source": query_plan.query_plan_source,
+        "query_contract": {
+            "authority": "agent_submitted",
+            "query_used": query,
+            "hidden_query_expansion": false,
+            "query_plan_source": query_plan.query_plan_source
+        },
         "partial_failure_details": hard_partial_failures.clone(),
         "cache_status": "miss"
     });
