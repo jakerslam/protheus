@@ -232,6 +232,13 @@
 
     get switcherViewState() {
       var modelsRef = Array.isArray(this._modelCache) ? this._modelCache : [];
+      if (!modelsRef.length && this.showModelSwitcher && typeof this.fallbackModelCatalogRows === 'function') {
+        modelsRef = this.fallbackModelCatalogRows();
+        this._modelCache = modelsRef;
+        this._modelCacheTime = Date.now();
+        this.modelPickerList = modelsRef;
+        this._modelSwitcherViewCache = null;
+      }
       var providerFilter = String(this.modelSwitcherProviderFilter || '').trim();
       var textFilter = String(this.modelSwitcherFilter || '').trim().toLowerCase();
       var cacheTime = Number(this._modelCacheTime || 0);

@@ -1317,6 +1317,13 @@ function chatPage() {
 
     get switcherViewState() {
       var modelsRef = Array.isArray(this._modelCache) ? this._modelCache : [];
+      if (!modelsRef.length && this.showModelSwitcher && typeof this.fallbackModelCatalogRows === 'function') {
+        modelsRef = this.fallbackModelCatalogRows();
+        this._modelCache = modelsRef;
+        this._modelCacheTime = Date.now();
+        this.modelPickerList = modelsRef;
+        this._modelSwitcherViewCache = null;
+      }
       var providerFilter = String(this.modelSwitcherProviderFilter || '').trim();
       var textFilter = String(this.modelSwitcherFilter || '').trim().toLowerCase();
       var cacheTime = Number(this._modelCacheTime || 0);
@@ -2496,8 +2503,16 @@ function chatPage() {
       return chatProviderPayloadToModelCatalogRows(this, payload);
     },
 
+    fallbackModelCatalogRows: function() {
+      return chatFallbackModelCatalogRows(this);
+    },
+
     mergeModelCatalogRows: function(primaryRows, fallbackRows) {
       return chatMergeModelCatalogRows(primaryRows, fallbackRows);
+    },
+
+    loadProviderModelCatalogSafely: function(options) {
+      return chatLoadProviderModelCatalogSafely(this, options);
     },
 
     modelCatalogRows: function(rows) {
@@ -2657,15 +2672,12 @@ function chatPage() {
         var available = this.countAvailableModelRows(models);
         // Recover from partial catalog responses by rebuilding rows from provider model_profiles.
         if (models.length < 8 || available < 4) {
-          var providersPayload = await InfringAPI.get('/api/providers').catch(function() { return null; });
-          if (providersPayload) {
-            var providerRows = this.sanitizeModelCatalogRows(
-              this.providerPayloadToModelCatalogRows(providersPayload)
-            );
-            if (providerRows.length) {
-              models = this.mergeModelCatalogRows(models, providerRows);
-              available = this.countAvailableModelRows(models);
-            }
+          var providerFallbackRows = await this.loadProviderModelCatalogSafely({
+            merge_existing: true
+          }).catch(function() { return []; });
+          if (providerFallbackRows.length) {
+            models = this.mergeModelCatalogRows(models, providerFallbackRows);
+            available = this.countAvailableModelRows(models);
           }
         }
         this._modelCache = models;
@@ -6180,6 +6192,15 @@ function chatPage() {
           self.modelPickerList = fallback;
           return fallback;
         }
+        if (typeof self.loadProviderModelCatalogSafely === 'function') {
+          return self.loadProviderModelCatalogSafely({
+            merge_existing: true
+          }).then(function(providerModels) {
+            if (providerModels.length) return providerModels;
+            if (suppressErrors) return [];
+            throw error;
+          });
+        }
         if (suppressErrors) return [];
         throw error;
       });
@@ -6233,6 +6254,12 @@ function chatPage() {
         var el = document.getElementById('model-switcher-search');
         if (el) el.focus();
       });
+
+      if (!cached.length && typeof self.loadProviderModelCatalogSafely === 'function') {
+        self.loadProviderModelCatalogSafely({
+          merge_existing: true
+        }).catch(function() { return []; });
+      }
 
       var cacheFresh = Array.isArray(this._modelCache) && (now - this._modelCacheTime) < 300000;
       var cachedAvailable = self.availableModelRowsCount ? self.availableModelRowsCount(cached) : 0;
