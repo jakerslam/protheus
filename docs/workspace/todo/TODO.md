@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-02T21:55:37.865Z
+Updated: 2026-05-02T22:01:21.815Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,10 +13,10 @@ Updated: 2026-05-02T21:55:37.865Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 25
+- active_items: 24
 - red: 8
 - yellow: 9
-- white: 8
+- white: 7
 
 ## Red Section (Do Immediately)
 - `SHELL-CLEANUP` — Finish the Shell source-of-truth cleanup
@@ -113,11 +113,6 @@ Updated: 2026-05-02T21:55:37.865Z
   deadline: `after_red_section`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Start the clean Shell-next route as a projection/input-only UI after the headless capability matrix and high-risk authority extraction routes are proven.
-- `SHELL-SOCKET-LEGACY` — Quarantine Shell 1.0 as a legacy plug
-  owner: `codex`
-  deadline: `after_red_section`
-  source_family: `Shell Socket 2.0 Infrastructure`
-  summary: Add a LegacyBrowserShellPlug manifest and guard so Shell 1.0 is limited to critical fixes, parity bridge work, and retirement support while Shell 2.0 socket work proceeds independently.
 - `SVELTE` — Keep remaining Svelte migration subordinate to Shell authority purge
   owner: `unassigned`
   deadline: `after_red_section`
