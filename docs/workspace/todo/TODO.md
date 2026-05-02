@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-02T19:35:11.370Z
+Updated: 2026-05-02T21:55:37.865Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-02T19:35:11.370Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 30
-- red: 10
-- yellow: 12
+- active_items: 25
+- red: 8
+- yellow: 9
 - white: 8
 
 ## Red Section (Do Immediately)
@@ -44,16 +44,6 @@ Updated: 2026-05-02T19:35:11.370Z
   deadline: `2026-05-07`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Create the headless capability matrix and prove which Shell-visible operations already work through CLI/Gateway without browser assets before touching legacy dashboard code.
-- `SHELL-SOCKET-CONTRACT` — Define the Shell Socket contract artifacts
-  owner: `codex`
-  deadline: `2026-05-07`
-  source_family: `Shell Socket 2.0 Infrastructure`
-  summary: Create the canonical `shell/socket/contract/shell_socket_contract.json` with socket capabilities, request and response shapes, projection families, payload budgets, detail refs, forbidden fields, and policy references. This is socket-only work with no UI or legacy dashboard wiring.
-- `SHELL-SOCKET-GATEWAY` — Map Shell Socket capabilities to Gateway routes
-  owner: `codex`
-  deadline: `2026-05-07`
-  source_family: `Shell Socket 2.0 Infrastructure`
-  summary: Create shell_socket_gateway_contract.json mapping every socket capability to a Gateway route class, owner of truth, capability or lease requirement, audit receipt, Nexus checkpoint, Conduit posture, and payload budget.
 - `SHPURGE` — Finish the Shell authority purge
   owner: `unassigned`
   deadline: `2026-05-07`
@@ -96,21 +86,6 @@ Updated: 2026-05-02T19:35:11.370Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
-- `SHELL-SOCKET-CLIENT` — Build the typed Shell Socket Gateway client
-  owner: `codex`
-  deadline: `2026-05-14`
-  source_family: `Shell Socket 2.0 Infrastructure`
-  summary: Implement a transport-neutral typed Gateway client in `shell/socket/client` that exposes only socket methods, keeps no canonical state, imports no dashboard/Svelte/Alpine/browser globals, and routes only to declared Gateway endpoints.
-- `SHELL-SOCKET-GUARDS` — Add Shell Socket contract and route guards
-  owner: `codex`
-  deadline: `2026-05-14`
-  source_family: `Shell Socket 2.0 Infrastructure`
-  summary: Add fail-closed socket contract and Gateway route guards with positive and controlled-negative fixtures so missing route mappings, raw/default full-state fields, direct Shell-to-authority calls, and missing cursor/detail/audit/Nexus constraints are blocked.
-- `SHELL-SOCKET-PROBE` — Prove the socket with a headless Shell probe
-  owner: `codex`
-  deadline: `2026-05-14`
-  source_family: `Shell Socket 2.0 Infrastructure`
-  summary: Build a headless/CLI socket probe that runs without browser assets and exercises runtime status, agent list, session list, message window, submit input, event stream, message detail, approval, and internal issue/eval submission through Gateway. Current evidence: `ops:shell-socket:headless-probe` exercises all 13 socket capabilities against a Gateway-shaped fixture; live `/api/shell-socket/**` read projections and ingress validation now exist in `core/layer0/ops`; approval decisions bind to the Kernel approval queue; `SHELL_SOCKET_REQUIRE_LIVE=1 npm run -s ops:shell-socket:live-probe` passes against the Gateway/backend route surface (`5173` locally), not legacy browser host `4173`.
 - `WF-UTILITY` — Build the workflow utility spine
   owner: `unassigned`
   deadline: `2026-05-20`
