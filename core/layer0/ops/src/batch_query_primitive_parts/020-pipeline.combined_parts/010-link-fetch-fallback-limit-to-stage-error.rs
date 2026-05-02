@@ -67,8 +67,8 @@ fn stage_fetch_payload(root: &Path, stage: &str, url: &str) -> Value {
     )
 }
 
-fn payload_links_for_fallback(payload: &Value, max_links: usize) -> Vec<String> {
-    non_search_engine_links(payload, max_links)
+fn payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
+    ranked_payload_links_for_fallback(query, payload, max_links)
 }
 
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
@@ -98,6 +98,9 @@ fn candidate_is_substantive(query: &str, candidate: &Candidate, benchmark_intent
         return false;
     }
     if contains_antibot_marker(&snippet) || contains_antibot_marker(&candidate.title) {
+        return false;
+    }
+    if contains_web_junk_marker(&snippet) || contains_web_junk_marker(&candidate.title) {
         return false;
     }
     if looks_like_domain_list_noise(&snippet) {

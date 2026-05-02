@@ -2,12 +2,11 @@
 fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     let benchmark_intent = is_benchmark_or_comparison_intent(query);
     let framework_catalog_intent = is_framework_catalog_intent(query);
-    let query_tokens = query
-        .split(|ch: char| !ch.is_ascii_alphanumeric())
-        .filter(|token| token.len() > 2)
-        .map(|token| token.to_ascii_lowercase())
-        .collect::<HashSet<_>>();
-    let haystack = format!("{} {}", candidate.title, candidate.snippet).to_ascii_lowercase();
+    let query_tokens = tokenize_relevance(query, 40);
+    let haystack = tokenize_relevance(
+        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        120,
+    );
     let overlap = query_tokens
         .iter()
         .filter(|token| haystack.contains(token.as_str()))
@@ -55,14 +54,25 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
         } else {
             0.0
         };
+    let low_signal_penalty = if contains_web_junk_marker(&candidate.snippet)
+        || looks_like_source_only_snippet(&candidate.snippet)
+        || looks_like_domain_list_noise(&candidate.snippet)
+    {
+        0.3
+    } else {
+        0.0
+    };
     let mut score = 0.6 * overlap_norm
         + locator_bonus
         + status_bonus
         + metric_bonus
         + framework_catalog_bonus
         + framework_catalog_source_bonus
+        + source_trust_adjustment(candidate)
+        + recency_adjustment(query, candidate)
         - definition_penalty
-        - comparison_noise_penalty;
+        - comparison_noise_penalty
+        - low_signal_penalty;
     if benchmark_intent && !looks_like_metric_rich_text(&candidate.snippet) {
         score -= 0.12;
     }
