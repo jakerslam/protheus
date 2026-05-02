@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-01T23:50:02.175Z
+Updated: 2026-05-02T21:55:37.865Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,46 @@ Updated: 2026-05-01T23:50:02.175Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `SHELL-SOCKET-PROBE` — Prove the socket with a headless Shell probe
+  completed_at: `2026-05-02T21:55:37.864Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-14`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Build a headless/CLI socket probe that runs without browser assets and exercises runtime status, agent list, session list, message window, submit input, event stream, message detail, approval, and internal issue/eval submission through Gateway. Current evidence: `ops:shell-socket:headless-probe` exercises all 13 socket capabilities against a Gateway-shaped fixture; live `/api/shell-socket/**` read projections and ingress validation now exist in `core/layer0/ops`; approval decisions bind to the Kernel approval queue; `SHELL_SOCKET_REQUIRE_LIVE=1 npm run -s ops:shell-socket:live-probe` passes against the Gateway/backend route surface (`5173` locally), not legacy browser host `4173`.
+  completion_note: Proved the socket with browser-free headless and live probes. Headless probe exercises all 13 capabilities against a Gateway-shaped fixture; live probe exercises 11 Gateway-backed route capabilities against 5173 and confirms approval decisions bind to Kernel approval queue behavior. Validation: ops:shell-socket:headless-probe and SHELL_SOCKET_REQUIRE_LIVE=1 ops:shell-socket:live-probe passed.
+- `SHELL-SOCKET-CLIENT` — Build the typed Shell Socket Gateway client
+  completed_at: `2026-05-02T21:55:33.003Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-14`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Implement a transport-neutral typed Gateway client in `shell/socket/client` that exposes only socket methods, keeps no canonical state, imports no dashboard/Svelte/Alpine/browser globals, and routes only to declared Gateway endpoints.
+  completion_note: Built transport-neutral Shell Socket Gateway client under shell/socket/client with 13 typed methods, injectable fetch transport, canonical /api/shell-socket/** route shaping, no browser-framework imports, and no retained canonical state. Validation: ops:shell-socket:client:self-test and ops:shell-socket:headless-probe passed.
+- `SHELL-SOCKET-GUARDS` — Add Shell Socket contract and route guards
+  completed_at: `2026-05-02T21:55:26.718Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-14`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Add fail-closed socket contract and Gateway route guards with positive and controlled-negative fixtures so missing route mappings, raw/default full-state fields, direct Shell-to-authority calls, and missing cursor/detail/audit/Nexus constraints are blocked.
+  completion_note: Added fail-closed contract and Gateway route guards with positive and controlled-negative coverage blocking missing mappings, raw/default full-state payload fields, non-Gateway targets, weak scrambler posture, and missing socket invariants. Validation: ops:shell-socket:contract:guard and ops:shell-socket:gateway-route:guard passed.
+- `SHELL-SOCKET-GATEWAY` — Map Shell Socket capabilities to Gateway routes
+  completed_at: `2026-05-02T21:55:22.096Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-07`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Create shell_socket_gateway_contract.json mapping every socket capability to a Gateway route class, owner of truth, capability or lease requirement, audit receipt, Nexus checkpoint, Conduit posture, and payload budget.
+  completion_note: Mapped all Shell Socket capabilities to Gateway route classes and canonical /api/shell-socket/** routes, with owner-of-truth, receipt, Nexus/Conduit, payload-budget, and implementation status coverage. Validation: ops:shell-socket:gateway-route:guard, targeted Rust shell_socket tests, and hard live probe against 5173 passed.
+- `SHELL-SOCKET-CONTRACT` — Define the Shell Socket contract artifacts
+  completed_at: `2026-05-02T21:55:16.353Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-07`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Create the canonical `shell/socket/contract/shell_socket_contract.json` with socket capabilities, request and response shapes, projection families, payload budgets, detail refs, forbidden fields, and policy references. This is socket-only work with no UI or legacy dashboard wiring.
+  completion_note: Defined canonical shell/socket contract with 13 projection-only capabilities, payload budgets, forbidden fields, Gateway-only axioms, guard coverage, and headless probe consumption. Validation: ops:shell-socket:contract:guard and ops:shell-socket:headless-probe passed.
 - `KSENT-BIGPICTURE` — Add big-picture regression mode
   completed_at: `2026-05-01T23:50:02.174Z`
   previous_section: `white`
