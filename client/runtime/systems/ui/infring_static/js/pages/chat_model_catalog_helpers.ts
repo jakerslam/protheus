@@ -84,6 +84,73 @@ function chatMergeModelCatalogRows(primaryRows, fallbackRows) {
   return merged;
 }
 
+function chatFallbackModelCatalogRows(page) {
+  var seeds = [
+    ['openai', 'gpt-5.5', 'GPT-5.5'],
+    ['openai', 'gpt-5.4', 'GPT-5.4'],
+    ['openai', 'gpt-5.4-mini', 'GPT-5.4 Mini'],
+    ['openai', 'gpt-5.3-codex', 'GPT-5.3 Codex'],
+    ['openai', 'gpt-5.3-codex-spark', 'GPT-5.3 Codex Spark'],
+    ['anthropic', 'claude-4.2', 'Claude 4.2'],
+    ['anthropic', 'claude-opus-4-6', 'Claude Opus 4.6'],
+    ['google', 'gemini-3', 'Gemini 3'],
+    ['deepseek', 'deepseek-chat', 'DeepSeek Chat'],
+    ['deepseek', 'deepseek-reasoner', 'DeepSeek Reasoner'],
+    ['ollama', 'qwen2.5:3b-instruct', 'Qwen 2.5 3B Instruct']
+  ];
+  return page.sanitizeModelCatalogRows(seeds.map(function(seed) {
+    var provider = seed[0];
+    var model = seed[1];
+    return {
+      id: provider + '/' + model,
+      provider: provider,
+      model: model,
+      model_name: model,
+      runtime_model: model,
+      display_name: seed[2],
+      available: true,
+      shell_catalog_seed: true
+    };
+  }));
+}
+
+function chatLoadProviderModelCatalogSafely(page, options) {
+  var opts = options && typeof options === 'object' ? options : {};
+  var cachedRows = page.sanitizeModelCatalogRows(page._modelCache || page.modelPickerList || []);
+  var useRows = function(rows) {
+    var models = page.sanitizeModelCatalogRows(rows);
+    page._modelCache = models;
+    page._modelCacheTime = Date.now();
+    page.modelPickerList = models;
+    return models;
+  };
+  var timeoutMs = Number(opts.timeout_ms || 2000);
+  var timeoutFallback = new Promise(function(resolve) {
+    setTimeout(function() { resolve(null); }, timeoutMs > 0 ? timeoutMs : 2000);
+  });
+  return Promise.race([
+    InfringAPI.get('/api/providers'),
+    timeoutFallback
+  ]).then(function(providersPayload) {
+    if (!providersPayload) {
+      return useRows(cachedRows.length ? cachedRows : chatFallbackModelCatalogRows(page));
+    }
+    var providerRows = page.sanitizeModelCatalogRows(
+      page.providerPayloadToModelCatalogRows(providersPayload)
+    );
+    if (!providerRows.length) {
+      return useRows(cachedRows.length ? cachedRows : chatFallbackModelCatalogRows(page));
+    }
+    var existingRows = opts.merge_existing === false
+      ? []
+      : cachedRows;
+    var models = page.mergeModelCatalogRows(existingRows, providerRows);
+    return useRows(models);
+  }).catch(function() {
+    return useRows(cachedRows.length ? cachedRows : chatFallbackModelCatalogRows(page));
+  });
+}
+
 function chatModelCatalogRows(page, rows) {
   var list = Array.isArray(rows) && rows.length
     ? rows

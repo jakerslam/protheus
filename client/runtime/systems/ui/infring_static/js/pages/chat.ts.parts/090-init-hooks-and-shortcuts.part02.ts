@@ -90,6 +90,15 @@
           self.modelPickerList = fallback;
           return fallback;
         }
+        if (typeof self.loadProviderModelCatalogSafely === 'function') {
+          return self.loadProviderModelCatalogSafely({
+            merge_existing: true
+          }).then(function(providerModels) {
+            if (providerModels.length) return providerModels;
+            if (suppressErrors) return [];
+            throw error;
+          });
+        }
         if (suppressErrors) return [];
         throw error;
       });
@@ -143,6 +152,12 @@
         var el = document.getElementById('model-switcher-search');
         if (el) el.focus();
       });
+
+      if (!cached.length && typeof self.loadProviderModelCatalogSafely === 'function') {
+        self.loadProviderModelCatalogSafely({
+          merge_existing: true
+        }).catch(function() { return []; });
+      }
 
       var cacheFresh = Array.isArray(this._modelCache) && (now - this._modelCacheTime) < 300000;
       var cachedAvailable = self.availableModelRowsCount ? self.availableModelRowsCount(cached) : 0;
