@@ -43,7 +43,7 @@
     {
       "id": "shell",
       "canonical_owner": "Shell",
-      "paths": ["client/runtime/systems/ui/", "client/cli/"],
+      "paths": ["shell/", "client/runtime/systems/ui/", "client/cli/"],
       "public_contracts": ["bounded projections", "input collection", "detail refs", "display preferences"],
       "allowed_dependencies": ["gateways", "observability projections"],
       "forbidden_dependencies": ["kernel truth ownership", "orchestration internals", "raw tool payload defaults", "workflow authority"]

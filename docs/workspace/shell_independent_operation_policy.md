@@ -5,6 +5,12 @@ Owner: Jay
 Scope: Core, Orchestration, CLI, Gateways, Shell UI assets, and Shell deletion/amputation tests
 Effective: April 2026
 
+## Active Shell Instance
+
+The active browser/webview presentation implementation is `desktop UI shell 1.0`.
+This policy still governs the broader `Shell` architecture boundary so additional
+shells can be added without making any one UI implementation authoritative.
+
 ## Purpose
 
 The system must operate without the browser Shell.
@@ -33,6 +39,91 @@ Shell owns presentation.
 
 Deleting browser Shell assets must remove only presentation, not authority,
 coordination, CLI operation, Gateway operation, or runtime truth.
+
+## Shell Socket And Plug Model
+
+The replaceable part of the Shell architecture is a plug. The stable part is the
+Shell Socket Contract defined in `docs/workspace/shell_ui_projection_policy.md`.
+
+The canonical implementation home for the socket itself is
+`shell/socket/**`. Legacy browser assets under `client/**` may consume
+the socket later as a compatibility plug, and Gateway code may implement
+`/api/shell-socket/**` route backing, but neither `client/**` nor `adapters/**`
+owns the canonical socket substrate.
+The retired top-level `surface/**` path must not be used as a catch-all
+placement bucket for Shell, Gateway, or Orchestration work.
+
+The Shell Socket Contract is an interface, not a persistent stateful runtime
+layer. It must not become a new middleware authority between Gateway and concrete
+shells.
+
+Each operator-facing medium is a Shell plug:
+
+- browser/dashboard UI plug;
+- terminal/CLI UI plug;
+- desktop/Tauri UI plug;
+- mobile UI plug;
+- embedded UI plug;
+- future presentation/input plugs.
+
+Every Shell plug must implement the Shell Socket Contract and call only Gateway
+routes for system interaction. A plug may render differently, but it must consume
+the same bounded projections, detail refs, ingress acknowledgements, receipts,
+and status/event streams.
+
+Non-UI external integrations are not Shell plugs. SDK clients, CI bots, issue
+submitters, third-party automations, and machine-to-machine integrations are
+Gateway adapter plugs. They still cross the Gateway boundary, but they do not
+implement Shell rendering/input behavior.
+
+## Parallel Socket Strategy
+
+The Shell Socket Contract must be created and proven independently of the current
+browser/dashboard Shell.
+
+Execution plan: `docs/workspace/shell_socket_parallel_execution_plan.md`.
+
+The current `desktop UI shell 1.0` is legacy compatibility. It may remain alive
+while the new socket path is built, but it must not be the first implementation
+target for the clean socket. Broad surgery on the live dashboard has already
+shown high regression risk.
+
+The safe migration posture is:
+
+```text
+Kernel / Orchestration / Assurance
+        ^
+Gateway Routes
+        ^
+Shell Socket Contract
+        ^
+New CLI plug / OpenClaw plug / future clean UI plug
+
+Legacy desktop UI shell 1.0
+        ^
+old compatibility routes until cutover
+```
+
+The legacy dashboard must be treated as a tolerated compatibility plug, not as
+the canonical Shell architecture. It should receive only critical blocker fixes
+and small compatibility shims unless a replacement socket path already passes
+parity.
+
+Do not refactor, purge, or rewire the legacy dashboard to create the socket.
+Create the socket beside it, prove it through a CLI/headless plug first, then
+decide whether to adapt the dashboard or delete it in favor of a clean plug.
+
+Parallel socket acceptance requires:
+
+- a Shell Socket Contract definition independent of browser assets;
+- Gateway routes that satisfy the socket without reading browser state;
+- a CLI/headless plug proving agent list, session load, message send, progress
+  stream, detail fetch, status, approval, and eval/report issue paths;
+- no dependency on Alpine, Svelte bundles, DOM APIs, localStorage, browser event
+  buses, or dashboard hydration;
+- parity evidence before any legacy dashboard seam is switched to the new route;
+- deletion/amputation proof that removing browser Shell assets does not break
+  Kernel, Orchestration, Gateway, CLI, or Assurance surfaces.
 
 ## Browser Shell Assets
 
@@ -105,6 +196,10 @@ diagnostics, and setup/status information without loading browser Shell assets.
 CLI commands must call authoritative contracts through the proper Gateway,
 Conduit, Nexus, or Kernel path. They must not depend on dashboard hydration, UI
 stores, Svelte custom elements, browser event helpers, or browser caches.
+
+The CLI should be treated as a first-class Shell plug over the Shell Socket
+Contract, not as the parent or broker for other shells. Browser UI, terminal UI,
+OpenClaw UI, and future shells are peers that implement the same contract.
 
 ## Dashboard Compatibility Rule
 

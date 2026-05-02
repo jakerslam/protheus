@@ -643,13 +643,14 @@ function main() {
     'core',
     'docs',
     'local',
-    'surface',
+    'orchestration',
+    'shell',
     'tests',
   ];
   const missingRequiredCanonicalRootDirs = requiredCanonicalRootDirs
     .filter((row) => !rootAllowedRootDirsSet.has(row))
     .sort((a, b) => a.localeCompare(b, 'en'));
-  const requiredRepoCodeRoots = ['adapters', 'client', 'core', 'surface', 'tests'];
+  const requiredRepoCodeRoots = ['adapters', 'client', 'core', 'orchestration', 'shell', 'tests'];
   const missingRequiredRepoCodeRoots = requiredRepoCodeRoots
     .filter((row) => !repoCodeRootsSet.has(row))
     .sort((a, b) => a.localeCompare(b, 'en'));
@@ -778,7 +779,7 @@ function main() {
     rootRuleTargetExtensionSetByRoot.set(rootKey, targetSet);
   }
   const coreAllowedExtensions = rootRuleAllowedExtensionSetByRoot.get('core') ?? new Set<string>();
-  const surfaceTargetExtensions = rootRuleTargetExtensionSetByRoot.get('surface') ?? new Set<string>();
+  const orchestrationTargetExtensions = rootRuleTargetExtensionSetByRoot.get('orchestration') ?? new Set<string>();
   const clientTargetExtensions = rootRuleTargetExtensionSetByRoot.get('client') ?? new Set<string>();
   const adaptersAllowedExtensions = rootRuleAllowedExtensionSetByRoot.get('adapters') ?? new Set<string>();
   const testsAllowedExtensions = rootRuleAllowedExtensionSetByRoot.get('tests') ?? new Set<string>();
@@ -834,11 +835,11 @@ function main() {
   const coreRuleForbiddenJsTokens = ['js', 'jsx', 'ts', 'tsx'].filter((token) =>
     coreAllowedExtensions.has(token),
   );
-  const surfaceTargetExtensionsUnexpectedTokens = Array.from(surfaceTargetExtensions)
+  const orchestrationTargetExtensionsUnexpectedTokens = Array.from(orchestrationTargetExtensions)
     .filter((token) => !new Set(['rs', 'ts', 'tsx']).has(token))
     .sort((a, b) => a.localeCompare(b, 'en'));
-  const surfaceAllowedExtensionsMissingTargetTokens = Array.from(surfaceTargetExtensions)
-    .filter((token) => !(rootRuleAllowedExtensionSetByRoot.get('surface') ?? new Set<string>()).has(token))
+  const orchestrationAllowedExtensionsMissingTargetTokens = Array.from(orchestrationTargetExtensions)
+    .filter((token) => !(rootRuleAllowedExtensionSetByRoot.get('orchestration') ?? new Set<string>()).has(token))
     .sort((a, b) => a.localeCompare(b, 'en'));
   const clientTargetExtensionsMissingWebTokens = ['html', 'css', 'scss'].filter(
     (token) => !clientTargetExtensions.has(token),
@@ -884,7 +885,7 @@ function main() {
         .map(([row, count]) => `${rootKey}:${row}:${count}`),
     )
     .sort((a, b) => a.localeCompare(b, 'en'));
-  const requiredLegacyDebtRoots = ['surface', 'client'];
+  const requiredLegacyDebtRoots = ['client', 'orchestration'];
   const missingRequiredLegacyDebtRoots = requiredLegacyDebtRoots
     .filter((rootKey) => !rootRuleLegacyDebtExtensionsByRoot.has(rootKey))
     .sort((a, b) => a.localeCompare(b, 'en'));
@@ -1137,12 +1138,12 @@ function main() {
   const clientWrapperRowsWithNonDeterministicDelegationCount = auditedClientWrapperBindings
     .filter((row) => {
       const matches =
-        row.source.match(/surface\/orchestration\/scripts\/[a-z0-9_]+\.ts/g) || [];
+        row.source.match(/orchestration\/scripts\/[a-z0-9_]+\.ts/g) || [];
       return matches.length !== 1;
     })
     .map((row) => {
       const matches =
-        row.source.match(/surface\/orchestration\/scripts\/[a-z0-9_]+\.ts/g) || [];
+        row.source.match(/orchestration\/scripts\/[a-z0-9_]+\.ts/g) || [];
       return `${row.key}:${matches.length}`;
     });
   const clientWrapperRowsWithAuthorityTokens = auditedClientWrapperBindings
@@ -1165,7 +1166,7 @@ function main() {
     .map((row) => row.key)
     .sort((a, b) => a.localeCompare(b, 'en'));
   const clientWrapperExpectedSurfaceScriptsWithInvalidPathFormat = auditedClientWrapperBindings
-    .filter((row) => !/^surface\/orchestration\/scripts\/[a-z0-9_]+\.ts$/.test(row.expectedSurfaceScript))
+    .filter((row) => !/^orchestration\/scripts\/[a-z0-9_]+\.ts$/.test(row.expectedSurfaceScript))
     .map((row) => `${row.key}->${row.expectedSurfaceScript}`)
     .sort((a, b) => a.localeCompare(b, 'en'));
   const clientWrapperExpectedSurfaceScriptKeyMismatches = auditedClientWrapperBindings
@@ -1283,15 +1284,20 @@ function main() {
       detail: 'transient orchestration context supports deterministic sweep',
     },
     {
-      id: 'root_surface_contract_allowlists_surface_root',
+      id: 'root_surface_contract_allowlists_shell_and_orchestration_roots',
       ok: Array.isArray(rootSurfaceContract.allowed_root_dirs) &&
-        rootSurfaceContract.allowed_root_dirs.includes('surface'),
-      detail: 'root surface contract explicitly allowlists surface/',
+        rootSurfaceContract.allowed_root_dirs.includes('shell') &&
+        rootSurfaceContract.allowed_root_dirs.includes('orchestration') &&
+        !rootSurfaceContract.allowed_root_dirs.includes('surface'),
+      detail: 'root surface contract allowlists shell/ and orchestration/ while keeping retired surface/ absent',
     },
     {
-      id: 'repo_surface_policy_declares_surface_code_root',
-      ok: Array.isArray(repoSurfacePolicy.code_roots) && repoSurfacePolicy.code_roots.includes('surface'),
-      detail: 'repo surface policy treats surface/ as canonical code root',
+      id: 'repo_surface_policy_declares_shell_and_orchestration_code_roots',
+      ok: Array.isArray(repoSurfacePolicy.code_roots) &&
+        repoSurfacePolicy.code_roots.includes('shell') &&
+        repoSurfacePolicy.code_roots.includes('orchestration') &&
+        !repoSurfacePolicy.code_roots.includes('surface'),
+      detail: 'repo surface policy treats shell/ and orchestration/ as canonical roots while keeping retired surface/ absent',
     },
     {
       id: 'root_surface_contract_allowed_root_dirs_present',
@@ -1731,15 +1737,15 @@ function main() {
         `core_allowed_extensions_has_tsx=${coreAllowedExtensions.has('tsx')}`,
     },
     {
-      id: 'repo_surface_policy_root_rule_surface_targets_include_rust_and_typescript',
+      id: 'repo_surface_policy_root_rule_orchestration_targets_include_rust_and_typescript',
       ok:
-        surfaceTargetExtensions.has('rs') &&
-        surfaceTargetExtensions.has('ts') &&
-        surfaceTargetExtensions.has('tsx'),
+        orchestrationTargetExtensions.has('rs') &&
+        orchestrationTargetExtensions.has('ts') &&
+        orchestrationTargetExtensions.has('tsx'),
       detail:
-        `surface_target_extensions_has_rs=${surfaceTargetExtensions.has('rs')};` +
-        `surface_target_extensions_has_ts=${surfaceTargetExtensions.has('ts')};` +
-        `surface_target_extensions_has_tsx=${surfaceTargetExtensions.has('tsx')}`,
+        `orchestration_target_extensions_has_rs=${orchestrationTargetExtensions.has('rs')};` +
+        `orchestration_target_extensions_has_ts=${orchestrationTargetExtensions.has('ts')};` +
+        `orchestration_target_extensions_has_tsx=${orchestrationTargetExtensions.has('tsx')}`,
     },
     {
       id: 'repo_surface_policy_root_rule_client_targets_include_typescript_only',
@@ -1855,20 +1861,20 @@ function main() {
           : `core_rule_forbidden_js_ts_tokens=${coreRuleForbiddenJsTokens.join(',')}`,
     },
     {
-      id: 'repo_surface_policy_root_rule_surface_targets_are_canonical',
-      ok: surfaceTargetExtensionsUnexpectedTokens.length === 0,
+      id: 'repo_surface_policy_root_rule_orchestration_targets_are_canonical',
+      ok: orchestrationTargetExtensionsUnexpectedTokens.length === 0,
       detail:
-        surfaceTargetExtensionsUnexpectedTokens.length === 0
-          ? 'surface root-rule target extensions are canonical (rs, ts, tsx)'
-          : `surface_target_extension_unexpected_tokens=${surfaceTargetExtensionsUnexpectedTokens.join(',')}`,
+        orchestrationTargetExtensionsUnexpectedTokens.length === 0
+          ? 'orchestration root-rule target extensions are canonical (rs, ts, tsx)'
+          : `orchestration_target_extension_unexpected_tokens=${orchestrationTargetExtensionsUnexpectedTokens.join(',')}`,
     },
     {
-      id: 'repo_surface_policy_root_rule_surface_allowed_extensions_cover_targets',
-      ok: surfaceAllowedExtensionsMissingTargetTokens.length === 0,
+      id: 'repo_surface_policy_root_rule_orchestration_allowed_extensions_cover_targets',
+      ok: orchestrationAllowedExtensionsMissingTargetTokens.length === 0,
       detail:
-        surfaceAllowedExtensionsMissingTargetTokens.length === 0
-          ? 'surface root-rule allowed extensions covers all target extension tokens'
-          : `surface_allowed_extensions_missing_target_tokens=${surfaceAllowedExtensionsMissingTargetTokens.join(',')}`,
+        orchestrationAllowedExtensionsMissingTargetTokens.length === 0
+          ? 'orchestration root-rule allowed extensions covers all target extension tokens'
+          : `orchestration_allowed_extensions_missing_target_tokens=${orchestrationAllowedExtensionsMissingTargetTokens.join(',')}`,
     },
     {
       id: 'repo_surface_policy_root_rule_client_targets_include_web_tokens',

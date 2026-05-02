@@ -2,7 +2,8 @@
   "schema_version": "repo_file_size_policy_v2",
   "scope": [
     "core/**",
-    "surface/**",
+    "orchestration/**",
+    "shell/**",
     "client/**"
   ],
   "tests_exempt": true,
