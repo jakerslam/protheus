@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-02T21:55:37.865Z
+Updated: 2026-05-02T22:01:21.815Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-02T21:55:37.865Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `SHELL-SOCKET-LEGACY` — Quarantine Shell 1.0 as a legacy plug
+  completed_at: `2026-05-02T22:01:21.814Z`
+  previous_section: `white`
+  owner: `codex`
+  deadline: `after_red_section`
+  source_family: `Shell Socket 2.0 Infrastructure`
+  summary: Add a LegacyBrowserShellPlug manifest and guard so Shell 1.0 is limited to critical fixes, parity bridge work, and retirement support while Shell 2.0 socket work proceeds independently.
+  completion_note: Quarantined Shell 1.0 as LegacyBrowserShellPlug without dashboard mutation. Added shell/legacy/legacy_browser_shell_manifest.json and ops:shell-socket:legacy:guard so 4173 is non-canonical compatibility, 5173 remains the Shell Socket Gateway/backend proof target, new features/Gateway bypass/socket parity claims fail closed, and retirement requires Gateway-only clean plug parity. Validation: metrics:effective-loc passed before new files; ops:shell-socket:legacy:guard passed; controlled violation failed closed; JSON parse and line caps passed.
 - `SHELL-SOCKET-PROBE` — Prove the socket with a headless Shell probe
   completed_at: `2026-05-02T21:55:37.864Z`
   previous_section: `yellow`

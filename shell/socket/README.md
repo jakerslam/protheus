@@ -24,6 +24,9 @@ a stateful runtime service.
 - `http://127.0.0.1:4173` is the legacy browser host plug. It may proxy API
   traffic, but it is not the canonical Shell Socket target and must not be used
   as proof that a clean shell plug is independent of Shell 1.0.
+- The legacy plug quarantine manifest lives at
+  [`shell/legacy/legacy_browser_shell_manifest.json`](/Users/jay/.openclaw/workspace/shell/legacy/legacy_browser_shell_manifest.json)
+  and is enforced by `ops:shell-socket:legacy:guard`.
 
 Gateway route implementations do not live here. Gateway reads or conforms to the
 socket contracts, exposes `/api/shell-socket/**` routes, and forwards accepted

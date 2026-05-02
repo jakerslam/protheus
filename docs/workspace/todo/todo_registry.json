@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-02T21:55:37.865Z",
+  "updated_at": "2026-05-02T22:01:21.815Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -228,15 +228,6 @@
       "deadline": "none",
       "source_family": "Tauri Desktop App Migration + Memory Fix Wave",
       "summary": "Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway."
-    },
-    {
-      "id": "SHELL-SOCKET-LEGACY",
-      "title": "Quarantine Shell 1.0 as a legacy plug",
-      "section": "white",
-      "owner": "codex",
-      "deadline": "after_red_section",
-      "source_family": "Shell Socket 2.0 Infrastructure",
-      "summary": "Add a LegacyBrowserShellPlug manifest and guard so Shell 1.0 is limited to critical fixes, parity bridge work, and retirement support while Shell 2.0 socket work proceeds independently."
     }
   ]
 }

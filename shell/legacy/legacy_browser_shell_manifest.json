@@ -1,0 +1,39 @@
+{
+  "type": "legacy_browser_shell_manifest",
+  "schema_version": 1,
+  "name": "LegacyBrowserShellPlug",
+  "status": "legacy",
+  "canonical": false,
+  "may_receive_new_features": false,
+  "may_bypass_gateway": false,
+  "may_claim_socket_parity": false,
+  "legacy_dashboard_host": "http://127.0.0.1:4173",
+  "canonical_shell_socket_gateway_host": "http://127.0.0.1:5173",
+  "socket_contract": "shell/socket/contract/shell_socket_contract.json",
+  "gateway_route_contract": "validation/conformance/contracts/shell_socket_gateway_contract.json",
+  "legacy_paths": [
+    "client/runtime/systems/ui/infring_static/**",
+    "client/runtime/systems/ui/infring_dashboard.ts"
+  ],
+  "allowed_work": [
+    "critical_fixes",
+    "parity_bridge",
+    "retirement_support"
+  ],
+  "forbidden_work": [
+    "new_features",
+    "authority_migration_into_legacy",
+    "full_state_cache_expansion",
+    "direct_gateway_bypass",
+    "canonical_shell_socket_proof"
+  ],
+  "required_axioms": {
+    "legacy_dashboard_is_shell_1_compatibility_only": true,
+    "shell_socket_lives_under_shell_socket": true,
+    "gateway_remains_only_external_authority_boundary": true,
+    "shell_2_proof_targets_gateway_backend_5173_not_legacy_4173": true,
+    "legacy_bugfixes_must_not_expand_authority": true,
+    "legacy_work_must_not_block_socket_first_shell_2": true
+  },
+  "retirement_condition": "Retire LegacyBrowserShellPlug once BrowserShellV2 or another clean plug reaches Gateway-only projection/input parity and passes shell socket, amputation, memory, lazy-detail, and terminal-parity guards."
+}
