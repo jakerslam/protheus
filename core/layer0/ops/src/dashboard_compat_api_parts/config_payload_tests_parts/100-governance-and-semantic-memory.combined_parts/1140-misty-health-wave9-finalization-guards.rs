@@ -49,6 +49,13 @@ fn misty_wave9_gate_choice_prefix_is_rejected_without_system_retry() {
     assert_eq!(
         response
             .payload
+            .get("visible_response_source")
+            .and_then(Value::as_str),
+        Some("none")
+    );
+    assert_eq!(
+        response
+            .payload
             .get("system_chat_injection_used")
             .and_then(Value::as_bool),
         Some(false)
@@ -56,10 +63,137 @@ fn misty_wave9_gate_choice_prefix_is_rejected_without_system_retry() {
     assert!(
         response
             .payload
-            .pointer("/response_finalization/outcome")
+            .pointer("/response_workflow/final_llm_response/fallback_source")
             .and_then(Value::as_str)
             .unwrap_or("")
-            .contains("final_response_guard_no_system_retry")
+            == "withheld_invalid_gate_draft"
+    );
+}
+
+#[test]
+fn misty_wave9_invalid_tool_choice_draft_is_not_visible_fallback() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave9-invalid-tool-choice-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [
+            {"response": "I would choose to run a batch query for current framework evidence."},
+            {"response": "I would choose web search for this comparison."},
+            {"response": "I need to perform a web search before answering."}
+        ], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Use web search to compare infring to top agentic frameworks in April 2026. Return a source-backed comparison."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(response.payload.get("pending_tool_request"), None);
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/invalid_gate_draft_fallback_withheld")
+            .and_then(Value::as_bool),
+        Some(true),
+        "{}",
+        response.payload
+    );
+}
+
+#[test]
+fn misty_wave9_gate_2_tool_request_draft_is_never_visible_chat() {
+    let root = governance_temp_root();
+    let snapshot = governance_ok_snapshot();
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"misty-wave9-gate2-draft-agent","role":"assistant"}"#,
+        &snapshot,
+    )
+    .expect("agent create");
+    let agent_id = clean_agent_id(
+        created
+            .payload
+            .get("agent_id")
+            .or_else(|| created.payload.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    write_json(
+        &governance_test_chat_script_path(root.path()),
+        &json!({"queue": [
+            {"response": "Initial private interpretation draft."},
+            {"response": "3"},
+            {"response": "I would choose web search to collect current framework evidence."},
+            {"response": "I will perform a web search and then compare the findings."}
+        ], "calls": []}),
+    );
+
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"Compare infring to top agentic frameworks in April 2026 using web research."}"#,
+        &snapshot,
+    )
+    .expect("message response");
+
+    assert_eq!(response.status, 200);
+    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/workflow_control/direct_response_path")
+            .and_then(Value::as_str),
+        Some("gate_2_pending_llm_tool_request"),
+        "{}",
+        response.payload
+    );
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/fallback_source")
+            .and_then(Value::as_str),
+        Some("withheld_invalid_gate_draft"),
+        "{}",
+        response.payload
+    );
+    assert_eq!(
+        response
+            .payload
+            .get("system_chat_injection_used")
+            .and_then(Value::as_bool),
+        Some(false)
     );
 }
 
@@ -234,10 +368,9 @@ fn misty_wave9_explicit_web_search_creates_pending_tool_request_without_system_c
     assert!(
         response
             .payload
-            .pointer("/response_finalization/outcome")
+            .pointer("/response_finalization/pending_tool_request/tool_name")
             .and_then(Value::as_str)
-            .unwrap_or("")
-            .contains("pending_tool_request_visible_chat_withheld"),
+            == Some("web_search"),
         "{}",
         response.payload
     );
@@ -280,6 +413,7 @@ fn misty_wave9_tool_synthesis_unwraps_content_type_json_fragment() {
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
+            {"response": "1"},
             {"response": "\"content\": \"OpenHands is an AI agent platform for software development.\", \"type\": \"platform\", \"format\": \"plain\" }"}
         ], "calls": []}),
     );

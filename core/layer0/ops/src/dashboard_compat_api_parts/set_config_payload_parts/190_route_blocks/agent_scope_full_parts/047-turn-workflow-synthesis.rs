@@ -1791,12 +1791,16 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = if response_tools.is_empty() && !manual_toolbox_gate_turn {
+    let max_attempts: u64 = if manual_toolbox_gate_turn {
+        3
+    } else if response_tools.is_empty() {
         1
     } else {
         2
     };
     let mut manual_toolbox_no_selected = false;
+    let mut manual_toolbox_selected_category_key = String::new();
+    let mut manual_toolbox_selected_category_label = String::new();
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
@@ -1859,11 +1863,20 @@ fn run_turn_workflow_final_response(
         json!(coherence_window_messages);
     for attempt in 1..=max_attempts {
         workflow["final_llm_response"]["attempt_count"] = json!(attempt);
-        let active_manual_toolbox_gate_turn =
-            manual_toolbox_gate_turn && !manual_toolbox_no_selected;
+        let active_manual_toolbox_gate_turn = manual_toolbox_gate_turn
+            && !manual_toolbox_no_selected
+            && manual_toolbox_selected_category_key.is_empty();
+        let active_manual_toolbox_tool_request_turn = manual_toolbox_gate_turn
+            && !manual_toolbox_no_selected
+            && !manual_toolbox_selected_category_key.is_empty();
         let compact_tool_retry = attempt > 1 && !response_tools.is_empty();
         let attempt_system_prompt = if active_manual_toolbox_gate_turn {
             system_prompt.clone()
+        } else if active_manual_toolbox_tool_request_turn {
+            workflow_tool_request_prompt_context(
+                &manual_toolbox_selected_category_key,
+                &manual_toolbox_selected_category_label,
+            )
         } else if manual_toolbox_no_selected || compact_tool_retry {
             clean_text(
                 "Respond to the user message. Final user-facing answer only.",
@@ -1874,6 +1887,8 @@ fn run_turn_workflow_final_response(
         };
         let attempt_user_prompt = if active_manual_toolbox_gate_turn {
             user_prompt.clone()
+        } else if active_manual_toolbox_tool_request_turn {
+            clean_text(&format!("User message:\n{message}"), 8_000)
         } else if manual_toolbox_no_selected {
             clean_text(&format!("User message:\n{message}"), 8_000)
         } else if compact_tool_retry {
@@ -1938,10 +1953,28 @@ fn run_turn_workflow_final_response(
                 if active_manual_toolbox_gate_turn
                     && response_is_tool_bearing_category_gate_submission(&retried_text)
                 {
-                    last_invalid_excerpt = first_sentence(&retried_text, 220);
-                    last_reject_reason =
-                        "tool_category_without_tool_payload".to_string();
-                    bump_workflow_quality_counter(&mut workflow, "alignment_reject");
+                    if let Some((category_key, category_label)) = workflow_category_selection(
+                        &default_workflow_tool_menu_contract(),
+                        &retried_text,
+                        Some(true),
+                    ) {
+                        manual_toolbox_selected_category_key = category_key.clone();
+                        manual_toolbox_selected_category_label = category_label.clone();
+                        workflow["tool_gate"]["selected_work_category"] =
+                            Value::String(category_key.clone());
+                        workflow["tool_gate"]["selected_tool_family"] =
+                            Value::String(category_key.clone());
+                        workflow["workflow_control"]["direct_response_path"] =
+                            Value::String("gate_2_pending_llm_tool_request".to_string());
+                        set_turn_workflow_final_stage_status(
+                            &mut workflow,
+                            "gate_2_pending_tool_request",
+                        );
+                    } else {
+                        last_invalid_excerpt = first_sentence(&retried_text, 220);
+                        last_reject_reason = "tool_category_without_tool_payload".to_string();
+                        bump_workflow_quality_counter(&mut workflow, "alignment_reject");
+                    }
                     continue;
                 }
                 let visible_gate_choice_reply =
@@ -1975,6 +2008,21 @@ fn run_turn_workflow_final_response(
                         "skipped_pending_tool_confirmation",
                     );
                     return workflow;
+                }
+                if active_manual_toolbox_tool_request_turn
+                    && response_tools.is_empty()
+                    && !retried_text.is_empty()
+                {
+                    last_invalid_excerpt = first_sentence(&retried_text, 220);
+                    last_reject_reason = "tool_request_without_payload_submission".to_string();
+                    workflow["workflow_control"]["direct_response_path"] =
+                        Value::String("gate_2_pending_llm_tool_request".to_string());
+                    set_turn_workflow_final_stage_status(
+                        &mut workflow,
+                        "gate_2_pending_tool_request",
+                    );
+                    bump_workflow_quality_counter(&mut workflow, "alignment_reject");
+                    continue;
                 }
                 let recorded_tool_result_answer =
                     response_answers_tool_confirmation_with_recorded_result(
@@ -2029,6 +2077,7 @@ fn run_turn_workflow_final_response(
                     && !receipt_mapped_sources
                     && !response_has_evidence_tags(&retried_text);
                 let missing_direct_answer = !recorded_tool_result_answer
+                    && !direct_gate_recovery_turn
                     && !direct_gate_recovery_response_answers_user(
                         message,
                         &retried_text,
@@ -3695,5 +3744,19 @@ mod workflow_fallback_tests {
         assert!(response.is_empty());
         assert!(sanitized);
         assert_eq!(source, "withheld_workflow_prompt_analysis");
+    }
+
+    #[test]
+    fn numeric_workflow_gate_submission_selects_json_alias_category() {
+        assert!(response_is_tool_bearing_category_gate_submission("3"));
+        let (category_key, category_label) = workflow_category_selection(
+            &default_workflow_tool_menu_contract(),
+            "3",
+            Some(true),
+        )
+        .expect("numeric web research alias");
+
+        assert_eq!(category_key, "web_research");
+        assert_eq!(category_label, "Web research");
     }
 }
