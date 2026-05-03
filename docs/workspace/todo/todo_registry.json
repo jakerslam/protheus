@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-02T22:01:21.815Z",
+  "updated_at": "2026-05-03T21:04:55.659Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -228,6 +228,15 @@
       "deadline": "none",
       "source_family": "Tauri Desktop App Migration + Memory Fix Wave",
       "summary": "Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway."
+    },
+    {
+      "id": "DNA-FOUNDATION-AUDIT",
+      "title": "Audit and graduate Digital DNA as system substrate",
+      "section": "yellow",
+      "owner": "unassigned",
+      "deadline": "2026-05-17",
+      "source_family": "Digital DNA Foundation Graduation Audit",
+      "summary": "Yellow flag: Digital DNA has real Kernel metakernel code and tests, but SRS/TODO still mark V6-FOUNDATION-DNA-001/002 queued and it is not proven as the unavoidable base substrate for every instance, mutation, critical action, receipt, and Sentinel integrity check."
     }
   ]
 }
