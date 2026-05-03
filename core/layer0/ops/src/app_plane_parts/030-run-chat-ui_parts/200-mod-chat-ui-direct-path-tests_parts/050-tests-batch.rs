@@ -431,8 +431,8 @@
     #[test]
     fn chat_ui_route_classifier_ghost_copy_rewrite_keeps_normal_text() {
         let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(
-            "Need tools? Yes/No",
+            "What kind of work is this?",
         );
         assert_eq!(outcome, "unchanged");
-        assert_eq!(rewritten, "Need tools? Yes/No");
+        assert_eq!(rewritten, "What kind of work is this?");
     }

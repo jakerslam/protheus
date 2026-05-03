@@ -224,71 +224,21 @@ fn web_result_domain_topic_mismatch_score(query: &str, summary: &str, evidence_r
     score.clamp(0.0, 1.0)
 }
 
-fn web_search_off_topic_results_fallback(query: &str, mismatch_score: f64, domains: &[String]) -> String {
-    let query_label = if query.trim().is_empty() {
-        "this query".to_string()
-    } else {
-        format!("\"{}\"", trim_text(query, 140))
-    };
-    let domain_hint = if domains.is_empty() {
-        "no reliable topical domains".to_string()
-    } else {
-        trim_text(&domains.join(", "), 180)
-    };
-    format!(
-        "Web search results looked off-topic for {} (mismatch_score={:.2}, domains={}). I did not treat them as valid findings. Retry with a narrower technical query or one trusted source URL. error_code: web_tool_off_topic_results",
-        query_label,
-        mismatch_score,
-        domain_hint
-    )
+fn web_search_off_topic_results_fallback(
+    _query: &str,
+    _mismatch_score: f64,
+    _domains: &[String],
+) -> String {
+    String::new()
 }
 
 fn web_search_no_findings_fallback(
-    query: &str,
-    combined: &str,
-    requested_url: &str,
-    domain: &str,
+    _query: &str,
+    _combined: &str,
+    _requested_url: &str,
+    _domain: &str,
 ) -> String {
-    let query_label = if query.is_empty() {
-        "this query".to_string()
-    } else {
-        format!("\"{}\"", trim_text(query, 120))
-    };
-    let source = if domain.trim().is_empty() {
-        source_label_from_url(requested_url)
-    } else {
-        clean_text(domain, 120)
-    };
-    let lowered = clean_text(combined, 4_000).to_ascii_lowercase();
-    let search_chrome_like = looks_like_search_engine_chrome_summary(&lowered)
-        || lowered.contains("all regions ")
-        || lowered.contains("safe search")
-        || lowered.contains("any time")
-        || lowered.contains(" at duckduckgo");
-    if search_chrome_like {
-        if source.is_empty() {
-            return format!(
-                "Web search for {} returned low-signal search-engine chrome with no extractable findings. This is a retrieval/parsing miss, not a confirmed no-answer. Retry with `batch_query` or provide one specific source URL.",
-                query_label
-            );
-        }
-        return format!(
-            "Web search for {} returned low-signal search-engine chrome from {} with no extractable findings. This is a retrieval/parsing miss, not a confirmed no-answer. Retry with `batch_query` or provide one specific source URL.",
-            query_label,
-            trim_text(&source, 120)
-        );
-    }
-    if source.is_empty() {
-        return format!(
-            "Web search for {} completed but produced no extractable findings. Retry with a narrower query or ask for a provisional answer without live sources.",
-            query_label
-        );
-    }
-    format!(
-        "Web search for {} completed but produced no extractable findings from {}. Retry with a narrower query or ask for a provisional answer without live sources.",
-        query_label,
-        trim_text(&source, 120)
-    )
+    String::new()
 }
 
 fn extract_search_result_findings(summary: &str, max_items: usize) -> Vec<String> {
@@ -509,8 +459,7 @@ fn source_label_from_url(raw: &str) -> String {
 
 fn summarize_web_fetch_payload(payload: &Value) -> String {
     if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        return user_facing_tool_failure_summary("web_fetch", payload)
-            .unwrap_or_else(|| "Web fetch couldn't complete right now.".to_string());
+        return user_facing_tool_failure_summary("web_fetch", payload).unwrap_or_default();
     }
     let requested_url = clean_text(
         payload
@@ -538,17 +487,8 @@ fn summarize_web_fetch_payload(payload: &Value) -> String {
         let source = source_label_from_url(&requested_url);
         let snippet = first_sentence(&stripped_body, 320);
         if !snippet.is_empty() {
-            if source.is_empty() {
-                return format!(
-                    "{} Web fetch output was truncated before final synthesis; retry with one specific URL or ask me to continue from the partial result.",
-                    snippet
-                );
-            }
-            return format!(
-                "From {}: {} Web fetch output was truncated before final synthesis; retry with one specific URL or ask me to continue from the partial result.",
-                trim_text(&source, 120),
-                snippet
-            );
+            let _ = source;
+            return String::new();
         }
         if source.is_empty() {
             return web_tool_context_guard_fallback("The fetched page");
@@ -556,32 +496,18 @@ fn summarize_web_fetch_payload(payload: &Value) -> String {
         return web_tool_context_guard_fallback(&format!("Fetch from {}", trim_text(&source, 120)));
     }
     if body.is_empty() {
-        if requested_url.is_empty() {
-            return "I fetched the page, but it returned no readable content.".to_string();
-        }
-        return format!(
-            "I fetched {}, but it returned no readable content.",
-            trim_text(&requested_url, 220)
-        );
+        return String::new();
     }
     if looks_like_placeholder_fetch_content(&body, &requested_url) {
-        return "The fetched page is placeholder/test content (for example, `example.com`), so it doesn't provide real findings. Ask me to run a web search query or fetch a specific real source URL.".to_string();
+        return String::new();
     }
     if looks_like_navigation_chrome_payload(&body) || looks_like_search_engine_chrome_summary(&body)
     {
-        let source = source_label_from_url(&requested_url);
-        if !source.is_empty() {
-            return format!(
-                "I fetched {}, but the response was mostly page navigation/chrome instead of answer-ready findings. Ask me to run `batch_query` or `web_search` for your question.",
-                trim_text(&source, 120)
-            );
-        }
-        return "I fetched the page, but the response was mostly navigation/chrome instead of answer-ready findings. Ask me to run `batch_query` or `web_search` for your question.".to_string();
+        return String::new();
     }
     let snippet = first_sentence(&body, 320);
     if snippet.is_empty() {
-        return "I fetched the page, but couldn't extract a reliable summary sentence from it yet."
-            .to_string();
+        return String::new();
     }
     let source = source_label_from_url(&requested_url);
     if source.is_empty() {
@@ -631,148 +557,8 @@ fn looks_like_search_engine_chrome_summary(summary: &str) -> bool {
     hits >= 2
 }
 
-fn user_facing_tool_failure_summary(tool_name: &str, payload: &Value) -> Option<String> {
-    let normalized = normalize_tool_name(tool_name);
-    let lowered = tool_error_text(payload).to_ascii_lowercase();
-    let nexus_error = clean_text(payload.get("nexus_error").and_then(Value::as_str).unwrap_or(""), 220);
-    if lowered.contains("nexus_delivery_denied") || lowered.contains("tool_nexus_delivery_denied")
-    {
-        if nexus_error.is_empty() {
-            return Some(format!(
-                "`{normalized}` was blocked by ingress delivery policy in this runtime lane. This is a policy gate, not a web-provider outage."
-            ));
-        }
-        return Some(format!(
-            "`{normalized}` was blocked by ingress delivery policy in this runtime lane ({nexus_error}). This is a policy gate, not a web-provider outage."
-        ));
-    }
-    if lowered.contains("tool_pre_gate_blocked") || lowered.contains("tool_permission_denied") {
-        return Some(format!(
-            "`{normalized}` was blocked by tool permission policy before execution. This turn did not run that tool."
-        ));
-    }
-    if lowered.contains("invalid_response_attempt") {
-        return Some(format!(
-            "`{normalized}` returned an invalid response shape in this turn. Retry with one concrete query or source URL."
-        ));
-    }
-    if lowered.contains("unsupported_tool_command")
-        || lowered.contains("tool_command_")
-        || lowered == "invalid_tool_command"
-    {
-        let message = clean_text(payload.get("message").and_then(Value::as_str).unwrap_or(""), 320);
-        if !message.is_empty() {
-            return Some(message);
-        }
-    }
-    if lowered.contains("tool_route_not_found")
-        || lowered.contains("unsupported_tool")
-        || lowered.contains("unknown_tool")
-    {
-        return Some(format!(
-            "`{normalized}` is not currently available in this runtime route set. Run `tool::capabilities` to inspect active command surfaces and retry with a supported tool."
-        ));
-    }
-    if lowered.is_empty() {
-        if normalized == "system_diagnostic" {
-            return Some(
-                "`system_diagnostic` couldn't run in this turn. I can still diagnose manually from the latest prompt/response and runtime symptoms if you want me to continue."
-                    .to_string(),
-            );
-        }
-        return Some(format!("I couldn't complete `{normalized}` right now."));
-    }
-    if lowered == "tool_explicit_signoff_required" || lowered == "tool_confirmation_required" {
-        return Some(format!(
-            "I need your confirmation before running `{normalized}`. Reply `yes` to execute it now."
-        ));
-    }
-    if lowered.contains("query_required") {
-        return Some(format!("`{normalized}` needs a query before it can run."));
-    }
-    if lowered.contains("url_required") {
-        return Some(format!(
-            "`{normalized}` needs a valid URL before it can run."
-        ));
-    }
-    if normalized == "file_read" || normalized == "read_file" || normalized == "file" {
-        if lowered.contains("path_required") {
-            return Some("I need a workspace file path before I can read it.".to_string());
-        }
-        if lowered.contains("path_outside_workspace") {
-            return Some(
-                "That path is outside the active workspace. Give me a workspace-relative file path."
-                    .to_string(),
-            );
-        }
-        if lowered.contains("file_not_found") {
-            return Some("I couldn't find that file in the active workspace.".to_string());
-        }
-        if lowered.contains("binary_file_requires_opt_in") {
-            return Some(
-                "That file is binary. Re-run `file_read` with `allow_binary=true` if you want base64 output."
-                    .to_string(),
-            );
-        }
-    }
-    if normalized == "file_read_many"
-        || normalized == "read_files"
-        || normalized == "files_read"
-        || normalized == "batch_file_read"
-    {
-        if lowered.contains("paths_required") || lowered.contains("path_required") {
-            return Some(
-                "I need one or more workspace file paths before batch read can run.".to_string(),
-            );
-        }
-        if lowered.contains("path_outside_workspace") {
-            return Some(
-                "One or more paths were outside the active workspace. Provide workspace-relative file paths."
-                    .to_string(),
-            );
-        }
-    }
-    if normalized == "system_diagnostic" {
-        return Some(
-            "`system_diagnostic` couldn't run in this turn. I can still diagnose manually from the latest prompt/response and runtime symptoms if you want me to continue."
-                .to_string(),
-        );
-    }
-    if lowered.contains("denied_domain")
-        || lowered.contains("network_policy")
-        || lowered.contains("domain_blocked")
-    {
-        return Some(format!(
-            "`{normalized}` was blocked by network policy for this request."
-        ));
-    }
-    if lowered.contains("request_read_failed")
-        || lowered.contains("resource temporarily unavailable")
-        || lowered.contains("os error 35")
-    {
-        return Some(format!(
-            "`{normalized}` hit temporary runtime I/O pressure (`request_read_failed`). I already retry transient failures automatically; retry once, then run `infringctl doctor --json` if it persists."
-        ));
-    }
-    if lowered.contains("context overflow")
-        || lowered.contains("safe threshold during tool loop")
-        || lowered.contains("more characters truncated")
-    {
-        return Some(web_tool_context_guard_fallback(&format!(
-            "`{}`",
-            normalized
-        )));
-    }
-    if lowered.contains("timeout")
-        || lowered.contains("timed out")
-        || lowered.contains("unavailable")
-        || lowered.contains("connection")
-    {
-        return Some(format!(
-            "`{normalized}` hit a temporary network/runtime issue. Retry once; if it repeats, run `infringctl doctor --json`."
-        ));
-    }
-    Some(format!("I couldn't complete `{normalized}` right now."))
+fn user_facing_tool_failure_summary(_tool_name: &str, _payload: &Value) -> Option<String> {
+    None
 }
 
 fn transient_tool_failure(payload: &Value) -> bool {

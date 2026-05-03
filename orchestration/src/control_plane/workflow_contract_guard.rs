@@ -4,6 +4,7 @@ use super::workflow_contracts::{
     tool_family_contracts, workflow_registry_contract_ok, NormalizedWorkflowGraph,
     ToolFamilyContract, WorkflowValidation, REQUIRED_TELEMETRY_STREAMS, REQUIRED_TERMINAL_STATES,
     REQUIRED_TOOL_FAMILIES, WORKFLOW_CONTRACT_SCHEMA_VERSION,
+    WORKFLOW_SOURCE_OF_TRUTH_SCHEMA_VERSION,
 };
 use super::workflow_runtime::{run_registered_replay_fixtures, workflow_runtime_contract_ok};
 use super::workflow_runtime_types::WorkflowReplayReport;
@@ -116,10 +117,10 @@ fn build_checks(
         json!({"id": "workflow_runtime_replay_contract", "ok": workflow_runtime_contract_ok(replay_reports), "detail": format!("fixtures={}", replay_reports.len())}),
         json!({"id": "workflow_runtime_budget_contract", "ok": replay_reports.iter().all(runtime_budget_ok), "detail": "runtime replays stay under stage/model/tool/token budgets and keep loop guard active"}),
         json!({"id": "workflow_runtime_inspector_contract", "ok": replay_reports.iter().all(runtime_inspector_ok), "detail": "workflow_state, agent_internal_notes, tool_trace, eval_trace, and final_answer are separated from visible chat"}),
-        json!({"id": "workflow_runtime_graph_binding_contract", "ok": replay_reports.iter().all(|row| !row.graph_hash.is_empty() && row.inspector.selected_graph_source == "orchestration_typed_graph_v1"), "detail": "runtime selection consumes typed orchestration graph bindings"}),
+        json!({"id": "workflow_runtime_graph_binding_contract", "ok": replay_reports.iter().all(|row| !row.graph_hash.is_empty() && row.inspector.selected_graph_source == "json_workflow_source_of_truth_v1"), "detail": "runtime selection consumes JSON source-of-truth orchestration graph bindings"}),
         json!({"id": "workflow_json_source_metadata_contract", "ok": graphs.iter().all(graph_json_source_metadata_ok), "detail": "typed graphs carry workflow id, source JSON path, contract schema version, and graph hash metadata"}),
         json!({"id": "workflow_runtime_registered_json_source_contract", "ok": replay_reports.iter().all(runtime_registered_json_source_ok), "detail": "runtime telemetry exposes selected workflow id, source JSON path, contract schema version, and graph hash from a registered JSON workflow"}),
-        json!({"id": "workflow_format_policy_contract", "ok": format_policy.contains("typed_execution_contract") && format_policy.contains("llm_final_only_no_system_injection"), "detail": FORMAT_POLICY_PATH}),
+        json!({"id": "workflow_format_policy_contract", "ok": all_present(&format_policy, &["workflow_source_of_truth_contract", "typed_execution_contract", "burnable CD", "json_workflow_spec", "llm_final_only_no_system_injection"]), "detail": FORMAT_POLICY_PATH}),
         json!({"id": "control_plane_parity_map_contract", "ok": all_present(&parity_map, &["OpenHands", "OpenFang", "Infring", "orchestration/src", "event-sourced action/observation"]), "detail": PARITY_MAP_PATH}),
     ]
 }
@@ -198,6 +199,10 @@ fn graph_json_source_metadata_ok(graph: &NormalizedWorkflowGraph) -> bool {
             .starts_with("orchestration/src/control_plane/workflows/")
         && graph.source_json_path.ends_with(".workflow.json")
         && graph.contract_schema_version == WORKFLOW_CONTRACT_SCHEMA_VERSION
+        && graph.source_of_truth_schema_version == WORKFLOW_SOURCE_OF_TRUTH_SCHEMA_VERSION
+        && graph.interaction_source == "json_workflow_spec"
+        && graph.rust_reader_role == "validate_execute_trace_only"
+        && !graph.hardcoded_interaction_behavior_allowed
 }
 
 fn runtime_registered_json_source_ok(report: &WorkflowReplayReport) -> bool {
@@ -212,7 +217,12 @@ fn runtime_registered_json_source_ok(report: &WorkflowReplayReport) -> bool {
         && report.inspector.graph_hash == report.graph_hash
         && report.inspector.source_json_path == report.source_json_path
         && report.inspector.contract_schema_version == report.contract_schema_version
-        && report.inspector.selected_graph_source == "orchestration_typed_graph_v1"
+        && report.inspector.source_of_truth_schema_version
+            == WORKFLOW_SOURCE_OF_TRUTH_SCHEMA_VERSION
+        && report.inspector.interaction_source == "json_workflow_spec"
+        && report.inspector.rust_reader_role == "validate_execute_trace_only"
+        && !report.inspector.hardcoded_interaction_behavior_allowed
+        && report.inspector.selected_graph_source == "json_workflow_source_of_truth_v1"
 }
 
 fn run_budget_ok(graph: &NormalizedWorkflowGraph) -> bool {

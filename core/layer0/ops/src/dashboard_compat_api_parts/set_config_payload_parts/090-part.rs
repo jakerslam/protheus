@@ -320,7 +320,7 @@ fn no_models_available_payload(agent_id: &str) -> Value {
             "steps": [
                 "Install Ollama: https://ollama.com/download",
                 "Start Ollama: ollama serve",
-                "Pull at least one model: ollama pull qwen2.5:3b-instruct",
+                "Pull or configure the exact model you want to use",
                 "Or add API keys in Settings or via /apikey <key>"
             ]
         },
@@ -351,11 +351,16 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
     let mut lines = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();
     for tool in response_tools {
-        let name = clean_text(
+        let raw_name = clean_text(
             tool.get("name").and_then(Value::as_str).unwrap_or("tool"),
             80,
         )
         .to_ascii_lowercase();
+        let name = if raw_name == "batch_query" || raw_name == "batch-query" {
+            "web_search".to_string()
+        } else {
+            raw_name
+        };
         if name.is_empty() || name == "thought_process" {
             continue;
         }

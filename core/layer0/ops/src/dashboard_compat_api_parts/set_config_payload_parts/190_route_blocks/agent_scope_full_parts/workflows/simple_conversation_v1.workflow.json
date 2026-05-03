@@ -2,9 +2,9 @@
   "name": "simple_conversation_v1",
   "workflow_type": "hard_agent_workflow",
   "default": true,
-  "description": "Direct conversation menu interface. If the LLM submits No at gate 1, no tool menu is consumed and the final response is LLM-authored.",
+  "description": "Tool menu interface. If the LLM submits Respond directly at Gate 1, no tool menu is consumed and the final response is LLM-authored.",
   "stages": [
-    "gate_1_need_tool_access_menu",
+    "gate_1_work_category_menu",
     "gate_2_tool_family_menu",
     "gate_3_tool_menu",
     "gate_4_request_payload_input",
@@ -23,7 +23,7 @@
       "text_input"
     ],
     "gate_order": [
-      "gate_1_need_tool_access_menu",
+      "gate_1_work_category_menu",
       "gate_2_tool_family_menu",
       "gate_3_tool_menu",
       "gate_4_request_payload_input",
@@ -32,26 +32,6 @@
       "gate_6_llm_final_output"
     ],
     "gates": {
-      "gate_1_need_tool_access_menu": {
-        "input_kind": "multiple_choice",
-        "question": "Need tools? Yes/No",
-        "options": [
-          {
-            "key": "no",
-            "label": "No",
-            "private_token": true,
-            "visible_chat": false,
-            "transition": "gate_6_llm_final_output"
-          },
-          {
-            "key": "yes",
-            "label": "Yes",
-            "private_token": true,
-            "visible_chat": false,
-            "transition": "gate_2_tool_family_menu"
-          }
-        ]
-      },
       "gate_2_tool_family_menu": {
         "input_kind": "multiple_choice",
         "transition": "gate_3_tool_menu"
@@ -100,14 +80,115 @@
       },
       "gate_6_llm_final_output": {
         "input_kind": "text_input",
-        "final_authority": "llm_only"
+        "final_authority": "llm_only",
+        "final_output_contract": {
+          "visible_chat_source": "llm_final_answer_only",
+          "internal_streams": [
+            "workflow_state",
+            "agent_internal_notes",
+            "tool_trace",
+            "eval_trace"
+          ],
+          "chat_excludes": [
+            "workflow_state",
+            "agent_internal_notes",
+            "tool_trace",
+            "eval_trace",
+            "prompt_analysis"
+          ],
+          "chat_requirement": "write only the final user-facing answer"
+        }
+      },
+      "gate_1_work_category_menu": {
+        "input_kind": "multiple_choice",
+        "question": "What kind of work is this?",
+        "submission_contract": {
+          "visibility": "private_token_only",
+          "accepted_outputs": [
+            "Respond directly",
+            "Planning from current context",
+            "Category: <category>. Tool family: <family>. Tool: <catalog tool key>. Request payload: <JSON>."
+          ],
+          "forbidden_output_classes": [
+            "choice_narration",
+            "tool_recommendation_without_submission",
+            "visible_chat_text"
+          ],
+          "chat_injection_allowed": false
+        },
+        "options": [
+          {
+            "key": "respond_directly",
+            "label": "Respond directly",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": false,
+            "transition": "gate_6_llm_final_output"
+          },
+          {
+            "key": "planning_current_context",
+            "label": "Planning from current context",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": false,
+            "transition": "gate_6_llm_final_output"
+          },
+          {
+            "key": "web_research",
+            "label": "Web research",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": true,
+            "transition": "gate_2_tool_family_menu"
+          },
+          {
+            "key": "workspace_files",
+            "label": "Workspace/files",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": true,
+            "transition": "gate_2_tool_family_menu"
+          },
+          {
+            "key": "code_execution_terminal",
+            "label": "Code execution / terminal",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": true,
+            "transition": "gate_2_tool_family_menu"
+          },
+          {
+            "key": "agent_management",
+            "label": "Agent management",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": true,
+            "transition": "gate_2_tool_family_menu"
+          },
+          {
+            "key": "memory_notes",
+            "label": "Memory/notes",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": true,
+            "transition": "gate_2_tool_family_menu"
+          },
+          {
+            "key": "external_apps_integrations",
+            "label": "External apps/integrations",
+            "private_token": true,
+            "visible_chat": false,
+            "has_tools": true,
+            "transition": "gate_2_tool_family_menu"
+          }
+        ]
       }
     },
     "private_tokens": [
-      "no",
-      "yes",
       "confirm",
-      "cancel"
+      "cancel",
+      "respond_directly",
+      "planning_current_context"
     ],
     "terminal_states": [
       "completed",
@@ -121,6 +202,216 @@
         "on": "another_tool",
         "to": "gate_2_tool_family_menu"
       }
+    ],
+    "tool_family_menu": [
+      {
+        "option": 1,
+        "key": "web_research",
+        "label": "Web research",
+        "has_tools": true
+      },
+      {
+        "option": 2,
+        "key": "workspace_files",
+        "label": "Workspace/files",
+        "has_tools": true
+      },
+      {
+        "option": 3,
+        "key": "code_execution_terminal",
+        "label": "Code execution / terminal",
+        "has_tools": true
+      },
+      {
+        "option": 4,
+        "key": "agent_management",
+        "label": "Agent management",
+        "has_tools": true
+      },
+      {
+        "option": 5,
+        "key": "memory_notes",
+        "label": "Memory/notes",
+        "has_tools": true
+      },
+      {
+        "option": 6,
+        "key": "external_apps_integrations",
+        "label": "External apps/integrations",
+        "has_tools": true
+      }
+    ],
+    "tool_menu_by_family": {
+      "web_research": [
+        {
+          "option": 1,
+          "key": "web_search",
+          "label": "Search web",
+          "request_format": {
+            "source": "web",
+            "query": "<search criteria>",
+            "aperture": "medium"
+          },
+          "request_example": {
+            "source": "web",
+            "query": "latest rust 2026 release notes",
+            "aperture": "medium"
+          }
+        },
+        {
+          "option": 2,
+          "key": "web_fetch",
+          "label": "Fetch URL",
+          "request_format": {
+            "url": "<https url>"
+          },
+          "request_example": {
+            "url": "https://www.rust-lang.org/"
+          }
+        }
+      ],
+      "workspace_files": [
+        {
+          "option": 1,
+          "key": "parse_workspace",
+          "label": "Parse workspace",
+          "request_format": {
+            "path": "<path>",
+            "operation": "inspect|read|mutate"
+          },
+          "request_example": {
+            "path": "core/layer0/ops/src",
+            "operation": "inspect"
+          }
+        },
+        {
+          "option": 2,
+          "key": "read_file",
+          "label": "Read file",
+          "request_format": {
+            "path": "<path>"
+          },
+          "request_example": {
+            "path": "core/layer0/ops/src/main.rs"
+          }
+        },
+        {
+          "option": 3,
+          "key": "apply_patch",
+          "label": "Apply patch",
+          "request_format": {
+            "path": "<path>",
+            "patch": "<unified diff>"
+          },
+          "request_example": {
+            "path": "core/layer0/ops/src/main.rs",
+            "patch": "*** Begin Patch\\n*** Update File: core/layer0/ops/src/main.rs\\n@@\\n- old\\n+ new\\n*** End Patch"
+          }
+        }
+      ],
+      "code_execution_terminal": [
+        {
+          "option": 1,
+          "key": "terminal_exec",
+          "label": "Run terminal command",
+          "request_format": {
+            "cmd": "<command>",
+            "cwd": "<workspace path optional>"
+          },
+          "request_example": {
+            "cmd": "cargo test --manifest-path core/layer0/ops/Cargo.toml --lib",
+            "cwd": "/Users/jay/.openclaw/workspace"
+          }
+        }
+      ],
+      "agent_management": [
+        {
+          "option": 1,
+          "key": "spawn_agent",
+          "label": "Spawn agent",
+          "request_format": {
+            "objective": "<bounded task>",
+            "agent_type": "default|worker|explorer"
+          },
+          "request_example": {
+            "objective": "inspect workflow traces for one failing turn",
+            "agent_type": "explorer"
+          }
+        }
+      ],
+      "memory_notes": [
+        {
+          "option": 1,
+          "key": "read_memory",
+          "label": "Read memory",
+          "request_format": {
+            "scope": "session|workspace",
+            "query": "<criteria>"
+          },
+          "request_example": {
+            "scope": "workspace",
+            "query": "recent orchestration commits"
+          }
+        },
+        {
+          "option": 2,
+          "key": "workspace_search",
+          "label": "Search workspace",
+          "request_format": {
+            "path": "<path>",
+            "pattern": "<criteria>"
+          },
+          "request_example": {
+            "path": "core/layer0/ops/src",
+            "pattern": "need_tool_access"
+          }
+        }
+      ],
+      "external_apps_integrations": [
+        {
+          "option": 1,
+          "key": "external_app_request",
+          "label": "Use external app/integration",
+          "request_format": {
+            "app": "<app name>",
+            "action": "<requested action>",
+            "payload": {}
+          },
+          "request_example": {
+            "app": "github",
+            "action": "inspect pull request",
+            "payload": {
+              "query": "<PR or issue>"
+            }
+          }
+        }
+      ],
+      "none": []
+    },
+    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Pick one category: {category_options}. No-tool categories ({no_tool_categories}) go straight to final answer. Tool categories ({tool_bearing_categories}) must submit: `{tool_submission_format}`. Use exact catalog tool keys, e.g. `{example_tool_key}`. Do not narrate or say what you would choose. Visible chat is only Gate 6 final answer."
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
     ]
   }
 }

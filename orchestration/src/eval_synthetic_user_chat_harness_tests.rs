@@ -106,7 +106,7 @@ fn synthetic_user_harness_enforces_simple_direct_budgets() {
                     "user_message": "hey",
                     "mock_response": {
                         "response": "This direct response is intentionally too verbose for the tiny budget.",
-                        "tools": [{"name": "batch_query"}],
+                        "tools": [{"name": "web_search"}],
                         "response_workflow": {
                             "tool_gate": {"should_call_tools": true},
                             "stage_statuses": [
@@ -200,6 +200,63 @@ fn synthetic_user_harness_flags_visible_gate_choice_leakage() {
             .any(|row| row == "visible_workflow_gate_choice_leakage"),
         "{failures:?}"
     );
+
+    let category_payload = json!({
+        "response": "Respond directly. Category: Respond directly. Tool family: None. Request payload: {}",
+        "response_workflow": {
+            "stage_statuses": [{"stage": "gate_1_work_category_menu"}]
+        },
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "hey",
+        response_text:
+            "Respond directly. Category: Respond directly. Tool family: None. Request payload: {}",
+        previous_response: "",
+        payload: &category_payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 12,
+        workflow_stage_count: 1,
+    });
+
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "visible_workflow_gate_choice_leakage"),
+        "{failures:?}"
+    );
+
+    let described_category_payload = json!({
+        "response": "This kind of work is `Respond directly`.",
+        "response_workflow": {
+            "stage_statuses": [{"stage": "gate_1_work_category_menu"}]
+        },
+        "live_eval_monitor": {"chat_injection_allowed": false}
+    });
+    let failures = evaluate_turn(TurnEvaluation {
+        live: false,
+        turn: &turn,
+        thresholds: &thresholds,
+        user_message: "hey",
+        response_text: "This kind of work is `Respond directly`.",
+        previous_response: "",
+        payload: &described_category_payload,
+        route_error_code: None,
+        latency_ms: 100,
+        response_token_count: 8,
+        workflow_stage_count: 1,
+    });
+
+    assert!(
+        failures
+            .iter()
+            .any(|row| row == "visible_workflow_gate_choice_leakage"),
+        "{failures:?}"
+    );
 }
 
 #[test]
@@ -215,7 +272,7 @@ fn synthetic_user_harness_flags_workflow_infra_failure_modes() {
             "workflow_system_fallback_used": true,
             "pending_tool_request": {"status": "pending_confirmation"},
             "tool_completion": {
-                "tool_attempts": [{"name": "batch_query", "status": "ok"}]
+                "tool_attempts": [{"name": "web_search", "status": "ok"}]
             }
         },
         "response_workflow": {
@@ -226,7 +283,7 @@ fn synthetic_user_harness_flags_workflow_infra_failure_modes() {
             },
             "stage_statuses": [{"stage": "gate_1_need_tool_access_menu"}]
         },
-        "tools": [{"name": "batch_query"}],
+        "tools": [{"name": "web_search"}],
         "live_eval_monitor": {"chat_injection_allowed": false}
     });
 
@@ -346,10 +403,10 @@ fn synthetic_user_harness_accepts_pending_tool_progress() {
     });
     let thresholds = json!({});
     let payload = json!({
-        "response": "I would choose web search for a current framework comparison.",
+        "response": "",
         "pending_tool_request": {
             "status": "pending_confirmation",
-            "tool_name": "batch_query",
+            "tool_name": "web_search",
             "execution_claim_allowed": false
         },
         "response_workflow": {
@@ -368,12 +425,12 @@ fn synthetic_user_harness_accepts_pending_tool_progress() {
         thresholds: &thresholds,
         user_message:
             "Use web search to compare infring to other major agentic frameworks in April 2026.",
-        response_text: "I would choose web search for a current framework comparison.",
+        response_text: "",
         previous_response: "",
         payload: &payload,
         route_error_code: None,
         latency_ms: 100,
-        response_token_count: 9,
+        response_token_count: 0,
         workflow_stage_count: 2,
     });
 
@@ -398,8 +455,8 @@ fn synthetic_user_harness_requires_executed_tool_synthesis_when_requested() {
     });
     let thresholds = json!({});
     let pending_only_payload = json!({
-        "response": "I would choose web search and wait for confirmation.",
-        "pending_tool_request": {"status": "pending_confirmation", "tool_name": "batch_query"},
+        "response": "",
+        "pending_tool_request": {"status": "pending_confirmation", "tool_name": "web_search"},
         "response_workflow": {
             "final_llm_response": {"status": "synthesized"},
             "stage_statuses": [{"stage": "gate_2_tool_family_menu", "status": "selected_web_search"}]
@@ -413,12 +470,12 @@ fn synthetic_user_harness_requires_executed_tool_synthesis_when_requested() {
         turn: &turn,
         thresholds: &thresholds,
         user_message: "Search the web and summarize what changed.",
-        response_text: "I would choose web search and wait for confirmation.",
+        response_text: "",
         previous_response: "",
         payload: &pending_only_payload,
         route_error_code: None,
         latency_ms: 100,
-        response_token_count: 8,
+        response_token_count: 0,
         workflow_stage_count: 1,
     });
     assert!(
@@ -434,7 +491,7 @@ fn synthetic_user_harness_requires_executed_tool_synthesis_when_requested() {
             "final_llm_response": {"status": "synthesized"},
             "stage_statuses": [{"stage": "final_llm_response", "status": "synthesized"}]
         },
-        "tools": [{"name": "batch_query", "status": "success", "receipt": "tool-receipt-1"}],
+        "tools": [{"name": "web_search", "status": "success", "receipt": "tool-receipt-1"}],
         "live_eval_monitor": {"chat_injection_allowed": false}
     });
     let executed_failures = evaluate_turn(TurnEvaluation {
@@ -451,10 +508,11 @@ fn synthetic_user_harness_requires_executed_tool_synthesis_when_requested() {
         workflow_stage_count: 1,
     });
     assert!(
-        !executed_failures.iter().any(|row| row
-            == "missing_tool_execution_evidence"
-            || row == "missing_final_synthesis_status"
-            || row == "tool_execution_without_final_synthesis"),
+        !executed_failures
+            .iter()
+            .any(|row| row == "missing_tool_execution_evidence"
+                || row == "missing_final_synthesis_status"
+                || row == "tool_execution_without_final_synthesis"),
         "{executed_failures:?}"
     );
 }

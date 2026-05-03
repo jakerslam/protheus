@@ -382,7 +382,7 @@ fn workflow_001_shannon_bridge_emits_receipted_patterns_budget_memory_replay_hit
                         "surface": "notify",
                         "action": "notify",
                         "title": "Launch update",
-                        "message": "desktop shell relayed"
+                        "message": "desktop UI shell 1.0 relayed"
                     })
                 ),
                 format!("--state-path={}", state_path.display()),

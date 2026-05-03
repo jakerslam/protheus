@@ -46,6 +46,7 @@ fn workflow_scripted_agent_simulation_has_no_ghost_second_pass_for_direct_chat()
         &governance_test_chat_script_path(root.path()),
         &json!({
             "queue": [
+                {"response": "Respond directly"},
                 {"response": "No tools needed. I can answer directly from here."},
                 {"response": ghost}
             ],
@@ -80,7 +81,7 @@ fn workflow_scripted_agent_simulation_has_no_ghost_second_pass_for_direct_chat()
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("skipped_not_required")
+        Some("synthesized")
     );
     assert_eq!(
         response
@@ -93,7 +94,7 @@ fn workflow_scripted_agent_simulation_has_no_ghost_second_pass_for_direct_chat()
 
     let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
     let calls = script.get("calls").and_then(Value::as_array).unwrap();
-    assert_eq!(calls.len(), 1, "{calls:?}");
+    assert_eq!(calls.len(), 2, "{calls:?}");
     assert_eq!(
         script
             .pointer("/queue/0/response")
@@ -130,7 +131,7 @@ fn workflow_scripted_agent_simulation_has_no_ghost_retry_for_tool_gate_choice() 
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: Web Search. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"latest agent frameworks\",\"aperture\":\"medium\"}."
+                    "response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"latest agent frameworks\",\"aperture\":\"medium\"}."
                 },
                 {"response": ghost}
             ],
@@ -169,7 +170,7 @@ fn workflow_scripted_agent_simulation_has_no_ghost_retry_for_tool_gate_choice() 
             .payload
             .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     assert_eq!(
         response
@@ -244,7 +245,7 @@ fn workflow_scripted_agent_self_play_can_choose_confirm_and_synthesize_tool_resu
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: File / Workspace. Tool: Read file. Request payload: {\"path\":\"notes/self_play.txt\"}."
+                    "response": "Category: Workspace/files. Tool family: Workspace/files. Tool: read_file. Request payload: {\"path\":\"notes/self_play.txt\"}."
                 },
                 {
                     "response": "SELF_PLAY_OK confirmed. I read notes/self_play.txt and can answer from the recorded file result."

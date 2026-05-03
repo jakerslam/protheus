@@ -201,7 +201,7 @@ fn no_models_available_message_response(
         "steps": [
             "Install Ollama: https://ollama.com/download",
             "Start Ollama: ollama serve",
-            "Pull at least one model: ollama pull qwen2.5:3b-instruct",
+            "Pull or configure the exact model you want to use",
             "Or add API keys in Settings or via /apikey <key>"
         ]
     });

@@ -343,24 +343,15 @@ fn rewrite_tool_result_for_user_summary(tool_name: &str, raw_result: &str) -> Op
         return Some(trim_text(&rewritten, 420));
     }
     if response_looks_like_raw_web_artifact_dump(&cleaned) {
-        return Some(
-            "I only have raw web output (placeholder or page/search chrome), not synthesized findings yet. I can rerun with `batch_query` or a narrower query and return a concise answer with sources."
-                .to_string(),
-        );
+        return None;
     }
     if response_contains_tool_telemetry_dump(&cleaned) {
-        return Some(
-            "The tool emitted internal telemetry instead of a user-facing answer. I can retry the retrieval or diagnose the failing lane."
-                .to_string(),
-        );
+        return None;
     }
     if lowered_without_prefix.contains("search returned no useful information")
         || response_is_no_findings_placeholder(&cleaned)
     {
-        return Some(
-            "Web retrieval ran, but this turn still came back without usable findings. That is a retrieval/synthesis miss, not a silent success. Retry with a narrower query or one specific source URL."
-                .to_string(),
-        );
+        return None;
     }
     None
 }

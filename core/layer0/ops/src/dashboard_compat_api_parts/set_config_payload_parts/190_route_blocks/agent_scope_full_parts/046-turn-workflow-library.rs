@@ -204,185 +204,352 @@ fn workflow_turn_is_simple_conversation_without_tool_intent(message: &str) -> bo
     )
 }
 
-fn workflow_turn_tool_decision_tree(message: &str) -> Value {
-    let canonical_gate = crate::app_plane::chat_ui_turn_tool_decision_tree(message);
-    let requires_file_mutation = canonical_gate
-        .get("requires_file_mutation")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let requires_local_lookup = canonical_gate
-        .get("requires_local_lookup")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let requires_live_web = canonical_gate
-        .get("requires_live_web")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let explicit_web_intent = canonical_gate
-        .get("explicit_web_intent")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let has_sufficient_information = canonical_gate
-        .get("has_sufficient_information")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let should_call_tools = canonical_gate
-        .get("should_call_tools")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let gate_decision_mode = clean_text(
-        canonical_gate
-            .get("gate_decision_mode")
-            .and_then(Value::as_str)
-            .unwrap_or("manual_need_tools_yes_no"),
-        40,
-    );
-    let reason_code = clean_text(
-        canonical_gate
-            .get("reason_code")
-            .and_then(Value::as_str)
-            .unwrap_or("manual_menu_presented"),
-        80,
-    );
-    let info_source = clean_text(
-        canonical_gate
-            .get("info_source")
-            .and_then(Value::as_str)
-            .unwrap_or("none"),
-        24,
-    );
-    let selected_tool_family = clean_text(
-        canonical_gate
-            .get("selected_tool_family")
-            .and_then(Value::as_str)
-            .unwrap_or("unselected"),
-        40,
-    );
-    let meta_control = canonical_gate
-        .get("meta_control_message")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let status_check = canonical_gate
-        .get("status_check_message")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let meta_diagnostic_request = canonical_gate
-        .get("meta_diagnostic_request")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let llm_should_answer_directly = canonical_gate
-        .get("llm_should_answer_directly")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let automatic_tool_calls_allowed = canonical_gate
-        .get("automatic_tool_calls_allowed")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let tool_selection_authority = clean_text(
-        canonical_gate
-            .get("tool_selection_authority")
-            .and_then(Value::as_str)
-            .unwrap_or("llm_submitted_menu_or_text_input"),
-        32,
-    );
-    let decision_authority_mode = clean_text(
-        canonical_gate
-            .get("decision_authority_mode")
-            .and_then(Value::as_str)
-            .unwrap_or("llm_manual_only_v1"),
-        40,
-    );
-    let gate_enforcement_mode = clean_text(
-        canonical_gate
-            .get("gate_enforcement_mode")
-            .and_then(Value::as_str)
-            .unwrap_or("disabled"),
-        32,
-    );
-    let gate_is_advisory = canonical_gate
-        .get("gate_is_advisory")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let workflow_retry_limit = canonical_gate
-        .get("workflow_retry_limit")
-        .and_then(Value::as_i64)
-        .unwrap_or(1);
-    let needs_tool_access = canonical_gate
-        .get("needs_tool_access")
-        .and_then(Value::as_bool);
-    let gate_1_submission_status = clean_text(
-        canonical_gate
-            .get("gate_1_submission_status")
-            .and_then(Value::as_str)
-            .unwrap_or("awaiting_llm_submission"),
-        40,
-    );
-    let gate_1_decision_source = clean_text(
-        canonical_gate
-            .get("gate_1_decision_source")
-            .and_then(Value::as_str)
-            .unwrap_or("pending_llm_submission"),
-        48,
-    );
-    let gate_prompt = clean_text(
-        canonical_gate
-            .get("gate_prompt")
-            .and_then(Value::as_str)
-            .unwrap_or("Need tools? Yes/No"),
-        120,
-    );
-    let gate_submission = canonical_gate
-        .get("gate_submission")
+fn default_workflow_tool_menu_contract() -> Value {
+    default_workflow_definition().tool_menu_interface_contract
+}
+
+fn workflow_contract_gate(contract: &Value, gate_id: &str) -> Value {
+    contract
+        .pointer(&format!("/gates/{gate_id}"))
         .cloned()
-        .unwrap_or_else(|| {
-            json!({
-                "gate_id": "gate_1_need_tool_access_menu",
-                "input_shape": {
-                    "type": "multiple_choice",
-                    "allowed_outputs": ["Yes", "No"]
-                },
-                "llm_submission": needs_tool_access,
-                "accepted": needs_tool_access.is_some(),
-                "resume_token": if needs_tool_access.is_some() {
-                    "gate_1_need_tool_access_menu.submitted"
-                } else {
-                    "gate_1_need_tool_access_menu.awaiting_llm_submission"
-                }
-            })
-        });
-    let tool_family_menu = canonical_gate
+        .unwrap_or_else(|| json!({}))
+}
+
+fn workflow_gate_options(contract: &Value, gate_id: &str) -> Vec<Value> {
+    workflow_contract_gate(contract, gate_id)
+        .get("options")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn workflow_option_label(option: &Value) -> String {
+    clean_text(option.get("label").and_then(Value::as_str).unwrap_or(""), 120)
+}
+
+fn workflow_option_key(option: &Value) -> String {
+    clean_text(option.get("key").and_then(Value::as_str).unwrap_or(""), 120)
+}
+
+fn normalized_workflow_token(value: &str) -> String {
+    clean_text(value, 240)
+        .to_ascii_lowercase()
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn normalized_workflow_option_tokens(option: &Value) -> Vec<String> {
+    [workflow_option_key(option), workflow_option_label(option)]
+        .into_iter()
+        .map(|row| normalized_workflow_token(&row))
+        .filter(|row| !row.is_empty())
+        .collect()
+}
+
+fn workflow_gate_option_labels(contract: &Value, has_tools: Option<bool>) -> Vec<String> {
+    workflow_gate_options(contract, "gate_1_work_category_menu")
+        .into_iter()
+        .filter(|option| {
+            has_tools
+                .map(|expected| {
+                    option
+                        .get("has_tools")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                        == expected
+                })
+                .unwrap_or(true)
+        })
+        .filter_map(|option| {
+            let label = workflow_option_label(&option);
+            if label.is_empty() {
+                None
+            } else {
+                Some(label)
+            }
+        })
+        .collect()
+}
+
+fn workflow_gate_1_allowed_outputs(contract: &Value) -> Value {
+    workflow_contract_gate(contract, "gate_1_work_category_menu")
+        .pointer("/submission_contract/accepted_outputs")
+        .cloned()
+        .unwrap_or_else(|| json!([]))
+}
+
+fn workflow_tool_family_menu(contract: &Value, selected_family: &str) -> Value {
+    let selected_family = clean_text(selected_family, 120);
+    let rows = contract
         .get("tool_family_menu")
+        .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_else(|| json!([]));
-    let tool_menu = canonical_gate
-        .get("tool_menu")
-        .cloned()
-        .unwrap_or_else(|| json!([]));
-    let tool_menu_by_family = canonical_gate
+        .unwrap_or_default();
+    Value::Array(
+        rows.into_iter()
+            .map(|mut row| {
+                let key = clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 120);
+                row["selected"] = Value::Bool(!selected_family.is_empty() && key == selected_family);
+                row
+            })
+            .collect(),
+    )
+}
+
+fn workflow_tool_menu_by_family(contract: &Value) -> Value {
+    contract
         .get("tool_menu_by_family")
         .cloned()
-        .unwrap_or_else(|| json!({}));
-    let manual_tool_selection = canonical_gate
-        .get("manual_tool_selection")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let auto_decisions_disabled = canonical_gate
-        .get("auto_decisions_disabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(true);
-    let manual_gate_mode = clean_text(
-        canonical_gate
-            .get("manual_gate_mode")
-            .and_then(Value::as_str)
-            .unwrap_or("llm_only_multiple_choice_v1"),
-        60,
-    );
+        .unwrap_or_else(|| json!({}))
+}
+
+fn workflow_post_tool_options(contract: &Value) -> Value {
+    workflow_contract_gate(contract, "gate_5_post_tool_menu")
+        .get("options")
+        .cloned()
+        .unwrap_or_else(|| json!([]))
+}
+
+fn workflow_final_output_contract(contract: &Value) -> Value {
+    workflow_contract_gate(contract, "gate_6_llm_final_output")
+        .get("final_output_contract")
+        .cloned()
+        .unwrap_or_else(|| json!({}))
+}
+
+fn workflow_example_tool_key(contract: &Value) -> String {
+    contract
+        .get("tool_menu_by_family")
+        .and_then(Value::as_object)
+        .and_then(|families| {
+            families
+                .values()
+                .filter_map(Value::as_array)
+                .flat_map(|tools| tools.iter())
+                .filter_map(|tool| tool.get("key").and_then(Value::as_str))
+                .next()
+        })
+        .map(|key| clean_text(key, 80))
+        .unwrap_or_default()
+}
+
+fn workflow_tool_submission_format(contract: &Value) -> String {
+    workflow_contract_gate(contract, "gate_1_work_category_menu")
+        .pointer("/submission_contract/accepted_outputs")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .find(|row| row.contains("Category:") && row.contains("Request payload:"))
+        })
+        .map(|row| clean_text(row, 240))
+        .unwrap_or_default()
+}
+
+fn render_workflow_instruction_template(contract: &Value, template: &str) -> String {
+    let gate_prompt = workflow_contract_gate(contract, "gate_1_work_category_menu")
+        .get("question")
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 120))
+        .unwrap_or_default();
+    let category_options = workflow_gate_option_labels(contract, None).join("`, `");
+    let no_tool_categories = workflow_gate_option_labels(contract, Some(false)).join("`, `");
+    let tool_bearing_categories = workflow_gate_option_labels(contract, Some(true)).join("`, `");
+    let tool_submission_format = workflow_tool_submission_format(contract);
+    let example_tool_key = workflow_example_tool_key(contract);
+    clean_text(
+        &template
+            .replace("{gate_question}", &gate_prompt)
+            .replace("{category_options}", &format!("`{category_options}`"))
+            .replace("{no_tool_categories}", &format!("`{no_tool_categories}`"))
+            .replace(
+                "{tool_bearing_categories}",
+                &format!("`{tool_bearing_categories}`"),
+            )
+            .replace("{tool_submission_format}", &tool_submission_format)
+            .replace("{example_tool_key}", &example_tool_key),
+        1_400,
+    )
+}
+
+fn workflow_category_token_matches(response: &str, has_tools: Option<bool>) -> bool {
+    let token = normalized_workflow_token(response);
+    if token.is_empty() {
+        return false;
+    }
+    workflow_gate_options(&default_workflow_tool_menu_contract(), "gate_1_work_category_menu")
+        .into_iter()
+        .filter(|option| {
+            has_tools
+                .map(|expected| {
+                    option
+                        .get("has_tools")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                        == expected
+                })
+                .unwrap_or(true)
+        })
+        .any(|option| {
+            normalized_workflow_option_tokens(&option)
+                .into_iter()
+                .any(|candidate| token == candidate)
+        })
+}
+
+fn workflow_category_phrase_matches(response: &str, has_tools: Option<bool>) -> bool {
+    let token = normalized_workflow_token(response);
+    if token.is_empty() {
+        return false;
+    }
+    workflow_gate_options(&default_workflow_tool_menu_contract(), "gate_1_work_category_menu")
+        .into_iter()
+        .filter(|option| {
+            has_tools
+                .map(|expected| {
+                    option
+                        .get("has_tools")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                        == expected
+                })
+                .unwrap_or(true)
+        })
+        .any(|option| {
+            normalized_workflow_option_tokens(&option)
+                .into_iter()
+                .any(|candidate| {
+                    token == candidate
+                        || token == format!("work category {candidate}")
+                        || token == format!("this kind of work is {candidate}")
+                        || token.starts_with(&format!("this kind of work is {candidate} "))
+                })
+        })
+}
+
+fn workflow_family_key_for_selection(contract: &Value, family: &str) -> String {
+    let selected = normalized_workflow_token(family);
+    if selected.is_empty() {
+        return String::new();
+    }
+    contract
+        .get("tool_family_menu")
+        .and_then(Value::as_array)
+        .and_then(|families| {
+            families.iter().find_map(|row| {
+                let tokens = normalized_workflow_option_tokens(row);
+                if tokens.into_iter().any(|token| token == selected) {
+                    Some(workflow_option_key(row))
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or_default()
+}
+
+fn workflow_tool_key_for_selection(contract: &Value, family: &str, tool_label: &str) -> String {
+    let selected = normalized_workflow_token(tool_label);
+    if selected.is_empty() {
+        return String::new();
+    }
+    let selected_family = workflow_family_key_for_selection(contract, family);
+    let Some(tool_menus) = contract.get("tool_menu_by_family").and_then(Value::as_object) else {
+        return String::new();
+    };
+    let families = if selected_family.is_empty() {
+        tool_menus.values().collect::<Vec<_>>()
+    } else {
+        tool_menus.get(&selected_family).into_iter().collect::<Vec<_>>()
+    };
+    families
+        .into_iter()
+        .filter_map(Value::as_array)
+        .flat_map(|tools| tools.iter())
+        .find_map(|tool| {
+            let key = workflow_option_key(tool);
+            let normalized_key = normalized_workflow_token(&key);
+            (selected == normalized_key).then_some(key)
+        })
+        .unwrap_or_default()
+}
+
+fn workflow_turn_tool_decision_tree(message: &str) -> Value {
+    let contract = default_workflow_tool_menu_contract();
+    let gate_1 = workflow_contract_gate(&contract, "gate_1_work_category_menu");
+    let requires_file_mutation = false;
+    let requires_local_lookup = false;
+    let requires_live_web = false;
+    let explicit_web_intent = false;
+    let has_sufficient_information = false;
+    let should_call_tools = false;
+    let gate_decision_mode = "manual_work_category_v1";
+    let reason_code = "manual_menu_presented";
+    let info_source = "menu_only";
+    let selected_tool_family = "unselected";
+    let meta_control = workflow_turn_is_meta_control_message(message);
+    let status_check = false;
+    let meta_diagnostic_request =
+        clean_text(message, 1_200).to_ascii_lowercase().contains("diagnostic");
+    let llm_should_answer_directly = false;
+    let automatic_tool_calls_allowed = false;
+    let tool_selection_authority = "llm_submitted_menu_or_text_input";
+    let decision_authority_mode = "llm_manual_only_v1";
+    let gate_enforcement_mode = "disabled";
+    let gate_is_advisory = false;
+    let workflow_retry_limit = 1;
+    let needs_tool_access = None;
+    let selected_work_category = Value::Null;
+    let gate_1_allowed_outputs = workflow_gate_1_allowed_outputs(&contract);
+    let gate_1_submission_status = "awaiting_llm_submission";
+    let gate_1_decision_source = "pending_llm_submission";
+    let gate_prompt = clean_text(gate_1.get("question").and_then(Value::as_str).unwrap_or(""), 120);
+    let gate_submission = json!({
+        "gate_id": "gate_1_work_category_menu",
+        "input_shape": {
+            "type": gate_1.get("input_kind").and_then(Value::as_str).unwrap_or("multiple_choice"),
+            "allowed_outputs": gate_1_allowed_outputs.clone()
+        },
+        "llm_submission": selected_work_category,
+        "accepted": false,
+        "resume_token": "gate_1_work_category_menu.awaiting_llm_submission"
+    });
+    let tool_family_menu = workflow_tool_family_menu(&contract, selected_tool_family);
+    let tool_menu = json!([]);
+    let tool_menu_by_family = workflow_tool_menu_by_family(&contract);
+    let manual_tool_selection = true;
+    let auto_decisions_disabled = true;
+    let manual_gate_mode = "llm_only_multiple_choice_v1";
+    let gate_1_options = workflow_gate_options(&contract, "gate_1_work_category_menu")
+        .into_iter()
+        .enumerate()
+        .map(|(idx, option)| {
+            json!({
+                "option": idx + 1,
+                "key": workflow_option_key(&option),
+                "label": workflow_option_label(&option),
+                "has_tools": option.get("has_tools").and_then(Value::as_bool).unwrap_or(false)
+            })
+        })
+        .collect::<Vec<_>>();
+    let gate_5_options = workflow_post_tool_options(&contract);
+    let gate_6_contract = workflow_final_output_contract(&contract);
     json!({
         "contract": "manual_toolbox_gate_v1", "workflow_gate_contract": "tool_menu_interface_v1",
         "gate_decision_mode": gate_decision_mode,
         "semantic_route_classifier_active": false, "info_task_route_classifier_active": false, "workflow_route_classifier_active": false,
         "system_may_select_tools": false, "tool_recommendations_allowed": false,
-        "gate_1_question_type": "multiple_choice", "gate_1_allowed_outputs": ["Yes", "No"],
+        "gate_1_question_type": "multiple_choice", "gate_1_allowed_outputs": gate_1_allowed_outputs,
         "reason_code": reason_code,
         "requires_file_mutation": requires_file_mutation,
         "requires_local_lookup": requires_local_lookup,
@@ -392,6 +559,7 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         "llm_should_answer_directly": llm_should_answer_directly,
         "should_call_tools": should_call_tools,
         "needs_tool_access": needs_tool_access,
+        "selected_work_category": selected_work_category,
         "gate_1_submission_status": gate_1_submission_status,
         "gate_1_decision_source": gate_1_decision_source,
         "gate_submission": gate_submission.clone(),
@@ -412,14 +580,11 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
         "workflow_retry_limit": workflow_retry_limit,
         "gates": {
             "gate_1": {
-                "name": "needs_tool_access",
+                "name": "work_category",
                 "question": gate_prompt,
                 "required": false,
                 "selection_mode": "multiple_choice",
-                "options": [
-                    {"option": "No", "key": "no_tools", "label": "No tools; answer directly"},
-                    {"option": "Yes", "key": "use_tool", "label": "Use a tool"}
-                ],
+                "options": gate_1_options,
                 "reason_code": reason_code,
                 "submission_status": gate_1_submission_status,
                 "decision_source": gate_1_decision_source,
@@ -448,14 +613,11 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
             "gate_5": {
                 "name": "post_tool_decision",
                 "selection_mode": "multiple_choice",
-                "options": [
-                    {"option": 1, "key": "finish", "label": "Finish and synthesize"},
-                    {"option": 2, "key": "another_tool", "label": "Run another tool"}
-                ]
+                "options": gate_5_options
             },
             "gate_6": {
                 "name": "final_output",
-                "output_contract": "llm_authored_final_answer_only",
+                "output_contract": gate_6_contract,
                 "retry_limit": workflow_retry_limit
             }
         }
@@ -464,20 +626,13 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
 
 fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Value]) -> String {
     let _ = latent_tool_candidates;
-    let tool_gate = workflow_turn_tool_decision_tree(message);
-    let gate_prompt = clean_text(
-        tool_gate
-            .get("gate_prompt")
-            .and_then(Value::as_str)
-            .unwrap_or("Need tools? Yes/No"),
-        120,
-    );
-    clean_text(
-        &format!(
-            "Workflow interface only: present exactly one gate at a time; do not recommend, infer, classify, explain, or inject final chat text. Gate 1 multiple choice: `{gate_prompt}` options `No) no tools; answer directly` and `Yes) use a tool`. If No, answer normally. If Yes, continue to the next workflow gate. Final synthesis is authored by the model only.",
-        ),
-        900,
-    )
+    let _ = message;
+    let contract = default_workflow_tool_menu_contract();
+    contract
+        .get("llm_gate_instruction")
+        .and_then(Value::as_str)
+        .map(|template| render_workflow_instruction_template(&contract, template))
+        .unwrap_or_default()
 }
 
 fn turn_workflow_requires_final_llm(
@@ -485,11 +640,24 @@ fn turn_workflow_requires_final_llm(
     workflow_events: &[Value],
     draft_response: &str,
 ) -> bool {
+    let pending_confirmation_wait = response_tools.is_empty()
+        && workflow_events.iter().any(|event| {
+            matches!(
+                event.get("kind").and_then(Value::as_str).unwrap_or(""),
+                "manual_toolbox_pending_tool_request" | "pending_confirmation_required"
+            )
+        });
+    if pending_confirmation_wait {
+        return false;
+    }
     if !response_tools.is_empty() || !workflow_events.is_empty() {
         return true;
     }
     let cleaned_draft = clean_text(draft_response, 4_000);
     if cleaned_draft.is_empty() {
+        return true;
+    }
+    if response_is_visible_workflow_gate_choice(&cleaned_draft) {
         return true;
     }
     let (without_inline_calls, inline_calls) = extract_inline_tool_calls(&cleaned_draft, 6);
@@ -530,10 +698,10 @@ fn turn_workflow_stage_rows(
     {
         return vec![
             json!({
-                "stage": "gate_1_need_tool_access_menu",
-                "status": "answered_no",
+                "stage": "gate_1_work_category_menu",
+                "status": "answered_no_tool_category",
                 "selection_mode": "multiple_choice",
-                "question": "Need tools? Yes/No"
+                "question": "What kind of work is this?"
             }),
             json!({
                 "stage": "gate_6_llm_final_output",
@@ -545,10 +713,10 @@ fn turn_workflow_stage_rows(
     if !requires_final_llm && response_tools.is_empty() && workflow_events.is_empty() {
         return vec![
             json!({
-                "stage": "gate_1_need_tool_access_menu",
-                "status": "answered_no",
+                "stage": "gate_1_work_category_menu",
+                "status": "answered_no_tool_category",
                 "selection_mode": "multiple_choice",
-                "question": "Need tools? Yes/No"
+                "question": "What kind of work is this?"
             }),
             json!({
                 "stage": "gate_6_llm_final_output",
@@ -559,7 +727,7 @@ fn turn_workflow_stage_rows(
     }
     vec![
         json!({
-            "stage": "gate_1_need_tool_access_menu",
+            "stage": "gate_1_work_category_menu",
             "status": "presented"
         }),
         json!({
@@ -611,9 +779,9 @@ fn turn_workflow_visibility(final_stage_status: &str) -> Value {
             "gate_6_llm_final_output.synthesized",
         ),
         "skipped_not_required" | "skipped_test" | "no_post_synthesis_required" => (
-            "Workflow complete; no tools selected and direct LLM answer is ready.",
-            "Gate 1 answered No: respond directly without tool menus.",
-            "gate_1_need_tool_access_menu.no_tools",
+            "Workflow complete; a no-tool work category was selected and direct LLM answer is ready.",
+            "Gate 1 selected a no-tool category: respond directly without tool menus.",
+            "gate_1_work_category_menu.no_tool_category",
         ),
         "skipped_missing_model" => (
             "Workflow paused; model provider is unavailable for final synthesis.",
@@ -658,7 +826,7 @@ fn turn_workflow_direct_response_path(workflow_mode: &str, workflow_events: &[Va
         || mode == "direct_no_tool_exit"
         || mode == "direct_simple_conversation"
     {
-        return "gate_1_no";
+        return "gate_1_no_tool_category";
     }
     let has_pending = workflow_events.iter().any(|event| {
         matches!(
@@ -875,25 +1043,45 @@ fn manual_toolbox_response_exposes_unresolved_tool_need(response: &str) -> bool 
     .any(|marker| lowered.contains(marker))
 }
 
+fn response_is_no_tool_category_gate_submission(response: &str) -> bool {
+    workflow_category_token_matches(response, Some(false))
+}
+
+fn response_is_tool_bearing_category_gate_submission(response: &str) -> bool {
+    workflow_category_token_matches(response, Some(true))
+}
+
 fn response_is_manual_toolbox_gate_choice(response: &str) -> bool {
     let lowered = clean_text(response, 2_000).to_ascii_lowercase();
     if lowered.is_empty() {
         return false;
     }
-    let starts_with_yes =
-        lowered.starts_with("yes") || lowered.starts_with("1") || lowered.starts_with("use a tool");
-    starts_with_yes
+    let has_embedded_gate_payload = lowered.contains("category:")
+        && (lowered.contains("tool family:")
+            || lowered.contains("tool:")
+            || lowered.contains("request payload:")
+            || lowered.contains("payload:"));
+    if has_embedded_gate_payload {
+        return true;
+    }
+    let starts_with_category = lowered.starts_with("category:");
+    starts_with_category
         && (lowered.contains("tool family")
             || lowered.contains("tool:")
             || lowered.contains("request payload")
             || lowered.contains("payload:"))
 }
 
+fn response_is_exact_no_tool_gate_submission(response: &str) -> bool {
+    response_is_no_tool_category_gate_submission(response)
+}
+
 fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -> Option<Value> {
     if !response_is_manual_toolbox_gate_choice(response) {
         return None;
     }
-    let family = manual_toolbox_selection_field(response, "tool family:", &["tool:", "request payload:", "payload:"]);
+    let family = manual_toolbox_selection_field(response, "tool family:", &["tool:", "request payload:", "payload:"])
+        .if_empty_then(|| manual_toolbox_selection_field(response, "category:", &["tool family:", "tool:", "request payload:", "payload:"]));
     let tool_label = manual_toolbox_selection_field(response, "tool:", &["request payload:", "payload:"]);
     let payload_text = manual_toolbox_selection_field(response, "request payload:", &[])
         .if_empty_then(|| manual_toolbox_selection_field(response, "payload:", &[]));
@@ -962,29 +1150,7 @@ fn manual_toolbox_payload_json(payload_text: &str) -> Option<Value> {
 }
 
 fn canonical_manual_toolbox_tool_name(family: &str, tool_label: &str) -> String {
-    let selected_tool = tool_label.to_ascii_lowercase();
-    if selected_tool.contains("web")
-        && (selected_tool.contains("search") || selected_tool.contains("query"))
-    {
-        return "batch_query".to_string();
-    }
-    if selected_tool.contains("web") && selected_tool.contains("fetch") {
-        return "web_fetch".to_string();
-    }
-    let combined = format!("{family} {tool_label}").to_ascii_lowercase();
-    if combined.contains("web") && (combined.contains("search") || combined.contains("query")) {
-        return "batch_query".to_string();
-    }
-    if combined.contains("web") && combined.contains("fetch") {
-        return "web_fetch".to_string();
-    }
-    if combined.contains("workspace") && (combined.contains("search") || combined.contains("analy")) {
-        return "workspace_analyze".to_string();
-    }
-    if combined.contains("file") && combined.contains("read") {
-        return "file_read".to_string();
-    }
-    normalize_tool_name(tool_label).replace(' ', "_")
+    workflow_tool_key_for_selection(&default_workflow_tool_menu_contract(), family, tool_label)
 }
 
 fn response_is_visible_workflow_gate_choice(response: &str) -> bool {
@@ -993,22 +1159,29 @@ fn response_is_visible_workflow_gate_choice(response: &str) -> bool {
     if trimmed.is_empty() {
         return false;
     }
+    let compact = trimmed
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch.is_whitespace() {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     response_is_manual_toolbox_gate_choice(trimmed)
-        || trimmed.starts_with("yes. tool family:")
-        || trimmed.starts_with("yes. tool:")
-        || trimmed.starts_with("no. tool")
-        || (trimmed.starts_with("no. ")
-            && (trimmed.contains("would use")
-                || trimmed.contains("answer directly")
-                || trimmed.contains("web search")
-                || trimmed.contains("workspace search")
-                || trimmed.contains("file_read")
-                || trimmed.contains("read_file")
-                || trimmed.contains("tool")))
-        || ((trimmed.starts_with("yes. ") || trimmed.starts_with("no. "))
-            && (trimmed.contains("request payload:")
-                || trimmed.contains("tool family:")
-                || trimmed.contains("tool:")))
+        || response_is_no_tool_category_gate_submission(trimmed)
+        || response_is_tool_bearing_category_gate_submission(trimmed)
+        || workflow_category_phrase_matches(&compact, None)
+        || trimmed.starts_with("category:")
+        || (trimmed.contains("category:")
+            && (trimmed.contains("tool family:")
+                || trimmed.contains("tool:")
+                || trimmed.contains("request payload:")
+                || trimmed.contains("payload:")))
 }
 
 fn strip_dangling_inline_tool_markup(text: &str) -> String {
@@ -1074,6 +1247,69 @@ fn sanitize_workflow_final_response_candidate(response: &str) -> String {
 #[cfg(test)]
 mod workflow_control_tests {
     use super::*;
+
+    #[test]
+    fn visible_workflow_gate_choice_uses_json_declared_tokens() {
+        assert!(response_is_visible_workflow_gate_choice("Respond directly"));
+        assert!(response_is_visible_workflow_gate_choice(
+            "Respond directly. Category: Respond directly. Tool family: None. Request payload: {}"
+        ));
+        assert!(response_is_visible_workflow_gate_choice(
+            "This kind of work is `Respond directly`."
+        ));
+        let web_category = workflow_gate_option_labels(
+            &default_workflow_tool_menu_contract(),
+            Some(true),
+        )
+        .into_iter()
+        .find(|label| label == "Web research")
+        .expect("web research option comes from workflow JSON");
+        assert!(response_is_visible_workflow_gate_choice(&format!(
+            "Category: {web_category}. Tool family: {web_category}. Tool: web_search. Request payload: {{\"source\":\"web\",\"query\":\"x\"}}."
+        )));
+        assert!(!response_is_visible_workflow_gate_choice("Need tools? Yes"));
+        assert!(!response_is_visible_workflow_gate_choice(
+            "I need tools to answer this well, but I have not run them yet."
+        ));
+    }
+
+    #[test]
+    fn workflow_prompt_contract_requires_private_exact_gate_submission() {
+        let prompt =
+            workflow_library_prompt_context("Use web search to compare agent frameworks.", &[]);
+        assert!(prompt.contains("Private workflow gate submission only"));
+        assert!(prompt.contains("Pick one category"));
+        assert!(prompt.contains("Category: <category>. Tool family: <family>. Tool: <catalog tool key>. Request payload: <JSON>."));
+        assert!(prompt.contains("Use exact catalog tool keys"));
+        assert!(prompt.contains("Do not narrate"));
+        assert!(!prompt.contains("present exactly one gate"));
+        assert!(!prompt.contains("If Yes, continue"));
+    }
+
+    #[test]
+    fn no_tool_gate_submission_is_exact_private_token() {
+        assert!(response_is_exact_no_tool_gate_submission("Respond directly"));
+        assert!(!response_is_exact_no_tool_gate_submission("No, I can answer directly."));
+        assert!(!response_is_exact_no_tool_gate_submission(
+            "No. I would use web search later."
+        ));
+    }
+
+    #[test]
+    fn manual_toolbox_tool_names_come_from_workflow_json_catalog() {
+        assert_eq!(
+            canonical_manual_toolbox_tool_name("Web research", "web_search"),
+            "web_search"
+        );
+        assert_eq!(
+            canonical_manual_toolbox_tool_name("Web research", "Search web"),
+            ""
+        );
+        assert_eq!(
+            canonical_manual_toolbox_tool_name("Web research", "I would choose web search"),
+            ""
+        );
+    }
 
     #[test]
     fn conversation_bypass_control_enables_for_direct_override_phrase() {

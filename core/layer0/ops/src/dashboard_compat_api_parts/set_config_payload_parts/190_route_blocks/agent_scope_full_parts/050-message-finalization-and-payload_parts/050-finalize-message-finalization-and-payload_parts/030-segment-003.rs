@@ -133,23 +133,12 @@
             .unwrap_or(&model),
         240,
     );
-    let mut runtime_patch = json!({
+    let runtime_patch = json!({
         "runtime_model": runtime_model,
         "context_window": result.get("context_window").cloned().unwrap_or_else(|| json!(0)),
         "context_window_tokens": result.get("context_window").cloned().unwrap_or_else(|| json!(0)),
         "updated_at": crate::now_iso()
     });
-    if auto_route.is_some() {
-        runtime_patch["runtime_provider"] = json!(provider.clone());
-        if !requested_provider.eq_ignore_ascii_case("auto")
-            && !requested_model.is_empty()
-            && !requested_model.eq_ignore_ascii_case("auto")
-        {
-            runtime_patch["model_provider"] = json!(provider.clone());
-            runtime_patch["model_name"] = json!(model.clone());
-            runtime_patch["model_override"] = json!(format!("{provider}/{model}"));
-        }
-    }
     let _ = update_profile_patch(root, agent_id, &runtime_patch);
     let mut payload = result.clone();
     payload["ok"] = json!(true);

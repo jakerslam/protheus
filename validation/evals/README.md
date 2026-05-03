@@ -18,6 +18,7 @@ This subdomain owns controlled eval definitions, scoring rubrics, reviewer label
 - `fixtures/eval_gold_dataset_v1.jsonl` is the controlled gold dataset for eval issue draft and quality-metrics checks.
 - `fixtures/eval_learning_loop_review_labels.jsonl` is the controlled reviewer-label seed for the eval learning-loop review path.
 - `fixtures/eval_*_cases.json`, `fixtures/eval_*_traces.json`, `fixtures/eval_*_telemetry.json`, and `fixtures/synthetic_user_chat_harness_cases.json` contain controlled eval regression, red-team, trajectory, synthetic-user, and learning-loop fixtures used by Orchestration eval runtimes.
+- `fixtures/agent_capability_ladder_l1_cases.json` is the fixed Level 1 agent ladder for conversation, research, coding, and agentic-work checks. Run it offline with `npm run -s ops:eval:agent-capability:l1` or against a live dashboard agent with `AGENT_ID=<agent-id> npm run -s ops:eval:agent-capability:l1:live`.
 
 ## Compatibility rule
 

@@ -5,7 +5,7 @@ fn compare_platform_wording_clusters_workspace_and_web_tools() {
         .filter_map(|row| row.get("tool").and_then(Value::as_str))
         .collect::<Vec<_>>();
     assert!(tool_names.contains(&"workspace_analyze"), "{tool_names:?}");
-    assert!(tool_names.contains(&"batch_query"), "{tool_names:?}");
+    assert!(tool_names.contains(&"web_search"), "{tool_names:?}");
 }
 
 #[test]

@@ -188,7 +188,7 @@ fn chat_workflow_tool_hints_for_message(message: &str) -> Vec<Value> {
                 );
             } else {
                 push_hint(
-                    "batch_query",
+                    "web_search",
                     "search live web",
                     "The user used slash search syntax in chat. Treat it as a strong workflow hint rather than a pre-executed command.",
                     json!({"source": "web", "query": arg, "aperture": "medium"}),

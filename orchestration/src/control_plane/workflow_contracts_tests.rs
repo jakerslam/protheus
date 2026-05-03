@@ -1,6 +1,6 @@
 use super::workflow_contracts::{
     registered_workflow_graphs, registered_workflow_validations, tool_family_contracts,
-    workflow_registry_contract_ok,
+    workflow_registry_contract_ok, REQUIRED_JSON_OWNS, REQUIRED_RUST_OWNS,
 };
 use super::workflow_runtime::select_runtime_workflow;
 
@@ -11,7 +11,18 @@ fn workflow_specs_compile_to_no_injection_graphs() {
     assert!(validations.iter().all(|row| {
         row.graph
             .as_ref()
-            .map(|graph| graph.visible_chat_policy == "llm_final_only_no_system_injection")
+            .map(|graph| {
+                graph.visible_chat_policy == "llm_final_only_no_system_injection"
+                    && graph.interaction_source == "json_workflow_spec"
+                    && graph.rust_reader_role == "validate_execute_trace_only"
+                    && !graph.hardcoded_interaction_behavior_allowed
+                    && REQUIRED_JSON_OWNS
+                        .iter()
+                        .all(|item| graph.json_owns.iter().any(|row| row == item))
+                    && REQUIRED_RUST_OWNS
+                        .iter()
+                        .all(|item| graph.rust_owns.iter().any(|row| row == item))
+            })
             .unwrap_or(false)
     }));
 }

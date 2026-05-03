@@ -266,7 +266,7 @@ fn handle_primary_dashboard_routes_c(
         } else {
             resolved_requested_name
         };
-        let (default_provider, default_model) = effective_app_settings(root, snapshot);
+        let (default_provider, default_model) = extract_app_settings(root, snapshot);
         let model_provider = clean_text(
             request
                 .get("provider")

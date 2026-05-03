@@ -772,6 +772,8 @@ fn sanitize_skipped_final_response_fallback_response(
     latest_assistant_text: &str,
     response_tools: &[Value],
 ) -> (String, bool, &'static str) {
+    let prompt_analysis_leak = response_contains_workflow_prompt_analysis_leak(draft_response)
+        || response_contains_workflow_prompt_analysis_leak(latest_assistant_text);
     let draft_fallback = sanitize_workflow_final_response_candidate(
         &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
             draft_response,
@@ -806,9 +808,17 @@ fn sanitize_skipped_final_response_fallback_response(
         sanitized_retry_loop = true;
         fallback_source = "withheld_contaminated_existing_response";
     }
+    if prompt_analysis_leak || response_contains_workflow_prompt_analysis_leak(&fallback_response) {
+        fallback_response.clear();
+        sanitized_retry_loop = true;
+        fallback_source = "withheld_workflow_prompt_analysis";
+    }
     if clean_text(&fallback_response, 2_000).is_empty() {
         fallback_response.clear();
-        if !matches!(fallback_source, "withheld_non_llm_fallback_response") {
+        if !matches!(
+            fallback_source,
+            "withheld_non_llm_fallback_response" | "withheld_workflow_prompt_analysis"
+        ) {
             fallback_source = "empty";
         }
     }
@@ -839,6 +849,11 @@ fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
     let cleaned = clean_text(response, 8_000);
     if cleaned.is_empty() || !response_is_visible_workflow_gate_choice(&cleaned) {
         return cleaned;
+    }
+    if response_is_no_tool_category_gate_submission(&cleaned)
+        || response_is_tool_bearing_category_gate_submission(&cleaned)
+    {
+        return String::new();
     }
     let lowered = cleaned.to_ascii_lowercase();
     let trimmed = lowered.trim_start();
@@ -1178,6 +1193,16 @@ fn apply_final_response_presence_guard(
     set_turn_workflow_final_stage_status(workflow, "withheld_non_llm_fallback_response");
 }
 
+fn agent_runtime_temporal_context_prompt() -> String {
+    let current_utc = crate::now_iso();
+    clean_text(
+        &format!(
+            "Runtime temporal context: current date/time is {current_utc} (UTC). Treat this runtime timestamp as authoritative for this turn. Dates before this timestamp are in the past; dates after it are in the future. If the user supplies a local date/time correction for the active turn, reconcile against it instead of relying on model training cutoff memory."
+        ),
+        800,
+    )
+}
+
 fn tool_completion_report_for_response(
     response_text: &str,
     response_tools: &[Value],
@@ -1294,29 +1319,29 @@ fn augment_turn_workflow_events_for_final_response(
             }),
         ));
     }
-    if !response_tools.is_empty() {
-        let readability_hint = clean_text(
+    if !response_tools.is_empty()
+        && !clean_text(
             &ensure_tool_turn_response_text(draft_response, response_tools),
             2_000,
-        );
-        if !readability_hint.is_empty() && readability_hint != cleaned_draft {
-            events.push(turn_workflow_event(
-                "tool_response_readability_guidance",
-                json!({
-                    "suggested_response": readability_hint
-                }),
-            ));
-        }
-    }
-    if let Some(tooling_guidance) =
-        maybe_tooling_failure_fallback(message, draft_response, latest_assistant_text)
+        )
+        .is_empty()
     {
         events.push(turn_workflow_event(
-            "tooling_failure_guidance",
+            "tool_response_readability_diagnostic",
             json!({
-                "suggested_response": clean_text(&tooling_guidance, 2_000)
+                "status": "tool_result_needs_llm_finalization"
             }),
         ));
+    }
+    if maybe_tooling_failure_fallback(message, draft_response, latest_assistant_text).is_some() {
+        events.push(turn_workflow_event(
+            "tooling_failure_diagnostic",
+            json!({
+                "status": "tooling_failure_detected"
+            }),
+        ));
+        // Tooling failures are carried as diagnostics only. Visible wording belongs to
+        // the final LLM stage, not to workflow-authored fallback text.
     }
     if message_requests_comparative_answer(message) {
         events.push(turn_workflow_event(
@@ -1327,12 +1352,9 @@ fn augment_turn_workflow_events_for_final_response(
         ));
         if response_is_no_findings_placeholder(&cleaned_draft) || !failure_summary.is_empty() {
             events.push(turn_workflow_event(
-                "comparative_guidance",
+                "comparative_diagnostic",
                 json!({
-                    "suggested_response": clean_text(
-                        &comparative_no_findings_fallback(message),
-                        2_000,
-                    )
+                    "status": "insufficient_recorded_tool_evidence"
                 }),
             ));
         }
@@ -1386,26 +1408,6 @@ fn workflow_response_template_label(message: &str) -> &'static str {
         return "implement_request";
     }
     "quick_qa"
-}
-
-fn workflow_template_instruction_for_label(label: &str) -> &'static str {
-    match label {
-        "status_check" => {
-            "Template: Start with a direct status line in the first sentence, then explain evidence in 1-3 concise bullets."
-        }
-        "debug_diagnosis" => {
-            "Template: First sentence should state the likely root cause. Then provide the top 1-3 fixes in priority order."
-        }
-        "compare" => {
-            "Template: Give a concise side-by-side comparison with 2-4 bullets and call out practical tradeoffs."
-        }
-        "implement_request" => {
-            "Template: State what was done in sentence one, then summarize impact and any important caveats."
-        }
-        _ => {
-            "Template: Answer directly in plain language first, then add only necessary supporting detail."
-        }
-    }
 }
 
 fn workflow_user_prefers_deep_dive(message: &str) -> bool {
@@ -1493,6 +1495,70 @@ fn response_answers_tool_confirmation_with_recorded_result(
         || lowered.contains("low-signal")
         || lowered.contains("hit issues");
     mentions_tool_result && explains_no_result
+}
+
+fn response_answers_successful_tool_result(
+    message: &str,
+    response_text: &str,
+    response_tools: &[Value],
+) -> bool {
+    if response_tools.is_empty() {
+        return false;
+    }
+    if !response_tools_failure_reason_for_user(response_tools, 4)
+        .trim()
+        .is_empty()
+        || response_tools_any_low_signal(response_tools)
+    {
+        return false;
+    }
+    let cleaned = clean_text(response_text, 2_000);
+    if cleaned.is_empty()
+        || response_is_no_findings_placeholder(&cleaned)
+        || response_looks_like_tool_ack_without_findings(&cleaned)
+        || response_is_deferred_execution_preamble(&cleaned)
+        || response_is_deferred_retry_prompt(&cleaned)
+    {
+        return false;
+    }
+    if !response_answers_user_early(message, &cleaned) {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    response_tools.iter().any(|row| {
+        ["result", "input", "name"].iter().any(|field| {
+            clean_text(row.get(*field).and_then(Value::as_str).unwrap_or(""), 2_000)
+                .split(|ch: char| !ch.is_ascii_alphanumeric())
+                .map(|token| token.to_ascii_lowercase())
+                .filter(|token| token.len() >= 5)
+                .filter(|token| {
+                    !matches!(
+                        token.as_str(),
+                        "result"
+                            | "results"
+                            | "query"
+                            | "search"
+                            | "source"
+                            | "sources"
+                            | "about"
+                            | "https"
+                            | "http"
+                    )
+                })
+                .any(|token| lowered.contains(&token))
+        })
+    })
+}
+
+fn response_looks_like_raw_tool_payload_dump(response_text: &str) -> bool {
+    let cleaned = clean_text(response_text, 2_000);
+    let lowered = cleaned.to_ascii_lowercase();
+    lowered.starts_with("<?xml")
+        || lowered.starts_with("<!doctype")
+        || lowered.starts_with("<html")
+        || lowered.contains("<custommetadata")
+        || lowered.contains("xmlns=")
+        || lowered.contains("<function=")
 }
 
 fn run_turn_workflow_final_response(
@@ -1614,10 +1680,7 @@ fn run_turn_workflow_final_response(
     }
     let tool_rows_json = serde_json::to_string(&tool_rows_for_llm_recovery(response_tools, 6))
         .unwrap_or_else(|_| "[]".to_string());
-    let workflow_events_json = serde_json::to_string(&enriched_workflow_events)
-        .unwrap_or_else(|_| "[]".to_string());
     let template_label = workflow_response_template_label(message);
-    let template_instruction = workflow_template_instruction_for_label(template_label);
     let detail_style = if workflow_user_prefers_deep_dive(message) {
         "detailed"
     } else {
@@ -1627,7 +1690,14 @@ fn run_turn_workflow_final_response(
     let direct_no_tool_exit_turn = workflow_mode_clean == "direct_no_tool_exit";
     let direct_simple_conversation_turn = workflow_mode_clean == "direct_simple_conversation";
     let direct_conversation_recovery_turn = workflow_mode_clean == "direct_conversation_recovery";
+    let initial_no_tool_category_submission =
+        response_tools.is_empty() && response_is_exact_no_tool_gate_submission(draft_response);
+    if initial_no_tool_category_submission {
+        workflow["workflow_control"]["direct_response_path"] =
+            Value::String("gate_1_no_tool_category".to_string());
+    }
     let manual_toolbox_gate_turn = response_tools.is_empty()
+        && !initial_no_tool_category_submission
         && !(direct_no_tool_exit_turn
             || direct_simple_conversation_turn
             || direct_conversation_recovery_turn)
@@ -1637,11 +1707,14 @@ fn run_turn_workflow_final_response(
                 "manual_toolbox_candidate_menu"
             )
         });
+    let workflow_events_json = serde_json::to_string(&enriched_workflow_events)
+        .unwrap_or_else(|_| "[]".to_string());
     let direct_gate_recovery_turn = response_tools.is_empty()
         && !manual_toolbox_gate_turn
         && (direct_no_tool_exit_turn
             || direct_simple_conversation_turn
             || direct_conversation_recovery_turn
+            || initial_no_tool_category_submission
             || workflow_turn_is_meta_control_message(message)
             || enriched_workflow_events.iter().any(|event| {
                 event.get("kind").and_then(Value::as_str).unwrap_or("")
@@ -1649,68 +1722,48 @@ fn run_turn_workflow_final_response(
             }));
     let (system_prompt, user_prompt) = if manual_toolbox_gate_turn {
         (
+            clean_text(&workflow_library_prompt_context(message, &[]), 2_000),
             clean_text(
-                "Manual toolbox gate. You are the LLM and you author the visible chat text. The system must not choose tools for you. Do not expose raw gate choices in chat: no `Yes.`, no `No.`, no `Tool family:`, and no `Request payload:` labels. If you need a tool, state the next tool path in natural prose using `I would choose ...` so the runtime can record a pending request; use `web search` for web candidates and `workspace search` for workspace/file candidates. If no tool is needed, answer directly. Do not claim a tool ran or say you lack current results unless recorded tool outcomes exist. Keep the whole response under 80 words.",
-                2_000,
-            ),
-            clean_text(
-                &format!(
-                    "User request:\n{message}\n\nAvailable workflow/tool candidates:\n{workflow_events_json}\n\nWrite the visible chat answer. Gate/menu choices belong in workflow telemetry only, not in the chat text."
-                ),
-                8_000,
+                &format!("User message:\n{message}\n\nAvailable tool menu:\n{workflow_events_json}"),
+                10_000,
             ),
         )
     } else if direct_gate_recovery_turn {
-        let direct_gate_system_prompt = if direct_simple_conversation_turn {
-            "Reply naturally as the assistant. No tools. Do not mention workflow, gates, tools, or telemetry. Keep it under 20 words."
-        } else if direct_no_tool_exit_turn {
-            "Reply as the LLM. No tools. Do not start with `No.` If this is hypothetical, name the tool without claiming execution. Keep it under 25 words."
-        } else {
-            "Reply naturally as the assistant. No tools. Answer only the latest user request in one short sentence. If the user asks about repeated fallback text, briefly explain that it came from a response-finalization loop. Do not mention workflow, gates, tools, or telemetry. Keep it under 25 words."
-        };
+        let temporal_context = agent_runtime_temporal_context_prompt();
+        let direct_gate_system_prompt =
+            "Respond to the latest user message. Final user-facing answer only.";
         let project_boundary_prompt = current_turn_project_boundary_prompt(message);
         let direct_gate_system_prompt = if project_boundary_prompt.is_empty() {
             direct_gate_system_prompt.to_string()
         } else {
             format!("{direct_gate_system_prompt} {project_boundary_prompt}")
         };
-        let direct_gate_user_prompt = if direct_simple_conversation_turn {
-            format!("User: {message}\nAssistant:")
-        } else if direct_no_tool_exit_turn {
-            format!(
-                "User: {message}\nUse no tools for this reply."
-            )
-        } else {
-            format!(
-                "User: {message}\nWrite the assistant reply now."
-            )
-        };
+        let direct_gate_system_prompt = format!("{temporal_context} {direct_gate_system_prompt}");
+        let direct_gate_user_prompt = format!("User message:\n{message}");
         (
             clean_text(&direct_gate_system_prompt, 2_000),
             clean_text(&direct_gate_user_prompt, 6_000),
         )
     } else {
-        let workflow_metadata_json =
-            serde_json::to_string(&workflow).unwrap_or_else(|_| "{}".to_string());
         (
             clean_text(
                 &format!(
-                    "{}\n\nHardcoded agent workflow: you are writing the next visible assistant response for the current workflow turn. Use recorded tool outcomes when they exist. If no tool outcome exists and the workflow is presenting a manual toolbox gate, answer naturally with the tool path you would use next or the input needed; do not expose raw gate choices in chat (`Yes.`, `No.`, `Tool family:`, `Request payload:`). Do not claim a tool ran unless recorded tool outcomes show it ran. Never emit raw telemetry, placeholder copy, inline `<function=...>` markup, or pretend a failed tool succeeded.\n\nFinal-answer contract (final_answer_contract_v1): (1) answer the user's request in the first 1-2 sentences, (2) do not echo/restate the user prompt as your response, (3) do not include placeholder copy, (4) do not mention internal gate/classifier identifiers, (5) do not emit bracketed internal source tags, and (6) do not expose workflow menu labels as chat text.\n\nResponse template class: {}. {} Style: {} by default unless user requested a deep dive.",
-                    AGENT_RUNTIME_SYSTEM_PROMPT, template_label, template_instruction, detail_style
+                    "{}\n\n{}\n\nRespond to the user message. Final user-facing answer only.",
+                    AGENT_RUNTIME_SYSTEM_PROMPT,
+                    agent_runtime_temporal_context_prompt()
                 ),
                 12_000,
             ),
-            clean_text(
-                &format!(
-                    "User request:\n{message}\n\nCurrent draft response:\n{}\n\nWorkflow metadata:\n{workflow_metadata_json}\n\nRecorded tool outcomes:\n{tool_rows_json}\n\nWorkflow events:\n{workflow_events_json}\n\nWrite the final assistant response now.",
-                    if clean_text(draft_response, 2_000).is_empty() {
-                        "(empty)"
-                    } else {
-                        draft_response
-                    }
-                ),
-                20_000,
-            ),
+            if response_tools.is_empty() {
+                clean_text(&format!("User message:\n{message}"), 20_000)
+            } else {
+                clean_text(
+                    &format!(
+                        "User message:\n{message}\n\nRecorded tool outcomes:\n{tool_rows_json}"
+                    ),
+                    20_000,
+                )
+            },
         )
     };
     let coherence_window_messages = 2usize;
@@ -1738,7 +1791,12 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = 1;
+    let max_attempts: u64 = if response_tools.is_empty() && !manual_toolbox_gate_turn {
+        1
+    } else {
+        2
+    };
+    let mut manual_toolbox_no_selected = false;
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
@@ -1801,7 +1859,36 @@ fn run_turn_workflow_final_response(
         json!(coherence_window_messages);
     for attempt in 1..=max_attempts {
         workflow["final_llm_response"]["attempt_count"] = json!(attempt);
-        let attempt_user_prompt = user_prompt.clone();
+        let active_manual_toolbox_gate_turn =
+            manual_toolbox_gate_turn && !manual_toolbox_no_selected;
+        let compact_tool_retry = attempt > 1 && !response_tools.is_empty();
+        let attempt_system_prompt = if active_manual_toolbox_gate_turn {
+            system_prompt.clone()
+        } else if manual_toolbox_no_selected || compact_tool_retry {
+            clean_text(
+                "Respond to the user message. Final user-facing answer only.",
+                2_000,
+            )
+        } else {
+            system_prompt.clone()
+        };
+        let attempt_user_prompt = if active_manual_toolbox_gate_turn {
+            user_prompt.clone()
+        } else if manual_toolbox_no_selected {
+            clean_text(&format!("User message:\n{message}"), 8_000)
+        } else if compact_tool_retry {
+            clean_text(
+                &format!("User message:\n{message}\n\nRecorded tool outcomes:\n{tool_rows_json}"),
+                8_000,
+            )
+        } else if attempt > 1 {
+            clean_text(
+                &format!("{user_prompt}\n\nRespond to the user message. Final user-facing answer only."),
+                20_000,
+            )
+        } else {
+            user_prompt.clone()
+        };
         let attempt_provider = cleaned_provider.clone();
         let attempt_model = cleaned_model.clone();
         workflow["final_llm_response"]["current_attempt"] = json!({
@@ -1814,7 +1901,7 @@ fn run_turn_workflow_final_response(
             root,
             &attempt_provider,
             &attempt_model,
-            &system_prompt,
+            &attempt_system_prompt,
             final_context_messages,
             &attempt_user_prompt,
         ) {
@@ -1836,24 +1923,80 @@ fn run_turn_workflow_final_response(
                 }
                 let manual_toolbox_gate_choice =
                     response_is_manual_toolbox_gate_choice(&retried_text);
+                if active_manual_toolbox_gate_turn
+                    && response_is_exact_no_tool_gate_submission(&retried_text)
+                {
+                    manual_toolbox_no_selected = true;
+                    workflow["workflow_control"]["direct_response_path"] =
+                        Value::String("gate_1_no_tool_category".to_string());
+                    set_turn_workflow_final_stage_status(
+                        &mut workflow,
+                        "gate_1_no_pending_final_output",
+                    );
+                    continue;
+                }
+                if active_manual_toolbox_gate_turn
+                    && response_is_tool_bearing_category_gate_submission(&retried_text)
+                {
+                    last_invalid_excerpt = first_sentence(&retried_text, 220);
+                    last_reject_reason =
+                        "tool_category_without_tool_payload".to_string();
+                    bump_workflow_quality_counter(&mut workflow, "alignment_reject");
+                    continue;
+                }
                 let visible_gate_choice_reply =
                     response_is_visible_workflow_gate_choice(&retried_text)
                         || response_has_gate_choice_prefix_leakage(&retried_text);
                 let pending_tool_choice_reply =
                     manual_toolbox_pending_request_from_response(&retried_text, message).is_some();
-                if manual_toolbox_gate_choice || visible_gate_choice_reply || pending_tool_choice_reply {
+                if manual_toolbox_gate_choice
+                    || visible_gate_choice_reply
+                    || pending_tool_choice_reply
+                {
                     record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
+                }
+                if workflow
+                    .get("manual_toolbox_pending_tool_request")
+                    .filter(|value| value.is_object())
+                    .is_some()
+                {
+                    workflow["response"] = Value::String(String::new());
+                    workflow["final_llm_response"]["required"] = Value::Bool(false);
+                    workflow["final_llm_response"]["attempted"] = Value::Bool(false);
+                    workflow["final_llm_response"]["used"] = Value::Bool(false);
+                    workflow["final_llm_response"]["status"] =
+                        Value::String("skipped_pending_tool_confirmation".to_string());
+                    workflow["final_llm_response"]["fallback_from_existing_draft"] =
+                        Value::Bool(false);
+                    workflow["final_llm_response"]["fallback_source"] =
+                        Value::String(String::new());
+                    set_turn_workflow_final_stage_status(
+                        &mut workflow,
+                        "skipped_pending_tool_confirmation",
+                    );
+                    return workflow;
                 }
                 let recorded_tool_result_answer =
                     response_answers_tool_confirmation_with_recorded_result(
                         &retried_text,
                         response_tools,
+                    )
+                    || response_answers_successful_tool_result(
+                        message,
+                        &retried_text,
+                        response_tools,
                     );
-                let unresolved_tool_need_without_progress = manual_toolbox_gate_turn
+                let unresolved_tool_need_without_progress = active_manual_toolbox_gate_turn
                     && response_tools.is_empty()
                     && !manual_toolbox_gate_choice
                     && !pending_tool_choice_reply
                     && manual_toolbox_response_exposes_unresolved_tool_need(&retried_text);
+                let invalid_manual_toolbox_gate_submission = active_manual_toolbox_gate_turn
+                    && response_tools.is_empty()
+                    && !retried_text.is_empty()
+                    && !manual_toolbox_gate_choice
+                    && !visible_gate_choice_reply
+                    && !pending_tool_choice_reply;
                 let deferred_reply = !recorded_tool_result_answer
                     && (response_is_deferred_execution_preamble(&retried_text)
                         || response_is_deferred_retry_prompt(&retried_text)
@@ -1870,7 +2013,8 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                     );
                 let prompt_scaffold_reply = response_contains_prompt_scaffold(&retried_text);
-                let prompt_echo_reply = prompt_scaffold_reply || if direct_simple_conversation_turn
+                let prompt_echo_reply = prompt_scaffold_reply || if (direct_simple_conversation_turn
+                    || direct_gate_recovery_turn)
                     && !clean_text(message, 240)
                         .eq_ignore_ascii_case(&clean_text(&retried_text, 240))
                 {
@@ -1902,15 +2046,10 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                         response_tools,
                     );
-                let lowered_message = message.to_ascii_lowercase();
-                let lowered_retried_text = retried_text.to_ascii_lowercase();
-                let missing_manual_web_search_phrase = manual_toolbox_gate_turn
-                    && response_tools.is_empty()
-                    && lowered_message.contains("web search")
-                    && !lowered_retried_text.contains("web search");
-                let missing_direct_answer_phrase = direct_gate_recovery_turn
-                    && workflow_turn_is_meta_control_message(message)
-                    && !lowered_retried_text.contains("answer directly");
+                let raw_tool_payload_dump = !response_tools.is_empty()
+                    && response_looks_like_raw_tool_payload_dump(&retried_text);
+                let prompt_analysis_leak =
+                    response_contains_workflow_prompt_analysis_leak(&retried_text);
                 let reject_checks = [
                     (
                         visible_gate_choice_reply,
@@ -1918,14 +2057,14 @@ fn run_turn_workflow_final_response(
                         "alignment_reject",
                     ),
                     (
-                        missing_manual_web_search_phrase,
-                        "missing_manual_web_search_phrase",
+                        invalid_manual_toolbox_gate_submission,
+                        "invalid_manual_toolbox_gate_submission",
                         "alignment_reject",
                     ),
                     (
-                        missing_direct_answer_phrase,
-                        "missing_direct_answer_phrase",
-                        "alignment_reject",
+                        prompt_analysis_leak,
+                        "workflow_prompt_analysis_leak",
+                        "contamination_reject",
                     ),
                     (deferred_reply, "deferred_reply", "deferred_reply_reject"),
                     (off_topic_reply, "off_topic_reply", "off_topic_reject"),
@@ -1957,6 +2096,11 @@ fn run_turn_workflow_final_response(
                         unsupported_tool_success_claim,
                         "unsupported_tool_success_claim",
                         "unsupported_tool_success_claim_reject",
+                    ),
+                    (
+                        raw_tool_payload_dump,
+                        "raw_tool_payload_dump",
+                        "contamination_reject",
                     ),
                     (
                         unresolved_tool_need_without_progress,
@@ -2017,6 +2161,12 @@ fn run_turn_workflow_final_response(
                 workflow["provider"] = Value::String(response_provider);
                 workflow["model"] = Value::String(response_model.clone());
                 workflow["runtime_model"] = Value::String(response_model);
+                if response_tools.is_empty()
+                    && enriched_workflow_events.is_empty()
+                    && !manual_toolbox_gate_turn
+                {
+                    mark_workflow_direct_llm_no_tool_answer(&mut workflow);
+                }
                 set_turn_workflow_final_stage_status(&mut workflow, "synthesized");
                 workflow["final_llm_response"]["helpfulness"] = json!({
                     "direct_answer_in_first_two_sentences": direct_answer_in_first_two_sentences,
@@ -2116,6 +2266,47 @@ fn run_turn_workflow_final_response(
     workflow
 }
 
+fn mark_workflow_direct_llm_no_tool_answer(workflow: &mut Value) {
+    let gate_submission = json!({
+        "accepted": true,
+        "gate_id": "gate_1_work_category_menu",
+        "llm_submission": "Respond directly",
+        "resume_token": "gate_1_work_category_menu.submitted",
+        "decision_source": "llm_direct_answer"
+    });
+    workflow["workflow_control"]["direct_response_path"] =
+        Value::String("gate_1_no_tool_category".to_string());
+    workflow["tool_gate"]["selected_work_category"] =
+        Value::String("respond_directly".to_string());
+    workflow["tool_gate"]["selected_tool_family"] = Value::String("none".to_string());
+    workflow["tool_gate"]["gate_1_submission_status"] = Value::String("submitted".to_string());
+    workflow["tool_gate"]["gate_1_decision_source"] =
+        Value::String("llm_direct_answer".to_string());
+    workflow["tool_gate"]["gate_submission"] = gate_submission.clone();
+    workflow["tool_gate"]["gates"]["gate_1"]["submission_status"] =
+        Value::String("submitted".to_string());
+    workflow["tool_gate"]["gates"]["gate_1"]["decision_source"] =
+        Value::String("llm_direct_answer".to_string());
+    workflow["tool_gate"]["gates"]["gate_1"]["gate_submission"] = gate_submission;
+    workflow["tool_gate"]["info_source"] = Value::String("llm_direct_answer".to_string());
+    if let Some(rows) = workflow
+        .get_mut("stage_statuses")
+        .and_then(Value::as_array_mut)
+    {
+        for row in rows.iter_mut() {
+            if row
+                .get("stage")
+                .and_then(Value::as_str)
+                .map(|stage| stage == "gate_1_work_category_menu")
+                .unwrap_or(false)
+            {
+                row["status"] = Value::String("answered_no_tool_category".to_string());
+                row["decision_source"] = Value::String("llm_direct_answer".to_string());
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod workflow_fallback_tests {
     use super::*;
@@ -2123,7 +2314,7 @@ mod workflow_fallback_tests {
     #[test]
     fn manual_toolbox_selection_parses_pending_web_request() {
         let pending = manual_toolbox_pending_request_from_response(
-            "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring\",\"aperture\":\"medium\"}.",
+            "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring\",\"aperture\":\"medium\"}.",
             "Compare infring to other major agentic frameworks.",
         )
         .expect("pending request");
@@ -2134,7 +2325,7 @@ mod workflow_fallback_tests {
         );
         assert_eq!(
             pending.get("tool_name").and_then(Value::as_str),
-            Some("batch_query")
+            Some("web_search")
         );
         assert_eq!(
             pending.pointer("/input/query").and_then(Value::as_str),
@@ -2158,10 +2349,56 @@ mod workflow_fallback_tests {
     #[test]
     fn manual_toolbox_selection_requires_explicit_payload_submission() {
         let pending = manual_toolbox_pending_request_from_response(
-            "Yes. Tool family: Web Search / Fetch. Tool: Web search.",
+            "Category: Web research. Tool family: Web research. Tool: web_search.",
             "Compare infring to other major agentic frameworks.",
         );
         assert!(pending.is_none());
+    }
+
+    #[test]
+    fn manual_toolbox_selection_rejects_non_catalog_tool_names() {
+        let pending = manual_toolbox_pending_request_from_response(
+            "Category: Web research. Tool family: Search. Tool: Keyword search. Request payload: {\"keywords\":\"infring frameworks\"}.",
+            "Compare infring to top agentic frameworks.",
+        );
+        assert!(pending.is_none());
+    }
+
+    #[test]
+    fn direct_llm_no_tool_answer_marks_trace_as_no_tool_category() {
+        let mut workflow = json!({
+            "workflow_control": {},
+            "tool_gate": {
+                "gates": {
+                    "gate_1": {}
+                }
+            },
+            "stage_statuses": [
+                {"stage": "gate_1_work_category_menu", "status": "presented"},
+                {"stage": "final_llm_response", "status": "pending_final_llm"}
+            ]
+        });
+
+        mark_workflow_direct_llm_no_tool_answer(&mut workflow);
+
+        assert_eq!(
+            workflow
+                .pointer("/workflow_control/direct_response_path")
+                .and_then(Value::as_str),
+            Some("gate_1_no_tool_category")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/tool_gate/gate_1_submission_status")
+                .and_then(Value::as_str),
+            Some("submitted")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/stage_statuses/0/status")
+                .and_then(Value::as_str),
+            Some("answered_no_tool_category")
+        );
     }
 
     #[test]
@@ -2179,7 +2416,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn manual_toolbox_candidate_menu_is_not_reported_as_gate_1_no() {
+    fn manual_toolbox_candidate_menu_is_not_reported_as_no_tool_category() {
         let workflow = turn_workflow_metadata(
             "normal_turn",
             &[],
@@ -2200,7 +2437,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn natural_pending_tool_choice_updates_workflow_path() {
+    fn exact_tool_gate_submission_updates_workflow_path() {
         let mut workflow = turn_workflow_metadata(
             "normal_turn",
             &[],
@@ -2213,7 +2450,7 @@ mod workflow_fallback_tests {
         );
         record_manual_toolbox_pending_request(
             &mut workflow,
-            "I would choose web search for a current framework comparison.",
+            "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to agent frameworks\",\"aperture\":\"medium\"}.",
             "Use web search to compare infring to other major agentic frameworks in April 2026.",
         );
 
@@ -2229,6 +2466,72 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_str),
             Some("gate_1_yes_pending_tool_confirmation")
         );
+    }
+
+    #[test]
+    fn narrated_tool_choice_does_not_create_pending_request_even_with_menu() {
+        let mut workflow = turn_workflow_metadata(
+            "normal_turn",
+            &[],
+            &[turn_workflow_event(
+                "manual_toolbox_candidate_menu",
+                json!({"candidate_count": 1}),
+            )],
+            "",
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        );
+        record_manual_toolbox_pending_request(
+            &mut workflow,
+            "I would choose web search.",
+            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+        );
+
+        assert!(
+            workflow
+                .pointer("/manual_toolbox_pending_tool_request")
+                .is_none()
+        );
+        assert_eq!(
+            workflow
+                .pointer("/workflow_control/direct_response_path")
+                .and_then(Value::as_str),
+            Some("gate_1_pending_llm_tool_choice")
+        );
+    }
+
+    #[test]
+    fn manual_toolbox_candidate_menu_detection_reads_kind_field() {
+        let workflow = json!({
+            "workflow_control": {},
+            "system_events": [
+                turn_workflow_event("manual_toolbox_candidate_menu", json!({"candidate_count": 1}))
+            ]
+        });
+
+        assert!(workflow_has_manual_toolbox_candidate_menu(&workflow));
+    }
+
+    #[test]
+    fn current_agentic_framework_comparison_gets_web_candidate() {
+        let candidates = latent_tool_candidates_for_message(
+            "try again to do a real comparison of this platform to other agentic frameworks in april 2026",
+            &[],
+        );
+        assert!(candidates.iter().any(|candidate| {
+            candidate
+                .get("tool")
+                .and_then(Value::as_str)
+                .map(|tool| tool == "web_search")
+                .unwrap_or(false)
+        }));
+    }
+
+    #[test]
+    fn runtime_temporal_context_declares_past_future_rule() {
+        let prompt = agent_runtime_temporal_context_prompt();
+        assert!(prompt.contains("current date/time"));
+        assert!(prompt.contains("Dates before this timestamp are in the past"));
+        assert!(prompt.contains("dates after it are in the future"));
     }
 
     #[test]
@@ -2283,7 +2586,7 @@ mod workflow_fallback_tests {
     #[test]
     fn meta_control_recovery_takes_precedence_over_latent_tool_candidates() {
         let message = "what? why are you repeating the same fallback text?";
-        let latent_tool_candidates = json!([{"tool": "batch_query"}]);
+        let latent_tool_candidates = json!([{"tool": "web_search"}]);
         let no_tool_minimal_final_turn = workflow_turn_is_meta_control_message(message)
             || message_explicitly_disallows_tool_calls(message)
             || workflow_turn_is_simple_conversation_without_tool_intent(message);
@@ -3309,5 +3612,88 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_str),
             Some("synthesized")
         );
+    }
+
+    #[test]
+    fn successful_tool_result_answer_is_not_rejected_as_missing_direct_answer() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "is_error": false,
+            "blocked": false,
+            "result": "Key findings: OpenHands is an AI agent platform for software development."
+        })];
+
+        assert!(response_answers_successful_tool_result(
+            "Use web search to find one current source about OpenHands agent framework, then summarize it in one sentence.",
+            "OpenHands is an AI agent platform focused on software-development automation.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn successful_tool_result_answer_rejects_ack_without_findings() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "is_error": false,
+            "blocked": false,
+            "result": "Key findings: OpenHands is an AI agent platform for software development."
+        })];
+
+        assert!(!response_answers_successful_tool_result(
+            "Use web search to find one current source about OpenHands agent framework, then summarize it in one sentence.",
+            "I found some results and will summarize them now.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn successful_tool_result_answer_rejects_unrelated_context_dump() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "is_error": false,
+            "blocked": false,
+            "result": "Key findings: From web retrieval: openhands.dev describes OpenHands as an AI agent platform for software development."
+        })];
+
+        assert!(!response_answers_successful_tool_result(
+            "Use web search to find one current source about OpenHands agent framework, then summarize it in one sentence.",
+            "# 第一章\n\n社会管理创新，是指在现有社会管理条件下，运用现有的资源和经验。",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn raw_tool_payload_dump_is_rejected_before_visible_chat() {
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "<?xml version=\"1.0\"?><CustomMetadata xmlns=\"urn:test\"></CustomMetadata>"
+        ));
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "<function=web_search>{\"query\":\"x\"}</function>"
+        ));
+        assert!(!response_looks_like_raw_tool_payload_dump(
+            "OpenHands is an AI agent platform for software development."
+        ));
+    }
+
+    #[test]
+    fn workflow_prompt_analysis_is_rejected_before_visible_chat() {
+        assert!(response_contains_workflow_prompt_analysis_leak(
+            "According to the instructions, the gate is What kind of work is this? The user asks to respond directly, so we answer normally."
+        ));
+        assert!(response_contains_workflow_prompt_analysis_leak(
+            "We are in the runtime context of 2026-05-02T06:14:40Z. The user asks for a reply in exactly five words. We must reply in one short sentence."
+        ));
+        let (response, sanitized, source) = sanitize_skipped_final_response_fallback_response(
+            "hey, reply in five words, no tools",
+            "According to the instructions, the gate is What kind of work is this? The user asks to respond directly, so we answer normally.",
+            "",
+            &[],
+        );
+        assert!(response.is_empty());
+        assert!(sanitized);
+        assert_eq!(source, "withheld_workflow_prompt_analysis");
     }
 }

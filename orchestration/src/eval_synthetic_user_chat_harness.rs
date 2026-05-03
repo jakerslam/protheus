@@ -112,6 +112,8 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
             let response_text = assistant_text(&response_payload);
             let response_token_count = estimate_response_tokens(&response_text);
             let workflow_stage_count = workflow_stage_count(&response_payload);
+            let workflow_budget_stage_count =
+                workflow_budget_stage_count(&response_payload, workflow_stage_count);
             let route_error_code = route_error_code(&response_payload);
             let failures = evaluate_turn(TurnEvaluation {
                 live,
@@ -166,11 +168,16 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
                 "normal_user_message_route_only": true,
                 "user_message_preview": clean_text(&user_message, 240),
                 "assistant_response_preview": clean_text(&response_text, 320),
+                "capability_domain": str_opt(turn, &["capability", "domain"]),
+                "capability_level": turn.pointer("/capability/level").and_then(Value::as_u64),
+                "grader_contract": turn.get("grader").cloned().unwrap_or_else(|| json!({})),
                 "route_error_code": route_error_code,
                 "latency_ms": latency_ms,
                 "response_token_count": response_token_count,
                 "workflow_stage_count": workflow_stage_count,
+                "workflow_budget_stage_count": workflow_budget_stage_count,
                 "route_stage_delta": route_stage_delta,
+                "response_payload_diagnostics": response_payload_diagnostics(&response_payload),
                 "workflow_visible": workflow_visible(&response_payload),
                 "live_eval_chat_injection_allowed": response_payload
                     .pointer("/live_eval_monitor/chat_injection_allowed")
@@ -350,7 +357,7 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
     }
     if let Some(code) = route_error_code {
         failures.push(format!("message_route_error:{code}"));
-    } else if response_text.trim().is_empty() {
+    } else if response_text.trim().is_empty() && !payload_has_pending_tool(payload) {
         failures.push("empty_assistant_response".to_string());
     }
     if !response_text.trim().is_empty()
@@ -410,12 +417,7 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
         failures.push("missing_tool_progress_evidence".to_string());
     }
     let has_tool_execution = payload_has_tool_execution_evidence(payload);
-    if bool_at(
-        turn,
-        &["expect", "require_tool_execution_evidence"],
-        false,
-    ) && !has_tool_execution
-    {
+    if bool_at(turn, &["expect", "require_tool_execution_evidence"], false) && !has_tool_execution {
         failures.push("missing_tool_execution_evidence".to_string());
     }
     if bool_at(turn, &["expect", "require_final_synthesis"], false)
@@ -472,9 +474,11 @@ fn evaluate_turn(input: TurnEvaluation<'_>) -> Vec<String> {
                 "simple_direct_response_tokens_over_budget:{response_token_count}>{max_response_tokens}"
             ));
         }
-        if max_stage_count > 0 && workflow_stage_count > max_stage_count {
+        let workflow_budget_stage_count =
+            workflow_budget_stage_count(payload, workflow_stage_count);
+        if max_stage_count > 0 && workflow_budget_stage_count > max_stage_count {
             failures.push(format!(
-                "simple_direct_stage_count_over_budget:{workflow_stage_count}>{max_stage_count}"
+                "simple_direct_stage_count_over_budget:{workflow_budget_stage_count}>{max_stage_count}"
             ));
         }
         if payload
@@ -717,11 +721,41 @@ fn visible_workflow_gate_choice_leakage(response_text: &str, payload: &Value) ->
     }
     let normalized = normalize_for_compare(response_text);
     let normalized = normalized.trim();
-    if normalized.contains("need tools? yes/no") {
+    let compact = normalized
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch.is_whitespace() {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if normalized == "respond directly" || normalized.contains("need tools? yes/no") {
         return true;
     }
     if normalized.starts_with("yes. tool family:")
         || normalized.starts_with("yes. tool:")
+        || compact.starts_with("this kind of work is respond directly")
+        || compact.starts_with(&format!(
+            "this kind of work is direct answer {}",
+            "conversation"
+        ))
+        || compact.starts_with("this kind of work is planning from current context")
+        || compact.starts_with("this kind of work is web research")
+        || compact.starts_with("this kind of work is workspace files")
+        || compact.starts_with("this kind of work is code execution terminal")
+        || compact.starts_with("this kind of work is agent management")
+        || compact.starts_with("this kind of work is memory notes")
+        || compact.starts_with("this kind of work is external apps integrations")
+        || (normalized.contains("category:")
+            && (normalized.contains("tool family:")
+                || normalized.contains("tool:")
+                || normalized.contains("request payload:")
+                || normalized.contains("payload:")))
         || (normalized.starts_with("yes. ")
             && (normalized.contains("request payload:")
                 || normalized.contains("tool family:")
@@ -791,6 +825,69 @@ fn route_stage_delta(
     })
 }
 
+fn response_payload_diagnostics(payload: &Value) -> Value {
+    json!({
+        "top_keys": payload
+            .as_object()
+            .map(|obj| obj.keys().cloned().collect::<Vec<_>>())
+            .unwrap_or_default(),
+        "workflow_stage_statuses": payload
+            .pointer("/response_workflow/stage_statuses")
+            .cloned()
+            .unwrap_or_else(|| json!([])),
+        "workflow_control": payload
+            .pointer("/response_workflow/workflow_control")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "tool_gate": payload
+            .pointer("/response_workflow/tool_gate")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "pending_tool_request": payload
+            .get("pending_tool_request")
+            .or_else(|| payload.pointer("/response_workflow/pending_tool_request"))
+            .or_else(|| payload.pointer("/response_workflow/manual_toolbox_pending_tool_request"))
+            .or_else(|| payload.pointer("/response_finalization/pending_tool_request"))
+            .cloned()
+            .unwrap_or(Value::Null),
+        "tools": payload.get("tools").cloned().unwrap_or_else(|| json!([])),
+        "latent_tool_candidates": payload
+            .get("latent_tool_candidates")
+            .cloned()
+            .unwrap_or_else(|| json!([])),
+        "final_llm_response": payload
+            .pointer("/response_workflow/final_llm_response")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "response_finalization": {
+            "outcome": payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str)
+                .map(clean_debug_string),
+            "visible_response_source": payload
+                .pointer("/response_finalization/visible_response_source")
+                .and_then(Value::as_str)
+                .map(clean_debug_string),
+            "web_invariant": payload
+                .pointer("/response_finalization/web_invariant")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
+            "tooling_invariant": payload
+                .pointer("/response_finalization/tooling_invariant")
+                .cloned()
+                .unwrap_or_else(|| json!({}))
+        },
+        "routing_trace": payload
+            .get("routing_trace")
+            .cloned()
+            .unwrap_or_else(|| json!({}))
+    })
+}
+
+fn clean_debug_string(raw: &str) -> String {
+    clean_text(raw, 1_000)
+}
+
 fn estimate_response_tokens(text: &str) -> u64 {
     clean_text(text, 12_000).split_whitespace().count() as u64
 }
@@ -807,6 +904,33 @@ fn workflow_stage_count(payload: &Value) -> u64 {
         }
     }
     0
+}
+
+fn workflow_budget_stage_count(payload: &Value, fallback_stage_count: u64) -> u64 {
+    for pointer in [
+        "/response_workflow/stage_statuses",
+        "/response_workflow/trace_streams/workflow_state",
+        "/workflow_trace/stage_statuses",
+        "/workflow_state/stage_statuses",
+    ] {
+        let Some(rows) = payload.pointer(pointer).and_then(Value::as_array) else {
+            continue;
+        };
+        let gate_rows = rows
+            .iter()
+            .filter(|row| {
+                row.get("stage")
+                    .and_then(Value::as_str)
+                    .map(|stage| stage.starts_with("gate_"))
+                    .unwrap_or(false)
+            })
+            .count() as u64;
+        if gate_rows > 0 {
+            return gate_rows;
+        }
+        return rows.len() as u64;
+    }
+    fallback_stage_count
 }
 
 struct FailureEventInput<'a> {

@@ -58,7 +58,7 @@ type CaseEvaluation = {
   failures: string[];
 };
 
-const DEFAULT_FIXTURE_PATH = 'tests/tooling/fixtures/workflow_failure_recovery_matrix.json';
+const DEFAULT_FIXTURE_PATH = 'validation/regression/fixtures/workflow_failure_recovery_matrix.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/workflow_failure_recovery_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/workflow_failure_recovery_latest.json';
 const DEFAULT_STATE_PATH = 'local/state/ops/workflow_failure_recovery/latest.json';
@@ -350,7 +350,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const fixture = readJson<RecoveryFixture>(fixtureAbs);
 
   const failures: Array<{ id: string; detail: string }> = [];
-  if (!isCanonicalRelativePath(args.fixturePath, 'tests/tooling/fixtures/')) {
+  if (!isCanonicalRelativePath(args.fixturePath, 'validation/regression/fixtures/')) {
     failures.push({
       id: 'workflow_failure_recovery_fixture_path_noncanonical',
       detail: args.fixturePath,

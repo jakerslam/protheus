@@ -10,7 +10,11 @@ fn message_requests_live_web_comparison(message: &str) -> bool {
         || lowered.contains("cursor")
         || lowered.contains("copilot")
         || lowered.contains("windsurf")
-        || lowered.contains("perplexity");
+        || lowered.contains("perplexity")
+        || lowered.contains("agentic framework")
+        || lowered.contains("agent frameworks")
+        || lowered.contains("other frameworks")
+        || lowered.contains("major frameworks");
     let asks_live_web = lowered.contains("web")
         || lowered.contains("web search")
         || lowered.contains("search the web")
@@ -20,6 +24,8 @@ fn message_requests_live_web_comparison(message: &str) -> bool {
         || lowered.contains("latest")
         || lowered.contains("current")
         || lowered.contains("today")
+        || lowered.contains("april 2026")
+        || lowered.contains("may 2026")
         || lowered.contains("source-backed")
         || lowered.contains("with sources");
     asks_live_web && mentions_external_peer
@@ -33,17 +39,8 @@ fn comparative_web_query_from_message(message: &str) -> Option<String> {
     if query.is_empty() { None } else { Some(query) }
 }
 
-fn comparative_no_findings_fallback(message: &str) -> String {
-    let lowered = clean_text(message, 400).to_ascii_lowercase();
-    let asks_rank = lowered.contains("rank") || lowered.contains("ranking");
-    let asks_structured_compare = lowered.contains("compare")
-        || lowered.contains("comparison")
-        || lowered.contains("vs")
-        || lowered.contains("versus");
-    if asks_rank || asks_structured_compare {
-        return "Live web retrieval was low-signal in this turn (search-engine chrome without extractable findings). Provisional comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration; top peers are currently stronger on tool/search failure recovery and handoff consistency. Ask me to rerun `batch_query` with named competitors and I will return a source-backed ranked table.".to_string();
-    }
-    "Live web retrieval was low-signal in this turn, so here is the stable comparison: Infring is strongest in identity persistence, memory continuity, and integrated tool orchestration, while mature peers are still stronger on failure recovery and handoff consistency. If you want live sourcing, I can rerun with `batch_query` and a narrower competitor set.".to_string()
+fn comparative_no_findings_fallback(_message: &str) -> String {
+    String::new()
 }
 
 fn comparative_natural_web_intent_from_message(message: &str) -> Option<(String, Value)> {
@@ -75,7 +72,11 @@ fn message_requests_workspace_plus_web_comparison(message: &str) -> bool {
         || lowered.contains("cursor")
         || lowered.contains("copilot")
         || lowered.contains("windsurf")
-        || lowered.contains("perplexity");
+        || lowered.contains("perplexity")
+        || lowered.contains("agentic framework")
+        || lowered.contains("agent frameworks")
+        || lowered.contains("other frameworks")
+        || lowered.contains("major frameworks");
     mentions_local_subject && mentions_external_peer
 }
 

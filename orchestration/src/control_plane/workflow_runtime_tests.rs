@@ -23,8 +23,18 @@ fn runtime_exports_separated_inspector_streams_and_budget_state() {
     for report in reports {
         assert_eq!(
             report.inspector.selected_graph_source,
-            "orchestration_typed_graph_v1"
+            "json_workflow_source_of_truth_v1"
         );
+        assert_eq!(
+            report.inspector.source_of_truth_schema_version,
+            "workflow_source_of_truth_contract_v1"
+        );
+        assert_eq!(report.inspector.interaction_source, "json_workflow_spec");
+        assert_eq!(
+            report.inspector.rust_reader_role,
+            "validate_execute_trace_only"
+        );
+        assert!(!report.inspector.hardcoded_interaction_behavior_allowed);
         assert!(!report.graph_hash.is_empty());
         assert!(report
             .source_json_path

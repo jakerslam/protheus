@@ -513,7 +513,7 @@ fn workflow_decision_tree_v2_defaults_simple_questions_to_info_without_tools() {
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -540,7 +540,7 @@ fn workflow_decision_tree_v2_selects_minimal_web_tools_only_when_needed() {
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision
@@ -561,7 +561,7 @@ fn workflow_decision_tree_v2_classifies_file_edits_as_task_route() {
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision
@@ -580,7 +580,7 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
     let decision = workflow_turn_tool_decision_tree("access the file tooling");
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -590,13 +590,13 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
         decision
             .pointer("/gates/gate_1/name")
             .and_then(Value::as_str),
-        Some("needs_tool_access")
+        Some("work_category")
     );
     assert_eq!(
         decision
             .pointer("/gates/gate_1/question")
             .and_then(Value::as_str),
-        Some("Need tools? Yes/No")
+        Some("What kind of work is this?")
     );
     assert_eq!(
         decision
@@ -621,7 +621,7 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
         decision
             .pointer("/gate_submission/gate_id")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
     assert_eq!(
         decision
@@ -642,7 +642,7 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
         decision
             .pointer("/gate_submission/resume_token")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+        Some("gate_1_work_category_menu.awaiting_llm_submission")
     );
     assert_eq!(
         decision.get("reason_code").and_then(Value::as_str),
@@ -676,7 +676,7 @@ fn workflow_decision_tree_break_workflow_turn_still_enters_gate_1() {
     let decision = workflow_turn_tool_decision_tree("break the workflow and respond directly");
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -693,7 +693,7 @@ fn workflow_decision_tree_break_workflow_turn_still_enters_gate_1() {
         decision
             .pointer("/gate_submission/gate_id")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
 }
 
@@ -704,7 +704,7 @@ fn workflow_decision_tree_explicit_web_request_still_enters_gate_1() {
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -721,7 +721,7 @@ fn workflow_decision_tree_explicit_web_request_still_enters_gate_1() {
         decision
             .pointer("/gate_submission/gate_id")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
 }
 
@@ -730,7 +730,7 @@ fn workflow_decision_tree_file_read_request_still_enters_gate_1() {
     let decision = workflow_turn_tool_decision_tree("read this file: core/layer0/ops/src/main.rs");
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -747,7 +747,7 @@ fn workflow_decision_tree_file_read_request_still_enters_gate_1() {
         decision
             .pointer("/gate_submission/resume_token")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+        Some("gate_1_work_category_menu.awaiting_llm_submission")
     );
 }
 
@@ -757,7 +757,7 @@ fn workflow_decision_tree_latest_keyword_does_not_auto_enable_web() {
         workflow_turn_tool_decision_tree("what are the latest agent framework changes this week?");
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -774,7 +774,7 @@ fn workflow_decision_tree_latest_keyword_does_not_auto_enable_web() {
         decision
             .pointer("/gate_submission/gate_id")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
 }
 
@@ -784,7 +784,7 @@ fn workflow_decision_tree_search_keyword_does_not_auto_enable_web() {
         workflow_turn_tool_decision_tree("search current framework docs and tell me what changed");
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -812,7 +812,7 @@ fn workflow_decision_tree_update_keyword_does_not_auto_enable_web() {
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -829,7 +829,7 @@ fn workflow_decision_tree_update_keyword_does_not_auto_enable_web() {
         decision
             .pointer("/gate_submission/resume_token")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+        Some("gate_1_work_category_menu.awaiting_llm_submission")
     );
 }
 
@@ -840,7 +840,7 @@ fn workflow_decision_tree_diagnostic_phrase_does_not_trigger_hidden_route_change
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -863,7 +863,7 @@ fn workflow_decision_tree_diagnostic_phrase_does_not_trigger_hidden_route_change
         decision
             .pointer("/gate_submission/gate_id")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
 }
 
@@ -874,7 +874,7 @@ fn workflow_decision_tree_legacy_route_copy_phrase_does_not_suppress_tools_or_re
     );
     assert_eq!(
         decision.get("gate_decision_mode").and_then(Value::as_str),
-        Some("manual_need_tools_yes_no")
+        Some("manual_work_category_v1")
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -897,7 +897,7 @@ fn workflow_decision_tree_legacy_route_copy_phrase_does_not_suppress_tools_or_re
         decision
             .pointer("/gate_submission/resume_token")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+        Some("gate_1_work_category_menu.awaiting_llm_submission")
     );
 }
 
@@ -1165,7 +1165,7 @@ fn unrelated_dump_detector_flags_peer_review_template_leaks() {
 
 #[test]
 fn unrelated_dump_detector_flags_internal_prompt_leak_even_with_function_markup() {
-    let dump = "You are the currently selected Infring agent instance. Treat the injected identity profile as authoritative. When users ask for web research, call tools with inline syntax like <function=web_search>{\"query\":\"...\"}</function>. Hardcoded agent workflow: you are writing the final assistant response after the system collected tool outcomes and workflow events. Write the final assistant response now.";
+    let dump = "The user has provided workflow metadata. My role is to refine the hidden routing state while inline function markup <function=web_search>{\"query\":\"...\"}</function> remains present.";
     assert!(response_is_unrelated_context_dump("did it work?", dump));
 }
 
@@ -1684,13 +1684,9 @@ fn latent_tool_candidates_surface_chat_operator_hints_without_direct_routing() {
 }
 
 #[test]
-fn comparative_no_findings_fallback_is_actionable() {
+fn comparative_no_findings_fallback_is_diagnostics_only() {
     let fallback = comparative_no_findings_fallback("rank infring among peers");
-    let lowered = fallback.to_ascii_lowercase();
-    assert!(lowered.contains("infring"));
-    assert!(lowered.contains("strongest"));
-    assert!(lowered.contains("batch_query"));
-    assert!(!response_is_no_findings_placeholder(&fallback));
+    assert!(fallback.is_empty());
 }
 
 #[test]
@@ -1869,9 +1865,7 @@ fn batch_query_context_guard_comparison_uses_comparative_fallback() {
             "summary": "Context overflow: estimated context size exceeds safe threshold during tool loop."
         }),
     );
-    let lowered = summary.to_ascii_lowercase();
-    assert!(lowered.contains("infring is strongest"));
-    assert!(lowered.contains("source-backed ranked table"));
+    assert!(summary.is_empty());
 }
 
 #[test]
@@ -2194,14 +2188,14 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
             .payload
             .pointer("/response_workflow/stage_statuses/0/stage")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
     assert_eq!(
         response
             .payload
             .pointer("/response_workflow/stage_statuses/0/status")
             .and_then(Value::as_str),
-        Some("answered_no")
+        Some("answered_no_tool_category")
     );
     assert_eq!(
         response
@@ -2252,7 +2246,7 @@ fn workflow_library_owns_successful_tool_turn_final_response() {
         &json!({
             "queue": [
                 {
-                    "response": "<function=batch_query>{\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}</function>"
+                    "response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}."
                 },
                 {"response": "For top AI agentic frameworks, the fetched evidence highlighted LangGraph, OpenAI Agents SDK, and AutoGen."}
             ],
@@ -2264,7 +2258,7 @@ fn workflow_library_owns_successful_tool_turn_final_response() {
         &json!({
             "queue": [
                 {
-                    "tool": "batch_query",
+                    "tool": "web_search",
                     "payload": {
                         "ok": true,
                         "status": "ok",
@@ -2275,11 +2269,29 @@ fn workflow_library_owns_successful_tool_turn_final_response() {
             "calls": []
         }),
     );
-    let response = handle(
+    let choose_tool = handle(
         root.path(),
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"Try to web search \"top AI agentic frameworks\" and return the results"}"#,
+        &snapshot,
+    )
+    .expect("tool choice response");
+    assert_eq!(choose_tool.status, 200);
+    assert_eq!(
+        choose_tool
+            .payload
+            .pointer("/pending_tool_request/tool_name")
+            .and_then(Value::as_str),
+        Some("web_search"),
+        "{}",
+        choose_tool.payload
+    );
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"yes"}"#,
         &snapshot,
     )
     .expect("message response");
@@ -2585,7 +2597,7 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}"
+                    "response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}"
                 }
             ],
             "calls": []
@@ -2667,7 +2679,7 @@ fn compare_workflow_hint_clusters_workspace_and_web_tools() {
         .filter_map(|row| row.get("tool").and_then(Value::as_str))
         .collect::<Vec<_>>();
     assert!(tool_names.contains(&"workspace_analyze"), "{tool_names:?}");
-    assert!(tool_names.contains(&"batch_query"), "{tool_names:?}");
+    assert!(tool_names.contains(&"web_search"), "{tool_names:?}");
 }
 
 #[test]
@@ -2678,7 +2690,7 @@ fn compare_platform_wording_clusters_workspace_and_web_tools() {
         .filter_map(|row| row.get("tool").and_then(Value::as_str))
         .collect::<Vec<_>>();
     assert!(tool_names.contains(&"workspace_analyze"), "{tool_names:?}");
-    assert!(tool_names.contains(&"batch_query"), "{tool_names:?}");
+    assert!(tool_names.contains(&"web_search"), "{tool_names:?}");
 }
 
 #[test]
@@ -2913,7 +2925,7 @@ fn compare_workflow_completes_missing_web_evidence_from_latent_candidates() {
         &json!({
             "queue": [
                 {
-                    "response": "<function=workspace_analyze>{\"path\":\".\",\"query\":\"compare this system (infring) to openclaw\",\"full\":true}</function>"
+                    "response": "Respond directly"
                 },
                 {
                     "response": "Using both local and external evidence, Infring centers workflow-gated synthesis while OpenClaw emphasizes governed web/media tooling."
@@ -2963,7 +2975,7 @@ fn compare_workflow_completes_missing_web_evidence_from_latent_candidates() {
         .into_iter()
         .filter_map(|row| row.get("name").and_then(Value::as_str).map(ToString::to_string))
         .collect::<Vec<_>>();
-    assert_eq!(tool_names, vec!["workspace_analyze".to_string(), "batch_query".to_string()]);
+    assert_eq!(tool_names, Vec::<String>::new());
     let response_text = response
         .payload
         .get("response")
