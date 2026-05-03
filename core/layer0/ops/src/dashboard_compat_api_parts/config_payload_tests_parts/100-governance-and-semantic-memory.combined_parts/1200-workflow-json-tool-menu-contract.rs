@@ -100,12 +100,24 @@ fn workflow_json_tool_menu_contract_declares_private_no_cancel_and_loopback() {
             "{file_name}"
         );
         assert!(
+            accepted_outputs
+                .iter()
+                .any(|value| value.as_str() == Some("1")),
+            "{file_name}"
+        );
+        assert!(
             accepted_outputs.iter().any(|value| {
                 value
                     .as_str()
-                    .map(|text| text.contains("Category: <category>. Tool family: <family>. Tool: <catalog tool key>. Request payload: <JSON>."))
+                    .map(|text| text == "Web research")
                     .unwrap_or(false)
             }),
+            "{file_name}"
+        );
+        assert!(
+            accepted_outputs
+                .iter()
+                .any(|value| value.as_str() == Some("3")),
             "{file_name}"
         );
         let forbidden_classes = submission_contract
@@ -130,6 +142,14 @@ fn workflow_json_tool_menu_contract_declares_private_no_cancel_and_loopback() {
                 .get("visible_chat")
                 .and_then(serde_json::Value::as_bool),
             Some(false),
+            "{file_name}"
+        );
+        assert!(
+            direct_option
+                .get("aliases")
+                .and_then(serde_json::Value::as_array)
+                .map(|aliases| aliases.iter().any(|value| value.as_str() == Some("1")))
+                .unwrap_or(false),
             "{file_name}"
         );
         assert_eq!(

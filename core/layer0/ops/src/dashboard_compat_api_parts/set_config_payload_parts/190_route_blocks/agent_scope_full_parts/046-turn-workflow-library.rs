@@ -249,7 +249,18 @@ fn normalized_workflow_token(value: &str) -> String {
 }
 
 fn normalized_workflow_option_tokens(option: &Value) -> Vec<String> {
-    [workflow_option_key(option), workflow_option_label(option)]
+    let mut tokens = [workflow_option_key(option), workflow_option_label(option)]
+        .into_iter()
+        .collect::<Vec<_>>();
+    if let Some(aliases) = option.get("aliases").and_then(Value::as_array) {
+        tokens.extend(
+            aliases
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|alias| clean_text(alias, 120)),
+        );
+    }
+    tokens
         .into_iter()
         .map(|row| normalized_workflow_token(&row))
         .filter(|row| !row.is_empty())
@@ -277,6 +288,39 @@ fn workflow_gate_option_labels(contract: &Value, has_tools: Option<bool>) -> Vec
             } else {
                 Some(label)
             }
+        })
+        .collect()
+}
+
+fn workflow_gate_option_menu_entries(contract: &Value, has_tools: Option<bool>) -> Vec<String> {
+    workflow_gate_options(contract, "gate_1_work_category_menu")
+        .into_iter()
+        .filter(|option| {
+            has_tools
+                .map(|expected| {
+                    option
+                        .get("has_tools")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                        == expected
+                })
+                .unwrap_or(true)
+        })
+        .filter_map(|option| {
+            let label = workflow_option_label(&option);
+            if label.is_empty() {
+                return None;
+            }
+            let leading_alias = option
+                .get("aliases")
+                .and_then(Value::as_array)
+                .and_then(|aliases| aliases.iter().filter_map(Value::as_str).next())
+                .map(|alias| clean_text(alias, 40))
+                .filter(|alias| !alias.is_empty());
+            Some(match leading_alias {
+                Some(alias) => format!("{alias} = {label}"),
+                None => label,
+            })
         })
         .collect()
 }
@@ -356,15 +400,34 @@ fn workflow_tool_submission_format(contract: &Value) -> String {
         .unwrap_or_default()
 }
 
+fn workflow_message_matches_contract_markers(contract: &Value, pointer: &str, message: &str) -> bool {
+    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    contract
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .map(|markers| {
+            markers
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|marker| clean_text(marker, 120).to_ascii_lowercase())
+                .filter(|marker| !marker.is_empty())
+                .any(|marker| lowered.contains(&marker))
+        })
+        .unwrap_or(false)
+}
+
 fn render_workflow_instruction_template(contract: &Value, template: &str) -> String {
     let gate_prompt = workflow_contract_gate(contract, "gate_1_work_category_menu")
         .get("question")
         .and_then(Value::as_str)
         .map(|row| clean_text(row, 120))
         .unwrap_or_default();
-    let category_options = workflow_gate_option_labels(contract, None).join("`, `");
-    let no_tool_categories = workflow_gate_option_labels(contract, Some(false)).join("`, `");
-    let tool_bearing_categories = workflow_gate_option_labels(contract, Some(true)).join("`, `");
+    let category_options = workflow_gate_option_menu_entries(contract, None).join("`, `");
+    let no_tool_categories = workflow_gate_option_menu_entries(contract, Some(false)).join("`, `");
+    let tool_bearing_categories = workflow_gate_option_menu_entries(contract, Some(true)).join("`, `");
     let tool_submission_format = workflow_tool_submission_format(contract);
     let example_tool_key = workflow_example_tool_key(contract);
     clean_text(
@@ -383,11 +446,19 @@ fn render_workflow_instruction_template(contract: &Value, template: &str) -> Str
 }
 
 fn workflow_category_token_matches(response: &str, has_tools: Option<bool>) -> bool {
+    workflow_category_selection(&default_workflow_tool_menu_contract(), response, has_tools).is_some()
+}
+
+fn workflow_category_selection(
+    contract: &Value,
+    response: &str,
+    has_tools: Option<bool>,
+) -> Option<(String, String)> {
     let token = normalized_workflow_token(response);
     if token.is_empty() {
-        return false;
+        return None;
     }
-    workflow_gate_options(&default_workflow_tool_menu_contract(), "gate_1_work_category_menu")
+    workflow_gate_options(contract, "gate_1_work_category_menu")
         .into_iter()
         .filter(|option| {
             has_tools
@@ -400,10 +471,13 @@ fn workflow_category_token_matches(response: &str, has_tools: Option<bool>) -> b
                 })
                 .unwrap_or(true)
         })
-        .any(|option| {
+        .find_map(|option| {
+            let key = workflow_option_key(&option);
+            let label = workflow_option_label(&option);
             normalized_workflow_option_tokens(&option)
                 .into_iter()
                 .any(|candidate| token == candidate)
+                .then_some((key, label))
         })
 }
 
@@ -478,8 +552,10 @@ fn workflow_tool_key_for_selection(contract: &Value, family: &str, tool_label: &
         .flat_map(|tools| tools.iter())
         .find_map(|tool| {
             let key = workflow_option_key(tool);
-            let normalized_key = normalized_workflow_token(&key);
-            (selected == normalized_key).then_some(key)
+            normalized_workflow_option_tokens(tool)
+                .into_iter()
+                .any(|candidate| selected == candidate)
+                .then_some(key)
         })
         .unwrap_or_default()
 }
@@ -498,7 +574,8 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     let info_source = "menu_only";
     let selected_tool_family = "unselected";
     let meta_control = workflow_turn_is_meta_control_message(message);
-    let status_check = false;
+    let status_check =
+        workflow_message_matches_contract_markers(&contract, "/diagnostic_markers/status_check", message);
     let meta_diagnostic_request =
         clean_text(message, 1_200).to_ascii_lowercase().contains("diagnostic");
     let llm_should_answer_directly = false;
@@ -633,6 +710,28 @@ fn workflow_library_prompt_context(message: &str, latent_tool_candidates: &[Valu
         .and_then(Value::as_str)
         .map(|template| render_workflow_instruction_template(&contract, template))
         .unwrap_or_default()
+}
+
+fn workflow_tool_request_prompt_context(category_key: &str, category_label: &str) -> String {
+    let contract = default_workflow_tool_menu_contract();
+    let category_key = clean_text(category_key, 120);
+    let category_label = clean_text(category_label, 120);
+    let tools = contract
+        .get("tool_menu_by_family")
+        .and_then(Value::as_object)
+        .and_then(|families| families.get(&category_key))
+        .cloned()
+        .unwrap_or_else(|| json!([]));
+    let tools_json = serde_json::to_string(&tools).unwrap_or_else(|_| "[]".to_string());
+    clean_text(
+        &format!(
+            "Private workflow gate submission only. Selected category: `{category_label}`. \
+Pick one catalog tool from this JSON menu and provide its request payload. \
+Reply exactly as: `Category: {category_label}. Tool family: {category_label}. Tool: <catalog tool key>. Request payload: <JSON>.` \
+Do not narrate or say what you would choose. Visible chat is only Gate 6 final answer.\n\nTool menu JSON:\n{tools_json}"
+        ),
+        4_000,
+    )
 }
 
 fn turn_workflow_requires_final_llm(
@@ -1278,9 +1377,8 @@ mod workflow_control_tests {
         let prompt =
             workflow_library_prompt_context("Use web search to compare agent frameworks.", &[]);
         assert!(prompt.contains("Private workflow gate submission only"));
-        assert!(prompt.contains("Pick one category"));
-        assert!(prompt.contains("Category: <category>. Tool family: <family>. Tool: <catalog tool key>. Request payload: <JSON>."));
-        assert!(prompt.contains("Use exact catalog tool keys"));
+        assert!(prompt.contains("Reply with exactly one option number or exact label"));
+        assert!(prompt.contains("advance to the private tool menu"));
         assert!(prompt.contains("Do not narrate"));
         assert!(!prompt.contains("present exactly one gate"));
         assert!(!prompt.contains("If Yes, continue"));
@@ -1303,7 +1401,7 @@ mod workflow_control_tests {
         );
         assert_eq!(
             canonical_manual_toolbox_tool_name("Web research", "Search web"),
-            ""
+            "web_search"
         );
         assert_eq!(
             canonical_manual_toolbox_tool_name("Web research", "I would choose web search"),

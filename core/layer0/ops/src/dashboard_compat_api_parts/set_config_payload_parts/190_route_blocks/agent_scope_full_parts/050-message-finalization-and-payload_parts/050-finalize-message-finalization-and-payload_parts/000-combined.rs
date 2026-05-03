@@ -62,20 +62,27 @@ fn finalize_message_finalization_and_payload(
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
     let workflow_provider = provider.clone();
     let workflow_model = model.clone();
-    if response_tools.is_empty() && !message_explicitly_disallows_tool_calls(message) {
-        if let Some(candidates) = latent_tool_candidates.as_array() {
-            if !candidates.is_empty() {
-                workflow_system_events.push(turn_workflow_event(
-                    "manual_toolbox_candidate_menu",
-                    json!({
-                        "selection_authority": "llm_only",
-                        "automatic_execution_allowed": false,
-                        "candidate_count": candidates.len(),
-                        "candidates": candidates.iter().take(4).cloned().collect::<Vec<_>>()
-                    }),
-                ));
-            }
-        }
+    if response_tools.is_empty()
+        && !message_explicitly_disallows_tool_calls(message)
+        && !workflow_turn_is_simple_conversation_without_tool_intent(message)
+        && !message_is_affirmative_confirmation(message)
+        && !message_is_negative_confirmation(message)
+        && !response_contains_workflow_prompt_analysis_leak(&initial_draft_response)
+    {
+        let candidates = latent_tool_candidates
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        workflow_system_events.push(turn_workflow_event(
+            "manual_toolbox_candidate_menu",
+            json!({
+                "selection_authority": "llm_only",
+                "automatic_execution_allowed": false,
+                "candidate_count": candidates.len(),
+                "candidates": candidates.iter().take(4).cloned().collect::<Vec<_>>(),
+                "candidate_source": if candidates.is_empty() { "json_cd_default_gate" } else { "latent_tool_candidates" }
+            }),
+        ));
     }
     let mut response_workflow = run_turn_workflow_final_response(
         root,
@@ -104,6 +111,26 @@ fn finalize_message_finalization_and_payload(
         .and_then(Value::as_str)
         == Some("withheld_workflow_prompt_analysis")
         || response_contains_workflow_prompt_analysis_leak(&initial_draft_response);
+    let workflow_direct_response_path_for_visibility = response_workflow
+        .pointer("/workflow_control/direct_response_path")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let workflow_blocks_initial_draft_fallback = matches!(
+        workflow_direct_response_path_for_visibility,
+        "gate_1_pending_llm_tool_choice"
+            | "gate_1_yes_pending_tool_confirmation"
+            | "gate_2_pending_llm_tool_request"
+    ) || workflow_direct_response_path_for_visibility.starts_with("gate_")
+        && workflow_direct_response_path_for_visibility.contains("pending")
+        || matches!(
+        response_workflow
+            .pointer("/final_llm_response/last_reject_reason")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "invalid_manual_toolbox_gate_submission"
+            | "tool_category_without_tool_payload"
+            | "visible_gate_choice_reply"
+    );
     let mut finalization_outcome = if workflow_used {
         "workflow_authored".to_string()
     } else {
@@ -129,7 +156,7 @@ fn finalize_message_finalization_and_payload(
         );
     } else if workflow_fallback_allowed {
         // Policy: never inject system-authored fallback text into chat.
-        let llm_only_candidate = if workflow_withheld_prompt_analysis {
+        let llm_only_candidate = if workflow_withheld_prompt_analysis || workflow_blocks_initial_draft_fallback {
             String::new()
         } else {
             initial_draft_response.clone()
@@ -144,7 +171,7 @@ fn finalize_message_finalization_and_payload(
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     } else {
         // Keep chat output LLM-authored only, even when workflow final synthesis is unavailable.
-        let llm_only_candidate = if workflow_withheld_prompt_analysis {
+        let llm_only_candidate = if workflow_withheld_prompt_analysis || workflow_blocks_initial_draft_fallback {
             String::new()
         } else {
             initial_draft_response.clone()
@@ -157,6 +184,18 @@ fn finalize_message_finalization_and_payload(
             merge_response_outcomes(&finalization_outcome, "workflow_no_system_fallback", 200);
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
+    }
+    if workflow_blocks_initial_draft_fallback {
+        response_workflow["final_llm_response"]["invalid_gate_draft_fallback_withheld"] =
+            json!(true);
+        response_workflow["final_llm_response"]["fallback_from_existing_draft"] = json!(false);
+        response_workflow["final_llm_response"]["fallback_source"] =
+            json!("withheld_invalid_gate_draft");
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "workflow_initial_draft_fallback_withheld",
+            220,
+        );
     }
     let repair_candidate_contamination = response_contains_stale_code_context_dump(message, &finalized_response)
         || response_contains_unrequested_content_without_tool_evidence(
