@@ -286,10 +286,13 @@ fn response_contains_unrequested_content_without_tool_evidence(
     if response_contains_short_unrelated_project_title(user_message, &cleaned) {
         return true;
     }
+    let lowered = cleaned.to_ascii_lowercase();
+    if lowered.contains("[tool:") || lowered.contains("<tool:") {
+        return true;
+    }
     if cleaned.len() < 160 {
         return false;
     }
-    let lowered = cleaned.to_ascii_lowercase();
     if response_claims_tool_success_without_current_turn_evidence(
         user_message,
         &cleaned,
