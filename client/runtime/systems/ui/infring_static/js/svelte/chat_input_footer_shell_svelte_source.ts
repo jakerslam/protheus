@@ -219,8 +219,41 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
   function selectGit(branch) { call('switchAgentGitTree', branch); refresh(); }
   function createGitBranch() { call('createAndCheckoutGitBranch'); refresh(); }
   function switchModel(row) { call('switchModel', row); refresh(); }
+  function clean(value) { return String(value == null ? '' : value).trim(); }
+  function firstNonEmpty() {
+    for (let i = 0; i < arguments.length; i += 1) {
+      const value = clean(arguments[i]);
+      if (value) return value;
+    }
+    return '';
+  }
+  function safeClass(value) {
+    return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'balanced';
+  }
   function modelName(row) { return String(call('modelSwitcherItemName', row) || row.display_name || row.id || 'model'); }
-  function modelMeta(row) { return String(row.provider || '') + (row.display_name && row.display_name !== row.id ? ' · ' + row.display_name : ''); }
+  function modelLogo(row) { return clean(call('modelLogoUrl', row)); }
+  function modelLogoTitle(row) { return firstNonEmpty(call('modelLogoTooltip', row), 'Model family'); }
+  function modelSourceLogo(row) { return clean(call('modelSourceLogoUrl', row)); }
+  function modelSourceLogoTitle(row) { return firstNonEmpty(call('modelSourceLogoTooltip', row), 'Model source'); }
+  function modelProvider(row) { return firstNonEmpty(row && row.provider, row && row.model_provider, 'provider'); }
+  function modelDeployment(row) { return firstNonEmpty(call('modelDeploymentLabel', row), row && row.deployment_kind, row && row.deployment); }
+  function modelContext(row) { return clean(call('modelContextWindowLabel', row)); }
+  function modelParams(row) { return clean(call('modelParamLabel', row)); }
+  function modelSpecialty(row) { return clean(call('modelSpecialtyLabel', row)); }
+  function modelTier(row) {
+    const raw = clean(row && (row.tier || row.quality_tier || row.speed_tier || row.specialty)).toLowerCase();
+    if (raw.indexOf('frontier') >= 0 || raw.indexOf('reason') >= 0) return 'frontier';
+    if (raw.indexOf('smart') >= 0 || raw.indexOf('coding') >= 0 || raw.indexOf('vision') >= 0) return 'smart';
+    if (raw.indexOf('fast') >= 0 || raw.indexOf('speed') >= 0) return 'fast';
+    if (raw.indexOf('local') >= 0) return 'local';
+    return safeClass(raw || 'balanced');
+  }
+  function modelPower(row) { return clean(call('modelPowerIcons', row)); }
+  function modelCost(row) { return clean(call('modelCostIcons', row)); }
+  function modelMetaParts(row) {
+    return [modelProvider(row), modelDeployment(row), modelContext(row), modelParams(row)].filter(function(value) { return !!clean(value); });
+  }
+  function modelMeta(row) { return modelMetaParts(row).join(' · '); }
   function applySuggestion(value) { call('applyPromptSuggestion', value); afterAction(); }
   function queuePreview(row) { return String(call('queuePromptPreview', row) || row.text || 'Queued prompt'); }
   function setQueueText(row) { syncInput(row && row.text); afterAction(); }
@@ -324,13 +357,54 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
               {#if !state.systemThread}
               <div class="composer-menu-pill composer-shared-input-pill">
                 <div class="composer-plus-wrap composer-icon-left">
-                  <button class="composer-icon-btn composer-hamburger-btn" on:click={toggleMenu} title="Add files and more (Ctrl+F)" aria-label="Add files and more" aria-expanded={state.menuOpen ? 'true' : 'false'}><svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+                  <button id="composer-plus-menu-anchor" class="composer-icon-btn composer-hamburger-btn" on:click={toggleMenu} title="Add files and more (Ctrl+F)" aria-label="Add files and more" aria-expanded={state.menuOpen ? 'true' : 'false'}><svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
                   {#if state.menuOpen || state.showModelSwitcher || state.showGitTreeMenu}
-                  <infring-taskbar-menu-shell class="composer-plus-menu dashboard-dropdown-surface">
+                  <infring-taskbar-menu-shell class="composer-plus-menu dashboard-dropdown-surface" anchorid="composer-plus-menu-anchor" fallbackside="top" layoutkey="composer-plus-menu">
                     {#if state.menuOpen && !state.terminalMode}<div class="composer-plus-menu-item composer-plus-menu-context-row"><span class="context-ring-inline-label">{state.contextLabel}</span><div class="context-ring context-ring-toggle dashboard-preview-trigger dashboard-preview-wrap" data-tooltip={state.contextTooltip} tabindex="0"><svg viewBox="0 0 36 36" aria-hidden="true"><circle class="context-ring-track" cx="18" cy="18" r="14" pathLength="100"></circle><circle class="context-ring-progress" cx="18" cy="18" r="14" pathLength="100" style={state.contextStyle}></circle></svg></div></div>{/if}
                     {#if state.menuOpen && !state.terminalMode}<button class="composer-plus-menu-item composer-plus-menu-item-toggle composer-plus-menu-item-suggestions composer-plus-menu-entry" on:click={toggleSuggestions} title="Toggle chat suggestions"><span class="composer-plus-toggle-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.75c.63.45 1 1.16 1 1.94V18h6v-1.31c0-.78.37-1.49 1-1.94A7 7 0 0 0 12 2z"/></svg><span>Chat suggestions</span></span><span class:active={state.promptSuggestionsEnabled} class="composer-plus-vtoggle" aria-hidden="true"><span class="composer-plus-vtoggle-knob"></span></span></button>{/if}
                     {#if state.menuOpen}<button class="composer-plus-menu-item composer-plus-menu-item-toggle composer-plus-menu-item-terminal composer-plus-menu-entry" on:click={toggleTerminal} disabled={state.systemThread} title={state.systemThread ? 'System thread is terminal-only' : 'Switch compose mode'}><span class="composer-plus-toggle-label">{#if state.terminalMode}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>{:else}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>{/if}<span>{state.systemThread ? 'Terminal locked' : (state.terminalMode ? 'Chat mode' : 'Terminal mode')}</span></span><span class="composer-plus-hotkey" aria-hidden="true">Ctrl+T / Ctrl+\</span><span class:active={state.terminalMode} class="composer-plus-vtoggle" aria-hidden="true"><span class="composer-plus-vtoggle-knob"></span></span></button>{/if}
-                    {#if !state.terminalMode}<div class="input-box-column input-box-column-selectors composer-plus-inline-controls">{#if state.branchLabel}<div class="input-box-selector-row"><button type="button" class="input-box-selector-activator composer-plus-menu-entry" title={'Active branch: ' + state.branchLabel} aria-expanded={state.showGitTreeMenu ? 'true' : 'false'} on:click={toggleGit}><span class:active={state.showGitTreeMenu} class="composer-icon-btn composer-git-btn input-box-selector-trigger" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><path d="M6 9v6a6 6 0 0 0 6 6h3"></path><path d="M18 15V9"></path></svg></span><span class="model-inline-label input-box-selector-label">Change git tree</span><span class="composer-plus-state-pill">{state.branchLabel}</span></button>{#if state.showGitTreeMenu}<div class="chat-branch-menu dashboard-dropdown-surface"><div class="chat-branch-menu-head">Switch Git Tree</div>{#if state.gitTreeLoading}<div class="chat-branch-menu-status">Loading trees...</div>{/if}{#if !state.gitTreeLoading && state.gitTreeError}<div class="chat-branch-menu-status chat-branch-menu-error">{state.gitTreeError}</div>{/if}{#if !state.gitTreeLoading && !state.gitTreeError}<div class="chat-branch-menu-list">{#each state.gitTreeRows as row (row.branch)}<button type="button" class:active={row.current} class="chat-branch-menu-item" disabled={state.gitTreeSwitching || row.current} on:click={() => selectGit(row.branch)}><span class="chat-branch-menu-item-name">{row.branch}</span><span class="chat-branch-menu-item-meta">{row.main ? 'main' : (row.in_use_by_agents > 0 ? row.in_use_by_agents + ' agents' : 'branch')}</span></button>{/each}</div>{/if}<button type="button" class="chat-branch-menu-create" disabled={state.gitTreeSwitching} on:click={createGitBranch}>Create and checkout new branch</button></div>{/if}</div>{/if}<div class="input-box-selector-row"><button type="button" class="input-box-selector-activator composer-plus-menu-entry" aria-expanded={state.showModelSwitcher ? 'true' : 'false'} on:click={toggleModel} title={'Active model: ' + state.modelDisplayName}><span class:active={state.showModelSwitcher} class="composer-icon-btn composer-model-btn input-box-selector-trigger" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></span><span class="model-inline-label input-box-selector-label">Active LLM</span><span class="composer-plus-state-pill composer-plus-state-pill-model">{state.menuModelLabel}</span></button>{#if state.showModelSwitcher}<div class="model-switcher-dropdown model-switcher-dropdown-inline dashboard-dropdown-surface"><div class="model-switcher-search"><input id="model-switcher-search" type="text" value={state.modelSwitcherFilter} placeholder="Search models..." on:input={(e) => { const p = cp(); if (p) p.modelSwitcherFilter = e.target.value; refresh(); }}><select class="model-switcher-provider-select" value={state.modelSwitcherProviderFilter} on:change={(e) => { const p = cp(); if (p) p.modelSwitcherProviderFilter = e.target.value; refresh(); }}><option value="">All</option>{#each state.switcherProviders as pn (pn)}<option value={pn}>{pn}</option>{/each}</select></div>{#if state.modelSwitching}<div style="display:flex;align-items:center;justify-content:center;padding:12px;gap:8px"><div class="tool-card-spinner"></div><span class="text-xs text-dim">Switching...</span></div>{:else}<div class="model-switcher-list">{#each state.modelRows as m (m.id)}<button type="button" class:active={call('isSwitcherModelActive', m)} class="model-switcher-item" on:click={() => switchModel(m)}><span class="model-switcher-item-name">{modelName(m)}</span><span class="model-switcher-item-meta">{modelMeta(m)}</span></button>{/each}</div>{/if}</div>{/if}</div></div>{/if}
+                    {#if !state.terminalMode}
+                      <div class="input-box-column input-box-column-selectors composer-plus-inline-controls">
+                        {#if state.branchLabel}
+                          <div class="input-box-selector-row">
+                            <button id="composer-git-tree-menu-anchor" type="button" class="input-box-selector-activator composer-plus-menu-entry" title={'Active branch: ' + state.branchLabel} aria-expanded={state.showGitTreeMenu ? 'true' : 'false'} on:click={toggleGit}><span class:active={state.showGitTreeMenu} class="composer-icon-btn composer-git-btn input-box-selector-trigger" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><path d="M6 9v6a6 6 0 0 0 6 6h3"></path><path d="M18 15V9"></path></svg></span><span class="model-inline-label input-box-selector-label">Change git tree</span><span class="composer-plus-state-pill">{state.branchLabel}</span></button>
+                            {#if state.showGitTreeMenu}
+                              <infring-taskbar-menu-shell class="chat-branch-menu dashboard-dropdown-surface fogged-glass" anchorid="composer-git-tree-menu-anchor" fallbackside="top" layoutkey="composer-git-tree-menu">
+                                <div class="chat-branch-menu-head">Switch Git Tree</div>
+                                {#if state.gitTreeLoading}<div class="chat-branch-menu-status">Loading trees...</div>{/if}
+                                {#if !state.gitTreeLoading && state.gitTreeError}<div class="chat-branch-menu-status chat-branch-menu-error">{state.gitTreeError}</div>{/if}
+                                {#if !state.gitTreeLoading && !state.gitTreeError}
+                                  <div class="chat-branch-menu-list">
+                                    {#each state.gitTreeRows as row (row.branch)}
+                                      <button type="button" class:active={row.current} class="chat-branch-menu-item" disabled={state.gitTreeSwitching || row.current} on:click={() => selectGit(row.branch)}><span class="chat-branch-menu-item-name">{row.branch}</span><span class="chat-branch-menu-item-meta">{row.main ? 'main' : (row.in_use_by_agents > 0 ? row.in_use_by_agents + ' agents' : 'branch')}</span></button>
+                                    {/each}
+                                  </div>
+                                {/if}
+                                <button type="button" class="chat-branch-menu-create" disabled={state.gitTreeSwitching} on:click={createGitBranch}>Create and checkout new branch</button>
+                              </infring-taskbar-menu-shell>
+                            {/if}
+                          </div>
+                        {/if}
+                        <div class="input-box-selector-row">
+                          <button id="composer-model-menu-anchor" type="button" class="input-box-selector-activator composer-plus-menu-entry" aria-expanded={state.showModelSwitcher ? 'true' : 'false'} on:click={toggleModel} title={'Active model: ' + state.modelDisplayName}><span class:active={state.showModelSwitcher} class="composer-icon-btn composer-model-btn input-box-selector-trigger" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></span><span class="model-inline-label input-box-selector-label">Active LLM</span><span class="composer-plus-state-pill composer-plus-state-pill-model">{state.menuModelLabel}</span></button>
+                          {#if state.showModelSwitcher}
+                            <infring-taskbar-menu-shell class="model-switcher-dropdown model-switcher-dropdown-inline dashboard-dropdown-surface fogged-glass" anchorid="composer-model-menu-anchor" fallbackside="top" layoutkey="composer-model-switcher">
+                              <div class="model-switcher-search"><input id="model-switcher-search" type="text" value={state.modelSwitcherFilter} placeholder="Search models..." on:input={(e) => { const p = cp(); if (p) p.modelSwitcherFilter = e.target.value; refresh(); }}><select class="model-switcher-provider-select" value={state.modelSwitcherProviderFilter} on:change={(e) => { const p = cp(); if (p) p.modelSwitcherProviderFilter = e.target.value; refresh(); }}><option value="">All</option>{#each state.switcherProviders as pn (pn)}<option value={pn}>{pn}</option>{/each}</select></div>
+                              {#if state.modelSwitching}
+                                <div style="display:flex;align-items:center;justify-content:center;padding:12px;gap:8px"><div class="tool-card-spinner"></div><span class="text-xs text-dim">Switching...</span></div>
+                              {:else}
+                                <div class="model-switcher-list">
+                                  {#if !state.modelRows.length}<div class="chat-branch-menu-status">No models match this filter.</div>{/if}
+                                  {#each state.modelRows as m (m.id)}
+                                    <button type="button" class:active={call('isSwitcherModelActive', m)} class="model-switcher-item" on:click={() => switchModel(m)}>{#if modelLogo(m)}<span class="model-switcher-logo-slot" title={modelLogoTitle(m)}><img class="model-switcher-logo-image" src={modelLogo(m)} alt="" loading="lazy" on:load={(e) => call('onModelLogoLoad', e)} on:error={(e) => call('onModelLogoError', 'model', m, e)}></span>{:else if modelSourceLogo(m)}<span class="model-switcher-logo-slot" title={modelSourceLogoTitle(m)}><img class="model-switcher-logo-image model-switcher-logo-source" src={modelSourceLogo(m)} alt="" loading="lazy" on:load={(e) => call('onModelLogoLoad', e)} on:error={(e) => call('onModelLogoError', 'source', m, e)}></span>{/if}<span class="model-switcher-main"><span class="model-switcher-title-row"><span class="model-switcher-item-name">{modelName(m)}</span>{#if modelSpecialty(m)}<span class={'model-switcher-tier tier-' + modelTier(m)}>{modelSpecialty(m)}</span>{/if}</span><span class="model-switcher-item-meta">{#each modelMetaParts(m) as part, midx (part + '-' + midx)}{#if midx > 0}<span class="model-meta-sep">·</span>{/if}<span class="model-meta-stat">{part}</span>{/each}</span></span><span class="model-switcher-item-tools">{#if modelPower(m)}<span class="model-meta-stat model-meta-power" title="Power">{modelPower(m)}</span>{/if}{#if modelCost(m)}<span class="model-meta-stat model-meta-cost" title="Cost">{modelCost(m)}</span>{/if}</span></button>
+                                  {/each}
+                                </div>
+                              {/if}
+                            </infring-taskbar-menu-shell>
+                          {/if}
+                        </div>
+                      </div>
+                    {/if}
                   </infring-taskbar-menu-shell>
                   {/if}
                 </div>
