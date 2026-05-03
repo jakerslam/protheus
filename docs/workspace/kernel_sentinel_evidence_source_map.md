@@ -63,6 +63,34 @@ This map identifies current telemetry producers, their authority class, and the 
 9. Sentinel must report `partial_evidence` when some streams are present and others are missing.
 10. RSI readiness requires fresh deterministic evidence, not merely advisory eval feedback.
 
+## Internal agent scope boundary
+
+The Sentinel/Eval overlap is governed by
+`observability/sentinel/internal_agent_scope_policy.json`.
+
+Eval owns response-level judgment: hallucinations, answer quality, wrong-tool
+behavior, and user-visible bad responses when there is no deterministic runtime
+failure attached.
+
+Sentinel owns live system evidence: Kernel receipts, runtime observations,
+finalization phases, state transitions, scheduler/admission truth, boundedness,
+gateway health, and release-proof integrity.
+
+Response failures are split by evidence class:
+
+- Bad answer, hallucination, or weak synthesis -> Eval primary.
+- No visible response with finalization/routing/persistence evidence -> Sentinel
+  may promote as a runtime finalization gap.
+- Wrong tool called -> Eval primary unless routing/capability/receipt evidence
+  shows a deterministic system failure.
+- Repeated eval feedback -> Sentinel may cluster as advisory recurrence, but it
+  must not become Kernel-truth or release-blocking without deterministic
+  corroboration.
+
+This JSON policy is temporary. Once internal agents have workflow templates like
+user-facing agents, Kernel Sentinel and Eval should each graduate to explicit
+internal workflows that import these boundaries as handoff and promotion rules.
+
 ## Next bridge order
 
 | Order | Bridge | Reason |

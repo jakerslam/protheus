@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "policy_id": "internal_agent_scope_policy.v1",
+  "status": "active_json_policy_before_internal_workflow_graduation",
+  "owner": "assurance.observability.sentinel",
+  "purpose": "Keep Kernel Sentinel, Eval Agent, and future internal agents from overlapping authority while internal-agent workflows are still being formalized.",
+  "future_graduation": {
+    "target": "internal_agent_workflows",
+    "note": "This JSON policy is the temporary role sheet. Once internal agents have workflow templates like user-facing agents, each internal agent should get a workflow that imports these scope rules as acceptance criteria and handoff boundaries."
+  },
+  "shared_rules": [
+    "All internal-agent findings must carry evidence refs, source artifact, trace_id when available, owner guess, recurrence or criticality, falsification probe, and human-review promotion state.",
+    "Internal agents may share evidence streams, but they must not silently upgrade another agent family's authority class.",
+    "A response-level symptom must be classified by producer authority before promotion: response quality belongs to Eval; response finalization/runtime absence can belong to Sentinel when backed by deterministic runtime evidence.",
+    "No internal agent may auto-apply patches from these findings; issue/TODO promotion remains draft-first until explicitly approved."
+  ],
+  "agents": {
+    "kernel_sentinel": {
+      "canonical_name": "Kernel Sentinel",
+      "domain": "observability",
+      "mission": "Find system-level, runtime, Kernel-truth, security, correctness, boundedness, and architectural-coherence failures from live evidence.",
+      "primary_questions": [
+        "What is structurally failing while the system runs?",
+        "Which evidence streams show recurring or critical runtime/Kernel truth failures?",
+        "Which problem hypotheses are supported enough to become reviewable issue drafts?",
+        "Is the system becoming safer, less noisy, and more self-understanding over time?"
+      ],
+      "looks_at": [
+        "kernel receipts and receipt drift",
+        "runtime observations and finalization phases",
+        "state mutation legality",
+        "scheduler/admission/capability failures",
+        "gateway health, quarantine, recovery, and isolation",
+        "boundedness, queue pressure, stale surfaces, and recovery time",
+        "release proof completeness",
+        "eval recurrence as advisory context, not direct Kernel truth"
+      ],
+      "does_not_own": [
+        "response quality grading",
+        "helpfulness scoring",
+        "hallucination judgment without runtime evidence",
+        "tool-choice quality scoring without deterministic routing evidence",
+        "controlled eval definitions or gold datasets",
+        "release scorecard verdict truth",
+        "patch application"
+      ],
+      "response_boundary": {
+        "sentinel_may_promote": [
+          "assistant-visible response missing after execution evidence exists",
+          "workflow finalization phase failed or skipped",
+          "final response routing/persistence failed",
+          "trace shows deterministic finalization gap"
+        ],
+        "sentinel_must_handoff_to_eval": [
+          "answer was low quality",
+          "answer hallucinated",
+          "answer used the wrong tool when no deterministic routing evidence is attached",
+          "answer failed user intent but runtime finalization completed"
+        ]
+      }
+    },
+    "eval_agent": {
+      "canonical_name": "Eval Agent",
+      "domain": "validation_and_observability",
+      "mission": "Judge response-level behavior and controlled task quality, then emit advisory findings with examples and recurrence.",
+      "primary_questions": [
+        "Did the assistant answer correctly and helpfully?",
+        "Did the assistant hallucinate?",
+        "Did the assistant call the right tools when required?",
+        "Did the assistant fail to respond from the user's perspective?",
+        "Is a response-quality failure recurring across examples?"
+      ],
+      "looks_at": [
+        "chat transcripts and bounded response projections",
+        "tool-use correctness against task expectations",
+        "hallucination and unsupported claims",
+        "non-response and empty-response user impact",
+        "gold eval fixtures and reviewer-labeled examples",
+        "controlled eval run outputs"
+      ],
+      "does_not_own": [
+        "Kernel receipt truth",
+        "scheduler/admission truth",
+        "gateway quarantine verdicts",
+        "boundedness release truth",
+        "Sentinel root-cause cluster promotion",
+        "direct release blocking without Governance policy"
+      ],
+      "handoff_to_sentinel_when": [
+        "a response failure has deterministic runtime trace evidence",
+        "non-response maps to finalization/routing/persistence failure",
+        "eval recurrence suggests a system-level runtime issue rather than isolated answer quality"
+      ]
+    }
+  },
+  "promotion_matrix": [
+    {
+      "signal": "bad_or_unhelpful_answer",
+      "primary_owner": "eval_agent",
+      "sentinel_role": "context_only_unless_correlated_with_runtime_failure",
+      "promotion_requirement": "reviewed eval evidence plus recurrence"
+    },
+    {
+      "signal": "hallucination",
+      "primary_owner": "eval_agent",
+      "sentinel_role": "context_only",
+      "promotion_requirement": "controlled eval or reviewer-labeled evidence"
+    },
+    {
+      "signal": "wrong_tool_called",
+      "primary_owner": "eval_agent",
+      "sentinel_role": "promote_only_if_routing_or_capability_trace_shows_deterministic_failure",
+      "promotion_requirement": "tool route trace, capability envelope, or receipt evidence"
+    },
+    {
+      "signal": "no_visible_response",
+      "primary_owner": "shared_by_evidence_class",
+      "sentinel_role": "promote_when_runtime_finalization_or_persistence_gap_is_observed",
+      "promotion_requirement": "runtime observation, trace phase, or receipt evidence"
+    },
+    {
+      "signal": "receipt_drift",
+      "primary_owner": "kernel_sentinel",
+      "sentinel_role": "primary",
+      "promotion_requirement": "receipt evidence, recurrence or criticality, falsification probe"
+    },
+    {
+      "signal": "eval_recurrence",
+      "primary_owner": "eval_agent",
+      "sentinel_role": "cluster_as_advisory_recurrence_gap_until_correlated",
+      "promotion_requirement": "stable dedupe key and reviewer/eval evidence; deterministic corroboration required for Kernel-truth promotion"
+    }
+  ]
+}
