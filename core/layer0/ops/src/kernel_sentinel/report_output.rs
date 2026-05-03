@@ -116,12 +116,23 @@ pub(super) fn run_report_command(root: &Path, command: &str, args: &[String]) ->
     }
     let bounded_report = bounded_report_index(&report, &dir, write_full_internal_report);
     if matches!(command, "run" | "report") {
-        if let Err(err) = write_built_outputs(&dir, &report, &verdict, args, &bounded_report, write_full_internal_report) {
+        if let Err(err) = write_built_outputs(
+            &dir,
+            &report,
+            &verdict,
+            args,
+            &bounded_report,
+            write_full_internal_report,
+        ) {
             eprintln!("kernel_sentinel_write_outputs_failed: {err}");
             return 1;
         }
     }
-    print_json(if command == "status" { &verdict } else { &bounded_report });
+    print_json(if command == "status" {
+        &verdict
+    } else {
+        &bounded_report
+    });
     exit
 }
 
@@ -177,7 +188,10 @@ fn timeout_diagnostic(dir: &Path, max_runtime: usize, started: Instant) -> Value
 }
 
 fn write_timeout_diagnostic_and_exit(dir: &Path, diagnostic: &Value) -> i32 {
-    let _ = super::write_json(&dir.join("kernel_sentinel_report_diagnostic_current.json"), diagnostic);
+    let _ = super::write_json(
+        &dir.join("kernel_sentinel_report_diagnostic_current.json"),
+        diagnostic,
+    );
     print_json(diagnostic);
     REPORT_TIMEOUT_EXIT_CODE
 }
@@ -190,9 +204,15 @@ fn write_built_outputs(
     bounded_report: &Value,
     write_full_internal_report: bool,
 ) -> Result<(), String> {
-    super::write_json(&dir.join("kernel_sentinel_report_current.json"), bounded_report)?;
+    super::write_json(
+        &dir.join("kernel_sentinel_report_current.json"),
+        bounded_report,
+    )?;
     write_full_internal_report_if_requested(dir, report, write_full_internal_report)?;
-    super::write_json(&dir.join("kernel_sentinel_final_report_current.json"), &report["final_report"])?;
+    super::write_json(
+        &dir.join("kernel_sentinel_final_report_current.json"),
+        &report["final_report"],
+    )?;
     super::write_json(&dir.join("kernel_sentinel_verdict.json"), verdict)?;
     super::causal_calibration::write_causal_calibration_artifacts(dir, report)?;
     let self_study_outputs = super::self_study::write_self_study_outputs(dir, report)?;
@@ -207,7 +227,11 @@ fn write_built_outputs(
 }
 
 fn quarantine_oversized_default_report(dir: &Path, args: &[String]) -> Option<Value> {
-    let budget = option_usize(args, "--report-index-byte-budget", DEFAULT_REPORT_INDEX_BYTES as usize) as u64;
+    let budget = option_usize(
+        args,
+        "--report-index-byte-budget",
+        DEFAULT_REPORT_INDEX_BYTES as usize,
+    ) as u64;
     let path = dir.join("kernel_sentinel_report_current.json");
     let size = fs::metadata(&path).ok()?.len();
     if size <= budget {
@@ -215,31 +239,77 @@ fn quarantine_oversized_default_report(dir: &Path, args: &[String]) -> Option<Va
     }
     let archive_dir = dir.join("archive/noisy_reports");
     if let Err(err) = fs::create_dir_all(&archive_dir) {
-        return Some(json!({"ok": false, "reason": "archive_create_failed", "path": path, "bytes": size, "error": err.to_string()}));
+        return Some(
+            json!({"ok": false, "reason": "archive_create_failed", "path": path, "bytes": size, "error": err.to_string()}),
+        );
     }
     let stamp = crate::now_iso().replace([':', '.'], "-");
-    let archived_path = archive_dir.join(format!("kernel_sentinel_report_current_{stamp}.oversized.json"));
+    let archived_path = archive_dir.join(format!(
+        "kernel_sentinel_report_current_{stamp}.oversized.json"
+    ));
     match fs::rename(&path, &archived_path) {
-        Ok(_) => Some(json!({"ok": true, "reason": "oversized_default_report_quarantined", "bytes": size, "budget_bytes": budget, "archived_path": archived_path})),
-        Err(err) => Some(json!({"ok": false, "reason": "oversized_default_report_quarantine_failed", "path": path, "bytes": size, "budget_bytes": budget, "error": err.to_string()})),
+        Ok(_) => Some(
+            json!({"ok": true, "reason": "oversized_default_report_quarantined", "bytes": size, "budget_bytes": budget, "archived_path": archived_path}),
+        ),
+        Err(err) => Some(
+            json!({"ok": false, "reason": "oversized_default_report_quarantine_failed", "path": path, "bytes": size, "budget_bytes": budget, "error": err.to_string()}),
+        ),
     }
 }
 
-fn stream_report_bundle(dir: &Path, args: &[String], quarantine: Option<Value>) -> Option<StreamReportBundle> {
+fn stream_report_bundle(
+    dir: &Path,
+    args: &[String],
+    quarantine: Option<Value>,
+) -> Option<StreamReportBundle> {
     let mut issues = read_jsonl_limited(&dir.join("issues.jsonl"), 200);
     let suggestions = read_jsonl_limited(&dir.join("suggestions.jsonl"), 200);
     if issues.is_empty() && suggestions.is_empty() {
         return None;
     }
     issues.sort_by_key(|row| (severity_sort(row), occurrence_sort(row)));
-    let limit = option_usize(args, "--final-report-finding-limit", super::DEFAULT_FINAL_REPORT_FINDING_LIMIT);
-    let byte_budget = option_usize(args, "--final-report-byte-budget", super::DEFAULT_FINAL_REPORT_BYTE_BUDGET);
-    let finding_limit = if byte_budget <= 12_000 { limit.min(5) } else { limit };
-    let suggestion_limit = if byte_budget <= 12_000 { limit.min(2) } else { limit };
-    let top_findings = issues.iter().take(finding_limit).map(compact_issue).collect::<Vec<_>>();
-    let top_suggestions = suggestions.iter().take(suggestion_limit).map(compact_suggestion).collect::<Vec<_>>();
-    let critical_count = issues.iter().filter(|row| text(row, "severity") == "critical").count();
-    let verdict_label = if critical_count > 0 { "release_fail" } else if issues.is_empty() { "allow" } else { "review_required" };
+    let limit = option_usize(
+        args,
+        "--final-report-finding-limit",
+        super::DEFAULT_FINAL_REPORT_FINDING_LIMIT,
+    );
+    let byte_budget = option_usize(
+        args,
+        "--final-report-byte-budget",
+        super::DEFAULT_FINAL_REPORT_BYTE_BUDGET,
+    );
+    let finding_limit = if byte_budget <= 12_000 {
+        limit.min(5)
+    } else {
+        limit
+    };
+    let suggestion_limit = if byte_budget <= 12_000 {
+        limit.min(2)
+    } else {
+        limit
+    };
+    let top_findings = issues
+        .iter()
+        .take(finding_limit)
+        .map(compact_issue)
+        .collect::<Vec<_>>();
+    let root_cause_clusters = stream_root_cause_clusters(&issues);
+    let top_suggestions = suggestions
+        .iter()
+        .take(suggestion_limit)
+        .map(compact_suggestion)
+        .collect::<Vec<_>>();
+    let critical_count = issues
+        .iter()
+        .filter(|row| text(row, "severity") == "critical")
+        .count();
+    let verdict_label = if critical_count > 0 {
+        "release_fail"
+    } else if issues.is_empty() {
+        "allow"
+    } else {
+        "review_required"
+    };
     let mut verdict = json!({
         "ok": critical_count == 0,
         "type": "kernel_sentinel_verdict",
@@ -257,6 +327,12 @@ fn stream_report_bundle(dir: &Path, args: &[String], quarantine: Option<Value>) 
         "artifact_kind": "stream_compacted_final_report",
         "generated_at": crate::now_iso(),
         "top_findings": top_findings,
+        "root_cause_clustering": {
+            "type": "kernel_sentinel_stream_root_cause_cluster_summary",
+            "cluster_count": root_cause_clusters.len(),
+            "policy": "stream_symptoms_are_collapsed_by_owner_pattern_and_optional_fingerprint_family_before_operator_promotion"
+        },
+        "root_cause_clusters": root_cause_clusters,
         "top_suggestions": top_suggestions,
         "raw_evidence": {"embedded": false},
         "source_streams": {
@@ -264,18 +340,46 @@ fn stream_report_bundle(dir: &Path, args: &[String], quarantine: Option<Value>) 
             "suggestions": dir.join("suggestions.jsonl").display().to_string()
         }
     });
-    let bytes = serde_json::to_vec(&final_report).map(|row| row.len()).unwrap_or(usize::MAX);
+    let bytes = serde_json::to_vec(&final_report)
+        .map(|row| row.len())
+        .unwrap_or(usize::MAX);
     final_report["report_budget"] = json!({"byte_budget": byte_budget, "estimated_bytes": bytes, "within_budget": bytes <= byte_budget, "full_report_embedded": false});
     final_report["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&final_report));
-    let report = synthetic_stream_report(dir, &issues, &suggestions, &verdict, &final_report, quarantine);
-    Some(StreamReportBundle { report, final_report, verdict, exit_code: if critical_count > 0 && bool_flag(args, "--strict") { 2 } else { 0 } })
+    let report = synthetic_stream_report(
+        dir,
+        &issues,
+        &suggestions,
+        &verdict,
+        &final_report,
+        quarantine,
+    );
+    Some(StreamReportBundle {
+        report,
+        final_report,
+        verdict,
+        exit_code: if critical_count > 0 && bool_flag(args, "--strict") {
+            2
+        } else {
+            0
+        },
+    })
 }
 
-fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], verdict: &Value, final_report: &Value, quarantine: Option<Value>) -> Value {
+fn synthetic_stream_report(
+    dir: &Path,
+    issues: &[Value],
+    suggestions: &[Value],
+    verdict: &Value,
+    final_report: &Value,
+    quarantine: Option<Value>,
+) -> Value {
     let issue_count = issues.len();
     let suggestion_count = suggestions.len();
     let critical_open_count = verdict["critical_open_count"].as_u64().unwrap_or(0);
-    let stream_findings = issues.iter().map(stream_issue_as_finding).collect::<Vec<_>>();
+    let stream_findings = issues
+        .iter()
+        .map(stream_issue_as_finding)
+        .collect::<Vec<_>>();
     let stream_causal_calibration = stream_causal_calibration(issues);
     let mut report = json!({
         "ok": verdict["ok"].clone(),
@@ -343,18 +447,31 @@ fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], 
 
 fn write_stream_bundle_and_print(dir: &Path, bundle: &StreamReportBundle, args: &[String]) -> i32 {
     let bounded = bounded_report_index(&bundle.report, dir, false);
-    let self_study_outputs = match super::self_study::write_self_study_outputs(dir, &bundle.report) {
+    let self_study_outputs = match super::self_study::write_self_study_outputs(dir, &bundle.report)
+    {
         Ok(outputs) => outputs,
         Err(err) => {
             eprintln!("kernel_sentinel_write_stream_self_study_failed: {err}");
             return 1;
         }
     };
-    let health = build_health_report(&bundle.report, &bundle.verdict, Some(&self_study_outputs), None);
+    let health = build_health_report(
+        &bundle.report,
+        &bundle.verdict,
+        Some(&self_study_outputs),
+        None,
+    );
     if let Err(err) = super::write_json(&dir.join("kernel_sentinel_report_current.json"), &bounded)
-        .and_then(|_| super::write_json(&dir.join("kernel_sentinel_final_report_current.json"), &bundle.final_report))
+        .and_then(|_| {
+            super::write_json(
+                &dir.join("kernel_sentinel_final_report_current.json"),
+                &bundle.final_report,
+            )
+        })
         .and_then(|_| super::write_json(&dir.join("kernel_sentinel_verdict.json"), &bundle.verdict))
-        .and_then(|_| super::causal_calibration::write_causal_calibration_artifacts(dir, &bundle.report))
+        .and_then(|_| {
+            super::causal_calibration::write_causal_calibration_artifacts(dir, &bundle.report)
+        })
         .and_then(|_| super::write_json(&dir.join("kernel_sentinel_health_current.json"), &health))
         .and_then(|_| super::boot_watch::write_watch_metadata(dir, &bundle.report, args))
     {
@@ -386,7 +503,12 @@ fn compact_issue(row: &Value) -> Value {
         "fingerprint": text(row, "fingerprint"),
         "occurrence_count": row["occurrence_count"].clone(),
         "summary": clip(&first_present(row, &["summary", "actual_behavior", "observed_failure"]), 260),
+        "owner_guess": stream_owner_guess(row),
+        "likely_source_areas": stream_likely_source_areas(row),
+        "causal_pattern": stream_pattern_id(row),
+        "causal_cluster_key": stream_cluster_key(row),
         "root_cause_hypothesis": clip(&stream_root_cause_hypothesis(row), 240),
+        "falsification_probe": stream_falsification_probe(row),
         "recommended_fix": clip(&stream_recommended_fix(row), 420),
         "acceptance_criteria": limited_array(&row["acceptance_criteria"], 3),
         "evidence": limited_array(&row["evidence"], 3)
@@ -414,6 +536,12 @@ fn stream_issue_as_finding(row: &Value) -> Value {
         "evidence": row.get("evidence").cloned().unwrap_or_else(|| json!([])),
         "summary": clip(&first_present(row, &["summary", "actual_behavior", "title"]), 260),
         "recommended_action": clip(&first_present(row, &["recommended_action", "recommended_fix", "suggested_change"]), 260),
+        "owner_guess": stream_owner_guess(row),
+        "root_cause_hypothesis": stream_root_cause_hypothesis(row),
+        "root_frame": stream_root_frame(row),
+        "causal_pattern": stream_pattern_id(row),
+        "causal_cluster_key": stream_cluster_key(row),
+        "likely_source_areas": stream_likely_source_areas(row),
         "status": "open",
         "occurrence_count": row.get("occurrence_count").cloned().unwrap_or_else(|| json!(1)),
         "acceptance_criteria": limited_array(&row["acceptance_criteria"], 3)
@@ -427,17 +555,25 @@ fn stream_root_cause_hypothesis(row: &Value) -> String {
     }
     let fingerprint = text(row, "fingerprint");
     let category = text(row, "category");
-    let recovery = first_present(row, &["recovery_reason", "recommended_fix", "suggested_change"]);
+    let recovery = first_present(
+        row,
+        &["recovery_reason", "recommended_fix", "suggested_change"],
+    );
     let evidence = first_present(row, &["actual_behavior", "summary", "title"]);
     if fingerprint.contains("synthetic_user_chat_harness")
-        || evidence.to_ascii_lowercase().contains("empty_assistant_response")
+        || evidence
+            .to_ascii_lowercase()
+            .contains("empty_assistant_response")
     {
         return "workflow finalization is likely dropping or failing to synthesize a visible assistant response after execution evidence is produced".to_string();
     }
     if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
         return "evaluation evidence is recurring faster than the current runtime correction loop can absorb, suggesting unresolved correctness debt in the observed execution family".to_string();
     }
-    if category == "receipt_integrity" || fingerprint.contains("receipt") || fingerprint.contains("drift") {
+    if category == "receipt_integrity"
+        || fingerprint.contains("receipt")
+        || fingerprint.contains("drift")
+    {
         return "authoritative receipt generation or receipt-to-action linkage is likely incomplete for this path, allowing drift evidence to persist".to_string();
     }
     if recovery.contains("inspect_kernel_evidence") {
@@ -465,6 +601,8 @@ fn stream_causal_calibration(issues: &[Value]) -> Value {
                 "hypothesis_id": format!("stream_hypothesis:{}", text(row, "fingerprint")),
                 "finding_fingerprint": text(row, "fingerprint"),
                 "pattern": stream_pattern_id(row),
+                "owner_guess": stream_owner_guess(row),
+                "likely_source_areas": stream_likely_source_areas(row),
                 "outcome_status": "unresolved",
                 "calibrated_confidence_percent": stream_confidence_percent(row),
                 "promotion_ready": false,
@@ -499,12 +637,80 @@ fn stream_causal_calibration(issues: &[Value]) -> Value {
     })
 }
 
+fn stream_root_cause_clusters(issues: &[Value]) -> Vec<Value> {
+    let mut order = Vec::<String>::new();
+    let mut clusters = std::collections::BTreeMap::<String, StreamRootCauseCluster>::new();
+    for row in issues {
+        let key = stream_cluster_key(row);
+        if !clusters.contains_key(&key) {
+            order.push(key.clone());
+        }
+        clusters
+            .entry(key)
+            .or_insert_with(|| StreamRootCauseCluster::new(row))
+            .push(row);
+    }
+    order
+        .into_iter()
+        .filter_map(|key| clusters.remove(&key).map(|cluster| cluster.to_json()))
+        .collect()
+}
+
+struct StreamRootCauseCluster {
+    key: String,
+    owner: String,
+    pattern: String,
+    root_cause_hypothesis: String,
+    occurrence_count: u64,
+    sample_fingerprints: Vec<String>,
+    likely_source_areas: Vec<String>,
+}
+
+impl StreamRootCauseCluster {
+    fn new(row: &Value) -> Self {
+        Self {
+            key: stream_cluster_key(row),
+            owner: stream_owner_guess(row),
+            pattern: stream_pattern_id(row),
+            root_cause_hypothesis: stream_root_cause_hypothesis(row),
+            occurrence_count: 0,
+            sample_fingerprints: Vec::new(),
+            likely_source_areas: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, row: &Value) {
+        self.occurrence_count += row["occurrence_count"].as_u64().unwrap_or(1);
+        push_unique(&mut self.sample_fingerprints, text(row, "fingerprint"), 5);
+        for area in stream_source_area_strings(row) {
+            push_unique(&mut self.likely_source_areas, &area, 5);
+        }
+    }
+
+    fn to_json(self) -> Value {
+        json!({
+            "cluster_key": self.key,
+            "owner_guess": self.owner,
+            "causal_pattern": self.pattern,
+            "root_cause_hypothesis": clip(&self.root_cause_hypothesis, 260),
+            "occurrence_count": self.occurrence_count,
+            "sample_fingerprints": self.sample_fingerprints,
+            "likely_source_areas": self.likely_source_areas,
+            "promotion_state": "cluster_ready_for_human_review"
+        })
+    }
+}
+
 fn stream_pattern_id(row: &Value) -> String {
     let fingerprint = text(row, "fingerprint");
     let actual = first_present(row, &["actual_behavior", "summary", "title"]).to_ascii_lowercase();
-    if fingerprint.contains("synthetic_user_chat_harness") || actual.contains("empty_assistant_response") {
+    if fingerprint.contains("synthetic_user_chat_harness")
+        || actual.contains("empty_assistant_response")
+    {
         "response_finalization_gap".to_string()
-    } else if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
+    } else if fingerprint.contains("eval_agent_feedback")
+        || fingerprint.contains("eval_learning_loop")
+    {
         "eval_feedback_recurrence_gap".to_string()
     } else if fingerprint.contains("receipt") || fingerprint.contains("drift") {
         "receipt_integrity_gap".to_string()
@@ -513,6 +719,101 @@ fn stream_pattern_id(row: &Value) -> String {
             "{}_stream_pattern",
             text(row, "category").replace('-', "_").replace(' ', "_")
         )
+    }
+}
+
+fn stream_cluster_key(row: &Value) -> String {
+    let pattern = stream_pattern_id(row);
+    if matches!(
+        pattern.as_str(),
+        "response_finalization_gap" | "eval_feedback_recurrence_gap" | "receipt_integrity_gap"
+    ) {
+        return format!("{}|{}", stream_owner_guess(row), pattern);
+    }
+    format!(
+        "{}|{}|{}",
+        stream_owner_guess(row),
+        pattern,
+        stream_fingerprint_family(text(row, "fingerprint"))
+    )
+}
+
+fn stream_fingerprint_family(fingerprint: &str) -> String {
+    let mut parts = fingerprint.split(':').take(2).collect::<Vec<_>>();
+    if parts.is_empty() || parts[0].is_empty() {
+        "unknown".to_string()
+    } else if parts.len() == 1 {
+        normalize_key(parts.remove(0))
+    } else {
+        normalize_key(&parts.join(":"))
+    }
+}
+
+fn stream_owner_guess(row: &Value) -> String {
+    let fingerprint = text(row, "fingerprint");
+    let category = text(row, "category");
+    if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
+        "observability".to_string()
+    } else if fingerprint.contains("synthetic_user_chat_harness") {
+        "kernel".to_string()
+    } else {
+        match category {
+            "receipt_integrity"
+            | "capability_enforcement"
+            | "state_transition"
+            | "security_boundary"
+            | "runtime_correctness"
+            | "self_maintenance_loop" => "kernel".to_string(),
+            "queue_backpressure" | "retry_storm" | "boundedness" | "performance_regression" => {
+                "observability".to_string()
+            }
+            "release_evidence" => "validation".to_string(),
+            "automation_candidate" => "governance".to_string(),
+            "gateway_isolation" => "gateways".to_string(),
+            _ => "unknown".to_string(),
+        }
+    }
+}
+
+fn stream_root_frame(row: &Value) -> String {
+    let explicit = text(row, "root_frame");
+    if !explicit.trim().is_empty() {
+        explicit.to_string()
+    } else {
+        match stream_pattern_id(row).as_str() {
+            "response_finalization_gap" => "workflow_finalization",
+            "eval_feedback_recurrence_gap" => "eval_feedback_absorption",
+            "receipt_integrity_gap" => "receipt_integrity",
+            _ => "kernel_sentinel_stream",
+        }
+        .to_string()
+    }
+}
+
+fn stream_likely_source_areas(row: &Value) -> Value {
+    Value::Array(
+        stream_source_area_strings(row)
+            .into_iter()
+            .map(Value::String)
+            .collect(),
+    )
+}
+
+fn stream_source_area_strings(row: &Value) -> Vec<String> {
+    match stream_pattern_id(row).as_str() {
+        "response_finalization_gap" => vec![
+            "core/layer0/ops/src/app_plane_parts".to_string(),
+            "validation/evals".to_string(),
+        ],
+        "eval_feedback_recurrence_gap" => vec![
+            "observability/sentinel".to_string(),
+            "local/state/ops/eval_agent_feedback".to_string(),
+        ],
+        "receipt_integrity_gap" => vec![
+            "core/layer0/ops/src/kernel_sentinel".to_string(),
+            "local/state/ops/verity".to_string(),
+        ],
+        _ => vec!["core/layer0/ops/src/kernel_sentinel".to_string()],
     }
 }
 
@@ -531,14 +832,20 @@ fn stream_falsification_probe(row: &Value) -> String {
     let fingerprint = text(row, "fingerprint");
     if fingerprint.contains("synthetic_user_chat_harness") {
         "rerun the synthetic user chat harness and verify that assistant-visible final responses are emitted for the affected scenario family".to_string()
-    } else if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
+    } else if fingerprint.contains("eval_agent_feedback")
+        || fingerprint.contains("eval_learning_loop")
+    {
         "rerun the eval feedback loop and confirm that the recurring evaluator signature drops for this fingerprint family".to_string()
     } else if fingerprint.contains("receipt") || fingerprint.contains("drift") {
         "replay the affected receipt path and verify that action evidence and authoritative receipts converge without drift".to_string()
     } else {
         format!(
             "rerun focused diagnostics for `{}` and confirm the failure signature no longer recurs",
-            if fingerprint.is_empty() { "kernel_sentinel_stream_issue" } else { fingerprint }
+            if fingerprint.is_empty() {
+                "kernel_sentinel_stream_issue"
+            } else {
+                fingerprint
+            }
         )
     }
 }
@@ -548,7 +855,10 @@ fn text<'a>(row: &'a Value, key: &str) -> &'a str {
 }
 
 fn first_present(row: &Value, keys: &[&str]) -> String {
-    keys.iter().find_map(|key| row.get(*key).and_then(Value::as_str)).unwrap_or("").to_string()
+    keys.iter()
+        .find_map(|key| row.get(*key).and_then(Value::as_str))
+        .unwrap_or("")
+        .to_string()
 }
 
 fn stream_recommended_fix(row: &Value) -> String {
@@ -566,7 +876,9 @@ fn stream_recommended_fix(row: &Value) -> String {
         .as_array()
         .and_then(|rows| rows.first())
         .and_then(|row| row["command"].as_str())
-        .unwrap_or("cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture");
+        .unwrap_or(
+            "cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture",
+        );
     format!(
         "Repair `{}` at `{}` by resolving `{}` for `{}`; rerun `{validation}` and keep this draft open until the evidence stream stops emitting it.",
         if component.is_empty() { "kernel_sentinel" } else { component },
@@ -589,7 +901,37 @@ fn clip(raw: &str, max: usize) -> String {
     if raw.chars().count() <= max {
         raw.to_string()
     } else {
-        format!("{}...", raw.chars().take(max.saturating_sub(3)).collect::<String>())
+        format!(
+            "{}...",
+            raw.chars().take(max.saturating_sub(3)).collect::<String>()
+        )
+    }
+}
+
+fn normalize_key(raw: &str) -> String {
+    raw.chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>()
+        .split('_')
+        .filter(|part| !part.is_empty())
+        .take(8)
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
+fn push_unique(values: &mut Vec<String>, raw: &str, limit: usize) {
+    if values.len() >= limit {
+        return;
+    }
+    let value = clip(raw, 160);
+    if !value.is_empty() && !values.iter().any(|existing| existing == &value) {
+        values.push(value);
     }
 }
 
@@ -608,7 +950,11 @@ fn occurrence_sort(row: &Value) -> usize {
 }
 
 fn print_json(value: &Value) {
-    println!("{}", serde_json::to_string_pretty(value).unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()));
+    println!(
+        "{}",
+        serde_json::to_string_pretty(value)
+            .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+    );
 }
 
 pub(super) fn write_full_internal_report_if_requested(
@@ -617,7 +963,10 @@ pub(super) fn write_full_internal_report_if_requested(
     requested: bool,
 ) -> Result<(), String> {
     if requested {
-        super::write_json(&state_dir.join("kernel_sentinel_internal_report_current.json"), report)
+        super::write_json(
+            &state_dir.join("kernel_sentinel_internal_report_current.json"),
+            report,
+        )
     } else {
         Ok(())
     }
