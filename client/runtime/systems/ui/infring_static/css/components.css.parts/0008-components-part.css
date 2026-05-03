@@ -886,24 +886,5 @@
   overflow: visible;
 }
 
-/* Composer dropdown surfaces should resolve directly from fogged-glass tokens,
-   even when mounted inside input/composer wrappers. */
-.composer-plus-menu.dashboard-dropdown-surface,
-.composer-plus-menu .chat-branch-menu.dashboard-dropdown-surface,
-.composer-plus-menu .model-switcher-dropdown.dashboard-dropdown-surface {
-  --dashboard-preview-surface-border: var(--overlay-fogged-surface-border);
-  --dashboard-preview-surface-background: var(--overlay-fogged-surface-background);
-  --dashboard-preview-surface-shadow: var(--overlay-fogged-surface-shadow);
-  --dashboard-preview-surface-blur: var(--overlay-fogged-surface-blur);
-  --dashboard-preview-surface-saturate: var(--overlay-fogged-surface-saturate);
-  --dashboard-preview-surface-brightness: var(--overlay-fogged-surface-brightness);
-  --dashboard-preview-surface-contrast: var(--overlay-fogged-surface-contrast);
-  --dashboard-preview-surface-distortion: var(--overlay-fogged-surface-distortion);
-  --dashboard-preview-surface-specular: var(--overlay-fogged-surface-specular);
-  --dashboard-preview-surface-specular-opacity: var(--overlay-fogged-surface-specular-opacity);
-  --dashboard-preview-surface-caustic: var(--overlay-fogged-surface-caustic);
-  --dashboard-preview-surface-caustic-opacity: var(--overlay-fogged-surface-caustic-opacity);
-}
-
 .composer-plus-menu-item {
   width: 100%;

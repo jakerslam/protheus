@@ -355,7 +355,7 @@
   --overlay-template-warped-glass-saturate: var(--overlay-template-magnified-glass-saturate);
   --overlay-template-warped-glass-brightness: var(--overlay-template-magnified-glass-brightness);
   --overlay-template-warped-glass-contrast: var(--overlay-template-magnified-glass-contrast);
-  --overlay-template-warped-glass-distortion: var(--overlay-template-magnified-glass-distortion);
+  --overlay-template-warped-glass-distortion: url(#infring-overlay-warped-glass-distortion);
   --overlay-template-warped-glass-bottom-rim-color: var(--overlay-template-magnified-glass-bottom-rim-color);
   --overlay-template-warped-glass-bottom-rim-glow: var(--overlay-template-magnified-glass-bottom-rim-glow);
   --overlay-template-warped-glass-bottom-rim-width: var(--overlay-template-magnified-glass-bottom-rim-width);
