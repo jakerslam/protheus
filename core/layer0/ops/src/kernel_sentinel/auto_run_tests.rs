@@ -1,8 +1,5 @@
 use super::*;
 use crate::kernel_sentinel::{
-    validate_system_understanding_dossier, SystemUnderstandingDossier,
-};
-use crate::kernel_sentinel::{
     KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
     KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
 };
@@ -249,6 +246,11 @@ fn auto_run_end_to_end_outputs_stay_consistent() {
     let suggestions_body = fs::read_to_string(state_dir.join("suggestions.jsonl")).unwrap();
     let automation_body = fs::read_to_string(state_dir.join("automation_candidates.jsonl")).unwrap();
     let daily_report = fs::read_to_string(state_dir.join("daily_report.md")).unwrap();
+    let causal_ledger = fs::read_to_string(state_dir.join("causal_hypothesis_ledger_current.jsonl")).unwrap();
+    let causal_scores: Value = serde_json::from_str(
+        &fs::read_to_string(state_dir.join("causal_pattern_scores_current.json")).unwrap(),
+    )
+    .unwrap();
 
     assert_eq!(artifact["type"], "kernel_sentinel_auto_run");
     assert_eq!(artifact["verdict"]["verdict"], verdict["verdict"]);
@@ -308,6 +310,8 @@ fn auto_run_end_to_end_outputs_stay_consistent() {
     }
     assert!(daily_report.contains("Kernel Sentinel Daily Self-Study Report"));
     assert!(daily_report.contains("Top System Holes"));
+    assert!(causal_ledger.contains("kernel_sentinel_causal_hypothesis_ledger_entry"));
+    assert!(causal_scores.is_array());
 }
 
 #[test]
