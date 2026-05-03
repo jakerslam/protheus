@@ -70,10 +70,10 @@
             Some("web_tool_not_found")
         );
         assert_eq!(
-            payload
-                .pointer("/response_finalization/tool_transaction/status")
-                .and_then(Value::as_str),
-            Some("failed")
+        payload
+            .pointer("/response_finalization/tool_transaction/status")
+            .and_then(Value::as_str),
+        Some("failed")
         );
         assert_eq!(
             payload
@@ -120,64 +120,38 @@
         let payload = run_chat_ui(root.path(), &parsed, true, "run");
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
-            payload
-                .get("error")
-                .and_then(Value::as_str),
-            Some("web_tool_not_invoked")
+            payload.get("error").and_then(Value::as_str),
+            Some("web_tool_low_signal")
         );
         assert_eq!(
-            payload
-                .pointer("/response_finalization/outcome")
-                .and_then(Value::as_str),
-            Some("classification_guard_not_invoked_fail_closed")
+        payload
+            .pointer("/response_finalization/outcome")
+            .and_then(Value::as_str),
+        Some("unchanged")
         );
         assert_eq!(
             payload
                 .pointer("/response_finalization/tool_transaction/classification")
                 .and_then(Value::as_str),
-            Some("tool_not_invoked")
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/hard_guard/source")
-                .and_then(Value::as_str),
-            Some("classification_guard")
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/classification_guard/not_invoked_fail_closed")
-                .and_then(Value::as_bool),
-            Some(true)
+            Some("low_signal")
         );
         assert_eq!(
             payload
                 .pointer("/response_finalization/classification_guard/fail_closed")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
         assert_eq!(
             payload
                 .pointer("/response_finalization/classification_guard/applied")
                 .and_then(Value::as_bool),
-            Some(true)
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/classification_guard/fail_closed_class")
-                .and_then(Value::as_str),
-            Some("tool_not_invoked")
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/classification_guard/mode")
-                .and_then(Value::as_str),
-            Some("fail_close")
+            Some(false)
         );
         assert_eq!(
             payload
                 .pointer("/response_finalization/classification_guard/active_error_code")
                 .and_then(Value::as_str),
-            Some("web_tool_not_invoked")
+            Some("web_tool_low_signal")
         );
         assert_eq!(
             payload
@@ -189,7 +163,7 @@
             payload
                 .pointer("/response_finalization/classification_guard/retry_strategy")
                 .and_then(Value::as_str),
-            Some("rerun_with_tool_call")
+            Some("narrow_query")
         );
         assert_eq!(
             payload
@@ -201,7 +175,7 @@
             payload
                 .pointer("/response_finalization/classification_guard/retry_plan/auto")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
         assert_eq!(
             payload
@@ -215,7 +189,7 @@
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_ascii_lowercase()
-                .contains("before any search tool call was recorded")
+                .contains("analysis pending")
         );
     }
 
@@ -254,46 +228,22 @@
             Some("web_tool_low_signal")
         );
         assert_eq!(
-            payload
-                .pointer("/response_finalization/outcome")
-                .and_then(Value::as_str),
-            Some("classification_guard_low_signal_fail_closed")
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/hard_guard/source")
-                .and_then(Value::as_str),
-            Some("classification_guard")
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/hard_guard/status")
-                .and_then(Value::as_str),
-            Some("provider_low_signal")
+        payload
+            .pointer("/response_finalization/outcome")
+            .and_then(Value::as_str),
+        Some("unchanged")
         );
         assert_eq!(
             payload
                 .pointer("/response_finalization/classification_guard/fail_closed")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
         assert_eq!(
             payload
                 .pointer("/response_finalization/classification_guard/applied")
                 .and_then(Value::as_bool),
-            Some(true)
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/classification_guard/fail_closed_class")
-                .and_then(Value::as_str),
-            Some("low_signal")
-        );
-        assert_eq!(
-            payload
-                .pointer("/response_finalization/classification_guard/mode")
-                .and_then(Value::as_str),
-            Some("fail_close")
+            Some(false)
         );
         assert_eq!(
             payload

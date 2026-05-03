@@ -36,50 +36,9 @@ fn user_requested_internal_runtime_details(text: &str) -> bool {
 }
 
 fn abstract_runtime_mechanics_terms(text: &str) -> String {
-    let mut rewritten = text.to_string();
-    let replacements = [
-        ("conduit signals", "live signals"),
-        ("cockpit blocks", "active workers"),
-        ("attention queue", "priority queue"),
-        ("memory context", "memory state"),
-        ("runtime lane", "runtime path"),
-    ];
-    for (from, to) in replacements {
-        rewritten = rewritten.replace(from, to);
-        rewritten = rewritten.replace(&from.to_ascii_uppercase(), &to.to_ascii_uppercase());
-        let capitalized_from = from
-            .split(' ')
-            .map(|segment| {
-                let mut chars = segment.chars();
-                match chars.next() {
-                    Some(first) => format!(
-                        "{}{}",
-                        first.to_ascii_uppercase(),
-                        chars.collect::<String>()
-                    ),
-                    None => String::new(),
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-        let capitalized_to = to
-            .split(' ')
-            .map(|segment| {
-                let mut chars = segment.chars();
-                match chars.next() {
-                    Some(first) => format!(
-                        "{}{}",
-                        first.to_ascii_uppercase(),
-                        chars.collect::<String>()
-                    ),
-                    None => String::new(),
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-        rewritten = rewritten.replace(&capitalized_from, &capitalized_to);
-    }
-    rewritten
+    // Workflow stabilization mode: preserve the LLM-authored visible text
+    // verbatim except for mechanical transport cleanup done at call sites.
+    text.to_string()
 }
 
 fn runtime_access_summary_text(runtime_summary: &Value) -> String {

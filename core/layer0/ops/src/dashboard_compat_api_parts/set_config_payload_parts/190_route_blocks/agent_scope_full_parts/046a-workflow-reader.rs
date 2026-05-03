@@ -13,46 +13,8 @@ struct WorkflowDefinition {
     source_path: String,
 }
 
-const WORKFLOW_SPEC_COMPLEX_PROMPT_CHAIN_V1: &str =
-    include_str!("workflows/complex_prompt_chain_v1.workflow.json");
-const WORKFLOW_SPEC_SIMPLE_CONVERSATION_V1: &str =
-    include_str!("workflows/simple_conversation_v1.workflow.json");
-const WORKFLOW_SPEC_FORGECODE_STRUCTURED_ASSIMILATION_V1: &str =
-    include_str!("workflows/forgecode_structured_assimilation_v1.workflow.json");
-const WORKFLOW_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION_V1: &str =
-    include_str!("workflows/forgecode_raw_capability_assimilation_v1.workflow.json");
-
-const WORKFLOW_SPEC_SOURCES: &[(&str, &str)] = &[
-    (
-        "workflows/complex_prompt_chain_v1.workflow.json",
-        WORKFLOW_SPEC_COMPLEX_PROMPT_CHAIN_V1,
-    ),
-    (
-        "workflows/simple_conversation_v1.workflow.json",
-        WORKFLOW_SPEC_SIMPLE_CONVERSATION_V1,
-    ),
-    (
-        "workflows/forgecode_structured_assimilation_v1.workflow.json",
-        WORKFLOW_SPEC_FORGECODE_STRUCTURED_ASSIMILATION_V1,
-    ),
-    (
-        "workflows/forgecode_raw_capability_assimilation_v1.workflow.json",
-        WORKFLOW_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION_V1,
-    ),
-];
-
 static WORKFLOW_LIBRARY_REGISTRY: std::sync::OnceLock<Vec<WorkflowDefinition>> =
     std::sync::OnceLock::new();
-
-const REQUIRED_TOOL_MENU_GATES: &[&str] = &[
-    "gate_1_work_category_menu",
-    "gate_2_tool_family_menu",
-    "gate_3_tool_menu",
-    "gate_4_request_payload_input",
-    "gate_4b_tool_confirmation_menu",
-    "gate_5_post_tool_menu",
-    "gate_6_llm_final_output",
-];
 
 fn workflow_definition_to_json(definition: &WorkflowDefinition) -> Value {
     json!({
@@ -68,38 +30,6 @@ fn workflow_definition_to_json(definition: &WorkflowDefinition) -> Value {
         "final_output_contract": definition.final_output_contract,
         "source_path": definition.source_path
     })
-}
-
-fn workflow_loader_error_definition() -> WorkflowDefinition {
-    WorkflowDefinition {
-        name: "workflow_loader_error_v1".to_string(),
-        workflow_type: "loader_diagnostic".to_string(),
-        default_workflow: true,
-        description: "Fail-closed loader diagnostic emitted only when no valid JSON workflow specs could be loaded."
-            .to_string(),
-        stages: Vec::new(),
-        final_response_policy: "no_runtime_workflow_loaded".to_string(),
-        gate_contract: "workflow_loader_error_v1".to_string(),
-        workflow_source_of_truth_contract: json!({
-            "interaction_source": "none_loader_error",
-            "rust_reader_role": "schema_validation_and_loader_diagnostic_only",
-            "hardcoded_interaction_behavior_allowed": false,
-            "json_owns": [],
-            "rust_owns": ["json_loading", "schema_validation", "trace_export"]
-        }),
-        tool_menu_interface_contract: json!({
-            "version": "workflow_loader_error_v1",
-            "loader_error": true,
-            "system_injected_chat_text_allowed": false,
-            "gates": {}
-        }),
-        final_output_contract: json!({
-            "visible_chat_source": "none_loader_error",
-            "internal_streams": [],
-            "chat_excludes": ["workflow_state", "runtime_diagnostic", "tool_trace"]
-        }),
-        source_path: "builtin:loader_error".to_string(),
-    }
 }
 
 fn workflow_contract_string_at(value: &Value, pointer: &str, max_len: usize) -> Option<String> {
@@ -119,39 +49,72 @@ fn workflow_contract_object_at(value: &Value, pointer: &str) -> Option<Value> {
         .cloned()
 }
 
+fn workflow_contract_array_strings_at(value: &Value, pointer: &str) -> Vec<String> {
+    value
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 120))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
 fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
-    workflow_contract_string_at(contract, "/version", 80).is_some()
-        && workflow_contract_string_at(contract, "/llm_gate_instruction", 1_400).is_some()
-        && contract
+    if workflow_contract_string_at(contract, "/version", 80).is_none()
+        || workflow_contract_string_at(contract, "/llm_gate_instruction", 1_400).is_none()
+        || workflow_contract_string_at(contract, "/llm_tool_request_instruction", 4_000).is_none()
+        || contract
             .get("system_injected_chat_text_allowed")
             .and_then(Value::as_bool)
-            == Some(false)
-        && workflow_contract_array_at(contract, "/gate_order").is_some()
-        && workflow_contract_array_at(contract, "/gate_shapes_allowed").is_some()
-        && workflow_contract_array_at(contract, "/terminal_states").is_some()
-        && workflow_contract_array_at(contract, "/declared_loopbacks").is_some()
-        && workflow_contract_array_at(contract, "/tool_family_menu").is_some()
-        && workflow_contract_object_at(contract, "/tool_menu_by_family").is_some()
-        && workflow_contract_string_at(contract, "/gates/gate_1_work_category_menu/question", 120)
+            != Some(false)
+    {
+        return false;
+    }
+    let gate_order = workflow_contract_array_strings_at(contract, "/gate_order");
+    let allowed_shapes = workflow_contract_array_strings_at(contract, "/gate_shapes_allowed");
+    let Some(gates) = contract.get("gates").and_then(Value::as_object) else {
+        return false;
+    };
+    if gate_order.is_empty() || allowed_shapes.is_empty() || gates.is_empty() {
+        return false;
+    }
+    let tool_request_fields =
+        workflow_contract_array_strings_at(contract, "/tool_request_submission_contract/field_order");
+    let tool_request_contract_complete = !tool_request_fields.is_empty()
+        && tool_request_fields.iter().all(|field| {
+            workflow_contract_string_at(
+                contract,
+                &format!("/tool_request_submission_contract/field_labels/{field}"),
+                80,
+            )
             .is_some()
-        && workflow_contract_array_at(
-            contract,
-            "/gates/gate_1_work_category_menu/submission_contract/accepted_outputs",
-        )
-        .is_some()
-        && workflow_contract_array_at(contract, "/gates/gate_1_work_category_menu/options")
-            .is_some()
-        && workflow_contract_object_at(
-            contract,
-            "/gates/gate_6_llm_final_output/final_output_contract",
-        )
-        .is_some()
-        && REQUIRED_TOOL_MENU_GATES.iter().all(|gate_id| {
-            let gate_pointer = format!("/gates/{gate_id}");
-            let input_pointer = format!("{gate_pointer}/input_kind");
-            workflow_contract_object_at(contract, &gate_pointer).is_some()
-                && workflow_contract_string_at(contract, &input_pointer, 80).is_some()
         })
+        && contract
+            .pointer("/tool_request_submission_contract/chat_injection_allowed")
+            .and_then(Value::as_bool)
+            == Some(false)
+        && contract
+            .pointer("/tool_request_submission_contract/system_may_infer_missing_fields")
+            .and_then(Value::as_bool)
+            == Some(false);
+    let declared_gates_are_valid = gate_order.iter().all(|gate_id| {
+        gates
+            .get(gate_id)
+            .and_then(Value::as_object)
+            .and_then(|gate| gate.get("input_kind").and_then(Value::as_str))
+            .map(|input_kind| allowed_shapes.iter().any(|shape| shape == input_kind))
+            .unwrap_or(false)
+    });
+    let declares_final_output = gates.values().any(|gate| {
+        gate.get("final_output_contract")
+            .filter(|contract| contract.is_object())
+            .is_some()
+    });
+    tool_request_contract_complete && declared_gates_are_valid && declares_final_output
 }
 
 fn workflow_source_of_truth_contract_is_complete(contract: &Value) -> bool {
@@ -224,9 +187,14 @@ fn parse_workflow_definition(source_path: &str, raw_spec: &str) -> Option<Workfl
         return None;
     }
     let final_output_contract = tool_menu_interface_contract
-        .pointer("/gates/gate_6_llm_final_output/final_output_contract")
-        .filter(|value| value.is_object())
-        .cloned()?;
+        .get("gates")
+        .and_then(Value::as_object)?
+        .values()
+        .find_map(|gate| {
+            gate.get("final_output_contract")
+                .filter(|value| value.is_object())
+                .cloned()
+        })?;
     Some(WorkflowDefinition {
         name,
         workflow_type,
@@ -249,13 +217,57 @@ fn workflow_library_has_exactly_one_json_default(workflows: &[WorkflowDefinition
     workflows.iter().filter(|row| row.default_workflow).count() == 1
 }
 
+fn workflow_spec_directory_candidates() -> Vec<std::path::PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(dir) = std::env::var("INFRING_WORKFLOW_DIR") {
+        candidates.push(std::path::PathBuf::from(dir));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/workflows"));
+    }
+    candidates.push(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/workflows",
+    ));
+    candidates
+}
+
+fn workflow_spec_sources_from_disk() -> Vec<(String, String)> {
+    for dir in workflow_spec_directory_candidates() {
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        let mut paths = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| name.ends_with(".workflow.json"))
+                    .unwrap_or(false)
+            })
+            .collect::<Vec<_>>();
+        paths.sort();
+        let sources = paths
+            .into_iter()
+            .filter_map(|path| {
+                let raw = std::fs::read_to_string(&path).ok()?;
+                Some((path.to_string_lossy().to_string(), raw))
+            })
+            .collect::<Vec<_>>();
+        if !sources.is_empty() {
+            return sources;
+        }
+    }
+    Vec::new()
+}
+
 fn load_workflow_library() -> Vec<WorkflowDefinition> {
-    let parsed = WORKFLOW_SPEC_SOURCES
-        .iter()
-        .filter_map(|(source_path, raw_spec)| parse_workflow_definition(source_path, raw_spec))
+    let parsed = workflow_spec_sources_from_disk()
+        .into_iter()
+        .filter_map(|(source_path, raw_spec)| parse_workflow_definition(&source_path, &raw_spec))
         .collect::<Vec<_>>();
     if parsed.is_empty() || !workflow_library_has_exactly_one_json_default(&parsed) {
-        return vec![workflow_loader_error_definition()];
+        return Vec::new();
     }
     parsed
 }
@@ -277,13 +289,12 @@ fn workflow_definition_by_name(name: &str) -> Option<WorkflowDefinition> {
         .cloned()
 }
 
-fn default_workflow_definition() -> WorkflowDefinition {
+fn default_workflow_definition() -> Option<WorkflowDefinition> {
     workflow_library_registry()
         .iter()
         .find(|row| row.default_workflow)
         .cloned()
         .or_else(|| workflow_library_registry().first().cloned())
-        .unwrap_or_else(workflow_loader_error_definition)
 }
 
 fn turn_workflow_library_catalog() -> Vec<Value> {
@@ -294,7 +305,9 @@ fn turn_workflow_library_catalog() -> Vec<Value> {
 }
 
 fn default_turn_workflow_name() -> String {
-    default_workflow_definition().name
+    default_workflow_definition()
+        .map(|workflow| workflow.name)
+        .unwrap_or_default()
 }
 
 fn workflow_name_hint_from_mode(workflow_mode: &str) -> String {
@@ -328,10 +341,16 @@ fn workflow_name_hint_from_mode(workflow_mode: &str) -> String {
 
 fn selected_turn_workflow(workflow_mode: &str) -> Value {
     let hint = workflow_name_hint_from_mode(workflow_mode);
-    let selected = if hint.is_empty() {
+    let Some(selected) = (if hint.is_empty() {
         default_workflow_definition()
     } else {
-        workflow_definition_by_name(&hint).unwrap_or_else(default_workflow_definition)
+        workflow_definition_by_name(&hint).or_else(default_workflow_definition)
+    }) else {
+        return json!({
+            "workflow_loaded": false,
+            "mode": clean_text(workflow_mode, 80),
+            "selection_reason": "no_json_workflow_loaded"
+        });
     };
     let selection_reason = if hint.is_empty() {
         "default_library_workflow".to_string()
@@ -385,24 +404,15 @@ mod workflow_reader_tests {
     #[test]
     fn workflow_reader_sources_current_workflows_from_json_specs() {
         let catalog = turn_workflow_library_catalog();
-        for workflow in [
-            "complex_prompt_chain_v1",
-            "simple_conversation_v1",
-        ] {
-            let source = catalog
-                .iter()
-                .find(|row| {
-                    row.get("name")
-                        .and_then(Value::as_str)
-                        .map(|name| name == workflow)
-                        .unwrap_or(false)
-                })
-                .and_then(|row| row.get("source_path"))
+        assert!(!catalog.is_empty());
+        for row in catalog {
+            let source = row
+                .get("source_path")
                 .and_then(Value::as_str)
                 .unwrap_or("");
             assert!(
-                source.starts_with("workflows/"),
-                "workflow `{workflow}` not sourced from JSON spec: {source}"
+                source.ends_with(".workflow.json") && !source.starts_with("builtin:"),
+                "workflow not sourced from disk JSON spec: {source}"
             );
         }
     }

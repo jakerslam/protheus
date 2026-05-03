@@ -13,7 +13,7 @@
         } else {
             placeholder_rewrite_outcome
         };
-        let mut assistant = assistant_rewritten;
+        let assistant = assistant_rewritten;
         let mut hard_guard = json!({
             "applied": false
         });
@@ -40,9 +40,9 @@
         if inline_tool_call_detected {
             let inline_error_code = if inline_tool_schema_valid {
                 if inline_tool_schema_repaired {
-                    "inline_tool_call_schema_repaired_suppressed"
+                    "inline_tool_call_schema_repaired_diagnostic"
                 } else {
-                    "inline_tool_call_suppressed"
+                    "inline_tool_call_diagnostic"
                 }
             } else {
                 "inline_tool_call_schema_invalid"
@@ -53,15 +53,16 @@
                 Some(format!("tool={inline_tool_name}"))
             };
             let _ = detail;
-            assistant.clear();
             hard_guard = json!({
                 "applied": true,
-                "status": "parse_failed",
+                "status": "diagnostic",
                 "error_code": inline_error_code,
                 "source": "inline_tool_call_guard",
                 "schema_valid": inline_tool_schema_valid,
                 "schema_repaired": inline_tool_schema_repaired,
-                "tool": if inline_tool_name.is_empty() { Value::Null } else { json!(inline_tool_name) }
+                "tool": if inline_tool_name.is_empty() { Value::Null } else { json!(inline_tool_name) },
+                "visible_output_suppressed": false,
+                "runtime_interference_disabled": true
             });
             if forced_web_error_code.is_empty() {
                 forced_web_error_code = inline_error_code.to_string();
@@ -72,12 +73,13 @@
             || chat_ui_contains_unverified_routing_root_cause_claim(&assistant))
             && !chat_ui_has_structured_routing_claim_evidence(&tools)
         {
-            assistant.clear();
             hard_guard = json!({
                 "applied": true,
-                "status": "parse_failed",
+                "status": "diagnostic",
                 "error_code": "web_tool_unverified_routing_claim",
-                "source": "claim_evidence_guard"
+                "source": "claim_evidence_guard",
+                "visible_output_suppressed": false,
+                "runtime_interference_disabled": true
             });
             routing_claim_guard_applied = true;
             if forced_web_error_code.is_empty() {
@@ -100,12 +102,13 @@
                 requires_live_web,
                 web_search_calls,
             );
-            assistant.clear();
             hard_guard = json!({
                 "applied": true,
                 "status": fallback_status,
                 "error_code": fallback_error_code,
-                "source": "response_reliability_guard"
+                "source": "response_reliability_guard",
+                "visible_output_suppressed": false,
+                "runtime_interference_disabled": true
             });
             if forced_web_error_code.is_empty() {
                 forced_web_error_code = fallback_error_code.to_string();
@@ -164,8 +167,10 @@
         } else {
             None
         };
-        let finalization_inferred_surface_error = if response_finalization_outcome
-            == "tool_surface_error_fail_closed"
+        let finalization_inferred_surface_error = if matches!(
+            response_finalization_outcome.as_str(),
+            "tool_surface_error_fail_closed" | "tool_surface_error_diagnostic_only"
+        )
         {
             detected_tool_surface_error
                 .clone()
@@ -271,7 +276,10 @@
         ) || assistant.trim().is_empty()
             || assistant_forbidden_runtime_markers;
         let classification_should_fail_close = classification_guard_relevant
-            && response_finalization_outcome != "tool_surface_error_fail_closed"
+            && !matches!(
+                response_finalization_outcome.as_str(),
+                "tool_surface_error_fail_closed" | "tool_surface_error_diagnostic_only"
+            )
             && matches!(
                 web_classification.as_str(),
                 "workflow_gate_blocked"
@@ -290,13 +298,14 @@
             let fallback_status = chat_ui_fallback_status_for_classification(&web_classification);
             let fallback_error_code = chat_ui_error_code_for_classification(&web_classification);
             if !fallback_error_code.is_empty() {
-                assistant.clear();
                 hard_guard = json!({
                     "applied": true,
                     "status": fallback_status,
                     "error_code": fallback_error_code,
                     "classification": web_classification,
-                    "source": "classification_guard"
+                    "source": "classification_guard_diagnostic",
+                    "visible_output_suppressed": false,
+                    "runtime_interference_disabled": true
                 });
                 if forced_web_error_code.is_empty() {
                     forced_web_error_code = fallback_error_code.to_string();
@@ -304,9 +313,11 @@
                 classification_active_error_code = fallback_error_code.to_string();
                 if let Some(guard) = classification_guard.as_object_mut() {
                     guard.insert("applied".to_string(), json!(true));
-                    guard.insert("mode".to_string(), json!("fail_close"));
-                    guard.insert("fail_closed".to_string(), json!(true));
-                    guard.insert("fail_closed_class".to_string(), json!(web_classification));
+                    guard.insert("mode".to_string(), json!("diagnostic_only"));
+                    guard.insert("fail_closed".to_string(), json!(false));
+                    guard.insert("would_have_failed_closed_class".to_string(), json!(web_classification));
+                    guard.insert("visible_output_suppressed".to_string(), json!(false));
+                    guard.insert("runtime_interference_disabled".to_string(), json!(true));
                     guard.insert(
                         "active_error_code".to_string(),
                         json!(classification_active_error_code),
@@ -328,13 +339,14 @@
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
         {
-            assistant.clear();
             hard_guard = json!({
                 "applied": true,
-                "status": "failed",
+                "status": "diagnostic",
                 "error_code": "assistant_context_mismatch",
                 "classification": "info_route_context_mismatch",
-                "source": "coherence_guard"
+                "source": "coherence_guard",
+                "visible_output_suppressed": false,
+                "runtime_interference_disabled": true
             });
             if forced_web_error_code.is_empty() {
                 forced_web_error_code = "assistant_context_mismatch".to_string();
@@ -404,28 +416,15 @@
             guard.insert("retry_loop_risk".to_string(), retry_loop_risk.clone());
         }
         if hard_guard_applied {
-            final_outcome = if hard_guard_source == "classification_guard" {
-                let guard_class = clean(
-                    hard_guard
-                        .get("classification")
-                        .and_then(Value::as_str)
-                        .unwrap_or("unknown"),
-                    80,
-                )
-                .replace('-', "_");
-                if guard_class == "tool_not_invoked" {
-                    "classification_guard_not_invoked_fail_closed".to_string()
-                } else {
-                    format!("classification_guard_{guard_class}_fail_closed")
-                }
-            } else {
-                "hard_guard_fallback".to_string()
-            };
+            final_outcome = format!("{final_outcome}:hard_guard_diagnostic_only");
         }
         if !classification_consistent && !hard_guard_applied {
             final_outcome = "classification_guard_overrode".to_string();
         }
-        if final_outcome == "tool_surface_error_fail_closed" {
+        if matches!(
+            final_outcome.as_str(),
+            "tool_surface_error_fail_closed" | "tool_surface_error_diagnostic_only"
+        ) {
             final_outcome = chat_ui_tool_surface_forced_outcome(
                 tool_surface_error_code
                     .as_deref()
@@ -439,18 +438,19 @@
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
         {
-            assistant.clear();
             hard_guard = json!({
                 "applied": true,
-                "status": "failed",
+                "status": "diagnostic",
                 "error_code": "assistant_output_not_reliable",
-                "source": "final_output_guard"
+                "source": "final_output_guard",
+                "visible_output_suppressed": false,
+                "runtime_interference_disabled": true
             });
             if forced_web_error_code.is_empty() {
                 forced_web_error_code = "assistant_output_not_reliable".to_string();
             }
             if final_outcome == "unchanged" || final_outcome == "finalized" {
-                final_outcome = "final_output_guard_fail_closed".to_string();
+                final_outcome = "final_output_guard_diagnostic_only".to_string();
             }
         }
         if forced_web_error_code.is_empty() {

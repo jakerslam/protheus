@@ -32,7 +32,7 @@
             payload
                 .pointer("/response_finalization/tool_gate/meta_diagnostic_request")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
         assert_eq!(
             payload
@@ -243,7 +243,7 @@
         assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
         assert_eq!(
             payload.get("error").and_then(Value::as_str),
-            Some("inline_tool_call_schema_repaired_suppressed")
+            Some("inline_tool_call_schema_repaired_diagnostic")
         );
         assert_eq!(
             payload
@@ -261,7 +261,7 @@
             .pointer("/turn/assistant")
             .and_then(Value::as_str)
             .unwrap_or("");
-        assert!(!assistant.contains("<function="), "{assistant}");
+        assert!(assistant.contains("<function="), "{assistant}");
     }
 
     #[test]

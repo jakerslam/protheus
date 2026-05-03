@@ -64,7 +64,6 @@ fn finalize_message_finalization_and_payload(
     let workflow_model = model.clone();
     if response_tools.is_empty()
         && !message_explicitly_disallows_tool_calls(message)
-        && !workflow_turn_is_simple_conversation_without_tool_intent(message)
         && !message_is_affirmative_confirmation(message)
         && !message_is_negative_confirmation(message)
         && !response_contains_workflow_prompt_analysis_leak(&initial_draft_response)
@@ -105,20 +104,14 @@ fn finalize_message_finalization_and_payload(
     let mut tool_completion = json!({});
     let workflow_status = workflow_final_response_status(&response_workflow);
     let workflow_used = workflow_final_response_used(&response_workflow);
-    let workflow_fallback_allowed = workflow_final_response_allows_system_fallback(&response_workflow);
-    let workflow_withheld_prompt_analysis = response_workflow
-        .pointer("/final_llm_response/fallback_source")
-        .and_then(Value::as_str)
-        == Some("withheld_workflow_prompt_analysis")
-        || response_contains_workflow_prompt_analysis_leak(&initial_draft_response);
     let workflow_direct_response_path_for_visibility = response_workflow
         .pointer("/workflow_control/direct_response_path")
         .and_then(Value::as_str)
         .unwrap_or("");
     let workflow_blocks_initial_draft_fallback = matches!(
         workflow_direct_response_path_for_visibility,
-        "gate_1_pending_llm_tool_choice"
-            | "gate_1_yes_pending_tool_confirmation"
+        "first_gate_pending_llm_tool_choice"
+            | "first_gate_pending_tool_confirmation"
             | "gate_2_pending_llm_tool_request"
     ) || workflow_direct_response_path_for_visibility.starts_with("gate_")
         && workflow_direct_response_path_for_visibility.contains("pending")
@@ -154,46 +147,29 @@ fn finalize_message_finalization_and_payload(
             &response_tools,
             "workflow_authored",
         );
-    } else if workflow_fallback_allowed {
-        // Policy: never inject system-authored fallback text into chat.
-        let llm_only_candidate = if workflow_withheld_prompt_analysis || workflow_blocks_initial_draft_fallback {
-            String::new()
-        } else {
-            initial_draft_response.clone()
-        };
-        let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(message, llm_only_candidate, &response_tools);
-        finalized_response = contract_finalized;
-        tool_completion = contract_report;
-        finalization_outcome =
-            merge_response_outcomes(&finalization_outcome, "workflow_no_system_fallback", 200);
-        finalization_outcome =
-            merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     } else {
-        // Keep chat output LLM-authored only, even when workflow final synthesis is unavailable.
-        let llm_only_candidate = if workflow_withheld_prompt_analysis || workflow_blocks_initial_draft_fallback {
-            String::new()
-        } else {
-            initial_draft_response.clone()
-        };
+        // Keep chat output LLM-authored only; runtime fallback substitution is disabled.
+        let llm_only_candidate = initial_draft_response.clone();
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(message, llm_only_candidate, &response_tools);
         finalized_response = contract_finalized;
         tool_completion = contract_report;
         finalization_outcome =
-            merge_response_outcomes(&finalization_outcome, "workflow_no_system_fallback", 200);
+            merge_response_outcomes(&finalization_outcome, "workflow_no_runtime_fallback", 200);
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
     if workflow_blocks_initial_draft_fallback {
         response_workflow["final_llm_response"]["invalid_gate_draft_fallback_withheld"] =
+            json!(false);
+        response_workflow["final_llm_response"]["invalid_gate_draft_diagnostic_only"] =
             json!(true);
-        response_workflow["final_llm_response"]["fallback_from_existing_draft"] = json!(false);
-        response_workflow["final_llm_response"]["fallback_source"] =
-            json!("withheld_invalid_gate_draft");
+        response_workflow["final_llm_response"]["runtime_interference_disabled"] = json!(true);
+        response_workflow["final_llm_response"]["diagnostic_source"] =
+            json!("invalid_gate_draft_diagnostic_pass_through");
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "workflow_initial_draft_fallback_withheld",
+            "workflow_initial_draft_diagnostic_pass_through",
             220,
         );
     }
@@ -242,7 +218,6 @@ fn finalize_message_finalization_and_payload(
                     .unwrap_or("manual_toolbox_gate"),
             );
             response_workflow["pending_tool_request"] = pending_request.clone();
-            response_text.clear();
             finalization_outcome = merge_response_outcomes(
                 &finalization_outcome,
                 "manual_toolbox_pending_tool_request_awaiting_llm_input",
@@ -250,9 +225,13 @@ fn finalize_message_finalization_and_payload(
             );
             finalization_outcome = merge_response_outcomes(
                 &finalization_outcome,
-                "pending_tool_request_visible_chat_withheld",
+                "pending_tool_request_visible_chat_diagnostic_only",
                 240,
             );
+            response_text.clear();
+            response_workflow["response"] = json!("");
+            response_workflow["visible_response_source"] =
+                json!("private_workflow_gate_submission");
         }
     }
     let web_tool_attempted = response_tools_include_web_attempt(&response_tools);
@@ -308,8 +287,10 @@ fn finalize_message_finalization_and_payload(
     let response_guard =
         final_response_guard_report(message, &response_text, &response_tools, repair_candidate_contamination);
     if response_guard_bool(&response_guard, "final_contract_violation") {
-        // Do not synthesize deterministic system fallback text in chat.
-        response_text.clear();
+        // Runtime guards are diagnostics only. They may mark a contract
+        // violation, but they must not erase or replace LLM-authored chat text.
+        response_workflow["final_llm_response"]["runtime_interference_disabled"] = json!(true);
+        response_workflow["final_llm_response"]["final_guard_diagnostic_only"] = json!(true);
         if response_guard_bool(&response_guard, "final_contamination_violation") {
             bump_workflow_quality_counter(&mut response_workflow, "contamination_reject");
         }
@@ -329,7 +310,7 @@ fn finalize_message_finalization_and_payload(
         );
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "final_response_guard_no_system_retry",
+            "final_response_guard_diagnostic_only",
             220,
         );
     }
@@ -411,9 +392,9 @@ fn finalize_message_finalization_and_payload(
         .pointer("/workflow_control/direct_response_path")
         .and_then(Value::as_str)
         .unwrap_or(if manual_toolbox_pending_tool_request.is_some() {
-            "gate_1_yes_pending_tool_confirmation"
+            "first_gate_pending_tool_confirmation"
         } else {
-            "gate_1_no"
+            "first_gate_no_tool_category"
         });
     response_finalization["workflow_control"] = json!({
         "mode": "tool_menu_interface_v1",

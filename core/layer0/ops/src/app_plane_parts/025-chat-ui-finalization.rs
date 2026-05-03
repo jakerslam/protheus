@@ -1,10 +1,3 @@
-const CHAT_UI_FRAMEWORK_TARGETS: [&str; 5] = [
-    "LangGraph",
-    "OpenAI Agents SDK",
-    "AutoGen",
-    "CrewAI",
-    "smolagents",
-];
 const CHAT_UI_SPECULATIVE_BLOCKER_MARKERS: [&str; 22] = [
     "security controls",
     "content filtering",
@@ -489,48 +482,6 @@ fn chat_ui_looks_like_unrelated_programming_dump(user_message: &str, text: &str)
     !user_requested_content
 }
 
-fn chat_ui_partial_framework_coverage_summary(rows: &[Value]) -> Option<String> {
-    let aggregated = rows
-        .iter()
-        .map(chat_ui_tool_text_blob)
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_ascii_lowercase();
-    if aggregated.is_empty() || !aggregated.contains("framework") {
-        return None;
-    }
-
-    let found = [
-        aggregated.contains("langgraph"),
-        aggregated.contains("openai agents sdk") || aggregated.contains("openai agents"),
-        aggregated.contains("autogen"),
-        aggregated.contains("crewai"),
-        aggregated.contains("smolagents"),
-    ];
-    let found_labels = CHAT_UI_FRAMEWORK_TARGETS
-        .iter()
-        .enumerate()
-        .filter_map(|(idx, label)| found[idx].then_some(*label))
-        .collect::<Vec<_>>();
-    if found_labels.is_empty() {
-        return None;
-    }
-    let missing_labels = CHAT_UI_FRAMEWORK_TARGETS
-        .iter()
-        .enumerate()
-        .filter_map(|(idx, label)| (!found[idx]).then_some(*label))
-        .collect::<Vec<_>>();
-    if missing_labels.is_empty() {
-        return None;
-    }
-
-    Some(format!(
-        "Web search ran and returned partial framework coverage. Found: {}. Missing in this pass: {}. I can retry with targeted queries for the missing frameworks.",
-        found_labels.join(", "),
-        missing_labels.join(", ")
-    ))
-}
-
 fn chat_ui_tool_row_has_valid_findings(row: &Value) -> bool {
     let status = clean(row.get("status").and_then(Value::as_str).unwrap_or(""), 80)
         .to_ascii_lowercase();
@@ -564,44 +515,41 @@ fn finalize_chat_ui_assistant_response(
     assistant_raw: &str,
     tools: &[Value],
 ) -> (String, String) {
+    let cleaned = clean(assistant_raw, 16_000);
     if let Some(tool_surface_error) = chat_ui_detect_tool_surface_error_code(tools) {
+        let _ = tool_surface_error;
         return (
-            String::new(),
-            "tool_surface_error_fail_closed".to_string(),
+            cleaned,
+            "tool_surface_error_diagnostic_only".to_string(),
         );
     }
-    let mut cleaned = clean(assistant_raw, 16_000);
     let mut outcome = "unchanged".to_string();
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_raw_payload_dump(&cleaned)
     {
         let _ = rewritten;
-        cleaned.clear();
-        outcome = format!("rewrote:{rule_id}");
+        outcome = format!("flagged_raw_payload_dump:{rule_id}");
     }
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_unsynthesized_web_dump(&cleaned)
     {
         let _ = rewritten;
-        cleaned.clear();
-        outcome = format!("rewrote:{rule_id}");
+        outcome = format!("flagged_unsynthesized_web_dump:{rule_id}");
     }
     if let Some((rewritten, rule_id)) =
         crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
     {
         let _ = rewritten;
-        cleaned.clear();
-        outcome = format!("rewrote_failure:{rule_id}");
+        outcome = format!("flagged_failure_placeholder:{rule_id}");
     }
     let speculative_blocker_copy = chat_ui_contains_speculative_blocker_language(&cleaned);
     let has_block_evidence = chat_ui_tools_have_structured_block_evidence(tools);
-    let partial_framework_coverage = chat_ui_partial_framework_coverage_summary(tools);
     let unrelated_context_dump = chat_ui_contains_kernel_patch_thread_dump(user_message, &cleaned)
         || chat_ui_contains_role_preamble_prompt_dump(user_message, &cleaned)
         || chat_ui_looks_like_unrelated_programming_dump(user_message, &cleaned)
         || crate::tool_output_match_filter::contains_forbidden_runtime_context_markers(&cleaned);
     if unrelated_context_dump {
-        return (String::new(), "withheld_unrelated_context_dump".to_string());
+        return (cleaned, "flagged_unrelated_context_dump".to_string());
     }
     if speculative_blocker_copy && has_block_evidence {
         let codes = chat_ui_structured_block_evidence_codes(tools);
@@ -611,10 +559,13 @@ fn finalize_chat_ui_assistant_response(
             Some(codes.join(", "))
         };
         let _ = detail;
-        return (String::new(), "withheld_blocked_with_structured_evidence".to_string());
+        return (
+            cleaned,
+            "flagged_blocked_with_structured_evidence".to_string(),
+        );
     }
     if speculative_blocker_copy && !has_block_evidence {
-        return (String::new(), "withheld_unverified_blocker_claim".to_string());
+        return (cleaned, "flagged_unverified_blocker_claim".to_string());
     }
     let low_signal = cleaned.trim().is_empty()
         || cleaned.contains("<function=")
@@ -625,19 +576,7 @@ fn finalize_chat_ui_assistant_response(
         || (cleaned.len() > 80
             && !chat_ui_response_matches_previous_message(user_message, &cleaned));
     if !low_signal {
-        let lowered = cleaned.to_ascii_lowercase();
-        if let Some(summary) = partial_framework_coverage {
-            if lowered.contains("low signal")
-                || lowered.contains("low-signal")
-                || lowered.contains("partial")
-            {
-                return (summary, "success_with_gaps".to_string());
-            }
-        }
         return (cleaned, outcome);
     }
-    (
-        String::new(),
-        "withheld_non_llm_finalization_repair".to_string(),
-    )
+    (cleaned, "flagged_low_signal_draft".to_string())
 }

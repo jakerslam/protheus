@@ -61,58 +61,6 @@ fn response_workflow_quality_count(workflow: &Value, key: &str) -> u64 {
     }
 }
 
-fn append_failure_status_line_if_missing(
-    response_text: String,
-    turn_classification: &str,
-    failure_code: &str,
-    status_label: &str,
-) -> (String, bool) {
-    if failure_code.is_empty() {
-        return (response_text, false);
-    }
-    if response_text
-        .to_ascii_lowercase()
-        .contains(&failure_code.to_ascii_lowercase())
-    {
-        return (response_text, false);
-    }
-    (
-        trim_text(
-            &format!(
-                "{}\n\n{}: {}\nerror_code: {}",
-                response_text, status_label, turn_classification, failure_code
-            ),
-            32_000,
-        ),
-        true,
-    )
-}
-
-fn build_deterministic_final_fallback_response(
-    response_tools: &[Value],
-    web_intent_detected: bool,
-    web_turn_classification: &str,
-    web_failure_code: &str,
-    tooling_attempted: bool,
-    tooling_turn_classification: &str,
-    tooling_failure_code: &str,
-    inline_tools_allowed: bool,
-) -> String {
-    let _ = (
-        response_tools,
-        web_intent_detected,
-        web_turn_classification,
-        web_failure_code,
-        tooling_attempted,
-        tooling_turn_classification,
-        tooling_failure_code,
-        inline_tools_allowed,
-    );
-    // Policy: deterministic finalization may withhold a bad response and record
-    // telemetry, but must not inject prose into the visible chat transcript.
-    String::new()
-}
-
 fn build_response_finalization_payload(
     finalization_outcome: &str,
     initial_ack_only: bool,
@@ -220,10 +168,9 @@ fn enforce_user_facing_finalization_contract(
             || response_looks_like_tool_ack_without_findings(&prefinalized_cleaned)
             || response_is_no_findings_placeholder(&prefinalized_cleaned))
     {
-        prefinalized.clear();
         pre_outcome = merge_response_outcomes(
             &pre_outcome,
-            "withheld_no_llm_response_due_tool_failure",
+            "flagged_no_llm_response_due_tool_failure",
             220,
         );
     }
@@ -231,11 +178,8 @@ fn enforce_user_facing_finalization_contract(
     if !failure_reason.is_empty()
         && report.get("completion_state").and_then(Value::as_str) == Some("reported_no_findings")
     {
-        finalized.clear();
         if let Some(obj) = report.as_object_mut() {
-            obj.insert("completion_state".to_string(), Value::String("withheld".to_string()));
-            obj.insert("final_ack_only".to_string(), Value::Bool(false));
-            obj.insert("final_no_findings".to_string(), Value::Bool(false));
+            obj.insert("completion_state".to_string(), Value::String("flagged".to_string()));
             obj.insert("reasoning".to_string(), Value::String(first_sentence(&finalized, 220)));
         }
     }
@@ -247,15 +191,11 @@ fn enforce_user_facing_finalization_contract(
             .and_then(Value::as_str)
             != Some("reported_findings")
     {
-        finalized.clear();
         if let Some(obj) = report.as_object_mut() {
             obj.insert(
                 "completion_state".to_string(),
-                Value::String("withheld".to_string()),
+                Value::String("flagged".to_string()),
             );
-            obj.insert("final_ack_only".to_string(), Value::Bool(false));
-            obj.insert("final_no_findings".to_string(), Value::Bool(false));
-            obj.insert("final_deferred_execution".to_string(), Value::Bool(false));
             obj.insert(
                 "reasoning".to_string(),
                 Value::String(first_sentence(&finalized, 220)),
@@ -265,7 +205,7 @@ fn enforce_user_facing_finalization_contract(
                 "outcome".to_string(),
                 Value::String(append_tool_completion_outcome(
                     &prior,
-                    "tool_completion_withheld_deferred_execution",
+                    "tool_completion_flagged_deferred_execution",
                 )),
             );
         }

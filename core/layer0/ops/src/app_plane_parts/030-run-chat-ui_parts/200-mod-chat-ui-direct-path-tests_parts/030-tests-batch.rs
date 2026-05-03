@@ -344,11 +344,11 @@
             Some("web_tool_low_signal")
         );
         assert_eq!(
-            payload
-                .pointer("/response_finalization/tool_transaction/status")
-                .and_then(Value::as_str),
-            Some("degraded")
-        );
+        payload
+            .pointer("/response_finalization/tool_transaction/status")
+            .and_then(Value::as_str),
+        Some("degraded")
+    );
         assert_eq!(
             payload
                 .pointer("/response_finalization/tool_diagnostics/low_signal_calls")

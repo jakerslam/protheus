@@ -268,8 +268,6 @@ fn handle_agent_scope_message_route(
             );
             let workflow_status = workflow_final_response_status(&response_workflow);
             let workflow_used = workflow_final_response_used(&response_workflow);
-            let workflow_fallback_allowed =
-                workflow_final_response_allows_system_fallback(&response_workflow);
             if !workflow_status.is_empty() {
                 finalization_outcome = merge_response_outcomes(
                     &finalization_outcome,
@@ -289,33 +287,15 @@ fn handle_agent_scope_message_route(
                     &response_tools,
                     "workflow_authored",
                 );
-            } else if workflow_fallback_allowed {
-                let fallback_response = initial_draft_response.clone();
-                finalization_outcome = merge_response_outcomes(
-                    &finalization_outcome,
-                    "workflow_no_system_fallback",
-                    180,
-                );
-                let (contracted, report, retry_outcome) =
-                    enforce_user_facing_finalization_contract(
-                        &message,
-                        fallback_response,
-                        &response_tools,
-                    );
-                finalized_response = contracted;
-                tool_completion = report;
-                finalization_outcome =
-                    merge_response_outcomes(&finalization_outcome, &retry_outcome, 180);
             } else {
                 finalization_outcome = merge_response_outcomes(
                     &finalization_outcome,
-                    "workflow_no_system_fallback",
+                    "workflow_no_runtime_fallback",
                     180,
                 );
-                let fallback_response = initial_draft_response.clone();
                 let (contracted, report, retry_outcome) = enforce_user_facing_finalization_contract(
                     &message,
-                    fallback_response,
+                    initial_draft_response.clone(),
                     &response_tools,
                 );
                 finalized_response = contracted;

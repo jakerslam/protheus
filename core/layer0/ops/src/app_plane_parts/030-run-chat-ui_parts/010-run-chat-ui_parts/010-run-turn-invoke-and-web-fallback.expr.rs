@@ -42,7 +42,7 @@
             );
         selected_provider = resolved_provider;
         selected_model = resolved_model;
-        let base_system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are an Infring dashboard runtime agent. You have host-integrated access to runtime telemetry, agent session memory, and approved infring/infring command surfaces. Never claim you lack system access; if a value is missing, request a runtime sync or the exact command needed and continue.".to_string()), 12_000);
+        let base_system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are the selected Infring agent. Respond to the user's message.".to_string()), 12_000);
         let tool_gate = chat_ui_turn_tool_decision_tree(&message);
         let gate_decision_authority_mode = clean(
             tool_gate
@@ -55,7 +55,7 @@
             .get("gate_is_advisory")
             .and_then(Value::as_bool)
             .unwrap_or(true);
-        let gate_meta_diagnostic_request = tool_gate
+        let _gate_meta_diagnostic_request = tool_gate
             .get("meta_diagnostic_request")
             .and_then(Value::as_bool)
             .unwrap_or(false);
@@ -101,7 +101,7 @@
             .and_then(Value::as_bool)
             .map(|value| value)
             .unwrap_or(false);
-        let mut assistant_raw = clean(
+        let assistant_raw = clean(
             response
                 .get("response")
                 .and_then(Value::as_str)
@@ -111,7 +111,9 @@
         let mut forced_web_outcome = String::new();
         let mut forced_web_error_code = String::new();
         let mut forced_web_fallback = json!({
-            "applied": false
+            "applied": false,
+            "visible_output_suppressed": false,
+            "runtime_interference_disabled": true
         });
         let detected_tool_surface_error = chat_ui_detect_tool_surface_error_code(&tools)
             .map(ToString::to_string);
@@ -119,7 +121,6 @@
             let error_code = detected_tool_surface_error
                 .clone()
                 .unwrap_or_else(|| "web_tool_surface_degraded".to_string());
-            assistant_raw.clear();
             forced_web_outcome = chat_ui_tool_surface_forced_outcome(&error_code).to_string();
             forced_web_error_code = error_code.clone();
             forced_web_fallback = json!({
@@ -128,7 +129,9 @@
                 "fallback_status": "surface_error",
                 "error": error_code,
                 "decision_authority_mode": gate_decision_authority_mode,
-                "gate_is_advisory": gate_is_advisory
+                "gate_is_advisory": gate_is_advisory,
+                "visible_output_suppressed": false,
+                "runtime_interference_disabled": true
             });
         }
 

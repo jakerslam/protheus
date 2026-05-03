@@ -1,5 +1,6 @@
 fn chat_ui_workflow_gate_option_labels(contract: &Value, has_tools: Option<bool>) -> Vec<String> {
-    chat_ui_workflow_gate_options(contract, "gate_1_work_category_menu")
+    let first_gate_id = chat_ui_first_workflow_gate_id(contract);
+    chat_ui_workflow_gate_options(contract, &first_gate_id)
         .into_iter()
         .filter(|option| {
             has_tools
@@ -40,20 +41,22 @@ fn chat_ui_workflow_example_tool_key(contract: &Value) -> String {
 }
 
 fn chat_ui_workflow_tool_submission_format(contract: &Value) -> String {
-    chat_ui_workflow_gate(contract, "gate_1_work_category_menu")
+    let first_gate_id = chat_ui_first_workflow_gate_id(contract);
+    chat_ui_workflow_gate(contract, &first_gate_id)
         .pointer("/submission_contract/accepted_outputs")
         .and_then(Value::as_array)
         .and_then(|rows| {
             rows.iter()
                 .filter_map(Value::as_str)
-                .find(|row| row.contains("Category:") && row.contains("Request payload:"))
+                .find(|row| !clean(row, 240).is_empty())
         })
         .map(|row| clean(row, 240))
         .unwrap_or_default()
 }
 
 fn chat_ui_render_workflow_instruction_template(contract: &Value, template: &str) -> String {
-    let gate_prompt = chat_ui_workflow_gate(contract, "gate_1_work_category_menu")
+    let first_gate_id = chat_ui_first_workflow_gate_id(contract);
+    let gate_prompt = chat_ui_workflow_gate(contract, &first_gate_id)
         .get("question")
         .and_then(Value::as_str)
         .map(|row| clean(row, 120))

@@ -227,12 +227,8 @@ fn normalize_raw_response_payload_dump(text: &str) -> Option<String> {
     if !synthesized.is_empty() {
         return Some(synthesized);
     }
-    let tools = payload.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
-    let findings = response_tools_summary_for_user(&tools, 4);
-    if !findings.is_empty() { return Some(findings); }
-    let failure_reason = response_tools_failure_reason_for_user(&tools, 4);
-    if !failure_reason.is_empty() { return Some(failure_reason); }
-    Some("I completed the tool call, but no synthesized response was available yet. Check the tool details below.".to_string())
+    let _tools = payload.get("tools").and_then(Value::as_array).cloned().unwrap_or_default();
+    None
 }
 
 fn response_field_from_json_wrapper(payload: &Value) -> Option<String> {
@@ -752,8 +748,6 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
         || lowered.contains("did not return")
         || lowered.contains("low-signal")
         || lowered.contains("no source-backed")
-        || lowered.contains("specific framework listings")
-        || lowered.contains("catalog-style framework evidence")
         || lowered.contains("only returned");
     let mainly_ack_language = lowered.contains("i searched")
         || lowered.contains("searched the internet")
@@ -844,8 +838,7 @@ fn response_looks_like_off_topic_web_results(text: &str) -> bool {
     }
     let has_web_context = lowered.contains("web search")
         || lowered.contains("search results")
-        || lowered.contains("query")
-        || lowered.contains("framework");
+        || lowered.contains("query");
     if !has_web_context {
         return false;
     }
@@ -853,14 +846,7 @@ fn response_looks_like_off_topic_web_results(text: &str) -> bool {
         || lowered.contains("callsign")
         || lowered.contains("ham radio")
         || lowered.contains("qso");
-    let ai_markers = lowered.contains("agent framework")
-        || lowered.contains("agentic ai")
-        || lowered.contains("openai agents")
-        || lowered.contains("langgraph")
-        || lowered.contains("autogen")
-        || lowered.contains("crewai")
-        || lowered.contains("smolagents");
-    off_topic_markers && !ai_markers
+    off_topic_markers
 }
 
 fn sanitize_findings_for_final_response(findings: Option<String>) -> Option<String> {
@@ -889,28 +875,12 @@ fn finalize_user_facing_response_with_outcome(
         cleaned = clean_text(unwrapped.trim(), 32_000);
         payload_normalized = true;
     }
-    if let Some(unwrapped) = normalize_raw_response_payload_dump(&cleaned) {
-        cleaned = clean_text(unwrapped.trim(), 32_000);
-        payload_normalized = true;
-    }
     cleaned = strip_disallowed_source_tags(&cleaned);
     if contains_deprecated_workflow_ghost_phrase(&cleaned) {
-        let rewritten = scrub_deprecated_workflow_ghost_text(&cleaned);
-        let stabilized = strip_disallowed_source_tags(&rewritten);
-        if stabilized.is_empty() || contains_deprecated_workflow_ghost_phrase(&stabilized) {
-            return (
-                String::new(),
-                with_payload_normalization_outcome(
-                    "withheld_deprecated_workflow_ghost_text",
-                    payload_normalized,
-                ),
-                true,
-            );
-        }
         return (
-            stabilized,
+            cleaned,
             with_payload_normalization_outcome(
-                "scrubbed_deprecated_workflow_ghost_text",
+                "flagged_deprecated_workflow_ghost_text",
                 payload_normalized,
             ),
             true,
@@ -919,9 +889,9 @@ fn finalize_user_facing_response_with_outcome(
     if let Some((_, rule_id)) = crate::tool_output_match_filter::rewrite_failure_placeholder(&cleaned)
     {
         return (
-            String::new(),
+            cleaned,
             with_payload_normalization_outcome(
-                &format!("withheld_failure_placeholder:{rule_id}"),
+                &format!("flagged_failure_placeholder:{rule_id}"),
                 payload_normalized,
             ),
             false,
@@ -929,9 +899,9 @@ fn finalize_user_facing_response_with_outcome(
     }
     if response_looks_like_raw_web_artifact_dump(&cleaned) {
         return (
-            String::new(),
+            cleaned,
             with_payload_normalization_outcome(
-                "withheld_raw_web_artifact_dump",
+                "flagged_raw_web_artifact_dump",
                 payload_normalized,
             ),
             false,
@@ -939,9 +909,9 @@ fn finalize_user_facing_response_with_outcome(
     }
     if response_looks_like_unsynthesized_web_snippet_dump(&cleaned) {
         return (
-            String::new(),
+            cleaned,
             with_payload_normalization_outcome(
-                "withheld_unsynthesized_web_snippet_dump",
+                "flagged_unsynthesized_web_snippet_dump",
                 payload_normalized,
             ),
             false,
@@ -949,9 +919,9 @@ fn finalize_user_facing_response_with_outcome(
     }
     if response_looks_like_off_topic_web_results(&cleaned) {
         return (
-            String::new(),
+            cleaned,
             with_payload_normalization_outcome(
-                "withheld_off_topic_web_results",
+                "flagged_off_topic_web_results",
                 payload_normalized,
             ),
             true,
@@ -963,9 +933,9 @@ fn finalize_user_facing_response_with_outcome(
     let input_ack_only = response_looks_like_tool_ack_without_findings(&cleaned);
     if speculative_blocker_copy {
         return (
-            String::new(),
+            cleaned,
             with_payload_normalization_outcome(
-                "withheld_speculative_web_blocker_copy",
+                "flagged_speculative_web_blocker_copy",
                 payload_normalized,
             ),
             true,
@@ -973,9 +943,9 @@ fn finalize_user_facing_response_with_outcome(
     }
     if deferred_execution_copy {
         return (
-            String::new(),
+            cleaned,
             with_payload_normalization_outcome(
-                "withheld_deferred_execution_copy",
+                "flagged_deferred_execution_copy",
                 payload_normalized,
             ),
             true,
@@ -985,7 +955,7 @@ fn finalize_user_facing_response_with_outcome(
         return (
             String::new(),
             with_payload_normalization_outcome(
-                "withheld_empty_final_response",
+                "empty_final_response",
                 payload_normalized,
             ),
             false,
@@ -993,17 +963,17 @@ fn finalize_user_facing_response_with_outcome(
     }
     if input_ack_only {
         return (
-            String::new(),
-            with_payload_normalization_outcome("withheld_ack_only_response", payload_normalized),
+            cleaned,
+            with_payload_normalization_outcome("flagged_ack_only_response", payload_normalized),
             true,
         );
     }
     let cleaned_without_legacy_gate = scrub_deprecated_workflow_ghost_text(&cleaned);
     if cleaned_without_legacy_gate.is_empty() {
         return (
-            String::new(),
+            cleaned,
             with_payload_normalization_outcome(
-                "withheld_deprecated_workflow_gate_token",
+                "flagged_deprecated_workflow_gate_token",
                 payload_normalized,
             ),
             true,
@@ -1011,9 +981,9 @@ fn finalize_user_facing_response_with_outcome(
     }
     if cleaned_without_legacy_gate != cleaned {
         return (
-            strip_disallowed_source_tags(&cleaned_without_legacy_gate),
+            strip_disallowed_source_tags(&cleaned),
             with_payload_normalization_outcome(
-                "scrubbed_deprecated_workflow_gate_token",
+                "flagged_deprecated_workflow_gate_token",
                 payload_normalized,
             ),
             true,
