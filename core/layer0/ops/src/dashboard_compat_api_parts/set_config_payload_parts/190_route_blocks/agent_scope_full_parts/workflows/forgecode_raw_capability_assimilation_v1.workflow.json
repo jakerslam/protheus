@@ -105,9 +105,22 @@
         "submission_contract": {
           "visibility": "private_token_only",
           "accepted_outputs": [
+            "1",
             "Respond directly",
+            "2",
             "Planning from current context",
-            "Category: <category>. Tool family: <family>. Tool: <catalog tool key>. Request payload: <JSON>."
+            "3",
+            "Web research",
+            "4",
+            "Workspace/files",
+            "5",
+            "Code execution / terminal",
+            "6",
+            "Agent management",
+            "7",
+            "Memory/notes",
+            "8",
+            "External apps/integrations"
           ],
           "forbidden_output_classes": [
             "choice_narration",
@@ -120,6 +133,9 @@
           {
             "key": "respond_directly",
             "label": "Respond directly",
+            "aliases": [
+              "1"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": false,
@@ -128,6 +144,9 @@
           {
             "key": "planning_current_context",
             "label": "Planning from current context",
+            "aliases": [
+              "2"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": false,
@@ -136,6 +155,9 @@
           {
             "key": "web_research",
             "label": "Web research",
+            "aliases": [
+              "3"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": true,
@@ -144,6 +166,9 @@
           {
             "key": "workspace_files",
             "label": "Workspace/files",
+            "aliases": [
+              "4"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": true,
@@ -152,6 +177,9 @@
           {
             "key": "code_execution_terminal",
             "label": "Code execution / terminal",
+            "aliases": [
+              "5"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": true,
@@ -160,6 +188,9 @@
           {
             "key": "agent_management",
             "label": "Agent management",
+            "aliases": [
+              "6"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": true,
@@ -168,6 +199,9 @@
           {
             "key": "memory_notes",
             "label": "Memory/notes",
+            "aliases": [
+              "7"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": true,
@@ -176,6 +210,9 @@
           {
             "key": "external_apps_integrations",
             "label": "External apps/integrations",
+            "aliases": [
+              "8"
+            ],
             "private_token": true,
             "visible_chat": false,
             "has_tools": true,
@@ -203,6 +240,16 @@
         "to": "gate_2_tool_family_menu"
       }
     ],
+    "diagnostic_markers": {
+      "status_check": [
+        "did you do",
+        "did you try",
+        "what happened",
+        "status",
+        "done yet",
+        "request??"
+      ]
+    },
     "tool_family_menu": [
       {
         "option": 1,
@@ -286,7 +333,8 @@
         },
         {
           "option": 2,
-          "key": "read_file",
+          "key": "file_read",
+          "aliases": ["read_file"],
           "label": "Read file",
           "request_format": {
             "path": "<path>"
@@ -388,7 +436,7 @@
       ],
       "none": []
     },
-    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Pick one category: {category_options}. No-tool categories ({no_tool_categories}) go straight to final answer. Tool categories ({tool_bearing_categories}) must submit: `{tool_submission_format}`. Use exact catalog tool keys, e.g. `{example_tool_key}`. Do not narrate or say what you would choose. Visible chat is only Gate 6 final answer."
+    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Reply with exactly one option number or exact label from this menu: {category_options}. No-tool categories ({no_tool_categories}) go straight to final answer. Tool categories ({tool_bearing_categories}) advance to the private tool menu. Do not narrate, explain, or say what you would choose. Visible chat is only Gate 6 final answer."
   },
   "workflow_source_of_truth_contract": {
     "interaction_source": "json_workflow_spec",
