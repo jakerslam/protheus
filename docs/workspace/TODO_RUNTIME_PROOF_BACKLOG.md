@@ -66,6 +66,7 @@ This file tracks remaining execution from the runtime-proof hardening intake aft
 - [done] Add entropy-source ownership summaries so recurring drift is attributed to Kernel, Observability, Validation, Gateway, Shell, or Governance without creating local symptom tickets too early.
 - [done] Add a promotion rule requiring anti-entropy review before Sentinel findings become TODO/GitHub candidates when structural patterns are active.
 - [done] Add an operator-facing anti-entropy digest that shows only top drivers, current posture, and next stabilizing action.
+- [done] Make Kernel Sentinel stream final reports budget-safe by construction with digest-only fallback when compact reports exceed the byte budget.
 
 ## Observability + Tooling Contracts (new)
 
