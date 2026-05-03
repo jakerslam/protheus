@@ -4,7 +4,7 @@ fn build_agent_roster(root: &Path, snapshot: &Value, include_terminated: bool) -
     let contracts = contracts_map(root);
     let collab = collab_agents_map(snapshot);
     let session_summaries = session_summary_map(root, snapshot);
-    let (default_provider, default_model) = effective_app_settings(root, snapshot);
+    let (default_provider, default_model) = extract_app_settings(root, snapshot);
     for (raw_id, profile) in &profiles {
         let profile_state = clean_text(
             profile.get("state").and_then(Value::as_str).unwrap_or(""),

@@ -2,11 +2,18 @@ fn tool_rows_for_llm_recovery(response_tools: &[Value], limit: usize) -> Value {
     let mut rows = Vec::<Value>::new();
     for tool in response_tools.iter().take(limit.clamp(1, 8)) {
         let name = normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool"));
+        let display_name = if name == "batch_query" || name == "batch-query" {
+            "web_search"
+        } else if name.is_empty() {
+            "tool"
+        } else {
+            name.as_str()
+        };
         let input = clean_text(tool.get("input").and_then(Value::as_str).unwrap_or(""), 800);
         let result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 2_000);
         let status = clean_text(tool.get("status").and_then(Value::as_str).unwrap_or(""), 120);
         rows.push(json!({
-            "name": if name.is_empty() { "tool" } else { &name },
+            "name": display_name,
             "input": input,
             "status": status,
             "blocked": tool.get("blocked").and_then(Value::as_bool).unwrap_or(false),

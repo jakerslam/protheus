@@ -9,9 +9,7 @@ fn batch_query_context_guard_comparison_uses_comparative_fallback() {
             "summary": "Context overflow: estimated context size exceeds safe threshold during tool loop."
         }),
     );
-    let lowered = summary.to_ascii_lowercase();
-    assert!(lowered.contains("infring is strongest"));
-    assert!(lowered.contains("source-backed ranked table"));
+    assert!(summary.is_empty());
 }
 
 #[test]

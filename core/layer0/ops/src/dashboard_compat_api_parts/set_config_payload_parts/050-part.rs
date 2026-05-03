@@ -438,8 +438,9 @@ fn append_turn_message(
     user_text: &str,
     assistant_text: &str,
 ) -> Value {
+    let assistant_text = visible_chat_text_for_persistence(user_text, assistant_text);
     let mut receipt =
-        crate::dashboard_agent_state::append_turn(root, agent_id, user_text, assistant_text);
+        crate::dashboard_agent_state::append_turn(root, agent_id, user_text, &assistant_text);
     if let Some(memory_text) = parse_memory_capture_text(user_text) {
         let key = format!(
             "explicit_memory.{}",
@@ -459,7 +460,7 @@ fn append_turn_message(
             crate::dashboard_agent_state::memory_kv_set(root, agent_id, &key, &value);
         receipt["memory_capture"] = memory_receipt;
     }
-    if let Some(event) = passive_memory_attention_event(agent_id, user_text, assistant_text) {
+    if let Some(event) = passive_memory_attention_event(agent_id, user_text, &assistant_text) {
         receipt["attention_queue"] =
             enqueue_attention_event_best_effort(root, "dashboard_agent_passive_memory", &event);
     } else {
@@ -469,11 +470,44 @@ fn append_turn_message(
             "reason": "empty_turn"
         });
     }
-    if let Some(tool_keyframe) = tool_outcome_keyframe_from_turn(user_text, assistant_text) {
+    if let Some(tool_keyframe) = tool_outcome_keyframe_from_turn(user_text, &assistant_text) {
         append_context_keyframe_to_active_session(root, agent_id, &tool_keyframe);
         receipt["tool_outcome_keyframe"] = tool_keyframe;
     }
     receipt
+}
+
+fn visible_chat_text_for_persistence(user_text: &str, candidate: &str) -> String {
+    let cleaned = clean_chat_text(candidate, 64_000);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    if response_is_visible_workflow_gate_choice(&cleaned)
+        || response_has_gate_choice_prefix_leakage(&cleaned)
+        || manual_toolbox_pending_request_from_response(&cleaned, user_text).is_some()
+    {
+        return String::new();
+    }
+    cleaned
+}
+
+#[cfg(test)]
+mod visible_chat_persistence_tests {
+    use super::*;
+
+    #[test]
+    fn visible_chat_persistence_withholds_raw_need_tools_gate() {
+        assert_eq!(visible_chat_text_for_persistence("compare frameworks", "Need tools? Yes"), "");
+        assert_eq!(visible_chat_text_for_persistence("compare frameworks", "Use workflow: no"), "");
+        assert_eq!(
+            visible_chat_text_for_persistence(
+                "compare frameworks",
+                "Here is a normal synthesized answer."
+            ),
+            "Here is a normal synthesized answer."
+        );
+    }
+
 }
 
 fn rollback_last_turn(root: &Path, agent_id: &str) -> Value {

@@ -1,7 +1,6 @@
 // Layer ownership: orchestration (non-canonical orchestration coordination only).
 use super::workflow_contracts::{
-    registered_workflow_graphs, NormalizedWorkflowGraph, REQUIRED_TELEMETRY_STREAMS,
-    REQUIRED_TOOL_FAMILIES,
+    registered_workflow_graphs, NormalizedWorkflowGraph, REQUIRED_TOOL_FAMILIES,
 };
 use super::workflow_runtime_fixtures::{
     workflow_replay_fixtures, WorkflowInput, WorkflowReplayFixture,
@@ -73,10 +72,14 @@ pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayRep
         "workflow_selected",
         "intake",
         json!({
-            "source": "orchestration_typed_graph_v1",
+            "source": "json_workflow_source_of_truth_v1",
             "workflow_id": state.graph.workflow_id.clone(),
             "source_json_path": state.graph.source_json_path.clone(),
             "contract_schema_version": state.graph.contract_schema_version.clone(),
+            "source_of_truth_schema_version": state.graph.source_of_truth_schema_version.clone(),
+            "interaction_source": state.graph.interaction_source.clone(),
+            "rust_reader_role": state.graph.rust_reader_role.clone(),
+            "hardcoded_interaction_behavior_allowed": state.graph.hardcoded_interaction_behavior_allowed,
             "graph_hash": state.graph_hash.clone()
         }),
         false,
@@ -86,7 +89,7 @@ pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayRep
         "tool_family_menu_ready",
         "gate_2_tool_family_menu",
         json!({
-            "families": REQUIRED_TOOL_FAMILIES,
+            "families": state.graph.tool_families.clone(),
             "llm_selects_tool_family": true,
             "automatic_tool_family_selection": false
         }),
@@ -130,6 +133,12 @@ pub fn graph_hash(graph: &NormalizedWorkflowGraph) -> String {
     graph.workflow_id.hash(&mut hasher);
     graph.source_json_path.hash(&mut hasher);
     graph.contract_schema_version.hash(&mut hasher);
+    graph.source_of_truth_schema_version.hash(&mut hasher);
+    graph.interaction_source.hash(&mut hasher);
+    graph.rust_reader_role.hash(&mut hasher);
+    graph
+        .hardcoded_interaction_behavior_allowed
+        .hash(&mut hasher);
     graph.stages.hash(&mut hasher);
     graph.transitions.hash(&mut hasher);
     graph.visible_chat_policy.hash(&mut hasher);
@@ -159,7 +168,11 @@ pub fn adapt_tool_request(
     })
 }
 
-fn parse_gate_input(stage: &str, text: &str) -> Result<ParsedGateInput, String> {
+fn parse_gate_input(
+    stage: &str,
+    text: &str,
+    tool_families: &[String],
+) -> Result<ParsedGateInput, String> {
     let normalized = text.trim().to_ascii_lowercase();
     match stage {
         "gate_1_need_tool_access_menu" => match normalized.as_str() {
@@ -168,16 +181,14 @@ fn parse_gate_input(stage: &str, text: &str) -> Result<ParsedGateInput, String> 
             _ => Err("gate_1_requires_yes_or_no".to_string()),
         },
         "gate_2_tool_family_menu" => {
-            let family = match normalized.as_str() {
-                "1" => "workspace",
-                "2" => "web",
-                "3" => "memory",
-                "4" => "agent",
-                "5" => "shell",
-                "6" => "browser",
-                other => other,
-            };
-            if REQUIRED_TOOL_FAMILIES.contains(&family) {
+            let family = normalized
+                .parse::<usize>()
+                .ok()
+                .and_then(|choice| choice.checked_sub(1))
+                .and_then(|idx| tool_families.get(idx))
+                .map(String::as_str)
+                .unwrap_or(normalized.as_str());
+            if tool_families.iter().any(|row| row == family) {
                 Ok(ParsedGateInput::ToolFamily(family.to_string()))
             } else {
                 Err(format!("unknown_tool_family:{family}"))
@@ -277,7 +288,7 @@ impl RuntimeState {
             json!({"answer": text}),
             false,
         );
-        match parse_gate_input(stage, text) {
+        match parse_gate_input(stage, text, &self.graph.tool_families) {
             Ok(ParsedGateInput::NeedTools(false)) => {
                 self.event(
                     "workflow_state",
@@ -492,9 +503,10 @@ fn inspector_artifact(
     graph_hash: &str,
     events: &[WorkflowRuntimeEvent],
 ) -> WorkflowInspectorArtifact {
-    let mut streams: BTreeMap<String, Vec<WorkflowRuntimeEvent>> = REQUIRED_TELEMETRY_STREAMS
+    let mut streams: BTreeMap<String, Vec<WorkflowRuntimeEvent>> = graph
+        .telemetry_streams
         .iter()
-        .map(|stream| ((*stream).to_string(), Vec::new()))
+        .map(|stream| (stream.clone(), Vec::new()))
         .collect();
     for event in events {
         streams
@@ -511,24 +523,32 @@ fn inspector_artifact(
         graph_hash: graph_hash.to_string(),
         source_json_path: graph.source_json_path.clone(),
         contract_schema_version: graph.contract_schema_version.clone(),
-        selected_graph_source: "orchestration_typed_graph_v1".to_string(),
+        source_of_truth_schema_version: graph.source_of_truth_schema_version.clone(),
+        interaction_source: graph.interaction_source.clone(),
+        rust_reader_role: graph.rust_reader_role.clone(),
+        hardcoded_interaction_behavior_allowed: graph.hardcoded_interaction_behavior_allowed,
+        selected_graph_source: "json_workflow_source_of_truth_v1".to_string(),
         stage_statuses,
         trace_streams: streams,
-        tool_family_diagnostics: tool_family_diagnostics(events),
+        tool_family_diagnostics: tool_family_diagnostics(graph, events),
         visible_chat_source: "final_answer_stream_only".to_string(),
         system_chat_injection_allowed: false,
     }
 }
 
-fn tool_family_diagnostics(events: &[WorkflowRuntimeEvent]) -> Vec<ToolFamilyDiagnostic> {
+fn tool_family_diagnostics(
+    graph: &NormalizedWorkflowGraph,
+    events: &[WorkflowRuntimeEvent],
+) -> Vec<ToolFamilyDiagnostic> {
     let selected = selected_tool_families(events);
-    REQUIRED_TOOL_FAMILIES
+    graph
+        .tool_families
         .iter()
         .map(|family| ToolFamilyDiagnostic {
-            family: (*family).to_string(),
+            family: family.clone(),
             status: "menu_available_probe_required_before_execution".to_string(),
             reason: "workflow_reader_exposes_family_without_autoselection".to_string(),
-            selected_by_llm: selected.contains(*family),
+            selected_by_llm: selected.contains(family),
         })
         .collect()
 }

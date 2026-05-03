@@ -9,10 +9,44 @@ Define one canonical, human/LLM-friendly workflow format so workflow definitions
 
 Canonical format: JSON (`*.workflow.json`)
 
+## Burnable CD / CD Player Reference
+
+The workflow JSON is the burnable CD. The Rust workflow reader/runtime is the CD player.
+
+That means workflow interaction behavior must be contained in the JSON spec, and the Rust side must load, validate, execute, and trace the selected spec without inventing hidden workflow behavior.
+
+JSON owns:
+
+1. Interaction gates
+2. Gate options
+3. Gate transitions
+4. Tool family menus
+5. Tool input schemas
+6. Confirmation states
+7. Loopbacks
+8. Final-output contract
+
+Rust owns:
+
+1. JSON loading
+2. Schema validation
+3. Deterministic state-transition execution
+4. Tool execution handoff
+5. Receipt binding
+6. Trace export
+7. Kernel policy enforcement
+
+Acceptance rule:
+
+If changing a workflow JSON file cannot change the workflow's interaction behavior without editing Rust, that behavior is migration debt unless it is a new primitive/tool implementation, a safety policy, or a schema validator. Rust may reject an invalid CD; it must not secretly write a different CD while playing it.
+
 Reader implementation: `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046a-workflow-reader.rs`
 
 Orchestration template reader implementation:
 `orchestration/src/control_plane/templates.rs`
+
+Orchestration workflow contract reader/guard:
+`orchestration/src/control_plane/workflow_contracts.rs`
 
 Current workflow spec directory:
 `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/workflows/`
@@ -40,13 +74,58 @@ Required reader-acceptance fields:
 
 1. `name` (string, non-empty after sanitization)
 2. `stages` (array of stage strings, at least one non-empty item after sanitization)
-3. `workflow_type` (`control_plane_orchestration_workflow` for control-plane workflows)
-4. `workflow_role` (`assistant_response_workflow` or `assimilation_workflow_template`)
-5. `typed_execution_contract` (object, required for control-plane promotion)
+3. `workflow_type` (`control_plane_orchestration_workflow` for control-plane workflows; `hard_agent_workflow` for current dashboard assistant-response CDs)
+4. `workflow_role` (`assistant_response_workflow` or `assimilation_workflow_template`) for control-plane workflow registries
+5. `final_response_policy` (string, non-empty)
+6. `gate_contract` (string, non-empty)
+7. `workflow_source_of_truth_contract` (object)
+8. `tool_menu_interface_contract` (object) for assistant toolbox workflows
+9. `gate_6_llm_final_output.final_output_contract` inside `tool_menu_interface_contract` for assistant toolbox workflows
+10. `typed_execution_contract` (object, required for control-plane promotion)
 
 If any required field is invalid/empty, the reader rejects that spec.
+Assistant toolbox workflows are also rejected unless `tool_menu_interface_contract` declares non-empty `llm_gate_instruction`, `gate_order`, `gate_shapes_allowed`, `terminal_states`, `declared_loopbacks`, `tool_family_menu`, `tool_menu_by_family`, the canonical gate objects, Gate 1 accepted outputs/options, and `system_injected_chat_text_allowed: false`. The Rust reader must never synthesize missing menus or prompt text from partial workflow JSON.
 
-Control-plane promotion requires the Rust workflow contract guard to compile each JSON workflow into a typed graph before runtime use. `typed_execution_contract` must include:
+Control-plane promotion requires the Rust workflow contract guard to compile each JSON workflow into a typed graph before runtime use. `workflow_source_of_truth_contract` must include:
+
+1. `interaction_source`: `json_workflow_spec`
+2. `rust_reader_role`: `validate_execute_trace_only`
+3. `hardcoded_interaction_behavior_allowed`: `false`
+4. `json_owns` containing `interaction_gates`, `gate_options`, `gate_transitions`, `tool_family_menus`, `tool_input_schemas`, `confirmation_states`, `loopbacks`, and `final_output_contract`
+5. `rust_owns` containing `json_loading`, `schema_validation`, `state_transition_execution`, `tool_execution_handoff`, `receipt_binding`, `trace_export`, and `kernel_policy_enforcement`
+
+Example:
+
+```json
+{
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}
+```
+
+`typed_execution_contract` must include:
 
 1. `gate_kind` (string)
 2. `input_kind` (`multiple_choice`, `text_input`, or `multiple_choice_or_text_input`)
@@ -59,14 +138,12 @@ Control-plane promotion requires the Rust workflow contract guard to compile eac
 9. `visible_chat_policy` set to `llm_final_only_no_system_injection`
 10. `run_budgets` with max stages, model turns, tool calls, token budget, and loop-signature detector
 
-Optional fields with reader defaults:
+Optional fields:
 
 1. `default` (default: `false`)
 2. `description` (default: `""`)
-3. `final_response_policy` (default: `llm_authored_when_online`)
-4. `gate_contract` (default: `tool_menu_interface_v1`)
 
-Unknown extra keys are currently ignored by the reader.
+`final_response_policy` and `gate_contract` are required. Unknown extra keys are currently ignored by the reader.
 
 ## Workflow Role Rule
 
@@ -79,7 +156,7 @@ Allowed roles:
 
 Assimilation workflow templates must declare at least one `subtemplates` row. Each subtemplate must include non-empty `id`, `description`, `required_signals`, `required_gates`, and `source_refs` fields so assimilation can be audited as capability transfer instead of ledger burn-down.
 
-Subtemplate `id` values must be unique within the workflow, no longer than 120 characters, and limited to lowercase ASCII letters, digits, `_`, and `-`. Subtemplate `required_signals`, `required_gates`, and `source_refs` must not contain duplicate values. `source_refs` must be repo-relative or local-assimilation paths under approved roots such as `local/workspace/assimilations/`, `local/workspace/vendor/`, `orchestration/`, `docs/workspace/`, `tests/tooling/`, `core/`, or `adapters/`; absolute paths, URL refs, and `..` traversal are invalid.
+Subtemplate `id` values must be unique within the workflow, no longer than 120 characters, and limited to lowercase ASCII letters, digits, `_`, and `-`. Subtemplate `required_signals`, `required_gates`, and `source_refs` must not contain duplicate values. `source_refs` must be repo-relative or local-assimilation paths under approved roots such as `local/workspace/assimilations/`, `local/workspace/vendor/`, `orchestration/`, `docs/workspace/`, `tests/tooling/`, `validation/`, `core/`, or `adapters/`; absolute paths, URL refs, and `..` traversal are invalid.
 
 Assistant-response workflows must not declare `subtemplates`; if a normal response path needs reusable sequencing, promote it into stages/contracts rather than embedding assimilation doctrine.
 
@@ -119,13 +196,15 @@ Current max lengths:
 
 ## Default Workflow Rule
 
-The library must resolve to one default workflow.
+The library must resolve to exactly one JSON-declared default workflow.
 
-Normalization behavior:
+Fail-closed behavior:
 
-1. If no spec is marked `default: true`, the first loaded spec is promoted to default.
-2. If multiple specs are marked `default: true`, only the first remains default.
-3. If no valid specs load, reader falls back to built-in `workflow_spec_error_v1` (fail-closed).
+1. If no spec is marked `default: true`, the reader emits a fail-closed loader diagnostic.
+2. If multiple specs are marked `default: true`, the reader emits a fail-closed loader diagnostic.
+3. If no valid specs load, the reader emits a fail-closed loader diagnostic, not a substitute workflow.
+4. The loader diagnostic may expose trace/debug data, but it must not define interaction gates, tool menus, transitions, prompt text, or final-answer wording.
+5. Runtime mode strings such as direct-answer/tool-execution telemetry must not be mapped to workflow names. Workflow selection is either the one JSON-declared default or an explicit `workflow=<name>` hint.
 
 ## Interface-Only Workflow Rule
 
@@ -147,6 +226,7 @@ Disallowed workflow behavior:
 4. Choosing a tool automatically
 5. Injecting fallback text into the visible chat response
 6. Adding "next actions" or system-authored diagnostic prose to the final answer
+7. Rendering workflow state, agent-internal notes, prompt analysis, tool traces, or eval traces as final chat text
 
 No-injection invariant:
 
@@ -154,10 +234,11 @@ No-injection invariant:
 2. Failure/finalization diagnostics go to telemetry, attention queues, or UI diagnostic streams only.
 3. Visible chat text is emitted only by the LLM final output stage.
 4. `visible_chat_policy` must remain `llm_final_only_no_system_injection`.
+5. `gate_6_llm_final_output.final_output_contract` must declare the visible chat source and the internal streams excluded from chat.
 
 Canonical stage vocabulary:
 
-1. `gate_1_need_tool_access_menu`
+1. `gate_1_work_category_menu`
 2. `gate_2_tool_family_menu`
 3. `gate_3_tool_menu`
 4. `gate_4_request_payload_input`
@@ -165,7 +246,7 @@ Canonical stage vocabulary:
 6. `gate_5_post_tool_menu`
 7. `gate_6_llm_final_output`
 
-Direct conversation is represented by `No` at `gate_1_need_tool_access_menu`, not by a separate automatic bypass classifier.
+Direct response is represented by the private `Respond directly` category at `gate_1_work_category_menu`, not by a separate automatic bypass classifier.
 
 ## Tool Menu Interface Contract
 
@@ -182,23 +263,31 @@ Required fields:
 7. `private_tokens`: private menu tokens that must never be emitted as visible chat
 8. `terminal_states`: terminal state names
 9. `declared_loopbacks`: explicit loopback transitions
+10. `gates.gate_6_llm_final_output.final_output_contract`: final visible answer contract
+11. `gates.gate_1_work_category_menu.submission_contract`: private Gate 1 submission contract
 
 Required gate semantics:
 
-1. `gate_1_need_tool_access_menu` asks exactly `Need tools? Yes/No`.
-2. The `No` option is a private token (`private_token: true`, `visible_chat: false`) and transitions directly to `gate_6_llm_final_output`.
-3. `gate_2_tool_family_menu` is multiple choice.
-4. `gate_3_tool_menu` is multiple choice.
-5. `gate_4_request_payload_input` is text input.
-6. `gate_4b_tool_confirmation_menu` is multiple choice and contains `confirm` and `cancel`.
-7. `cancel` is a formal terminal state transition to `cancelled`; it is not an emergent runtime convention.
-8. `gate_5_post_tool_menu` is multiple choice and contains `finish` and `another_tool`.
-9. `another_tool` must declare an explicit loopback to `gate_2_tool_family_menu`.
-10. `gate_6_llm_final_output` is LLM-only final-authority text input.
+1. `gate_1_work_category_menu` asks exactly `What kind of work is this?`.
+2. `Respond directly` and `Planning from current context` are private no-tool category tokens (`private_token: true`, `visible_chat: false`) and transition directly to `gate_6_llm_final_output`.
+3. Tool-bearing categories are `Web research`, `Workspace/files`, `Code execution / terminal`, `Agent management`, `Memory/notes`, and `External apps/integrations`.
+4. Gate 1 accepts only private submissions: a no-tool category token or `Category: <category>. Tool family: <family>. Tool: <tool>. Request payload: <JSON>.`.
+5. Gate 1 forbids choice narration, recommendations without submission, and visible chat text.
+6. `gate_2_tool_family_menu` is multiple choice.
+7. `gate_3_tool_menu` is multiple choice.
+8. `gate_4_request_payload_input` is text input.
+9. `gate_4b_tool_confirmation_menu` is multiple choice and contains `confirm` and `cancel`.
+10. `cancel` is a formal terminal state transition to `cancelled`; it is not an emergent runtime convention.
+11. `gate_5_post_tool_menu` is multiple choice and contains `finish` and `another_tool`.
+12. `another_tool` must declare an explicit loopback to `gate_2_tool_family_menu`.
+13. `gate_6_llm_final_output` is LLM-only final-authority text input.
+14. `gate_6_llm_final_output.final_output_contract.visible_chat_source` is `llm_final_answer_only`.
+15. `gate_6_llm_final_output.final_output_contract.internal_streams` includes `workflow_state`, `agent_internal_notes`, `tool_trace`, and `eval_trace`.
+16. `gate_6_llm_final_output.final_output_contract.chat_excludes` includes every internal stream plus `prompt_analysis`.
 
 Visibility rule:
 
-1. `No`, `Yes`, `confirm`, and `cancel` are private workflow tokens by default.
+1. Gate category tokens, `confirm`, and `cancel` are private workflow tokens by default.
 2. Private workflow tokens may be stored in telemetry and diagnostics.
 3. Private workflow tokens must not be rendered as assistant-visible chat.
 4. The final chat box receives only the LLM-authored answer from `gate_6_llm_final_output`.
@@ -239,7 +328,7 @@ Suggested test commands:
 ## Policy Guardrail
 
 Workflow definitions for assistant response flow must remain JSON specs.
-Do not introduce new inline Rust-authored workflow definitions except fail-closed fallback definitions explicitly used for reader-error containment.
+Do not introduce new inline Rust-authored workflow definitions. Loader-error containment may emit diagnostics, but it must not define interaction gates, tool menus, transitions, prompt text, or final-answer wording.
 
 ## Capability vs Workflow Boundary (Required)
 

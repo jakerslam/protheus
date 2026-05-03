@@ -133,13 +133,15 @@
     }
 
     #[test]
-    fn chat_ui_tool_gate_system_prompt_is_compact_yes_no_exit_gate() {
+    fn chat_ui_tool_gate_system_prompt_is_compact_category_exit_gate() {
         let prompt = chat_ui_tool_gate_system_prompt("hey");
-        assert!(prompt.contains("Need tools? Yes/No"), "{prompt}");
-        assert!(prompt.contains("No"), "{prompt}");
-        assert!(prompt.contains("Yes"), "{prompt}");
+        assert!(prompt.contains("What kind of work is this?"), "{prompt}");
+        assert!(prompt.contains("Respond directly"), "{prompt}");
+        let stale_label = format!("Direct answer / {}", "conversation");
+        assert!(!prompt.contains(&stale_label), "{prompt}");
+        assert!(prompt.contains("Web research"), "{prompt}");
         assert!(
-            prompt.len() < 700,
+            prompt.len() < 900,
             "simple first gate should stay compact, got {} chars: {prompt}",
             prompt.len()
         );
@@ -147,6 +149,24 @@
         assert!(!prompt.contains("batch_query"), "{prompt}");
         assert!(!prompt.contains("tool_menu_by_family"), "{prompt}");
         assert!(!prompt.contains("request_example"), "{prompt}");
+    }
+
+    #[test]
+    fn chat_ui_tool_menu_exposes_human_tool_families_not_batch_query() {
+        let gate = chat_ui_turn_tool_decision_tree("compare infring to agent frameworks");
+        let web_menu = gate
+            .pointer("/tool_menu_by_family/web_research")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(web_menu.iter().any(|row| {
+            row.get("key").and_then(Value::as_str) == Some("web_search")
+                && row.get("label").and_then(Value::as_str) == Some("Search web")
+        }));
+        assert!(!web_menu.iter().any(|row| {
+            row.get("key").and_then(Value::as_str) == Some("batch_query")
+                || row.get("label").and_then(Value::as_str) == Some("batch_query")
+        }));
     }
 
     #[test]
@@ -176,9 +196,9 @@
         );
         assert_eq!(
             trace
-                .pointer("/gates/need_tool_access/question")
+                .pointer("/gates/work_category/question")
                 .and_then(Value::as_str),
-            Some("Need tools? Yes/No")
+            Some("What kind of work is this?")
         );
         assert_eq!(
             trace
@@ -195,6 +215,6 @@
             row.get("message")
                 .and_then(Value::as_str)
                 .unwrap_or("")
-                .contains("Need tools? Yes/No")
+                .contains("What kind of work is this?")
         }));
     }

@@ -15,6 +15,28 @@ pub const REQUIRED_TELEMETRY_STREAMS: &[&str] = &[
 pub const REQUIRED_TOOL_FAMILIES: &[&str] =
     &["workspace", "web", "memory", "agent", "shell", "browser"];
 pub const WORKFLOW_CONTRACT_SCHEMA_VERSION: &str = "typed_execution_contract_v1";
+pub const WORKFLOW_SOURCE_OF_TRUTH_SCHEMA_VERSION: &str = "workflow_source_of_truth_contract_v1";
+pub const WORKFLOW_INTERACTION_SOURCE: &str = "json_workflow_spec";
+pub const WORKFLOW_RUST_READER_ROLE: &str = "validate_execute_trace_only";
+pub const REQUIRED_JSON_OWNS: &[&str] = &[
+    "interaction_gates",
+    "gate_options",
+    "gate_transitions",
+    "tool_family_menus",
+    "tool_input_schemas",
+    "confirmation_states",
+    "loopbacks",
+    "final_output_contract",
+];
+pub const REQUIRED_RUST_OWNS: &[&str] = &[
+    "json_loading",
+    "schema_validation",
+    "state_transition_execution",
+    "tool_execution_handoff",
+    "receipt_binding",
+    "trace_export",
+    "kernel_policy_enforcement",
+];
 
 const TOOL_FAMILY_SCHEMAS: &[(&str, &str, &str)] = &[
     (
@@ -100,6 +122,7 @@ struct WorkflowSpec {
     stages: Vec<String>,
     #[serde(default)]
     subtemplates: Vec<Value>,
+    workflow_source_of_truth_contract: Option<WorkflowSourceOfTruthContract>,
     typed_execution_contract: Option<TypedExecutionContract>,
 }
 
@@ -154,6 +177,20 @@ struct TypedExecutionContract {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct WorkflowSourceOfTruthContract {
+    #[serde(default)]
+    pub interaction_source: String,
+    #[serde(default)]
+    pub rust_reader_role: String,
+    #[serde(default)]
+    pub hardcoded_interaction_behavior_allowed: bool,
+    #[serde(default)]
+    pub json_owns: Vec<String>,
+    #[serde(default)]
+    pub rust_owns: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct RetryPolicy {
     #[serde(default)]
     pub max_retries: u64,
@@ -180,6 +217,12 @@ pub struct NormalizedWorkflowGraph {
     pub workflow_id: String,
     pub source_json_path: String,
     pub contract_schema_version: String,
+    pub source_of_truth_schema_version: String,
+    pub interaction_source: String,
+    pub rust_reader_role: String,
+    pub hardcoded_interaction_behavior_allowed: bool,
+    pub json_owns: Vec<String>,
+    pub rust_owns: Vec<String>,
     pub workflow_tier: String,
     pub source_framework: String,
     pub runtime_selectable: bool,
@@ -292,6 +335,10 @@ fn validate_workflow_source(
     if stages.is_empty() {
         errors.push("missing_stages".to_string());
     }
+    let Some(source_contract) = spec.workflow_source_of_truth_contract else {
+        errors.push("missing_workflow_source_of_truth_contract".to_string());
+        return validation(path, false, &workflow_id, errors, None);
+    };
     let Some(contract) = spec.typed_execution_contract else {
         errors.push("missing_typed_execution_contract".to_string());
         return validation(path, false, &workflow_id, errors, None);
@@ -304,6 +351,7 @@ fn validate_workflow_source(
         registry_entry,
         subtemplate_count: spec.subtemplates.len(),
         stages,
+        source_contract,
         contract,
         errors: &mut errors,
     });
@@ -318,6 +366,7 @@ struct WorkflowGraphCompileInput<'a> {
     registry_entry: &'a WorkflowRegistryEntry,
     subtemplate_count: usize,
     stages: Vec<String>,
+    source_contract: WorkflowSourceOfTruthContract,
     contract: TypedExecutionContract,
     errors: &'a mut Vec<String>,
 }
@@ -331,10 +380,12 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         registry_entry,
         subtemplate_count,
         stages,
+        source_contract,
         contract,
         errors,
     } = input;
     let stage_set: HashSet<&str> = stages.iter().map(String::as_str).collect();
+    validate_source_of_truth_contract(&source_contract, errors);
     validate_contract_basics(&contract, errors);
     let terminal_states = clean_list(contract.terminal_states);
     let terminal_set: HashSet<&str> = terminal_states.iter().map(String::as_str).collect();
@@ -368,6 +419,13 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         workflow_id: workflow_id.to_string(),
         source_json_path: source_path.to_string(),
         contract_schema_version: WORKFLOW_CONTRACT_SCHEMA_VERSION.to_string(),
+        source_of_truth_schema_version: WORKFLOW_SOURCE_OF_TRUTH_SCHEMA_VERSION.to_string(),
+        interaction_source: source_contract.interaction_source,
+        rust_reader_role: source_contract.rust_reader_role,
+        hardcoded_interaction_behavior_allowed: source_contract
+            .hardcoded_interaction_behavior_allowed,
+        json_owns: clean_list(source_contract.json_owns),
+        rust_owns: clean_list(source_contract.rust_owns),
         workflow_tier: registry_entry.tier.clone(),
         source_framework: registry_entry.source_framework.clone(),
         runtime_selectable: registry_entry.runtime_selectable,
@@ -500,6 +558,27 @@ fn validate_registry_entry(
     }
 }
 
+fn validate_source_of_truth_contract(
+    contract: &WorkflowSourceOfTruthContract,
+    errors: &mut Vec<String>,
+) {
+    if contract.interaction_source != WORKFLOW_INTERACTION_SOURCE {
+        errors.push("workflow_interaction_source_not_json".to_string());
+    }
+    if contract.rust_reader_role != WORKFLOW_RUST_READER_ROLE {
+        errors.push("workflow_rust_reader_role_not_cd_player".to_string());
+    }
+    if contract.hardcoded_interaction_behavior_allowed {
+        errors.push("hardcoded_workflow_interaction_behavior_allowed".to_string());
+    }
+    let json_owns = clean_list(contract.json_owns.clone());
+    let json_owns_set: HashSet<&str> = json_owns.iter().map(String::as_str).collect();
+    require_subset("json_owns", REQUIRED_JSON_OWNS, &json_owns_set, errors);
+    let rust_owns = clean_list(contract.rust_owns.clone());
+    let rust_owns_set: HashSet<&str> = rust_owns.iter().map(String::as_str).collect();
+    require_subset("rust_owns", REQUIRED_RUST_OWNS, &rust_owns_set, errors);
+}
+
 fn validate_contract_basics(contract: &TypedExecutionContract, errors: &mut Vec<String>) {
     if !matches!(
         contract.input_kind.as_str(),
@@ -624,6 +703,7 @@ fn assimilation_source_ref_ok(source_ref: &str) -> bool {
         "orchestration/",
         "docs/workspace/",
         "tests/tooling/",
+        "validation/",
         "core/",
         "adapters/",
     ]

@@ -1,6 +1,7 @@
 // SRS: V13-WORKFLOW-GATE-003
 
 fn workflow_self_play_agent(root: &Path, snapshot: &Value, name: &str) -> String {
+    crate::dashboard_provider_runtime::save_provider_key(root, "openai", "sk-test-openai");
     let created = handle(
         root,
         "POST",
@@ -9,14 +10,26 @@ fn workflow_self_play_agent(root: &Path, snapshot: &Value, name: &str) -> String
         snapshot,
     )
     .expect("agent create");
-    clean_agent_id(
+    let agent_id = clean_agent_id(
         created
             .payload
             .get("agent_id")
             .or_else(|| created.payload.get("id"))
             .and_then(Value::as_str)
             .unwrap_or(""),
+    );
+    let set_model_payload =
+        serde_json::to_vec(&json!({"model": "openai/gpt-5"})).expect("serialize model");
+    let set_model = handle(
+        root,
+        "PUT",
+        &format!("/api/agents/{agent_id}/model"),
+        &set_model_payload,
+        snapshot,
     )
+    .expect("set model");
+    assert_eq!(set_model.status, 200);
+    agent_id
 }
 
 fn workflow_self_play_message(
@@ -68,7 +81,8 @@ fn workflow_scripted_agent_self_play_can_exit_no_tools_directly() {
         &governance_test_chat_script_path(root.path()),
         &json!({
             "queue": [
-                {"response": "No. Hello from the direct no-tool self-play path."},
+                {"response": "Respond directly"},
+                {"response": "Hey, hello from the direct no-tool self-play path."},
                 {"response": ghost}
             ],
             "calls": []
@@ -79,7 +93,7 @@ fn workflow_scripted_agent_self_play_can_exit_no_tools_directly() {
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("response").and_then(Value::as_str),
-        Some("Hello from the direct no-tool self-play path.")
+        Some("Hey, hello from the direct no-tool self-play path.")
     );
     assert!(
         response.payload.get("pending_tool_request").is_none(),
@@ -91,14 +105,14 @@ fn workflow_scripted_agent_self_play_can_exit_no_tools_directly() {
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("skipped_not_required")
+        Some("synthesized")
     );
     assert_eq!(
         response
             .payload
             .pointer("/workflow_visibility/workflow_trace/gate_id")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
     assert_eq!(
         response
@@ -112,7 +126,7 @@ fn workflow_scripted_agent_self_play_can_exit_no_tools_directly() {
             .payload
             .pointer("/workflow_visibility/workflow_trace/selected_option")
             .and_then(Value::as_str),
-        Some("No")
+        Some("Respond directly")
     );
     assert_eq!(
         response
@@ -137,10 +151,10 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: Web Search. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"agent framework current comparison\",\"aperture\":\"medium\"}."
+                    "response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"agent framework current comparison\",\"aperture\":\"medium\"}."
                 },
                 {
-                    "response": "The web result is usable: the scripted search evidence names current agent framework comparison points."
+                    "response": "Compared with current agent frameworks, Infring should be judged on orchestration depth, tool reliability, recovery behavior, and synthesis quality."
                 },
                 {"response": ghost}
             ],
@@ -173,7 +187,7 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
             .payload
             .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query"),
+        Some("web_search"),
         "{}",
         choose_tool.payload
     );
@@ -186,7 +200,7 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
             .payload
             .pointer("/workflow_visibility/workflow_trace/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     assert_eq!(
         choose_tool
@@ -196,7 +210,6 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
         Some("pending_confirmation")
     );
     assert_workflow_self_play_clean(&choose_tool.payload, ghost);
-
     let confirmed = workflow_self_play_message(root.path(), &snapshot, &agent_id, "yes");
     assert!(
         confirmed
@@ -204,7 +217,7 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
             .get("response")
             .and_then(Value::as_str)
             .unwrap_or("")
-            .contains("web result is usable"),
+            .contains("Infring should be judged"),
         "{}",
         confirmed.payload
     );
@@ -213,7 +226,7 @@ fn workflow_scripted_agent_self_play_can_choose_web_confirm_and_synthesize() {
             .payload
             .pointer("/tools/0/name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     assert_eq!(
         confirmed
@@ -239,7 +252,7 @@ fn workflow_scripted_agent_self_play_surfaces_failed_tool_for_llm_recovery() {
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: File / Workspace. Tool: Read file. Request payload: {\"path\":\"missing/self_play.txt\"}."
+                    "response": "Category: Workspace/files. Tool family: Workspace/files. Tool: read_file. Request payload: {\"path\":\"missing/self_play.txt\"}."
                 },
                 {
                     "response": "The file tool failed cleanly, so I need a corrected path before I can synthesize that file."
@@ -319,7 +332,7 @@ fn workflow_scripted_agent_self_play_can_cancel_pending_tool_without_execution()
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: File / Workspace. Tool: Read file. Request payload: {\"path\":\"notes/cancel.txt\"}."
+                    "response": "Category: Workspace/files. Tool family: Workspace/files. Tool: read_file. Request payload: {\"path\":\"notes/cancel.txt\"}."
                 },
                 {"response": "Cancelled. I will not run that file tool."},
                 {"response": ghost}
@@ -385,13 +398,13 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: File / Workspace. Tool: Read file. Request payload: {\"path\":\"notes/loop.txt\"}."
+                    "response": "Category: Workspace/files. Tool family: Workspace/files. Tool: read_file. Request payload: {\"path\":\"notes/loop.txt\"}."
                 },
                 {
                     "response": "The file result is in hand. I can run another tool if useful."
                 },
                 {
-                    "response": "Yes. Tool family: Web Search. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"loopback workflow validation\",\"aperture\":\"small\"}."
+                    "response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"loopback workflow validation\",\"aperture\":\"small\"}."
                 },
                 {
                     "response": "Loopback complete: I used the file result first and then the scripted web result."
@@ -420,7 +433,7 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
         root.path(),
         &snapshot,
         &agent_id,
-        "Start with the local file.",
+        "Use the local file first.",
     );
     assert_eq!(
         choose_file
@@ -448,7 +461,7 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
             .payload
             .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query"),
+        Some("web_search"),
         "{}",
         choose_web.payload
     );
@@ -468,7 +481,7 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
             .payload
             .pointer("/tools/0/name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     assert_workflow_self_play_clean(&web_done.payload, ghost);
 }
@@ -517,13 +530,13 @@ fn workflow_scripted_agent_self_play_withholds_prompt_analysis_leak() {
 }
 
 #[test]
-fn workflow_scripted_agent_self_play_natural_web_choice_creates_pending_tool() {
+fn workflow_scripted_agent_self_play_exact_web_gate_creates_pending_tool() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let agent_id = workflow_self_play_agent(
         root.path(),
         &snapshot,
-        "workflow-self-play-natural-web-choice-agent",
+        "workflow-self-play-exact-web-gate-agent",
     );
     assert!(!agent_id.is_empty());
 
@@ -532,8 +545,8 @@ fn workflow_scripted_agent_self_play_natural_web_choice_creates_pending_tool() {
         &governance_test_chat_script_path(root.path()),
         &json!({
             "queue": [
-                {"response": "I would choose web search for one current OpenHands source."},
-                {"response": "I would choose web search for one current OpenHands source."},
+                {"response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"one current OpenHands source\",\"aperture\":\"medium\"}."},
+                {"response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"one current OpenHands source\",\"aperture\":\"medium\"}."},
                 {"response": ghost}
             ],
             "calls": []
@@ -552,7 +565,7 @@ fn workflow_scripted_agent_self_play_natural_web_choice_creates_pending_tool() {
             .payload
             .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query"),
+        Some("web_search"),
         "{}",
         response.payload
     );

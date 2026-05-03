@@ -288,7 +288,7 @@ fn web_tooling_harness_surfaces_no_results_with_final_llm_synthesis() {
         &json!({
             "queue": [
                 {
-                    "response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}"
+                    "response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}"
                 }
             ],
             "calls": []

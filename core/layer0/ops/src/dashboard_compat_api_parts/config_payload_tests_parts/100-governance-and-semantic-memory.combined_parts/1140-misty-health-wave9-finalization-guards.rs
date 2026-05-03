@@ -87,7 +87,7 @@ fn misty_wave9_web_no_findings_without_tool_receipt_becomes_pending_choice() {
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
             {"response": "No. The web search returned no findings about current OpenHands and AutoGPT status."},
-            {"response": "I would choose web search next, then summarize only after results are available."}
+            {"response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"current OpenHands and AutoGPT status\",\"aperture\":\"medium\"}."}
         ], "calls": []}),
     );
 
@@ -107,17 +107,7 @@ fn misty_wave9_web_no_findings_without_tool_receipt_becomes_pending_choice() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(
-        response_text.to_ascii_lowercase().contains("web search"),
-        "{response_text}"
-    );
-    assert!(!response_text.starts_with("No."), "{response_text}");
-    assert!(
-        !response_text
-            .to_ascii_lowercase()
-            .contains("returned no findings"),
-        "{response_text}"
-    );
+    assert_eq!(response_text, "");
     assert_eq!(
         response
             .payload
@@ -138,7 +128,7 @@ fn misty_wave9_web_no_findings_without_tool_receipt_becomes_pending_choice() {
             .payload
             .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     assert_eq!(
         response
@@ -164,7 +154,7 @@ fn misty_wave9_web_no_findings_without_tool_receipt_becomes_pending_choice() {
 }
 
 #[test]
-fn misty_wave9_explicit_web_search_executes_llm_selected_tool_without_second_turn() {
+fn misty_wave9_explicit_web_search_creates_pending_tool_request_without_system_chat() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -186,7 +176,7 @@ fn misty_wave9_explicit_web_search_executes_llm_selected_tool_without_second_tur
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
-            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"Use web search to find one current source about OpenHands agent framework and summarize it in one sentence.\",\"aperture\":\"medium\"}."},
+            {"response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"Use web search to find one current source about OpenHands agent framework and summarize it in one sentence.\",\"aperture\":\"medium\"}."},
             {"response": "OpenHands is an open-source agent framework for software development tasks."}
         ], "calls": []}),
     );
@@ -220,33 +210,36 @@ fn misty_wave9_explicit_web_search_executes_llm_selected_tool_without_second_tur
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(response_text.contains("OpenHands"), "{response_text}");
+    assert_eq!(response_text, "");
     assert_eq!(
         response
             .payload
             .get("tools")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(1)
+        Some(0)
     );
     assert_eq!(
         response
             .payload
-            .pointer("/tools/0/name")
+            .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     assert!(
-        response.payload.get("pending_tool_request").is_none(),
+        response.payload.get("pending_tool_request").is_some(),
         "{}",
         response.payload
     );
-    assert_eq!(
+    assert!(
         response
             .payload
             .pointer("/response_finalization/outcome")
-            .and_then(Value::as_str),
-        Some("workflow_authored+workflow:synthesized")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("pending_tool_request_visible_chat_withheld"),
+        "{}",
+        response.payload
     );
     assert_eq!(
         response
@@ -287,7 +280,6 @@ fn misty_wave9_tool_synthesis_unwraps_content_type_json_fragment() {
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
-            {"response": "I would choose web search"},
             {"response": "\"content\": \"OpenHands is an AI agent platform for software development.\", \"type\": \"platform\", \"format\": \"plain\" }"}
         ], "calls": []}),
     );
@@ -309,7 +301,7 @@ fn misty_wave9_tool_synthesis_unwraps_content_type_json_fragment() {
         root.path(),
         "POST",
         &format!("/api/agents/{agent_id}/message"),
-        br#"{"message":"Use web search to find one current source about OpenHands agent framework and summarize it in one sentence."}"#,
+        br#"{"message":"Summarize this current-source content fragment about OpenHands in one sentence."}"#,
         &snapshot,
     )
     .expect("message response");

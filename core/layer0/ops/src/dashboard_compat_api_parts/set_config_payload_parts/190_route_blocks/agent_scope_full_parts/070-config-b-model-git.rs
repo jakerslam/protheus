@@ -69,8 +69,12 @@ fn handle_agent_scope_model_mode_git_routes(
                 payload: json!({"ok": false, "error": "model_required"}),
             });
         }
-        let (default_provider, default_model) = effective_app_settings(root, snapshot);
-        let (provider, model) = split_model_ref(&requested, &default_provider, &default_model);
+        let (default_provider, default_model) = extract_app_settings(root, snapshot);
+        let (provider, model) = if requested.eq_ignore_ascii_case("auto") {
+            ("auto".to_string(), "auto".to_string())
+        } else {
+            split_model_ref(&requested, &default_provider, &default_model)
+        };
         let _ = update_profile_patch(
             root,
             agent_id,

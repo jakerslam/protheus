@@ -116,7 +116,7 @@
         "ops:tool-route:misdirection:guard"
       ],
       "source_refs": [
-        "tests/tooling/fixtures/tool_route_misdirection_matrix.json",
+        "validation/regression/fixtures/tool_route_misdirection_matrix.json",
         "tests/tooling/scripts/ci/tool_route_misdirection_guard.ts",
         "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/test-routing.md"
       ]
@@ -233,5 +233,29 @@
         "local/workspace/vendor/rtk/.assimilation_deleted/.claude/commands/tech/codereview.md"
       ]
     }
-  ]
+  ],
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
 }

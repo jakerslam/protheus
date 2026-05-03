@@ -782,7 +782,7 @@ fn response_looks_like_tool_ack_without_findings(text: &str) -> bool {
 }
 
 fn no_findings_user_facing_response() -> String {
-    crate::tool_output_match_filter::no_findings_user_copy().to_string()
+    String::new()
 }
 
 fn response_is_no_findings_placeholder(text: &str) -> bool {

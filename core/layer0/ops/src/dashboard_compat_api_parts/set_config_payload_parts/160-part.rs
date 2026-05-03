@@ -304,16 +304,7 @@ fn execute_inline_tool_calls(
                 "error": input_error,
                 "message": "Inline tool input was rejected by payload-size/schema guard."
             });
-            let result_text = user_facing_tool_failure_summary(&name, &payload).unwrap_or_else(|| {
-                format!(
-                    "Inline tool call for `{}` was rejected by input guard. error_code: {}",
-                    if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() },
-                    clean_text(
-                        payload.get("error").and_then(Value::as_str).unwrap_or("tool_input_schema_invalid"),
-                        80
-                    )
-                )
-            });
+            let result_text = user_facing_tool_failure_summary(&name, &payload).unwrap_or_default();
             cards.push(json!({
                 "id": format!("tool-{}-{}", if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() }, idx),
                 "name": if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() },
@@ -336,12 +327,7 @@ fn execute_inline_tool_calls(
                 "error": "tool_input_payload_too_large",
                 "message": "Inline tool input exceeded payload budget after normalization."
             });
-            let result_text = user_facing_tool_failure_summary(&name, &payload).unwrap_or_else(|| {
-                format!(
-                    "Inline tool call for `{}` exceeded payload budget and was rejected. error_code: tool_input_payload_too_large",
-                    if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() }
-                )
-            });
+            let result_text = user_facing_tool_failure_summary(&name, &payload).unwrap_or_default();
             cards.push(json!({
                 "id": format!("tool-{}-{}", if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() }, idx),
                 "name": if normalized_name.is_empty() { "tool" } else { normalized_name.as_str() },
@@ -442,8 +428,7 @@ fn execute_inline_tool_calls(
     let response = if cleaned_trimmed.is_empty() || cleaned_is_low_signal {
         let joined = fallback_lines.join("\n\n");
         if joined.trim().is_empty() {
-            "I executed the requested tool calls, but this turn produced no verified findings. No source-backed evidence was recorded. Run `tool::capabilities` to confirm available command surfaces, then retry with a narrower query or a specific source."
-                .to_string()
+            String::new()
         } else {
             trim_text(&joined, 32_000)
         }

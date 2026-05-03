@@ -23,7 +23,7 @@ fn workflow_library_owns_successful_tool_turn_final_response() {
         &json!({
             "queue": [
                 {
-                    "response": "<function=batch_query>{\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}</function>"
+                    "response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"top AI agentic frameworks\",\"aperture\":\"medium\"}."
                 },
                 {"response": "For top AI agentic frameworks, the fetched evidence highlighted LangGraph, OpenAI Agents SDK, and AutoGen."}
             ],
@@ -35,7 +35,7 @@ fn workflow_library_owns_successful_tool_turn_final_response() {
         &json!({
             "queue": [
                 {
-                    "tool": "batch_query",
+                    "tool": "web_search",
                     "payload": {
                         "ok": true,
                         "status": "ok",
@@ -46,11 +46,29 @@ fn workflow_library_owns_successful_tool_turn_final_response() {
             "calls": []
         }),
     );
-    let response = handle(
+    let choose_tool = handle(
         root.path(),
         "POST",
         &format!("/api/agents/{agent_id}/message"),
         br#"{"message":"Try to web search \"top AI agentic frameworks\" and return the results"}"#,
+        &snapshot,
+    )
+    .expect("tool choice response");
+    assert_eq!(choose_tool.status, 200);
+    assert_eq!(
+        choose_tool
+            .payload
+            .pointer("/pending_tool_request/tool_name")
+            .and_then(Value::as_str),
+        Some("web_search"),
+        "{}",
+        choose_tool.payload
+    );
+    let response = handle(
+        root.path(),
+        "POST",
+        &format!("/api/agents/{agent_id}/message"),
+        br#"{"message":"yes"}"#,
         &snapshot,
     )
     .expect("message response");
