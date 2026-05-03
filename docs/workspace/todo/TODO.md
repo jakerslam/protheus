@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-02T22:01:21.815Z
+Updated: 2026-05-03T21:04:55.659Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,9 +13,9 @@ Updated: 2026-05-02T22:01:21.815Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 24
+- active_items: 25
 - red: 8
-- yellow: 9
+- yellow: 10
 - white: 7
 
 ## Red Section (Do Immediately)
@@ -86,6 +86,11 @@ Updated: 2026-05-02T22:01:21.815Z
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
+- `DNA-FOUNDATION-AUDIT` — Audit and graduate Digital DNA as system substrate
+  owner: `unassigned`
+  deadline: `2026-05-17`
+  source_family: `Digital DNA Foundation Graduation Audit`
+  summary: Yellow flag: Digital DNA has real Kernel metakernel code and tests, but SRS/TODO still mark V6-FOUNDATION-DNA-001/002 queued and it is not proven as the unavoidable base substrate for every instance, mutation, critical action, receipt, and Sentinel integrity check.
 - `WF-UTILITY` — Build the workflow utility spine
   owner: `unassigned`
   deadline: `2026-05-20`
