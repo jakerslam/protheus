@@ -294,6 +294,7 @@ fn stream_report_bundle(
         .map(compact_issue)
         .collect::<Vec<_>>();
     let root_cause_clusters = stream_root_cause_clusters(&issues);
+    let problem_reliability = super::problem_reliability::stream_problem_reliability(dir, &issues);
     let top_suggestions = suggestions
         .iter()
         .take(suggestion_limit)
@@ -333,6 +334,7 @@ fn stream_report_bundle(
             "policy": "stream_symptoms_are_collapsed_by_owner_pattern_and_optional_fingerprint_family_before_operator_promotion"
         },
         "root_cause_clusters": root_cause_clusters,
+        "problem_finding_reliability": problem_reliability,
         "top_suggestions": top_suggestions,
         "raw_evidence": {"embedded": false},
         "source_streams": {
@@ -552,7 +554,7 @@ fn stream_issue_as_finding(row: &Value) -> Value {
     })
 }
 
-fn stream_root_cause_hypothesis(row: &Value) -> String {
+pub(super) fn stream_root_cause_hypothesis(row: &Value) -> String {
     let explicit = text(row, "root_cause_hypothesis").trim();
     if !explicit.is_empty() {
         return explicit.to_string();
@@ -824,7 +826,7 @@ fn stream_has_recurrence_or_criticality(row: &Value) -> bool {
     row["occurrence_count"].as_u64().unwrap_or(0) > 1 || text(row, "severity") == "critical"
 }
 
-fn stream_observed_failure(row: &Value) -> String {
+pub(super) fn stream_observed_failure(row: &Value) -> String {
     first_present(
         row,
         &["observed_failure", "actual_behavior", "summary", "title"],
@@ -850,17 +852,15 @@ fn stream_confidence_label(confidence: u64) -> &'static str {
     }
 }
 
-fn stream_pattern_id(row: &Value) -> String {
+pub(super) fn stream_pattern_id(row: &Value) -> String {
     let fingerprint = text(row, "fingerprint");
     let actual = first_present(row, &["actual_behavior", "summary", "title"]).to_ascii_lowercase();
-    if fingerprint.contains("synthetic_user_chat_harness")
+    if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
+        "eval_feedback_recurrence_gap".to_string()
+    } else if fingerprint.contains("synthetic_user_chat_harness")
         || actual.contains("empty_assistant_response")
     {
         "response_finalization_gap".to_string()
-    } else if fingerprint.contains("eval_agent_feedback")
-        || fingerprint.contains("eval_learning_loop")
-    {
-        "eval_feedback_recurrence_gap".to_string()
     } else if fingerprint.contains("receipt") || fingerprint.contains("drift") {
         "receipt_integrity_gap".to_string()
     } else {
@@ -898,7 +898,7 @@ fn stream_fingerprint_family(fingerprint: &str) -> String {
     }
 }
 
-fn stream_owner_guess(row: &Value) -> String {
+pub(super) fn stream_owner_guess(row: &Value) -> String {
     let fingerprint = text(row, "fingerprint");
     let category = text(row, "category");
     if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
@@ -948,7 +948,7 @@ fn stream_likely_source_areas(row: &Value) -> Value {
     )
 }
 
-fn stream_source_area_strings(row: &Value) -> Vec<String> {
+pub(super) fn stream_source_area_strings(row: &Value) -> Vec<String> {
     match stream_pattern_id(row).as_str() {
         "response_finalization_gap" => vec![
             "core/layer0/ops/src/app_plane_parts".to_string(),
@@ -966,7 +966,7 @@ fn stream_source_area_strings(row: &Value) -> Vec<String> {
     }
 }
 
-fn stream_confidence_percent(row: &Value) -> u64 {
+pub(super) fn stream_confidence_percent(row: &Value) -> u64 {
     let severity_bonus = match text(row, "severity") {
         "critical" => 25,
         "high" => 18,
@@ -977,7 +977,7 @@ fn stream_confidence_percent(row: &Value) -> u64 {
     (52 + severity_bonus + row["occurrence_count"].as_u64().unwrap_or(1).min(18)).min(95)
 }
 
-fn stream_falsification_probe(row: &Value) -> String {
+pub(super) fn stream_falsification_probe(row: &Value) -> String {
     let fingerprint = text(row, "fingerprint");
     if fingerprint.contains("synthetic_user_chat_harness") {
         "rerun the synthetic user chat harness and verify that assistant-visible final responses are emitted for the affected scenario family".to_string()

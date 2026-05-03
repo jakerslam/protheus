@@ -6,25 +6,30 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::Path;
 
-mod assimilation_handoff; mod authority; mod auto_run; mod big_picture_regression; mod boot_watch; mod causal_calibration; mod causal_hypothesis; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod feedback_quality; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod release_gate_synthesis; mod report_budget; mod report_failure_levels; mod report_output; mod report_promotion; #[cfg(test)] mod report_budget_tests; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
-pub use authority::{authority_rule, kernel_sentinel_contract};
+mod assimilation_handoff; mod authority; mod auto_run; mod big_picture_regression; mod boot_watch; mod causal_calibration; mod causal_hypothesis; mod cli_args; mod collector; mod diagnostic_authorization; mod diagnostic_executor; mod diagnostic_regression_executor; mod diagnostic_request; mod diagnostic_result; mod diagnostic_run_artifact; mod dossier_comparison; mod evidence; mod failure_level; mod feedback_quality; mod finding_lifecycle; mod findings_io; mod governance; mod graders; mod incident_clustering; mod incident_diagnostic_followup; mod incident_event; mod incident_report; mod incident_synthesis; mod invariant_registry; mod issue_cluster_semantics; mod issue_synthesis; mod maintenance_synthesis; mod problem_reliability; mod release_gate_synthesis; mod report_budget; #[cfg(test)] mod report_budget_tests; mod report_failure_levels; mod report_output; mod report_promotion; mod report_summary; #[cfg(test)] mod report_summary_tests; mod rsi_handoff; mod scheduler; mod self_dossier; mod self_dossier_markdown; #[cfg(test)] mod self_dossier_tests; mod self_study; mod system_understanding_dossier; mod system_understanding_worksheet; mod waivers;
 pub use assimilation_handoff::build_external_assimilation_transfer_plan;
-pub use big_picture_regression::{assess_kernel_sentinel_big_picture_regression, kernel_sentinel_big_picture_regression_model, KernelSentinelBigPictureAssessment, KernelSentinelBigPictureInput, KernelSentinelBigPictureMode, KERNEL_SENTINEL_BIG_PICTURE_SCHEMA_VERSION};
+pub use authority::{authority_rule, kernel_sentinel_contract};
+pub use big_picture_regression::{
+    assess_kernel_sentinel_big_picture_regression, kernel_sentinel_big_picture_regression_model,
+    KernelSentinelBigPictureAssessment, KernelSentinelBigPictureInput,
+    KernelSentinelBigPictureMode, KERNEL_SENTINEL_BIG_PICTURE_SCHEMA_VERSION,
+};
+pub use causal_calibration::kernel_sentinel_causal_calibration_model;
+pub use causal_hypothesis::kernel_sentinel_causal_hypothesis_model;
+use cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 pub use diagnostic_authorization::{
     authorize_kernel_sentinel_diagnostic_request, kernel_sentinel_diagnostic_authorization_model,
     kernel_sentinel_diagnostic_failure_probe_policies,
-    KernelSentinelDiagnosticAuthorizationDecision,
-    KernelSentinelDiagnosticAuthorizationStatus,
+    KernelSentinelDiagnosticAuthorizationDecision, KernelSentinelDiagnosticAuthorizationStatus,
 };
 pub use diagnostic_executor::{
-    execute_kernel_sentinel_read_only_topology_probe,
-    execute_kernel_sentinel_golden_replay_probe, kernel_sentinel_diagnostic_executor_model,
-    KernelSentinelGoldenReplaySnapshot, KernelSentinelTopologyHealthSnapshot,
+    execute_kernel_sentinel_golden_replay_probe, execute_kernel_sentinel_read_only_topology_probe,
+    kernel_sentinel_diagnostic_executor_model, KernelSentinelGoldenReplaySnapshot,
+    KernelSentinelTopologyHealthSnapshot,
 };
 pub use diagnostic_regression_executor::{
     execute_kernel_sentinel_targeted_regression_probe,
-    kernel_sentinel_targeted_regression_executor_model,
-    KernelSentinelTargetedRegressionSnapshot,
+    kernel_sentinel_targeted_regression_executor_model, KernelSentinelTargetedRegressionSnapshot,
 };
 pub use diagnostic_request::{
     kernel_sentinel_diagnostic_request_model, validate_kernel_sentinel_diagnostic_request,
@@ -35,18 +40,13 @@ pub use diagnostic_request::{
 pub use diagnostic_result::{
     kernel_sentinel_diagnostic_result_model, validate_kernel_sentinel_diagnostic_result,
     KernelSentinelDiagnosticOutcome, KernelSentinelDiagnosticResult,
-    KernelSentinelDiagnosticStopReason,
-    KERNEL_SENTINEL_DIAGNOSTIC_RESULT_SCHEMA_VERSION,
+    KernelSentinelDiagnosticStopReason, KERNEL_SENTINEL_DIAGNOSTIC_RESULT_SCHEMA_VERSION,
 };
 pub use diagnostic_run_artifact::{
-    attach_diagnostic_context_to_issue_draft, build_kernel_sentinel_diagnostic_run_artifact,
-    build_kernel_sentinel_diagnostic_report_section,
-    KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME,
+    attach_diagnostic_context_to_issue_draft, build_kernel_sentinel_diagnostic_report_section,
+    build_kernel_sentinel_diagnostic_run_artifact, KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME,
 };
 pub use dossier_comparison::build_external_assimilation_dossier_comparison;
-pub use causal_calibration::kernel_sentinel_causal_calibration_model;
-pub use causal_hypothesis::kernel_sentinel_causal_hypothesis_model;
-use cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 pub use evidence::{ingest_evidence_sources, KernelSentinelEvidenceIngestion};
 pub use failure_level::{
     kernel_sentinel_failure_level_for_finding, kernel_sentinel_failure_level_for_parts,
@@ -59,25 +59,33 @@ pub use feedback_quality::{
     KernelSentinelFeedbackQualityReview, KernelSentinelFeedbackReviewInput,
     KernelSentinelFeedbackReviewStatus, KERNEL_SENTINEL_FEEDBACK_QUALITY_SCHEMA_VERSION,
 };
-pub use invariant_registry::{
-    kernel_sentinel_invariant_by_id, kernel_sentinel_invariant_registry,
-    kernel_sentinel_invariant_registry_report, KernelSentinelInvariant,
-    KERNEL_SENTINEL_INVARIANTS,
-};
-pub use incident_event::{
-    kernel_sentinel_incident_event_model, validate_kernel_sentinel_incident_event,
-    KernelSentinelIncidentEvent, KernelSentinelIncidentEvidenceLevel,
-    KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION,
-};
+use finding_lifecycle::{dedupe_findings, sanitize_finding};
+use findings_io::read_jsonl_findings;
 pub use incident_clustering::{
     cluster_kernel_sentinel_incident_events, KernelSentinelIncidentCluster,
     KernelSentinelIncidentClusterKey,
 };
 pub use incident_diagnostic_followup::build_incident_diagnostic_follow_up_request;
+pub use incident_event::{
+    kernel_sentinel_incident_event_model, validate_kernel_sentinel_incident_event,
+    KernelSentinelIncidentEvent, KernelSentinelIncidentEvidenceLevel,
+    KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION,
+};
+pub use incident_report::kernel_sentinel_architectural_incident_report_section;
 pub use incident_synthesis::{
     kernel_sentinel_architectural_issue_template,
-    synthesize_kernel_sentinel_architectural_incidents,
-    KernelSentinelArchitecturalIncident,
+    synthesize_kernel_sentinel_architectural_incidents, KernelSentinelArchitecturalIncident,
+};
+pub use invariant_registry::{
+    kernel_sentinel_invariant_by_id, kernel_sentinel_invariant_registry,
+    kernel_sentinel_invariant_registry_report, KernelSentinelInvariant, KERNEL_SENTINEL_INVARIANTS,
+};
+use report_budget::{
+    build_final_report, DEFAULT_FINAL_REPORT_BYTE_BUDGET, DEFAULT_FINAL_REPORT_FINDING_LIMIT,
+};
+use report_summary::{
+    count_by_category, count_by_severity, count_by_status, count_malformed_by_source,
+    count_malformed_by_source_kind, critical_open_count, release_blockers,
 };
 pub use system_understanding_dossier::{
     kernel_system_understanding_dossier_model, validate_system_understanding_dossier,
@@ -85,17 +93,6 @@ pub use system_understanding_dossier::{
     SystemUnderstandingCapabilityValue, SystemUnderstandingDossier,
     SystemUnderstandingDossierStatus, SystemUnderstandingDossierTargetMode,
     SystemUnderstandingTransferTarget, SYSTEM_UNDERSTANDING_DOSSIER_SCHEMA_VERSION,
-};
-pub use incident_report::kernel_sentinel_architectural_incident_report_section;
-use finding_lifecycle::{dedupe_findings, sanitize_finding};
-use findings_io::read_jsonl_findings;
-use report_summary::{
-    count_by_category, count_by_severity, count_by_status,
-    count_malformed_by_source, count_malformed_by_source_kind, critical_open_count,
-    release_blockers,
-};
-use report_budget::{
-    build_final_report, DEFAULT_FINAL_REPORT_BYTE_BUDGET, DEFAULT_FINAL_REPORT_FINDING_LIMIT,
 };
 
 pub const KERNEL_SENTINEL_NAME: &str = "Kernel Sentinel";
@@ -252,12 +249,11 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     findings.extend(governance_findings);
     let architectural_incident_report =
         incident_report::kernel_sentinel_architectural_incident_report_section(&findings);
-    let causal_hypothesis_synthesis =
-        causal_hypothesis::build_kernel_sentinel_causal_hypotheses(
-            &findings,
-            &architectural_incident_report,
-            args,
-        );
+    let causal_hypothesis_synthesis = causal_hypothesis::build_kernel_sentinel_causal_hypotheses(
+        &findings,
+        &architectural_incident_report,
+        args,
+    );
     let causal_calibration = causal_calibration::build_kernel_sentinel_causal_calibration(
         &dir,
         &causal_hypothesis_synthesis,
@@ -266,7 +262,8 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     let issue_synthesis = issue_synthesis::build_issue_synthesis(&findings, args);
     let maintenance_synthesis = maintenance_synthesis::build_maintenance_synthesis(&findings, args);
     let deduped = dedupe_findings(findings);
-    let report_finding_limit = option_usize(args, "--report-finding-limit", DEFAULT_REPORT_FINDING_LIMIT);
+    let report_finding_limit =
+        option_usize(args, "--report-finding-limit", DEFAULT_REPORT_FINDING_LIMIT);
     let final_report_finding_limit = option_usize(
         args,
         "--final-report-finding-limit",
@@ -303,8 +300,12 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     let scheduler_running = scheduler_health["running"].as_bool().unwrap_or(false);
     let strict = bool_flag(args, "--strict");
     let release_gate_pass = release_gate["pass"].as_bool().unwrap_or(false);
-    let release_blockers =
-        release_blockers(critical_open_count, malformed.len(), release_gate_pass, scheduler_stale);
+    let release_blockers = release_blockers(
+        critical_open_count,
+        malformed.len(),
+        release_gate_pass,
+        scheduler_stale,
+    );
     let verdict_state = if !malformed.is_empty() {
         "invalid"
     } else if critical_open_count > 0 || !release_gate_pass || scheduler_stale {
@@ -432,7 +433,10 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     let command = args.first().map(String::as_str).unwrap_or("help");
     if command == "help" || command == "--help" || command == "-h" {
         println!("infring-ops kernel-sentinel <run|status|report|auto|collect|schedule|heartbeat|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--collector-artifact=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=maintenance|release|heartbeat] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>] [--max-runtime-ms=<n>] [--final-report-finding-limit=<n>] [--final-report-byte-budget=<n>]");
-        println!("{}", serde_json::to_string_pretty(&kernel_sentinel_contract()).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&kernel_sentinel_contract()).unwrap()
+        );
         return 0;
     }
     let rest = args.iter().skip(1).cloned().collect::<Vec<_>>();
