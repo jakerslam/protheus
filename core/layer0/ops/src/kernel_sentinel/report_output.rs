@@ -288,18 +288,11 @@ fn stream_report_bundle(
     } else {
         limit
     };
-    let top_findings = issues
-        .iter()
-        .take(finding_limit)
-        .map(compact_issue)
-        .collect::<Vec<_>>();
+    let top_findings = issues.iter().take(finding_limit).map(compact_issue).collect::<Vec<_>>();
     let root_cause_clusters = stream_root_cause_clusters(&issues);
     let problem_reliability = super::problem_reliability::stream_problem_reliability(dir, &issues);
-    let top_suggestions = suggestions
-        .iter()
-        .take(suggestion_limit)
-        .map(compact_suggestion)
-        .collect::<Vec<_>>();
+    let anti_entropy = super::anti_entropy::stream_anti_entropy_posture(&issues, &problem_reliability);
+    let top_suggestions = suggestions.iter().take(suggestion_limit).map(compact_suggestion).collect::<Vec<_>>();
     let critical_count = issues
         .iter()
         .filter(|row| text(row, "severity") == "critical")
@@ -335,6 +328,7 @@ fn stream_report_bundle(
         },
         "root_cause_clusters": root_cause_clusters,
         "problem_finding_reliability": problem_reliability,
+        "anti_entropy": anti_entropy,
         "top_suggestions": top_suggestions,
         "raw_evidence": {"embedded": false},
         "source_streams": {
