@@ -250,7 +250,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     <div class="chat-agent-drawer-body">
       {#if state.loading}<div class="text-xs text-dim">Loading...</div>{/if}
       {#if state.agent}
-        <div class="chat-agent-identity">
+        <div class="chat-agent-identity warped-glass">
           <div class="chat-agent-identity-avatar-wrap">
             <div class="chat-agent-identity-avatar">
               {#if avatarUrl(uiTick)}<img src={avatarUrl(uiTick)} alt={displayName(uiTick) + ' avatar'} loading="lazy" />{:else if displayEmoji(uiTick)}<span>{displayEmoji(uiTick)}</span>{:else}<span class="infring-logo infring-logo--agent-default" aria-hidden="true"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span>{/if}

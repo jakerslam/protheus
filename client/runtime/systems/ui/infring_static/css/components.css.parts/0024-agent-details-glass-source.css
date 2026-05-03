@@ -22,6 +22,35 @@
     contrast(calc(var(--overlay-warped-surface-contrast) + var(--overlay-warped-surface-lens-contrast-boost, 0.08)));
 }
 
+.warped-glass {
+  --drag-bar-border-override: var(--overlay-warped-surface-border);
+  --drag-bar-background-override: var(--overlay-warped-surface-background);
+  --drag-bar-shadow-override: var(--overlay-warped-surface-shell-shadow);
+  --drag-bar-blur-override: var(--overlay-warped-surface-blur);
+  --drag-bar-saturate-override: var(--overlay-warped-surface-saturate);
+  --drag-bar-brightness-override: var(--overlay-warped-surface-brightness);
+  --drag-bar-contrast-override: var(--overlay-warped-surface-contrast);
+  --drag-bar-distortion-override: var(--overlay-warped-surface-distortion);
+  --drag-bar-specular-override: var(--overlay-warped-surface-specular);
+  --drag-bar-specular-opacity-override: var(--overlay-warped-surface-specular-opacity);
+  --drag-bar-caustic-override: var(--overlay-warped-surface-caustic);
+  --drag-bar-caustic-opacity-override: var(--overlay-warped-surface-caustic-opacity);
+  background: var(--overlay-warped-surface-background);
+  box-shadow: var(--overlay-warped-surface-shell-shadow);
+  backdrop-filter:
+    var(--overlay-warped-surface-distortion)
+    blur(var(--overlay-warped-surface-blur))
+    saturate(var(--overlay-warped-surface-saturate))
+    brightness(var(--overlay-warped-surface-brightness))
+    contrast(var(--overlay-warped-surface-contrast));
+  -webkit-backdrop-filter:
+    var(--overlay-warped-surface-distortion)
+    blur(var(--overlay-warped-surface-blur))
+    saturate(var(--overlay-warped-surface-saturate))
+    brightness(var(--overlay-warped-surface-brightness))
+    contrast(var(--overlay-warped-surface-contrast));
+}
+
 .chat-thread-profile,
 .chat-agent-identity {
   --chat-thread-profile-surface-border: var(--agent-details-glass-border);

@@ -68,26 +68,6 @@ body[data-theme='dark'] .prompt-suggestion-chip {
   --taskbar-overlay-left: auto;
   --taskbar-overlay-right: 0;
 }
-.chat-branch-menu.dashboard-dropdown-surface,
-.model-switcher-dropdown.dashboard-dropdown-surface {
-  --dashboard-preview-surface-border: var(--overlay-fogged-surface-border);
-  --dashboard-preview-surface-background: var(--overlay-fogged-surface-background);
-  --dashboard-preview-surface-shadow: var(--overlay-fogged-surface-shadow);
-  --dashboard-preview-surface-blur: var(--overlay-fogged-surface-blur);
-  --dashboard-preview-surface-saturate: var(--overlay-fogged-surface-saturate);
-  --dashboard-preview-surface-brightness: var(--overlay-fogged-surface-brightness);
-  --dashboard-preview-surface-contrast: var(--overlay-fogged-surface-contrast);
-  --dashboard-preview-surface-filter:
-    var(--overlay-fogged-surface-distortion)
-    blur(var(--overlay-fogged-surface-blur))
-    saturate(var(--overlay-fogged-surface-saturate))
-    brightness(var(--overlay-fogged-surface-brightness))
-    contrast(var(--overlay-fogged-surface-contrast));
-  background: var(--overlay-fogged-surface-background);
-  box-shadow: var(--overlay-fogged-surface-shell-shadow);
-  backdrop-filter: var(--dashboard-preview-surface-filter);
-  -webkit-backdrop-filter: var(--dashboard-preview-surface-filter);
-}
 .composer-model-btn.active {
   color: var(--text);
   background: var(--surface2);

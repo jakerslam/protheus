@@ -47,6 +47,11 @@
           <feDisplacementMap in="SourceGraphic" in2="lensNoise" scale="22" xChannelSelector="R" yChannelSelector="G" result="lensWarp"></feDisplacementMap>
           <feGaussianBlur in="lensWarp" stdDeviation="0.02"></feGaussianBlur>
         </filter>
+        <filter id="infring-overlay-warped-glass-distortion" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.0018 0.0018" numOctaves="1" seed="27" stitchTiles="stitch" result="lensNoise"></feTurbulence>
+          <feDisplacementMap in="SourceGraphic" in2="lensNoise" scale="22" xChannelSelector="R" yChannelSelector="G" result="lensWarp"></feDisplacementMap>
+          <feGaussianBlur in="lensWarp" stdDeviation="0.02"></feGaussianBlur>
+        </filter>
         <filter id="infring-overlay-liquid-glass-distortion" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
           <feTurbulence type="fractalNoise" baseFrequency="0.0085 0.021" numOctaves="2" seed="13" stitchTiles="stitch" result="noiseA"></feTurbulence>
           <feTurbulence type="fractalNoise" baseFrequency="0.0026 0.0062" numOctaves="1" seed="31" stitchTiles="stitch" result="noiseB"></feTurbulence>

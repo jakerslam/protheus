@@ -77,6 +77,7 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     return [
       'bottom-dock',
       'drag-bar',
+      'warped-glass',
       s.bottomDockDragId ? 'is-dragging' : '',
       s._bottomDockRevealTargetDuringSettle ? 'is-settling' : '',
       s.bottomDockContainerDragActive ? 'is-container-dragging' : '',
