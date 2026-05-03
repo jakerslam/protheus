@@ -437,13 +437,13 @@ fn final_response_guard_report(
 
 fn final_response_guard_outcome(report: &Value) -> &'static str {
     if response_guard_bool(report, "unsupported_tool_success_claim") {
-        "unsupported_tool_success_claim_withheld"
+        "unsupported_tool_success_claim_flagged"
     } else if response_guard_bool(report, "final_contamination_violation") {
-        "visible_response_contamination_withheld"
+        "visible_response_contamination_flagged"
     } else if response_guard_bool(report, "current_turn_dominance_violation") {
-        "current_turn_dominance_withheld"
+        "current_turn_dominance_flagged"
     } else {
-        "deterministic_final_fallback_suppressed"
+        "final_contract_violation_flagged"
     }
 }
 

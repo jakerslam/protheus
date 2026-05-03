@@ -64,7 +64,7 @@ fn workflow_visibility_trace_payload(
             || response_workflow
                 .pointer("/workflow_control/direct_response_path")
                 .and_then(Value::as_str)
-                == Some("gate_1_no_tool_category"))
+                == Some("first_gate_no_tool_category"))
     {
         selected_option = "Respond directly".to_string();
     }
@@ -106,14 +106,20 @@ fn workflow_finalization_diagnostic_class(
         .and_then(Value::as_str)
         .unwrap_or("");
     let pending_tool = response_finalization.get("pending_tool_request").is_some();
-    let guard_withheld = outcome.contains("final_response_guard_no_system_retry")
-        || outcome.contains("visible_response_contamination_withheld")
+    let guard_diagnostic = outcome.contains("final_response_guard_diagnostic_only")
+        || outcome.contains("visible_response_contamination_flagged")
+        || outcome.contains("unsupported_tool_success_claim_flagged")
+        || outcome.contains("current_turn_dominance_flagged")
         || response_finalization
-            .pointer("/current_turn_dominance/withheld")
+            .pointer("/final_guard_diagnostic_only")
             .and_then(Value::as_bool)
-            .unwrap_or(false)
+            .unwrap_or(false);
+    let guard_withheld = response_finalization
+        .pointer("/current_turn_dominance/withheld")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
         || response_finalization
-            .pointer("/contamination_guard/detected")
+            .pointer("/contamination_guard/withheld")
             .and_then(Value::as_bool)
             .unwrap_or(false);
     let empty_visible = source == "none" || outcome.contains("empty_");
@@ -124,6 +130,8 @@ fn workflow_finalization_diagnostic_class(
         "visible_llm_response_preserved"
     } else if guard_withheld {
         "guard_withheld_visible_response"
+    } else if guard_diagnostic {
+        "guard_diagnostic_empty_llm_response"
     } else if final_status.is_empty() || final_status != "synthesized" {
         "llm_finalization_unavailable_no_system_fallback"
     } else {
@@ -159,14 +167,20 @@ fn workflow_finalization_diagnostics_payload(
     let pending_tool_request = response_finalization.get("pending_tool_request").is_some();
     let empty_visible_response =
         visible_response_source == "none" || outcome.contains("empty_final_response");
-    let guard_withheld_response = outcome.contains("final_response_guard_no_system_retry")
-        || outcome.contains("visible_response_contamination_withheld")
+    let guard_diagnostic_response = outcome.contains("final_response_guard_diagnostic_only")
+        || outcome.contains("visible_response_contamination_flagged")
+        || outcome.contains("unsupported_tool_success_claim_flagged")
+        || outcome.contains("current_turn_dominance_flagged")
         || response_finalization
-            .pointer("/current_turn_dominance/withheld")
+            .pointer("/final_guard_diagnostic_only")
             .and_then(Value::as_bool)
-            .unwrap_or(false)
+            .unwrap_or(false);
+    let guard_withheld_response = response_finalization
+        .pointer("/current_turn_dominance/withheld")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
         || response_finalization
-            .pointer("/contamination_guard/detected")
+            .pointer("/contamination_guard/withheld")
             .and_then(Value::as_bool)
             .unwrap_or(false);
 
@@ -179,6 +193,7 @@ fn workflow_finalization_diagnostics_payload(
         "empty_visible_response": empty_visible_response,
         "pending_tool_request": pending_tool_request,
         "guard_withheld_response": guard_withheld_response,
+        "guard_diagnostic_response": guard_diagnostic_response,
         "system_chat_injection_used": response_finalization
             .get("system_chat_injection_used")
             .and_then(Value::as_bool)

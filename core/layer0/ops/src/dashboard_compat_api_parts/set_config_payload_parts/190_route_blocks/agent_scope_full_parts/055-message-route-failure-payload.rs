@@ -43,9 +43,9 @@ fn message_route_failure_response(
     set_turn_workflow_final_stage_status(&mut response_workflow, final_stage_status);
     let route_direct_response_path =
         if response_tools_prompt_only_gate_required(message, &latent_tool_candidates) {
-            "gate_1_pending_llm_tool_choice"
+            "first_gate_pending_llm_tool_choice"
         } else {
-            "gate_1_unresolved"
+            "first_gate_unresolved"
         };
     response_workflow["workflow_control"]["direct_response_path"] =
         Value::String(route_direct_response_path.to_string());

@@ -76,8 +76,7 @@
         if requires_live_web && !discovered_tools.iter().any(|tool| tool == "batch_query") {
             discovered_tools.push("batch_query".to_string());
         }
-        let transaction_complete = (!requires_live_web || web_classification == "healthy")
-            && !hard_guard_applied;
+        let transaction_complete = matches!(web_classification.as_str(), "healthy" | "not_required");
         let transaction_status = if transaction_complete {
             "complete"
         } else if matches!(

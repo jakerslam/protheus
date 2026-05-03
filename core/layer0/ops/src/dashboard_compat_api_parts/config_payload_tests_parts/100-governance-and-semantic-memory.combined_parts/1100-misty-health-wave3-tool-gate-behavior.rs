@@ -3,11 +3,22 @@
 #[test]
 fn misty_wave3_gate_one_is_literal_llm_controlled_yes_no() {
     let decision = workflow_turn_tool_decision_tree("access the file tooling");
+    let first_gate_id = decision
+        .get("first_gate_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let first_gate = decision
+        .get("gates")
+        .and_then(Value::as_array)
+        .and_then(|gates| {
+            gates
+                .iter()
+                .find(|gate| gate.get("gate_id").and_then(Value::as_str) == Some(first_gate_id))
+        })
+        .expect("first gate should come from workflow JSON");
     assert_eq!(
-        decision
-            .pointer("/gates/gate_1/question")
-            .and_then(Value::as_str),
-        Some("What kind of work is this?")
+        first_gate.get("input_kind").and_then(Value::as_str),
+        Some("multiple_choice")
     );
     assert_eq!(
         decision

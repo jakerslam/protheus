@@ -133,11 +133,6 @@ fn workflow_final_response_used(workflow: &Value) -> bool {
             .unwrap_or(false)
 }
 
-fn workflow_final_response_allows_system_fallback(workflow: &Value) -> bool {
-    let _status = workflow_final_response_status(workflow);
-    false
-}
-
 fn response_contains_route_classification_retry_template(lowered: &str) -> bool {
     if lowered.is_empty() {
         return false;
@@ -690,55 +685,8 @@ fn workflow_non_repeating_last_resort_reply(
     latest_assistant_text: &str,
     response_tools: &[Value],
 ) -> String {
-    let policy_blocked = workflow_turn_has_policy_block(response_tools);
-    if message_is_minimal_conversational_ping(message) {
-        return pick_non_repeating_reply_variant(
-            &[
-                "Hey - I'm here and ready. Tell me what you want next, and I will answer directly from current context.",
-                "Hi - I can answer directly from current context. Tell me what you want next.",
-            ],
-            message,
-            latest_assistant_text,
-        );
-    }
-    if message_requests_diagnostic_explanation(message) {
-        if policy_blocked {
-            return pick_non_repeating_reply_variant(
-                &[
-                    "Root cause is likely a policy gate on the prior tool attempt. I will keep this answer direct and continue without new tool calls unless you explicitly request one.",
-                    "Likely cause is a local policy gate on the previous tool attempt. I will proceed with a direct answer from current context and keep tools off unless you explicitly request one.",
-                ],
-                message,
-                latest_assistant_text,
-            );
-        }
-        return pick_non_repeating_reply_variant(
-            &[
-                "Root cause is likely fallback-loop churn in finalization. I will keep this answer direct and continue without new tool calls unless you explicitly request one.",
-                "Likely cause is fallback-loop churn during finalization. I will continue with a direct answer from current context and keep tools off unless you explicitly request one.",
-            ],
-            message,
-            latest_assistant_text,
-        );
-    }
-    if policy_blocked {
-        return pick_non_repeating_reply_variant(
-            &[
-                "Direct answer mode is active. Prior tool execution was policy-blocked, and I will continue from current context unless you explicitly request a tool.",
-                "Direct-answer path is active. The previous tool step was policy-blocked, so I will continue from current context unless you explicitly request a tool.",
-            ],
-            message,
-            latest_assistant_text,
-        );
-    }
-    pick_non_repeating_reply_variant(
-        &[
-            "Direct answer mode is active. I will continue from current context and avoid tool calls unless you explicitly request one.",
-            "Direct-answer path is active. I will continue from current context and keep tools off unless you explicitly request one.",
-        ],
-        message,
-        latest_assistant_text,
-    )
+    let _ = (message, latest_assistant_text, response_tools);
+    String::new()
 }
 
 fn workflow_unexpected_state_user_fallback(
@@ -764,85 +712,6 @@ fn should_force_direct_workflow_fallback(
         || workflow_response_repetition_breaker_active(latest_assistant_text)
         || recent_retry_loop_detected
         || workflow_turn_has_policy_block(response_tools)
-}
-
-fn sanitize_skipped_final_response_fallback_response(
-    message: &str,
-    draft_response: &str,
-    latest_assistant_text: &str,
-    response_tools: &[Value],
-) -> (String, bool, &'static str) {
-    let prompt_analysis_leak = response_contains_workflow_prompt_analysis_leak(draft_response)
-        || response_contains_workflow_prompt_analysis_leak(latest_assistant_text);
-    let draft_fallback = sanitize_workflow_final_response_candidate(
-        &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
-            draft_response,
-        )),
-    );
-    let latest_assistant_fallback = sanitize_workflow_final_response_candidate(
-        &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
-            latest_assistant_text,
-        )),
-    );
-    let mut fallback_source: &'static str = if !draft_fallback.is_empty() {
-        "draft"
-    } else if !latest_assistant_fallback.is_empty() {
-        "latest"
-    } else {
-        "empty"
-    };
-    let mut fallback_response = if !draft_fallback.is_empty() {
-        draft_fallback
-    } else {
-        latest_assistant_fallback
-    };
-    fallback_response = strip_no_tool_gate_prefix_from_visible_response(&fallback_response);
-    let mut sanitized_retry_loop = false;
-    if response_contains_unexpected_state_retry_boilerplate(&fallback_response) {
-        fallback_response.clear();
-        sanitized_retry_loop = true;
-        fallback_source = "withheld_non_llm_fallback_response";
-    }
-    if response_contains_stale_code_context_dump(message, &fallback_response) {
-        fallback_response.clear();
-        sanitized_retry_loop = true;
-        fallback_source = "withheld_contaminated_existing_response";
-    }
-    if prompt_analysis_leak || response_contains_workflow_prompt_analysis_leak(&fallback_response) {
-        fallback_response.clear();
-        sanitized_retry_loop = true;
-        fallback_source = "withheld_workflow_prompt_analysis";
-    }
-    if clean_text(&fallback_response, 2_000).is_empty() {
-        fallback_response.clear();
-        if !matches!(
-            fallback_source,
-            "withheld_non_llm_fallback_response" | "withheld_workflow_prompt_analysis"
-        ) {
-            fallback_source = "empty";
-        }
-    }
-    if !fallback_response.is_empty() {
-        let guarded_response = ensure_no_retry_boilerplate_copy(
-            message,
-            latest_assistant_text,
-            response_tools,
-            &fallback_response,
-        );
-        if guarded_response != fallback_response {
-            sanitized_retry_loop = true;
-            fallback_response = guarded_response;
-            fallback_source = if fallback_response.is_empty() {
-                "withheld_non_llm_fallback_response"
-            } else {
-                "guarded_existing"
-            };
-        }
-    }
-    if fallback_response.is_empty() && matches!(fallback_source, "draft" | "latest") {
-        fallback_source = "empty";
-    }
-    (fallback_response, sanitized_retry_loop, fallback_source)
 }
 
 fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
@@ -873,32 +742,39 @@ fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
     clean_text(direct_rest, 8_000)
 }
 
-fn apply_skipped_final_response_fallback(
-    workflow: &mut Value,
-    fallback_response: &str,
-    sanitized_retry_loop: bool,
-    fallback_source: &str,
-) {
-    if !fallback_response.is_empty() {
-        workflow["response"] = Value::String(fallback_response.to_string());
-        workflow["final_llm_response"]["fallback_from_existing_draft"] =
-            Value::Bool(matches!(fallback_source, "draft" | "latest"));
-        workflow["final_llm_response"]["fallback_source"] =
-            Value::String(clean_text(fallback_source, 40));
-        workflow["final_llm_response"]["used"] = Value::Bool(true);
+fn direct_llm_response_from_initial_draft(draft_response: &str) -> Option<String> {
+    let cleaned = clean_text(
+        &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
+            draft_response,
+        )),
+        32_000,
+    );
+    if cleaned.is_empty()
+        || response_is_manual_toolbox_gate_choice(&cleaned)
+        || response_is_visible_workflow_gate_choice(&cleaned)
+        || response_has_gate_choice_prefix_leakage(&cleaned)
+    {
+        None
     } else {
-        workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-        workflow["final_llm_response"]["fallback_source"] =
-            Value::String(clean_text(fallback_source, 40));
-        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        Some(cleaned)
     }
-    if sanitized_retry_loop {
-        workflow["final_llm_response"]["fallback_sanitized_retry_loop"] = Value::Bool(true);
-        mark_workflow_fallback_guard_reason(
-            workflow,
-            "skipped_fallback_retry_sanitized",
-            "skipped_fallback",
-        );
+}
+
+fn preserve_direct_llm_response_without_fallback(workflow: &mut Value, draft_response: &str) {
+    if let Some(direct_response) = direct_llm_response_from_initial_draft(draft_response) {
+        workflow["response"] = Value::String(direct_response);
+        workflow["final_llm_response"]["used"] = Value::Bool(true);
+        workflow["final_llm_response"]["status"] =
+            Value::String("direct_llm_response".to_string());
+        workflow["final_llm_response"]["source"] =
+            Value::String("initial_llm_response".to_string());
+        workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+        workflow["final_llm_response"]["direct_response_preserved"] = Value::Bool(true);
+    } else {
+        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["source"] = Value::String("none".to_string());
+        workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+        workflow["final_llm_response"]["direct_response_preserved"] = Value::Bool(false);
     }
 }
 
@@ -1110,54 +986,24 @@ fn apply_final_retry_boilerplate_guard(
     {
         return;
     }
-    let guarded = ensure_no_retry_boilerplate_copy(
-        message,
-        latest_assistant_text,
-        response_tools,
-        &response_text,
-    );
-    if !guarded.is_empty() && guarded != response_text {
-        workflow["response"] = Value::String(guarded.clone());
-        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
-        bump_workflow_quality_counter(workflow, "legacy_retry_template_detected");
-        workflow["final_llm_response"]["fallback_sanitized_retry_loop"] = Value::Bool(true);
-        workflow["final_llm_response"]["fallback_source"] =
-            Value::String("guarded_existing".to_string());
-        workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(true);
-        workflow["final_llm_response"]["used"] = Value::Bool(true);
-        workflow["final_llm_response"]["status"] = Value::String("synthesized".to_string());
-        workflow["final_llm_response"]["fallback_response"] = Value::Null;
-        workflow["final_llm_response"]["error"] = Value::Null;
-        workflow["final_llm_response"]["last_reject_reason"] = Value::Null;
-        mark_workflow_fallback_guard_reason(
-            workflow,
-            "retry_boilerplate_guard",
-            "final_retry_guard",
-        );
-        set_turn_workflow_final_stage_status(workflow, "synthesized");
-        return;
-    }
-    workflow["response"] = Value::String(String::new());
+    let _ = (message, latest_assistant_text, response_tools);
     workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
     bump_workflow_quality_counter(workflow, "legacy_retry_template_detected");
-    workflow["final_llm_response"]["fallback_sanitized_retry_loop"] = Value::Bool(true);
-    workflow["final_llm_response"]["fallback_source"] =
-        Value::String("suppressed_retry_boilerplate".to_string());
-    workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-    workflow["final_llm_response"]["used"] = Value::Bool(false);
+    workflow["final_llm_response"]["used"] = Value::Bool(true);
     workflow["final_llm_response"]["status"] =
-        Value::String("withheld_non_llm_fallback_response".to_string());
-    workflow["final_llm_response"]["fallback_response"] = Value::Null;
+        Value::String("guard_violation_pass_through".to_string());
+    workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+    workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(true);
     workflow["final_llm_response"]["error"] =
-        Value::String("retry_boilerplate_withheld".to_string());
+        Value::String("retry_boilerplate_detected".to_string());
     workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("fallback_suppressed_guard".to_string());
+        Value::String("diagnostic_only_guard".to_string());
     mark_workflow_fallback_guard_reason(
         workflow,
         "retry_boilerplate_guard",
         "final_retry_guard",
     );
-    set_turn_workflow_final_stage_status(workflow, "withheld_non_llm_fallback_response");
+    set_turn_workflow_final_stage_status(workflow, "guard_violation_pass_through");
 }
 
 fn apply_final_response_presence_guard(
@@ -1177,20 +1023,18 @@ fn apply_final_response_presence_guard(
     workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
     workflow["final_llm_response"]["used"] = Value::Bool(false);
     workflow["final_llm_response"]["status"] =
-        Value::String("withheld_non_llm_fallback_response".to_string());
-    workflow["final_llm_response"]["fallback_response"] = Value::Null;
-    workflow["final_llm_response"]["fallback_source"] =
-        Value::String("empty_response_presence_guard".to_string());
-    workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-    workflow["final_llm_response"]["error"] = Value::String("empty_response_withheld".to_string());
+        Value::String("empty_llm_response".to_string());
+    workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+    workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
+    workflow["final_llm_response"]["error"] = Value::String("empty_response".to_string());
     workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("fallback_suppressed_presence_guard".to_string());
+        Value::String("diagnostic_only_presence_guard".to_string());
     mark_workflow_fallback_guard_reason(
         workflow,
         "empty_response_presence_guard",
         "final_presence_guard",
     );
-    set_turn_workflow_final_stage_status(workflow, "withheld_non_llm_fallback_response");
+    set_turn_workflow_final_stage_status(workflow, "empty_llm_response");
 }
 
 fn agent_runtime_temporal_context_prompt() -> String {
@@ -1347,7 +1191,7 @@ fn augment_turn_workflow_events_for_final_response(
         events.push(turn_workflow_event(
             "comparative_answer_requested",
             json!({
-                "live_web_focus": message_requests_live_web_comparison(message)
+                "live_web_focus": false
             }),
         ));
         if response_is_no_findings_placeholder(&cleaned_draft) || !failure_summary.is_empty() {
@@ -1564,19 +1408,25 @@ fn response_looks_like_raw_tool_payload_dump(response_text: &str) -> bool {
 fn mark_workflow_pending_gate_without_final_synthesis(
     workflow: &mut Value,
     status: &str,
-    fallback_source: &str,
+    diagnostic_source: &str,
     gate_attempt_count: u64,
 ) {
-    workflow["response"] = Value::String(String::new());
+    let visible_response_preserved = workflow
+        .get("response")
+        .and_then(Value::as_str)
+        .map(|raw| !clean_text(raw, 1_000).is_empty())
+        .unwrap_or(false);
     workflow["final_llm_response"]["required"] = Value::Bool(false);
     workflow["final_llm_response"]["attempted"] = Value::Bool(false);
     workflow["final_llm_response"]["used"] = Value::Bool(false);
     workflow["final_llm_response"]["attempt_count"] = json!(0);
     workflow["final_llm_response"]["gate_attempt_count"] = json!(gate_attempt_count);
     workflow["final_llm_response"]["status"] = Value::String(clean_text(status, 80));
-    workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-    workflow["final_llm_response"]["fallback_source"] =
-        Value::String(clean_text(fallback_source, 120));
+    workflow["final_llm_response"]["diagnostic_source"] =
+        Value::String(clean_text(diagnostic_source, 120));
+    workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+    workflow["final_llm_response"]["visible_response_preserved"] =
+        Value::Bool(visible_response_preserved);
     set_turn_workflow_final_stage_status(workflow, status);
 }
 
@@ -1617,7 +1467,6 @@ fn run_turn_workflow_final_response(
             .filter(|value| value.is_object())
             .is_some()
         {
-            workflow["response"] = Value::String(String::new());
             mark_workflow_pending_gate_without_final_synthesis(
                 &mut workflow,
                 "skipped_pending_tool_confirmation",
@@ -1632,38 +1481,19 @@ fn run_turn_workflow_final_response(
         .and_then(Value::as_bool)
         .unwrap_or(false);
     if !required {
-        let (fallback_response, sanitized_retry_loop, fallback_source) =
-            sanitize_skipped_final_response_fallback_response(
-            message,
-            draft_response,
-            latest_assistant_text,
-            response_tools,
-        );
-        apply_skipped_final_response_fallback(
-            &mut workflow,
-            &fallback_response,
-            sanitized_retry_loop,
-            fallback_source,
-        );
+        preserve_direct_llm_response_without_fallback(&mut workflow, draft_response);
         workflow["final_llm_response"]["attempted"] = Value::Bool(false);
-        workflow["final_llm_response"]["status"] = Value::String("skipped_not_required".to_string());
+        if !workflow_final_response_used(&workflow) {
+            workflow["final_llm_response"]["status"] =
+                Value::String("skipped_not_required".to_string());
+        }
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_not_required");
         return workflow;
     }
     if cfg!(test) && !workflow_test_llm_enabled(root) {
-        let (fallback_response, sanitized_retry_loop, fallback_source) =
-            sanitize_skipped_final_response_fallback_response(
-            message,
-            draft_response,
-            latest_assistant_text,
-            response_tools,
-        );
-        apply_skipped_final_response_fallback(
-            &mut workflow,
-            &fallback_response,
-            sanitized_retry_loop,
-            fallback_source,
-        );
+        let _ = (message, latest_assistant_text, response_tools);
+        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
         workflow["final_llm_response"]["attempted"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] = Value::String("skipped_test".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_test");
@@ -1672,19 +1502,9 @@ fn run_turn_workflow_final_response(
     let cleaned_provider = clean_text(provider, 80);
     let cleaned_model = clean_text(model, 240);
     if cleaned_provider.is_empty() || cleaned_model.is_empty() {
-        let (fallback_response, sanitized_retry_loop, fallback_source) =
-            sanitize_skipped_final_response_fallback_response(
-            message,
-            draft_response,
-            latest_assistant_text,
-            response_tools,
-        );
-        apply_skipped_final_response_fallback(
-            &mut workflow,
-            &fallback_response,
-            sanitized_retry_loop,
-            fallback_source,
-        );
+        let _ = (message, latest_assistant_text, response_tools);
+        workflow["final_llm_response"]["used"] = Value::Bool(false);
+        workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
         workflow["final_llm_response"]["attempted"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] =
             Value::String("skipped_missing_model".to_string());
@@ -1707,7 +1527,7 @@ fn run_turn_workflow_final_response(
         response_tools.is_empty() && response_is_exact_no_tool_gate_submission(draft_response);
     if initial_no_tool_category_submission {
         workflow["workflow_control"]["direct_response_path"] =
-            Value::String("gate_1_no_tool_category".to_string());
+            Value::String("first_gate_no_tool_category".to_string());
     }
     let manual_toolbox_gate_turn = response_tools.is_empty()
         && !initial_no_tool_category_submission
@@ -1728,7 +1548,6 @@ fn run_turn_workflow_final_response(
             || direct_simple_conversation_turn
             || direct_conversation_recovery_turn
             || initial_no_tool_category_submission
-            || workflow_turn_is_meta_control_message(message)
             || enriched_workflow_events.iter().any(|event| {
                 event.get("kind").and_then(Value::as_str).unwrap_or("")
                     == "draft_response_invalid"
@@ -1804,13 +1623,7 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = if manual_toolbox_gate_turn {
-        2
-    } else if response_tools.is_empty() {
-        1
-    } else {
-        2
-    };
+    let max_attempts: u64 = if manual_toolbox_gate_turn { 2 } else { 1 };
     let mut manual_toolbox_no_selected = false;
     let mut manual_toolbox_selected_category_key = String::new();
     let mut manual_toolbox_selected_category_label = String::new();
@@ -1973,10 +1786,10 @@ fn run_turn_workflow_final_response(
                 {
                     manual_toolbox_no_selected = true;
                     workflow["workflow_control"]["direct_response_path"] =
-                        Value::String("gate_1_no_tool_category".to_string());
+                        Value::String("first_gate_no_tool_category".to_string());
                     set_turn_workflow_final_stage_status(
                         &mut workflow,
-                        "gate_1_no_pending_final_output",
+                        "first_gate_no_pending_final_output",
                     );
                     continue;
                 }
@@ -2036,7 +1849,8 @@ fn run_turn_workflow_final_response(
                     && !retried_text.is_empty()
                 {
                     last_invalid_excerpt = first_sentence(&retried_text, 220);
-                    last_reject_reason = "tool_request_without_payload_submission".to_string();
+                    last_reject_reason =
+                        "tool_request_without_payload_submission_diagnostic_only".to_string();
                     workflow["workflow_control"]["direct_response_path"] =
                         Value::String("gate_2_pending_llm_tool_request".to_string());
                     set_turn_workflow_final_stage_status(
@@ -2044,7 +1858,10 @@ fn run_turn_workflow_final_response(
                         "gate_2_pending_tool_request",
                     );
                     bump_workflow_quality_counter(&mut workflow, "alignment_reject");
-                    continue;
+                    workflow["final_llm_response"]["runtime_interference_disabled"] =
+                        Value::Bool(true);
+                    workflow["final_llm_response"]["invalid_gate_draft_diagnostic_only"] =
+                        Value::Bool(true);
                 }
                 let recorded_tool_result_answer =
                     response_answers_tool_confirmation_with_recorded_result(
@@ -2204,7 +2021,12 @@ fn run_turn_workflow_final_response(
                     }
                     last_reject_reason = reject_reason.to_string();
                     last_invalid_excerpt = first_sentence(&retried_text, 240);
-                    continue;
+                    workflow["final_llm_response"]["runtime_interference_disabled"] =
+                        Value::Bool(true);
+                    workflow["final_llm_response"]["diagnostic_reject_reason"] =
+                        Value::String(last_reject_reason.clone());
+                    workflow["final_llm_response"]["diagnostic_invalid_excerpt"] =
+                        Value::String(last_invalid_excerpt.clone());
                 }
                 let response_provider = clean_text(
                     retried
@@ -2282,7 +2104,7 @@ fn run_turn_workflow_final_response(
     if manual_toolbox_gate_turn && response_tools.is_empty() && !last_reject_reason.is_empty() {
         workflow["workflow_control"]["direct_response_path"] =
             if manual_toolbox_selected_category_key.is_empty() {
-                Value::String("gate_1_pending_llm_tool_choice".to_string())
+                Value::String("first_gate_pending_llm_tool_choice".to_string())
             } else {
                 Value::String("gate_2_pending_llm_tool_request".to_string())
             };
@@ -2292,11 +2114,11 @@ fn run_turn_workflow_final_response(
         mark_workflow_pending_gate_without_final_synthesis(
             &mut workflow,
             if manual_toolbox_selected_category_key.is_empty() {
-                "gate_1_pending_tool_choice"
+                "first_gate_pending_tool_choice"
             } else {
                 "gate_2_pending_tool_request"
             },
-            "withheld_invalid_gate_draft",
+            "invalid_gate_draft_diagnostic_only",
             max_attempts,
         );
         return workflow;
@@ -2323,17 +2145,13 @@ fn run_turn_workflow_final_response(
         recent_retry_loop_detected,
     ) {
         let _ = (message, latest_assistant_text, response_tools);
-        workflow["response"] = Value::String(String::new());
         workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
         workflow["final_llm_response"]["used"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] =
-            Value::String("withheld_non_llm_fallback_response".to_string());
-        workflow["final_llm_response"]["fallback_response"] = Value::Null;
-        workflow["final_llm_response"]["fallback_source"] =
-            Value::String("suppressed_forced_fallback".to_string());
-        workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
+            Value::String("diagnostic_failure_pass_through".to_string());
+        workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
         workflow["final_llm_response"]["last_reject_reason"] =
-            Value::String("forced_fallback_suppressed".to_string());
+            Value::String("synthesis_failure_diagnostic_only".to_string());
         mark_workflow_fallback_guard_reason(
             &mut workflow,
             "forced_fallback_after_synthesis_failure_suppressed",
@@ -2341,7 +2159,7 @@ fn run_turn_workflow_final_response(
         );
         set_turn_workflow_final_stage_status(
             &mut workflow,
-            "withheld_non_llm_fallback_response",
+            "diagnostic_failure_pass_through",
         );
     }
     apply_final_retry_boilerplate_guard(
@@ -2360,17 +2178,25 @@ fn run_turn_workflow_final_response(
 }
 
 fn mark_workflow_direct_llm_no_tool_answer(workflow: &mut Value) {
+    let contract = default_workflow_tool_menu_contract();
+    let first_gate_id = workflow_first_gate_id(&contract);
+    let direct_option = workflow_gate_options(&contract, &first_gate_id)
+        .into_iter()
+        .find(|option| option.get("has_tools").and_then(Value::as_bool) == Some(false))
+        .unwrap_or_else(|| json!({"key": "respond_directly", "label": "Respond directly"}));
+    let direct_key = workflow_option_key(&direct_option);
+    let direct_label = workflow_option_label(&direct_option);
     let gate_submission = json!({
         "accepted": true,
-        "gate_id": "gate_1_work_category_menu",
-        "llm_submission": "Respond directly",
-        "resume_token": "gate_1_work_category_menu.submitted",
+        "gate_id": first_gate_id.clone(),
+        "llm_submission": direct_label,
+        "resume_token": workflow_gate_resume_token(&first_gate_id, "submitted"),
         "decision_source": "llm_direct_answer"
     });
     workflow["workflow_control"]["direct_response_path"] =
-        Value::String("gate_1_no_tool_category".to_string());
+        Value::String("first_gate_no_tool_category".to_string());
     workflow["tool_gate"]["selected_work_category"] =
-        Value::String("respond_directly".to_string());
+        Value::String(direct_key);
     workflow["tool_gate"]["selected_tool_family"] = Value::String("none".to_string());
     workflow["tool_gate"]["gate_1_submission_status"] = Value::String("submitted".to_string());
     workflow["tool_gate"]["gate_1_decision_source"] =
@@ -2408,7 +2234,7 @@ mod workflow_fallback_tests {
     fn manual_toolbox_selection_parses_pending_web_request() {
         let pending = manual_toolbox_pending_request_from_response(
             "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring\",\"aperture\":\"medium\"}.",
-            "Compare infring to other major agentic frameworks.",
+            "Compare this platform to a current external tool category.",
         )
         .expect("pending request");
 
@@ -2443,7 +2269,7 @@ mod workflow_fallback_tests {
     fn manual_toolbox_selection_requires_explicit_payload_submission() {
         let pending = manual_toolbox_pending_request_from_response(
             "Category: Web research. Tool family: Web research. Tool: web_search.",
-            "Compare infring to other major agentic frameworks.",
+            "Compare this platform to a current external tool category.",
         );
         assert!(pending.is_none());
     }
@@ -2452,7 +2278,7 @@ mod workflow_fallback_tests {
     fn manual_toolbox_selection_rejects_non_catalog_tool_names() {
         let pending = manual_toolbox_pending_request_from_response(
             "Category: Web research. Tool family: Search. Tool: Keyword search. Request payload: {\"keywords\":\"infring frameworks\"}.",
-            "Compare infring to top agentic frameworks.",
+            "Compare this platform to current external tools.",
         );
         assert!(pending.is_none());
     }
@@ -2478,7 +2304,7 @@ mod workflow_fallback_tests {
             workflow
                 .pointer("/workflow_control/direct_response_path")
                 .and_then(Value::as_str),
-            Some("gate_1_no_tool_category")
+            Some("first_gate_no_tool_category")
         );
         assert_eq!(
             workflow
@@ -2503,7 +2329,7 @@ mod workflow_fallback_tests {
         record_manual_toolbox_pending_request(
             &mut workflow,
             "I would use web search to compare infring to other frameworks.",
-            "Compare infring to other major agentic frameworks.",
+            "Compare this platform to a current external tool category.",
         );
         assert!(workflow.get("manual_toolbox_pending_tool_request").is_none());
     }
@@ -2518,14 +2344,14 @@ mod workflow_fallback_tests {
                 json!({"candidate_count": 1}),
             )],
             "",
-            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "Use web search for the exact comparison topic supplied by the user.",
         );
 
         assert_eq!(
             workflow
                 .pointer("/workflow_control/direct_response_path")
                 .and_then(Value::as_str),
-            Some("gate_1_pending_llm_tool_choice")
+            Some("first_gate_pending_llm_tool_choice")
         );
     }
 
@@ -2539,12 +2365,12 @@ mod workflow_fallback_tests {
                 json!({"candidate_count": 1}),
             )],
             "",
-            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "Use web search for the exact comparison topic supplied by the user.",
         );
         record_manual_toolbox_pending_request(
             &mut workflow,
             "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to agent frameworks\",\"aperture\":\"medium\"}.",
-            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "Use web search for the exact comparison topic supplied by the user.",
         );
 
         assert_eq!(
@@ -2557,7 +2383,7 @@ mod workflow_fallback_tests {
             workflow
                 .pointer("/workflow_control/direct_response_path")
                 .and_then(Value::as_str),
-            Some("gate_1_yes_pending_tool_confirmation")
+            Some("first_gate_pending_tool_confirmation")
         );
     }
 
@@ -2571,12 +2397,12 @@ mod workflow_fallback_tests {
                 json!({"candidate_count": 1}),
             )],
             "",
-            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "Use web search for the exact comparison topic supplied by the user.",
         );
         record_manual_toolbox_pending_request(
             &mut workflow,
-            "I would choose web search.",
-            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "I would choose a menu item.",
+            "Use web search for the exact comparison topic supplied by the user.",
         );
 
         assert!(
@@ -2588,7 +2414,7 @@ mod workflow_fallback_tests {
             workflow
                 .pointer("/workflow_control/direct_response_path")
                 .and_then(Value::as_str),
-            Some("gate_1_pending_llm_tool_choice")
+            Some("first_gate_pending_llm_tool_choice")
         );
     }
 
@@ -2605,18 +2431,21 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn current_agentic_framework_comparison_gets_web_candidate() {
+    fn current_agentic_framework_comparison_does_not_auto_select_web_candidate() {
         let candidates = latent_tool_candidates_for_message(
-            "try again to do a real comparison of this platform to other agentic frameworks in april 2026",
+            "try again to do a real source-backed comparison for the topic I asked about",
             &[],
         );
-        assert!(candidates.iter().any(|candidate| {
-            candidate
-                .get("tool")
-                .and_then(Value::as_str)
-                .map(|tool| tool == "web_search")
-                .unwrap_or(false)
-        }));
+        assert!(
+            !candidates.iter().any(|candidate| {
+                candidate
+                    .get("tool")
+                    .and_then(Value::as_str)
+                    .map(|tool| tool == "web_search")
+                    .unwrap_or(false)
+            }),
+            "latent tooling must not auto-select web_search; the workflow CD must present the menu and wait for the LLM"
+        );
     }
 
     #[test]
@@ -2636,14 +2465,14 @@ mod workflow_fallback_tests {
             "Web search returned limited results for this specific comparison. I can provide a ranked table."
         ));
         assert!(!manual_toolbox_response_exposes_unresolved_tool_need(
-            "I would choose web search for a current framework comparison."
+            "I would choose a menu item for the user's current topic."
         ));
     }
 
     #[test]
     fn stale_tool_intent_draft_for_simple_greeting_is_withheld() {
         let message = "hey";
-        let response = "I need to perform a web search to compare Infring to top agentic frameworks in April 2026. Let me start that process. [tool:Web Research]";
+        let response = "I need to perform a web search for the user's comparison topic. Let me start that process. [tool:Web Research]";
         assert!(workflow_response_requests_more_tooling(response));
         assert!(response_contains_unrequested_content_without_tool_evidence(
             message,
@@ -2659,7 +2488,7 @@ mod workflow_fallback_tests {
 
     #[test]
     fn stale_mixed_tool_draft_for_simple_greeting_requires_fresh_synthesis() {
-        let response = "I will use the web search to compare Infring to top agentic frameworks in April 2026. Please hold while I gather the comparison details. Meanwhile, let's inspect the tiny fixture repo and identify a small bugfix. 1 = Respond directly";
+        let response = "I will use web search for the user's comparison topic. Please hold while I gather details. Meanwhile, let's inspect the tiny fixture repo and identify a small bugfix. 1 = Respond directly";
         assert!(workflow_response_requests_more_tooling(response));
         assert!(turn_workflow_requires_final_llm(&[], &[], response));
     }
@@ -2667,13 +2496,13 @@ mod workflow_fallback_tests {
     #[test]
     fn unsupported_tool_claim_guard_ignores_later_hypothetical_offer() {
         assert!(response_claims_tool_success_without_current_turn_evidence(
-            "Use web search to compare infring to other major agentic frameworks in April 2026.",
+            "Use web search for the exact comparison topic supplied by the user.",
             "Web search didn't return specific April 2026 comparisons. I can provide a source-backed ranked table if you name specific frameworks.",
             &[],
         ));
         assert!(!response_claims_tool_success_without_current_turn_evidence(
-            "Use web search to compare infring to other major agentic frameworks in April 2026.",
-            "I would choose web search for a current framework comparison.",
+            "Use web search for the exact comparison topic supplied by the user.",
+            "I would choose a menu item for the user's current topic.",
             &[],
         ));
     }
@@ -2710,8 +2539,8 @@ mod workflow_fallback_tests {
         let manual_toolbox_prompt_only_turn = !no_tool_minimal_final_turn
             && response_tools_prompt_only_gate_required(message, &latent_tool_candidates);
 
-        assert!(no_tool_minimal_final_turn);
-        assert!(!manual_toolbox_prompt_only_turn);
+        assert!(!no_tool_minimal_final_turn);
+        assert!(manual_toolbox_prompt_only_turn);
     }
 
     #[test]
@@ -2730,13 +2559,19 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn workflow_fallback_allowlist_disables_system_fallback_text() {
-        let workflow = json!({
-            "final_llm_response": {
-                "status": "skipped_not_required"
-            }
+    fn direct_llm_response_preservation_has_no_runtime_fallback_path() {
+        let mut workflow = json!({
+            "final_llm_response": {}
         });
-        assert!(!workflow_final_response_allows_system_fallback(&workflow));
+        preserve_direct_llm_response_without_fallback(&mut workflow, "Direct response");
+        assert_eq!(workflow.get("response").and_then(Value::as_str), Some("Direct response"));
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/source")
+                .and_then(Value::as_str),
+            Some("initial_llm_response")
+        );
+        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
     }
 
     #[test]
@@ -2943,55 +2778,21 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn skipped_not_required_fallback_sanitizes_retry_boilerplate() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let (response, sanitized, source) = sanitize_skipped_final_response_fallback_response(
-            "hello",
-            "",
-            "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
-            &tools,
-        );
-        assert!(sanitized);
-        assert_eq!(source, "withheld_non_llm_fallback_response");
-        assert!(response.trim().is_empty());
+    fn direct_response_preservation_returns_none_for_empty_draft() {
+        assert!(direct_llm_response_from_initial_draft("").is_none());
     }
 
     #[test]
-    fn skipped_fallback_keeps_clean_text_when_no_retry_boilerplate_present() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let (response, sanitized, source) = sanitize_skipped_final_response_fallback_response(
-            "status?",
-            "All checks look healthy.",
-            "",
-            &tools,
+    fn direct_response_preservation_keeps_clean_llm_text() {
+        assert_eq!(
+            direct_llm_response_from_initial_draft("All checks look healthy."),
+            Some("All checks look healthy.".to_string())
         );
-        assert!(!sanitized);
-        assert_eq!(source, "draft");
-        assert_eq!(response, "All checks look healthy.");
     }
 
     #[test]
-    fn skipped_fallback_uses_direct_answer_when_draft_and_latest_are_empty() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let (response, sanitized, source) = sanitize_skipped_final_response_fallback_response(
-            "hello",
-            "",
-            "",
-            &tools,
-        );
-        assert!(!sanitized);
-        assert_eq!(source, "empty");
-        assert!(response.trim().is_empty());
+    fn direct_response_preservation_withholds_private_gate_choice() {
+        assert!(direct_llm_response_from_initial_draft("Need tools? Yes").is_none());
     }
 
     #[test]
@@ -3066,176 +2867,23 @@ mod workflow_fallback_tests {
             latest,
             &tools,
         );
-        assert!(!response.eq_ignore_ascii_case(latest));
-        assert!(response.to_ascii_lowercase().contains("direct"));
+        assert!(response.is_empty());
     }
 
     #[test]
-    fn apply_skipped_fallback_marks_used_true_when_response_present() {
+    fn direct_llm_response_preservation_rejects_private_gate_tokens() {
         let mut workflow = json!({
             "final_llm_response": {}
         });
-        apply_skipped_final_response_fallback(&mut workflow, "Direct response", true, "generated");
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/used")
-                .and_then(Value::as_bool),
-            Some(true)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_from_existing_draft")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_source")
-                .and_then(Value::as_str),
-            Some("generated")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_reason")
-                .and_then(Value::as_str),
-            Some("skipped_fallback_retry_sanitized")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_last_stage")
-                .and_then(Value::as_str),
-            Some("skipped_fallback")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_reasons/0")
-                .and_then(Value::as_str),
-            Some("skipped_fallback_retry_sanitized")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_events/0/reason")
-                .and_then(Value::as_str),
-            Some("skipped_fallback_retry_sanitized")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_events/0/stage")
-                .and_then(Value::as_str),
-            Some("skipped_fallback")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_stages/0")
-                .and_then(Value::as_str),
-            Some("skipped_fallback")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_multi_stage")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/trigger_count")
-                .and_then(Value::as_u64),
-            Some(1)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/distinct_reason_count")
-                .and_then(Value::as_u64),
-            Some(1)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/distinct_stage_count")
-                .and_then(Value::as_u64),
-            Some(1)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/multi_stage")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/severity")
-                .and_then(Value::as_str),
-            Some("low")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/requires_operator_review")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/escalation_reason")
-                .and_then(Value::as_str),
-            Some("single_guard_activation")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_guard_summary/recommended_action")
-                .and_then(Value::as_str),
-            Some("continue_direct_mode")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/quality_telemetry/fallback_guard_trigger_count")
-                .and_then(Value::as_u64),
-            Some(1)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/quality_telemetry/fallback_guard_stage_skipped_fallback")
-                .and_then(Value::as_u64),
-            Some(1)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/quality_telemetry/fallback_guard_reason_skipped_fallback_retry_sanitized")
-                .and_then(Value::as_u64),
-            Some(1)
-        );
-    }
-
-    #[test]
-    fn apply_skipped_fallback_marks_used_false_when_response_absent() {
-        let mut workflow = json!({
-            "final_llm_response": {}
-        });
-        apply_skipped_final_response_fallback(&mut workflow, "", false, "empty");
+        preserve_direct_llm_response_without_fallback(&mut workflow, "Need tools? Yes");
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/used")
                 .and_then(Value::as_bool),
             Some(false)
         );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_source")
-                .and_then(Value::as_str),
-            Some("empty")
-        );
-    }
-
-    #[test]
-    fn apply_skipped_fallback_marks_existing_draft_source_truthfully() {
-        let mut workflow = json!({
-            "final_llm_response": {}
-        });
-        apply_skipped_final_response_fallback(&mut workflow, "Draft response", false, "draft");
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_from_existing_draft")
-                .and_then(Value::as_bool),
-            Some(true)
-        );
+        assert!(workflow.get("response").is_none());
+        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
     }
 
     #[test]
@@ -3264,19 +2912,14 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_ascii_lowercase();
-        assert!(response.trim().is_empty());
+        assert!(response.contains("i completed the workflow gate"), "{response}");
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("withheld_non_llm_fallback_response")
+            Some("guard_violation_pass_through")
         );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_source")
-                .and_then(Value::as_str),
-            Some("suppressed_retry_boilerplate")
-        );
+        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/fallback_guard_reason")
@@ -3387,14 +3030,9 @@ mod workflow_fallback_tests {
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
-            Some("withheld_non_llm_fallback_response")
+            Some("empty_llm_response")
         );
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/fallback_source")
-                .and_then(Value::as_str),
-            Some("empty_response_presence_guard")
-        );
+        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/fallback_guard_reason")
@@ -3803,15 +3441,12 @@ mod workflow_fallback_tests {
         assert!(response_contains_workflow_prompt_analysis_leak(
             "We are in the runtime context of 2026-05-02T06:14:40Z. The user asks for a reply in exactly five words. We must reply in one short sentence."
         ));
-        let (response, sanitized, source) = sanitize_skipped_final_response_fallback_response(
-            "hey, reply in five words, no tools",
-            "According to the instructions, the gate is What kind of work is this? The user asks to respond directly, so we answer normally.",
-            "",
-            &[],
+        assert_eq!(
+            direct_llm_response_from_initial_draft(
+                "According to the instructions, the gate is What kind of work is this? The user asks to respond directly, so we answer normally."
+            ),
+            Some("According to the instructions, the gate is What kind of work is this? The user asks to respond directly, so we answer normally.".to_string())
         );
-        assert!(response.is_empty());
-        assert!(sanitized);
-        assert_eq!(source, "withheld_workflow_prompt_analysis");
     }
 
     #[test]

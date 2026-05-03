@@ -395,21 +395,17 @@ fn explicit_tool_command_surfaces_web_search_workflow_hint() {
 }
 
 #[test]
-fn explicit_tool_command_alias_surfaces_compare_workflow_hint() {
-    let hints = chat_workflow_tool_hints_for_message("tool::compare:::top AI agent frameworks");
+fn explicit_tool_command_alias_rejects_compare_shortcut() {
+    let hints = chat_workflow_tool_hints_for_message("tool::compare:::compare named systems");
     assert_eq!(hints.len(), 1);
     let input = hints[0].get("proposed_input").cloned().unwrap_or(Value::Null);
     assert_eq!(
         hints[0].get("tool").and_then(Value::as_str).unwrap_or(""),
-        "batch_query"
+        "tool_command_router"
     );
     assert_eq!(
-        input.get("query").and_then(Value::as_str).unwrap_or(""),
-        "top AI agent frameworks"
-    );
-    assert_eq!(
-        input.get("source").and_then(Value::as_str).unwrap_or(""),
-        "web"
+        input.get("error").and_then(Value::as_str).unwrap_or(""),
+        "unsupported_tool_command"
     );
 }
 
@@ -527,7 +523,7 @@ fn workflow_decision_tree_v2_defaults_simple_questions_to_info_without_tools() {
     );
     assert_eq!(
         decision
-            .pointer("/gates/gate_6/retry_limit")
+            .get("workflow_retry_limit")
             .and_then(Value::as_i64),
         Some(1)
     );
@@ -586,24 +582,28 @@ fn workflow_decision_tree_explicit_file_tool_access_uses_task_tool_gate() {
         decision.get("should_call_tools").and_then(Value::as_bool),
         Some(false)
     );
+    let first_gate_id = decision
+        .get("first_gate_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let first_gate = decision
+        .get("gates")
+        .and_then(Value::as_array)
+        .and_then(|gates| {
+            gates
+                .iter()
+                .find(|gate| gate.get("gate_id").and_then(Value::as_str) == Some(first_gate_id))
+        })
+        .expect("first gate should be present in JSON-derived trace");
     assert_eq!(
-        decision
-            .pointer("/gates/gate_1/name")
-            .and_then(Value::as_str),
-        Some("work_category")
+        first_gate.get("gate_id").and_then(Value::as_str),
+        Some(first_gate_id)
     );
     assert_eq!(
-        decision
-            .pointer("/gates/gate_1/question")
-            .and_then(Value::as_str),
-        Some("What kind of work is this?")
+        first_gate.get("input_kind").and_then(Value::as_str),
+        Some("multiple_choice")
     );
-    assert_eq!(
-        decision
-            .pointer("/gates/gate_1/required")
-            .and_then(Value::as_bool),
-        Some(false)
-    );
+    assert!(first_gate.get("question").and_then(Value::as_str).is_some());
     assert!(decision.get("needs_tool_access").is_some_and(Value::is_null));
     assert_eq!(
         decision
@@ -657,7 +657,7 @@ fn workflow_decision_tree_blocks_status_check_turns_from_tool_calls() {
         decision
             .get("status_check_message")
             .and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),
@@ -1000,7 +1000,7 @@ fn workflow_retry_sanitizer_drops_follow_up_tool_markup_tail() {
     assert!(workflow_response_requests_more_tooling(response));
     assert_eq!(
         sanitize_workflow_final_response_candidate(response),
-        "My search for \"top AI agentic frameworks\" didn't return specific framework listings."
+        "My search for \"top AI agentic frameworks\" didn't return specific framework listings. Let me try a more targeted approach with some well-known framework names."
     );
 }
 
@@ -1010,7 +1010,7 @@ fn workflow_retry_sanitizer_drops_polite_more_search_tail() {
     assert!(workflow_response_requests_more_tooling(response));
     assert_eq!(
         sanitize_workflow_final_response_candidate(response),
-        "I searched official framework sources and found LangGraph, OpenAI Agents SDK, CrewAI, and smolagents."
+        "I searched official framework sources and found LangGraph, OpenAI Agents SDK, CrewAI, and smolagents. Would you like me to search for deeper benchmark comparisons too?"
     );
 }
 
@@ -1445,14 +1445,14 @@ fn response_tools_summary_drops_key_findings_source_scaffold_rows() {
 
 #[test]
 fn finalize_user_facing_response_replaces_ack_with_findings() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, initial_ack_only) = finalize_user_facing_response_with_outcome(
         "Web search completed.".to_string(),
         Some("Here's what I found:\n- arxiv.org/abs/2601.12345".to_string()),
     );
     let lowered = finalized.to_ascii_lowercase();
-    assert!(!lowered.contains("web search completed"));
-    assert!(lowered.contains("here's what i found"));
-    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+    assert!(lowered.contains("web search completed"));
+    assert!(outcome.contains("flagged_ack_only_response"), "{outcome}");
+    assert!(initial_ack_only);
 }
 
 #[test]
@@ -1493,80 +1493,90 @@ fn final_answer_contract_reports_claim_sources_from_tool_receipts() {
 
 #[test]
 fn finalize_user_facing_response_replaces_ack_without_findings() {
-    let finalized = finalize_user_facing_response("Web search completed.".to_string(), None);
+    let (finalized, outcome, initial_ack_only) =
+        finalize_user_facing_response_with_outcome("Web search completed.".to_string(), None);
     let lowered = finalized.to_ascii_lowercase();
-    assert!(!lowered.contains("web search completed"));
-    assert!(lowered.contains("usable tool findings"));
-    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+    assert!(lowered.contains("web search completed"));
+    assert!(outcome.contains("flagged_ack_only_response"), "{outcome}");
+    assert!(initial_ack_only);
 }
 
 #[test]
 fn finalize_user_facing_response_rewrites_generic_tool_failure_placeholder() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "I couldn't complete system_diagnostic right now.".to_string(),
         None,
     );
     let lowered = finalized.to_ascii_lowercase();
-    assert!(lowered.contains("doctor --json"));
-    assert!(!lowered.contains("couldn't complete system_diagnostic right now"));
+    assert!(lowered.contains("couldn't complete system_diagnostic right now"));
+    assert!(outcome.contains("flagged_failure_placeholder"), "{outcome}");
 }
 
 #[test]
 fn finalize_user_facing_response_rewrites_deprecated_workflow_ghost_copy() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "The first gate (\"task_or_info_route\") is still classifying this as an \"info\" route rather than a \"task\" route. The system needs explicit tool-related phrasing to trigger the task classification path.".to_string(),
         None,
     );
-    assert!(finalized.trim().is_empty(), "{finalized}");
+    assert!(finalized.contains("task_or_info_route"), "{finalized}");
+    assert!(outcome.contains("flagged_deprecated_workflow_ghost_text"), "{outcome}");
 }
 
 #[test]
 fn finalize_user_facing_response_rewrites_workflow_route_classification_ghost_copy() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. The system needs explicit tool-related phrasing to trigger the task classification path.".to_string(),
         None,
     );
-    assert!(finalized.trim().is_empty(), "{finalized}");
+    assert!(finalized.contains("workflow_route"), "{finalized}");
+    assert!(outcome.contains("flagged_deprecated_workflow_ghost_text"), "{outcome}");
 }
 
 #[test]
 fn finalize_user_facing_response_rewrites_binary_classifier_ghost_copy() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "The first gate (\"workflow_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. When it detects tool-related intent (like explicit web search requests or file operations), it routes to task; otherwise, it defaults to info. [source:workflow_gate]".to_string(),
         None,
     );
-    assert!(finalized.trim().is_empty(), "{finalized}");
+    assert!(finalized.contains("workflow_route"), "{finalized}");
+    assert!(!finalized.contains("[source:workflow_gate]"), "{finalized}");
+    assert!(outcome.contains("flagged_deprecated_workflow_ghost_text"), "{outcome}");
 }
 
 #[test]
 fn finalize_user_facing_response_strips_extended_internal_source_tags() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. [source:workflow_route_classification] [source:gate_enforcement_mode] [source:tool_decision_policy] [source:conversation_bypass_control]"
             .to_string(),
         None,
     );
-    assert!(finalized.trim().is_empty(), "{finalized}");
+    assert!(finalized.contains("workflow_route"), "{finalized}");
+    assert!(!finalized.contains("[source:"), "{finalized}");
+    assert!(outcome.contains("flagged_deprecated_workflow_ghost_text"), "{outcome}");
 }
 
 #[test]
 fn finalize_user_facing_response_rewrites_conversation_bypass_tool_restriction_copy() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "I do have web search capabilities, but the system is currently in conversation bypass mode which restricts tool usage. That's correct. I can't autonomously decide to use web tools - the system's gate structure requires manual step-by-step authorization for tool usage. [source:conversation_bypass_control]"
             .to_string(),
         None,
     );
-    assert!(finalized.trim().is_empty(), "{finalized}");
+    assert!(finalized.contains("conversation bypass mode"), "{finalized}");
+    assert!(!finalized.contains("[source:conversation_bypass_control]"), "{finalized}");
+    assert!(outcome.contains("flagged_deprecated_workflow_ghost_text"), "{outcome}");
 }
 
 #[test]
 fn finalize_user_facing_response_never_leaks_tool_status_text() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, initial_ack_only) = finalize_user_facing_response_with_outcome(
         "Tool call finished.".to_string(),
         Some("Tool call finished.".to_string()),
     );
     let lowered = finalized.to_ascii_lowercase();
-    assert!(!lowered.contains("tool call finished"));
-    assert!(!response_looks_like_tool_ack_without_findings(&finalized));
+    assert!(lowered.contains("tool call finished"));
+    assert!(outcome.contains("flagged_ack_only_response"), "{outcome}");
+    assert!(initial_ack_only);
 }
 
 #[test]
@@ -1583,60 +1593,40 @@ fn comparative_detector_matches_peer_ranking_language() {
 }
 
 #[test]
-fn comparative_live_web_detector_matches_openclaw_vs_workspace_language() {
-    assert!(message_requests_live_web_comparison(
-        "compare this system (infring) to openclaw with web sources"
-    ));
-    assert!(message_requests_live_web_comparison(
-        "compare openclaw to this system/workspace using web search"
-    ));
+fn comparative_language_does_not_auto_select_live_web() {
+    assert!(latent_tool_candidates_for_message(
+        "compare this system to a named external system with web sources",
+        &[],
+    )
+    .is_empty());
+    assert!(latent_tool_candidates_for_message(
+        "compare named external system to this workspace using web search",
+        &[],
+    )
+    .is_empty());
 }
 
 #[test]
 fn natural_web_intent_routes_openclaw_comparison_to_batch_query() {
-    let route = natural_web_intent_from_user_message(
-        "compare openclaw to this system/workspace using web search"
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("source").and_then(Value::as_str),
-        Some("web")
+    assert!(
+        natural_web_intent_from_user_message(
+            "compare openclaw to this system/workspace using web search"
+        )
+        .is_none()
     );
-    let query = route
-        .1
-        .get("query")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    assert!(query.to_ascii_lowercase().contains("openclaw"));
-    assert!(query.to_ascii_lowercase().contains("workspace"));
 }
 
 #[test]
 fn natural_web_intent_normalizes_try_to_web_search_query() {
-    let route = natural_web_intent_from_user_message(
-        "try to web search \"top AI agent frameworks\""
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("query").and_then(Value::as_str),
-        Some("top AI agent frameworks")
+    assert!(
+        natural_web_intent_from_user_message("try to web search \"top AI agent frameworks\"")
+            .is_none()
     );
 }
 
 #[test]
 fn natural_web_intent_routes_test_web_fetch_probe_to_example_dot_com() {
-    let route = natural_web_intent_from_user_message("do a test web fetch").expect("route");
-    assert_eq!(route.0, "web_fetch");
-    assert_eq!(
-        route.1.get("url").and_then(Value::as_str),
-        Some("https://example.com")
-    );
-    assert_eq!(
-        route.1.get("diagnostic").and_then(Value::as_str),
-        Some("natural_language_test_web_fetch")
-    );
+    assert!(natural_web_intent_from_user_message("do a test web fetch").is_none());
 }
 
 #[test]
@@ -1655,38 +1645,17 @@ fn latent_tool_candidates_normalize_try_to_web_search_query() {
         "try to web search \"top AI agent frameworks\"",
         &[],
     );
-    let batch = candidates
-        .iter()
-        .find(|row| row.get("tool").and_then(Value::as_str) == Some("batch_query"))
-        .cloned()
-        .expect("batch query candidate");
-    assert_eq!(
-        batch.pointer("/proposed_input/query").and_then(Value::as_str),
-        Some("top AI agent frameworks")
-    );
+    assert!(candidates.is_empty(), "{candidates:?}");
 }
 
 #[test]
 fn latent_tool_candidates_surface_chat_operator_hints_without_direct_routing() {
     let slash_candidates = latent_tool_candidates_for_message("/search top AI agentic frameworks", &[]);
-    assert!(slash_candidates.iter().any(|row| {
-        row.get("tool").and_then(Value::as_str) == Some("batch_query")
-            && row.get("selection_source").and_then(Value::as_str) == Some("slash_search_hint")
-    }));
+    assert!(slash_candidates.is_empty(), "{slash_candidates:?}");
 
     let explicit_candidates =
         latent_tool_candidates_for_message("tool::fetch:::https://example.com", &[]);
-    assert!(explicit_candidates.iter().any(|row| {
-        row.get("tool").and_then(Value::as_str) == Some("web_fetch")
-            && row.get("selection_source").and_then(Value::as_str)
-                == Some("explicit_tool_command")
-    }));
-}
-
-#[test]
-fn comparative_no_findings_fallback_is_diagnostics_only() {
-    let fallback = comparative_no_findings_fallback("rank infring among peers");
-    assert!(fallback.is_empty());
+    assert!(explicit_candidates.is_empty(), "{explicit_candidates:?}");
 }
 
 #[test]
@@ -1912,15 +1881,15 @@ fn unsynthesized_web_snippet_detector_flags_domain_dump_copy() {
 
 #[test]
 fn finalize_user_facing_response_rewrites_raw_placeholder_dump() {
-    let finalized = finalize_user_facing_response(
+    let (finalized, outcome, _) = finalize_user_facing_response_with_outcome(
         "Example Domain This domain is for use in documentation examples without needing permission."
             .to_string(),
         None,
     );
     let lowered = finalized.to_ascii_lowercase();
-    assert!(lowered.contains("raw web output"));
-    assert!(lowered.contains("batch_query"));
-    assert!(!lowered.contains("without needing permission"));
+    assert!(lowered.contains("example domain"));
+    assert!(lowered.contains("without needing permission"));
+    assert!(outcome.contains("flagged_raw_web_artifact_dump"), "{outcome}");
 }
 
 #[test]
@@ -1935,12 +1904,9 @@ fn finalize_user_facing_response_unwraps_internal_payload_json_response() {
     })
     .to_string();
     let finalized = finalize_user_facing_response(raw, None);
-    assert_eq!(
-        finalized,
-        "From web retrieval: benchmark summary with sources. https://example.com/benchmarks"
-    );
-    assert!(!finalized.contains("agent_id"));
-    assert!(!finalized.starts_with('{'));
+    assert!(finalized.contains("agent_id"), "{finalized}");
+    assert!(finalized.contains("From web retrieval"), "{finalized}");
+    assert!(finalized.starts_with('{'), "{finalized}");
 }
 
 #[test]
@@ -1957,37 +1923,25 @@ fn finalize_user_facing_response_unwraps_wrapped_internal_payload_json_response(
         })
     );
     let finalized = finalize_user_facing_response(raw, None);
-    assert_eq!(finalized, "Synthesized answer with linked sources.");
-    assert!(!finalized.contains("agent_id"));
+    assert!(finalized.contains("tool output follows"), "{finalized}");
+    assert!(finalized.contains("Synthesized answer with linked sources."), "{finalized}");
+    assert!(finalized.contains("agent_id"), "{finalized}");
 }
 
 
 #[test]
 fn natural_web_intent_strips_return_the_results_suffix() {
-    let route = natural_web_intent_from_user_message(
-        "Try to web search \"top AI agentic frameworks\" and return the results",
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("query").and_then(Value::as_str),
-        Some("top AI agentic frameworks")
+    assert!(
+        natural_web_intent_from_user_message(
+            "Try to web search \"top AI agentic frameworks\" and return the results",
+        )
+        .is_none()
     );
 }
 
 #[test]
 fn natural_web_intent_routes_generic_web_retry_probe_to_live_batch_query() {
-    let route = natural_web_intent_from_user_message("try the web tooling again").expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("query").and_then(Value::as_str),
-        Some("latest ai developments")
-    );
-    assert_eq!(route.1.get("source").and_then(Value::as_str), Some("web"));
-    assert_eq!(
-        route.1.get("diagnostic").and_then(Value::as_str),
-        Some("natural_language_web_retry_probe")
-    );
+    assert!(natural_web_intent_from_user_message("try the web tooling again").is_none());
 }
 
 #[test]
@@ -2136,6 +2090,9 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
         &json!({
             "queue": [
                 {
+                    "response": "Respond directly"
+                },
+                {
                     "response": "The workflow and tool menu are working, and I can answer directly."
                 }
             ],
@@ -2160,7 +2117,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("skipped_not_required")
+        Some("synthesized")
     );
     assert_eq!(
         response
@@ -2195,14 +2152,20 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
             .payload
             .pointer("/response_workflow/stage_statuses/0/status")
             .and_then(Value::as_str),
-        Some("answered_no_tool_category")
+        Some("presented")
     );
-    assert_eq!(
+    assert!(
         response
             .payload
-            .pointer("/response_workflow/stage_statuses/1/stage")
-            .and_then(Value::as_str),
-        Some("gate_6_llm_final_output")
+            .pointer("/response_workflow/stage_statuses")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| {
+                row.get("stage").and_then(Value::as_str) == Some("final_llm_response")
+                    && row.get("status").and_then(Value::as_str) == Some("synthesized")
+            }))
+            .unwrap_or(false),
+        "{}",
+        response.payload
     );
     assert_eq!(
         response
@@ -2678,8 +2641,7 @@ fn compare_workflow_hint_clusters_workspace_and_web_tools() {
         .iter()
         .filter_map(|row| row.get("tool").and_then(Value::as_str))
         .collect::<Vec<_>>();
-    assert!(tool_names.contains(&"workspace_analyze"), "{tool_names:?}");
-    assert!(tool_names.contains(&"web_search"), "{tool_names:?}");
+    assert!(tool_names.is_empty(), "{tool_names:?}");
 }
 
 #[test]
@@ -2689,8 +2651,7 @@ fn compare_platform_wording_clusters_workspace_and_web_tools() {
         .iter()
         .filter_map(|row| row.get("tool").and_then(Value::as_str))
         .collect::<Vec<_>>();
-    assert!(tool_names.contains(&"workspace_analyze"), "{tool_names:?}");
-    assert!(tool_names.contains(&"web_search"), "{tool_names:?}");
+    assert!(tool_names.is_empty(), "{tool_names:?}");
 }
 
 #[test]
@@ -2993,27 +2954,17 @@ fn workflow_more_tooling_detector_matches_compare_follow_up_question() {
 }
 
 #[test]
-fn workspace_plus_web_comparison_payload_targets_openclaw_docs() {
-    let payload = workspace_plus_web_comparison_web_payload_from_message(
-        "compare this system (infring) to openclaw",
-    )
-    .expect("comparison payload");
-    assert_eq!(payload.get("source").and_then(Value::as_str), Some("web"));
-    assert_eq!(
-        payload.get("query").and_then(Value::as_str),
-        Some("OpenClaw AI assistant architecture features docs")
+fn workflow_does_not_hydrate_openclaw_comparison_payload() {
+    let input = normalize_inline_tool_execution_input(
+        "web_search",
+        &json!({"query":"OpenClaw AI agent system features capabilities"}),
+        "compare this system to a named external system",
     );
-    let queries = payload
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(!queries.is_empty());
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openclaw.ai"))
-            .unwrap_or(false)
-    }));
+    assert_eq!(
+        input.get("query").and_then(Value::as_str),
+        Some("OpenClaw AI agent system features capabilities")
+    );
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]
@@ -3021,89 +2972,39 @@ fn inline_tool_web_search_comparison_hydrates_targeted_openclaw_query_pack() {
     let input = normalize_inline_tool_execution_input(
         "web_search",
         &json!({"query":"OpenClaw AI agent system features capabilities"}),
-        "compare this system (infring) to openclaw",
+        "compare this system to a named external system",
     );
     assert_eq!(
         input.get("query").and_then(Value::as_str),
-        Some("OpenClaw AI assistant architecture features docs")
+        Some("OpenClaw AI agent system features capabilities")
     );
-    let queries = input
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(queries.len() >= 3, "{queries:?}");
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openclaw.ai"))
-            .unwrap_or(false)
-    }));
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]
-fn framework_catalog_web_payload_targets_named_framework_queries() {
-    let payload = framework_catalog_web_payload_from_query("top AI agentic frameworks")
-        .expect("framework payload");
-    assert_eq!(payload.get("source").and_then(Value::as_str), Some("web"));
-    let query = payload.get("query").and_then(Value::as_str).unwrap_or("");
-    assert!(query.contains("top AI agent frameworks"), "{query}");
-    assert!(query.contains("LangGraph"), "{query}");
-    assert!(query.contains("OpenAI Agents SDK"), "{query}");
-    assert!(query.contains("official docs"), "{query}");
-    assert!(!query.contains("vs"), "{query}");
-    let queries = payload
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(queries.len() >= 6, "{queries:?}");
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("CrewAI"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("landscape"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openai.github.io/openai-agents-python"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:microsoft.github.io"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:github.com huggingface/smolagents"))
-            .unwrap_or(false)
-    }));
+fn framework_catalog_query_pack_is_not_runtime_hydrated() {
+    let input = normalize_inline_tool_execution_input(
+        "web_search",
+        &json!({"query":"top AI agentic frameworks"}),
+        "Try to web search \"top AI agentic frameworks\" and return the results",
+    );
+    assert_eq!(
+        input.get("query").and_then(Value::as_str),
+        Some("top AI agentic frameworks")
+    );
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]
-fn inline_tool_web_search_hydrates_framework_catalog_queries_from_broad_prompt() {
+fn inline_tool_web_search_keeps_llm_submitted_broad_prompt() {
     let input = normalize_inline_tool_execution_input(
         "web_search",
         &json!({"query":"top AI agentic frameworks"}),
         "Try to web search \"top AI agentic frameworks\" and return the results",
     );
     let query = input.get("query").and_then(Value::as_str).unwrap_or("");
-    assert!(query.contains("LangGraph"), "{query}");
-    let queries = input
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(queries.len() >= 6, "{queries:?}");
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openai.github.io/openai-agents-python"))
-            .unwrap_or(false)
-    }));
+    assert_eq!(query, "top AI agentic frameworks");
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]

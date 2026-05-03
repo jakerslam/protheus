@@ -95,8 +95,6 @@ fn finalize_message_finalization_and_payload(
     let mut tool_completion = json!({});
     let workflow_status = workflow_final_response_status(&response_workflow);
     let mut workflow_used = workflow_final_response_used(&response_workflow);
-    let workflow_fallback_allowed =
-        workflow_final_response_allows_system_fallback(&response_workflow);
     let mut finalization_outcome = if workflow_used {
         "workflow_authored".to_string()
     } else {

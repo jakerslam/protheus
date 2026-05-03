@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
 pub const REQUIRED_TERMINAL_STATES: &[&str] =
     &["completed", "needs_input", "blocked", "failed", "aborted"];
@@ -67,47 +68,6 @@ const TOOL_FAMILY_SCHEMAS: &[(&str, &str, &str)] = &[
     ),
 ];
 
-const WORKFLOW_SOURCES: &[(&str, &str)] = &[
-    (
-        "orchestration/src/control_plane/workflows/official/clarify_then_coordinate.workflow.json",
-        include_str!("workflows/official/clarify_then_coordinate.workflow.json"),
-    ),
-    (
-        "orchestration/src/control_plane/workflows/official/research_synthesize_verify.workflow.json",
-        include_str!("workflows/official/research_synthesize_verify.workflow.json"),
-    ),
-    (
-        "orchestration/src/control_plane/workflows/official/plan_execute_review.workflow.json",
-        include_str!("workflows/official/plan_execute_review.workflow.json"),
-    ),
-    (
-        "orchestration/src/control_plane/workflows/official/diagnose_retry_escalate.workflow.json",
-        include_str!("workflows/official/diagnose_retry_escalate.workflow.json"),
-    ),
-    (
-        "orchestration/src/control_plane/workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json",
-        include_str!("workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json"),
-    ),
-    (
-        "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json",
-        include_str!("workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json"),
-    ),
-    (
-        "orchestration/src/control_plane/workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json",
-        include_str!(
-            "workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json"
-        ),
-    ),
-    (
-        "orchestration/src/control_plane/workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json",
-        include_str!(
-            "workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json"
-        ),
-    ),
-];
-
-const WORKFLOW_REGISTRY_RAW: &str = include_str!("workflows/workflow_registry.json");
-
 #[derive(Debug, Clone, Deserialize)]
 struct WorkflowSpec {
     #[serde(default)]
@@ -124,6 +84,7 @@ struct WorkflowSpec {
     subtemplates: Vec<Value>,
     workflow_source_of_truth_contract: Option<WorkflowSourceOfTruthContract>,
     typed_execution_contract: Option<TypedExecutionContract>,
+    interaction_gate_contract: Option<InteractionGateContract>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -212,6 +173,42 @@ pub struct RunBudgets {
     pub loop_signature_detector: String,
 }
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Hash)]
+pub struct InteractionGateContract {
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub tool_family_menu_stage: String,
+    #[serde(default)]
+    pub tool_request_payload_stage: String,
+    #[serde(default)]
+    pub tool_observation_stage: String,
+    #[serde(default)]
+    pub final_answer_stage: String,
+    #[serde(default)]
+    pub recovery_stage: String,
+    #[serde(default)]
+    pub gates: Vec<InteractionGateDefinition>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Hash)]
+pub struct InteractionGateDefinition {
+    #[serde(default)]
+    pub stage: String,
+    #[serde(default)]
+    pub parser_kind: String,
+    #[serde(default)]
+    pub true_values: Vec<String>,
+    #[serde(default)]
+    pub false_values: Vec<String>,
+    #[serde(default)]
+    pub finish_values: Vec<String>,
+    #[serde(default)]
+    pub another_tool_values: Vec<String>,
+    #[serde(default)]
+    pub choice_base: u64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct NormalizedWorkflowGraph {
     pub workflow_id: String,
@@ -233,6 +230,7 @@ pub struct NormalizedWorkflowGraph {
     pub stages: Vec<String>,
     pub transitions: Vec<String>,
     pub gate_contract: StructuredGateContract,
+    pub interaction_gate_contract: InteractionGateContract,
     pub terminal_states: Vec<String>,
     pub telemetry_streams: Vec<String>,
     pub tool_families: Vec<String>,
@@ -269,11 +267,83 @@ pub struct WorkflowValidation {
     pub graph: Option<NormalizedWorkflowGraph>,
 }
 
+fn workflow_directory_candidates() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(dir) = std::env::var("INFRING_ORCHESTRATION_WORKFLOW_DIR") {
+        candidates.push(PathBuf::from(dir));
+    }
+    candidates.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/control_plane/workflows"));
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("orchestration/src/control_plane/workflows"));
+    }
+    candidates
+}
+
+fn collect_workflow_json_paths(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut paths = Vec::new();
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            paths.extend(collect_workflow_json_paths(&path));
+        } else if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.ends_with(".workflow.json"))
+            .unwrap_or(false)
+        {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    paths
+}
+
+fn workflow_source_path_for_disk_path(path: &Path) -> String {
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    path.strip_prefix(manifest)
+        .ok()
+        .map(|rel| format!("orchestration/{}", rel.display()))
+        .unwrap_or_else(|| path.display().to_string())
+        .replace('\\', "/")
+}
+
+fn workflow_source_entries() -> Vec<(String, String)> {
+    for dir in workflow_directory_candidates() {
+        let paths = collect_workflow_json_paths(&dir);
+        let entries = paths
+            .into_iter()
+            .filter_map(|path| {
+                let raw = std::fs::read_to_string(&path).ok()?;
+                Some((workflow_source_path_for_disk_path(&path), raw))
+            })
+            .collect::<Vec<_>>();
+        if !entries.is_empty() {
+            return entries;
+        }
+    }
+    Vec::new()
+}
+
+fn workflow_registry_raw() -> Option<String> {
+    if let Ok(path) = std::env::var("INFRING_ORCHESTRATION_WORKFLOW_REGISTRY") {
+        if let Ok(raw) = std::fs::read_to_string(path) {
+            return Some(raw);
+        }
+    }
+    workflow_directory_candidates()
+        .into_iter()
+        .map(|dir| dir.join("workflow_registry.json"))
+        .find_map(|path| std::fs::read_to_string(path).ok())
+}
+
 pub fn registered_workflow_validations() -> Vec<WorkflowValidation> {
     let registry = workflow_registry_by_path();
-    WORKFLOW_SOURCES
-        .iter()
-        .map(|(path, raw)| validate_workflow_source(path, raw, registry.get(*path)))
+    workflow_source_entries()
+        .into_iter()
+        .map(|(path, raw)| validate_workflow_source(&path, &raw, registry.get(&path)))
         .collect()
 }
 
@@ -343,6 +413,10 @@ fn validate_workflow_source(
         errors.push("missing_typed_execution_contract".to_string());
         return validation(path, false, &workflow_id, errors, None);
     };
+    let Some(interaction_gate_contract) = spec.interaction_gate_contract else {
+        errors.push("missing_interaction_gate_contract".to_string());
+        return validation(path, false, &workflow_id, errors, None);
+    };
     let graph = compile_graph(WorkflowGraphCompileInput {
         source_path: path,
         workflow_id: &workflow_id,
@@ -353,6 +427,7 @@ fn validate_workflow_source(
         stages,
         source_contract,
         contract,
+        interaction_gate_contract,
         errors: &mut errors,
     });
     validation(path, errors.is_empty(), &workflow_id, errors, graph)
@@ -368,6 +443,7 @@ struct WorkflowGraphCompileInput<'a> {
     stages: Vec<String>,
     source_contract: WorkflowSourceOfTruthContract,
     contract: TypedExecutionContract,
+    interaction_gate_contract: InteractionGateContract,
     errors: &'a mut Vec<String>,
 }
 
@@ -382,11 +458,13 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         stages,
         source_contract,
         contract,
+        interaction_gate_contract,
         errors,
     } = input;
     let stage_set: HashSet<&str> = stages.iter().map(String::as_str).collect();
     validate_source_of_truth_contract(&source_contract, errors);
     validate_contract_basics(&contract, errors);
+    validate_interaction_gate_contract(&interaction_gate_contract, errors);
     let terminal_states = clean_list(contract.terminal_states);
     let terminal_set: HashSet<&str> = terminal_states.iter().map(String::as_str).collect();
     let transitions = parse_transitions(
@@ -442,6 +520,7 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
             resume_token_required: true,
             visibility_scope: "telemetry_only_until_final_llm_output".to_string(),
         },
+        interaction_gate_contract,
         terminal_states,
         telemetry_streams,
         tool_families,
@@ -451,7 +530,7 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
 }
 
 fn parse_workflow_registry() -> Option<WorkflowRegistry> {
-    serde_json::from_str(WORKFLOW_REGISTRY_RAW).ok()
+    serde_json::from_str(&workflow_registry_raw()?).ok()
 }
 
 fn workflow_registry_by_path() -> HashMap<String, WorkflowRegistryEntry> {
@@ -475,7 +554,8 @@ pub fn workflow_registry_contract_ok() -> bool {
     {
         return false;
     }
-    let known_paths: HashSet<&str> = WORKFLOW_SOURCES.iter().map(|(path, _)| *path).collect();
+    let source_entries = workflow_source_entries();
+    let known_paths: HashSet<&str> = source_entries.iter().map(|(path, _)| path.as_str()).collect();
     let mut ids = HashSet::new();
     let mut paths = HashSet::new();
     let mut official_count = 0usize;
@@ -521,7 +601,7 @@ pub fn workflow_registry_contract_ok() -> bool {
     }
     official_count > 0
         && lab_count > 0
-        && registry.workflows.len() == WORKFLOW_SOURCES.len()
+        && registry.workflows.len() == source_entries.len()
         && ids.contains(registry.default_workflow_id.as_str())
 }
 
@@ -603,6 +683,79 @@ fn validate_contract_basics(contract: &TypedExecutionContract, errors: &mut Vec<
         || budgets.loop_signature_detector.trim().is_empty()
     {
         errors.push("missing_run_budget_semantics".to_string());
+    }
+}
+
+fn validate_interaction_gate_contract(
+    contract: &InteractionGateContract,
+    errors: &mut Vec<String>,
+) {
+    if contract.version.trim().is_empty() {
+        errors.push("missing_interaction_gate_contract_version".to_string());
+    }
+    for field in [
+        ("tool_family_menu_stage", &contract.tool_family_menu_stage),
+        (
+            "tool_request_payload_stage",
+            &contract.tool_request_payload_stage,
+        ),
+        ("tool_observation_stage", &contract.tool_observation_stage),
+        ("final_answer_stage", &contract.final_answer_stage),
+        ("recovery_stage", &contract.recovery_stage),
+    ] {
+        if field.1.trim().is_empty() {
+            errors.push(format!("missing_interaction_gate_{}", field.0));
+        }
+    }
+    if contract.gates.is_empty() {
+        errors.push("missing_interaction_gate_definitions".to_string());
+        return;
+    }
+    let mut stages = HashSet::new();
+    let mut parser_kinds = HashSet::new();
+    for gate in &contract.gates {
+        let stage = gate.stage.trim();
+        let parser_kind = gate.parser_kind.trim();
+        if stage.is_empty() {
+            errors.push("missing_interaction_gate_stage".to_string());
+        } else if !stages.insert(stage.to_string()) {
+            errors.push(format!("duplicate_interaction_gate_stage:{stage}"));
+        }
+        if parser_kind.is_empty() {
+            errors.push(format!("missing_interaction_gate_parser_kind:{stage}"));
+        } else {
+            parser_kinds.insert(parser_kind.to_string());
+        }
+        match parser_kind {
+            "need_tools" => {
+                if gate.true_values.is_empty() || gate.false_values.is_empty() {
+                    errors.push(format!("need_tools_gate_missing_values:{stage}"));
+                }
+            }
+            "tool_family" => {
+                if gate.choice_base == 0 {
+                    errors.push(format!("tool_family_gate_missing_choice_base:{stage}"));
+                }
+            }
+            "tool_name" | "request_payload" => {}
+            "post_tool" => {
+                if gate.finish_values.is_empty() || gate.another_tool_values.is_empty() {
+                    errors.push(format!("post_tool_gate_missing_values:{stage}"));
+                }
+            }
+            _ => errors.push(format!("unknown_interaction_gate_parser_kind:{parser_kind}")),
+        }
+    }
+    for required in [
+        "need_tools",
+        "tool_family",
+        "tool_name",
+        "request_payload",
+        "post_tool",
+    ] {
+        if !parser_kinds.contains(required) {
+            errors.push(format!("missing_interaction_gate_parser_kind:{required}"));
+        }
     }
 }
 

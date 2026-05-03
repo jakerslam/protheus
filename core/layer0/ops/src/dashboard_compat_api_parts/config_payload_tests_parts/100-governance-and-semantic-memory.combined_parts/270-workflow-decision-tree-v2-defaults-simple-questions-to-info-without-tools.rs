@@ -20,7 +20,7 @@ fn workflow_decision_tree_v2_defaults_simple_questions_to_info_without_tools() {
     );
     assert_eq!(
         decision
-            .pointer("/gates/gate_6/retry_limit")
+            .get("workflow_retry_limit")
             .and_then(Value::as_i64),
         Some(1)
     );

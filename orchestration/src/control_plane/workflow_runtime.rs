@@ -1,6 +1,7 @@
 // Layer ownership: orchestration (non-canonical orchestration coordination only).
 use super::workflow_contracts::{
-    registered_workflow_graphs, NormalizedWorkflowGraph, REQUIRED_TOOL_FAMILIES,
+    registered_workflow_graphs, InteractionGateContract, InteractionGateDefinition,
+    NormalizedWorkflowGraph, REQUIRED_TOOL_FAMILIES,
 };
 use super::workflow_runtime_fixtures::{
     workflow_replay_fixtures, WorkflowInput, WorkflowReplayFixture,
@@ -87,7 +88,11 @@ pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayRep
     state.event(
         "workflow_state",
         "tool_family_menu_ready",
-        "gate_2_tool_family_menu",
+        &state
+            .graph
+            .interaction_gate_contract
+            .tool_family_menu_stage
+            .clone(),
         json!({
             "families": state.graph.tool_families.clone(),
             "llm_selects_tool_family": true,
@@ -141,6 +146,7 @@ pub fn graph_hash(graph: &NormalizedWorkflowGraph) -> String {
         .hash(&mut hasher);
     graph.stages.hash(&mut hasher);
     graph.transitions.hash(&mut hasher);
+    graph.interaction_gate_contract.hash(&mut hasher);
     graph.visible_chat_policy.hash(&mut hasher);
     format!("typed_graph:{:016x}", hasher.finish())
 }
@@ -172,19 +178,27 @@ fn parse_gate_input(
     stage: &str,
     text: &str,
     tool_families: &[String],
+    contract: &InteractionGateContract,
 ) -> Result<ParsedGateInput, String> {
+    let Some(gate) = gate_definition(contract, stage) else {
+        return Err(format!("unknown_gate_stage:{stage}"));
+    };
     let normalized = text.trim().to_ascii_lowercase();
-    match stage {
-        "gate_1_need_tool_access_menu" => match normalized.as_str() {
-            "yes" | "y" | "true" | "t" | "1" => Ok(ParsedGateInput::NeedTools(true)),
-            "no" | "n" | "false" | "f" | "0" => Ok(ParsedGateInput::NeedTools(false)),
-            _ => Err("gate_1_requires_yes_or_no".to_string()),
-        },
-        "gate_2_tool_family_menu" => {
+    match gate.parser_kind.as_str() {
+        "need_tools" => {
+            if gate_value_matches(&gate.true_values, &normalized) {
+                Ok(ParsedGateInput::NeedTools(true))
+            } else if gate_value_matches(&gate.false_values, &normalized) {
+                Ok(ParsedGateInput::NeedTools(false))
+            } else {
+                Err(format!("gate_requires_declared_choice:{stage}"))
+            }
+        }
+        "tool_family" => {
             let family = normalized
                 .parse::<usize>()
                 .ok()
-                .and_then(|choice| choice.checked_sub(1))
+                .and_then(|choice| choice.checked_sub(gate.choice_base as usize))
                 .and_then(|idx| tool_families.get(idx))
                 .map(String::as_str)
                 .unwrap_or(normalized.as_str());
@@ -194,17 +208,32 @@ fn parse_gate_input(
                 Err(format!("unknown_tool_family:{family}"))
             }
         }
-        "gate_3_tool_menu" => Ok(ParsedGateInput::ToolName(text.trim().to_string())),
-        "gate_4_request_payload_input" => {
-            Ok(ParsedGateInput::RequestPayload(text.trim().to_string()))
+        "tool_name" => Ok(ParsedGateInput::ToolName(text.trim().to_string())),
+        "request_payload" => Ok(ParsedGateInput::RequestPayload(text.trim().to_string())),
+        "post_tool" => {
+            if gate_value_matches(&gate.finish_values, &normalized) {
+                Ok(ParsedGateInput::Finish)
+            } else if gate_value_matches(&gate.another_tool_values, &normalized) {
+                Ok(ParsedGateInput::AnotherTool)
+            } else {
+                Err(format!("gate_requires_declared_choice:{stage}"))
+            }
         }
-        "gate_5_post_tool_menu" => match normalized.as_str() {
-            "finish" | "done" | "submit" => Ok(ParsedGateInput::Finish),
-            "another" | "another tool" | "use another tool" => Ok(ParsedGateInput::AnotherTool),
-            _ => Err("gate_5_requires_finish_or_another_tool".to_string()),
-        },
-        _ => Err(format!("unknown_gate_stage:{stage}")),
+        parser_kind => Err(format!("unknown_gate_parser_kind:{parser_kind}")),
     }
+}
+
+fn gate_definition<'a>(
+    contract: &'a InteractionGateContract,
+    stage: &str,
+) -> Option<&'a InteractionGateDefinition> {
+    contract.gates.iter().find(|gate| gate.stage == stage)
+}
+
+fn gate_value_matches(values: &[String], normalized: &str) -> bool {
+    values
+        .iter()
+        .any(|value| value.trim().eq_ignore_ascii_case(normalized))
 }
 
 struct RuntimeState {
@@ -255,10 +284,11 @@ impl RuntimeState {
             WorkflowInput::FinalAnswer(text) => {
                 self.model_turns_seen += 1;
                 self.estimated_tokens_seen += token_estimate(text);
+                let final_answer_stage = self.graph.interaction_gate_contract.final_answer_stage.clone();
                 self.event(
                     "final_answer",
                     "llm_final_output",
-                    "gate_6_llm_final_output",
+                    &final_answer_stage,
                     json!({"text": text}),
                     true,
                 );
@@ -288,7 +318,12 @@ impl RuntimeState {
             json!({"answer": text}),
             false,
         );
-        match parse_gate_input(stage, text, &self.graph.tool_families) {
+        match parse_gate_input(
+            stage,
+            text,
+            &self.graph.tool_families,
+            &self.graph.interaction_gate_contract,
+        ) {
             Ok(ParsedGateInput::NeedTools(false)) => {
                 self.event(
                     "workflow_state",
@@ -344,10 +379,15 @@ impl RuntimeState {
         match adapt_tool_request(&family, &tool, &payload) {
             Ok(request) => {
                 self.tool_calls_seen += 1;
+                let tool_request_payload_stage = self
+                    .graph
+                    .interaction_gate_contract
+                    .tool_request_payload_stage
+                    .clone();
                 self.event(
                     "tool_trace",
                     "tool_request",
-                    "gate_4_request_payload_input",
+                    &tool_request_payload_stage,
                     json!(&request),
                     false,
                 );
@@ -355,10 +395,15 @@ impl RuntimeState {
             }
             Err(reason) => {
                 self.failures.push(reason.clone());
+                let tool_request_payload_stage = self
+                    .graph
+                    .interaction_gate_contract
+                    .tool_request_payload_stage
+                    .clone();
                 self.event(
                     "eval_trace",
                     "tool_request_rejected",
-                    "gate_4_request_payload_input",
+                    &tool_request_payload_stage,
                     json!({"reason": reason}),
                     false,
                 );
@@ -373,18 +418,24 @@ impl RuntimeState {
         } else {
             "tool_failure_observation"
         };
+        let tool_observation_stage = self
+            .graph
+            .interaction_gate_contract
+            .tool_observation_stage
+            .clone();
         self.event(
             "tool_trace",
             event_kind,
-            "tool_observation",
+            &tool_observation_stage,
             json!({"ok": ok, "summary": summary}),
             false,
         );
         if !ok {
+            let recovery_stage = self.graph.interaction_gate_contract.recovery_stage.clone();
             self.event(
                 "workflow_state",
                 "recover_or_retry",
-                "recovery_escalation",
+                &recovery_stage,
                 json!({"max_retries": 1}),
                 false,
             );

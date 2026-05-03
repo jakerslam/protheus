@@ -78,15 +78,8 @@ fn handle_message_chat_response_pass(
                 result.get("response").and_then(Value::as_str).unwrap_or(""),
                 32_000,
             );
-            let response_had_context_meta = internal_context_metadata_phrase(&response_text);
             response_text = strip_internal_context_metadata_prefix(&response_text);
             response_text = strip_internal_cache_control_markup(&response_text);
-            if response_text.is_empty() && response_had_context_meta {
-                // Do not inject deterministic chat prose when the model produced only
-                // internal context metadata. Finalization/telemetry can record the
-                // empty LLM output without taking over the visible answer.
-                response_text.clear();
-            }
             let local_workspace_tooling_probe_turn = {
                 let lowered = message.to_ascii_lowercase();
                 let local_tokens = [
@@ -110,13 +103,8 @@ fn handle_message_chat_response_pass(
             let runtime_probe = runtime_probe_requested(message);
             let runtime_denial = runtime_access_denied_phrase(&response_text);
             if runtime_probe || runtime_denial {
-                response_text = if runtime_probe {
-                    runtime_access_summary_text(&runtime_summary)
-                } else if local_workspace_tooling_probe_turn {
-                    String::new()
-                } else {
-                    String::new()
-                };
+                // Diagnostic-only. The runtime must not replace LLM-authored
+                // chat text with a system-authored capability summary.
             }
             if local_workspace_tooling_probe_turn {
                 let response_lowered = response_text.to_ascii_lowercase();
@@ -148,17 +136,16 @@ fn handle_message_chat_response_pass(
                     || route_classification_template
                     || decision_tree_autoclassifier_template
                 {
-                    response_text.clear();
+                    // Diagnostic-only: do not erase LLM-authored chat text.
                 } else if response_text.contains("originalUrl:") && response_text.contains("title:")
                 {
-                    response_text.clear();
+                    // Diagnostic-only: raw-looking output must be evaluated, not hidden.
                 } else if response_text.contains(runtime_capability_surface_template) {
-                    response_text.clear();
+                    // Diagnostic-only: preserve the model output for trace/eval.
                 }
             }
-            if memory_recall_requested(message) || persistent_memory_denied_phrase(&response_text) {
-                response_text = build_memory_recall_response(&state, &messages, message);
-            }
+            let _memory_recall_diagnostic =
+                memory_recall_requested(message) || persistent_memory_denied_phrase(&response_text);
             let lowered = message.to_ascii_lowercase();
             let explicit_parallel_directive = swarm_intent_requested(message)
                 || lowered.contains("multi-agent")
@@ -172,18 +159,9 @@ fn handle_message_chat_response_pass(
                     "message": message,
                     "requested_at": crate::now_iso()
                 }));
-                response_text = format!(
-                    "<function=spawn_subagents>{}</function>",
-                    json!({
-                        "count": auto_count,
-                        "objective": message,
-                        "reason": "user_directive_parallelization",
-                        "directive_receipt_hint": directive_hint_receipt,
-                        "confirm": true,
-                        "approval_note": "user requested parallelization in active turn"
-                    })
-                    .to_string()
-                );
+                let _ = (auto_count, directive_hint_receipt);
+                // Diagnostic-only. Do not manufacture a tool call when the LLM
+                // did not choose one through the workflow gate.
             }
             let (
                 tool_adjusted_response,
@@ -220,22 +198,20 @@ fn handle_message_chat_response_pass(
                 response_tools.extend(supplemental_comparison_tools);
                 let supplemented_summary =
                     clean_text(&response_tools_summary_for_user(&response_tools, 4), 32_000);
-                if !supplemented_summary.is_empty()
-                    && message_requests_workspace_plus_web_comparison(message)
-                {
-                    response_text = supplemented_summary;
+                if !supplemented_summary.is_empty() {
+                    let _ = supplemented_summary;
+                    // Diagnostic-only. Tool summaries are observations for the
+                    // model/eval path, not system-authored chat replacements.
                 }
             }
-            if inline_tools_suppressed && response_tools.is_empty() {
-                response_text.clear();
-            }
+            let _inline_tool_suppression_diagnostic = inline_tools_suppressed && response_tools.is_empty();
             if response_tools.is_empty()
                 && !inline_tools_allowed
                 && (response_is_no_findings_placeholder(&response_text)
                     || response_looks_like_raw_web_artifact_dump(&response_text)
                     || response_looks_like_unsynthesized_web_snippet_dump(&response_text))
             {
-                response_text.clear();
+                // Diagnostic-only: surface the LLM text and let eval flag the bad shape.
             }
             if let Some(ref pending) = inline_pending_confirmation {
                 let pending_tool = clean_text(
@@ -294,9 +270,6 @@ fn handle_message_chat_response_pass(
             } else {
                 "model_inline_tool_execution".to_string()
             };
-            if workflow_turn_is_meta_control_message(message) && response_tools.is_empty() {
-                workflow_mode = "direct_conversation_recovery".to_string();
-            }
             if conversation_bypass_active
                 && response_tools.is_empty()
                 && !conversation_bypass_mode_override.is_empty()
