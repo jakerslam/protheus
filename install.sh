@@ -1124,13 +1124,16 @@ emit_install_success_summary() {
   workspace_release_tag_current_value="${WORKSPACE_RELEASE_TAG_CURRENT:-}"
   workspace_release_tag_written_value="${WORKSPACE_RELEASE_TAG_WRITTEN:-0}"
   workspace_release_tag_verified_value="${WORKSPACE_RELEASE_TAG_WRITE_VERIFIED:-0}"
+  shell_default_value="${INSTALL_SHELL_DEFAULT:-ui}"
+  shell_fallback_value="${INSTALL_SHELL_FALLBACK:-terminal}"
   echo "[infring install] success summary: binaries=${wrappers_status} runtime=${runtime_contract_mode} launcher=infring gateway restart=infring gateway restart verification_confidence=${verification_confidence}"
   echo "[infring install] success summary: gateway_smoke=${gateway_smoke_status} dashboard_smoke=${dashboard_smoke_status} recovery=infring recover"
+  echo "[infring install] success summary: shell_default=${shell_default_value} shell_fallback=${shell_fallback_value}"
 
   summary_json_path="$INSTALL_SUMMARY_JSON_FILE"
   mkdir -p "$(dirname "$summary_json_path")" >/dev/null 2>&1 || true
   payload="$(cat <<EOF
-{"ok":true,"type":"infring_install_success_summary","version":"$(install_json_escape "$version_tag")","triple":"$(install_json_escape "$triple_id")","install_mode":{"full":$( [ "$INSTALL_FULL" = "1" ] && printf 'true' || printf 'false' ),"pure":$( [ "$INSTALL_PURE" = "1" ] && printf 'true' || printf 'false' ),"tiny_max":$( [ "$INSTALL_TINY_MAX" = "1" ] && printf 'true' || printf 'false' ),"repair":$( [ "$INSTALL_REPAIR" = "1" ] && printf 'true' || printf 'false' ),"offline":$( [ "$INSTALL_OFFLINE" = "1" ] && printf 'true' || printf 'false' )},"verification":{"confidence":"$(install_json_escape "$verification_confidence")","runtime_contract_ok":$( [ "$INSTALL_RUNTIME_CONTRACT_OK" = "1" ] && printf 'true' || printf 'false' ),"runtime_contract_mode":"$(install_json_escape "$runtime_contract_mode")","client_runtime_mode":"$(install_json_escape "$client_runtime_mode")","gateway_smoke":"$(install_json_escape "$gateway_smoke_status")","dashboard_smoke":"$(install_json_escape "$dashboard_smoke_status")","node_runtime_detected":$( [ "$node_detected" = "1" ] && printf 'true' || printf 'false' )},"workspace_runtime_refresh":{"required":$( [ "$workspace_refresh_required_value" = "1" ] && printf 'true' || printf 'false' ),"applied":$( [ "$workspace_refresh_applied_value" = "1" ] && printf 'true' || printf 'false' ),"reason":"$(install_json_escape "$workspace_refresh_reason_value")","tag_state_missing":$( [ "$workspace_refresh_tag_missing_value" = "1" ] && printf 'true' || printf 'false' ),"previous_release_tag":"$(install_json_escape "$workspace_release_tag_previous_value")","current_release_tag":"$(install_json_escape "$workspace_release_tag_current_value")","release_tag_write_applied":$( [ "$workspace_release_tag_written_value" = "1" ] && printf 'true' || printf 'false' ),"release_tag_write_verified":$( [ "$workspace_release_tag_verified_value" = "1" ] && printf 'true' || printf 'false' )},"commands":{"launcher":"$(install_json_escape "$launcher_command")","restart":"$(install_json_escape "$restart_command")","recovery":"$(install_json_escape "$recovery_command")"},"summary_files":{"text":"$(install_json_escape "$INSTALL_SUMMARY_FILE")","json":"$(install_json_escape "$summary_json_path")"}}
+{"ok":true,"type":"infring_install_success_summary","version":"$(install_json_escape "$version_tag")","triple":"$(install_json_escape "$triple_id")","install_mode":{"full":$( [ "$INSTALL_FULL" = "1" ] && printf 'true' || printf 'false' ),"pure":$( [ "$INSTALL_PURE" = "1" ] && printf 'true' || printf 'false' ),"tiny_max":$( [ "$INSTALL_TINY_MAX" = "1" ] && printf 'true' || printf 'false' ),"repair":$( [ "$INSTALL_REPAIR" = "1" ] && printf 'true' || printf 'false' ),"offline":$( [ "$INSTALL_OFFLINE" = "1" ] && printf 'true' || printf 'false' )},"shell":{"default":"$(install_json_escape "$shell_default_value")","fallback":"$(install_json_escape "$shell_fallback_value")","override_flag":"--shell=terminal"},"verification":{"confidence":"$(install_json_escape "$verification_confidence")","runtime_contract_ok":$( [ "$INSTALL_RUNTIME_CONTRACT_OK" = "1" ] && printf 'true' || printf 'false' ),"runtime_contract_mode":"$(install_json_escape "$runtime_contract_mode")","client_runtime_mode":"$(install_json_escape "$client_runtime_mode")","gateway_smoke":"$(install_json_escape "$gateway_smoke_status")","dashboard_smoke":"$(install_json_escape "$dashboard_smoke_status")","node_runtime_detected":$( [ "$node_detected" = "1" ] && printf 'true' || printf 'false' )},"workspace_runtime_refresh":{"required":$( [ "$workspace_refresh_required_value" = "1" ] && printf 'true' || printf 'false' ),"applied":$( [ "$workspace_refresh_applied_value" = "1" ] && printf 'true' || printf 'false' ),"reason":"$(install_json_escape "$workspace_refresh_reason_value")","tag_state_missing":$( [ "$workspace_refresh_tag_missing_value" = "1" ] && printf 'true' || printf 'false' ),"previous_release_tag":"$(install_json_escape "$workspace_release_tag_previous_value")","current_release_tag":"$(install_json_escape "$workspace_release_tag_current_value")","release_tag_write_applied":$( [ "$workspace_release_tag_written_value" = "1" ] && printf 'true' || printf 'false' ),"release_tag_write_verified":$( [ "$workspace_release_tag_verified_value" = "1" ] && printf 'true' || printf 'false' )},"commands":{"launcher":"$(install_json_escape "$launcher_command")","restart":"$(install_json_escape "$restart_command")","recovery":"$(install_json_escape "$recovery_command")"},"summary_files":{"text":"$(install_json_escape "$INSTALL_SUMMARY_FILE")","json":"$(install_json_escape "$summary_json_path")"}}
 EOF
 )"
   printf '%s\n' "$payload" > "$summary_json_path" 2>/dev/null || true
@@ -2921,6 +2924,66 @@ __INFRING_RUNTIME_MODE__
   return 0
 }
 
+normalize_install_shell_default() {
+  raw="$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z' | tr -d "\"'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  case "$raw" in
+    ui|browser|dashboard)
+      printf '%s\n' "ui"
+      ;;
+    legacy-ui|legacy|legacy-browser)
+      printf '%s\n' "legacy-ui"
+      ;;
+    terminal|cli|tty)
+      printf '%s\n' "terminal"
+      ;;
+    none|off|disabled|0)
+      printf '%s\n' "none"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+infer_install_shell_default() {
+  if [ -n "${INFRING_GATEWAY_DEFAULT_SHELL:-}" ]; then
+    normalize_install_shell_default "$INFRING_GATEWAY_DEFAULT_SHELL" && return 0
+  fi
+  if is_truthy "$INSTALL_PURE" || is_truthy "$INSTALL_TINY_MAX"; then
+    printf '%s\n' "terminal"
+    return 0
+  fi
+  case "$(uname -s 2>/dev/null || printf '')" in
+    Darwin)
+      printf '%s\n' "ui"
+      return 0
+      ;;
+  esac
+  if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    printf '%s\n' "ui"
+  else
+    printf '%s\n' "terminal"
+  fi
+}
+
+write_shell_launch_config() {
+  workspace="$1"
+  default_shell="$(normalize_install_shell_default "${2:-ui}" 2>/dev/null || printf '%s\n' "ui")"
+  fallback_shell="$(normalize_install_shell_default "${3:-terminal}" 2>/dev/null || printf '%s\n' "terminal")"
+  home_config_dir="$INFRING_HOME/config"
+  workspace_config_dir="$workspace/local/state/ops"
+  mkdir -p "$home_config_dir" "$workspace_config_dir" >/dev/null 2>&1 || return 1
+  for config_path in "$home_config_dir/shell.env" "$workspace_config_dir/shell_launch.env"; do
+    cat > "$config_path" <<__INFRING_SHELL_CONFIG__
+INFRING_GATEWAY_DEFAULT_SHELL=${default_shell}
+INFRING_GATEWAY_FALLBACK_SHELL=${fallback_shell}
+INFRING_GATEWAY_LAUNCH_ON_START=1
+__INFRING_SHELL_CONFIG__
+  done
+  echo "[infring install] shell default: ${default_shell} (override with: infring gateway --shell=terminal)"
+  return 0
+}
+
 ensure_runtime_node_module_closure() {
   workspace="$1"
   [ -n "$workspace" ] || return 1
@@ -3469,16 +3532,30 @@ write_wrapper() {
 
 daemon_binary_wrapper_body() {
   cat <<'EOF'
+infring_codesign_runtime_if_needed() {
+  binary_path="$1"
+  [ -n "$binary_path" ] || return 0
+  [ -x "$binary_path" ] || return 0
+  [ "${INFRING_DAEMON_CODESIGN_REFRESH:-1}" != "0" ] || return 0
+  case "$(uname -s 2>/dev/null || printf '')" in
+    Darwin) ;;
+    *) return 0 ;;
+  esac
+  command -v codesign >/dev/null 2>&1 || return 0
+  codesign --force --sign - "$binary_path" >/dev/null 2>&1 || true
+}
+
 daemon_cmd="${1:-status}"
 case "$daemon_cmd" in
-  start|stop|restart|status|attach|subscribe|tick|diagnostics|efficiency-status|embedded-core-status|watchdog)
+    start|stop|restart|status|heal|attach|subscribe|tick|diagnostics|efficiency-status|embedded-core-status|watchdog)
     ops_bin="${INFRING_DAEMON_FALLBACK_OPS_BIN:-__INSTALL_DIR__/infring-ops}"
     if [ -x "$ops_bin" ]; then
+      infring_codesign_runtime_if_needed "$ops_bin"
       daemon_action="$daemon_cmd"
       shift || true
       needs_node_hint=0
       case "$daemon_action" in
-        start|restart|watchdog)
+        start|restart|heal|watchdog)
           needs_node_hint=1
           ;;
       esac
@@ -3497,16 +3574,19 @@ case "$daemon_cmd" in
             node_bin="$(command -v node 2>/dev/null || true)"
           fi
           if [ -n "$node_bin" ]; then
+            infring_codesign_runtime_if_needed "$ops_bin"
             exec "$ops_bin" daemon-control "$daemon_action" "$@" "--node-binary=${node_bin}"
           fi
         fi
       fi
+      infring_codesign_runtime_if_needed "$ops_bin"
       exec "$ops_bin" daemon-control "$daemon_action" "$@"
     fi
     ;;
   daemon-control|dashboard-ui)
     ops_bin="${INFRING_DAEMON_FALLBACK_OPS_BIN:-__INSTALL_DIR__/infring-ops}"
     if [ -x "$ops_bin" ]; then
+      infring_codesign_runtime_if_needed "$ops_bin"
       ops_domain="${INFRING_OPS_DOMAIN:-}"
       if [ -z "$ops_domain" ]; then
         if "$ops_bin" infringctl --help >/dev/null 2>&1; then
@@ -3848,12 +3928,236 @@ infring_gateway_stop_dashboard_managed() {
 infring_gateway_health_ok() {
   host="$1"
   port="$2"
+  connect_timeout="${INFRING_GATEWAY_HEALTH_CONNECT_TIMEOUT:-1}"
+  max_time="${INFRING_GATEWAY_HEALTH_MAX_TIME:-3}"
+  case "$connect_timeout" in
+    ''|*[!0-9]*)
+      connect_timeout=1
+      ;;
+  esac
+  case "$max_time" in
+    ''|*[!0-9]*)
+      max_time=3
+      ;;
+  esac
   if command -v curl >/dev/null 2>&1; then
-    curl --connect-timeout 2 --max-time 35 -fsS "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
+    curl --connect-timeout "$connect_timeout" --max-time "$max_time" -fsS "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
   elif command -v wget >/dev/null 2>&1; then
-    wget --timeout=35 -q -O - "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
+    wget --timeout="$max_time" -q -O - "http://${host}:${port}/healthz" >/dev/null 2>&1 && return 0
   fi
   return 1
+}
+
+infring_gateway_matching_pids() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  match="$(infring_gateway_dashboard_match "$host" "$port")"
+  if command -v pgrep >/dev/null 2>&1; then
+    pgrep -f "$match" 2>/dev/null | awk '!seen[$0]++'
+  else
+    ps ax -o pid= -o command= 2>/dev/null | awk -v m="$match" 'index($0,m)>0 {print $1}' | awk '!seen[$0]++'
+  fi
+}
+
+infring_gateway_listener_pids() {
+  port="${1:-4173}"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | awk '!seen[$0]++'
+  fi
+}
+
+infring_gateway_clear_unhealthy_dashboard_processes() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  if infring_gateway_health_ok "$host" "$port"; then
+    return 0
+  fi
+  for pid in $(infring_gateway_matching_pids "$host" "$port"); do
+    [ -n "$pid" ] || continue
+    kill "$pid" >/dev/null 2>&1 || true
+  done
+  sleep 1
+  for pid in $(infring_gateway_matching_pids "$host" "$port"); do
+    [ -n "$pid" ] || continue
+    kill -9 "$pid" >/dev/null 2>&1 || true
+  done
+  infring_gateway_pid_clear "$host" "$port"
+  return 0
+}
+
+infring_gateway_print_runtime_diagnostics() {
+  host="${1:-127.0.0.1}"
+  port="${2:-4173}"
+  echo "[infring gateway] diagnostic: configured_healthz=http://${host}:${port}/healthz" >&2
+  if infring_gateway_health_ok "$host" "$port"; then
+    echo "[infring gateway] diagnostic: configured_healthz_ready=true" >&2
+  else
+    echo "[infring gateway] diagnostic: configured_healthz_ready=false" >&2
+  fi
+  listener_pids="$(infring_gateway_listener_pids "$port" | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+  matching_pids="$(infring_gateway_matching_pids "$host" "$port" | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+  [ -n "$listener_pids" ] && echo "[infring gateway] diagnostic: listener_pids=${listener_pids}" >&2
+  [ -n "$matching_pids" ] && echo "[infring gateway] diagnostic: matching_dashboard_pids=${matching_pids}" >&2
+  pid_file="$(infring_gateway_pidfile "$host" "$port")"
+  watchdog_file="$(infring_gateway_watchdog_pidfile "$host" "$port")"
+  [ -f "$pid_file" ] && echo "[infring gateway] diagnostic: pid_file=${pid_file}:$(sed -n '1p' "$pid_file" 2>/dev/null)" >&2
+  [ -f "$watchdog_file" ] && echo "[infring gateway] diagnostic: watchdog_pid_file=${watchdog_file}:$(sed -n '1p' "$watchdog_file" 2>/dev/null)" >&2
+  if [ "$port" != "5173" ] && infring_gateway_health_ok "$host" "5173"; then
+    echo "[infring gateway] diagnostic: alternate_healthz_ready=http://${host}:5173/healthz" >&2
+  fi
+}
+
+infring_gateway_find_workspace_root() {
+  for candidate in "${INFRING_WORKSPACE_ROOT:-}" "${PWD:-.}" "__WORKSPACE_DIR__" "__INSTALL_DIR__/infring-client" "__INFRING_HOME__/workspace" "__INFRING_HOME__"; do
+    [ -n "$candidate" ] || continue
+    if [ -d "$candidate/client/runtime" ] || [ -d "$candidate/shell/socket" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+    if [ -d "$candidate/infring-client/client/runtime" ] || [ -d "$candidate/infring-client/shell/socket" ]; then
+      printf '%s\n' "$candidate/infring-client"
+      return 0
+    fi
+  done
+  return 1
+}
+
+infring_gateway_normalize_shell() {
+  raw="$(printf '%s' "${1:-}" | tr 'A-Z' 'a-z' | tr -d "\"'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  case "$raw" in
+    ui|browser|dashboard)
+      printf '%s\n' "ui"
+      ;;
+    legacy-ui|legacy|legacy-browser)
+      printf '%s\n' "legacy-ui"
+      ;;
+    terminal|cli|tty)
+      printf '%s\n' "terminal"
+      ;;
+    none|off|disabled|0)
+      printf '%s\n' "none"
+      ;;
+    default|"")
+      return 1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+infring_gateway_configured_shell() {
+  root="${1:-}"
+  for config_path in "${INFRING_GATEWAY_SHELL_CONFIG:-}" "${root}/local/state/ops/shell_launch.env" "__INFRING_HOME__/config/shell.env"; do
+    [ -n "$config_path" ] || continue
+    [ -f "$config_path" ] || continue
+    value="$(sed -n \
+      -e 's/^[[:space:]]*INFRING_GATEWAY_DEFAULT_SHELL[[:space:]]*=[[:space:]]*//p' \
+      -e 's/^[[:space:]]*default[[:space:]]*=[[:space:]]*//p' \
+      -e 's/^[[:space:]]*shell.default[[:space:]]*=[[:space:]]*//p' \
+      "$config_path" | head -n 1 | tr -d "\"'")"
+    [ -n "$value" ] || continue
+    infring_gateway_normalize_shell "$value" && return 0
+  done
+  return 1
+}
+
+infring_gateway_select_shell() {
+  override="${1:-}"
+  root="${2:-}"
+  if [ -n "$override" ]; then
+    if selected="$(infring_gateway_normalize_shell "$override" 2>/dev/null)"; then
+      printf '%s\n' "$selected"
+      return 0
+    fi
+    echo "[infring gateway] unsupported shell override '${override}', falling back to ui" >&2
+    printf '%s\n' "ui"
+    return 0
+  fi
+  if [ -n "${INFRING_GATEWAY_SHELL:-}" ]; then
+    if selected="$(infring_gateway_normalize_shell "$INFRING_GATEWAY_SHELL" 2>/dev/null)"; then
+      printf '%s\n' "$selected"
+      return 0
+    fi
+  fi
+  if selected="$(infring_gateway_configured_shell "$root" 2>/dev/null)"; then
+    printf '%s\n' "$selected"
+    return 0
+  fi
+  if selected="$(infring_gateway_normalize_shell "${INFRING_GATEWAY_DEFAULT_SHELL:-ui}" 2>/dev/null)"; then
+    printf '%s\n' "$selected"
+    return 0
+  fi
+  printf '%s\n' "ui"
+}
+
+infring_gateway_shell_uses_browser() {
+  case "${1:-ui}" in
+    ui|legacy-ui)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+infring_gateway_node_binary() {
+  if [ -n "${INFRING_NODE_BINARY:-}" ] && [ -x "$INFRING_NODE_BINARY" ]; then
+    printf '%s\n' "$INFRING_NODE_BINARY"
+    return 0
+  fi
+  if [ -x "__INFRING_HOME__/node-runtime/bin/node" ]; then
+    printf '%s\n' "__INFRING_HOME__/node-runtime/bin/node"
+    return 0
+  fi
+  if command -v node >/dev/null 2>&1; then
+    command -v node
+    return 0
+  fi
+  return 1
+}
+
+infring_gateway_launch_terminal_shell() {
+  root="${1:-}"
+  [ -n "$root" ] || root="$(infring_gateway_find_workspace_root 2>/dev/null || true)"
+  [ -n "$root" ] || {
+    echo "[infring gateway] terminal shell unavailable: workspace root not found" >&2
+    return 1
+  }
+  node_bin="$(infring_gateway_node_binary 2>/dev/null || true)"
+  [ -n "$node_bin" ] || {
+    echo "[infring gateway] terminal shell unavailable: node runtime not found" >&2
+    return 1
+  }
+  entrypoint="$root/client/runtime/lib/ts_entrypoint.ts"
+  terminal_shell="$root/shell/terminal/terminal_shell.ts"
+  [ -f "$entrypoint" ] || {
+    echo "[infring gateway] terminal shell unavailable: missing $entrypoint" >&2
+    return 1
+  }
+  [ -f "$terminal_shell" ] || {
+    echo "[infring gateway] terminal shell unavailable: missing $terminal_shell" >&2
+    return 1
+  }
+  base_url="${INFRING_SHELL_SOCKET_URL:-http://127.0.0.1:5173}"
+  echo "[infring gateway] shell: terminal"
+  TERMINAL_SHELL_REQUIRE_LIVE=0 "$node_bin" "$entrypoint" "$terminal_shell" \
+    "--live=1" "--base-url=${base_url}" "--require-live=0" "--interactive=1" \
+    "--out-json=${root}/core/local/artifacts/terminal_shell_live_response_test_current.json" \
+    "--out-markdown=${root}/local/workspace/reports/TERMINAL_SHELL_LIVE_RESPONSE_TEST_CURRENT.md" || true
+}
+
+infring_gateway_open_browser_shell() {
+  shell_mode="${1:-ui}"
+  dashboard_open="${2:-1}"
+  dashboard_url="${3:-}"
+  [ "$dashboard_open" = "1" ] || return 0
+  [ -n "$dashboard_url" ] || return 0
+  echo "[infring gateway] shell: ${shell_mode}"
+  if command -v open >/dev/null 2>&1; then
+    open "$dashboard_url" >/dev/null 2>&1 || true
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$dashboard_url" >/dev/null 2>&1 || true
+  fi
 }
 
 infring_gateway_wait_dashboard() {
@@ -3883,9 +4187,10 @@ infring_gateway_wait_dashboard_adaptive() {
     fi
     if [ "$enforce_fallback" = "1" ]; then
       infring_gateway_pid_sanitize "$host" "$port"
-      if ! infring_gateway_dashboard_process_running "$host" "$port"; then
-        infring_gateway_start_dashboard_fallback "$host" "$port" >/dev/null 2>&1 || true
-      fi
+      infring_gateway_start_dashboard_fallback "$host" "$port" >/dev/null 2>&1 || true
+    fi
+    if [ "$i" -gt 0 ] && [ $((i % 10)) -eq 0 ]; then
+      echo "[infring gateway] waiting for dashboard healthz: http://${host}:${port}/healthz (${i}/${timeout_s}s)" >&2
     fi
     i=$((i + 1))
     sleep 1
@@ -3974,7 +4279,7 @@ infring_gateway_start_dashboard_fallback() {
     return 0
   fi
   if infring_gateway_dashboard_process_running "$host" "$port"; then
-    return 0
+    infring_gateway_clear_unhealthy_dashboard_processes "$host" "$port" >/dev/null 2>&1 || true
   fi
   root=""
   for candidate in "${INFRING_WORKSPACE_ROOT:-}" "${PWD:-.}" "__WORKSPACE_DIR__" "__INSTALL_DIR__/infring-client"; do
@@ -4306,6 +4611,7 @@ if [ "${1:-}" = "gateway" ]; then
     --help|-h|help)
       echo "Usage: infring gateway [start|stop|restart|status|heal|attach|subscribe|tick|diagnostics] [flags]"
       echo "  default action is 'start'"
+      echo "  --shell=ui|terminal|legacy-ui|none selects the shell plug for start/restart"
       echo "  add --dashboard-open=0 to skip browser auto-open on start"
       exit 0
       ;;
@@ -4320,31 +4626,104 @@ if [ "${1:-}" = "gateway" ]; then
 
   dashboard_preflight_host="127.0.0.1"
   dashboard_preflight_port="4173"
+  dashboard_preflight_open="1"
+  gateway_shell_override=""
+  gateway_shell_next=0
+  if [ "${INFRING_NO_BROWSER:-0}" = "1" ]; then
+    dashboard_preflight_open="0"
+  fi
   for token in "$@"; do
+    if [ "$gateway_shell_next" = "1" ]; then
+      gateway_shell_override="$token"
+      gateway_shell_next=0
+      continue
+    fi
     case "$token" in
+      --shell=*)
+        gateway_shell_override="${token#*=}"
+        ;;
+      --shell)
+        gateway_shell_next=1
+        ;;
+      --terminal-shell|--terminal)
+        gateway_shell_override="terminal"
+        ;;
+      --ui-shell|--ui)
+        gateway_shell_override="ui"
+        ;;
+      --no-shell)
+        gateway_shell_override="none"
+        ;;
+      --dashboard-open=0|--no-browser)
+        dashboard_preflight_open="0"
+        ;;
+      --dashboard-open=1)
+        dashboard_preflight_open="1"
+        ;;
       --dashboard-host=*)
         dashboard_preflight_host="${token#*=}"
         ;;
       --dashboard-port=*)
         dashboard_preflight_port="${token#*=}"
-        ;;
+      ;;
     esac
   done
+  gateway_preflight_root="$(infring_gateway_find_workspace_root 2>/dev/null || true)"
+  gateway_selected_shell="$(infring_gateway_select_shell "$gateway_shell_override" "$gateway_preflight_root")"
+  if ! infring_gateway_shell_uses_browser "$gateway_selected_shell"; then
+    dashboard_preflight_open="0"
+  fi
   dashboard_preflight_url="${INFRING_DASHBOARD_URL:-http://${dashboard_preflight_host}:${dashboard_preflight_port}/dashboard#chat}"
   if [ "$gateway_action" = "start" ] && infring_gateway_health_ok "$dashboard_preflight_host" "$dashboard_preflight_port"; then
     echo "P o w e r  T o  T h e  U s e r s"
     echo "[infring gateway] already active"
     echo "[infring gateway] dashboard: $dashboard_preflight_url"
+    if [ "$gateway_selected_shell" = "terminal" ]; then
+      infring_gateway_launch_terminal_shell "$gateway_preflight_root" || true
+    elif infring_gateway_shell_uses_browser "$gateway_selected_shell"; then
+      infring_gateway_open_browser_shell "$gateway_selected_shell" "$dashboard_preflight_open" "$dashboard_preflight_url"
+    else
+      echo "[infring gateway] shell: none"
+    fi
     [ -n "${INFRING_WORKSPACE_ROOT:-}" ] && echo "[infring gateway] workspace: $INFRING_WORKSPACE_ROOT"
     exit 0
   fi
 
-  gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
+  if ! infring_gateway_shell_uses_browser "$gateway_selected_shell"; then
+    gateway_output="$(INFRING_DASHBOARD_OPEN_ON_START=0 "__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
+  else
+    gateway_output="$("__INSTALL_DIR__/infringd" "$gateway_action" "$@" 2>&1)"
+  fi
   gateway_status=$?
   if [ "$gateway_status" -ne 0 ]; then
+    if [ "$gateway_action" = "start" ] || [ "$gateway_action" = "restart" ]; then
+      echo "[infring gateway] core ${gateway_action} returned failure; attempting one bounded heal" >&2
+      heal_ready_timeout="${INFRING_GATEWAY_HEAL_READY_TIMEOUT_MS:-6000}"
+      if ! infring_gateway_shell_uses_browser "$gateway_selected_shell"; then
+        heal_output="$(INFRING_DASHBOARD_OPEN_ON_START=0 INFRING_DASHBOARD_READY_TIMEOUT_MS="$heal_ready_timeout" "__INSTALL_DIR__/infringd" heal "$@" 2>&1)"
+      else
+        heal_output="$(INFRING_DASHBOARD_READY_TIMEOUT_MS="$heal_ready_timeout" "__INSTALL_DIR__/infringd" heal "$@" 2>&1)"
+      fi
+      if infring_gateway_wait_dashboard "$dashboard_preflight_host" "$dashboard_preflight_port" 4; then
+        echo "P o w e r  T o  T h e  U s e r s"
+        echo "[infring gateway] runtime healed"
+        echo "[infring gateway] dashboard: $dashboard_preflight_url"
+        if [ "$gateway_selected_shell" = "terminal" ]; then
+          infring_gateway_launch_terminal_shell "$gateway_preflight_root" || true
+        elif infring_gateway_shell_uses_browser "$gateway_selected_shell"; then
+          infring_gateway_open_browser_shell "$gateway_selected_shell" "$dashboard_preflight_open" "$dashboard_preflight_url"
+        else
+          echo "[infring gateway] shell: none"
+        fi
+        [ -n "${INFRING_WORKSPACE_ROOT:-}" ] && echo "[infring gateway] workspace: $INFRING_WORKSPACE_ROOT"
+        exit 0
+      fi
+      [ -n "$heal_output" ] && printf '%s\n' "$heal_output" >&2
+    fi
     if [ -n "$gateway_output" ]; then
       printf '%s\n' "$gateway_output" >&2
     fi
+    infring_gateway_print_runtime_diagnostics "$dashboard_preflight_host" "$dashboard_preflight_port"
     echo "[infring gateway] ${gateway_action} failed" >&2
     exit "$gateway_status"
   fi
@@ -4396,6 +4775,9 @@ if [ "${1:-}" = "gateway" ]; then
         ;;
     esac
   done
+  if ! infring_gateway_shell_uses_browser "$gateway_selected_shell"; then
+    dashboard_open="0"
+  fi
   dashboard_url="${INFRING_DASHBOARD_URL:-http://${dashboard_host}:${dashboard_port}/dashboard#chat}"
   core_opened_browser="0"
   if printf '%s\n' "$gateway_output" | grep -Eq '"opened_browser"[[:space:]]*:[[:space:]]*true'; then
@@ -4444,15 +4826,12 @@ if [ "${1:-}" = "gateway" ]; then
     fi
     # Core daemon-control is authoritative for browser launch.
     # Only fallback-open here when core explicitly did not open a tab.
-    if [ "$dashboard_open" = "1" ] && [ "$core_opened_browser" != "1" ]; then
-      if command -v open >/dev/null 2>&1; then
-        open "$dashboard_url" >/dev/null 2>&1 || true
-      elif command -v xdg-open >/dev/null 2>&1; then
-        xdg-open "$dashboard_url" >/dev/null 2>&1 || true
-      fi
+    if infring_gateway_shell_uses_browser "$gateway_selected_shell" && [ "$dashboard_open" = "1" ] && [ "$core_opened_browser" != "1" ]; then
+      infring_gateway_open_browser_shell "$gateway_selected_shell" "$dashboard_open" "$dashboard_url"
     fi
     if [ "$dashboard_ready" != "1" ]; then
       echo "[infring gateway] ${gateway_action} failed: dashboard healthz not ready at http://${dashboard_host}:${dashboard_port}/healthz" >&2
+      infring_gateway_print_runtime_diagnostics "$dashboard_host" "$dashboard_port"
       dashboard_error="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"error":"\([^"]*\)".*/\1/p' | head -n 1)"
       dashboard_issue_code="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"code":"\([^"]*\)".*/\1/p' | head -n 1)"
       dashboard_current_executable="$(printf '%s\n' "$gateway_output" | sed -n 's/.*"current_executable":"\([^"]*\)".*/\1/p' | head -n 1)"
@@ -4497,6 +4876,13 @@ if [ "${1:-}" = "gateway" ]; then
       echo "[infring gateway] runtime started"
     fi
     echo "[infring gateway] dashboard: $dashboard_url"
+    if [ "$gateway_selected_shell" = "terminal" ]; then
+      infring_gateway_launch_terminal_shell "${root_path:-$gateway_preflight_root}" || true
+    elif ! infring_gateway_shell_uses_browser "$gateway_selected_shell"; then
+      echo "[infring gateway] shell: none"
+    elif [ "$core_opened_browser" = "1" ]; then
+      echo "[infring gateway] shell: $gateway_selected_shell"
+    fi
     [ -n "$root_path" ] && echo "[infring gateway] workspace: $root_path"
     [ -n "$receipt_hash" ] && echo "[infring gateway] receipt: $receipt_hash"
   elif [ "$gateway_action" = "stop" ]; then
@@ -4815,6 +5201,10 @@ ${ops_domain_dispatch}"
     write_path_activate_script
     run_post_install_smoke_tests "$INSTALL_DIR" "$WORKSPACE_DIR" || exit 1
   fi
+
+  INSTALL_SHELL_DEFAULT="$(infer_install_shell_default 2>/dev/null || printf '%s\n' "ui")"
+  INSTALL_SHELL_FALLBACK="${INFRING_GATEWAY_FALLBACK_SHELL:-terminal}"
+  write_shell_launch_config "$WORKSPACE_DIR" "$INSTALL_SHELL_DEFAULT" "$INSTALL_SHELL_FALLBACK" || true
 
   WORKSPACE_REFRESH_REQUIRED="${workspace_refresh_required}"
   WORKSPACE_REFRESH_APPLIED="${workspace_refresh_applied}"
