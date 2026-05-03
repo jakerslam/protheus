@@ -62,10 +62,10 @@ This file tracks remaining execution from the runtime-proof hardening intake aft
 ## Kernel Sentinel Anti-Entropy TODO
 
 - [done] Add an anti-entropy posture section to Kernel Sentinel final reports that explicitly prioritizes stabilization, deletion, boundary repair, evidence absorption, and noise reduction over trajectory/roadmap guidance.
-- [queued] Add historical anti-entropy trend tracking so Sentinel can distinguish new chaos from already-improving entropy.
-- [queued] Add entropy-source ownership summaries so recurring drift is attributed to Kernel, Observability, Validation, Gateway, Shell, or Governance without creating local symptom tickets too early.
-- [queued] Add a promotion rule requiring anti-entropy review before Sentinel findings become TODO/GitHub candidates when structural patterns are active.
-- [queued] Add an operator-facing anti-entropy digest that shows only top drivers, current posture, and next stabilizing action.
+- [done] Add historical anti-entropy trend tracking so Sentinel can distinguish new chaos from already-improving entropy.
+- [done] Add entropy-source ownership summaries so recurring drift is attributed to Kernel, Observability, Validation, Gateway, Shell, or Governance without creating local symptom tickets too early.
+- [done] Add a promotion rule requiring anti-entropy review before Sentinel findings become TODO/GitHub candidates when structural patterns are active.
+- [done] Add an operator-facing anti-entropy digest that shows only top drivers, current posture, and next stabilizing action.
 
 ## Observability + Tooling Contracts (new)
 
