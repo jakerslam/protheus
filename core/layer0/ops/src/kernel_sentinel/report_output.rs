@@ -291,12 +291,10 @@ fn stream_report_bundle(
     let top_findings = issues.iter().take(finding_limit).map(compact_issue).collect::<Vec<_>>();
     let root_cause_clusters = stream_root_cause_clusters(&issues);
     let problem_reliability = super::problem_reliability::stream_problem_reliability(dir, &issues);
-    let anti_entropy = super::anti_entropy::stream_anti_entropy_posture(&issues, &problem_reliability);
+    let trend_report = fs::read_to_string(dir.join("sentinel_trend_report_current.json")).ok().and_then(|raw| serde_json::from_str::<Value>(&raw).ok()).unwrap_or_else(|| json!({}));
+    let anti_entropy = super::anti_entropy::stream_anti_entropy_posture(&issues, &problem_reliability, &trend_report);
     let top_suggestions = suggestions.iter().take(suggestion_limit).map(compact_suggestion).collect::<Vec<_>>();
-    let critical_count = issues
-        .iter()
-        .filter(|row| text(row, "severity") == "critical")
-        .count();
+    let critical_count = issues.iter().filter(|row| text(row, "severity") == "critical").count();
     let verdict_label = if critical_count > 0 {
         "release_fail"
     } else if issues.is_empty() {
