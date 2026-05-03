@@ -275,6 +275,8 @@ fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], 
     let issue_count = issues.len();
     let suggestion_count = suggestions.len();
     let critical_open_count = verdict["critical_open_count"].as_u64().unwrap_or(0);
+    let stream_findings = issues.iter().map(stream_issue_as_finding).collect::<Vec<_>>();
+    let stream_causal_calibration = stream_causal_calibration(issues);
     let mut report = json!({
         "ok": verdict["ok"].clone(),
         "type": "kernel_sentinel_report",
@@ -319,6 +321,7 @@ fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], 
             "rate_limited_cluster_count": 0,
             "issue_quality": {"ok": true, "source": "pre_synthesized_stream"}
         },
+        "causal_calibration": stream_causal_calibration,
         "maintenance_synthesis": {
             "suggestion_count": suggestion_count,
             "automation_candidate_count": 0
@@ -328,7 +331,9 @@ fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], 
             "checked_count": 0,
             "contradiction_count": 0,
             "contradictions": []
-        }
+        },
+        "findings": stream_findings,
+        "malformed_findings": []
     });
     if let Some(row) = quarantine {
         report["output_quarantine"] = row;
@@ -349,6 +354,7 @@ fn write_stream_bundle_and_print(dir: &Path, bundle: &StreamReportBundle, args: 
     if let Err(err) = super::write_json(&dir.join("kernel_sentinel_report_current.json"), &bounded)
         .and_then(|_| super::write_json(&dir.join("kernel_sentinel_final_report_current.json"), &bundle.final_report))
         .and_then(|_| super::write_json(&dir.join("kernel_sentinel_verdict.json"), &bundle.verdict))
+        .and_then(|_| super::causal_calibration::write_causal_calibration_artifacts(dir, &bundle.report))
         .and_then(|_| super::write_json(&dir.join("kernel_sentinel_health_current.json"), &health))
         .and_then(|_| super::boot_watch::write_watch_metadata(dir, &bundle.report, args))
     {
@@ -380,7 +386,7 @@ fn compact_issue(row: &Value) -> Value {
         "fingerprint": text(row, "fingerprint"),
         "occurrence_count": row["occurrence_count"].clone(),
         "summary": clip(&first_present(row, &["summary", "actual_behavior", "observed_failure"]), 260),
-        "root_cause_hypothesis": clip(text(row, "root_cause_hypothesis"), 240),
+        "root_cause_hypothesis": clip(&stream_root_cause_hypothesis(row), 240),
         "recommended_fix": clip(&stream_recommended_fix(row), 420),
         "acceptance_criteria": limited_array(&row["acceptance_criteria"], 3),
         "evidence": limited_array(&row["evidence"], 3)
@@ -396,6 +402,145 @@ fn compact_suggestion(row: &Value) -> Value {
         "suggested_change": clip(text(row, "suggested_change"), 260),
         "evidence": limited_array(&row["evidence"], 2)
     })
+}
+
+fn stream_issue_as_finding(row: &Value) -> Value {
+    json!({
+        "schema_version": super::KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
+        "id": first_present(row, &["id", "fingerprint", "title"]),
+        "severity": text(row, "severity"),
+        "category": text(row, "category"),
+        "fingerprint": text(row, "fingerprint"),
+        "evidence": row.get("evidence").cloned().unwrap_or_else(|| json!([])),
+        "summary": clip(&first_present(row, &["summary", "actual_behavior", "title"]), 260),
+        "recommended_action": clip(&first_present(row, &["recommended_action", "recommended_fix", "suggested_change"]), 260),
+        "status": "open",
+        "occurrence_count": row.get("occurrence_count").cloned().unwrap_or_else(|| json!(1)),
+        "acceptance_criteria": limited_array(&row["acceptance_criteria"], 3)
+    })
+}
+
+fn stream_root_cause_hypothesis(row: &Value) -> String {
+    let explicit = text(row, "root_cause_hypothesis").trim();
+    if !explicit.is_empty() {
+        return explicit.to_string();
+    }
+    let fingerprint = text(row, "fingerprint");
+    let category = text(row, "category");
+    let recovery = first_present(row, &["recovery_reason", "recommended_fix", "suggested_change"]);
+    let evidence = first_present(row, &["actual_behavior", "summary", "title"]);
+    if fingerprint.contains("synthetic_user_chat_harness")
+        || evidence.to_ascii_lowercase().contains("empty_assistant_response")
+    {
+        return "workflow finalization is likely dropping or failing to synthesize a visible assistant response after execution evidence is produced".to_string();
+    }
+    if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
+        return "evaluation evidence is recurring faster than the current runtime correction loop can absorb, suggesting unresolved correctness debt in the observed execution family".to_string();
+    }
+    if category == "receipt_integrity" || fingerprint.contains("receipt") || fingerprint.contains("drift") {
+        return "authoritative receipt generation or receipt-to-action linkage is likely incomplete for this path, allowing drift evidence to persist".to_string();
+    }
+    if recovery.contains("inspect_kernel_evidence") {
+        return "the Kernel evidence stream is surfacing a recurring failure family whose governing invariant is not yet being repaired at the source".to_string();
+    }
+    if recovery.contains("restore_receipt") {
+        return "the runtime appears to be preserving action evidence without restoring the matching authoritative receipt contract".to_string();
+    }
+    format!(
+        "the recurring `{}` finding likely reflects unresolved `{}` debt that still needs a falsifiable source-level repair path",
+        if fingerprint.is_empty() { "kernel_sentinel_stream_issue" } else { fingerprint },
+        if category.is_empty() { "runtime_correctness" } else { category }
+    )
+}
+
+fn stream_causal_calibration(issues: &[Value]) -> Value {
+    let entries = issues
+        .iter()
+        .take(8)
+        .map(|row| {
+            json!({
+                "type": "kernel_sentinel_causal_hypothesis_ledger_entry",
+                "schema_version": 1,
+                "generated_at": crate::now_iso(),
+                "hypothesis_id": format!("stream_hypothesis:{}", text(row, "fingerprint")),
+                "finding_fingerprint": text(row, "fingerprint"),
+                "pattern": stream_pattern_id(row),
+                "outcome_status": "unresolved",
+                "calibrated_confidence_percent": stream_confidence_percent(row),
+                "promotion_ready": false,
+                "falsification_probe": stream_falsification_probe(row),
+                "next_action": stream_recommended_fix(row),
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let mut pattern_counts = std::collections::BTreeMap::<String, u64>::new();
+    for row in issues {
+        let key = stream_pattern_id(row);
+        *pattern_counts.entry(key).or_insert(0) += row["occurrence_count"].as_u64().unwrap_or(1);
+    }
+    let pattern_scores = pattern_counts
+        .into_iter()
+        .map(|(pattern, occurrences)| {
+            json!({
+                "pattern": pattern,
+                "occurrence_count": occurrences,
+                "trust_score": (50 + occurrences.min(40)).min(95),
+                "status": "observed_stream_pattern"
+            })
+        })
+        .collect::<Vec<_>>();
+
+    json!({
+        "current_ledger_entries": entries,
+        "pattern_scores": pattern_scores,
+        "calibrated_hypothesis_count": issues.len().min(8),
+        "promotion_ready_count": 0
+    })
+}
+
+fn stream_pattern_id(row: &Value) -> String {
+    let fingerprint = text(row, "fingerprint");
+    let actual = first_present(row, &["actual_behavior", "summary", "title"]).to_ascii_lowercase();
+    if fingerprint.contains("synthetic_user_chat_harness") || actual.contains("empty_assistant_response") {
+        "response_finalization_gap".to_string()
+    } else if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
+        "eval_feedback_recurrence_gap".to_string()
+    } else if fingerprint.contains("receipt") || fingerprint.contains("drift") {
+        "receipt_integrity_gap".to_string()
+    } else {
+        format!(
+            "{}_stream_pattern",
+            text(row, "category").replace('-', "_").replace(' ', "_")
+        )
+    }
+}
+
+fn stream_confidence_percent(row: &Value) -> u64 {
+    let severity_bonus = match text(row, "severity") {
+        "critical" => 25,
+        "high" => 18,
+        "medium" => 10,
+        "low" => 4,
+        _ => 0,
+    };
+    (52 + severity_bonus + row["occurrence_count"].as_u64().unwrap_or(1).min(18)).min(95)
+}
+
+fn stream_falsification_probe(row: &Value) -> String {
+    let fingerprint = text(row, "fingerprint");
+    if fingerprint.contains("synthetic_user_chat_harness") {
+        "rerun the synthetic user chat harness and verify that assistant-visible final responses are emitted for the affected scenario family".to_string()
+    } else if fingerprint.contains("eval_agent_feedback") || fingerprint.contains("eval_learning_loop") {
+        "rerun the eval feedback loop and confirm that the recurring evaluator signature drops for this fingerprint family".to_string()
+    } else if fingerprint.contains("receipt") || fingerprint.contains("drift") {
+        "replay the affected receipt path and verify that action evidence and authoritative receipts converge without drift".to_string()
+    } else {
+        format!(
+            "rerun focused diagnostics for `{}` and confirm the failure signature no longer recurs",
+            if fingerprint.is_empty() { "kernel_sentinel_stream_issue" } else { fingerprint }
+        )
+    }
 }
 
 fn text<'a>(row: &'a Value, key: &str) -> &'a str {
@@ -560,9 +705,14 @@ mod tests {
             "rsi_readiness_summary_current.json",
             "daily_report.md",
             "watch_freshness.json",
+            "causal_hypothesis_ledger_current.jsonl",
+            "causal_pattern_scores_current.json",
         ] {
             assert!(dir.join(name).exists(), "missing {name}");
         }
+
+        let feedback_raw = fs::read_to_string(dir.join("feedback_inbox.jsonl")).unwrap();
+        assert!(feedback_raw.contains("kernel_sentinel_feedback_item"));
 
         let watch: Value =
             serde_json::from_str(&fs::read_to_string(dir.join("watch_freshness.json")).unwrap())
