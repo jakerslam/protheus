@@ -20,7 +20,6 @@ struct StreamReportBundle {
     report: Value,
     final_report: Value,
     verdict: Value,
-    health: Value,
     exit_code: i32,
 }
 
@@ -79,6 +78,13 @@ pub(super) fn bounded_report_index(
             "issues": state_dir.join("issues.jsonl").display().to_string(),
             "suggestions": state_dir.join("suggestions.jsonl").display().to_string(),
             "automation_candidates": state_dir.join("automation_candidates.jsonl").display().to_string(),
+            "feedback_inbox": state_dir.join("feedback_inbox.jsonl").display().to_string(),
+            "trend_report": state_dir.join("sentinel_trend_report_current.json").display().to_string(),
+            "rsi_readiness": state_dir.join("rsi_readiness_summary_current.json").display().to_string(),
+            "top_system_holes": state_dir.join("top_system_holes_current.json").display().to_string(),
+            "daily_report": state_dir.join("daily_report.md").display().to_string(),
+            "causal_hypothesis_ledger": state_dir.join("causal_hypothesis_ledger_current.jsonl").display().to_string(),
+            "causal_pattern_scores": state_dir.join("causal_pattern_scores_current.json").display().to_string(),
         }
     });
     if !report["output_quarantine"].is_null() {
@@ -98,7 +104,7 @@ pub(super) fn run_report_command(root: &Path, command: &str, args: &[String]) ->
     let write_full_internal_report = should_write_full_internal_report(args);
     if command == "report" && !write_full_internal_report {
         if let Some(bundle) = stream_report_bundle(&dir, args, quarantine.clone()) {
-            return write_stream_bundle_and_print(&dir, &bundle);
+            return write_stream_bundle_and_print(&dir, &bundle, args);
         }
     }
     let (mut report, verdict, exit) = match build_report_with_timeout(root, args) {
@@ -189,7 +195,11 @@ fn write_built_outputs(
     super::write_json(&dir.join("kernel_sentinel_final_report_current.json"), &report["final_report"])?;
     super::write_json(&dir.join("kernel_sentinel_verdict.json"), verdict)?;
     super::causal_calibration::write_causal_calibration_artifacts(dir, report)?;
-    super::write_json(&dir.join("kernel_sentinel_health_current.json"), &build_health_report(report, verdict, None, None))?;
+    let self_study_outputs = super::self_study::write_self_study_outputs(dir, report)?;
+    super::write_json(
+        &dir.join("kernel_sentinel_health_current.json"),
+        &build_health_report(report, verdict, Some(&self_study_outputs), None),
+    )?;
     super::issue_synthesis::write_issue_drafts_jsonl(&dir.join("issues.jsonl"), report, None)?;
     super::maintenance_synthesis::write_maintenance_jsonl(dir, report)?;
     super::boot_watch::write_watch_metadata(dir, report, args)?;
@@ -258,11 +268,13 @@ fn stream_report_bundle(dir: &Path, args: &[String], quarantine: Option<Value>) 
     final_report["report_budget"] = json!({"byte_budget": byte_budget, "estimated_bytes": bytes, "within_budget": bytes <= byte_budget, "full_report_embedded": false});
     final_report["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&final_report));
     let report = synthetic_stream_report(dir, &issues, &suggestions, &verdict, &final_report, quarantine);
-    let health = json!({"ok": critical_count == 0, "type": "kernel_sentinel_health", "source": "stream_compacted", "issue_count": issues.len(), "suggestion_count": suggestions.len(), "critical_open_count": critical_count});
-    Some(StreamReportBundle { report, final_report, verdict, health, exit_code: if critical_count > 0 && bool_flag(args, "--strict") { 2 } else { 0 } })
+    Some(StreamReportBundle { report, final_report, verdict, exit_code: if critical_count > 0 && bool_flag(args, "--strict") { 2 } else { 0 } })
 }
 
 fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], verdict: &Value, final_report: &Value, quarantine: Option<Value>) -> Value {
+    let issue_count = issues.len();
+    let suggestion_count = suggestions.len();
+    let critical_open_count = verdict["critical_open_count"].as_u64().unwrap_or(0);
     let mut report = json!({
         "ok": verdict["ok"].clone(),
         "type": "kernel_sentinel_report",
@@ -270,24 +282,52 @@ fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], 
         "canonical_name": super::KERNEL_SENTINEL_NAME,
         "state_dir": dir,
         "operator_summary": {
-            "issue_count": issues.len(),
-            "suggestion_count": suggestions.len(),
-            "critical_open_count": verdict["critical_open_count"].clone(),
+            "issue_count": issue_count,
+            "suggestion_count": suggestion_count,
+            "critical_open_count": critical_open_count,
             "source": "issues_and_suggestions_streams",
-            "raw_evidence_embedded": false
+            "raw_evidence_embedded": false,
+            "data_starved": false,
+            "partial_evidence": false,
+            "malformed_evidence": false,
+            "stale_evidence": false,
+            "missing_required_source_count": 0,
+            "missing_optional_source_count": 0,
+            "present_required_source_count": 1,
+            "present_optional_source_count": 0,
+            "present_source_count": 1,
+            "missing_source_count": 0,
+            "evidence_record_count": issue_count + suggestion_count,
+            "freshness_observed_record_count": issue_count + suggestion_count,
+            "stale_record_count": 0,
+            "max_evidence_age_seconds": 0,
+            "stale_evidence_seconds": 0,
+            "scheduler_status": "stream_compacted",
+            "scheduler_running": false,
+            "scheduler_stale": false,
+            "observation_state": "stream_compacted"
         },
         "report_budget": final_report["report_budget"].clone(),
         "final_report": final_report.clone(),
         "verdict": verdict.clone(),
+        "release_gate": {
+            "pass": critical_open_count == 0
+        },
         "issue_synthesis": {
-            "issue_draft_count": issues.len(),
-            "active_issue_window_count": issues.len(),
+            "issue_draft_count": issue_count,
+            "active_issue_window_count": issue_count,
             "rate_limited_cluster_count": 0,
             "issue_quality": {"ok": true, "source": "pre_synthesized_stream"}
         },
         "maintenance_synthesis": {
-            "suggestion_count": suggestions.len(),
+            "suggestion_count": suggestion_count,
             "automation_candidate_count": 0
+        },
+        "guard_consistency": {
+            "ok": true,
+            "checked_count": 0,
+            "contradiction_count": 0,
+            "contradictions": []
         }
     });
     if let Some(row) = quarantine {
@@ -296,12 +336,21 @@ fn synthetic_stream_report(dir: &Path, issues: &[Value], suggestions: &[Value], 
     report
 }
 
-fn write_stream_bundle_and_print(dir: &Path, bundle: &StreamReportBundle) -> i32 {
+fn write_stream_bundle_and_print(dir: &Path, bundle: &StreamReportBundle, args: &[String]) -> i32 {
     let bounded = bounded_report_index(&bundle.report, dir, false);
+    let self_study_outputs = match super::self_study::write_self_study_outputs(dir, &bundle.report) {
+        Ok(outputs) => outputs,
+        Err(err) => {
+            eprintln!("kernel_sentinel_write_stream_self_study_failed: {err}");
+            return 1;
+        }
+    };
+    let health = build_health_report(&bundle.report, &bundle.verdict, Some(&self_study_outputs), None);
     if let Err(err) = super::write_json(&dir.join("kernel_sentinel_report_current.json"), &bounded)
         .and_then(|_| super::write_json(&dir.join("kernel_sentinel_final_report_current.json"), &bundle.final_report))
         .and_then(|_| super::write_json(&dir.join("kernel_sentinel_verdict.json"), &bundle.verdict))
-        .and_then(|_| super::write_json(&dir.join("kernel_sentinel_health_current.json"), &bundle.health))
+        .and_then(|_| super::write_json(&dir.join("kernel_sentinel_health_current.json"), &health))
+        .and_then(|_| super::boot_watch::write_watch_metadata(dir, &bundle.report, args))
     {
         eprintln!("kernel_sentinel_write_stream_report_failed: {err}");
         return 1;
@@ -432,6 +481,7 @@ pub(super) fn write_full_internal_report_if_requested(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn bounded_report_index_excludes_internal_noise_by_default() {
@@ -464,5 +514,66 @@ mod tests {
         assert!(index.get("findings").is_none());
         assert!(index.get("malformed_findings").is_none());
         assert!(index.get("release_gate").is_none());
+    }
+
+    #[test]
+    fn stream_bundle_refreshes_self_study_companions_and_watch_metadata() {
+        let dir = std::env::temp_dir().join(format!(
+            "kernel-sentinel-stream-bundle-{}",
+            crate::deterministic_receipt_hash(&json!({
+                "test": "stream-bundle-refresh",
+                "nonce": std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            }))
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("issues.jsonl"),
+            concat!(
+                "{\"title\":\"Critical receipt drift\",\"severity\":\"critical\",\"category\":\"receipt_integrity\",\"fingerprint\":\"receipt:drift\",\"summary\":\"receipt drift persisted\",\"root_cause_hypothesis\":\"authority residue\",\"occurrence_count\":3,\"evidence\":[\"fixture://receipt\"]}\n"
+            ),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("suggestions.jsonl"),
+            concat!(
+                "{\"severity\":\"high\",\"category\":\"runtime_correctness\",\"fingerprint\":\"runtime:hardening\",\"occurrence_count\":2,\"suggested_change\":\"tighten runtime proof coverage\",\"evidence\":[\"fixture://runtime\"]}\n"
+            ),
+        )
+        .unwrap();
+
+        let args = vec!["--strict=1".to_string()];
+        let bundle = stream_report_bundle(&dir, &args, None).expect("stream bundle");
+        let exit = write_stream_bundle_and_print(&dir, &bundle, &args);
+        assert_eq!(exit, 2);
+
+        for name in [
+            "kernel_sentinel_report_current.json",
+            "kernel_sentinel_final_report_current.json",
+            "kernel_sentinel_verdict.json",
+            "kernel_sentinel_health_current.json",
+            "feedback_inbox.jsonl",
+            "sentinel_trend_report_current.json",
+            "top_system_holes_current.json",
+            "rsi_readiness_summary_current.json",
+            "daily_report.md",
+            "watch_freshness.json",
+        ] {
+            assert!(dir.join(name).exists(), "missing {name}");
+        }
+
+        let watch: Value =
+            serde_json::from_str(&fs::read_to_string(dir.join("watch_freshness.json")).unwrap())
+                .unwrap();
+        assert_eq!(watch["missing_required_artifact_count"], 0);
+        assert_eq!(watch["stale_required_artifact_count"], 0);
+
+        let trend: Value = serde_json::from_str(
+            &fs::read_to_string(dir.join("sentinel_trend_report_current.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(trend["current"]["finding_count"], 1);
     }
 }

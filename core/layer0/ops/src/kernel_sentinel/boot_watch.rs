@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+use super::cli_args::option_usize;
 
 fn bool_flag(args: &[String], name: &str) -> bool {
     args.iter()
@@ -34,6 +35,51 @@ fn unix_now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0)
+}
+
+fn artifact_age_seconds(path: &Path, now: u64) -> Option<u64> {
+    let modified = fs::metadata(path)
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()?
+        .as_secs();
+    Some(now.saturating_sub(modified))
+}
+
+fn required_freshness_rows(dir: &Path, now: u64, stale_window_seconds: u64) -> Vec<Value> {
+    [
+        ("kernel_sentinel_report_current.json", true),
+        ("kernel_sentinel_final_report_current.json", true),
+        ("kernel_sentinel_verdict.json", true),
+        ("kernel_sentinel_health_current.json", true),
+        ("feedback_inbox.jsonl", true),
+        ("sentinel_trend_report_current.json", true),
+        ("top_system_holes_current.json", true),
+        ("rsi_readiness_summary_current.json", true),
+        ("daily_report.md", true),
+        ("causal_hypothesis_ledger_current.jsonl", false),
+        ("causal_pattern_scores_current.json", false),
+    ]
+    .into_iter()
+    .map(|(name, required)| {
+        let path = dir.join(name);
+        let age_seconds = artifact_age_seconds(&path, now);
+        let exists = path.exists();
+        let stale = age_seconds
+            .map(|age| age > stale_window_seconds)
+            .unwrap_or(true);
+        json!({
+            "artifact": name,
+            "required": required,
+            "path": path,
+            "exists": exists,
+            "age_seconds": age_seconds,
+            "stale": stale,
+        })
+    })
+    .collect()
 }
 
 fn finding(id: String, evidence: Vec<String>, summary: String, action: &str) -> KernelSentinelFinding {
@@ -128,20 +174,38 @@ pub fn build_boot_watch_report(
 }
 
 pub fn write_watch_metadata(dir: &Path, report: &Value, args: &[String]) -> Result<(), String> {
-    if !bool_flag(args, "--watch-refresh") {
-        return Ok(());
-    }
     fs::create_dir_all(dir).map_err(|err| err.to_string())?;
+    let now = unix_now();
+    let stale_window_seconds = option_usize(args, "--stale-window-seconds", 5_400) as u64;
+    let artifact_freshness = required_freshness_rows(dir, now, stale_window_seconds);
+    let missing_required_artifact_count = artifact_freshness
+        .iter()
+        .filter(|row| row["required"].as_bool().unwrap_or(false) && !row["exists"].as_bool().unwrap_or(false))
+        .count();
+    let stale_required_artifact_count = artifact_freshness
+        .iter()
+        .filter(|row| row["required"].as_bool().unwrap_or(false) && row["stale"].as_bool().unwrap_or(true))
+        .count();
+    let freshness_age_seconds = artifact_freshness
+        .iter()
+        .filter(|row| row["required"].as_bool().unwrap_or(false))
+        .filter_map(|row| row["age_seconds"].as_u64())
+        .max()
+        .unwrap_or(0);
     let payload = json!({
-        "ok": true,
+        "ok": missing_required_artifact_count == 0 && stale_required_artifact_count == 0,
         "type": "kernel_sentinel_watch_freshness",
-        "generated_at_epoch_seconds": unix_now(),
-        "freshness_age_seconds": 0,
+        "generated_at_epoch_seconds": now,
+        "freshness_age_seconds": freshness_age_seconds,
         "shell_required": false,
         "boot_watch_ok": report["boot_watch"]["ok"],
         "boot_watch_failure_count": report["boot_watch"]["failure_count"],
         "report_verdict": report["verdict"]["verdict"],
-        "report_receipt_hash": report["verdict"]["receipt_hash"]
+        "report_receipt_hash": report["verdict"]["receipt_hash"],
+        "stale_window_seconds": stale_window_seconds,
+        "missing_required_artifact_count": missing_required_artifact_count,
+        "stale_required_artifact_count": stale_required_artifact_count,
+        "artifact_freshness": artifact_freshness
     });
     let body = serde_json::to_string_pretty(&payload).map_err(|err| err.to_string())?;
     fs::write(dir.join("watch_freshness.json"), format!("{body}\n")).map_err(|err| err.to_string())
@@ -167,10 +231,25 @@ mod tests {
     #[test]
     fn watch_refresh_writes_freshness_without_shell() {
         let dir = std::env::temp_dir().join("kernel-sentinel-watch-refresh-test");
+        fs::create_dir_all(&dir).unwrap();
+        for name in [
+            "kernel_sentinel_report_current.json",
+            "kernel_sentinel_final_report_current.json",
+            "kernel_sentinel_verdict.json",
+            "kernel_sentinel_health_current.json",
+            "feedback_inbox.jsonl",
+            "sentinel_trend_report_current.json",
+            "top_system_holes_current.json",
+            "rsi_readiness_summary_current.json",
+            "daily_report.md",
+        ] {
+            fs::write(dir.join(name), "{}\n").unwrap();
+        }
         let args = vec!["--watch-refresh=1".to_string()];
         let report = json!({"verdict": {"verdict": "allow", "receipt_hash": "abc"}});
         write_watch_metadata(&dir, &report, &args).unwrap();
         let raw = fs::read_to_string(dir.join("watch_freshness.json")).unwrap();
         assert!(raw.contains("\"shell_required\": false"));
+        assert!(raw.contains("\"missing_required_artifact_count\": 0"));
     }
 }
