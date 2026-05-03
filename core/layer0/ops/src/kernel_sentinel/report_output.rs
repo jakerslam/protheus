@@ -507,6 +507,7 @@ fn compact_issue(row: &Value) -> Value {
         "likely_source_areas": stream_likely_source_areas(row),
         "causal_pattern": stream_pattern_id(row),
         "causal_cluster_key": stream_cluster_key(row),
+        "problem_truth": stream_problem_truth_compact(row),
         "root_cause_hypothesis": clip(&stream_root_cause_hypothesis(row), 240),
         "falsification_probe": stream_falsification_probe(row),
         "recommended_fix": clip(&stream_recommended_fix(row), 420),
@@ -537,7 +538,10 @@ fn stream_issue_as_finding(row: &Value) -> Value {
         "summary": clip(&first_present(row, &["summary", "actual_behavior", "title"]), 260),
         "recommended_action": clip(&first_present(row, &["recommended_action", "recommended_fix", "suggested_change"]), 260),
         "owner_guess": stream_owner_guess(row),
+        "observed_failure": stream_observed_failure(row),
+        "suspected_mechanism": stream_suspected_mechanism(row),
         "root_cause_hypothesis": stream_root_cause_hypothesis(row),
+        "problem_truth": stream_problem_truth(row),
         "root_frame": stream_root_frame(row),
         "causal_pattern": stream_pattern_id(row),
         "causal_cluster_key": stream_cluster_key(row),
@@ -603,6 +607,7 @@ fn stream_causal_calibration(issues: &[Value]) -> Value {
                 "pattern": stream_pattern_id(row),
                 "owner_guess": stream_owner_guess(row),
                 "likely_source_areas": stream_likely_source_areas(row),
+                "problem_truth": stream_problem_truth(row),
                 "outcome_status": "unresolved",
                 "calibrated_confidence_percent": stream_confidence_percent(row),
                 "promotion_ready": false,
@@ -664,6 +669,8 @@ struct StreamRootCauseCluster {
     occurrence_count: u64,
     sample_fingerprints: Vec<String>,
     likely_source_areas: Vec<String>,
+    evidence_sufficient_count: u64,
+    low_confidence_count: u64,
 }
 
 impl StreamRootCauseCluster {
@@ -676,11 +683,22 @@ impl StreamRootCauseCluster {
             occurrence_count: 0,
             sample_fingerprints: Vec::new(),
             likely_source_areas: Vec::new(),
+            evidence_sufficient_count: 0,
+            low_confidence_count: 0,
         }
     }
 
     fn push(&mut self, row: &Value) {
         self.occurrence_count += row["occurrence_count"].as_u64().unwrap_or(1);
+        if stream_evidence_sufficiency(row)["ok"]
+            .as_bool()
+            .unwrap_or(false)
+        {
+            self.evidence_sufficient_count += 1;
+        }
+        if stream_confidence_percent(row) < 70 {
+            self.low_confidence_count += 1;
+        }
         push_unique(&mut self.sample_fingerprints, text(row, "fingerprint"), 5);
         for area in stream_source_area_strings(row) {
             push_unique(&mut self.likely_source_areas, &area, 5);
@@ -696,8 +714,139 @@ impl StreamRootCauseCluster {
             "occurrence_count": self.occurrence_count,
             "sample_fingerprints": self.sample_fingerprints,
             "likely_source_areas": self.likely_source_areas,
+            "problem_truth_summary": {
+                "evidence_sufficient_member_count": self.evidence_sufficient_count,
+                "low_confidence_member_count": self.low_confidence_count,
+                "confidence_policy": "clusters_remain_review_only_until_members_have_evidence_recurrence_and_counter_evidence_probes"
+            },
+            "grouping_rationale": {
+                "why_grouped": "same_owner_same_causal_pattern",
+                "split_policy": "split_when_owner_pattern_or_explicit_counter_evidence_diverges",
+                "drift_guard": "unstable_or_contradicted_cluster_classification_must_drop_to_triage"
+            },
             "promotion_state": "cluster_ready_for_human_review"
         })
+    }
+}
+
+fn stream_problem_truth(row: &Value) -> Value {
+    let confidence = stream_confidence_percent(row);
+    let evidence_sufficiency = stream_evidence_sufficiency(row);
+    let missing_evidence = stream_missing_evidence(row);
+    let promotion_state =
+        if evidence_sufficiency["ok"].as_bool().unwrap_or(false) && confidence >= 70 {
+            "draft_problem_ready_for_review"
+        } else {
+            "triage_only"
+        };
+    json!({
+        "observed_failure": clip(&stream_observed_failure(row), 220),
+        "suspected_mechanism": stream_suspected_mechanism(row),
+        "root_cause_hypothesis": clip(&stream_root_cause_hypothesis(row), 240),
+        "confidence_percent": confidence,
+        "confidence_label": stream_confidence_label(confidence),
+        "evidence_sufficiency": evidence_sufficiency,
+        "missing_evidence": missing_evidence,
+        "counter_evidence": {
+            "status": "not_observed_in_stream",
+            "probe": stream_falsification_probe(row),
+            "would_downgrade_if": "probe passes while the finding fingerprint continues to be emitted"
+        },
+        "promotion_state": promotion_state
+    })
+}
+
+fn stream_problem_truth_compact(row: &Value) -> Value {
+    let confidence = stream_confidence_percent(row);
+    let evidence_sufficiency = stream_evidence_sufficiency(row);
+    let missing_evidence = stream_missing_evidence(row);
+    let promotion_state =
+        if evidence_sufficiency["ok"].as_bool().unwrap_or(false) && confidence >= 70 {
+            "draft_problem_ready_for_review"
+        } else {
+            "triage_only"
+        };
+    json!({
+        "observed_failure": clip(&stream_observed_failure(row), 160),
+        "root_cause_hypothesis": clip(&stream_root_cause_hypothesis(row), 180),
+        "confidence_percent": confidence,
+        "confidence_label": stream_confidence_label(confidence),
+        "evidence_sufficient": evidence_sufficiency["ok"].clone(),
+        "missing_evidence": missing_evidence,
+        "counter_evidence_status": "not_observed_in_stream",
+        "promotion_state": promotion_state
+    })
+}
+
+fn stream_evidence_sufficiency(row: &Value) -> Value {
+    let missing = stream_missing_evidence(row);
+    let missing_count = missing.as_array().map(Vec::len).unwrap_or(0);
+    json!({
+        "ok": missing_count == 0,
+        "has_source_artifact": has_stream_evidence(row),
+        "has_observed_failure": !stream_observed_failure(row).trim().is_empty(),
+        "has_recurrence_or_criticality": stream_has_recurrence_or_criticality(row),
+        "has_falsification_probe": !stream_falsification_probe(row).trim().is_empty(),
+        "missing_count": missing_count,
+        "policy": "problem_findings_need_source_artifact_observed_failure_recurrence_or_criticality_and_falsification_probe"
+    })
+}
+
+fn stream_missing_evidence(row: &Value) -> Value {
+    let mut missing = Vec::new();
+    if !has_stream_evidence(row) {
+        missing.push(json!("source_artifact"));
+    }
+    if stream_observed_failure(row).trim().is_empty() {
+        missing.push(json!("observed_failure"));
+    }
+    if !stream_has_recurrence_or_criticality(row) {
+        missing.push(json!("recurrence_or_criticality"));
+    }
+    if stream_falsification_probe(row).trim().is_empty() {
+        missing.push(json!("falsification_probe"));
+    }
+    Value::Array(missing)
+}
+
+fn has_stream_evidence(row: &Value) -> bool {
+    row["evidence"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .any(|item| item.as_str().map(|s| !s.trim().is_empty()).unwrap_or(false))
+        })
+        .unwrap_or(false)
+}
+
+fn stream_has_recurrence_or_criticality(row: &Value) -> bool {
+    row["occurrence_count"].as_u64().unwrap_or(0) > 1 || text(row, "severity") == "critical"
+}
+
+fn stream_observed_failure(row: &Value) -> String {
+    first_present(
+        row,
+        &["observed_failure", "actual_behavior", "summary", "title"],
+    )
+}
+
+fn stream_suspected_mechanism(row: &Value) -> String {
+    match stream_pattern_id(row).as_str() {
+        "response_finalization_gap" => "assistant-visible response finalization is failing after execution evidence is produced",
+        "eval_feedback_recurrence_gap" => "eval feedback is recurring without being absorbed into a resolved runtime correction",
+        "receipt_integrity_gap" => "receipt and action evidence are diverging for the affected runtime path",
+        _ => "recurring Sentinel evidence has not yet been mapped to a narrower mechanism",
+    }
+    .to_string()
+}
+
+fn stream_confidence_label(confidence: u64) -> &'static str {
+    match confidence {
+        85..=100 => "high",
+        70..=84 => "medium",
+        1..=69 => "low",
+        _ => "unknown",
     }
 }
 
