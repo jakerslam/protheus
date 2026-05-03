@@ -449,6 +449,30 @@ fn workflow_category_token_matches(response: &str, has_tools: Option<bool>) -> b
     workflow_category_selection(&default_workflow_tool_menu_contract(), response, has_tools).is_some()
 }
 
+fn response_contains_no_tool_gate_token_fragment(response: &str) -> bool {
+    let token = normalized_workflow_token(response);
+    if token.is_empty() {
+        return false;
+    }
+    let haystack = format!(" {token} ");
+    workflow_gate_options(
+        &default_workflow_tool_menu_contract(),
+        "gate_1_work_category_menu",
+    )
+    .into_iter()
+    .filter(|option| {
+        !option
+            .get("has_tools")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    })
+    .flat_map(|option| normalized_workflow_option_tokens(&option))
+    .any(|candidate| {
+        candidate.split_whitespace().count() > 1
+            && haystack.contains(&format!(" {candidate} "))
+    })
+}
+
 fn workflow_category_selection(
     contract: &Value,
     response: &str,
@@ -754,6 +778,12 @@ fn turn_workflow_requires_final_llm(
     }
     let cleaned_draft = clean_text(draft_response, 4_000);
     if cleaned_draft.is_empty() {
+        return true;
+    }
+    if response_is_exact_no_tool_gate_submission(&cleaned_draft) {
+        return true;
+    }
+    if response_contains_no_tool_gate_token_fragment(&cleaned_draft) {
         return true;
     }
     if response_is_visible_workflow_gate_choice(&cleaned_draft) {
@@ -1087,6 +1117,14 @@ fn workflow_response_requests_more_tooling(response: &str) -> bool {
             "let me search",
             "i'll search",
             "i will search",
+            "i'll use the web search",
+            "i will use the web search",
+            "please hold while i gather",
+            "once i have that information",
+            "let me start that process",
+            "let's inspect",
+            "need to perform a web search",
+            "i need to perform a web search",
             "would you like me to search",
             "would you like me to fetch",
             "search for more",
@@ -1377,8 +1415,8 @@ mod workflow_control_tests {
         let prompt =
             workflow_library_prompt_context("Use web search to compare agent frameworks.", &[]);
         assert!(prompt.contains("Private workflow gate submission only"));
-        assert!(prompt.contains("Reply with exactly one option number or exact label"));
-        assert!(prompt.contains("advance to the private tool menu"));
+        assert!(prompt.contains("Reply with one token only"));
+        assert!(prompt.contains("open the private tool menu"));
         assert!(prompt.contains("Do not narrate"));
         assert!(!prompt.contains("present exactly one gate"));
         assert!(!prompt.contains("If Yes, continue"));
@@ -1391,6 +1429,13 @@ mod workflow_control_tests {
         assert!(!response_is_exact_no_tool_gate_submission(
             "No. I would use web search later."
         ));
+    }
+
+    #[test]
+    fn embedded_no_tool_gate_token_fragment_requires_final_llm() {
+        let draft = "I will answer now. 1 = Respond directly";
+        assert!(response_contains_no_tool_gate_token_fragment(draft));
+        assert!(turn_workflow_requires_final_llm(&[], &[], draft));
     }
 
     #[test]

@@ -1561,6 +1561,25 @@ fn response_looks_like_raw_tool_payload_dump(response_text: &str) -> bool {
         || lowered.contains("<function=")
 }
 
+fn mark_workflow_pending_gate_without_final_synthesis(
+    workflow: &mut Value,
+    status: &str,
+    fallback_source: &str,
+    gate_attempt_count: u64,
+) {
+    workflow["response"] = Value::String(String::new());
+    workflow["final_llm_response"]["required"] = Value::Bool(false);
+    workflow["final_llm_response"]["attempted"] = Value::Bool(false);
+    workflow["final_llm_response"]["used"] = Value::Bool(false);
+    workflow["final_llm_response"]["attempt_count"] = json!(0);
+    workflow["final_llm_response"]["gate_attempt_count"] = json!(gate_attempt_count);
+    workflow["final_llm_response"]["status"] = Value::String(clean_text(status, 80));
+    workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
+    workflow["final_llm_response"]["fallback_source"] =
+        Value::String(clean_text(fallback_source, 120));
+    set_turn_workflow_final_stage_status(workflow, status);
+}
+
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
@@ -1599,17 +1618,11 @@ fn run_turn_workflow_final_response(
             .is_some()
         {
             workflow["response"] = Value::String(String::new());
-            workflow["final_llm_response"]["required"] = Value::Bool(false);
-            workflow["final_llm_response"]["attempted"] = Value::Bool(false);
-            workflow["final_llm_response"]["used"] = Value::Bool(false);
-            workflow["final_llm_response"]["status"] =
-                Value::String("skipped_pending_tool_confirmation".to_string());
-            workflow["final_llm_response"]["fallback_from_existing_draft"] = Value::Bool(false);
-            workflow["final_llm_response"]["fallback_source"] =
-                Value::String("manual_toolbox_gate_submission".to_string());
-            set_turn_workflow_final_stage_status(
+            mark_workflow_pending_gate_without_final_synthesis(
                 &mut workflow,
                 "skipped_pending_tool_confirmation",
+                "manual_toolbox_gate_submission",
+                0,
             );
             return workflow;
         }
@@ -1792,7 +1805,7 @@ fn run_turn_workflow_final_response(
         .collect::<Vec<_>>()
         .join("\n");
     let max_attempts: u64 = if manual_toolbox_gate_turn {
-        3
+        2
     } else if response_tools.is_empty() {
         1
     } else {
@@ -1861,7 +1874,24 @@ fn run_turn_workflow_final_response(
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
     workflow["final_llm_response"]["coherence_window_messages"] =
         json!(coherence_window_messages);
+    workflow["gate_trace"] = json!({
+        "active": manual_toolbox_gate_turn,
+        "attempt_count": 0,
+        "max_gate_steps": if manual_toolbox_gate_turn { max_attempts } else { 0 },
+        "final_synthesis_attempt_count": 0,
+        "authority": "llm_private_gate_submission"
+    });
     for attempt in 1..=max_attempts {
+        if manual_toolbox_gate_turn {
+            workflow["gate_trace"]["attempt_count"] = json!(attempt);
+            workflow["gate_trace"]["current_step"] = if manual_toolbox_selected_category_key.is_empty() {
+                Value::String("gate_1_work_category_menu".to_string())
+            } else {
+                Value::String("gate_2_tool_request_input".to_string())
+            };
+        } else {
+            workflow["gate_trace"]["final_synthesis_attempt_count"] = json!(attempt);
+        }
         workflow["final_llm_response"]["attempt_count"] = json!(attempt);
         let active_manual_toolbox_gate_turn = manual_toolbox_gate_turn
             && !manual_toolbox_no_selected
@@ -1993,19 +2023,11 @@ fn run_turn_workflow_final_response(
                     .filter(|value| value.is_object())
                     .is_some()
                 {
-                    workflow["response"] = Value::String(String::new());
-                    workflow["final_llm_response"]["required"] = Value::Bool(false);
-                    workflow["final_llm_response"]["attempted"] = Value::Bool(false);
-                    workflow["final_llm_response"]["used"] = Value::Bool(false);
-                    workflow["final_llm_response"]["status"] =
-                        Value::String("skipped_pending_tool_confirmation".to_string());
-                    workflow["final_llm_response"]["fallback_from_existing_draft"] =
-                        Value::Bool(false);
-                    workflow["final_llm_response"]["fallback_source"] =
-                        Value::String(String::new());
-                    set_turn_workflow_final_stage_status(
+                    mark_workflow_pending_gate_without_final_synthesis(
                         &mut workflow,
                         "skipped_pending_tool_confirmation",
+                        "manual_toolbox_gate_submission",
+                        attempt,
                     );
                     return workflow;
                 }
@@ -2256,6 +2278,28 @@ fn run_turn_workflow_final_response(
                 last_error = clean_text(&err, 240);
             }
         }
+    }
+    if manual_toolbox_gate_turn && response_tools.is_empty() && !last_reject_reason.is_empty() {
+        workflow["workflow_control"]["direct_response_path"] =
+            if manual_toolbox_selected_category_key.is_empty() {
+                Value::String("gate_1_pending_llm_tool_choice".to_string())
+            } else {
+                Value::String("gate_2_pending_llm_tool_request".to_string())
+            };
+        workflow["final_llm_response"]["last_reject_reason"] =
+            Value::String(last_reject_reason.clone());
+        workflow["final_llm_response"]["error"] = Value::String(last_invalid_excerpt.clone());
+        mark_workflow_pending_gate_without_final_synthesis(
+            &mut workflow,
+            if manual_toolbox_selected_category_key.is_empty() {
+                "gate_1_pending_tool_choice"
+            } else {
+                "gate_2_pending_tool_request"
+            },
+            "withheld_invalid_gate_draft",
+            max_attempts,
+        );
+        return workflow;
     }
     workflow["final_llm_response"]["used"] = Value::Bool(false);
     if !last_invalid_excerpt.is_empty() {
@@ -2594,6 +2638,30 @@ mod workflow_fallback_tests {
         assert!(!manual_toolbox_response_exposes_unresolved_tool_need(
             "I would choose web search for a current framework comparison."
         ));
+    }
+
+    #[test]
+    fn stale_tool_intent_draft_for_simple_greeting_is_withheld() {
+        let message = "hey";
+        let response = "I need to perform a web search to compare Infring to top agentic frameworks in April 2026. Let me start that process. [tool:Web Research]";
+        assert!(workflow_response_requests_more_tooling(response));
+        assert!(response_contains_unrequested_content_without_tool_evidence(
+            message,
+            response,
+            &[],
+        ));
+        assert!(response_current_turn_dominance_violation(
+            message,
+            response,
+            &[],
+        ));
+    }
+
+    #[test]
+    fn stale_mixed_tool_draft_for_simple_greeting_requires_fresh_synthesis() {
+        let response = "I will use the web search to compare Infring to top agentic frameworks in April 2026. Please hold while I gather the comparison details. Meanwhile, let's inspect the tiny fixture repo and identify a small bugfix. 1 = Respond directly";
+        assert!(workflow_response_requests_more_tooling(response));
+        assert!(turn_workflow_requires_final_llm(&[], &[], response));
     }
 
     #[test]

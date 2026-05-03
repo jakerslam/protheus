@@ -436,7 +436,7 @@
       ],
       "none": []
     },
-    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Reply with exactly one option number or exact label from this menu: {category_options}. No-tool categories ({no_tool_categories}) go straight to final answer. Tool categories ({tool_bearing_categories}) advance to the private tool menu. Do not narrate, explain, or say what you would choose. Visible chat is only Gate 6 final answer."
+    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Reply with one token only from this menu: {category_options}. Use a no-tool token ({no_tool_categories}) to go straight to final answer. Use a tool token ({tool_bearing_categories}) to open the private tool menu. Do not narrate, explain, or say what you would choose. Visible chat is only Gate 6 final answer."
   },
   "workflow_source_of_truth_contract": {
     "interaction_source": "json_workflow_spec",
