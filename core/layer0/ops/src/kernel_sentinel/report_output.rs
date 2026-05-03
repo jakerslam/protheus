@@ -334,10 +334,8 @@ fn stream_report_bundle(
             "suggestions": dir.join("suggestions.jsonl").display().to_string()
         }
     });
-    let bytes = serde_json::to_vec(&final_report)
-        .map(|row| row.len())
-        .unwrap_or(usize::MAX);
-    final_report["report_budget"] = json!({"byte_budget": byte_budget, "estimated_bytes": bytes, "within_budget": bytes <= byte_budget, "full_report_embedded": false});
+    final_report =
+        super::report_stream_budget::enforce_stream_final_report_budget(final_report, byte_budget, dir);
     final_report["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&final_report));
     let report = synthetic_stream_report(
         dir,
