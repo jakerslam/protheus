@@ -1408,6 +1408,23 @@
         "core/local/artifacts/gateway_boundary_guard_current.json"
       ]
     },
+    "ops:gateway:shell-launch:guard": {
+      "owner": "ops",
+      "description": "Gateway shell launch guard proving setup-configured shell defaults and --shell terminal/ui/none overrides stay outside runtime authority.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:gateway:shell-launch:guard",
+      "canonical_definition_paths": [
+        "install.sh",
+        "shell/terminal/terminal_shell.ts",
+        "shell/terminal/terminal_output_renderer.ts",
+        "tests/tooling/scripts/ci/gateway_shell_launch_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_shell_launch_guard_current.json",
+        "local/workspace/reports/GATEWAY_SHELL_LAUNCH_GUARD_CURRENT.md"
+      ]
+    },
     "ops:system-health:guard": {
       "owner": "ops",
       "description": "Kernel-owned system health, anomaly detection, bounded adaptation, and gateway capability discovery guard.",
@@ -1936,6 +1953,90 @@
       "artifact_paths": [
         "core/local/artifacts/shell_socket_live_probe_current.json",
         "local/workspace/reports/SHELL_SOCKET_LIVE_PROBE_CURRENT.md"
+      ]
+    },
+    "ops:terminal-shell:contract:guard": {
+      "owner": "ops",
+      "description": "Terminal Shell contract guard proving the initial terminal plug uses Shell Socket only and avoids legacy dashboard/browser dependencies.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:terminal-shell:contract:guard",
+      "canonical_definition_paths": [
+        "shell/terminal/terminal_shell.ts",
+        "shell/terminal/terminal_node_fetch.ts",
+        "shell/terminal/terminal_output_renderer.ts",
+        "shell/terminal/terminal_reply_projection.ts",
+        "shell/terminal/README.md",
+        "tests/tooling/scripts/ci/terminal_shell_contract_guard.ts",
+        "shell/socket/client/shell_socket_gateway_client.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/terminal_shell_contract_guard_current.json",
+        "local/workspace/reports/TERMINAL_SHELL_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:terminal-shell:interactive-smoke": {
+      "owner": "ops",
+      "description": "Deterministic Terminal Shell interactive smoke proving the terminal plug starts a persistent prompt path and submits input through Shell Socket.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:terminal-shell:interactive-smoke",
+      "canonical_definition_paths": [
+        "shell/terminal/terminal_shell.ts",
+        "shell/terminal/terminal_node_fetch.ts",
+        "shell/terminal/terminal_output_renderer.ts",
+        "shell/terminal/terminal_reply_projection.ts",
+        "shell/socket/client/shell_socket_gateway_client.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/terminal_shell_interactive_smoke_current.json",
+        "local/workspace/reports/TERMINAL_SHELL_INTERACTIVE_SMOKE_CURRENT.md"
+      ]
+    },
+    "ops:terminal-shell:response-test": {
+      "owner": "ops",
+      "description": "Deterministic Terminal Shell response test proving the terminal plug can receive a Shell Socket runtime-status response without browser assets.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:terminal-shell:response-test",
+      "canonical_definition_paths": [
+        "shell/terminal/terminal_shell.ts",
+        "shell/socket/client/shell_socket_gateway_client.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/terminal_shell_response_test_current.json",
+        "local/workspace/reports/TERMINAL_SHELL_RESPONSE_TEST_CURRENT.md"
+      ]
+    },
+    "ops:terminal-shell:live-response-test": {
+      "owner": "ops",
+      "description": "Optional live Terminal Shell response test against the Gateway/backend Shell Socket surface at 5173.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:terminal-shell:live-response-test",
+      "canonical_definition_paths": [
+        "shell/terminal/terminal_shell.ts",
+        "shell/socket/client/shell_socket_gateway_client.ts",
+        "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/shell_socket.rs"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/terminal_shell_live_response_test_current.json",
+        "local/workspace/reports/TERMINAL_SHELL_LIVE_RESPONSE_TEST_CURRENT.md"
+      ]
+    },
+    "ops:terminal-shell:render-fixture": {
+      "owner": "ops",
+      "description": "Deterministic Terminal Shell render fixture proving Infring-branded transcript output is generated from projection blocks only.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:terminal-shell:render-fixture",
+      "canonical_definition_paths": [
+        "shell/terminal/terminal_output_renderer.ts",
+        "shell/terminal/README.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/terminal_shell_render_fixture_current.txt",
+        "local/workspace/reports/TERMINAL_SHELL_RENDER_FIXTURE_CURRENT.md"
       ]
     },
     "ops:shell:amputation:guard": {
