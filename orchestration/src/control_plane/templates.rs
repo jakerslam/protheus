@@ -2,6 +2,7 @@
 use crate::contracts::WorkflowTemplate;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,70 +51,10 @@ struct WorkflowSubtemplateSpec {
     source_refs: Vec<String>,
 }
 
-const WORKFLOW_TEMPLATE_SPEC_CLARIFY_THEN_COORDINATE: &str =
-    include_str!("workflows/official/clarify_then_coordinate.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_RESEARCH_SYNTHESIZE_VERIFY: &str =
-    include_str!("workflows/official/research_synthesize_verify.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_PLAN_EXECUTE_REVIEW: &str =
-    include_str!("workflows/official/plan_execute_review.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_DIAGNOSE_RETRY_ESCALATE: &str =
-    include_str!("workflows/official/diagnose_retry_escalate.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_CODEX_TOOLING_SYNTHESIS: &str =
-    include_str!("workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_FORGECODE_AGENT_COMPOSITION: &str =
-    include_str!("workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json");
-const WORKFLOW_TEMPLATE_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION: &str = include_str!(
-    "workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json"
-);
-const WORKFLOW_TEMPLATE_SPEC_OPENHANDS_CONTROL_PLANE_ASSIMILATION: &str = include_str!(
-    "workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json"
-);
-
-const WORKFLOW_TEMPLATE_SPEC_SOURCES: &[(&str, &str)] = &[
-    (
-        "workflows/official/clarify_then_coordinate.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_CLARIFY_THEN_COORDINATE,
-    ),
-    (
-        "workflows/official/research_synthesize_verify.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_RESEARCH_SYNTHESIZE_VERIFY,
-    ),
-    (
-        "workflows/official/plan_execute_review.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_PLAN_EXECUTE_REVIEW,
-    ),
-    (
-        "workflows/official/diagnose_retry_escalate.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_DIAGNOSE_RETRY_ESCALATE,
-    ),
-    (
-        "workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_CODEX_TOOLING_SYNTHESIS,
-    ),
-    (
-        "workflows/lab/frameworks/forgecode/forgecode_agent_composition.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_FORGECODE_AGENT_COMPOSITION,
-    ),
-    (
-        "workflows/lab/frameworks/forgecode/forgecode_raw_capability_assimilation.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_FORGECODE_RAW_CAPABILITY_ASSIMILATION,
-    ),
-    (
-        "workflows/lab/frameworks/openhands/openhands_control_plane_assimilation.workflow.json",
-        WORKFLOW_TEMPLATE_SPEC_OPENHANDS_CONTROL_PLANE_ASSIMILATION,
-    ),
-];
-
 static WORKFLOW_TEMPLATE_REGISTRY: OnceLock<HashMap<String, WorkflowTemplateDefinition>> =
     OnceLock::new();
 
 const EMPTY_SUBTEMPLATES: &[WorkflowSubtemplate] = &[];
-
-const CODEX_SUBTEMPLATES: &[WorkflowSubtemplate] = &[];
-
-const FORGECODE_AGENT_SUBTEMPLATES: &[WorkflowSubtemplate] = &[];
-
-const FORGECODE_RAW_CAPABILITY_SUBTEMPLATES: &[WorkflowSubtemplate] = &[];
 
 fn template_id_for_enum(template: &WorkflowTemplate) -> &'static str {
     match template {
@@ -129,15 +70,6 @@ fn template_id_for_enum(template: &WorkflowTemplate) -> &'static str {
         WorkflowTemplate::OpenHandsControlPlaneAssimilation => {
             "openhands_control_plane_assimilation"
         }
-    }
-}
-
-fn subtemplates_for_template_id(id: &str) -> &'static [WorkflowSubtemplate] {
-    match id {
-        "codex_tooling_synthesis" => CODEX_SUBTEMPLATES,
-        "forgecode_agent_composition" => FORGECODE_AGENT_SUBTEMPLATES,
-        "forgecode_raw_capability_assimilation" => FORGECODE_RAW_CAPABILITY_SUBTEMPLATES,
-        _ => EMPTY_SUBTEMPLATES,
     }
 }
 
@@ -244,8 +176,7 @@ fn definition_from_spec(spec: WorkflowTemplateSpec) -> WorkflowTemplateDefinitio
     } else {
         leak_static_str(spec.description)
     };
-    let base_subtemplates = subtemplates_for_template_id(&template_id);
-    let merged_subtemplates = merge_json_subtemplates(base_subtemplates, spec.subtemplates);
+    let merged_subtemplates = merge_json_subtemplates(EMPTY_SUBTEMPLATES, spec.subtemplates);
     WorkflowTemplateDefinition {
         id,
         description,
@@ -254,91 +185,69 @@ fn definition_from_spec(spec: WorkflowTemplateSpec) -> WorkflowTemplateDefinitio
     }
 }
 
-fn workflow_template_definition_fallback(
-    template: &WorkflowTemplate,
-) -> WorkflowTemplateDefinition {
-    match template {
-        WorkflowTemplate::ClarifyThenCoordinate => WorkflowTemplateDefinition {
-            id: "clarify_then_coordinate",
-            description:
-                "Clarification-first control-plane template used when request intent is ambiguous or clarification is mandatory before execution.",
-            default_for_request_classes: &["read_only", "tool_call"],
-            subtemplates: EMPTY_SUBTEMPLATES,
-        },
-        WorkflowTemplate::ResearchSynthesizeVerify => WorkflowTemplateDefinition {
-            id: "research_synthesize_verify",
-            description:
-                "Research and synthesis template used for evidence-heavy retrieval turns and mixed tooling/web/workspace analysis.",
-            default_for_request_classes: &["read_only", "tool_call"],
-            subtemplates: EMPTY_SUBTEMPLATES,
-        },
-        WorkflowTemplate::PlanExecuteReview => WorkflowTemplateDefinition {
-            id: "plan_execute_review",
-            description:
-                "Plan and execution template used for mutation/task proposal turns that require explicit sequencing and closure review.",
-            default_for_request_classes: &["mutation", "task_proposal"],
-            subtemplates: EMPTY_SUBTEMPLATES,
-        },
-        WorkflowTemplate::DiagnoseRetryEscalate => WorkflowTemplateDefinition {
-            id: "diagnose_retry_escalate",
-            description:
-                "Recovery template used for blocked/failed states to route retry, reroute, or escalation decisions.",
-            default_for_request_classes: &["tool_call", "mutation", "task_proposal"],
-            subtemplates: EMPTY_SUBTEMPLATES,
-        },
-        WorkflowTemplate::CodexToolingSynthesis => WorkflowTemplateDefinition {
-            id: "codex_tooling_synthesis",
-            description:
-                "Codex assimilation template used for tooling-heavy synthesis and deterministic multi-step assimilation waves.",
-            default_for_request_classes: &["assimilation"],
-            subtemplates: CODEX_SUBTEMPLATES,
-        },
-        WorkflowTemplate::ForgeCodeAgentComposition => WorkflowTemplateDefinition {
-            id: "forgecode_agent_composition",
-            description:
-                "ForgeCode assimilation template that composes three specialized agent lanes (research, planning, implementation) into one single-agent master workflow.",
-            default_for_request_classes: &["assimilation"],
-            subtemplates: FORGECODE_AGENT_SUBTEMPLATES,
-        },
-        WorkflowTemplate::ForgeCodeRawCapabilityAssimilation => WorkflowTemplateDefinition {
-            id: "forgecode_raw_capability_assimilation",
-            description:
-                "ForgeCode assimilation template that focuses on raw capability/mechanics extraction and direct runtime mapping without composed lane wrapper constraints.",
-            default_for_request_classes: &["assimilation"],
-            subtemplates: FORGECODE_RAW_CAPABILITY_SUBTEMPLATES,
-        },
-        WorkflowTemplate::OpenHandsControlPlaneAssimilation => WorkflowTemplateDefinition {
-            id: "openhands_control_plane_assimilation",
-            description:
-                "OpenHands assimilation template for control-plane event-loop, replay, agent-registry, and limit-control mechanics.",
-            default_for_request_classes: &["assimilation"],
-            subtemplates: EMPTY_SUBTEMPLATES,
-        },
+fn workflow_template_definition_missing(template: &WorkflowTemplate) -> WorkflowTemplateDefinition {
+    WorkflowTemplateDefinition {
+        id: template_id_for_enum(template),
+        description: "",
+        default_for_request_classes: &[],
+        subtemplates: EMPTY_SUBTEMPLATES,
     }
+}
+
+fn workflow_template_directory_candidates() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(dir) = std::env::var("INFRING_ORCHESTRATION_WORKFLOW_DIR") {
+        candidates.push(PathBuf::from(dir));
+    }
+    candidates.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/control_plane/workflows"));
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("orchestration/src/control_plane/workflows"));
+    }
+    candidates
+}
+
+fn collect_workflow_template_paths(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut paths = Vec::new();
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        if path.is_dir() {
+            paths.extend(collect_workflow_template_paths(&path));
+        } else if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| name.ends_with(".workflow.json"))
+            .unwrap_or(false)
+        {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    paths
+}
+
+fn workflow_template_specs_from_disk() -> Vec<String> {
+    for dir in workflow_template_directory_candidates() {
+        let specs = collect_workflow_template_paths(&dir)
+            .into_iter()
+            .filter_map(|path| std::fs::read_to_string(path).ok())
+            .collect::<Vec<_>>();
+        if !specs.is_empty() {
+            return specs;
+        }
+    }
+    Vec::new()
 }
 
 fn load_workflow_template_registry() -> HashMap<String, WorkflowTemplateDefinition> {
     let mut registry = HashMap::new();
-    for (_source_path, raw_spec) in WORKFLOW_TEMPLATE_SPEC_SOURCES {
-        if let Some(spec) = parse_template_spec(raw_spec) {
+    for raw_spec in workflow_template_specs_from_disk() {
+        if let Some(spec) = parse_template_spec(&raw_spec) {
             let key = spec.id.clone();
             registry.insert(key, definition_from_spec(spec));
         }
-    }
-    for template in [
-        WorkflowTemplate::ClarifyThenCoordinate,
-        WorkflowTemplate::ResearchSynthesizeVerify,
-        WorkflowTemplate::PlanExecuteReview,
-        WorkflowTemplate::DiagnoseRetryEscalate,
-        WorkflowTemplate::CodexToolingSynthesis,
-        WorkflowTemplate::ForgeCodeAgentComposition,
-        WorkflowTemplate::ForgeCodeRawCapabilityAssimilation,
-        WorkflowTemplate::OpenHandsControlPlaneAssimilation,
-    ] {
-        let key = template_id_for_enum(&template).to_string();
-        registry
-            .entry(key)
-            .or_insert_with(|| workflow_template_definition_fallback(&template));
     }
     registry
 }
@@ -348,5 +257,5 @@ pub fn workflow_template_definition(template: &WorkflowTemplate) -> WorkflowTemp
     registry
         .get(template_id_for_enum(template))
         .cloned()
-        .unwrap_or_else(|| workflow_template_definition_fallback(template))
+        .unwrap_or_else(|| workflow_template_definition_missing(template))
 }

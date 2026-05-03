@@ -150,8 +150,23 @@ fn chat_ui_build_response_workflow_trace(
         64,
     );
     let gate_submission = tool_gate.get("gate_submission").cloned().unwrap_or_else(|| {
+        let gate_id = clean(
+            tool_gate
+                .get("current_gate_id")
+                .or_else(|| tool_gate.get("first_gate_id"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        let resume_token = if gate_id.is_empty() {
+            String::new()
+        } else if selected_work_category.is_empty() {
+            format!("{gate_id}.awaiting_llm_submission")
+        } else {
+            format!("{gate_id}.submitted")
+        };
         json!({
-            "gate_id": "gate_1_work_category_menu",
+            "gate_id": gate_id,
             "input_shape": {
                 "type": "multiple_choice",
                 "allowed_outputs": []
@@ -159,11 +174,7 @@ fn chat_ui_build_response_workflow_trace(
             "llm_submission": if selected_work_category.is_empty() { Value::Null } else { json!(selected_work_category.clone()) },
             "accepted": !selected_work_category.is_empty(),
             "diagnostic": "missing_gate_submission_from_tool_gate",
-            "resume_token": if selected_work_category.is_empty() {
-                "gate_1_work_category_menu.awaiting_llm_submission"
-            } else {
-                "gate_1_work_category_menu.submitted"
-            }
+            "resume_token": resume_token
         })
     });
     let needs_tool_access = !tools.is_empty() || gate_1_submission == Some(true);

@@ -204,7 +204,7 @@
             trace
                 .pointer("/process_position/current_stage")
                 .and_then(Value::as_str),
-            Some("llm_final_output")
+            Some("need_tool_access_gate")
         );
         let ui_messages = trace
             .pointer("/trace_streams/ui_status")

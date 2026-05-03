@@ -2,7 +2,7 @@ fn workflow_has_manual_toolbox_candidate_menu(workflow: &Value) -> bool {
     workflow
         .pointer("/workflow_control/direct_response_path")
         .and_then(Value::as_str)
-        == Some("gate_1_pending_llm_tool_choice")
+        == Some("first_gate_pending_llm_tool_choice")
         || workflow
             .get("system_events")
             .and_then(Value::as_array)
@@ -36,8 +36,10 @@ fn record_manual_toolbox_pending_request(
         return;
     };
     workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
+    workflow["response"] = Value::String(String::new());
+    workflow["visible_response_source"] = Value::String("private_workflow_gate_submission".to_string());
     workflow["workflow_control"]["direct_response_path"] =
-        Value::String("gate_1_yes_pending_tool_confirmation".to_string());
+        Value::String("first_gate_pending_tool_confirmation".to_string());
     if let Some(events) = workflow.get_mut("system_events").and_then(Value::as_array_mut) {
         events.push(turn_workflow_event(
             "manual_toolbox_pending_tool_request",

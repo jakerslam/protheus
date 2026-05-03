@@ -334,7 +334,9 @@
         {
           "option": 2,
           "key": "file_read",
-          "aliases": ["read_file"],
+          "aliases": [
+            "read_file"
+          ],
           "label": "Read file",
           "request_format": {
             "path": "<path>"
@@ -436,7 +438,30 @@
       ],
       "none": []
     },
-    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Reply with one token only from this menu: {category_options}. Use a no-tool token ({no_tool_categories}) to go straight to final answer. Use a tool token ({tool_bearing_categories}) to open the private tool menu. Do not narrate, explain, or say what you would choose. Visible chat is only Gate 6 final answer."
+    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Reply with one token only from this menu: {category_options}. Use a no-tool token ({no_tool_categories}) to go straight to final answer. Use a tool token ({tool_bearing_categories}) to open the private tool menu. Do not narrate, explain, or say what you would choose. Visible chat is only Gate 6 final answer.",
+    "llm_tool_request_instruction": "Private workflow gate submission only. Selected category: `{selected_category_label}`. Pick one catalog tool from this JSON menu and provide its request payload. Reply exactly as: `Category: {selected_category_label}. Tool family: {selected_category_label}. Tool: <catalog tool key>. Request payload: <JSON>.` Do not narrate or say what you would choose. Visible chat is only Gate 6 final answer.\n\nTool menu JSON:\n{selected_tool_menu_json}",
+    "tool_request_submission_contract": {
+      "version": "tool_request_submission_contract_v1",
+      "field_order": [
+        "category",
+        "tool_family",
+        "tool",
+        "request_payload"
+      ],
+      "field_labels": {
+        "category": "Category:",
+        "tool_family": "Tool family:",
+        "tool": "Tool:",
+        "request_payload": "Request payload:"
+      },
+      "field_aliases": {
+        "request_payload": [
+          "Payload:"
+        ]
+      },
+      "chat_injection_allowed": false,
+      "system_may_infer_missing_fields": false
+    }
   },
   "workflow_source_of_truth_contract": {
     "interaction_source": "json_workflow_spec",

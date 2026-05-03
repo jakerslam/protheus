@@ -1,22 +1,17 @@
-            &tooling_failure_code,
-            "tool_status",
+        tooling_invariant_repair_used = true;
+        finalization_outcome = merge_response_outcomes(
+            &finalization_outcome,
+            "tooling_failure_code_appended",
+            200,
         );
-        response_text = next_response;
-        if repaired {
-            tooling_invariant_repair_used = true;
-            final_fallback_used = true;
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                "tooling_failure_code_appended",
-                200,
-            );
-        }
     }
     let response_guard =
         final_response_guard_report(message, &response_text, &response_tools, false);
     if response_guard_bool(&response_guard, "final_contract_violation") {
-        // Chat output stays LLM-authored only; guard failures are telemetry, not retry prompts.
-        response_text.clear();
+        // Chat output stays LLM-authored only; guard failures are telemetry,
+        // not retry prompts and not invisible suppression.
+        response_workflow["final_llm_response"]["runtime_interference_disabled"] = json!(true);
+        response_workflow["final_llm_response"]["final_guard_diagnostic_only"] = json!(true);
         if response_guard_bool(&response_guard, "final_contamination_violation") {
             bump_workflow_quality_counter(&mut response_workflow, "contamination_reject");
         }
@@ -36,11 +31,11 @@
         );
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "final_response_guard_no_system_retry",
+            "final_response_guard_diagnostic_only",
             220,
         );
     }
-    response_text = append_next_actions_line_if_actionable(message, &response_text, &response_tools);
+    let _ = (message, &response_tools);
     let tool_gate_should_call_tools = response_workflow
         .pointer("/tool_gate/should_call_tools")
         .and_then(Value::as_bool)

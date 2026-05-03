@@ -17,27 +17,8 @@
             &response_tools,
             "workflow_authored",
         );
-    } else if workflow_fallback_allowed {
-        // Policy: never inject system-authored fallback text into chat.
-        let (contract_finalized, contract_report, contract_outcome) =
-            enforce_user_facing_finalization_contract(
-                message,
-                initial_draft_response.clone(),
-                &response_tools,
-            );
-        finalized_response = contract_finalized;
-        tool_completion = contract_report;
-        finalization_outcome =
-            merge_response_outcomes(&finalization_outcome, "workflow_no_system_fallback", 200);
-        finalization_outcome =
-            merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     } else {
-        // Keep chat output LLM-authored only, even when workflow final synthesis is unavailable.
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "workflow_no_system_fallback",
-            200,
-        );
+        // Keep chat output LLM-authored only; runtime fallback substitution is disabled.
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(
                 message,
@@ -46,6 +27,8 @@
             );
         finalized_response = contract_finalized;
         tool_completion = contract_report;
+        finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, "workflow_no_runtime_fallback", 200);
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
@@ -100,24 +83,10 @@
     } else if web_tool_attempted
         && (web_tool_blocked || web_tool_low_signal || !web_failure_code.is_empty())
     {
-        let (next_response, repaired) = append_failure_status_line_if_missing(
-            response_text,
-            &web_turn_classification,
-            &web_failure_code,
-            "web_status",
-        );
-        response_text = next_response;
-        if repaired {
-            web_invariant_repair_used = true;
-            final_fallback_used = true;
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                "web_failure_code_appended",
-                200,
-            );
-        }
+        web_invariant_repair_used = true;
+        finalization_outcome =
+            merge_response_outcomes(&finalization_outcome, "web_failure_code_appended", 200);
     }
-    if tooling_attempted {
-        let (next_response, repaired) = append_failure_status_line_if_missing(
-            response_text,
-            &tooling_turn_classification,
+    if tooling_attempted
+        && (tooling_blocked || tooling_low_signal || !tooling_failure_code.is_empty())
+    {

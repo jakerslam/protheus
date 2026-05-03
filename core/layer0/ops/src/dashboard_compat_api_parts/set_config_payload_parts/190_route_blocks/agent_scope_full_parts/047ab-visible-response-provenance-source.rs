@@ -10,14 +10,17 @@ fn visible_response_source_for_turn(
     let outcome = clean_text(finalization_outcome, 1_000).to_ascii_lowercase();
     if visible_response_repaired
         || outcome.contains("repaired_with_initial_draft")
-        || outcome.contains("fallback_from_existing_draft")
+        || outcome.contains("workflow_no_runtime_fallback")
     {
         return "llm_draft";
     }
-    if outcome.contains("workflow_no_system_fallback")
-        || outcome.contains("empty_visible_response_preserved_without_system_chat")
+    if outcome.contains("empty_visible_response_preserved_without_system_chat")
     {
-        return "system_fallback_withheld";
+        return if clean_text(response_text, 1_000).is_empty() {
+            "none"
+        } else {
+            "llm_draft"
+        };
     }
     if workflow_used {
         "llm_final"
@@ -202,24 +205,24 @@ mod visible_response_provenance_source_tests {
     use super::*;
 
     #[test]
-    fn provenance_marks_workflow_system_fallback_as_not_llm_authored() {
+    fn provenance_marks_no_system_fallback_visible_text_as_llm_draft() {
         let source = visible_response_source_for_turn(
             "Retry later.",
             false,
             false,
             "workflow_llm_unavailable|workflow_no_system_fallback",
         );
-        assert_eq!(source, "system_fallback_withheld");
+        assert_eq!(source, "llm_draft");
         let contract = visible_response_provenance_contract("Retry later.", source);
         assert_eq!(
             contract
                 .pointer("/system_substitution_violation")
                 .and_then(Value::as_bool),
-            Some(true)
+            Some(false)
         );
         assert_eq!(
             contract.pointer("/llm_authored").and_then(Value::as_bool),
-            Some(false)
+            Some(true)
         );
     }
 

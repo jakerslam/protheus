@@ -33,9 +33,7 @@ fn finalize_message_invoke_failure_and_payload(
     );
     let workflow_status = workflow_final_response_status(&response_workflow);
     let workflow_used = workflow_final_response_used(&response_workflow);
-    let workflow_fallback_allowed =
-        workflow_final_response_allows_system_fallback(&response_workflow);
-    let mut response_text = response_workflow
+    let response_text = response_workflow
         .get("response")
         .and_then(Value::as_str)
         .map(ToString::to_string)
@@ -52,13 +50,9 @@ fn finalize_message_invoke_failure_and_payload(
             220,
         );
     }
-    if !workflow_used && workflow_fallback_allowed {
-        response_text.clear();
-        finalization_outcome = merge_response_outcomes(
-            &finalization_outcome,
-            "workflow_no_system_fallback",
-            220,
-        );
+    if !workflow_used {
+        response_workflow["final_llm_response"]["runtime_interference_disabled"] =
+            Value::Bool(true);
     }
     let (finalized_response, tool_completion, contract_outcome) =
         enforce_user_facing_finalization_contract(message, response_text.clone(), &[]);
@@ -108,7 +102,7 @@ fn finalize_message_invoke_failure_and_payload(
     let workflow_direct_response_path = response_workflow
         .pointer("/workflow_control/direct_response_path")
         .and_then(Value::as_str)
-        .unwrap_or("gate_1_unresolved");
+        .unwrap_or("first_gate_unresolved");
     response_finalization["workflow_control"] = json!({
         "mode": "tool_menu_interface_v1",
         "direct_response_path": workflow_direct_response_path

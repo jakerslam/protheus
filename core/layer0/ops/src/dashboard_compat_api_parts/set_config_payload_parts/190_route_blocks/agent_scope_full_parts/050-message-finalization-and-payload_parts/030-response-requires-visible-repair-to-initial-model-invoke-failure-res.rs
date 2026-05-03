@@ -41,23 +41,30 @@ fn repair_visible_response_after_workflow(
     if !response_requires_visible_repair_for_message(message, &cleaned, response_tools) {
         return (cleaned, "unchanged".to_string(), false, false);
     }
-
-    let cleaned_initial_draft = clean_chat_text(initial_draft_response, 32_000);
-    if !response_requires_visible_repair_for_message(message, &cleaned_initial_draft, response_tools)
-        && !response_contains_speculative_web_blocker_language(&cleaned_initial_draft)
-    {
+    if !cleaned.trim().is_empty() {
         return (
-            cleaned_initial_draft,
-            "repaired_with_initial_draft".to_string(),
+            cleaned,
+            "visible_repair_diagnostic_pass_through".to_string(),
             false,
             false,
         );
     }
 
-    // Policy: never inject non-LLM fallback text into chat output.
+    let cleaned_initial_draft = clean_chat_text(initial_draft_response, 32_000);
+    if !cleaned_initial_draft.trim().is_empty() {
+        return (
+            cleaned_initial_draft,
+            "initial_draft_diagnostic_pass_through".to_string(),
+            false,
+            false,
+        );
+    }
+
+    // Policy: never inject non-LLM fallback text into chat output. Empty means
+    // the model produced no LLM-authored candidate for this path.
     (
         String::new(),
-        "withheld_non_llm_fallback_response".to_string(),
+        "empty_llm_response".to_string(),
         false,
         false,
     )
@@ -83,7 +90,7 @@ mod repair_visible_response_tests {
             false,
             None,
         );
-        assert!(response.is_empty(), "{response}");
-        assert_eq!(outcome, "withheld_non_llm_fallback_response");
+        assert_eq!(response, "I don't have usable tool findings from this turn yet.");
+        assert_eq!(outcome, "visible_repair_diagnostic_pass_through");
     }
 }
