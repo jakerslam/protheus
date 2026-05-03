@@ -4,24 +4,9 @@ fn user_message_allows_code_context(user_message: &str) -> bool {
         return false;
     }
     [
-        "show me the code",
-        "source code",
-        "code snippet",
-        "read file",
-        "open file",
-        "inspect file",
-        "file content",
-        "patch",
-        "diff",
-        "implementation",
-        "function",
-        "class",
-        "php",
-        "laravel",
-        "typescript",
-        "javascript",
-        "rust",
-        "python",
+        "show me the code", "source code", "code snippet", "read file", "open file",
+        "inspect file", "file content", "patch", "diff", "implementation", "function",
+        "class", "php", "laravel", "typescript", "javascript", "rust", "python",
     ]
     .iter()
     .any(|needle| lowered.contains(*needle))
@@ -57,10 +42,21 @@ fn response_code_context_marker_count(response_text: &str) -> usize {
 
 fn response_contains_stale_code_context_dump(user_message: &str, response_text: &str) -> bool {
     let cleaned = clean_text(response_text, 32_000);
-    if cleaned.len() < 280 || user_message_allows_code_context(user_message) {
+    if user_message_allows_code_context(user_message) {
         return false;
     }
     let lowered = cleaned.to_ascii_lowercase();
+    if lowered.contains("<?php")
+        && (lowered.contains("namespace ")
+            || lowered.contains("session_start")
+            || lowered.contains("class ")
+            || lowered.contains("require_once"))
+    {
+        return true;
+    }
+    if cleaned.len() < 160 {
+        return false;
+    }
     let fenced_code = lowered.contains("```php")
         || lowered.contains("```ts")
         || lowered.contains("```js")
@@ -116,45 +112,19 @@ fn response_claims_tool_success_without_current_turn_evidence(
         return false;
     }
     let mentions_tool_surface = [
-        "tool",
-        "web search",
-        "workspace",
-        "file search",
-        "file tooling",
-        "searched the files",
-        "searched files",
-        "read the file",
-        "opened the file",
-        "inspected the file",
-        "scanned the repo",
-        "searched the repo",
-        "terminal",
-        "command",
+        "tool", "batch query", "batch_query", "web search", "web retrieval",
+        "live web retrieval", "workspace", "file search", "file tooling",
+        "searched the files", "searched files", "read the file", "opened the file",
+        "inspected the file", "scanned the repo", "searched the repo", "terminal", "command",
     ]
     .iter()
     .any(|needle| lowered.contains(*needle));
     let claims_execution = [
-        "i searched",
-        "i ran",
-        "i used",
-        "i called",
-        "i executed",
-        "i opened",
-        "i read",
-        "i inspected",
-        "i scanned",
-        "i found",
-        "tool ran",
-        "tool succeeded",
-        "tool completed",
-        "search returned",
-        "search found",
-        "returned no findings",
-        "returned no results",
-        "found no results",
-        "found no findings",
-        "returned these",
-        "returned the following",
+        "i searched", "i ran", "i used", "i called", "i executed", "i opened", "i read",
+        "i inspected", "i scanned", "i found", "live web retrieval", "web retrieval",
+        "batch query", "tool ran", "tool succeeded", "tool completed", "search returned",
+        "search found", "returned no findings", "returned no results", "found no results",
+        "found no findings", "returned these", "returned the following",
     ]
     .iter()
     .any(|needle| lowered.contains(*needle));
@@ -163,7 +133,12 @@ fn response_claims_tool_success_without_current_turn_evidence(
         || lowered.contains("didn't return")
         || lowered.contains("did not return")
         || lowered.contains("limited results"))
-        && (lowered.contains("search") || lowered.contains("tool") || lowered.contains("workspace"));
+        && (lowered.contains("search")
+            || lowered.contains("tool")
+            || lowered.contains("workspace")
+            || lowered.contains("retrieval")
+            || lowered.contains("batch_query")
+            || lowered.contains("batch query"));
     let claims_listings = [
         "files i found",
         "file i found",
@@ -180,17 +155,8 @@ fn response_claims_tool_success_without_current_turn_evidence(
     let claims_tool_result = (mentions_tool_surface && (claims_execution || claims_empty_results))
         || claims_listings;
     let hypothetical = [
-        "i would ",
-        "i'd ",
-        "i can ",
-        "i could ",
-        "i should ",
-        "would use",
-        "would choose",
-        "would run",
-        "would search",
-        "would inspect",
-        "would read",
+        "i would ", "i'd ", "i can ", "i could ", "i should ", "would use",
+        "would choose", "would run", "would search", "would inspect", "would read",
         "next i would",
     ]
     .iter()
@@ -206,6 +172,30 @@ fn response_has_gate_choice_prefix_leakage(response_text: &str) -> bool {
     let trimmed = lowered.trim();
     if trimmed.is_empty() {
         return false;
+    }
+    let compact = trimmed
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch.is_whitespace() {
+                ch
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if compact == "need tools yes"
+        || compact == "need tools no"
+        || compact == "use workflow yes"
+        || compact == "use workflow no"
+        || compact.starts_with("need tools yes ")
+        || compact.starts_with("need tools no ")
+        || compact.starts_with("use workflow yes ")
+        || compact.starts_with("use workflow no ")
+    {
+        return true;
     }
     let starts_with_gate_token = trimmed.starts_with("yes,")
         || trimmed.starts_with("yes.")
@@ -246,6 +236,40 @@ fn response_has_gate_choice_prefix_leakage(response_text: &str) -> bool {
     .iter()
     .any(|needle| after_token.starts_with(*needle))
         || after_token.contains("request payload:")
+}
+
+fn response_contains_workflow_prompt_analysis_leak(response_text: &str) -> bool {
+    let lowered = clean_text(response_text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let mentions_gate = lowered.contains("need tools?")
+        || lowered.contains("gate:")
+        || lowered.contains("for the gate")
+        || lowered.contains("workflow")
+        || lowered.contains("tool menu");
+    let mentions_prompt_reasoning = lowered.contains("according to the instructions")
+        || lowered.contains("in the runtime context")
+        || lowered.contains("the instruction says")
+        || lowered.contains("instruction says")
+        || lowered.contains("the output format says")
+        || lowered.contains("the user says")
+        || lowered.contains("the user asks")
+        || lowered.contains("user asks for")
+        || lowered.contains("we must reply")
+        || lowered.contains("we need to reply")
+        || lowered.contains("we'll make")
+        || lowered.contains("so we answer")
+        || lowered.contains("we answer normally")
+        || lowered.contains("i should answer")
+        || lowered.contains("i need to answer");
+    let explicit_prompt_analysis = lowered.contains("according to the instructions")
+        || lowered.contains("the instruction says")
+        || lowered.contains("instruction says")
+        || lowered.contains("the output format says")
+        || (lowered.contains("the user asks") && lowered.contains("we must"))
+        || (lowered.contains("user asks for") && lowered.contains("we'll"));
+    (mentions_gate && mentions_prompt_reasoning) || explicit_prompt_analysis
 }
 
 fn response_contains_unrequested_content_without_tool_evidence(

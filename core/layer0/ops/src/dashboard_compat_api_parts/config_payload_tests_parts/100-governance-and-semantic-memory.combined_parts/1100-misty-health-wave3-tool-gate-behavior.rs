@@ -7,7 +7,7 @@ fn misty_wave3_gate_one_is_literal_llm_controlled_yes_no() {
         decision
             .pointer("/gates/gate_1/question")
             .and_then(Value::as_str),
-        Some("Need tools? Yes/No")
+        Some("What kind of work is this?")
     );
     assert_eq!(
         decision

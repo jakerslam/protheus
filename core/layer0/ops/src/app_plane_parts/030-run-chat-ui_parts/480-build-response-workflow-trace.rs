@@ -128,6 +128,13 @@ fn chat_ui_build_response_workflow_trace(
     hard_guard_applied: bool,
 ) -> Value {
     let gate_1_submission = tool_gate.get("needs_tool_access").and_then(Value::as_bool);
+    let selected_work_category = clean(
+        tool_gate
+            .get("selected_work_category")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
     let gate_1_submission_status = clean(
         tool_gate
             .get("gate_1_submission_status")
@@ -144,17 +151,18 @@ fn chat_ui_build_response_workflow_trace(
     );
     let gate_submission = tool_gate.get("gate_submission").cloned().unwrap_or_else(|| {
         json!({
-            "gate_id": "gate_1_need_tool_access_menu",
+            "gate_id": "gate_1_work_category_menu",
             "input_shape": {
                 "type": "multiple_choice",
-                "allowed_outputs": ["Yes", "No"]
+                "allowed_outputs": []
             },
-            "llm_submission": gate_1_submission,
-            "accepted": gate_1_submission.is_some(),
-            "resume_token": if gate_1_submission.is_some() {
-                "gate_1_need_tool_access_menu.submitted"
+            "llm_submission": if selected_work_category.is_empty() { Value::Null } else { json!(selected_work_category.clone()) },
+            "accepted": !selected_work_category.is_empty(),
+            "diagnostic": "missing_gate_submission_from_tool_gate",
+            "resume_token": if selected_work_category.is_empty() {
+                "gate_1_work_category_menu.awaiting_llm_submission"
             } else {
-                "gate_1_need_tool_access_menu.awaiting_llm_submission"
+                "gate_1_work_category_menu.submitted"
             }
         })
     });
@@ -170,7 +178,7 @@ fn chat_ui_build_response_workflow_trace(
         tool_gate
             .get("gate_decision_mode")
             .and_then(Value::as_str)
-            .unwrap_or("manual_need_tools_yes_no"),
+            .unwrap_or("manual_work_category_v1"),
         40,
     );
     let requires_live_web = tool_gate
@@ -198,7 +206,7 @@ fn chat_ui_build_response_workflow_trace(
     } else if needs_tool_access {
         "awaiting_tool_submission"
     } else if gate_1_submission.is_none() {
-        "awaiting_need_tool_access_submission"
+        "awaiting_work_category_submission"
     } else {
         "no_tool_path"
     };
@@ -207,24 +215,26 @@ fn chat_ui_build_response_workflow_trace(
     } else if needs_tool_access {
         "tool_menu"
     } else if gate_1_submission.is_none() {
-        "need_tool_access_gate"
+                "work_category_gate"
     } else {
         "llm_final_output"
     };
     let mut workflow_state = vec![json!({
         "seq": 1,
-        "stage": "need_tool_access_gate",
+        "stage": "work_category_gate",
         "status": if gate_1_submission == Some(true) {
-            "submitted_true"
+            "submitted_tool_category"
         } else if gate_1_submission == Some(false) {
-            "submitted_false"
+            "submitted_no_tool_category"
         } else if !tools.is_empty() {
             "observed_true_without_gate_submission"
+        } else if !selected_work_category.is_empty() {
+            "submitted_category"
         } else {
             "awaiting_llm_submission"
         },
         "note": format!(
-            "presented options=Yes,No; submission_status={gate_1_submission_status}; decision_source={gate_1_decision_source}"
+            "presented work categories; submission_status={gate_1_submission_status}; decision_source={gate_1_decision_source}"
         ),
         "ts": crate::now_iso()
     })];
@@ -289,21 +299,21 @@ fn chat_ui_build_response_workflow_trace(
     let mut ui_status = vec![json!({
         "seq": 1,
         "ts": crate::now_iso(),
-            "message": "Workflow gate presented: Need tools? Yes/No",
-        "stage": "need_tool_access_gate"
+            "message": "Workflow gate presented: What kind of work is this?",
+        "stage": "work_category_gate"
     })];
     if !needs_tool_access {
         ui_status.push(json!({
             "seq": 2,
             "ts": crate::now_iso(),
             "message": if gate_1_submission.is_none() {
-                "Waiting for Gate 1 submission before selecting a path."
+                "Waiting for Gate 1 work-category submission before selecting a path."
             } else {
-                "No tool execution recorded for this turn."
+                "No-tool work category selected; final answer path is active."
             },
             "stage": "direct_response"
         }));
-    } else if selected_tool_family == "web_tools" {
+    } else if selected_tool_family == "web_research" {
         ui_status.push(json!({
             "seq": 2,
             "ts": crate::now_iso(),
@@ -317,7 +327,7 @@ fn chat_ui_build_response_workflow_trace(
             "message": format!("Tool data submitted: \"{}\"", clean(criteria, 200)),
             "stage": "tool_execution"
         }));
-    } else if selected_tool_family == "file_tools" {
+    } else if selected_tool_family == "workspace_files" {
         ui_status.push(json!({
             "seq": 2,
             "ts": crate::now_iso(),
@@ -416,14 +426,15 @@ fn chat_ui_build_response_workflow_trace(
                 "reason_code": reason_code.clone(),
                 "requires_live_web": requires_live_web
             },
-            "need_tool_access": {
-                "question": "Need tools? Yes/No",
+            "work_category": {
+                "question": "What kind of work is this?",
                 "required": false,
                 "reason_code": reason_code,
                 "submission_status": gate_1_submission_status,
                 "decision_source": gate_1_decision_source,
                 "gate_submission": gate_submission.clone(),
                 "value": gate_1_submission,
+                "selected_work_category": selected_work_category,
                 "selected_tool_family": selected_tool_family,
                 "selection_authority": "llm_submission_only",
                 "tool_family_menu": tool_family_menu,

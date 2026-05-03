@@ -329,13 +329,9 @@ fn latent_tool_candidates_surface_chat_operator_hints_without_direct_routing() {
 }
 
 #[test]
-fn comparative_no_findings_fallback_is_actionable() {
+fn comparative_no_findings_fallback_is_diagnostics_only() {
     let fallback = comparative_no_findings_fallback("rank infring among peers");
-    let lowered = fallback.to_ascii_lowercase();
-    assert!(lowered.contains("infring"));
-    assert!(lowered.contains("strongest"));
-    assert!(lowered.contains("batch_query"));
-    assert!(!response_is_no_findings_placeholder(&fallback));
+    assert!(fallback.is_empty());
 }
 
 #[test]
@@ -514,9 +510,7 @@ fn batch_query_context_guard_comparison_uses_comparative_fallback() {
             "summary": "Context overflow: estimated context size exceeds safe threshold during tool loop."
         }),
     );
-    let lowered = summary.to_ascii_lowercase();
-    assert!(lowered.contains("infring is strongest"));
-    assert!(lowered.contains("source-backed ranked table"));
+    assert!(summary.is_empty());
 }
 
 #[test]

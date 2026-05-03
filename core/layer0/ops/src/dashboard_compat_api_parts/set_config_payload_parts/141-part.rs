@@ -112,63 +112,15 @@ fn response_mentions_context_guard(text: &str) -> bool {
         || lowered.contains("safe context budget")
 }
 
-fn web_tool_context_guard_fallback(scope: &str) -> String {
-    let label = clean_text(scope, 120);
-    if label.is_empty() {
-        return "The web tool returned more output than fit safely in context before a final answer was composed. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.".to_string();
-    }
-    format!(
-        "{} returned more output than fit safely in context before a final answer was composed. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.",
-        label
-    )
+fn web_tool_context_guard_fallback(_scope: &str) -> String {
+    String::new()
 }
 
 fn tooling_failure_diagnostic_fallback() -> String {
-    "Web/search tooling is partially working: retrieval ran, but this turn returned low-signal output (search-engine chrome or parse miss) instead of usable findings. This is usually extraction/parsing drift, not a total outage. Next step: rerun with `batch_query` and a narrower query (or give one source URL for `web_fetch`). If it keeps repeating, run `infringctl doctor --json` and share the output so I can pinpoint the failing lane."
-        .to_string()
+    String::new()
 }
 
-fn follow_up_suggestion_no_findings_fallback(message: &str) -> Option<String> {
-    if let Some((tool_name, payload)) = follow_up_suggestion_tool_intent_from_message(message) {
-        if tool_name == "tool_command_router" {
-            let summary = clean_text(
-                payload.get("message").and_then(Value::as_str).unwrap_or(""),
-                320,
-            );
-            if !summary.is_empty() {
-                return Some(summary);
-            }
-        }
-    }
-    let lowered = clean_text(message, 600).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return None;
-    }
-    if lowered.contains("command-to-route mapping")
-        && lowered.contains("supported tool hit rate")
-    {
-        return Some(
-            "That suggestion is an implementation task, not a runnable command. The right next step is to patch the command-to-route mapping and add a regression for the missed prompt shape."
-                .to_string(),
-        );
-    }
-    if lowered.contains("supported rust route")
-        && (lowered.contains("tool::spawn_subagents") || lowered.contains("spawn_subagents"))
-    {
-        return Some(
-            "That is a runtime-route implementation task, not a live web query. The right next step is to patch the Rust route layer for `spawn_subagents` and add a regression proving the prompt resolves cleanly."
-                .to_string(),
-        );
-    }
-    if lowered.contains("tooling")
-        && lowered.contains("better")
-        && (lowered.contains("web") || lowered.contains("file"))
-    {
-        return Some(
-            "The web/file tooling is better in some lanes, but this turn still fell into the no-findings fallback instead of a real status answer. That points to a routing/finalization miss, not a total outage. Next step: run one concrete `web_search`, `web_fetch`, or `file_read` probe and inspect the route that handled it."
-                .to_string(),
-        );
-    }
+fn follow_up_suggestion_no_findings_fallback(_message: &str) -> Option<String> {
     None
 }
 
@@ -208,8 +160,7 @@ fn scalar_summary_fragment(value: &Value) -> Option<String> {
 
 fn summarize_unknown_tool_payload(normalized: &str, payload: &Value) -> String {
     if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        return user_facing_tool_failure_summary(normalized, payload)
-            .unwrap_or_else(|| format!("I couldn't complete `{normalized}` right now."));
+        return user_facing_tool_failure_summary(normalized, payload).unwrap_or_default();
     }
     if normalized == "workspace_analyze" {
         let stdout = clean_text(payload.get("stdout").and_then(Value::as_str).unwrap_or(""), 2_000);
@@ -304,9 +255,7 @@ fn summarize_tool_capability_payload(
         return None;
     }
     if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        return Some(user_facing_tool_failure_summary(tool_name, payload).unwrap_or_else(
-            || "I couldn't inspect tool capabilities right now.".to_string(),
-        ));
+        return user_facing_tool_failure_summary(tool_name, payload);
     }
     let mut lines = vec!["Tool capability status (governed router):".to_string()];
     if let Some(rows) = payload.get("tools").and_then(Value::as_array) {

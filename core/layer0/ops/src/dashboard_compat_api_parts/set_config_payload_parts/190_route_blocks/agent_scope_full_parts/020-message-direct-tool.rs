@@ -1,3 +1,64 @@
+fn direct_tool_synthesis_model_route(agent_row: &Value) -> (String, String) {
+    let provider = clean_text(
+        agent_row
+            .get("model_provider")
+            .or_else(|| agent_row.get("provider"))
+            .and_then(Value::as_str)
+            .unwrap_or("auto"),
+        80,
+    );
+    let model = clean_text(
+        agent_row
+            .get("model_name")
+            .or_else(|| agent_row.get("model"))
+            .and_then(Value::as_str)
+            .unwrap_or("auto"),
+        240,
+    );
+    if provider.is_empty()
+        || provider.eq_ignore_ascii_case("auto")
+        || model.is_empty()
+        || model.eq_ignore_ascii_case("auto")
+    {
+        ("auto".to_string(), "auto".to_string())
+    } else {
+        (provider, model)
+    }
+}
+
+#[cfg(test)]
+mod direct_tool_synthesis_model_route_tests {
+    use super::*;
+
+    #[test]
+    fn direct_tool_synthesis_preserves_explicit_agent_model_selection() {
+        let row = json!({
+            "model_provider": "openai",
+            "model_name": "gpt-5",
+            "runtime_model": "deepseek-v3.1:671b-cloud"
+        });
+
+        let (provider, model) = direct_tool_synthesis_model_route(&row);
+
+        assert_eq!(provider, "openai");
+        assert_eq!(model, "gpt-5");
+    }
+
+    #[test]
+    fn direct_tool_synthesis_uses_router_only_when_agent_model_is_auto() {
+        let row = json!({
+            "model_provider": "auto",
+            "model_name": "auto",
+            "runtime_model": "deepseek-v3.1:671b-cloud"
+        });
+
+        let (provider, model) = direct_tool_synthesis_model_route(&row);
+
+        assert_eq!(provider, "auto");
+        assert_eq!(model, "auto");
+    }
+}
+
 fn handle_agent_scope_message_route(
     root: &Path,
     method: &str,
@@ -89,6 +150,12 @@ fn handle_agent_scope_message_route(
                     }
                     resolved_tool_intent = Some((pending_tool_name, pending_tool_input));
                     replayed_pending_confirmation = true;
+                } else if !latent_tool_candidates_value
+                    .as_array()
+                    .map(|candidates| candidates.is_empty())
+                    .unwrap_or(true)
+                {
+                    clear_pending_tool_confirmation(root, agent_id);
                 }
             }
         }
@@ -172,25 +239,8 @@ fn handle_agent_scope_message_route(
             let mut finalized_response = finalized_response;
             let mut finalization_outcome = clean_text(&finalization_seed, 180);
             let mut tool_completion = json!({});
-            let mut synthesis_provider = clean_text(
-                row.get("model_provider")
-                    .and_then(Value::as_str)
-                    .unwrap_or("auto"),
-                80,
-            );
-            if synthesis_provider.is_empty() {
-                synthesis_provider = "auto".to_string();
-            }
-            let mut synthesis_model = clean_text(
-                row.get("runtime_model")
-                    .or_else(|| row.get("model_name"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("auto"),
-                240,
-            );
-            if synthesis_model.is_empty() {
-                synthesis_model = "auto".to_string();
-            }
+            let (synthesis_provider, synthesis_model) =
+                direct_tool_synthesis_model_route(&row);
             let synthesis_history = Vec::<Value>::new();
             let workflow_pending_confirmation = if requires_confirmation {
                 Some(json!({

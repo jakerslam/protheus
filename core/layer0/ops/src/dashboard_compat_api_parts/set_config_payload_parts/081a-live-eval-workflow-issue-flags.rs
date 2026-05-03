@@ -40,10 +40,36 @@ fn live_eval_response_has_gate_token_leakage(response: &str) -> bool {
     let lowered = response.to_ascii_lowercase();
     normalized.starts_with("yes. tool family:")
         || normalized.starts_with("yes. tool:")
+        || normalized.starts_with("category:")
+        || normalized == "respond directly"
+        || normalized == format!("direct answer {}", "conversation")
+        || normalized == "planning from current context"
+        || normalized == "web research"
+        || normalized == "workspace files"
         || normalized.starts_with("no. answer directly")
         || normalized.starts_with("no. i would")
         || normalized.contains("need tools? yes/no")
+        || normalized.contains("what kind of work is this")
         || lowered.contains("need tools? yes/no")
+        || lowered.contains("what kind of work is this?")
+}
+
+fn live_eval_response_is_unresolved_tool_intent(response: &str) -> bool {
+    let lowered = clean_text(response, 1_200).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let says_would_choose = lowered.contains("i would choose")
+        || lowered.contains("i would run")
+        || lowered.contains("i would use")
+        || lowered.contains("i would call");
+    let names_tool = lowered.contains("batch_query")
+        || lowered.contains("batch query")
+        || lowered.contains("web search")
+        || lowered.contains("file tool")
+        || lowered.contains("workspace tool")
+        || lowered.contains("agent management");
+    says_would_choose && names_tool
 }
 
 fn live_eval_hidden_second_pass(response_finalization: &Value, system_fallback: bool) -> bool {
@@ -85,14 +111,23 @@ fn live_eval_workflow_issue_events(
         .to_ascii_lowercase()
         .matches("need tools? yes/no")
         .count()
-        + normalized.matches("need tools yes no").count();
+        + final_text
+            .to_ascii_lowercase()
+            .matches("what kind of work is this?")
+            .count()
+        + normalized.matches("need tools yes no").count()
+        + normalized.matches("what kind of work is this").count();
     if gate_prompt_count > 1
         || (!previous_assistant.trim().is_empty()
             && normalize_placeholder_signature(previous_assistant) == normalized
             && (normalized.contains("need tools yes no")
+                || normalized.contains("what kind of work is this")
                 || final_text
                     .to_ascii_lowercase()
-                    .contains("need tools? yes/no")))
+                    .contains("need tools? yes/no")
+                || final_text
+                    .to_ascii_lowercase()
+                    .contains("what kind of work is this?")))
     {
         events.push(live_eval_issue_event(
             agent_id,
@@ -109,6 +144,26 @@ fn live_eval_workflow_issue_events(
             "gate_token_leakage",
             "high",
             "Live eval saw workflow gate tokens leak into visible chat.",
+            message,
+            response,
+        ));
+    }
+    if live_eval_response_is_unresolved_tool_intent(&final_text) {
+        events.push(live_eval_issue_event(
+            agent_id,
+            "unresolved_tool_intent_final",
+            "high",
+            "Live eval saw a final response describe a tool choice instead of submitting or completing the workflow gate.",
+            message,
+            response,
+        ));
+    }
+    if response_contains_stale_code_context_dump(message, &final_text) {
+        events.push(live_eval_issue_event(
+            agent_id,
+            "visible_stale_code_context_dump",
+            "high",
+            "Live eval saw unrelated source-code context exposed in the visible assistant response.",
             message,
             response,
         ));
@@ -166,6 +221,34 @@ fn live_eval_workflow_issue_events(
             "tool_result_without_synthesis",
             "high",
             "Live eval saw tool results without an LLM-authored synthesis.",
+            message,
+            response,
+        ));
+    }
+    let web_required_without_attempt = response_finalization
+        .pointer("/web_invariant/requires_live_web")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && response_finalization
+            .pointer("/web_invariant/tool_attempted")
+            .and_then(Value::as_bool)
+            != Some(true)
+        && !pending_tool;
+    let tooling_required_without_attempt = response_finalization
+        .pointer("/tooling_invariant/classification")
+        .and_then(Value::as_str)
+        == Some("parse_failed")
+        && response_finalization
+            .pointer("/tooling_invariant/tool_attempted")
+            .and_then(Value::as_bool)
+            != Some(true)
+        && !pending_tool;
+    if web_required_without_attempt || tooling_required_without_attempt {
+        events.push(live_eval_issue_event(
+            agent_id,
+            "required_tool_without_attempt",
+            "high",
+            "Live eval saw a tool-required turn finish without a tool attempt or pending tool request.",
             message,
             response,
         ));

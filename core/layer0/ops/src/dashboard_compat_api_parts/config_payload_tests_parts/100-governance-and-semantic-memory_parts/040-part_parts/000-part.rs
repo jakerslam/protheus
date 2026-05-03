@@ -189,7 +189,7 @@ fn workflow_library_marks_final_llm_stage_for_tool_turns() {
         workflow
             .pointer("/stage_statuses/0/stage")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
     assert_eq!(
         workflow

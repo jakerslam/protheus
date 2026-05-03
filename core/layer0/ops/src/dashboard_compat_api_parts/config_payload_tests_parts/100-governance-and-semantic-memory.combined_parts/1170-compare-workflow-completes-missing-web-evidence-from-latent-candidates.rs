@@ -73,7 +73,10 @@ fn compare_workflow_completes_missing_web_evidence_from_latent_candidates() {
         .into_iter()
         .filter_map(|row| row.get("name").and_then(Value::as_str).map(ToString::to_string))
         .collect::<Vec<_>>();
-    assert_eq!(tool_names, vec!["workspace_analyze".to_string(), "batch_query".to_string()]);
+    assert_eq!(
+        tool_names,
+        vec!["workspace_analyze".to_string(), "web_search".to_string()]
+    );
     let response_text = response
         .payload
         .get("response")

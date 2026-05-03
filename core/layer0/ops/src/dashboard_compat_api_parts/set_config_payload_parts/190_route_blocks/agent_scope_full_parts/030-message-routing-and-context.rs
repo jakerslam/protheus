@@ -236,15 +236,19 @@ fn prepare_message_route_context(
     workspace_hints: &Value,
     latent_tool_candidates: &Value,
 ) -> Result<PreparedMessageRouteContext, CompatApiResponse> {
-    let (provider, model, auto_route) = crate::dashboard_model_catalog::resolve_model_selection(
-        root,
-        snapshot,
-        requested_provider,
-        requested_model,
-        route_request,
-    );
-    let mut provider = provider;
-    let mut model = model;
+    let _ = route_request;
+    let mut provider = clean_text(requested_provider, 80);
+    let mut model = clean_text(requested_model, 240);
+    if provider.is_empty() || model.is_empty() {
+        let (default_provider, default_model) = extract_app_settings(root, snapshot);
+        if provider.is_empty() {
+            provider = default_provider;
+        }
+        if model.is_empty() {
+            model = default_model;
+        }
+    }
+    let auto_route = None;
     let mut virtual_key_gate = Value::Null;
     if !virtual_key_id.is_empty() {
         let gate =
@@ -543,14 +547,16 @@ fn prepare_message_route_context(
             )
     };
     let memory_kv_entries = memory_kv_pairs_from_state(&state).len();
-    let memory_prompt_context = if suppress_passive_context { String::new() } else { memory_kv_prompt_context(&state, 24) };
-    let instinct_prompt_context = agent_instinct_prompt_context(root, 6_000);
-    let plugin_prompt_context = dashboard_skills_marketplace::skills_prompt_context(root, 12, 4_000);
+    let ambient_context_enabled = request.get("include_ambient_context").and_then(Value::as_bool).unwrap_or(false)
+        && !suppress_passive_context;
+    let memory_prompt_context = if ambient_context_enabled { memory_kv_prompt_context(&state, 24) } else { String::new() };
+    let instinct_prompt_context = if ambient_context_enabled { agent_instinct_prompt_context(root, 6_000) } else { String::new() };
+    let plugin_prompt_context = if ambient_context_enabled { dashboard_skills_marketplace::skills_prompt_context(root, 12, 4_000) } else { String::new() };
     let passive_memory_context = if suppress_passive_context { String::new() } else { passive_attention_context_for_message(root, agent_id, message, 6) };
     let eval_feedback_context = eval_agent_feedback_prompt_context(root, agent_id, 4);
-    let keyframe_context = if suppress_passive_context { String::new() } else { context_keyframes_prompt_context(&state, 8, 2_400) };
-    let overflow_keyframes_context = if suppress_passive_context { String::new() } else { historical_context_keyframes_prompt_context(&messages, &active_messages, 10, 2_400) };
-    let relevant_recall_context = if suppress_passive_context { String::new() } else { historical_relevant_recall_prompt_context(&messages, &active_messages, message, 8, 2_800) };
+    let keyframe_context = if ambient_context_enabled { context_keyframes_prompt_context(&state, 8, 2_400) } else { String::new() };
+    let overflow_keyframes_context = if ambient_context_enabled { historical_context_keyframes_prompt_context(&messages, &active_messages, 10, 2_400) } else { String::new() };
+    let relevant_recall_context = if ambient_context_enabled { historical_relevant_recall_prompt_context(&messages, &active_messages, message, 8, 2_800) } else { String::new() };
     let identity_hydration_prompt = agent_identity_hydration_prompt(row);
     let custom_system_prompt = clean_text(
         row.get("system_prompt")
@@ -563,6 +569,7 @@ fn prepare_message_route_context(
         prompt_parts.push(identity_hydration_prompt);
     }
     prompt_parts.push(AGENT_RUNTIME_SYSTEM_PROMPT.to_string());
+    prompt_parts.push(agent_runtime_temporal_context_prompt());
     let project_boundary_prompt = current_turn_project_boundary_prompt(message);
     if !project_boundary_prompt.is_empty() {
         prompt_parts.push(project_boundary_prompt);
@@ -577,10 +584,8 @@ fn prepare_message_route_context(
     if !workflow_prompt_context.is_empty() {
         prompt_parts.push(workflow_prompt_context);
     }
-    let previous_process_summary_context = process_summary_prompt_context(&active_messages);
-    if !previous_process_summary_context.is_empty() {
-        prompt_parts.push(previous_process_summary_context);
-    }
+    let previous_process_summary_context = if ambient_context_enabled { process_summary_prompt_context(&active_messages) } else { String::new() };
+    if !previous_process_summary_context.is_empty() { prompt_parts.push(previous_process_summary_context); }
     if !inline_tools_allowed {
         prompt_parts.push("Direct-answer guard: default to natural conversational answers. Do not emit `<function=...>` tool calls unless the user explicitly requested web retrieval, file/terminal operations, memory operations, or agent management in this turn.".to_string());
     }
@@ -603,12 +608,8 @@ fn prepare_message_route_context(
     if !relevant_recall_context.is_empty() {
         prompt_parts.push(relevant_recall_context);
     }
-    if !custom_system_prompt.is_empty() {
-        prompt_parts.push(custom_system_prompt);
-    }
-    if !memory_prompt_context.is_empty() {
-        prompt_parts.push(memory_prompt_context);
-    }
+    if ambient_context_enabled && !custom_system_prompt.is_empty() { prompt_parts.push(custom_system_prompt); }
+    if !memory_prompt_context.is_empty() { prompt_parts.push(memory_prompt_context); }
     let system_prompt = clean_text(&prompt_parts.join("\n\n"), 12_000);
     Ok(PreparedMessageRouteContext {
         provider,

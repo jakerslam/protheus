@@ -76,7 +76,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
             .payload
             .pointer("/response_workflow/stage_statuses/0/stage")
             .and_then(Value::as_str),
-        Some("gate_1_need_tool_access_menu")
+        Some("gate_1_work_category_menu")
     );
     assert_eq!(
         response

@@ -595,8 +595,7 @@ fn misty_wave7_empty_initial_tool_request_can_finish_with_llm_menu_selection() {
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
             {"response": "", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "I would choose web search for a current April 2026 framework comparison, then synthesize from the returned results.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
+            {"response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
         ], "calls": []}),
     );
 
@@ -616,7 +615,7 @@ fn misty_wave7_empty_initial_tool_request_can_finish_with_llm_menu_selection() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert!(response_text.to_ascii_lowercase().contains("web search"), "{response_text}");
+    assert_eq!(response_text, "");
     assert!(!response_text.contains("Request payload"), "{response_text}");
     assert!(!response_text.starts_with("Yes."), "{response_text}");
     assert_eq!(
@@ -635,7 +634,7 @@ fn misty_wave7_empty_initial_tool_request_can_finish_with_llm_menu_selection() {
             .payload
             .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     assert!(
         response
@@ -703,8 +702,7 @@ fn misty_wave7_empty_finalization_records_telemetry_without_system_retry() {
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
             {"response": "", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "Yes. Tool family: Web Search / Fetch. Tool: Web search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"},
-            {"response": "I would choose web search for a current April 2026 framework comparison, then synthesize from the returned results.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
+            {"response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to other major agentic frameworks in April 2026\",\"aperture\":\"medium\"}.", "provider": "ollama", "runtime_model": "deepseek-v3.1:671b-cloud"}
         ], "calls": []}),
     );
 
@@ -746,7 +744,7 @@ fn misty_wave7_empty_finalization_records_telemetry_without_system_retry() {
             .payload
             .pointer("/pending_tool_request/tool_name")
             .and_then(Value::as_str),
-        Some("batch_query")
+        Some("web_search")
     );
     let finalization_outcome = response
         .payload

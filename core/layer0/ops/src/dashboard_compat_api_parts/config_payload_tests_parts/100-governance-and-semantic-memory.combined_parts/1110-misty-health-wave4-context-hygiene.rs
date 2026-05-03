@@ -140,8 +140,7 @@ fn misty_wave4_simple_direct_turn_uses_slim_active_context_window() {
 }
 
 #[test]
-fn misty_wave4_simple_direct_turn_routes_to_fast_chat_model() {
-    let _fast_model = ScopedEnvVar::set("INFRING_SIMPLE_CHAT_FAST_MODEL", "openai/gpt-5-mini");
+fn misty_wave4_simple_direct_turn_preserves_explicit_model_selection() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     crate::dashboard_provider_runtime::save_provider_key(root.path(), "openai", "sk-test-openai");
@@ -191,27 +190,20 @@ fn misty_wave4_simple_direct_turn_routes_to_fast_chat_model() {
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("model").and_then(Value::as_str),
-        Some("gpt-5-mini")
+        Some("gpt-5")
     );
-    assert_eq!(
-        response
-            .payload
-            .pointer("/auto_route/reason")
-            .and_then(Value::as_str),
-        Some("simple_direct_chat_fast_model")
-    );
+    assert!(response.payload.get("auto_route").is_none());
     let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
     assert_eq!(
         script
             .pointer("/calls/0/model")
             .and_then(Value::as_str),
-        Some("gpt-5-mini")
+        Some("gpt-5")
     );
 }
 
 #[test]
-fn misty_wave4_manual_toolbox_turn_routes_to_fast_chat_model() {
-    let _fast_model = ScopedEnvVar::set("INFRING_SIMPLE_CHAT_FAST_MODEL", "openai/gpt-5-mini");
+fn misty_wave4_manual_toolbox_turn_preserves_explicit_model_selection() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     crate::dashboard_provider_runtime::save_provider_key(root.path(), "openai", "sk-test-openai");
@@ -245,7 +237,7 @@ fn misty_wave4_manual_toolbox_turn_routes_to_fast_chat_model() {
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({
-            "queue": [{"response": "I would choose web search for that comparison."}],
+            "queue": [{"response": "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"Use web search to compare Infring to other agent frameworks.\",\"aperture\":\"medium\"}."}],
             "calls": []
         }),
     );
@@ -262,33 +254,29 @@ fn misty_wave4_manual_toolbox_turn_routes_to_fast_chat_model() {
     assert_eq!(response.status, 200);
     assert_eq!(
         response.payload.get("model").and_then(Value::as_str),
-        Some("gpt-5-mini")
+        Some("gpt-5")
+    );
+    assert!(response.payload.get("auto_route").is_none());
+    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response
+            .payload
+            .pointer("/pending_tool_request/tool_name")
+            .and_then(Value::as_str),
+        Some("web_search")
     );
     assert_eq!(
         response
             .payload
-            .pointer("/auto_route/reason")
+            .pointer("/pending_tool_request/input/query")
             .and_then(Value::as_str),
-        Some("manual_toolbox_fast_model")
+        Some("Use web search to compare Infring to other agent frameworks.")
     );
     let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
     assert_eq!(
-        script.pointer("/calls/1/model").and_then(Value::as_str),
-        Some("gpt-5-mini")
+        script.pointer("/calls/0/model").and_then(Value::as_str),
+        Some("gpt-5")
     );
-}
-
-#[test]
-fn misty_wave4_simple_direct_fast_chat_skips_reasoning_models() {
-    assert!(!simple_direct_chat_model_allows_visible_chat(
-        "ollama/smallthinker:latest"
-    ));
-    assert!(!simple_direct_chat_model_allows_visible_chat(
-        "ollama/kimi-k2.6:thinking"
-    ));
-    assert!(simple_direct_chat_model_allows_visible_chat(
-        "ollama/qwen2.5:3b"
-    ));
 }
 
 #[test]
@@ -544,8 +532,7 @@ fn misty_wave4_short_stale_project_title_without_overlap_is_withheld() {
 }
 
 #[test]
-fn misty_wave4_contaminated_draft_recovers_with_fast_visible_model() {
-    let _fast_model = ScopedEnvVar::set("INFRING_SIMPLE_CHAT_FAST_MODEL", "openai/gpt-5-mini");
+fn misty_wave4_contaminated_draft_recovers_with_explicit_model_selection() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     crate::dashboard_provider_runtime::save_provider_key(root.path(), "openai", "sk-test-openai");
@@ -605,7 +592,7 @@ fn misty_wave4_contaminated_draft_recovers_with_fast_visible_model() {
     let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
     assert_eq!(
         script.pointer("/calls/2/model").and_then(Value::as_str),
-        Some("gpt-5-mini"),
+        Some("gpt-5"),
         "{script}"
     );
     assert_eq!(
@@ -619,7 +606,6 @@ fn misty_wave4_contaminated_draft_recovers_with_fast_visible_model() {
 
 #[test]
 fn misty_wave4_directive_leakage_is_rejected_during_recovery() {
-    let _fast_model = ScopedEnvVar::set("INFRING_SIMPLE_CHAT_FAST_MODEL", "openai/gpt-5-mini");
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     crate::dashboard_provider_runtime::save_provider_key(root.path(), "openai", "sk-test-openai");
@@ -680,12 +666,12 @@ fn misty_wave4_directive_leakage_is_rejected_during_recovery() {
     let script = read_json(&governance_test_chat_script_path(root.path())).expect("script");
     assert_eq!(
         script.pointer("/calls/2/model").and_then(Value::as_str),
-        Some("gpt-5-mini"),
+        Some("gpt-5"),
         "{script}"
     );
     assert_eq!(
         script.pointer("/calls/3/model").and_then(Value::as_str),
-        Some("gpt-5-mini"),
+        Some("gpt-5"),
         "{script}"
     );
     assert_eq!(

@@ -13,8 +13,8 @@ fn finalize_message_finalization_and_payload(
     active_messages: Vec<Value>,
     provider: String,
     model: String,
-    requested_provider: String,
-    requested_model: String,
+    _requested_provider: String,
+    _requested_model: String,
     auto_route: Option<Value>,
     virtual_key_id: String,
     virtual_key_gate: Value,
@@ -99,6 +99,11 @@ fn finalize_message_finalization_and_payload(
     let workflow_status = workflow_final_response_status(&response_workflow);
     let workflow_used = workflow_final_response_used(&response_workflow);
     let workflow_fallback_allowed = workflow_final_response_allows_system_fallback(&response_workflow);
+    let workflow_withheld_prompt_analysis = response_workflow
+        .pointer("/final_llm_response/fallback_source")
+        .and_then(Value::as_str)
+        == Some("withheld_workflow_prompt_analysis")
+        || response_contains_workflow_prompt_analysis_leak(&initial_draft_response);
     let mut finalization_outcome = if workflow_used {
         "workflow_authored".to_string()
     } else {
@@ -124,7 +129,11 @@ fn finalize_message_finalization_and_payload(
         );
     } else if workflow_fallback_allowed {
         // Policy: never inject system-authored fallback text into chat.
-        let llm_only_candidate = initial_draft_response.clone();
+        let llm_only_candidate = if workflow_withheld_prompt_analysis {
+            String::new()
+        } else {
+            initial_draft_response.clone()
+        };
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(message, llm_only_candidate, &response_tools);
         finalized_response = contract_finalized;
@@ -135,7 +144,11 @@ fn finalize_message_finalization_and_payload(
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     } else {
         // Keep chat output LLM-authored only, even when workflow final synthesis is unavailable.
-        let llm_only_candidate = initial_draft_response.clone();
+        let llm_only_candidate = if workflow_withheld_prompt_analysis {
+            String::new()
+        } else {
+            initial_draft_response.clone()
+        };
         let (contract_finalized, contract_report, contract_outcome) =
             enforce_user_facing_finalization_contract(message, llm_only_candidate, &response_tools);
         finalized_response = contract_finalized;
@@ -190,10 +203,16 @@ fn finalize_message_finalization_and_payload(
                     .unwrap_or("manual_toolbox_gate"),
             );
             response_workflow["pending_tool_request"] = pending_request.clone();
+            response_text.clear();
             finalization_outcome = merge_response_outcomes(
                 &finalization_outcome,
                 "manual_toolbox_pending_tool_request_awaiting_llm_input",
                 200,
+            );
+            finalization_outcome = merge_response_outcomes(
+                &finalization_outcome,
+                "pending_tool_request_visible_chat_withheld",
+                240,
             );
         }
     }
@@ -435,23 +454,12 @@ fn finalize_message_finalization_and_payload(
             .unwrap_or(&model),
         240,
     );
-    let mut runtime_patch = json!({
+    let runtime_patch = json!({
         "runtime_model": runtime_model,
         "context_window": result.get("context_window").cloned().unwrap_or_else(|| json!(0)),
         "context_window_tokens": result.get("context_window").cloned().unwrap_or_else(|| json!(0)),
         "updated_at": crate::now_iso()
     });
-    if auto_route.is_some() {
-        runtime_patch["runtime_provider"] = json!(runtime_provider.clone());
-        if !requested_provider.eq_ignore_ascii_case("auto")
-            && !requested_model.is_empty()
-            && !requested_model.eq_ignore_ascii_case("auto")
-        {
-            runtime_patch["model_provider"] = json!(runtime_provider.clone());
-            runtime_patch["model_name"] = json!(runtime_model.clone());
-            runtime_patch["model_override"] = json!(format!("{runtime_provider}/{runtime_model}"));
-        }
-    }
     let _ = update_profile_patch(root, agent_id, &runtime_patch);
     let mut payload = result.clone();
     payload["ok"] = json!(true);

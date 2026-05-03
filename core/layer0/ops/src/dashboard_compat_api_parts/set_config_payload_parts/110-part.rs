@@ -117,7 +117,7 @@ fn terminal_alias_command_for_tool(normalized_tool: &str, input: &Value) -> Opti
             || (hint.contains("architecture") && hint.contains("workflow"))
         {
             return Some(
-                "rg -n -m 2 -S 'complex_prompt_chain_v1|response_workflow|identity persistence|memory continuity|tool orchestration|resident IPC|workflow gate' docs/workspace core/layer0/ops surface client/runtime | head -n 12"
+                "rg -n -m 2 -S 'complex_prompt_chain_v1|response_workflow|workflow gate|manual_toolbox|tool_menu_interface|fallback' docs/workspace core/layer0/ops orchestration client/runtime | head -n 12"
                     .to_string(),
             );
         }
@@ -199,6 +199,12 @@ mod tool_name_fallback_tests {
             resolve_tool_name_fallback("memory_semantic_query", &json!({})),
             "memory_semantic_query"
         );
+    }
+
+    #[test]
+    fn affirmative_confirmation_accepts_natural_do_it_then() {
+        assert!(message_is_affirmative_confirmation("Do it then. this easy"));
+        assert!(message_is_affirmative_confirmation("go ahead and run it"));
     }
 }
 
@@ -362,6 +368,11 @@ fn message_is_affirmative_confirmation(message: &str) -> bool {
             | "yes do it"
     ) || collapsed.starts_with("yes ")
         || collapsed.starts_with("confirm ")
+        || collapsed.starts_with("do it ")
+        || collapsed.starts_with("do that ")
+        || collapsed.starts_with("execute it ")
+        || collapsed.starts_with("go ahead ")
+        || collapsed.starts_with("run it ")
 }
 
 fn message_is_negative_confirmation(message: &str) -> bool {

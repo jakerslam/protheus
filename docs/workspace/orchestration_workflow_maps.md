@@ -6,14 +6,23 @@ Scope: request decomposition, coordination, sequencing, recovery, and result pac
 
 Current chat workflow rule: the workflow interface is not allowed to help the LLM pick tools. It may only present a multiple-choice menu, present a text-input payload field, execute the submitted payload, record telemetry, or hand final response authorship back to the LLM.
 
+## Burnable CD / CD Player Model
+
+The workflow JSON is the burnable CD. The Rust workflow reader/runtime is the CD player.
+
+These maps are reference diagrams, not runtime authority. The selected `*.workflow.json` file owns the gates, options, transitions, tool family menus, input schemas, confirmation/cancel states, loopbacks, and final-output contract. Rust owns only loading, validation, deterministic transition execution, tool handoff, receipt binding, trace export, and Kernel policy enforcement.
+
+Runtime traces should therefore identify the selected JSON source and report `interaction_source: json_workflow_spec`, `rust_reader_role: validate_execute_trace_only`, and `hardcoded_interaction_behavior_allowed: false`.
+
 ## 1) Default Turn Flow
 
 ```mermaid
 flowchart TD
-    A[User turn] --> B["Gate 1: Need tools? (Yes/No)"]
-    B --> C{"LLM submits F or T"}
-    C -->|F| D[LLM answers directly]
-    C -->|T| E[Present numbered tool family menu]
+    A[User turn] --> B["Gate 1: What kind of work is this?"]
+    B --> C{"LLM submits category"}
+    C -->|"Respond directly"| D[LLM answers directly]
+    C -->|"Planning from current context"| D
+    C -->|"Tool-bearing category"| E[Present matching numbered tool family menu]
     E --> F[Numbered tool menu]
     F --> G[Present selected tool request-format field]
     G --> H[Execute submitted tool payload]
@@ -22,15 +31,16 @@ flowchart TD
     I -->|Finish| J[LLM-authored final answer]
 ```
 
-## 2) Direct Conversation Flow
+## 2) Direct Response Flow
 
-Direct conversation is the `F` branch at Gate 1. There is no separate bypass workflow and no automatic bypass classifier.
+Direct response is the `Respond directly` branch at Gate 1. Current-context planning is also a no-tool category. There is no separate bypass workflow and no automatic bypass classifier.
 
 ```mermaid
 flowchart TD
-    A[User turn] --> B["Gate 1: Need tools? (Yes/No)"]
-    B -->|F| C[LLM answers directly]
-    B -->|T| D[Tool menu interface]
+    A[User turn] --> B["Gate 1: What kind of work is this?"]
+    B -->|"Respond directly"| C[LLM answers directly]
+    B -->|"Planning from current context"| C
+    B -->|"Tool-bearing category"| D[Tool menu interface]
 ```
 
 ## 3) Visibility + No-Injection Rule

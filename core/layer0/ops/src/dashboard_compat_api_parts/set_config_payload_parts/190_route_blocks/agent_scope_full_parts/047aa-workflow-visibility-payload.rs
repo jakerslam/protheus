@@ -57,18 +57,22 @@ fn workflow_visibility_trace_payload(
         80,
     );
     if selected_option.is_empty()
-        && response_workflow
+        && (response_workflow
             .pointer("/final_llm_response/status")
             .and_then(Value::as_str)
             == Some("skipped_not_required")
+            || response_workflow
+                .pointer("/workflow_control/direct_response_path")
+                .and_then(Value::as_str)
+                == Some("gate_1_no_tool_category"))
     {
-        selected_option = "No".to_string();
+        selected_option = "Respond directly".to_string();
     }
     json!({
         "gate_id": workflow_trace_string(response_workflow, &[
             &["tool_gate", "gate_submission", "gate_id"],
             &["current_stage"],
-        ], "gate_1_need_tool_access_menu", 120),
+        ], "gate_1_work_category_menu", 120),
         "input_kind": workflow_trace_string(response_workflow, &[
             &["tool_gate", "gate_submission", "input_shape", "type"],
             &["tool_gate", "gate_1_question_type"],

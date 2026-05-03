@@ -423,7 +423,7 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             if !sanitized_summary.is_empty() {
                 return trim_text(&sanitized_summary, 1200);
             }
-            return "Batch query was blocked by policy.".to_string();
+            return String::new();
         }
         if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             if let Some(failure) = user_facing_tool_failure_summary(tool_name, payload) {
@@ -481,7 +481,7 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
     {
         if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             return user_facing_tool_failure_summary(tool_name, payload)
-                .unwrap_or_else(|| "Web search couldn't complete right now.".to_string());
+                .unwrap_or_default();
         }
         let query = clean_text(
             payload.get("query").and_then(Value::as_str).unwrap_or(""),

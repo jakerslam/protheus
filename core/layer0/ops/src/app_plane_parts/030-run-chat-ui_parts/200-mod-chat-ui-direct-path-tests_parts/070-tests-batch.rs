@@ -94,45 +94,45 @@
         );
         assert_eq!(
             payload
-                .pointer("/response_workflow/gates/need_tool_access/required")
+                .pointer("/response_workflow/gates/work_category/required")
                 .and_then(Value::as_bool),
             Some(false)
         );
         assert_eq!(
             payload
-                .pointer("/response_workflow/gates/need_tool_access/submission_status")
+                .pointer("/response_workflow/gates/work_category/submission_status")
                 .and_then(Value::as_str),
             Some("awaiting_llm_submission")
         );
         assert_eq!(
             payload
-                .pointer("/response_workflow/gates/need_tool_access/gate_submission/gate_id")
+                .pointer("/response_workflow/gates/work_category/gate_submission/gate_id")
                 .and_then(Value::as_str),
-            Some("gate_1_need_tool_access_menu")
+            Some("gate_1_work_category_menu")
         );
         assert_eq!(
             payload
-                .pointer("/response_workflow/gates/need_tool_access/gate_submission/input_shape/type")
+                .pointer("/response_workflow/gates/work_category/gate_submission/input_shape/type")
                 .and_then(Value::as_str),
             Some("multiple_choice")
         );
         assert!(payload
-            .pointer("/response_workflow/gates/need_tool_access/gate_submission/llm_submission")
+            .pointer("/response_workflow/gates/work_category/gate_submission/llm_submission")
             .is_some_and(Value::is_null));
         assert_eq!(
             payload
-                .pointer("/response_workflow/gates/need_tool_access/gate_submission/accepted")
+                .pointer("/response_workflow/gates/work_category/gate_submission/accepted")
                 .and_then(Value::as_bool),
             Some(false)
         );
         assert_eq!(
             payload
-                .pointer("/response_workflow/gates/need_tool_access/gate_submission/resume_token")
+                .pointer("/response_workflow/gates/work_category/gate_submission/resume_token")
                 .and_then(Value::as_str),
-            Some("gate_1_need_tool_access_menu.awaiting_llm_submission")
+            Some("gate_1_work_category_menu.awaiting_llm_submission")
         );
         assert!(payload
-            .pointer("/response_workflow/gates/need_tool_access/value")
+            .pointer("/response_workflow/gates/work_category/value")
             .is_some_and(Value::is_null));
         assert!(payload
             .pointer("/response_workflow/trace_streams/workflow_state")

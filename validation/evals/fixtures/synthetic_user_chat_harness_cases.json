@@ -97,11 +97,11 @@
           "turn_id": "web_001",
           "user_message": "Use web search to compare infring to other major agentic frameworks in April 2026.",
           "mock_response": {
-            "response": "I would choose web search for a current framework comparison, then synthesize from the returned evidence.",
+            "response": "",
             "pending_tool_request": {
               "status": "pending_confirmation",
               "source": "natural_tool_choice",
-              "tool_name": "batch_query",
+              "tool_name": "web_search",
               "selected_tool_family": "Web Search / Fetch",
               "selected_tool_label": "Web search",
               "input": {
@@ -120,7 +120,7 @@
               },
               "pending_tool_request": {
                 "status": "pending_confirmation",
-                "tool_name": "batch_query",
+                "tool_name": "web_search",
                 "execution_claim_allowed": false
               },
               "stage_statuses": [
@@ -139,7 +139,6 @@
             }
           },
           "expect": {
-            "required_substrings": ["web search"],
             "require_workflow_visibility": true,
             "require_live_eval_monitor": true,
             "forbid_gate_choice_leakage": true,
@@ -156,7 +155,7 @@
           "turn_id": "file_001",
           "user_message": "Find the workflow files in the workspace and tell me which one is active.",
           "mock_response": {
-            "response": "I would choose workspace search to inspect the workflow files, then report the active workflow from evidence.",
+            "response": "",
             "pending_tool_request": {
               "status": "pending_confirmation",
               "source": "natural_tool_choice",
@@ -197,7 +196,6 @@
             }
           },
           "expect": {
-            "required_substrings": ["workspace search"],
             "require_workflow_visibility": true,
             "require_live_eval_monitor": true,
             "forbid_gate_choice_leakage": true,
@@ -236,7 +234,7 @@
             },
             "tools": [
               {
-                "name": "batch_query",
+                "name": "web_search",
                 "status": "success",
                 "receipt": "fixture-web-tool-receipt",
                 "summary": "Agent frameworks are emphasizing workflow traces, receipts, and sandboxed execution."
