@@ -157,6 +157,7 @@ fn persist_run_outputs(
         report_output::bounded_report_index(report, dir, write_full_internal_report);
     write_json(&dir.join("kernel_sentinel_report_current.json"), &bounded_report)?;
     write_json(&dir.join("kernel_sentinel_final_report_current.json"), &report["final_report"])?;
+    super::causal_calibration::write_causal_calibration_artifacts(dir, report)?;
     report_output::write_full_internal_report_if_requested(dir, report, write_full_internal_report)?;
     write_json(
         &dir.join("architectural_incident_report_current.json"),
