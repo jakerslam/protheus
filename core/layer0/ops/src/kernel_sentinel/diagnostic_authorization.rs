@@ -59,10 +59,7 @@ const FAILURE_SIGNATURE_PROBE_POLICIES: &[KernelSentinelDiagnosticFailureProbePo
     },
     KernelSentinelDiagnosticFailureProbePolicy {
         failure_signature: "dashboard_healthz_not_ready",
-        allowed_probe_classes: &[
-            "diagnostic_topology_probe",
-            "diagnostic_evidence_refresh",
-        ],
+        allowed_probe_classes: &["diagnostic_topology_probe", "diagnostic_evidence_refresh"],
         allowed_probe_prefixes: &[
             "health://",
             "listener://",
@@ -112,9 +109,13 @@ const FAILURE_SIGNATURE_PROBE_POLICIES: &[KernelSentinelDiagnosticFailureProbePo
 
 fn class_prefix_allowed(class: &KernelSentinelDiagnosticProbeClass, probe: &str) -> bool {
     let prefixes: &[&str] = match class {
-        KernelSentinelDiagnosticProbeClass::DiagnosticTopologyProbe => {
-            &["topology://", "health://", "listener://", "process://", "watchdog://"]
-        }
+        KernelSentinelDiagnosticProbeClass::DiagnosticTopologyProbe => &[
+            "topology://",
+            "health://",
+            "listener://",
+            "process://",
+            "watchdog://",
+        ],
         KernelSentinelDiagnosticProbeClass::DiagnosticEvidenceRefresh => {
             &["evidence://", "artifact://", "receipt://", "report://"]
         }
@@ -171,16 +172,12 @@ pub fn kernel_sentinel_diagnostic_failure_probe_policies() -> Value {
 
 fn probe_class_code(class: &KernelSentinelDiagnosticProbeClass) -> &'static str {
     match class {
-        KernelSentinelDiagnosticProbeClass::DiagnosticTopologyProbe => {
-            "diagnostic_topology_probe"
-        }
+        KernelSentinelDiagnosticProbeClass::DiagnosticTopologyProbe => "diagnostic_topology_probe",
         KernelSentinelDiagnosticProbeClass::DiagnosticEvidenceRefresh => {
             "diagnostic_evidence_refresh"
         }
         KernelSentinelDiagnosticProbeClass::DiagnosticReplay => "diagnostic_replay",
-        KernelSentinelDiagnosticProbeClass::DiagnosticContractProbe => {
-            "diagnostic_contract_probe"
-        }
+        KernelSentinelDiagnosticProbeClass::DiagnosticContractProbe => "diagnostic_contract_probe",
         KernelSentinelDiagnosticProbeClass::DiagnosticTest => "diagnostic_test",
     }
 }
@@ -335,7 +332,10 @@ mod tests {
             decision.status,
             KernelSentinelDiagnosticAuthorizationStatus::Refused
         );
-        assert_eq!(decision.authorization_reason, "probe_class_safety_class_mismatch");
+        assert_eq!(
+            decision.authorization_reason,
+            "probe_class_safety_class_mismatch"
+        );
     }
 
     #[test]
@@ -347,7 +347,10 @@ mod tests {
             decision.status,
             KernelSentinelDiagnosticAuthorizationStatus::Refused
         );
-        assert_eq!(decision.authorization_reason, "probe_target_not_allowed_for_class");
+        assert_eq!(
+            decision.authorization_reason,
+            "probe_target_not_allowed_for_class"
+        );
     }
 
     #[test]
@@ -402,19 +405,15 @@ mod tests {
             .iter()
             .find(|row| row["failure_signature"] == "gateway_restart_success_without_listener")
             .expect("gateway family should be present");
-        assert!(
-            gateway_row["allowed_probe_classes"]
-                .as_array()
-                .expect("classes should be an array")
-                .iter()
-                .any(|value| value == "diagnostic_topology_probe")
-        );
-        assert!(
-            gateway_row["allowed_probe_prefixes"]
-                .as_array()
-                .expect("prefixes should be an array")
-                .iter()
-                .any(|value| value == "listener://")
-        );
+        assert!(gateway_row["allowed_probe_classes"]
+            .as_array()
+            .expect("classes should be an array")
+            .iter()
+            .any(|value| value == "diagnostic_topology_probe"));
+        assert!(gateway_row["allowed_probe_prefixes"]
+            .as_array()
+            .expect("prefixes should be an array")
+            .iter()
+            .any(|value| value == "listener://"));
     }
 }

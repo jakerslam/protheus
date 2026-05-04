@@ -15,18 +15,22 @@ struct CapabilityRequirement {
 
 fn capability_requirement(kind: &str) -> Option<CapabilityRequirement> {
     match normalize_key(kind).as_str() {
-        "workspace_read" | "file_read" | "read_file" | "workspace_read_execution" | "repo_path_read" => {
-            Some(CapabilityRequirement {
-                execution_kind: "workspace_read",
-                capability: "workspace_read",
-            })
-        }
-        "workspace_search" | "file_search" | "repo_search" | "workspace_search_execution" | "search_workspace" => {
-            Some(CapabilityRequirement {
-                execution_kind: "workspace_search",
-                capability: "workspace_search",
-            })
-        }
+        "workspace_read"
+        | "file_read"
+        | "read_file"
+        | "workspace_read_execution"
+        | "repo_path_read" => Some(CapabilityRequirement {
+            execution_kind: "workspace_read",
+            capability: "workspace_read",
+        }),
+        "workspace_search"
+        | "file_search"
+        | "repo_search"
+        | "workspace_search_execution"
+        | "search_workspace" => Some(CapabilityRequirement {
+            execution_kind: "workspace_search",
+            capability: "workspace_search",
+        }),
         "web_search" | "web_search_execution" | "call_web" => Some(CapabilityRequirement {
             execution_kind: "web_search",
             capability: "web_search",
@@ -35,12 +39,14 @@ fn capability_requirement(kind: &str) -> Option<CapabilityRequirement> {
             execution_kind: "web_fetch",
             capability: "web_fetch",
         }),
-        "tool_route" | "tool_execution" | "tool_call" | "tool_call_execution" | "tool_route_execution" => {
-            Some(CapabilityRequirement {
-                execution_kind: "tool_route",
-                capability: "tool_route",
-            })
-        }
+        "tool_route"
+        | "tool_execution"
+        | "tool_call"
+        | "tool_call_execution"
+        | "tool_route_execution" => Some(CapabilityRequirement {
+            execution_kind: "tool_route",
+            capability: "tool_route",
+        }),
         "state_mutation" | "state_write" | "mutate_state" | "state_mutation_committed" => {
             Some(CapabilityRequirement {
                 execution_kind: "mutate_state",
@@ -67,7 +73,12 @@ fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
     value
         .get(key)
         .or_else(|| value.get("details").and_then(|details| details.get(key)))
-        .or_else(|| value.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
+        .or_else(|| {
+            value
+                .get("details")
+                .and_then(|details| details.get("details"))
+                .and_then(|details| details.get(key))
+        })
         .and_then(Value::as_str)
         .unwrap_or("")
 }
@@ -75,8 +86,12 @@ fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
 fn value_bool(value: &Value, key: &str) -> bool {
     field(value, key)
         .map(|raw| {
-            raw.as_bool()
-                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes" | "payload" | "available"))
+            raw.as_bool().unwrap_or_else(|| {
+                matches!(
+                    raw.as_str().unwrap_or("").trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes" | "payload" | "available"
+                )
+            })
         })
         .unwrap_or(false)
 }
@@ -115,13 +130,23 @@ fn capability_equivalent(actual: &str, expected: &str) -> bool {
 
 fn row_contains_token(value: &Value, token: &str) -> bool {
     !token.trim().is_empty()
-        && (["id", "subject", "kind", "fingerprint", "capability", "grant_for"]
-            .iter()
-            .any(|key| value_str(value, key).contains(token))
+        && ([
+            "id",
+            "subject",
+            "kind",
+            "fingerprint",
+            "capability",
+            "grant_for",
+        ]
+        .iter()
+        .any(|key| value_str(value, key).contains(token))
             || value
                 .get("evidence")
                 .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| row.as_str().unwrap_or("").contains(token)))
+                .map(|rows| {
+                    rows.iter()
+                        .any(|row| row.as_str().unwrap_or("").contains(token))
+                })
                 .unwrap_or(false))
 }
 

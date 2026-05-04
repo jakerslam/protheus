@@ -69,7 +69,9 @@ pub fn validate_kernel_sentinel_diagnostic_request(
     require_nonempty("hypothesis", &request.hypothesis)?;
     require_nonempty("competing_explanation", &request.competing_explanation)?;
     require_nonempty("selected_probe", &request.selected_probe)?;
-    if !(0.0..=1.0).contains(&request.expected_confidence_gain) || request.expected_confidence_gain <= 0.0 {
+    if !(0.0..=1.0).contains(&request.expected_confidence_gain)
+        || request.expected_confidence_gain <= 0.0
+    {
         return Err("invalid_expected_confidence_gain".to_string());
     }
     if request.budget_impact.projected_probe_count == 0 {
@@ -142,7 +144,8 @@ mod tests {
             incident_id: "incident-001".to_string(),
             failure_signature: "gateway_restart_success_without_listener".to_string(),
             hypothesis: "listener truth is stale relative to reported restart success".to_string(),
-            competing_explanation: "shell projection alone is stale while gateway truth is healthy".to_string(),
+            competing_explanation: "shell projection alone is stale while gateway truth is healthy"
+                .to_string(),
             probe_class: KernelSentinelDiagnosticProbeClass::DiagnosticTopologyProbe,
             selected_probe: "topology://gateway/listener_healthz_readiness".to_string(),
             expected_confidence_gain: 0.35,
@@ -165,13 +168,11 @@ mod tests {
             model["policy_ref"],
             "docs/workspace/kernel_sentinel_diagnostic_execution_policy.md"
         );
-        assert!(
-            model["probe_classes"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|value| value == "diagnostic_test")
-        );
+        assert!(model["probe_classes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value == "diagnostic_test"));
     }
 
     #[test]

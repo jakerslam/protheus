@@ -642,7 +642,7 @@ mod tests {
         let payload = json!({
             "task_id": "task_blocked",
             "trace_id": "trace_blocked",
-            "tool_name": "spawn_subagents",
+            "tool_name": "unregistered_tool_for_test",
             "tool_args": {}
         });
         let err = execute_governed_workflow("openai_agents", payload.as_object().expect("obj"))

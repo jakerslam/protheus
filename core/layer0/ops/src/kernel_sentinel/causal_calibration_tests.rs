@@ -51,7 +51,10 @@ fn calibration_tracks_hypotheses_and_tunes_pattern_scores_from_fix_results() {
     assert_eq!(report["root_cause_clusters"][0]["occurrence_count"], 2);
     assert_eq!(report["pattern_scores"][0]["score"], 58);
     assert_eq!(report["promotion_ready_count"], 2);
-    assert_eq!(report["current_ledger_entries"][0]["outcome_status"], "unresolved");
+    assert_eq!(
+        report["current_ledger_entries"][0]["outcome_status"],
+        "unresolved"
+    );
     assert_eq!(report["safe_to_auto_apply_patch"], false);
     assert_eq!(
         report["final_report_summary"]["top_calibrated_hypotheses"][0]["promotion_ready"],

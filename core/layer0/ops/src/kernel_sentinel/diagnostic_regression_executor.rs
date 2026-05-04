@@ -163,8 +163,8 @@ mod tests {
             failure_signature: "typed_probe_contract_gap".to_string(),
             hypothesis: "a targeted regression should confirm the probe-family contract"
                 .to_string(),
-            competing_explanation:
-                "authorization logic may still pass the wrong assertion family".to_string(),
+            competing_explanation: "authorization logic may still pass the wrong assertion family"
+                .to_string(),
             probe_class: KernelSentinelDiagnosticProbeClass::DiagnosticTest,
             selected_probe: "regression://kernel_sentinel/diagnostic_authorization".to_string(),
             expected_confidence_gain: 0.27,
@@ -274,13 +274,15 @@ mod tests {
                 regression_completed: false,
                 assertion_family_matched: false,
                 artifact_path: Some(
-                    "local/state/kernel_sentinel/targeted_regression_inconclusive.json"
-                        .to_string(),
+                    "local/state/kernel_sentinel/targeted_regression_inconclusive.json".to_string(),
                 ),
             },
         )
         .expect("targeted regression should execute");
-        assert_eq!(result.outcome, KernelSentinelDiagnosticOutcome::Inconclusive);
+        assert_eq!(
+            result.outcome,
+            KernelSentinelDiagnosticOutcome::Inconclusive
+        );
         assert_eq!(
             result.stop_reason_code,
             KernelSentinelDiagnosticStopReason::ConfidenceGainExhausted

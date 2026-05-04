@@ -21,8 +21,12 @@ fn text(value: &Value, key: &str, fallback: &str) -> String {
 fn bool_detail(record: &Value, key: &str) -> bool {
     value(record, key)
         .map(|raw| {
-            raw.as_bool()
-                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes" | "fail" | "failed"))
+            raw.as_bool().unwrap_or_else(|| {
+                matches!(
+                    raw.as_str().unwrap_or("").trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes" | "fail" | "failed"
+                )
+            })
         })
         .unwrap_or(false)
 }
@@ -30,11 +34,7 @@ fn bool_detail(record: &Value, key: &str) -> bool {
 fn value<'a>(record: &'a Value, key: &str) -> Option<&'a Value> {
     record
         .get(key)
-        .or_else(|| {
-            record
-                .get("details")
-                .and_then(|details| details.get(key))
-        })
+        .or_else(|| record.get("details").and_then(|details| details.get(key)))
         .or_else(|| {
             record
                 .get("details")
@@ -57,7 +57,10 @@ fn numeric_detail(record: &Value, key: &str) -> Option<f64> {
         raw.as_f64()
             .or_else(|| raw.as_u64().map(|value| value as f64))
             .or_else(|| raw.as_i64().map(|value| value as f64))
-            .or_else(|| raw.as_str().and_then(|text| text.trim().parse::<f64>().ok()))
+            .or_else(|| {
+                raw.as_str()
+                    .and_then(|text| text.trim().parse::<f64>().ok())
+            })
     })
 }
 
@@ -105,7 +108,9 @@ fn replay_finding(record: &Value, reason: &str) -> KernelSentinelFinding {
         fingerprint: format!("outcome_replay:{reason}:{subject}"),
         evidence,
         summary: format!("{subject} failed outcome replay: {reason}"),
-        recommended_action: "restore state/receipt replay agreement before accepting the claimed outcome".to_string(),
+        recommended_action:
+            "restore state/receipt replay agreement before accepting the claimed outcome"
+                .to_string(),
         status: "open".to_string(),
     }
 }
@@ -114,7 +119,8 @@ fn replay_findings(records: &[Value]) -> Vec<KernelSentinelFinding> {
     let mut findings = Vec::new();
     for record in records {
         if bool_detail(record, "claimed_done")
-            && (!bool_detail(record, "state_matches_claim") || !bool_detail(record, "receipt_present"))
+            && (!bool_detail(record, "state_matches_claim")
+                || !bool_detail(record, "receipt_present"))
         {
             findings.push(replay_finding(record, "claim_without_state_or_receipt"));
         }
@@ -126,7 +132,9 @@ fn replay_findings(records: &[Value]) -> Vec<KernelSentinelFinding> {
         {
             findings.push(replay_finding(record, "gateway_quarantine_missing"));
         }
-        if bool_detail(record, "rollback_expected") && !bool_detail(record, "rollback_receipt_present") {
+        if bool_detail(record, "rollback_expected")
+            && !bool_detail(record, "rollback_receipt_present")
+        {
             findings.push(replay_finding(record, "rollback_receipt_missing"));
         }
     }
@@ -136,7 +144,10 @@ fn replay_findings(records: &[Value]) -> Vec<KernelSentinelFinding> {
 fn trend_failure_count(records: &[Value]) -> usize {
     records
         .iter()
-        .filter(|record| regression_detail(record, "trend_regression") || regression_detail(record, "boundedness_regression"))
+        .filter(|record| {
+            regression_detail(record, "trend_regression")
+                || regression_detail(record, "boundedness_regression")
+        })
         .count()
 }
 
@@ -159,7 +170,11 @@ fn semantic_monitor_advisories(records: &[Value]) -> Vec<Value> {
         }
         let subject = subject(record);
         let cluster_key = str_detail(record, "semantic_cluster_key", &subject);
-        let summary = str_detail(record, "semantic_summary", &text(record, "summary", "semantic monitor advisory"));
+        let summary = str_detail(
+            record,
+            "semantic_summary",
+            &text(record, "summary", "semantic monitor advisory"),
+        );
         let entry = clusters
             .entry(cluster_key)
             .or_insert_with(|| (0, BTreeSet::new(), summary.clone()));
@@ -202,7 +217,9 @@ fn canary_failure_count(records: &[Value]) -> usize {
 fn canary_case_rows(records: &[Value]) -> Vec<Value> {
     records
         .iter()
-        .filter(|record| bool_detail(record, "canary_failed") || text(record, "kind", "") == "sentinel_canary")
+        .filter(|record| {
+            bool_detail(record, "canary_failed") || text(record, "kind", "") == "sentinel_canary"
+        })
         .map(|record| {
             let subject = subject(record);
             let case = str_detail(record, "canary_case", &subject);
@@ -267,9 +284,27 @@ pub fn build_grader_stack(
     let canary_failures = canary_failure_count(records);
     let canary_cases = canary_case_rows(records);
     let graders = vec![
-        grader("invariant", "deterministic_blocking", invariant_failures, true, json!({"source": "kernel_findings"})),
-        grader("replay", "policy_blocking", replay_failures, true, json!({"source": "state_receipt_replay"})),
-        grader("trend", "policy_blocking", trend_failures, true, json!({"source": "boundedness_trend"})),
+        grader(
+            "invariant",
+            "deterministic_blocking",
+            invariant_failures,
+            true,
+            json!({"source": "kernel_findings"}),
+        ),
+        grader(
+            "replay",
+            "policy_blocking",
+            replay_failures,
+            true,
+            json!({"source": "state_receipt_replay"}),
+        ),
+        grader(
+            "trend",
+            "policy_blocking",
+            trend_failures,
+            true,
+            json!({"source": "boundedness_trend"}),
+        ),
         grader(
             "semantic_monitor",
             "advisory_non_authoritative",
@@ -327,7 +362,10 @@ mod tests {
             }
         })];
         let (report, findings) = build_grader_stack(&[], &records);
-        assert_eq!(findings[0].fingerprint, "outcome_replay:claim_without_state_or_receipt:mutation-1");
+        assert_eq!(
+            findings[0].fingerprint,
+            "outcome_replay:claim_without_state_or_receipt:mutation-1"
+        );
         assert_eq!(report["graders"][1]["id"], "replay");
         assert_eq!(report["graders"][1]["blocks_release"], true);
     }
@@ -347,7 +385,10 @@ mod tests {
         assert!(findings.is_empty());
         assert_eq!(report["graders"][3]["id"], "semantic_monitor");
         assert_eq!(report["graders"][3]["blocks_release"], false);
-        assert_eq!(report["graders"][3]["notes"]["advisory_clusters"][0]["may_waive"], false);
+        assert_eq!(
+            report["graders"][3]["notes"]["advisory_clusters"][0]["may_waive"],
+            false
+        );
         assert_eq!(
             report["graders"][3]["notes"]["advisory_clusters"][0]["deterministic_evidence_refs"][0],
             Value::from("receipt://summary-1")
@@ -367,7 +408,10 @@ mod tests {
         let (report, _findings) = build_grader_stack(&[], &records);
         assert_eq!(report["graders"][4]["id"], "canary");
         assert_eq!(report["graders"][4]["blocks_release"], true);
-        assert_eq!(report["graders"][4]["notes"]["cases"][0]["case"], Value::from("forged_receipt"));
+        assert_eq!(
+            report["graders"][4]["notes"]["cases"][0]["case"],
+            Value::from("forged_receipt")
+        );
     }
 
     #[test]
@@ -383,7 +427,10 @@ mod tests {
         let (report, _findings) = build_grader_stack(&[], &records);
         assert_eq!(report["graders"][4]["failure_count"], Value::from(0));
         assert_eq!(report["graders"][4]["blocks_release"], false);
-        assert_eq!(report["graders"][4]["notes"]["cases"][0]["case"], Value::from("reordered_trace"));
+        assert_eq!(
+            report["graders"][4]["notes"]["cases"][0]["case"],
+            Value::from("reordered_trace")
+        );
     }
 
     #[test]

@@ -46,7 +46,7 @@ Primary evidence sources are repo-local, deterministic, and refreshable:
 
 A real hardware MCU proof pass (ESP32 + RP2040 flash + runtime screenshot evidence) remains externally blocked on physical board access and human-operated flash sessions.
 
-- TODO reference: `P0-MCU-PROOF-001` (`docs/workspace/TODO.md`)
+- TODO reference: `P0-MCU-PROOF-001` (`docs/workspace/todo/TODO.md`)
 - Human ownership reference: `HMAN-092` (`docs/client/HUMAN_ONLY_ACTIONS.md`)
 - Operator runbook: `docs/ops/RUNBOOK-005-mcu-proof-sprint.md`
 

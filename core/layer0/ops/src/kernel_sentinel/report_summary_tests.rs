@@ -115,12 +115,30 @@ fn build_health_report_surfaces_single_observability_snapshot() {
     assert_eq!(health["type"], "kernel_sentinel_health_report");
     assert_eq!(health["freshness"]["scheduler_status"], "fresh");
     assert_eq!(health["coverage"]["present_required_source_count"], 14);
-    assert_eq!(health["coverage"]["source_classes"]["required"]["present_count"], 14);
-    assert_eq!(health["coverage"]["source_classes"]["required"]["missing_count"], 0);
-    assert_eq!(health["coverage"]["source_classes"]["required"]["ready"], true);
-    assert_eq!(health["coverage"]["source_classes"]["optional"]["present_count"], 0);
-    assert_eq!(health["coverage"]["source_classes"]["optional"]["missing_count"], 1);
-    assert_eq!(health["coverage"]["source_classes"]["optional"]["fully_present"], false);
+    assert_eq!(
+        health["coverage"]["source_classes"]["required"]["present_count"],
+        14
+    );
+    assert_eq!(
+        health["coverage"]["source_classes"]["required"]["missing_count"],
+        0
+    );
+    assert_eq!(
+        health["coverage"]["source_classes"]["required"]["ready"],
+        true
+    );
+    assert_eq!(
+        health["coverage"]["source_classes"]["optional"]["present_count"],
+        0
+    );
+    assert_eq!(
+        health["coverage"]["source_classes"]["optional"]["missing_count"],
+        1
+    );
+    assert_eq!(
+        health["coverage"]["source_classes"]["optional"]["fully_present"],
+        false
+    );
     assert_eq!(health["trend"]["status"], "improving");
     assert_eq!(health["trend"]["history_run_count"], 4);
     assert_eq!(health["trend"]["regression_count"], 0);
@@ -128,23 +146,38 @@ fn build_health_report_surfaces_single_observability_snapshot() {
     assert_eq!(health["trend"]["delta"]["baseline"], "previous_run");
     assert_eq!(health["quality"]["finding_count"], 2);
     assert_eq!(health["issue_synthesis"]["issue_draft_count"], 1);
-    assert_eq!(health["maintenance_synthesis"]["automation_candidate_count"], 2);
+    assert_eq!(
+        health["maintenance_synthesis"]["automation_candidate_count"],
+        2
+    );
     assert_eq!(health["guard_consistency"]["ok"], false);
     assert_eq!(health["guard_consistency"]["contradiction_count"], 1);
-    assert_eq!(health["guard_consistency"]["contradictions"][0]["record_id"], "gateway-pass");
+    assert_eq!(
+        health["guard_consistency"]["contradictions"][0]["record_id"],
+        "gateway-pass"
+    );
     assert_eq!(
         health["guard_consistency"]["contradictions"][0]["matching_findings"][0]["finding_id"],
         "release-fail"
     );
     assert_eq!(health["diagnostic_report"]["probes_run"], 2);
     assert_eq!(health["diagnostic_report"]["probes_refused"], 1);
-    assert_eq!(health["diagnostic_report"]["confidence_gain_expected_total"], 0.54);
+    assert_eq!(
+        health["diagnostic_report"]["confidence_gain_expected_total"],
+        0.54
+    );
     assert_eq!(
         health["diagnostic_report"]["recurring_inconclusive_patterns"][0],
         "typed_probe_contract_gap"
     );
-    assert_eq!(health["authority_safety"]["safe_for_observation_authority"], true);
-    assert_eq!(health["authority_safety"]["safe_for_automation_authority"], true);
+    assert_eq!(
+        health["authority_safety"]["safe_for_observation_authority"],
+        true
+    );
+    assert_eq!(
+        health["authority_safety"]["safe_for_automation_authority"],
+        true
+    );
 }
 
 #[test]
@@ -205,8 +238,14 @@ fn build_health_report_keeps_automation_authority_false_without_self_study_readi
         "release_blockers": []
     });
     let health = build_health_report(&report, &verdict, None, None);
-    assert_eq!(health["authority_safety"]["safe_for_observation_authority"], true);
-    assert_eq!(health["authority_safety"]["safe_for_automation_authority"], false);
+    assert_eq!(
+        health["authority_safety"]["safe_for_observation_authority"],
+        true
+    );
+    assert_eq!(
+        health["authority_safety"]["safe_for_automation_authority"],
+        false
+    );
     assert_eq!(health["diagnostic_report"]["probes_run"], 0);
     assert_eq!(health["guard_consistency"]["contradiction_count"], 0);
     assert_eq!(health["trend"]["status"], "unavailable");

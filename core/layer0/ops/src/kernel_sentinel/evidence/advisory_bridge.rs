@@ -26,8 +26,12 @@ fn value_str<'a>(record: &'a Value, key: &str) -> &'a str {
 fn value_bool(record: &Value, key: &str) -> bool {
     value(record, key)
         .map(|raw| {
-            raw.as_bool()
-                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes"))
+            raw.as_bool().unwrap_or_else(|| {
+                matches!(
+                    raw.as_str().unwrap_or("").trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes"
+                )
+            })
         })
         .unwrap_or(false)
 }
@@ -43,8 +47,12 @@ fn claimed_bool(record: &Value, key: &str) -> bool {
                 .and_then(|details| details.get(key))
         })
         .map(|raw| {
-            raw.as_bool()
-                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes"))
+            raw.as_bool().unwrap_or_else(|| {
+                matches!(
+                    raw.as_str().unwrap_or("").trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes"
+                )
+            })
         })
         .unwrap_or(false)
 }
@@ -108,7 +116,12 @@ fn evidence_refs(record: &Value) -> Vec<String> {
                 .collect::<Vec<_>>()
         })
         .filter(|rows| !rows.is_empty())
-        .unwrap_or_else(|| vec![format!("evidence://{}", clean_token(value_str(record, "id"), "control-plane-eval"))])
+        .unwrap_or_else(|| {
+            vec![format!(
+                "evidence://{}",
+                clean_token(value_str(record, "id"), "control-plane-eval")
+            )]
+        })
 }
 
 fn corroborating_deterministic_evidence_present(record: &Value) -> bool {
@@ -119,7 +132,11 @@ fn corroborating_deterministic_evidence_present(record: &Value) -> bool {
     })
 }
 
-fn advisory_finding(record: &Value, rule: &str, severity: KernelSentinelSeverity) -> KernelSentinelFinding {
+fn advisory_finding(
+    record: &Value,
+    rule: &str,
+    severity: KernelSentinelSeverity,
+) -> KernelSentinelFinding {
     let subject = clean_token(value_str(record, "subject"), "control_plane_eval");
     let id = clean_token(value_str(record, "id"), "control-plane-eval");
     KernelSentinelFinding {
@@ -135,7 +152,9 @@ fn advisory_finding(record: &Value, rule: &str, severity: KernelSentinelSeverity
     }
 }
 
-pub(super) fn build_advisory_bridge_report(records: &[Value]) -> (Value, Vec<KernelSentinelFinding>) {
+pub(super) fn build_advisory_bridge_report(
+    records: &[Value],
+) -> (Value, Vec<KernelSentinelFinding>) {
     let mut findings = Vec::new();
     let mut checked_count = 0usize;
     let mut authority_claim_count = 0usize;

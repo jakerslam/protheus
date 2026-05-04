@@ -11,7 +11,12 @@ fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
     value
         .get(key)
         .or_else(|| value.get("details").and_then(|details| details.get(key)))
-        .or_else(|| value.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
+        .or_else(|| {
+            value
+                .get("details")
+                .and_then(|details| details.get("details"))
+                .and_then(|details| details.get(key))
+        })
         .and_then(Value::as_str)
         .unwrap_or("")
 }
@@ -71,7 +76,14 @@ fn normalize_key(raw: &str) -> String {
 fn terminal_state(state: &str) -> bool {
     matches!(
         canonical_state(state).as_str(),
-        "failed" | "cancelled" | "canceled" | "complete" | "completed" | "succeeded" | "success" | "terminated"
+        "failed"
+            | "cancelled"
+            | "canceled"
+            | "complete"
+            | "completed"
+            | "succeeded"
+            | "success"
+            | "terminated"
     )
 }
 
@@ -79,7 +91,14 @@ fn non_terminal_state(state: &str) -> bool {
     !terminal_state(state)
         || matches!(
             canonical_state(state).as_str(),
-        "queued" | "pending" | "ready" | "running" | "in_progress" | "retrying" | "reopened" | "active"
+            "queued"
+                | "pending"
+                | "ready"
+                | "running"
+                | "in_progress"
+                | "retrying"
+                | "reopened"
+                | "active"
         )
 }
 
@@ -91,7 +110,10 @@ fn row_contains_token(value: &Value, token: &str) -> bool {
             || value
                 .get("evidence")
                 .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| row.as_str().unwrap_or("").contains(token)))
+                .map(|rows| {
+                    rows.iter()
+                        .any(|row| row.as_str().unwrap_or("").contains(token))
+                })
                 .unwrap_or(false))
 }
 
@@ -102,7 +124,10 @@ fn rollback_receipt_matches(receipt: &Value, transition: &Value) -> bool {
     let kind = value_str(receipt, "kind");
     let rollback_receipt = matches!(
         kind,
-        "rollback_receipt" | "state_transition_rollback_receipt" | "terminal_reopen_receipt" | "reopen_receipt"
+        "rollback_receipt"
+            | "state_transition_rollback_receipt"
+            | "terminal_reopen_receipt"
+            | "reopen_receipt"
     );
     rollback_receipt
         && (row_contains_token(receipt, value_str(transition, "id"))

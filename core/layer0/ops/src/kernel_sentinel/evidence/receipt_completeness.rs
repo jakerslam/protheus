@@ -15,14 +15,18 @@ struct ReceiptRequirement {
 
 fn receipt_requirement(kind: &str) -> Option<ReceiptRequirement> {
     match normalize_key(kind).as_str() {
-        "state_mutation" | "state_mutation_committed" | "state_write" | "mutate_state" => Some(ReceiptRequirement {
-            action_kind: "state_mutation",
-            expected_receipt_type: "state_mutation_receipt",
-        }),
-        "tool_execution" | "tool_call" | "tool_result" | "tool_completion" | "tool_done" => Some(ReceiptRequirement {
-            action_kind: "tool_execution",
-            expected_receipt_type: "tool_execution_receipt",
-        }),
+        "state_mutation" | "state_mutation_committed" | "state_write" | "mutate_state" => {
+            Some(ReceiptRequirement {
+                action_kind: "state_mutation",
+                expected_receipt_type: "state_mutation_receipt",
+            })
+        }
+        "tool_execution" | "tool_call" | "tool_result" | "tool_completion" | "tool_done" => {
+            Some(ReceiptRequirement {
+                action_kind: "tool_execution",
+                expected_receipt_type: "tool_execution_receipt",
+            })
+        }
         "rollback" | "rollback_applied" => Some(ReceiptRequirement {
             action_kind: "rollback",
             expected_receipt_type: "rollback_receipt",
@@ -43,7 +47,12 @@ fn field<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {
     value
         .get(key)
         .or_else(|| value.get("details").and_then(|details| details.get(key)))
-        .or_else(|| value.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
+        .or_else(|| {
+            value
+                .get("details")
+                .and_then(|details| details.get("details"))
+                .and_then(|details| details.get(key))
+        })
 }
 
 fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
@@ -76,11 +85,18 @@ fn row_contains_token(value: &Value, token: &str) -> bool {
             || value
                 .get("evidence")
                 .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| row.as_str().unwrap_or("").contains(token)))
+                .map(|rows| {
+                    rows.iter()
+                        .any(|row| row.as_str().unwrap_or("").contains(token))
+                })
                 .unwrap_or(false))
 }
 
-fn receipt_matches_action(receipt: &Value, action: &Value, requirement: ReceiptRequirement) -> bool {
+fn receipt_matches_action(
+    receipt: &Value,
+    action: &Value,
+    requirement: ReceiptRequirement,
+) -> bool {
     if value_str(receipt, "source") != "kernel_receipt" {
         return false;
     }
@@ -122,7 +138,9 @@ pub(super) fn receipt_completeness_findings(records: &[Value]) -> Vec<KernelSent
     records
         .iter()
         .filter(|record| value_str(record, "source") != "kernel_receipt")
-        .filter_map(|record| receipt_requirement(value_str(record, "kind")).map(|req| (record, req)))
+        .filter_map(|record| {
+            receipt_requirement(value_str(record, "kind")).map(|req| (record, req))
+        })
         .filter(|(record, req)| {
             !receipts
                 .iter()

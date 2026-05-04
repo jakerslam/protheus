@@ -36,8 +36,15 @@ pub(super) fn append_failure_citations(
     if record.ok == Some(false) {
         push_unique(evidence, format!("field://{source}/{id}/ok=false"));
     }
-    if let Some(status) = record.status.as_deref().filter(|status| failed_status(status)) {
-        push_unique(evidence, format!("field://{source}/{id}/status={}", normalize_key(status)));
+    if let Some(status) = record
+        .status
+        .as_deref()
+        .filter(|status| failed_status(status))
+    {
+        push_unique(
+            evidence,
+            format!("field://{source}/{id}/status={}", normalize_key(status)),
+        );
     }
     if record.details.get("pass").and_then(Value::as_bool) == Some(false) {
         push_unique(evidence, format!("field://{source}/{id}/pass=false"));

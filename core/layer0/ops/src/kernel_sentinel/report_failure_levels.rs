@@ -22,7 +22,11 @@ pub(super) fn build_failure_level_summary(
         .iter()
         .map(|level| ((*level).to_string(), 0usize))
         .collect::<BTreeMap<_, _>>();
-    for item in top_findings.iter().chain(root_cause_clusters).chain(triage_findings) {
+    for item in top_findings
+        .iter()
+        .chain(root_cause_clusters)
+        .chain(triage_findings)
+    {
         let level = level_code(item);
         *counts.entry(level).or_insert(0) += 1;
     }
@@ -56,7 +60,10 @@ fn level_code(value: &Value) -> String {
 }
 
 fn level_rank(level: &str) -> usize {
-    ORDER.iter().position(|candidate| *candidate == level).unwrap_or(0)
+    ORDER
+        .iter()
+        .position(|candidate| *candidate == level)
+        .unwrap_or(0)
 }
 
 pub(super) fn failure_class(level: &str) -> &'static str {
@@ -107,10 +114,16 @@ mod tests {
             "summary": "shell mini OS authority shape"
         })];
         let summary = build_failure_level_summary(&findings, &clusters, &[]);
-        assert_eq!(summary["highest_failure_level"], "L4_architectural_misalignment");
+        assert_eq!(
+            summary["highest_failure_level"],
+            "L4_architectural_misalignment"
+        );
         assert_eq!(summary["highest_failure_class"], "architectural");
         assert_eq!(summary["highest_review_depth"], "architecture_review");
         assert_eq!(summary["requires_architecture_review"], true);
-        assert_eq!(summary["counts"]["L4_architectural_misalignment"], Value::from(1));
+        assert_eq!(
+            summary["counts"]["L4_architectural_misalignment"],
+            Value::from(1)
+        );
     }
 }

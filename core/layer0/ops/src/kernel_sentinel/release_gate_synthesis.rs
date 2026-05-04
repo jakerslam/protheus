@@ -3,7 +3,9 @@
 
 use serde_json::Value;
 
-pub fn release_gate_synthesis_status(architectural_incident_report: &Value) -> (u64, u64, u64, bool) {
+pub fn release_gate_synthesis_status(
+    architectural_incident_report: &Value,
+) -> (u64, u64, u64, bool) {
     let multi_layer_incident_count = architectural_incident_report["multi_layer_incident_count"]
         .as_u64()
         .unwrap_or(0);
@@ -28,8 +30,8 @@ pub fn release_gate_synthesis_status(architectural_incident_report: &Value) -> (
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::governance::build_release_gate;
+    use super::*;
     use serde_json::json;
 
     #[test]

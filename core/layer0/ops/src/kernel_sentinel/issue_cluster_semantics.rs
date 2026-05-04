@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
-use super::{kernel_sentinel_root_frame_for_finding, KernelSentinelFinding, KernelSentinelSeverity};
+use super::{
+    kernel_sentinel_root_frame_for_finding, KernelSentinelFinding, KernelSentinelSeverity,
+};
 
 #[derive(Debug, Clone)]
 pub(super) struct FindingCluster {
@@ -102,7 +104,10 @@ pub(super) fn issue_family_fingerprint(fingerprint: &str) -> String {
         return fingerprint.to_string();
     }
     let after_digits = &rest[digit_count..];
-    if matches!(after_digits, "_failure" | "_failures" | "-failure" | "-failures" | ":failure" | ":failures") {
+    if matches!(
+        after_digits,
+        "_failure" | "_failures" | "-failure" | "-failures" | ":failure" | ":failures"
+    ) {
         "synthetic_user_chat_harness:misty_simulated_failures".to_string()
     } else {
         fingerprint.to_string()
@@ -156,7 +161,10 @@ fn compact_issue_text(raw: &str, fallback: &str, max_chars: usize) -> String {
     if source.chars().count() <= max_chars {
         return source;
     }
-    let mut shortened = source.chars().take(max_chars.saturating_sub(1)).collect::<String>();
+    let mut shortened = source
+        .chars()
+        .take(max_chars.saturating_sub(1))
+        .collect::<String>();
     shortened = shortened.trim_end().to_string();
     format!("{shortened}...")
 }

@@ -6,8 +6,7 @@ use std::collections::BTreeSet;
 
 use super::{
     kernel_sentinel_failure_level_for_finding, kernel_sentinel_invariant_registry,
-    kernel_sentinel_root_frame_for_finding, KernelSentinelFinding,
-    KernelSentinelFindingCategory,
+    kernel_sentinel_root_frame_for_finding, KernelSentinelFinding, KernelSentinelFindingCategory,
 };
 
 pub(super) fn violated_invariants(finding: &KernelSentinelFinding) -> Vec<String> {
@@ -43,15 +42,26 @@ fn confidence_percent(finding: &KernelSentinelFinding) -> u8 {
 
 fn stop_patching(finding: &KernelSentinelFinding, root_frame: &str) -> bool {
     root_frame != "local_defect"
-        || finding.summary.to_ascii_lowercase().contains("stop_patching")
-        || finding.recommended_action.to_ascii_lowercase().contains("structural")
+        || finding
+            .summary
+            .to_ascii_lowercase()
+            .contains("stop_patching")
+        || finding
+            .recommended_action
+            .to_ascii_lowercase()
+            .contains("structural")
 }
 
-fn recommended_refactor_boundary(finding: &KernelSentinelFinding, root_frame: &str) -> &'static str {
+fn recommended_refactor_boundary(
+    finding: &KernelSentinelFinding,
+    root_frame: &str,
+) -> &'static str {
     match (root_frame, finding.category) {
         ("authority_policy_contradiction", _) => "shell_gateway_kernel_authority_boundary",
         ("architectural_shape_mismatch", _) => "shell_gateway_runtime_topology_boundary",
-        ("cross_boundary_contract", KernelSentinelFindingCategory::GatewayIsolation) => "kernel_gateway_isolation_boundary",
+        ("cross_boundary_contract", KernelSentinelFindingCategory::GatewayIsolation) => {
+            "kernel_gateway_isolation_boundary"
+        }
         ("cross_boundary_contract", _) => "kernel_runtime_contract_boundary",
         ("system_self_model", _) => "kernel_sentinel_self_model_boundary",
         _ => "local_owner_boundary",
@@ -81,7 +91,11 @@ fn multi_layer_synthesis_guard(incidents: &[Value]) -> Value {
     let missing_architectural_synthesis_count = multi_layer
         .iter()
         .filter(|incident| {
-            incident["root_frame"].as_str().unwrap_or("").trim().is_empty()
+            incident["root_frame"]
+                .as_str()
+                .unwrap_or("")
+                .trim()
+                .is_empty()
                 || incident["recommended_refactor_boundary"]
                     .as_str()
                     .unwrap_or("")
@@ -174,7 +188,10 @@ mod tests {
 
         let report = kernel_sentinel_architectural_incident_report_section(&[finding]);
         let incident = &report["incidents"][0];
-        assert_eq!(report["type"], "kernel_sentinel_architectural_incident_report_section");
+        assert_eq!(
+            report["type"],
+            "kernel_sentinel_architectural_incident_report_section"
+        );
         assert_eq!(report["count"], 1);
         assert_eq!(report["multi_layer_incident_count"], 1);
         assert_eq!(report["synthesis_guard"]["pass"], true);

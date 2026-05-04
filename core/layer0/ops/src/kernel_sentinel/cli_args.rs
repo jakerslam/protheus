@@ -18,7 +18,10 @@ pub(crate) fn option_path(args: &[String], name: &str, fallback: PathBuf) -> Pat
 pub(crate) fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
     let prefix = format!("{name}=");
     args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<usize>().ok()))
+        .find_map(|arg| {
+            arg.strip_prefix(&prefix)
+                .and_then(|raw| raw.parse::<usize>().ok())
+        })
         .unwrap_or(fallback)
 }
 

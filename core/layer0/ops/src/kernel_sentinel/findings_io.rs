@@ -18,8 +18,15 @@ pub(super) fn read_jsonl_findings(path: &Path) -> (Vec<KernelSentinelFinding>, V
         }
         match serde_json::from_str::<KernelSentinelFinding>(trimmed) {
             Ok(finding) if validate_finding(&finding).is_ok() => findings.push(finding),
-            Ok(finding) => malformed.push(malformed_row(idx + 1, Some(finding.id), &source_path, "invalid_finding")),
-            Err(err) => malformed.push(malformed_row(idx + 1, None, &source_path, &err.to_string())),
+            Ok(finding) => malformed.push(malformed_row(
+                idx + 1,
+                Some(finding.id),
+                &source_path,
+                "invalid_finding",
+            )),
+            Err(err) => {
+                malformed.push(malformed_row(idx + 1, None, &source_path, &err.to_string()))
+            }
         }
     }
     (findings, malformed)

@@ -55,13 +55,21 @@ fn evidence_signal_counts(item: &Value) -> (usize, usize, usize) {
         .flatten()
         .filter_map(Value::as_str)
         .collect::<Vec<_>>();
-    let field_citations = evidence.iter().filter(|row| row.starts_with("field://")).count();
-    let check_citations = evidence.iter().filter(|row| row.starts_with("check://")).count();
+    let field_citations = evidence
+        .iter()
+        .filter(|row| row.starts_with("field://"))
+        .count();
+    let check_citations = evidence
+        .iter()
+        .filter(|row| row.starts_with("check://"))
+        .count();
     (evidence.len(), field_citations, check_citations)
 }
 
 fn concrete_feedback_action(action: &str) -> bool {
-    action.trim() != "unknown" && action.split_whitespace().count() >= 4 && action.chars().count() >= 16
+    action.trim() != "unknown"
+        && action.split_whitespace().count() >= 4
+        && action.chars().count() >= 16
 }
 
 fn feedback_todo_actionability(item: &Value) -> Value {
@@ -175,7 +183,14 @@ fn operator_value_tier(item: &Value) -> &'static str {
         "correctness"
     } else if contains_any(
         &semantic_context,
-        &["security", "capability", "permission", "auth", "sandbox", "secret"],
+        &[
+            "security",
+            "capability",
+            "permission",
+            "auth",
+            "sandbox",
+            "secret",
+        ],
     ) {
         "security"
     } else if contains_any(
@@ -212,7 +227,12 @@ fn feedback_search_text(item: &Value) -> String {
         string_field(item, "recommended_action"),
     ];
     if let Some(evidence) = item.get("evidence").and_then(Value::as_array) {
-        parts.extend(evidence.iter().filter_map(Value::as_str).map(str::to_string));
+        parts.extend(
+            evidence
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string),
+        );
     }
     parts.join(" ").to_ascii_lowercase()
 }
@@ -255,7 +275,10 @@ fn annotate_empty_response_parent_downrank(rows: &mut [Value]) {
 
 fn feedback_quality_score(item: &Value) -> usize {
     let (evidence_count, field_citations, check_citations) = evidence_signal_counts(item);
-    let recurrence_bonus = usize_at(item, &["recurrence_count"]).saturating_sub(1).min(5) * 3;
+    let recurrence_bonus = usize_at(item, &["recurrence_count"])
+        .saturating_sub(1)
+        .min(5)
+        * 3;
     let actionable_bonus = usize::from(string_field(item, "recommended_action") != "unknown") * 5;
     let semantic_bonus = usize::from(string_field(item, "failure_level") != "unknown") * 5;
     evidence_count.min(6) * 2
@@ -323,7 +346,10 @@ fn feedback_item(finding: &Value, generated_at: &str) -> Value {
     let category = string_field(finding, "category");
     let fingerprint = string_field(finding, "fingerprint");
     let family_fingerprint = feedback_family_fingerprint(&fingerprint);
-    let evidence = finding.get("evidence").cloned().unwrap_or_else(|| json!([]));
+    let evidence = finding
+        .get("evidence")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
     let semantic_frame = kernel_sentinel_semantic_frame_for_parts(
         &category,
         &severity,
@@ -381,7 +407,10 @@ fn merge_feedback_evidence(target: &mut Value, incoming: &Value) {
     }
 
     let mut run_seen = BTreeSet::<String>::new();
-    if let Some(rows) = target.get_mut("per_run_evidence").and_then(Value::as_array_mut) {
+    if let Some(rows) = target
+        .get_mut("per_run_evidence")
+        .and_then(Value::as_array_mut)
+    {
         for row in rows.iter() {
             run_seen.insert(row.to_string());
         }
@@ -418,7 +447,8 @@ pub(super) fn build_feedback_inbox(report: &Value, generated_at: &str) -> Vec<Va
         let key = string_field(&item, "dedupe_key");
         match by_key.get_mut(&key) {
             Some(existing)
-                if usize_at(existing, &["priority_rank"]) <= usize_at(&item, &["priority_rank"]) =>
+                if usize_at(existing, &["priority_rank"])
+                    <= usize_at(&item, &["priority_rank"]) =>
             {
                 merge_feedback_evidence(existing, &item);
             }
@@ -443,7 +473,7 @@ pub(super) fn build_feedback_inbox(report: &Value, generated_at: &str) -> Vec<Va
             .cmp(&usize_at(right, &["duplicate_family_rank"]))
             .then_with(|| {
                 usize_at(left, &["operator_value_rank"])
-            .cmp(&usize_at(right, &["operator_value_rank"]))
+                    .cmp(&usize_at(right, &["operator_value_rank"]))
             })
             .then_with(|| {
                 usize_at(left, &["priority_rank"]).cmp(&usize_at(right, &["priority_rank"]))

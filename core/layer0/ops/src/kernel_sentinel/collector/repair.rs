@@ -42,10 +42,7 @@ pub(super) fn repair_jsonl_line(
         }
     }
     if trimmed.starts_with('{') && !trimmed.ends_with('}') {
-        candidates.push((
-            "receipt_line_missing_closing_brace",
-            format!("{trimmed}}}"),
-        ));
+        candidates.push(("receipt_line_missing_closing_brace", format!("{trimmed}}}")));
     }
     for (repair_id, candidate) in candidates {
         if let Ok(value) = serde_json::from_str::<Value>(&candidate) {

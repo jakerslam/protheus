@@ -3,7 +3,10 @@
 
 use super::*;
 
-fn finding_with(category: KernelSentinelFindingCategory, fingerprint: &str) -> KernelSentinelFinding {
+fn finding_with(
+    category: KernelSentinelFindingCategory,
+    fingerprint: &str,
+) -> KernelSentinelFinding {
     KernelSentinelFinding {
         schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
         id: "finding-1".to_string(),
@@ -28,7 +31,9 @@ fn hard_fail_preflight_detects_required_proof_pack_gaps() {
     }]});
     let (report, findings) = build_governance_preflight(&[], &evidence_report, &[]);
     assert_eq!(report["hard_fail_invariant_count"], Value::from(1));
-    assert!(findings.iter().any(|f| f.fingerprint == "hard_fail:missing_proof_pack_required_artifact:rc-pack"));
+    assert!(findings
+        .iter()
+        .any(|f| f.fingerprint == "hard_fail:missing_proof_pack_required_artifact:rc-pack"));
 }
 
 #[test]
@@ -43,12 +48,17 @@ fn stale_freshness_record_creates_release_blocking_finding() {
     let args = vec!["--freshness-window-seconds=60".to_string()];
     let (report, findings) = build_governance_preflight(&[], &evidence_report, &args);
     assert_eq!(report["freshness_stale_count"], Value::from(1));
-    assert!(findings.iter().any(|f| f.fingerprint == "sentinel_freshness_stale:background_watch:watch"));
+    assert!(findings
+        .iter()
+        .any(|f| f.fingerprint == "sentinel_freshness_stale:background_watch:watch"));
 }
 
 #[test]
 fn release_gate_fails_on_critical_and_passes_on_clean_inputs() {
-    let critical = finding_with(KernelSentinelFindingCategory::ReceiptIntegrity, "receipt_forgery:demo");
+    let critical = finding_with(
+        KernelSentinelFindingCategory::ReceiptIntegrity,
+        "receipt_forgery:demo",
+    );
     let issue = json!({"issue_drafts": []});
     let maintenance = json!({"suggestions": [], "automation_candidates": []});
     let governance = json!({"hard_fail_invariant_count": 0, "freshness_stale_count": 0});
@@ -61,22 +71,34 @@ fn release_gate_fails_on_critical_and_passes_on_clean_inputs() {
             "missing_remediation_classification_count": 0
         }
     });
-    let failed = build_release_gate(&[critical], &[], &architectural_report, &issue, &maintenance, &governance, &evidence);
+    let failed = build_release_gate(
+        &[critical],
+        &[],
+        &architectural_report,
+        &issue,
+        &maintenance,
+        &governance,
+        &evidence,
+    );
     assert_eq!(failed["pass"], false);
-    let passed = build_release_gate(&[], &[], &architectural_report, &issue, &maintenance, &governance, &evidence);
+    let passed = build_release_gate(
+        &[],
+        &[],
+        &architectural_report,
+        &issue,
+        &maintenance,
+        &governance,
+        &evidence,
+    );
     assert_eq!(passed["pass"], true);
-    assert!(
-        passed["required_artifacts"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("architectural_incident_report_current.json"))
-    );
-    assert!(
-        passed["proof_pack_manifest_required_artifacts"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("architectural_incident_report_current.json"))
-    );
+    assert!(passed["required_artifacts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|row| row.as_str() == Some("architectural_incident_report_current.json")));
+    assert!(passed["proof_pack_manifest_required_artifacts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|row| row.as_str() == Some("architectural_incident_report_current.json")));
 }

@@ -210,11 +210,26 @@ pub fn build_system_understanding_worksheet(
 pub fn render_system_understanding_worksheet_markdown(worksheet: &Value) -> String {
     let mut body = String::new();
     body.push_str("# Kernel Sentinel System Understanding Worksheet\n\n");
-    body.push_str(&format!("- generated_at: {}\n", worksheet["generated_at"].as_str().unwrap_or("unknown")));
-    body.push_str(&format!("- cadence: {}\n", worksheet["cadence"].as_str().unwrap_or("unknown")));
-    body.push_str(&format!("- method: {}\n", worksheet["method"].as_str().unwrap_or("unknown")));
-    body.push_str(&format!("- ready_to_zoom_down: {}\n", worksheet["ready_to_zoom_down"].as_bool().unwrap_or(false)));
-    body.push_str(&format!("- top_blocker: {}\n\n", worksheet["top_blocker"].as_str().unwrap_or("unknown")));
+    body.push_str(&format!(
+        "- generated_at: {}\n",
+        worksheet["generated_at"].as_str().unwrap_or("unknown")
+    ));
+    body.push_str(&format!(
+        "- cadence: {}\n",
+        worksheet["cadence"].as_str().unwrap_or("unknown")
+    ));
+    body.push_str(&format!(
+        "- method: {}\n",
+        worksheet["method"].as_str().unwrap_or("unknown")
+    ));
+    body.push_str(&format!(
+        "- ready_to_zoom_down: {}\n",
+        worksheet["ready_to_zoom_down"].as_bool().unwrap_or(false)
+    ));
+    body.push_str(&format!(
+        "- top_blocker: {}\n\n",
+        worksheet["top_blocker"].as_str().unwrap_or("unknown")
+    ));
     body.push_str("## Phases\n\n");
     for phase in worksheet["phases"].as_array().into_iter().flatten() {
         body.push_str(&format!(
@@ -305,14 +320,20 @@ mod tests {
             &json!({"trend_history_runs": 1, "regression_count": 0}),
             &json!({"authorized_probe_count": 2}),
         );
-        assert_eq!(worksheet["type"], "kernel_sentinel_system_understanding_worksheet");
+        assert_eq!(
+            worksheet["type"],
+            "kernel_sentinel_system_understanding_worksheet"
+        );
         assert_eq!(worksheet["cadence"], "every_kernel_sentinel_auto_run");
         assert_eq!(worksheet["phases"][0]["id"], "soul");
         assert_eq!(worksheet["phases"][1]["id"], "runtime_behavior");
         assert_eq!(worksheet["phases"][2]["id"], "authority_map");
         assert_eq!(worksheet["phases"][7]["id"], "syntax_detail");
         assert_eq!(worksheet["ready_to_zoom_down"], false);
-        assert_eq!(worksheet["top_blocker"], "phase_requires_more_evidence:gaps");
+        assert_eq!(
+            worksheet["top_blocker"],
+            "phase_requires_more_evidence:gaps"
+        );
         assert_eq!(
             worksheet["phases"][5]["required_next_probe"],
             "close_blocking_unknowns_before_transfer"

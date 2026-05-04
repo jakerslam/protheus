@@ -10,17 +10,45 @@ fn write_required_sentinel_evidence(root: &std::path::Path) {
     fs::create_dir_all(&evidence_dir).unwrap();
     for (file_name, subject, category) in [
         ("kernel_receipts.jsonl", "receipt-1", "ReceiptIntegrity"),
-        ("runtime_observations.jsonl", "runtime-1", "RuntimeCorrectness"),
+        (
+            "runtime_observations.jsonl",
+            "runtime-1",
+            "RuntimeCorrectness",
+        ),
         ("state_mutations.jsonl", "mutation-1", "StateTransition"),
-        ("scheduler_admission.jsonl", "admission-1", "CapabilityEnforcement"),
+        (
+            "scheduler_admission.jsonl",
+            "admission-1",
+            "CapabilityEnforcement",
+        ),
         ("live_recovery.jsonl", "recovery-1", "RuntimeCorrectness"),
-        ("boundedness_observations.jsonl", "boundedness-1", "Boundedness"),
-        ("release_proof_packs.jsonl", "proof-pack-1", "ReleaseEvidence"),
+        (
+            "boundedness_observations.jsonl",
+            "boundedness-1",
+            "Boundedness",
+        ),
+        (
+            "release_proof_packs.jsonl",
+            "proof-pack-1",
+            "ReleaseEvidence",
+        ),
         ("release_repairs.jsonl", "repair-1", "ReleaseEvidence"),
         ("gateway_health.jsonl", "gateway-1", "GatewayIsolation"),
-        ("gateway_quarantine.jsonl", "quarantine-1", "GatewayIsolation"),
-        ("gateway_recovery.jsonl", "gateway-recovery-1", "GatewayIsolation"),
-        ("gateway_isolation.jsonl", "gateway-isolation-1", "GatewayIsolation"),
+        (
+            "gateway_quarantine.jsonl",
+            "quarantine-1",
+            "GatewayIsolation",
+        ),
+        (
+            "gateway_recovery.jsonl",
+            "gateway-recovery-1",
+            "GatewayIsolation",
+        ),
+        (
+            "gateway_isolation.jsonl",
+            "gateway-isolation-1",
+            "GatewayIsolation",
+        ),
         ("queue_backpressure.jsonl", "queue-1", "QueueBackpressure"),
         ("control_plane_eval.jsonl", "eval-1", "RuntimeCorrectness"),
     ] {
@@ -80,12 +108,21 @@ fn write_collector_backed_required_inputs(root: &std::path::Path) {
     for (file_name, subject) in [
         ("release_proof_pack_current.json", "proof-pack-1"),
         ("repair_fallback_current.json", "repair-1"),
-        ("stateful_upgrade_rollback_gate_current.json", "state-mutation-1"),
+        (
+            "stateful_upgrade_rollback_gate_current.json",
+            "state-mutation-1",
+        ),
         ("agent_surface_status_guard_current.json", "scheduler-1"),
         ("workflow_failure_recovery_current.json", "recovery-1"),
         ("gateway_health_current.json", "gateway-health-1"),
-        ("gateway_flapping_quarantine_current.json", "gateway-quarantine-1"),
-        ("gateway_auto_heal_recovery_current.json", "gateway-recovery-1"),
+        (
+            "gateway_flapping_quarantine_current.json",
+            "gateway-quarantine-1",
+        ),
+        (
+            "gateway_auto_heal_recovery_current.json",
+            "gateway-recovery-1",
+        ),
         ("gateway_boundary_guard_current.json", "gateway-isolation-1"),
         ("queue_backpressure_current.json", "queue-1"),
         ("boundedness_report_current.json", "boundedness-1"),
@@ -172,9 +209,18 @@ fn auto_run_strict_fails_closed_on_open_critical_findings() {
     assert_eq!(artifact["operator_summary"]["critical_open_count"], 1);
     assert_eq!(artifact["scheduler_status"], "unconfigured");
     assert_eq!(artifact["self_study_outputs"]["feedback_item_count"], 1);
-    assert_eq!(artifact["self_study_outputs"]["rsi_readiness"]["ready_for_observation"], true);
-    assert_eq!(artifact["issue_candidate"]["failure_level"], "L5_self_model_failure");
-    assert_eq!(artifact["issue_candidate"]["root_frame"], "system_self_model");
+    assert_eq!(
+        artifact["self_study_outputs"]["rsi_readiness"]["ready_for_observation"],
+        true
+    );
+    assert_eq!(
+        artifact["issue_candidate"]["failure_level"],
+        "L5_self_model_failure"
+    );
+    assert_eq!(
+        artifact["issue_candidate"]["root_frame"],
+        "system_self_model"
+    );
     assert_eq!(
         artifact["issue_candidate"]["remediation_level"],
         "self_model_repair"
@@ -227,8 +273,10 @@ fn auto_run_end_to_end_outputs_stay_consistent() {
         &fs::read_to_string(state_dir.join("kernel_sentinel_report_current.json")).unwrap(),
     )
     .unwrap();
-    let verdict: Value =
-        serde_json::from_str(&fs::read_to_string(state_dir.join("kernel_sentinel_verdict.json")).unwrap()).unwrap();
+    let verdict: Value = serde_json::from_str(
+        &fs::read_to_string(state_dir.join("kernel_sentinel_verdict.json")).unwrap(),
+    )
+    .unwrap();
     let health: Value = serde_json::from_str(
         &fs::read_to_string(state_dir.join("kernel_sentinel_health_current.json")).unwrap(),
     )
@@ -244,9 +292,11 @@ fn auto_run_end_to_end_outputs_stay_consistent() {
     let issues_body = fs::read_to_string(state_dir.join("issues.jsonl")).unwrap();
     let feedback_body = fs::read_to_string(state_dir.join("feedback_inbox.jsonl")).unwrap();
     let suggestions_body = fs::read_to_string(state_dir.join("suggestions.jsonl")).unwrap();
-    let automation_body = fs::read_to_string(state_dir.join("automation_candidates.jsonl")).unwrap();
+    let automation_body =
+        fs::read_to_string(state_dir.join("automation_candidates.jsonl")).unwrap();
     let daily_report = fs::read_to_string(state_dir.join("daily_report.md")).unwrap();
-    let causal_ledger = fs::read_to_string(state_dir.join("causal_hypothesis_ledger_current.jsonl")).unwrap();
+    let causal_ledger =
+        fs::read_to_string(state_dir.join("causal_hypothesis_ledger_current.jsonl")).unwrap();
     let causal_scores: Value = serde_json::from_str(
         &fs::read_to_string(state_dir.join("causal_pattern_scores_current.json")).unwrap(),
     )
@@ -277,7 +327,10 @@ fn auto_run_end_to_end_outputs_stay_consistent() {
         health["trend"]["improvement_count"],
         artifact["self_study_outputs"]["improvement_count"]
     );
-    assert_eq!(health["trend"]["delta"]["baseline"], trend["delta"]["baseline"]);
+    assert_eq!(
+        health["trend"]["delta"]["baseline"],
+        trend["delta"]["baseline"]
+    );
     assert_eq!(
         artifact["self_study_outputs"]["rsi_readiness"]["operator_summary"]["status"],
         readiness["operator_summary"]["status"]
@@ -337,9 +390,18 @@ fn collector_then_auto_run_outputs_stay_consistent() {
     let collector_report: Value =
         serde_json::from_str(&fs::read_to_string(&collector_out).unwrap()).unwrap();
     assert_eq!(collector_report["type"], "kernel_sentinel_collector_run");
-    assert_eq!(collector_report["coverage"]["required_observation_ready"], true);
-    assert_eq!(collector_report["coverage"]["missing_required_source_count"], 0);
-    assert_eq!(collector_report["coverage"]["present_required_source_count"], 16);
+    assert_eq!(
+        collector_report["coverage"]["required_observation_ready"],
+        true
+    );
+    assert_eq!(
+        collector_report["coverage"]["missing_required_source_count"],
+        0
+    );
+    assert_eq!(
+        collector_report["coverage"]["present_required_source_count"],
+        16
+    );
     assert_eq!(collector_report["malformed_record_count"], 0);
     assert!(collector_report["records_written"].as_u64().unwrap_or(0) >= 16);
 
@@ -386,7 +448,10 @@ fn collector_then_auto_run_outputs_stay_consistent() {
 
     assert_eq!(artifact["type"], "kernel_sentinel_auto_run");
     assert_eq!(artifact["verdict"]["verdict"], "allow");
-    assert_eq!(artifact["operator_summary"]["present_required_source_count"], 14);
+    assert_eq!(
+        artifact["operator_summary"]["present_required_source_count"],
+        14
+    );
     assert_eq!(report["issue_synthesis"]["issue_draft_count"], 1);
     assert_eq!(report["issue_synthesis"]["active_issue_window_count"], 1);
     assert!(issues_body.contains("kernel_sentinel_issue_draft"));

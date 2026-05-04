@@ -12,10 +12,10 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-mod capability_grants;
 mod advisory_bridge;
 mod artifact_states;
 mod boundedness;
+mod capability_grants;
 mod failure_citations;
 mod gateway_isolation;
 mod guard_consistency;
@@ -31,11 +31,12 @@ use boundedness::build_boundedness_report;
 use capability_grants::build_capability_grant_report;
 use failure_citations::append_failure_citations;
 use gateway_isolation::build_gateway_isolation_report;
-use guard_consistency::{build_guard_consistency_report, cap_uncorroborated_critical_findings_against_authoritative_pass};
+use guard_consistency::{
+    build_guard_consistency_report, cap_uncorroborated_critical_findings_against_authoritative_pass,
+};
 use helpers::{
     bool_flag, deserialize_optional_category, deserialize_optional_severity,
-    malformed_count_by_key, normalize_key, option_path, option_u64,
-    record_freshness_age_seconds,
+    malformed_count_by_key, normalize_key, option_path, option_u64, record_freshness_age_seconds,
 };
 use nexus_boundaries::build_nexus_boundary_report;
 use receipt_completeness::build_receipt_completeness_report;
@@ -136,16 +137,15 @@ fn should_open_finding(record: &RawEvidenceRecord) -> bool {
         .status
         .as_deref()
         .map(normalize_key)
-        .map(|status| matches!(status.as_str(), "fail" | "failed" | "blocked" | "invalid" | "critical" | "error"))
+        .map(|status| {
+            matches!(
+                status.as_str(),
+                "fail" | "failed" | "blocked" | "invalid" | "critical" | "error"
+            )
+        })
         .unwrap_or(false);
-    let pass_failed = record
-        .details
-        .get("pass")
-        .and_then(Value::as_bool)
-        == Some(false);
-    record.ok == Some(false)
-        || status_failed
-        || pass_failed
+    let pass_failed = record.details.get("pass").and_then(Value::as_bool) == Some(false);
+    record.ok == Some(false) || status_failed || pass_failed
 }
 
 fn normalize_record(
@@ -238,10 +238,14 @@ fn missing_required_finding(config: EvidenceSourceConfig, path: &Path) -> Kernel
 }
 
 fn source_required_for_observation(config: EvidenceSourceConfig) -> bool {
-    authority_rule(config.source).authority_class != KernelSentinelAuthorityClass::PresentationTelemetryOnly
+    authority_rule(config.source).authority_class
+        != KernelSentinelAuthorityClass::PresentationTelemetryOnly
 }
 
-pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSentinelEvidenceIngestion {
+pub fn ingest_evidence_sources(
+    state_dir: &Path,
+    args: &[String],
+) -> KernelSentinelEvidenceIngestion {
     let evidence_dir = option_path(args, "--evidence-dir", state_dir.join("evidence"));
     let require_evidence = bool_flag(args, "--require-evidence");
     let stale_evidence_seconds = option_u64(args, "--stale-evidence-seconds", 24 * 60 * 60);
@@ -353,17 +357,20 @@ pub fn ingest_evidence_sources(state_dir: &Path, args: &[String]) -> KernelSenti
     let (nexus_boundaries_report, nexus_boundary_findings) =
         build_nexus_boundary_report(&normalized_records);
     findings.extend(nexus_boundary_findings);
-    let (boundedness_report, boundedness_findings) =
-        build_boundedness_report(&normalized_records);
+    let (boundedness_report, boundedness_findings) = build_boundedness_report(&normalized_records);
     findings.extend(boundedness_findings);
     let (gateway_isolation_report, gateway_isolation_findings) =
         build_gateway_isolation_report(&normalized_records);
     findings.extend(gateway_isolation_findings);
-    let (advisory_bridge_report, advisory_bridge_findings) = build_advisory_bridge_report(&normalized_records);
+    let (advisory_bridge_report, advisory_bridge_findings) =
+        build_advisory_bridge_report(&normalized_records);
     findings.extend(advisory_bridge_findings);
     let (trajectory_report, trajectory_findings) = build_trajectory_report(&normalized_records);
     findings.extend(trajectory_findings);
-    cap_uncorroborated_critical_findings_against_authoritative_pass(&normalized_records, &mut findings);
+    cap_uncorroborated_critical_findings_against_authoritative_pass(
+        &normalized_records,
+        &mut findings,
+    );
     let guard_consistency_report = build_guard_consistency_report(&normalized_records, &findings);
     let normalized_record_count = normalized_records.len();
     let malformed_record_count = malformed_records.len();
