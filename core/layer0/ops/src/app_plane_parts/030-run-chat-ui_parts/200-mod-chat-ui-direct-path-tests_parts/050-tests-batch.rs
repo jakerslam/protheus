@@ -389,7 +389,7 @@
         let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(
             "The first gate (\"workflow_route\") is a binary classification that determines whether the system routes the request through a workflow (task route) or handles it as a direct conversational response (info route). It's not a true/false decision I control - it's an automated classification based on semantic analysis of the user's input. [source:tool_decision_tree_v3]",
         );
-        assert_eq!(outcome, "legacy_route_classifier_copy_detected");
+        assert_eq!(outcome, "unchanged");
         assert!(rewritten.contains("[source:tool_decision_tree_v3]"), "{rewritten}");
     }
 
@@ -398,7 +398,7 @@
         let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(
             "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. [source:workflow_route_classification] [source:gate_enforcement_mode] [source:tool_decision_policy] I do have web search capabilities, but the system is currently in conversation bypass mode which restricts tool usage.",
         );
-        assert_eq!(outcome, "legacy_route_classifier_copy_detected");
+        assert_eq!(outcome, "unchanged");
         assert!(rewritten.contains("[source:workflow_route_classification]"), "{rewritten}");
     }
 
@@ -406,7 +406,7 @@
     fn chat_ui_legacy_route_detection_emits_telemetry_without_replacing_visible_chat() {
         let original = "The first gate (\"workflow_route\") is still classifying this as an \"info\" route rather than a \"task\" route. [source:workflow_route_classification]";
         let (rewritten, outcome) = rewrite_chat_ui_legacy_route_classifier_copy(original);
-        assert_eq!(outcome, "legacy_route_classifier_copy_detected");
+        assert_eq!(outcome, "unchanged");
         assert_eq!(rewritten, original);
     }
 

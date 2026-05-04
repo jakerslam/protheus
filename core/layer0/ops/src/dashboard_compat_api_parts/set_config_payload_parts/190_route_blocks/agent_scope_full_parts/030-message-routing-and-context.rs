@@ -586,9 +586,6 @@ fn prepare_message_route_context(
     }
     let previous_process_summary_context = if ambient_context_enabled { process_summary_prompt_context(&active_messages) } else { String::new() };
     if !previous_process_summary_context.is_empty() { prompt_parts.push(previous_process_summary_context); }
-    if !inline_tools_allowed {
-        prompt_parts.push("Direct-answer guard: default to natural conversational answers. Do not emit `<function=...>` tool calls unless the user explicitly requested web retrieval, file/terminal operations, memory operations, or agent management in this turn.".to_string());
-    }
     if !instinct_prompt_context.is_empty() {
         prompt_parts.push(instinct_prompt_context);
     }

@@ -405,14 +405,32 @@ fn handle_agent_scope_message_route(
                 &previous_user,
                 &response_finalization,
             );
+            let payload_provider = clean_text(
+                response_workflow
+                    .get("provider")
+                    .or_else(|| response_workflow.pointer("/final_llm_response/provider"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(&synthesis_provider),
+                80,
+            );
+            let payload_model = clean_text(
+                response_workflow
+                    .get("runtime_model")
+                    .or_else(|| response_workflow.pointer("/final_llm_response/runtime_model"))
+                    .or_else(|| response_workflow.get("model"))
+                    .or_else(|| response_workflow.pointer("/final_llm_response/model"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(&synthesis_model),
+                240,
+            );
             return Some(CompatApiResponse {
                 status: 200,
                 payload: json!({
                     "ok": ok,
                     "agent_id": agent_id,
-                    "provider": "tool",
-                    "model": "tool-router",
-                    "runtime_model": "tool-router",
+                    "provider": payload_provider,
+                    "model": payload_model,
+                    "runtime_model": payload_model,
                     "iterations": 1,
                     "input_tokens": estimate_tokens(&message),
                     "output_tokens": estimate_tokens(&response_text),
