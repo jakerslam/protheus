@@ -267,7 +267,7 @@ fn workflow_library_gate_applies_to_direct_answers_too() {
         workflow
             .pointer("/visibility/formats/ui")
             .and_then(Value::as_str),
-        Some("Workflow complete; no tools selected and direct LLM answer is ready.")
+        Some("Workflow complete; no-tool category selected and direct LLM answer is available.")
     );
     assert_eq!(
         workflow

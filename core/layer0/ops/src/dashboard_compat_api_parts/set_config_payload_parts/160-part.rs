@@ -559,153 +559,9 @@ fn cron_tool_request_from_args(args: &str) -> Option<(String, Value)> {
 }
 
 fn natural_web_intent_from_user_message(message: &str) -> Option<(String, Value)> {
-    let trimmed = message.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    let lowered = clean_text(trimmed, 2200).to_ascii_lowercase();
-    if message_is_tooling_status_check(trimmed) {
-        return None;
-    }
-    let meta_control_turn = [
-        "that was just a test",
-        "just a test",
-        "just testing",
-        "test only",
-        "ignore that",
-        "never mind",
-        "nm",
-        "thanks",
-        "thank you",
-        "cool",
-        "sounds good",
-        "did you try it",
-        "did you do it",
-        "what happened",
-    ]
-    .iter()
-    .any(|marker| lowered.contains(marker))
-        && ![
-            "search",
-            "web",
-            "online",
-            "internet",
-            "file",
-            "patch",
-            "edit",
-            "update",
-            "create",
-            "read",
-            "memory",
-            "repo",
-            "codebase",
-        ]
-        .iter()
-        .any(|marker| lowered.contains(marker));
-    if meta_control_turn {
-        return None;
-    }
-    let url = first_http_url_in_text(trimmed);
-    if !url.is_empty() {
-        let asks_browse = lowered.contains("browse") || lowered.contains("fetch") || lowered.contains("read this") || lowered.contains("summarize") || lowered.contains("look at") || lowered.contains("open") || lowered.contains("web");
-        if asks_browse { return Some(("web_fetch".to_string(), json!({"url": url, "summary_only": true}))); }
-    }
-    if let Some(query) = natural_web_search_query_from_message(trimmed) {
-        return Some((
-            "batch_query".to_string(),
-            json!({"source": "web", "query": query, "aperture": "medium"}),
-        ));
-    }
-    if let Some(route) = comparative_natural_web_intent_from_message(trimmed) {
-        return Some(route);
-    }
-    let generic_web_retry_probe = (lowered.contains("web tooling")
-        || lowered.contains("web capability")
-        || lowered.contains("web tool")
-        || lowered.contains("web search"))
-        && (lowered.contains("try again")
-            || lowered.contains("test again")
-            || lowered.contains("retry")
-            || (lowered.contains("again")
-                && (lowered.starts_with("try ")
-                    || lowered.starts_with("test ")
-                    || lowered.starts_with("please "))))
-        && !lowered.contains(" for ")
-        && !lowered.contains(" about ")
-        && !lowered.contains("\"");
-    if generic_web_retry_probe {
-        return Some((
-            "batch_query".to_string(),
-            json!({
-                "source": "web",
-                "query": "latest ai developments",
-                "aperture": "medium",
-                "diagnostic": "natural_language_web_retry_probe"
-            }),
-        ));
-    }
-    if lowered.contains("web search") {
-        let imperative = lowered.starts_with("try ")
-            || lowered.starts_with("please ")
-            || lowered.starts_with("can you ")
-            || lowered.starts_with("could you ")
-            || lowered.starts_with("would you ")
-            || lowered.starts_with("run ")
-            || lowered.starts_with("do ")
-            || lowered.starts_with("perform ")
-            || lowered.starts_with("search ")
-            || lowered.starts_with("look up ")
-            || lowered.starts_with("find ");
-        if imperative {
-            let mut candidate = clean_text(trimmed, 600);
-            if let Some(idx) = candidate.to_ascii_lowercase().find("web search") {
-                let tail_start = idx + "web search".len();
-                candidate = clean_text(
-                    &format!("{} {}", &candidate[..idx], &candidate[tail_start..]),
-                    600,
-                );
-            }
-            for prefix in [
-                "try doing ",
-                "try to ",
-                "try ",
-                "run a ",
-                "run ",
-                "do a ",
-                "do ",
-                "perform a ",
-                "perform ",
-                "please ",
-                "can you ",
-                "could you ",
-                "would you ",
-            ] {
-                if candidate.to_ascii_lowercase().starts_with(prefix) && candidate.len() > prefix.len()
-                {
-                    candidate = clean_text(&candidate[prefix.len()..], 600);
-                    break;
-                }
-            }
-            let query = {
-                let cleaned = canonicalize_domain_scoped_web_query(&candidate);
-                if cleaned.is_empty() {
-                    "latest information".to_string()
-                } else {
-                    cleaned
-                }
-            };
-            return Some((
-                "batch_query".to_string(),
-                json!({"source": "web", "query": query, "aperture": "medium"}),
-            ));
-        }
-    }
-    if url.is_empty() && ["test web fetch", "do a test web fetch", "try web fetch", "check web fetch"]
-        .iter()
-        .any(|term| lowered.contains(term))
-    {
-        return Some(("web_fetch".to_string(), json!({"url": "https://example.com", "summary_only": true, "diagnostic": "natural_language_test_web_fetch"})));
-    }
+    let _ = message;
+    // LLM-authoritative workflow mode: natural-language web intent may be
+    // diagnosed later, but must not preselect or execute a web tool.
     None
 }
 
@@ -957,7 +813,6 @@ const EXPLICIT_SUPPORTED_TOOL_COMMANDS: &[&str] = &[
     "search",
     "fetch",
     "browse",
-    "compare",
 ];
 
 fn closest_supported_tool_command(command: &str) -> Option<&'static str> {

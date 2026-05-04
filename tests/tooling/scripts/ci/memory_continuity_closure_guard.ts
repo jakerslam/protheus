@@ -26,7 +26,7 @@ const DREAM_EXECUTOR = 'core/layer0/ops/src/autonomy_controller_parts/050-proact
 const DREAM_COMMAND = 'core/layer0/ops/src/autonomy_controller_parts/040-command-dispatch.rs';
 const DREAM_REGRESSION = 'core/layer0/ops/src/autonomy_controller_parts/051-speculation-and-regression-tests.regression_tests_parts/030-proactive-daemon-policy-tiered-tool-surfaces-emit-conduit-receip.rs';
 const SRS = 'docs/workspace/SRS.md';
-const TODO = 'docs/workspace/TODO.md';
+const TODO = 'docs/workspace/todo/TODO.md';
 
 type Check = { id: string; ok: boolean; detail?: string };
 

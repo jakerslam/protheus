@@ -98,6 +98,11 @@ function validateCommandWiring(violations: Violation[]): void {
     'ops:shell:amputation:guard': 'shell_amputation_regression_guard.ts',
     'ops:shell:long-chat-ram:guard': 'shell_long_chat_ram_regression_guard.ts',
     'ops:representation-collapse:report': 'representation_collapse_report.ts',
+    'ops:orchestration:naming:guard': 'orchestration_canonical_name_guard.ts',
+    'ops:gateway:external-surface:guard': 'gateway_external_surface_guard.ts',
+    'ops:shell:runtime-payload-budget:guard': 'shell_runtime_payload_budget_guard.ts',
+    'ops:shell:tiered-long-chat-heap:guard': 'shell_tiered_long_chat_heap_guard.ts',
+    'ops:tooling:harness-only:guard': 'tooling_harness_only_guard.ts',
     'ops:architecture:transition-residue:guard': 'architecture_transition_residue_guard.ts'
   } as Record<string, string>;
   for (const [script, token] of Object.entries(requiredScripts)) {

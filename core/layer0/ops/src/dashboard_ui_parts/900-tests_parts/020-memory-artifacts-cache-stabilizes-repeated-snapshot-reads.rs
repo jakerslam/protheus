@@ -402,4 +402,3 @@
             Some("no github auth token, please input your token first")
         );
     }
-

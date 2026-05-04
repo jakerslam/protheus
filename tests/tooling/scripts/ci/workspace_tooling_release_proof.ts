@@ -38,7 +38,7 @@ function parseArgs(argv: string[]) {
       400,
     ),
     fixturePath: cleanText(
-      readFlag(argv, 'fixture') || 'tests/tooling/fixtures/workspace_tooling_context_replay_matrix.json',
+      readFlag(argv, 'fixture') || 'validation/regression/fixtures/workspace_tooling_context_replay_matrix.json',
       400,
     ),
     markdownPath: cleanText(
@@ -225,7 +225,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   const fallbackSoakPathLatestContract = cleanText(args.fallbackSoakPath, 400).endsWith(
     '_latest.json',
   );
-  const fixturePathCanonical = isCanonicalRelativePath(args.fixturePath, 'tests/tooling/fixtures/');
+  const fixturePathCanonical = isCanonicalRelativePath(args.fixturePath, 'validation/regression/fixtures/');
   const fixturePathJsonContract = cleanText(args.fixturePath, 400).endsWith('.json');
   const markdownPathCanonical = isCanonicalRelativePath(
     args.markdownPath,

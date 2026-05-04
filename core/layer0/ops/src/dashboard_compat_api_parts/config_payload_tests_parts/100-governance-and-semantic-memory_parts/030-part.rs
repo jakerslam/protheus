@@ -192,66 +192,45 @@ fn comparative_detector_matches_peer_ranking_language() {
 }
 
 #[test]
-fn comparative_live_web_detector_matches_openclaw_vs_workspace_language() {
-    assert!(message_requests_live_web_comparison(
-        "compare this system (infring) to openclaw with web sources"
-    ));
-    assert!(message_requests_live_web_comparison(
-        "compare openclaw to this system/workspace using web search"
-    ));
+fn comparative_language_does_not_auto_select_live_web() {
+    assert!(latent_tool_candidates_for_message(
+        "compare this system to a named external system with web sources",
+        &[],
+    )
+    .is_empty());
+    assert!(latent_tool_candidates_for_message(
+        "compare named external system to this workspace using web search",
+        &[],
+    )
+    .is_empty());
 }
 
 #[test]
-fn natural_web_intent_routes_openclaw_comparison_to_batch_query() {
-    let route = natural_web_intent_from_user_message(
-        "compare openclaw to this system/workspace using web search"
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("source").and_then(Value::as_str),
-        Some("web")
+fn natural_web_intent_does_not_route_openclaw_comparison_to_batch_query() {
+    assert!(
+        natural_web_intent_from_user_message(
+            "compare openclaw to this system/workspace using web search"
+        )
+        .is_none()
     );
-    let query = route
-        .1
-        .get("query")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    assert!(query.to_ascii_lowercase().contains("openclaw"));
-    assert!(query.to_ascii_lowercase().contains("workspace"));
 }
 
 #[test]
 fn natural_web_intent_normalizes_try_to_web_search_query() {
-    let route = natural_web_intent_from_user_message(
-        "try to web search \"top AI agent frameworks\""
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("query").and_then(Value::as_str),
-        Some("top AI agent frameworks")
+    assert!(
+        natural_web_intent_from_user_message("try to web search \"top AI agent frameworks\"")
+            .is_none()
     );
 }
 
 #[test]
 fn natural_web_intent_normalizes_try_finding_information_about_query() {
-    let route = natural_web_intent_from_user_message(
-        "lets do a test: try finding information about the current top agentic AI frameworks"
-    )
-    .expect("route");
-    assert_eq!(route.0, "batch_query");
-    assert_eq!(
-        route.1.get("source").and_then(Value::as_str),
-        Some("web")
+    assert!(
+        natural_web_intent_from_user_message(
+            "lets do a test: try finding information about the current top agentic AI frameworks"
+        )
+        .is_none()
     );
-    let query = route
-        .1
-        .get("query")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let lowered = query.to_ascii_lowercase();
-    assert!(lowered.contains("top agentic ai frameworks"), "{query}");
 }
 
 #[test]
@@ -272,16 +251,7 @@ fn user_facing_tool_failure_summary_calls_out_nexus_policy_gate() {
 
 #[test]
 fn natural_web_intent_routes_test_web_fetch_probe_to_example_dot_com() {
-    let route = natural_web_intent_from_user_message("do a test web fetch").expect("route");
-    assert_eq!(route.0, "web_fetch");
-    assert_eq!(
-        route.1.get("url").and_then(Value::as_str),
-        Some("https://example.com")
-    );
-    assert_eq!(
-        route.1.get("diagnostic").and_then(Value::as_str),
-        Some("natural_language_test_web_fetch")
-    );
+    assert!(natural_web_intent_from_user_message("do a test web fetch").is_none());
 }
 
 #[test]
@@ -300,38 +270,17 @@ fn latent_tool_candidates_normalize_try_to_web_search_query() {
         "try to web search \"top AI agent frameworks\"",
         &[],
     );
-    let batch = candidates
-        .iter()
-        .find(|row| row.get("tool").and_then(Value::as_str) == Some("batch_query"))
-        .cloned()
-        .expect("batch query candidate");
-    assert_eq!(
-        batch.pointer("/proposed_input/query").and_then(Value::as_str),
-        Some("top AI agent frameworks")
-    );
+    assert!(candidates.is_empty(), "{candidates:?}");
 }
 
 #[test]
 fn latent_tool_candidates_surface_chat_operator_hints_without_direct_routing() {
     let slash_candidates = latent_tool_candidates_for_message("/search top AI agentic frameworks", &[]);
-    assert!(slash_candidates.iter().any(|row| {
-        row.get("tool").and_then(Value::as_str) == Some("batch_query")
-            && row.get("selection_source").and_then(Value::as_str) == Some("slash_search_hint")
-    }));
+    assert!(slash_candidates.is_empty(), "{slash_candidates:?}");
 
     let explicit_candidates =
         latent_tool_candidates_for_message("tool::fetch:::https://example.com", &[]);
-    assert!(explicit_candidates.iter().any(|row| {
-        row.get("tool").and_then(Value::as_str) == Some("web_fetch")
-            && row.get("selection_source").and_then(Value::as_str)
-                == Some("explicit_tool_command")
-    }));
-}
-
-#[test]
-fn comparative_no_findings_fallback_is_diagnostics_only() {
-    let fallback = comparative_no_findings_fallback("rank infring among peers");
-    assert!(fallback.is_empty());
+    assert!(explicit_candidates.is_empty(), "{explicit_candidates:?}");
 }
 
 #[test]

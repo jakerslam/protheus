@@ -25,6 +25,14 @@ fn safe_step_command_candidate(message: &str) -> String {
 }
 
 fn follow_up_suggestion_tool_intent_from_message(message: &str) -> Option<(String, Value)> {
+    let _ = message;
+    // Do not convert "safe step" prose into a tool route. Tool selection is
+    // owned by the LLM's workflow-gate submission.
+    None
+}
+
+#[allow(dead_code)]
+fn retired_follow_up_suggestion_tool_intent_from_message(message: &str) -> Option<(String, Value)> {
     let candidate = safe_step_command_candidate(message);
     if candidate.is_empty() {
         return None;
@@ -47,7 +55,7 @@ fn follow_up_suggestion_tool_intent_from_message(message: &str) -> Option<(Strin
                     "ok": false,
                     "error": "tool_command_query_required",
                     "message": format!(
-                        "`{}` needs a query before it can run. Ask me to {} for a specific topic, for example `try to web search \"top AI agent frameworks\"`.",
+                        "`{}` needs a query before it can run. Ask me to {} for the exact topic you want searched.",
                         clean_text(prefix, 80),
                         label
                     )

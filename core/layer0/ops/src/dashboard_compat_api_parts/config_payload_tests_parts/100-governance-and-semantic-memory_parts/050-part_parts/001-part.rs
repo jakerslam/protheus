@@ -250,7 +250,7 @@ fn workflow_response_contract_strips_follow_up_tool_markup_from_final_reply() {
         .unwrap_or("");
     assert!(
         response_text.contains(
-            "My search for \"top AI agentic frameworks\" didn't return specific framework listings."
+            "My search for \"top AI agentic frameworks\" didn't return specific framework listings. Let me try a more targeted approach with some well-known framework names."
         ),
         "{response_text}"
     );

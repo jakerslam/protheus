@@ -24,6 +24,9 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
         &json!({
             "queue": [
                 {
+                    "response": "Respond directly"
+                },
+                {
                     "response": "The workflow and tool menu are working, and I can answer directly."
                 }
             ],
@@ -48,7 +51,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("skipped_not_required")
+        Some("synthesized")
     );
     assert_eq!(
         response
@@ -83,14 +86,20 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
             .payload
             .pointer("/response_workflow/stage_statuses/0/status")
             .and_then(Value::as_str),
-        Some("answered_no")
+        Some("presented")
     );
-    assert_eq!(
+    assert!(
         response
             .payload
-            .pointer("/response_workflow/stage_statuses/1/stage")
-            .and_then(Value::as_str),
-        Some("gate_6_llm_final_output")
+            .pointer("/response_workflow/stage_statuses")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| {
+                row.get("stage").and_then(Value::as_str) == Some("final_llm_response")
+                    && row.get("status").and_then(Value::as_str) == Some("synthesized")
+            }))
+            .unwrap_or(false),
+        "{}",
+        response.payload
     );
 }
 

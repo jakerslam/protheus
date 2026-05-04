@@ -413,9 +413,6 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             return web_search_off_topic_results_fallback(&query, mismatch_score, &mismatch_domains);
         }
         if response_mentions_context_guard(&combined) {
-            if message_requests_comparative_answer(&query) {
-                return comparative_no_findings_fallback(&query);
-            }
             return web_tool_context_guard_fallback("Live web batch query");
         }
         let sanitized_summary = strip_context_guard_markers(&summary);
@@ -464,13 +461,7 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             return trim_text(&lines.join("\n"), 1200);
         }
         if status == "no_results" {
-            if message_requests_comparative_answer(&query) {
-                return comparative_no_findings_fallback(&query);
-            }
             return no_findings_user_facing_response();
-        }
-        if message_requests_comparative_answer(&query) {
-            return comparative_no_findings_fallback(&query);
         }
         return no_findings_user_facing_response();
     }
@@ -525,9 +516,6 @@ fn summarize_tool_payload(tool_name: &str, payload: &Value) -> String {
             return web_search_off_topic_results_fallback(&query, mismatch_score, &mismatch_domains);
         }
         if response_mentions_context_guard(&combined) {
-            if message_requests_comparative_answer(&query) {
-                return comparative_no_findings_fallback(&query);
-            }
             return web_tool_context_guard_fallback("Web search");
         }
         let sanitized_summary = strip_context_guard_markers(&summary);

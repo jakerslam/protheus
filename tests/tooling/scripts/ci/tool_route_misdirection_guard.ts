@@ -63,7 +63,7 @@ function parseArgs(argv: string[]) {
       400,
     ),
     fixturePath: cleanText(
-      readFlag(argv, 'fixture') || 'tests/tooling/fixtures/tool_route_misdirection_matrix.json',
+      readFlag(argv, 'fixture') || 'validation/regression/fixtures/tool_route_misdirection_matrix.json',
       400,
     ),
     ingressPath: cleanText(readFlag(argv, 'ingress') || 'orchestration/src/ingress.rs', 400),
@@ -211,8 +211,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
   if (!cleanText(args.outPath, 400).endsWith('_current.json')) {
     failures.push({ id: 'out_path_not_current_json', detail: 'out path must end with _current.json' });
   }
-  if (!isCanonicalRelativePath(args.fixturePath, 'tests/tooling/fixtures/')) {
-    failures.push({ id: 'fixture_path_not_canonical', detail: 'fixture path must be canonical under tests/tooling/fixtures/' });
+  if (!isCanonicalRelativePath(args.fixturePath, 'validation/regression/fixtures/')) {
+    failures.push({ id: 'fixture_path_not_canonical', detail: 'fixture path must be canonical under validation/regression/fixtures/' });
   }
   if (!isCanonicalRelativePath(args.markdownPath, 'local/workspace/reports/')) {
     failures.push({

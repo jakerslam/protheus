@@ -111,31 +111,31 @@ function run(argv: string[]): number {
     {
       id: 'typed_probe_routing',
       name: 'typed probe + routing',
-      fixturePath: 'tests/tooling/fixtures/tool_route_misdirection_matrix.json',
+      fixturePath: 'validation/regression/fixtures/tool_route_misdirection_matrix.json',
       artifactPath: 'core/local/artifacts/typed_probe_contract_matrix_guard_current.json',
     },
     {
       id: 'workspace_tooling',
       name: 'workspace tooling',
-      fixturePath: 'tests/tooling/fixtures/workspace_path_targeting_replay_matrix.json',
+      fixturePath: 'validation/regression/fixtures/workspace_path_targeting_replay_matrix.json',
       artifactPath: 'core/local/artifacts/workspace_tooling_reliability_current.json',
     },
     {
       id: 'web_tooling',
       name: 'web tooling extraction',
-      fixturePath: 'tests/tooling/fixtures/web_tooling_extraction_contract_matrix.json',
+      fixturePath: 'validation/regression/fixtures/web_tooling_extraction_contract_matrix.json',
       artifactPath: 'core/local/artifacts/web_tooling_reliability_current.json',
     },
     {
       id: 'synthesis',
       name: 'mixed-evidence synthesis',
-      fixturePath: 'tests/tooling/fixtures/synthesis_mixed_evidence_regression_matrix.json',
+      fixturePath: 'validation/regression/fixtures/synthesis_mixed_evidence_regression_matrix.json',
       artifactPath: 'core/local/artifacts/synthesis_mixed_evidence_quality_current.json',
     },
     {
       id: 'recovery',
       name: 'workflow recovery',
-      fixturePath: 'tests/tooling/fixtures/workflow_failure_recovery_matrix.json',
+      fixturePath: 'validation/regression/fixtures/workflow_failure_recovery_matrix.json',
       artifactPath: 'core/local/artifacts/workflow_failure_recovery_current.json',
     },
   ];

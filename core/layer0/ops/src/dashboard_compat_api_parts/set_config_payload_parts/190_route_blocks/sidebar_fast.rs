@@ -1,10 +1,9 @@
-fn build_sidebar_agent_roster_fast(_root: &Path, snapshot: &Value, include_terminated: bool) -> Vec<Value> {
+fn build_sidebar_agent_roster_fast(root: &Path, snapshot: &Value, include_terminated: bool) -> Vec<Value> {
     let archived = std::collections::HashSet::<String>::new();
     let profiles = Map::<String, Value>::new();
     let contracts = Map::<String, Value>::new();
     let collab = collab_agents_map(snapshot);
-    let default_provider = "openai".to_string();
-    let default_model = "auto".to_string();
+    let (default_provider, default_model) = extract_app_settings(root, snapshot);
     let mut all_ids = std::collections::HashSet::<String>::new();
     for key in profiles.keys() {
         let id = clean_agent_id(key);

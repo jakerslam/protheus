@@ -22,7 +22,7 @@ function parseSrsRows(markdown) {
   return [...rowsById.values()];
 }
 
-const todoPath = 'docs/workspace/TODO.md';
+const todoPath = 'docs/workspace/todo/TODO.md';
 const srsPath = 'docs/workspace/SRS.md';
 const failOnActionable = process.argv.includes('--fail-on-actionable');
 

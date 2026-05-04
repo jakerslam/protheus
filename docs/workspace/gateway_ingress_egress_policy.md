@@ -203,9 +203,13 @@ Default Shell-facing Gateway responses must declare byte, array, depth, string, 
 
 Issue-reporting and eval-submission routes are request ingress routes with additional controls. Taskbar issue submission may target external issue creation only through an approved Gateway route; chat-local report/eval submission may trigger internal eval only through a bounded Gateway route. Neither path may be implemented as Shell-owned policy, Shell-owned mutation, or raw context upload.
 
+External surfaces have no first-party Shell exception. Shell, CLI, SDK, issue submission, eval submission, app, plugin, package, external-agent, and future mobile/Tauri traffic must enter through Gateway routes before reaching Nexus, Conduit, Kernel, or Orchestration owners.
+
 ## Enforcement
 
 Enforcement command: `npm run -s ops:gateway:interface:guard`.
+
+External surface coverage command: `npm run -s ops:gateway:external-surface:guard`.
 
 Payload budget command: `npm run -s ops:interface:payload-budget:guard`.
 
