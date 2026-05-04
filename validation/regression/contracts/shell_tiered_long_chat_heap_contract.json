@@ -1,0 +1,106 @@
+{
+  "type": "shell_tiered_long_chat_heap_contract",
+  "schema_version": 1,
+  "owner": "assurance.validation",
+  "status": "enforced",
+  "updated_at": "2026-05-01",
+  "purpose": "Define release-grade long-chat memory proof tiers so Shell projection regressions are caught at store, rendered fixture, and Gateway-to-Shell payload boundaries.",
+  "policy_refs": [
+    "docs/workspace/shell_ui_projection_policy.md",
+    "docs/workspace/shell_ui_message_detail_contract.md",
+    "docs/workspace/interface_payload_budget_policy.md",
+    "docs/workspace/gateway_ingress_egress_policy.md"
+  ],
+  "tier_commands": [
+    {
+      "id": "tier1_deterministic_store_projection",
+      "command": "ops:shell:long-chat-ram:guard",
+      "script": "tests/tooling/scripts/ci/shell_long_chat_ram_regression_guard.ts",
+      "mode": "deterministic_store_projection_with_memprobe_contract",
+      "artifact_paths": [
+        "core/local/artifacts/shell_long_chat_ram_regression_guard_current.json",
+        "local/workspace/reports/SHELL_LONG_CHAT_RAM_REGRESSION_GUARD_CURRENT.md"
+      ]
+    },
+    {
+      "id": "tier2_browser_rendered_heap_fixture",
+      "command": "ops:shell:tiered-long-chat-heap:guard",
+      "script": "tests/tooling/scripts/ci/shell_tiered_long_chat_heap_guard.ts",
+      "mode": "browser_rendered_fixture_budget",
+      "artifact_paths": [
+        "core/local/artifacts/shell_tiered_long_chat_heap_guard_current.json",
+        "local/workspace/reports/SHELL_TIERED_LONG_CHAT_HEAP_GUARD_CURRENT.md"
+      ]
+    },
+    {
+      "id": "tier3_gateway_to_shell_projection_stress",
+      "command": "ops:shell:tiered-long-chat-heap:guard",
+      "script": "tests/tooling/scripts/ci/shell_tiered_long_chat_heap_guard.ts",
+      "mode": "gateway_to_shell_projection_stress",
+      "depends_on": [
+        "ops:shell:runtime-payload-budget:guard"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/shell_tiered_long_chat_heap_guard_current.json",
+        "local/workspace/reports/SHELL_TIERED_LONG_CHAT_HEAP_GUARD_CURRENT.md"
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "long_chat_1k",
+      "total_messages": 1000,
+      "rendered_window_rows": 80,
+      "tool_detail_expansions": 1,
+      "session_switches": 1
+    },
+    {
+      "id": "long_chat_10k",
+      "total_messages": 10000,
+      "rendered_window_rows": 80,
+      "tool_detail_expansions": 1,
+      "session_switches": 1
+    }
+  ],
+  "budgets": {
+    "max_gateway_default_rows": 80,
+    "max_rendered_rows": 80,
+    "max_payload_bytes": 65536,
+    "max_dom_nodes": 11000,
+    "max_custom_elements": 320,
+    "max_heap_growth_mb": 160,
+    "max_storage_bytes": 262144,
+    "max_cleanup_storage_bytes": 32768
+  },
+  "required_gateway_projection_fields": [
+    "rows",
+    "before_cursor",
+    "after_cursor",
+    "window_start_id",
+    "window_end_id",
+    "total_count"
+  ],
+  "required_row_fields": [
+    "id",
+    "conversation_id",
+    "origin_kind",
+    "timestamp",
+    "status",
+    "content_preview",
+    "detail_ref",
+    "allowed_display_actions"
+  ],
+  "forbidden_default_payload_fields": [
+    "all_messages",
+    "conversation_tree",
+    "raw_tool_result",
+    "tool_result",
+    "trace_body",
+    "plan_graph",
+    "workflow_graph",
+    "execution_observation",
+    "authorization_state",
+    "policy_decision",
+    "raw"
+  ]
+}

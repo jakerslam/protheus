@@ -1,0 +1,76 @@
+{
+  "type": "shell_runtime_payload_budget_contract",
+  "schema_version": 1,
+  "owner": "assurance.validation",
+  "status": "enforced",
+  "updated_at": "2026-05-01",
+  "interface_payload_budget_contract_path": "client/runtime/config/interface_payload_budget_contract.json",
+  "policy_refs": [
+    "docs/workspace/interface_payload_budget_policy.md",
+    "docs/workspace/gateway_ingress_egress_policy.md",
+    "docs/workspace/shell_ui_projection_policy.md",
+    "docs/workspace/shell_ui_message_detail_contract.md"
+  ],
+  "policy_doc_required_tokens": [
+    "Default endpoint responses are bounded projections.",
+    "Heavy data escapes the default path only through detail refs.",
+    "Default endpoints that return collections must use cursor or window fields."
+  ],
+  "required_endpoint_budgets": [
+    "session_list_projection",
+    "chat_message_window_projection",
+    "runtime_event_projection"
+  ],
+  "runtime_cases": [
+    {
+      "id": "session_list_runtime_projection",
+      "endpoint_budget": "session_list_projection",
+      "endpoint_pattern": "/api/sessions",
+      "sample_row_count": 12,
+      "required_top_level_fields": [
+        "sessions",
+        "session_ids",
+        "message_counts",
+        "next_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ]
+    },
+    {
+      "id": "chat_message_window_runtime_projection",
+      "endpoint_budget": "chat_message_window_projection",
+      "endpoint_pattern": "/api/agents/:agent_id/messages",
+      "sample_row_count": 80,
+      "required_top_level_fields": [
+        "ok",
+        "agent_id",
+        "active_session_id",
+        "message_window",
+        "message_count",
+        "total_count",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ]
+    },
+    {
+      "id": "runtime_event_runtime_projection",
+      "endpoint_budget": "runtime_event_projection",
+      "endpoint_pattern": "/api/events",
+      "sample_row_count": 8,
+      "required_top_level_fields": [
+        "event_id",
+        "event_kind",
+        "agent_id",
+        "session_id",
+        "display_projection",
+        "status_label",
+        "cursor_refs",
+        "detail_refs",
+        "receipt_refs",
+        "correlation_id"
+      ]
+    }
+  ]
+}
