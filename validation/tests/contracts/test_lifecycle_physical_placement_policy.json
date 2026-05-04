@@ -22,7 +22,8 @@
     "suite_manifest",
     "artifact_envelope_contract",
     "temporary_test_contract",
-    "physical_placement_policy"
+    "physical_placement_policy",
+    "tooling_harness_only_policy"
   ],
   "forbidden_canonical_prefixes": [
     "tests/tooling/config/test_",

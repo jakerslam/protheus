@@ -134,6 +134,8 @@ New default endpoints must comply immediately. Temporary exceptions must name:
 
 Enforcement command: `npm run -s ops:interface:payload-budget:guard`.
 
+Runtime-shaped Shell payload command: `npm run -s ops:shell:runtime-payload-budget:guard`.
+
 Route inventory command: `npm run -s ops:nexus:route-inventory:guard`.
 
 Architecture policy governance command: `npm run -s ops:policy-refinement:governance`.

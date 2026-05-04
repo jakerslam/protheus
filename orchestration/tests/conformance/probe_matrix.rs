@@ -476,11 +476,10 @@ fn adapted_probe_authority_matrix_executes_50_real_cases() {
         }
     }
 
-    let legacy_tool_probe =
-        infring_orchestration_v1::planner::preconditions::probe_capability(
-            &legacy_tool_request_without_probe_envelope(),
-            &Capability::ExecuteTool,
-        );
+    let legacy_tool_probe = infring_orchestration_v1::planner::preconditions::probe_capability(
+        &legacy_tool_request_without_probe_envelope(),
+        &Capability::ExecuteTool,
+    );
     assert!(legacy_tool_probe
         .blocked_on
         .contains(&Precondition::ToolAvailable));

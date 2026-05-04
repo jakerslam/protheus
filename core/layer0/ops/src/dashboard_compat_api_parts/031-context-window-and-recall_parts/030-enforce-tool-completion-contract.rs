@@ -43,24 +43,21 @@ fn enforce_tool_completion_contract(
         if response_is_no_findings_placeholder(&finalized_cleaned)
             && !finalized_cleaned.is_empty()
         {
-            finalized.clear();
             outcome =
-                append_tool_completion_outcome(&outcome, "no_tools_withheld_no_findings_copy");
+                append_tool_completion_outcome(&outcome, "no_tools_flagged_no_findings_copy");
             applied = true;
         } else if response_looks_like_tool_ack_without_findings(&finalized_cleaned) {
-            finalized.clear();
             outcome = append_tool_completion_outcome(
                 &outcome,
-                "no_tools_withheld_unverified_tool_execution_claim",
+                "no_tools_flagged_unverified_tool_execution_claim",
             );
             applied = true;
         } else if response_is_deferred_execution_preamble(&finalized_cleaned)
             || response_is_deferred_retry_prompt(&finalized_cleaned)
         {
-            finalized.clear();
             outcome = append_tool_completion_outcome(
                 &outcome,
-                "no_tools_withheld_deferred_execution_claim",
+                "no_tools_flagged_deferred_execution_claim",
             );
             applied = true;
         }
@@ -72,9 +69,6 @@ fn enforce_tool_completion_contract(
             raw_actionable_reason || has_actionable_tool_reason(&finalized_cleaned);
         if actionable_reason && !findings_available {
             finalized = clean_text(&finalized_cleaned, 32_000);
-            if response_is_no_findings_placeholder(&finalized) {
-                finalized.clear();
-            }
             outcome = append_tool_completion_outcome(&outcome, "tool_completion_preserved_reason");
             applied = true;
         }
@@ -83,9 +77,8 @@ fn enforce_tool_completion_contract(
                 || response_looks_like_tool_ack_without_findings(&finalized_cleaned)
                 || response_is_no_findings_placeholder(&finalized_cleaned))
         {
-            finalized.clear();
             outcome =
-                append_tool_completion_outcome(&outcome, "tool_completion_withheld_missing_llm_text");
+                append_tool_completion_outcome(&outcome, "tool_completion_flagged_missing_llm_text");
             applied = true;
         } else if !findings_available
             && !actionable_reason
@@ -93,29 +86,26 @@ fn enforce_tool_completion_contract(
                 || response_looks_like_tool_ack_without_findings(&finalized_cleaned)
                 || response_is_no_findings_placeholder(&finalized_cleaned))
         {
-            finalized.clear();
             outcome = append_tool_completion_outcome(
                 &outcome,
-                "tool_completion_withheld_no_findings",
+                "tool_completion_flagged_no_findings",
             );
             applied = true;
         }
         if response_looks_like_tool_ack_without_findings(&finalized)
             && !has_actionable_tool_reason(&finalized)
         {
-            finalized.clear();
             outcome =
-                append_tool_completion_outcome(&outcome, "tool_completion_withheld_ack_only");
+                append_tool_completion_outcome(&outcome, "tool_completion_flagged_ack_only");
             applied = true;
         }
         let deferred_execution = response_is_deferred_execution_preamble(&finalized)
             || response_is_deferred_retry_prompt(&finalized)
             || workflow_response_requests_more_tooling(&finalized);
         if deferred_execution && !has_actionable_tool_reason(&finalized) {
-            finalized.clear();
             outcome = append_tool_completion_outcome(
                 &outcome,
-                "tool_completion_withheld_deferred_execution",
+                "tool_completion_flagged_deferred_execution",
             );
             applied = true;
         }

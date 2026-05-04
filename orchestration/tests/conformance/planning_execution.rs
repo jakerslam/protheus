@@ -185,8 +185,11 @@ fn comparative_request_exposes_verifier_and_alternative_plan_provenance() {
         .core_contract_calls
         .contains(&CoreContractCall::VerifierRequest));
     assert!(!package.alternative_plans.is_empty());
-    assert!(package.alternative_plans.iter().any(|row| row.variant
-        == infring_orchestration_v1::contracts::PlanVariant::ClarificationFirst));
+    assert!(package
+        .alternative_plans
+        .iter()
+        .any(|row| row.variant
+            == infring_orchestration_v1::contracts::PlanVariant::ClarificationFirst));
     let mut signatures = std::iter::once(&package.selected_plan)
         .chain(package.alternative_plans.iter())
         .map(|plan| {
@@ -269,6 +272,23 @@ fn pure_read_plan_is_non_mutating_without_context_preparation() {
         .receipt_metadata
         .iter()
         .any(|row| row == "plan_mutates_session_context=false"));
+    assert!(package
+        .decision_trace
+        .receipt_metadata
+        .iter()
+        .any(|row| row == "context_preparation=none"));
+    assert!(package
+        .decision_trace
+        .step_records
+        .iter()
+        .flat_map(|row| row.inputs.iter())
+        .any(|row| row == "context_preparation=none"));
+    assert!(package
+        .progress_message
+        .contains("context_preparation=none"));
+    assert!(package
+        .progress_message
+        .contains("mutates_session_context=false"));
 }
 
 #[test]
@@ -321,13 +341,35 @@ fn comparative_read_plan_exposes_explicit_context_preparation_metadata() {
         .contains(&infring_orchestration_v1::contracts::Capability::PrepareContext));
     assert!(prepared.steps.iter().any(|step| {
         step.operation == "prepare_session_context_explicit"
-            && step.capability
-                == infring_orchestration_v1::contracts::Capability::PrepareContext
+            && step.capability == infring_orchestration_v1::contracts::Capability::PrepareContext
             && step
                 .rationale
                 .iter()
                 .any(|row| row == "mutates_session_context:true")
     }));
+    assert!(package.selected_plan.mutates_session_context);
+    assert!(package
+        .decision_trace
+        .receipt_metadata
+        .iter()
+        .any(|row| row == "context_preparation=explicit"));
+    assert!(package
+        .decision_trace
+        .receipt_metadata
+        .iter()
+        .any(|row| row.starts_with("context_preparation_rationale=")));
+    assert!(package
+        .decision_trace
+        .step_records
+        .iter()
+        .flat_map(|row| row.inputs.iter())
+        .any(|row| row == "context_preparation=explicit"));
+    assert!(package
+        .progress_message
+        .contains("context_preparation=explicit"));
+    assert!(package
+        .progress_message
+        .contains("mutates_session_context=true"));
 }
 
 #[test]
@@ -571,12 +613,12 @@ fn degraded_comparative_request_preserves_multiple_probe_failures() {
         .degradation
         .as_ref()
         .expect("degradation state");
-    assert!(degradation.reasons.contains(
-        &infring_orchestration_v1::contracts::DegradationReason::ToolUnavailable
-    ));
-    assert!(degradation.reasons.contains(
-        &infring_orchestration_v1::contracts::DegradationReason::TransportFailure
-    ));
+    assert!(degradation
+        .reasons
+        .contains(&infring_orchestration_v1::contracts::DegradationReason::ToolUnavailable));
+    assert!(degradation
+        .reasons
+        .contains(&infring_orchestration_v1::contracts::DegradationReason::TransportFailure));
 }
 
 #[test]

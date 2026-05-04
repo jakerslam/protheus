@@ -100,7 +100,7 @@ assert(
 );
 assert(
   queue.top.every((lane) => lane.path !== 'client/runtime/systems/workflow/shannon_desktop_shell.ts'),
-  'expected Shannon desktop shell to be excluded from live queue'
+  'expected Shannon desktop UI shell 1.0 to be excluded from live queue'
 );
 assert(
   queue.top.every((lane) => lane.path !== 'client/cognition/orchestration/scratchpad.ts'),

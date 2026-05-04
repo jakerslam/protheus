@@ -185,12 +185,12 @@ mod app_chat_regression_tests {
             (
                 "I'll get you an update on the current best AI agent frameworks.",
                 json!([{ "name": "batch_query", "status": "low_signal", "result": "No source-backed findings were produced in this pass." }]),
-                "try finding information about the current top agentic AI frameworks",
+                "try a web search for information about the current top agentic AI frameworks",
             ),
             (
                 "Would you like me to retry with a narrower query or one specific source URL?",
                 json!([{ "name": "batch_query", "status": "no_results", "result": "No useful result in this pass." }]),
-                "give me an update on the current best agent frameworks",
+                "use web search to give me an update on the current best agent frameworks",
             ),
             (
                 "I attempted to run those web searches but the system blocked the function calls from executing entirely. It appears the security controls are preventing any web search operations at the moment, regardless of topic.",
@@ -207,6 +207,9 @@ mod app_chat_regression_tests {
                         {
                             "response": draft,
                             "tools": tools
+                        },
+                        {
+                            "response": "Current agent framework comparison should be treated as provisional from this replay: compare LangGraph, OpenAI Agents SDK, AutoGen, CrewAI, and OpenHands on orchestration depth, tool reliability, recovery behavior, and synthesis quality."
                         }
                     ],
                     "calls": []
@@ -223,10 +226,25 @@ mod app_chat_regression_tests {
             assert!(lane.ok);
             let payload = lane.payload.unwrap_or_else(|| json!({}));
             let response = app_chat_response_text(&payload);
-            assert!(
-                !app_chat_response_is_invalid_terminal_copy(&response),
-                "invalid terminal response for scenario {idx}: {response}"
-            );
+            let outcome = app_chat_finalization_outcome(&payload);
+            if response.trim().is_empty() {
+                assert!(
+                    outcome.contains("withheld"),
+                    "empty terminal response should only be allowed as an explicit withheld no-injection outcome for scenario {idx}: {payload}"
+                );
+                assert_ne!(
+                    payload
+                        .pointer("/response_finalization/system_chat_injection_used")
+                        .and_then(Value::as_bool),
+                    Some(true),
+                    "{payload}"
+                );
+            } else {
+                assert!(
+                    !app_chat_response_is_invalid_terminal_copy(&response),
+                    "invalid terminal response for scenario {idx}: {response}"
+                );
+            }
         }
     }
 

@@ -98,75 +98,18 @@ fn message_explicitly_disallows_tool_calls(message: &str) -> bool {
 }
 
 fn message_is_meta_control_turn(message: &str) -> bool {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    let meta_marker_hit = [
-        "that was just a test",
-        "just a test",
-        "just testing",
-        "test only",
-        "ignore that",
-        "never mind",
-        "nm",
-        "thanks",
-        "thank you",
-        "cool",
-        "sounds good",
-        "did you try it",
-        "did you do it",
-        "what happened",
-        "give 10 steps",
-        "give me 10 steps",
-        "actionable steps",
-        "those were broad",
-    ]
-    .iter()
-    .any(|marker| lowered.contains(marker));
-    if !meta_marker_hit {
-        return false;
-    }
-    !["search", "web", "online", "internet", "file", "memory", "repo", "codebase"]
-        .iter()
-        .any(|marker| lowered.contains(marker))
+    let _ = message;
+    false
 }
 
 fn message_requests_local_file_mutation(message: &str) -> bool {
-    let lowered = clean_text(message, 800).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    lowered.contains("edit ")
-        || lowered.contains("patch ")
-        || lowered.contains("update file")
-        || lowered.contains("change file")
-        || lowered.contains("modify ")
-        || lowered.contains("rewrite ")
-        || lowered.contains("create file")
-        || lowered.contains("delete file")
+    let _ = message;
+    false
 }
 
 fn message_requires_information_search(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    let online_intent = lowered.contains("latest ")
-        || lowered.contains("most recent")
-        || lowered.contains("today")
-        || lowered.contains("current ")
-        || lowered.contains("online")
-        || lowered.contains("on the web")
-        || lowered.contains("search for")
-        || lowered.contains("look up")
-        || lowered.contains("web search");
-    let local_intent = lowered.contains("in this repo")
-        || lowered.contains("in this codebase")
-        || lowered.contains("workspace")
-        || lowered.contains("local files")
-        || lowered.contains("project files");
-    online_intent || local_intent
+    let _ = message;
+    false
 }
 
 fn inline_tool_calls_allowed_for_user_message(message: &str) -> bool {

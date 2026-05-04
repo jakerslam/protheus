@@ -112,6 +112,11 @@ pub fn execution_state_for(
 pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {
     let posture = format!("{:?}", plan.posture).to_lowercase();
     let status = format!("{:?}", plan.execution_state.plan_status).to_lowercase();
+    let context_preparation = if plan.selected_plan.mutates_session_context {
+        "explicit"
+    } else {
+        "none"
+    };
     let blocked = plan.selected_plan.blocked_on.len();
     let failed_steps = plan
         .execution_state
@@ -140,7 +145,7 @@ pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {
         .map(|reason| reason == &RecoveryReason::ToolFailureBudgetExceeded)
         .unwrap_or(false);
     format!(
-        "orchestration posture={} status={} steps={} blocked={} failed_steps={} probe_gaps={} heuristic_probes={} tool_failure_budget_exceeded={} clarification={} confidence={:.2}",
+        "orchestration posture={} status={} steps={} blocked={} failed_steps={} probe_gaps={} heuristic_probes={} tool_failure_budget_exceeded={} clarification={} context_preparation={} mutates_session_context={} confidence={:.2}",
         posture,
         status,
         plan.selected_plan.steps.len(),
@@ -150,6 +155,8 @@ pub fn build_progress_projection(plan: &OrchestrationPlan) -> String {
         heuristic_probe_count,
         tool_failure_budget_exceeded,
         plan.needs_clarification,
+        context_preparation,
+        plan.selected_plan.mutates_session_context,
         plan.selected_plan.confidence
     )
 }
@@ -270,6 +277,28 @@ fn correlation_for(
     }
 }
 
+fn candidate_receipt_metadata(plan: &PlanCandidate) -> Vec<String> {
+    let context_preparation = if plan.mutates_session_context {
+        "explicit"
+    } else {
+        "none"
+    };
+    let mut metadata = vec![
+        format!("candidate_plan_id={}", plan.plan_id),
+        format!("candidate_step_count={}", plan.steps.len()),
+        format!("candidate_capability_count={}", plan.capabilities.len()),
+        format!(
+            "candidate_mutates_session_context={}",
+            plan.mutates_session_context
+        ),
+        format!("context_preparation={context_preparation}"),
+    ];
+    if let Some(rationale) = &plan.context_preparation_rationale {
+        metadata.push(format!("context_preparation_rationale={rationale}"));
+    }
+    metadata
+}
+
 fn decision_trace_for_candidate(plan: &PlanCandidate) -> ControlPlaneDecisionTrace {
     let rationale = if !plan.reasons.is_empty() {
         plan.reasons.clone()
@@ -279,16 +308,13 @@ fn decision_trace_for_candidate(plan: &PlanCandidate) -> ControlPlaneDecisionTra
             .flat_map(|step| step.rationale.iter().cloned())
             .collect::<Vec<_>>()
     };
+    let receipt_metadata = candidate_receipt_metadata(plan);
     ControlPlaneDecisionTrace {
         chosen: plan.plan_id.clone(),
         alternatives_rejected: Vec::new(),
         confidence: plan.confidence,
         rationale,
-        receipt_metadata: vec![
-            format!("candidate_plan_id={}", plan.plan_id),
-            format!("candidate_step_count={}", plan.steps.len()),
-            format!("candidate_capability_count={}", plan.capabilities.len()),
-        ],
+        receipt_metadata,
         step_records: plan
             .steps
             .iter()
@@ -297,6 +323,20 @@ fn decision_trace_for_candidate(plan: &PlanCandidate) -> ControlPlaneDecisionTra
                 inputs: vec![
                     format!("operation={}", step.operation),
                     format!("capability={:?}", step.capability).to_ascii_lowercase(),
+                    format!(
+                        "plan_mutates_session_context={}",
+                        plan.mutates_session_context
+                    ),
+                    format!(
+                        "context_preparation={}",
+                        if step.target_contract
+                            == crate::contracts::CoreContractCall::ContextAtomAppend
+                        {
+                            "explicit"
+                        } else {
+                            "none"
+                        }
+                    ),
                 ],
                 chosen_path: format!("{:?}", step.target_contract).to_ascii_lowercase(),
                 alternatives_rejected: Vec::new(),

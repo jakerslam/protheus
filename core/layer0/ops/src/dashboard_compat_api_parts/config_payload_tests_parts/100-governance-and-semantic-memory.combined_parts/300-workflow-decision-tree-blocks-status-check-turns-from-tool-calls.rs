@@ -4,7 +4,7 @@ fn workflow_decision_tree_blocks_status_check_turns_from_tool_calls() {
         decision
             .get("status_check_message")
             .and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         decision.get("should_call_tools").and_then(Value::as_bool),

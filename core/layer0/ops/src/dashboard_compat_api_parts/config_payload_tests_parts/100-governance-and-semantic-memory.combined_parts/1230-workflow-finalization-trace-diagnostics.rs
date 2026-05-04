@@ -65,6 +65,13 @@ fn workflow_visibility_diagnostics_classify_empty_llm_reply_without_system_injec
             .contains("empty_visible_response_preserved_without_system_chat"),
         "{payload}"
     );
+    assert_eq!(payload.pointer("/ui_status").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        payload
+            .pointer("/agent_process_status")
+            .and_then(Value::as_str),
+        Some("")
+    );
 }
 
 #[test]
@@ -116,7 +123,7 @@ fn workflow_self_play_empty_reply_keeps_trace_diagnostic_from_beginning_to_end()
             .payload
             .pointer("/workflow_visibility/finalization_diagnostics/diagnostic_class")
             .and_then(Value::as_str),
-        Some("llm_finalization_unavailable_no_system_fallback"),
+        Some("empty_llm_visible_response_no_system_fallback"),
         "{}",
         response.payload
     );
@@ -125,7 +132,7 @@ fn workflow_self_play_empty_reply_keeps_trace_diagnostic_from_beginning_to_end()
             .payload
             .pointer("/response_quality_telemetry/prompt_echo_reject")
             .and_then(Value::as_u64),
-        Some(1),
+        Some(0),
         "{}",
         response.payload
     );

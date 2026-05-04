@@ -183,7 +183,7 @@ fn chat_workflow_tool_hints_for_message(message: &str) -> Vec<Value> {
                     "tool_command_router",
                     "explain slash search usage",
                     "The user asked for slash web search in chat, but no query was supplied.",
-                    slash_error("slash_query_required", "`/search` needs a query, for example `/search top AI agentic frameworks`."),
+                    slash_error("slash_query_required", "`/search` needs the exact query you want searched."),
                     "slash_search_error",
                     true,
                 );

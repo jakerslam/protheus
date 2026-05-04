@@ -143,11 +143,7 @@ fn run_action_family_app_arm_002(root: &Path, normalized: &str, payload: &Value)
                     if fallback_ok && query_aligned {
                         web_fallback_applied = true;
                         web_trigger_source = "routing_guarded_web_fallback".to_string();
-                        let assistant = if summary.is_empty() {
-                            format!("Web search ran for \"{fallback_query}\" and returned results.")
-                        } else {
-                            format!("Web search results for \"{fallback_query}\": {summary}")
-                        };
+                        let assistant = String::new();
                         let mut tools = tools_now;
                         tools.push(json!({
                             "name": "batch_query",

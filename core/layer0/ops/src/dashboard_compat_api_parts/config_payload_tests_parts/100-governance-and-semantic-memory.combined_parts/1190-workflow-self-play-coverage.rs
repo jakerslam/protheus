@@ -487,7 +487,7 @@ fn workflow_scripted_agent_self_play_can_loop_back_for_another_tool() {
 }
 
 #[test]
-fn workflow_scripted_agent_self_play_withholds_prompt_analysis_leak() {
+fn workflow_scripted_agent_self_play_flags_prompt_analysis_leak_without_runtime_rewrite() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let agent_id =
@@ -498,6 +498,8 @@ fn workflow_scripted_agent_self_play_withholds_prompt_analysis_leak() {
         &governance_test_chat_script_path(root.path()),
         &json!({
             "queue": [{
+                "response": "Respond directly"
+            }, {
                 "response": "We are in the runtime context of 2026-05-02T06:14:40Z. The user asks for a reply in exactly five words. We must reply in one short sentence."
             }],
             "calls": []
@@ -516,17 +518,25 @@ fn workflow_scripted_agent_self_play_withholds_prompt_analysis_leak() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert_eq!(response_text, "", "{}", response.payload);
     assert_eq!(
-        response
-            .payload
-            .pointer("/response_workflow/final_llm_response/fallback_source")
-            .and_then(Value::as_str),
-        Some("withheld_workflow_prompt_analysis"),
+        response_text,
+        "We are in the runtime context of 2026-05-02T06:14:40Z. The user asks for a reply in exactly five words. We must reply in one short sentence.",
         "{}",
         response.payload
     );
-    assert_workflow_self_play_clean(&response.payload, "GHOST PROMPT ANALYSIS SHOULD NEVER APPEAR");
+    assert_eq!(
+        response
+            .payload
+            .pointer("/response_workflow/final_llm_response/diagnostic_reject_reason")
+            .and_then(Value::as_str),
+        Some("workflow_prompt_analysis_leak"),
+        "{}",
+        response.payload
+    );
+    assert_workflow_self_play_clean(
+        &response.payload,
+        "GHOST PROMPT ANALYSIS SHOULD NEVER APPEAR",
+    );
 }
 
 #[test]

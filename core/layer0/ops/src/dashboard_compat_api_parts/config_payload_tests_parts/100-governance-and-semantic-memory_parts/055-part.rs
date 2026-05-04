@@ -92,27 +92,17 @@ fn workflow_more_tooling_detector_matches_compare_follow_up_question() {
 }
 
 #[test]
-fn workspace_plus_web_comparison_payload_targets_openclaw_docs() {
-    let payload = workspace_plus_web_comparison_web_payload_from_message(
-        "compare this system (infring) to openclaw",
-    )
-    .expect("comparison payload");
-    assert_eq!(payload.get("source").and_then(Value::as_str), Some("web"));
-    assert_eq!(
-        payload.get("query").and_then(Value::as_str),
-        Some("OpenClaw AI assistant architecture features docs")
+fn workflow_does_not_hydrate_openclaw_comparison_payload() {
+    let input = normalize_inline_tool_execution_input(
+        "web_search",
+        &json!({"query":"OpenClaw AI agent system features capabilities"}),
+        "compare this system to a named external system",
     );
-    let queries = payload
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(!queries.is_empty());
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openclaw.ai"))
-            .unwrap_or(false)
-    }));
+    assert_eq!(
+        input.get("query").and_then(Value::as_str),
+        Some("OpenClaw AI agent system features capabilities")
+    );
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]
@@ -120,89 +110,39 @@ fn inline_tool_web_search_comparison_hydrates_targeted_openclaw_query_pack() {
     let input = normalize_inline_tool_execution_input(
         "web_search",
         &json!({"query":"OpenClaw AI agent system features capabilities"}),
-        "compare this system (infring) to openclaw",
+        "compare this system to a named external system",
     );
     assert_eq!(
         input.get("query").and_then(Value::as_str),
-        Some("OpenClaw AI assistant architecture features docs")
+        Some("OpenClaw AI agent system features capabilities")
     );
-    let queries = input
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(queries.len() >= 3, "{queries:?}");
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openclaw.ai"))
-            .unwrap_or(false)
-    }));
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]
-fn framework_catalog_web_payload_targets_named_framework_queries() {
-    let payload = framework_catalog_web_payload_from_query("top AI agentic frameworks")
-        .expect("framework payload");
-    assert_eq!(payload.get("source").and_then(Value::as_str), Some("web"));
-    let query = payload.get("query").and_then(Value::as_str).unwrap_or("");
-    assert!(query.contains("top AI agent frameworks"), "{query}");
-    assert!(query.contains("LangGraph"), "{query}");
-    assert!(query.contains("OpenAI Agents SDK"), "{query}");
-    assert!(query.contains("official docs"), "{query}");
-    assert!(!query.contains("vs"), "{query}");
-    let queries = payload
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(queries.len() >= 6, "{queries:?}");
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("CrewAI"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("landscape"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openai.github.io/openai-agents-python"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:microsoft.github.io"))
-            .unwrap_or(false)
-    }));
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:github.com huggingface/smolagents"))
-            .unwrap_or(false)
-    }));
+fn framework_catalog_query_pack_is_not_runtime_hydrated() {
+    let input = normalize_inline_tool_execution_input(
+        "web_search",
+        &json!({"query":"top AI agentic frameworks"}),
+        "Try to web search \"top AI agentic frameworks\" and return the results",
+    );
+    assert_eq!(
+        input.get("query").and_then(Value::as_str),
+        Some("top AI agentic frameworks")
+    );
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]
-fn inline_tool_web_search_hydrates_framework_catalog_queries_from_broad_prompt() {
+fn inline_tool_web_search_keeps_llm_submitted_broad_prompt() {
     let input = normalize_inline_tool_execution_input(
         "web_search",
         &json!({"query":"top AI agentic frameworks"}),
         "Try to web search \"top AI agentic frameworks\" and return the results",
     );
     let query = input.get("query").and_then(Value::as_str).unwrap_or("");
-    assert!(query.contains("LangGraph"), "{query}");
-    let queries = input
-        .get("queries")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(queries.len() >= 6, "{queries:?}");
-    assert!(queries.iter().any(|row| {
-        row.as_str()
-            .map(|value| value.contains("site:openai.github.io/openai-agents-python"))
-            .unwrap_or(false)
-    }));
+    assert_eq!(query, "top AI agentic frameworks");
+    assert!(input.get("queries").is_none(), "{input}");
 }
 
 #[test]

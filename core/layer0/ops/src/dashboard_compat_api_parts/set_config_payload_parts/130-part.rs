@@ -239,11 +239,12 @@ fn execute_tool_call_by_name(
                 .filter(|row| !row.is_empty())
                 .collect::<Vec<_>>();
             if queries.is_empty() {
-                queries = vec![
-                    "latest ai developments".to_string(),
-                    "top agentic ai frameworks official docs".to_string(),
-                    "openai agents sdk official docs overview".to_string(),
-                ];
+                return json!({
+                    "ok": false,
+                    "error": "queries_required",
+                    "tool": resolved,
+                    "next_step": "Provide explicit `queries` for the web tooling probe."
+                });
             }
             queries.truncate(3);
             let aperture = clean_text(

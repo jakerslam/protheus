@@ -173,8 +173,7 @@ fn workflow_phase_trace_projects_orchestration_lifecycle_for_eval_consumers() {
         5_001,
     );
 
-    let trace =
-        infring_orchestration_v1::telemetry::build_workflow_phase_trace(&package, 5_001);
+    let trace = infring_orchestration_v1::telemetry::build_workflow_phase_trace(&package, 5_001);
 
     assert_eq!(
         trace.trace_type,
@@ -445,9 +444,9 @@ fn forgecode_assimilation_request_selects_forgecode_workflow_template_and_lane_a
         infring_orchestration_v1::contracts::WorkflowTemplate::ForgeCodeAgentComposition
     );
     let workflow_quality = match &package.workflow_quality {
-        Some(infring_orchestration_v1::contracts::WorkflowQualitySignals::ForgeCode(
-            signals,
-        )) => signals,
+        Some(infring_orchestration_v1::contracts::WorkflowQualitySignals::ForgeCode(signals)) => {
+            signals
+        }
         other => panic!("expected ForgeCode workflow quality signals, got {other:?}"),
     };
     assert!(workflow_quality.mcp_alias_route_required);
@@ -528,9 +527,7 @@ fn tool_failure_budget_recovery_projects_budget_quality_and_retry_guard_action()
             .recovery
             .as_ref()
             .and_then(|row| row.reason.clone()),
-        Some(
-            infring_orchestration_v1::contracts::RecoveryReason::ToolFailureBudgetExceeded
-        )
+        Some(infring_orchestration_v1::contracts::RecoveryReason::ToolFailureBudgetExceeded)
     );
     assert!(package.runtime_quality.tool_failure_budget_exceeded);
     assert_eq!(package.runtime_quality.tool_failure_budget_limit, 1);

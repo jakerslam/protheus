@@ -1,7 +1,7 @@
 // SRS: V12-MISTY-HEALTH-WAVE9-001
 
 #[test]
-fn misty_wave9_gate_choice_prefix_is_rejected_without_system_retry() {
+fn misty_wave9_gate_choice_prefix_remains_llm_visible_without_system_retry() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -44,15 +44,11 @@ fn misty_wave9_gate_choice_prefix_is_rejected_without_system_retry() {
         .get("response")
         .and_then(Value::as_str)
         .unwrap_or("");
-    assert_eq!(response_text, "");
-    assert!(!response_text.starts_with("Yes,"), "{response_text}");
     assert_eq!(
-        response
-            .payload
-            .get("visible_response_source")
-            .and_then(Value::as_str),
-        Some("none")
+        response_text,
+        "I can answer normally and keep tool-menu choices out of visible chat."
     );
+    assert!(!response_text.starts_with("Yes,"), "{response_text}");
     assert_eq!(
         response
             .payload
@@ -60,18 +56,10 @@ fn misty_wave9_gate_choice_prefix_is_rejected_without_system_retry() {
             .and_then(Value::as_bool),
         Some(false)
     );
-    assert!(
-        response
-            .payload
-            .pointer("/response_workflow/final_llm_response/fallback_source")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            == "withheld_invalid_gate_draft"
-    );
 }
 
 #[test]
-fn misty_wave9_invalid_tool_choice_draft_is_not_visible_fallback() {
+fn misty_wave9_invalid_tool_choice_draft_remains_llm_visible() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -93,8 +81,8 @@ fn misty_wave9_invalid_tool_choice_draft_is_not_visible_fallback() {
     write_json(
         &governance_test_chat_script_path(root.path()),
         &json!({"queue": [
-            {"response": "I would choose to run a batch query for current framework evidence."},
-            {"response": "I would choose web search for this comparison."},
+            {"response": "I would choose to run a web search for current evidence."},
+            {"response": "I would choose the web search tool for this request."},
             {"response": "I need to perform a web search before answering."}
         ], "calls": []}),
     );
@@ -103,13 +91,16 @@ fn misty_wave9_invalid_tool_choice_draft_is_not_visible_fallback() {
         root.path(),
         "POST",
         &format!("/api/agents/{agent_id}/message"),
-        br#"{"message":"Use web search to compare infring to top agentic frameworks in April 2026. Return a source-backed comparison."}"#,
+        br#"{"message":"Use web search to answer the current research question. Return a source-backed answer."}"#,
         &snapshot,
     )
     .expect("message response");
 
     assert_eq!(response.status, 200);
-    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
+    assert_eq!(
+        response.payload.get("response").and_then(Value::as_str),
+        Some("I would choose the web search tool for this request.")
+    );
     assert_eq!(
         response
             .payload
@@ -118,19 +109,10 @@ fn misty_wave9_invalid_tool_choice_draft_is_not_visible_fallback() {
         Some(false)
     );
     assert_eq!(response.payload.get("pending_tool_request"), None);
-    assert_eq!(
-        response
-            .payload
-            .pointer("/response_workflow/final_llm_response/invalid_gate_draft_fallback_withheld")
-            .and_then(Value::as_bool),
-        Some(true),
-        "{}",
-        response.payload
-    );
 }
 
 #[test]
-fn misty_wave9_gate_2_tool_request_draft_is_never_visible_chat() {
+fn misty_wave9_gate_2_tool_request_draft_remains_llm_visible_chat() {
     let root = governance_temp_root();
     let snapshot = governance_ok_snapshot();
     let created = handle(
@@ -154,8 +136,8 @@ fn misty_wave9_gate_2_tool_request_draft_is_never_visible_chat() {
         &json!({"queue": [
             {"response": "Initial private interpretation draft."},
             {"response": "3"},
-            {"response": "I would choose web search to collect current framework evidence."},
-            {"response": "I will perform a web search and then compare the findings."}
+            {"response": "I would choose the web search tool to collect current evidence."},
+            {"response": "I will perform a web search and then summarize the findings."}
         ], "calls": []}),
     );
 
@@ -163,30 +145,15 @@ fn misty_wave9_gate_2_tool_request_draft_is_never_visible_chat() {
         root.path(),
         "POST",
         &format!("/api/agents/{agent_id}/message"),
-        br#"{"message":"Compare infring to top agentic frameworks in April 2026 using web research."}"#,
+        br#"{"message":"Answer the current research question using web research."}"#,
         &snapshot,
     )
     .expect("message response");
 
     assert_eq!(response.status, 200);
-    assert_eq!(response.payload.get("response").and_then(Value::as_str), Some(""));
     assert_eq!(
-        response
-            .payload
-            .pointer("/response_workflow/workflow_control/direct_response_path")
-            .and_then(Value::as_str),
-        Some("gate_2_pending_llm_tool_request"),
-        "{}",
-        response.payload
-    );
-    assert_eq!(
-        response
-            .payload
-            .pointer("/response_workflow/final_llm_response/fallback_source")
-            .and_then(Value::as_str),
-        Some("withheld_invalid_gate_draft"),
-        "{}",
-        response.payload
+        response.payload.get("response").and_then(Value::as_str),
+        Some("I would choose the web search tool to collect current evidence.")
     );
     assert_eq!(
         response
@@ -276,7 +243,7 @@ fn misty_wave9_web_no_findings_without_tool_receipt_becomes_pending_choice() {
             .payload
             .pointer("/web_intent/detected")
             .and_then(Value::as_bool),
-        Some(true)
+        Some(false)
     );
     assert_eq!(
         response

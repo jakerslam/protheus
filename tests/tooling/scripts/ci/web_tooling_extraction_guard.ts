@@ -60,7 +60,7 @@ type ReliabilityCounters = {
   file_tool_route_misdirection_contract_violation_count: number;
 };
 
-const DEFAULT_FIXTURE_PATH = 'tests/tooling/fixtures/web_tooling_extraction_contract_matrix.json';
+const DEFAULT_FIXTURE_PATH = 'validation/regression/fixtures/web_tooling_extraction_contract_matrix.json';
 const DEFAULT_SOAK_PATH = 'artifacts/web_tooling_context_soak_report_latest.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/web_tooling_reliability_current.json';
 const DEFAULT_OUT_LATEST = 'artifacts/web_tooling_reliability_latest.json';

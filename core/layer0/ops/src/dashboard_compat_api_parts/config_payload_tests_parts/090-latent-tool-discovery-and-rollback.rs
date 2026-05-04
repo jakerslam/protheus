@@ -43,8 +43,10 @@ fn workspace_hints_and_latent_tool_candidates_surface_security_paths() {
     let candidates =
         latent_tool_candidates_for_message("Please audit the security of this API code", &hints);
     let tools = candidate_tool_names(&candidates);
-    assert!(tools.iter().any(|row| row == "terminal_exec"));
-    assert!(tools.iter().any(|row| row == "file_read"));
+    assert!(
+        tools.is_empty(),
+        "workflow tool options must come from the JSON workflow CD, not Rust latent inference"
+    );
 }
 
 #[test]

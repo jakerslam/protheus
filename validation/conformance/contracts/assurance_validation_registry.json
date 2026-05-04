@@ -151,6 +151,8 @@
         "ops:shell:projection:guard",
         "ops:shell:ui-message-contract:guard",
         "ops:shell:long-chat-ram:guard",
+        "ops:shell:runtime-payload-budget:guard",
+        "ops:shell:tiered-long-chat-heap:guard",
         "ops:shell:truth-leak:guard",
         "docs/workspace/shell_ui_projection_policy.md"
       ],
@@ -158,7 +160,9 @@
         "core/local/artifacts/shell_*_current.json",
         "local/workspace/reports/SHELL_*_CURRENT.md",
         "core/local/artifacts/shell_long_chat_ram_regression_guard_current.json",
-        "local/workspace/reports/SHELL_LONG_CHAT_RAM_REGRESSION_GUARD_CURRENT.md"
+        "local/workspace/reports/SHELL_LONG_CHAT_RAM_REGRESSION_GUARD_CURRENT.md",
+        "core/local/artifacts/shell_tiered_long_chat_heap_guard_current.json",
+        "local/workspace/reports/SHELL_TIERED_LONG_CHAT_HEAP_GUARD_CURRENT.md"
       ],
       "self_enforcing": true,
       "harness_only": false,
@@ -173,6 +177,7 @@
       "authority_class": "controlled_validation",
       "owner_of_truth": "Gateway and Conduit boundary policies",
       "source_refs": [
+        "ops:gateway:external-surface:guard",
         "ops:gateway:interface:guard",
         "ops:gateway-boundary:guard",
         "ops:conduit:scrambler-posture:guard",
@@ -219,10 +224,14 @@
       "owner_of_truth": "Validation test lifecycle registry",
       "source_refs": [
         "validation/tests/contracts/validation_test_lifecycle_registry.json",
-        "ops:test-maturity:registry:guard"
+        "validation/tests/contracts/tooling_harness_only_policy.json",
+        "ops:test-maturity:registry:guard",
+        "ops:tooling:harness-only:guard"
       ],
       "evidence_output": [
-        "core/local/artifacts/test_maturity_registry_guard_current.json"
+        "core/local/artifacts/test_maturity_registry_guard_current.json",
+        "core/local/artifacts/tooling_harness_only_guard_current.json",
+        "local/workspace/reports/TOOLING_HARNESS_ONLY_GUARD_CURRENT.md"
       ],
       "self_enforcing": false,
       "harness_only": false,
