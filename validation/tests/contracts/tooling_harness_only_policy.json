@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "owner": "validation/tests",
+  "status": "enforced",
+  "purpose": "Keep tests/tooling as harness-only executor glue while definition-shaped validation, observability, governance, benchmark, conformance, regression, release-gate, and scorecard truth migrates to Assurance domains.",
+  "harness_only_prefixes": [
+    "tests/tooling/scripts/",
+    "tests/tooling/lib/",
+    "tests/tooling/config/tooling_gate_registry.json",
+    "tests/tooling/config/verify_profiles.json"
+  ],
+  "definition_shape_patterns": [
+    "manifest",
+    "matrix",
+    "policy",
+    "baseline",
+    "budget",
+    "scorecard",
+    "schema",
+    "fixture",
+    "registry",
+    "contract"
+  ],
+  "canonical_definition_prefixes": [
+    "validation/tests/",
+    "validation/evals/",
+    "validation/benchmarks/",
+    "validation/conformance/",
+    "validation/regression/",
+    "validation/release_gates/",
+    "validation/scorecards/",
+    "observability/",
+    "governance/"
+  ],
+  "declared_transition_debt": [
+    {
+      "path": "tests/tooling/config/agent_surface_status_manifest.json",
+      "target_domain": "observability",
+      "target_prefix": "observability/source_coverage/",
+      "owner": "assurance.observability",
+      "expires": "2026-05-21",
+      "reason": "Agent surface status inventory is live evidence/source-coverage truth, not tooling executor truth."
+    },
+    {
+      "path": "tests/tooling/config/gateway_graduation_manifest.json",
+      "target_domain": "validation",
+      "target_prefix": "validation/conformance/contracts/",
+      "owner": "assurance.validation",
+      "expires": "2026-05-21",
+      "reason": "Gateway graduation levels and proof requirements are conformance truth."
+    },
+    {
+      "path": "tests/tooling/config/gateway_manifest.json",
+      "target_domain": "validation",
+      "target_prefix": "validation/conformance/contracts/",
+      "owner": "assurance.validation",
+      "expires": "2026-05-21",
+      "reason": "Gateway capability/health manifest is conformance truth consumed by tooling."
+    },
+    {
+      "path": "tests/tooling/config/kernel_nexus_coupling_policy.json",
+      "target_domain": "governance",
+      "target_prefix": "governance/contracts/",
+      "owner": "assurance.governance",
+      "expires": "2026-05-21",
+      "reason": "Kernel nexus coupling policy is boundary governance truth."
+    },
+    {
+      "path": "tests/tooling/config/layer2_lane_parity_manifest.json",
+      "target_domain": "validation",
+      "target_prefix": "validation/conformance/contracts/",
+      "owner": "assurance.validation",
+      "expires": "2026-05-21",
+      "reason": "Layer 2 lane parity is runtime conformance truth."
+    },
+    {
+      "path": "tests/tooling/config/layer2_parity_matrix.json",
+      "target_domain": "validation",
+      "target_prefix": "validation/conformance/contracts/",
+      "owner": "assurance.validation",
+      "expires": "2026-05-21",
+      "reason": "Layer 2 parity matrix is runtime conformance truth."
+    },
+    {
+      "path": "tests/tooling/config/layer3_contract_policy.json",
+      "target_domain": "governance",
+      "target_prefix": "governance/contracts/",
+      "owner": "assurance.governance",
+      "expires": "2026-05-21",
+      "reason": "Layer 3 contract policy is architecture governance truth."
+    },
+    {
+      "path": "tests/tooling/config/orchestration_runtime_quality_policy_baseline.json",
+      "target_domain": "validation",
+      "target_prefix": "validation/regression/contracts/",
+      "owner": "assurance.validation",
+      "expires": "2026-05-21",
+      "reason": "Orchestration runtime quality thresholds are regression/release evidence truth."
+    },
+    {
+      "path": "tests/tooling/config/release_lane_reviewer_redundancy_policy.json",
+      "target_domain": "governance",
+      "target_prefix": "governance/contracts/",
+      "owner": "assurance.governance",
+      "expires": "2026-05-21",
+      "reason": "Release reviewer redundancy policy is release governance truth."
+    },
+    {
+      "path": "tests/tooling/config/representation_collapse_guard_policy.json",
+      "target_domain": "validation",
+      "target_prefix": "validation/conformance/contracts/",
+      "owner": "assurance.validation",
+      "expires": "2026-05-21",
+      "reason": "Representation-collapse limits are conformance truth."
+    },
+    {
+      "path": "tests/tooling/config/shell_projection_guard_policy.json",
+      "target_domain": "validation",
+      "target_prefix": "validation/conformance/contracts/",
+      "owner": "assurance.validation",
+      "expires": "2026-05-21",
+      "reason": "Shell projection policy checks are conformance truth."
+    },
+    {
+      "path": "tests/tooling/config/trusted_core_manifest.json",
+      "target_domain": "governance",
+      "target_prefix": "governance/contracts/",
+      "owner": "assurance.governance",
+      "expires": "2026-05-21",
+      "reason": "Trusted Kernel/Core manifest is governance/security truth."
+    }
+  ],
+  "rules": [
+    "tests/tooling/scripts may execute checks but must not own behavioral truth.",
+    "tests/tooling/config/tooling_gate_registry.json and verify_profiles.json are harness plumbing only.",
+    "Definition-shaped files under tests/tooling must either be moved to a canonical Assurance domain or declared as time-bounded transition debt.",
+    "Expired or malformed transition debt fails closed."
+  ]
+}

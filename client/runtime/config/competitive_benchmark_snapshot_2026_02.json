@@ -1,0 +1,50 @@
+{
+  "version": "2026.02",
+  "reference_month": "2026-02",
+  "reference_sources": [
+    "https://raw.githubusercontent.com/RightNow-AI/infring/main/README.md"
+  ],
+  "notes": "Reference competitor values sourced from Infring public benchmark table (Feb 2026 snapshot). Infring is measured at runtime by benchmark_matrix.",
+  "projects": {
+    "Infring": {
+      "cold_start_ms": 180,
+      "idle_memory_mb": 40,
+      "install_size_mb": 32,
+      "security_systems": 16,
+      "channel_adapters": 40,
+      "llm_providers": 27
+    },
+    "OpenHands": {
+      "cold_start_ms": 1300,
+      "idle_memory_mb": 150,
+      "install_size_mb": 95.5,
+      "security_systems": 7,
+      "channel_adapters": 15,
+      "llm_providers": 5
+    },
+    "Workflow Graph": {
+      "cold_start_ms": 2500,
+      "idle_memory_mb": 180,
+      "install_size_mb": 150,
+      "security_systems": 2,
+      "channel_adapters": 4,
+      "llm_providers": 15
+    },
+    "CrewAI": {
+      "cold_start_ms": 3000,
+      "idle_memory_mb": 200,
+      "install_size_mb": 100,
+      "security_systems": 1,
+      "channel_adapters": 3,
+      "llm_providers": 10
+    },
+    "AutoGen": {
+      "cold_start_ms": 4000,
+      "idle_memory_mb": 250,
+      "install_size_mb": 200,
+      "security_systems": 2,
+      "channel_adapters": 4,
+      "llm_providers": 8
+    }
+  }
+}
