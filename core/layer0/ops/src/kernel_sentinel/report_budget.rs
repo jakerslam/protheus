@@ -47,7 +47,8 @@ pub(super) fn build_final_report(
             json!(retained_count);
         let final_serialized_bytes = serialized_len(&final_report);
         final_report["report_budget"]["serialized_bytes"] = json!(final_serialized_bytes);
-        final_report["report_budget"]["within_budget"] = json!(final_serialized_bytes <= byte_budget);
+        final_report["report_budget"]["within_budget"] =
+            json!(final_serialized_bytes <= byte_budget);
         if final_serialized_bytes <= byte_budget || retained_count == 0 {
             return final_report;
         }
@@ -148,7 +149,10 @@ fn assemble_final_report(
     })
 }
 
-fn quality_filtered_findings(report: &Value, limit: usize) -> (Vec<Value>, Vec<Value>, Vec<Value>, Value) {
+fn quality_filtered_findings(
+    report: &Value,
+    limit: usize,
+) -> (Vec<Value>, Vec<Value>, Vec<Value>, Value) {
     let mut cluster_order: Vec<String> = Vec::new();
     let mut clusters: BTreeMap<String, RootCauseCluster> = BTreeMap::new();
     let mut triage = Vec::new();
@@ -166,7 +170,10 @@ fn quality_filtered_findings(report: &Value, limit: usize) -> (Vec<Value>, Vec<V
                 if !clusters.contains_key(&key) {
                     cluster_order.push(key.clone());
                 }
-                clusters.entry(key).or_insert_with(|| RootCauseCluster::new(&compact)).push(&compact);
+                clusters
+                    .entry(key)
+                    .or_insert_with(|| RootCauseCluster::new(&compact))
+                    .push(&compact);
             } else if triage.len() < MAX_TRIAGE_SUMMARIES {
                 triage.push(triage_finding(finding, &quality));
             }
@@ -219,13 +226,18 @@ impl RootCauseCluster {
     fn new(finding: &Value) -> Self {
         Self {
             key: root_cause_cluster_key(finding),
-            owner: finding["owner_guess"].as_str().unwrap_or("unknown").to_string(),
+            owner: finding["owner_guess"]
+                .as_str()
+                .unwrap_or("unknown")
+                .to_string(),
             category: finding["category"].clone(),
             root_cause_hypothesis: finding["root_cause_hypothesis"]
                 .as_str()
                 .unwrap_or("unknown")
                 .to_string(),
-            fingerprint_family: fingerprint_family(finding["fingerprint"].as_str().unwrap_or("unknown")),
+            fingerprint_family: fingerprint_family(
+                finding["fingerprint"].as_str().unwrap_or("unknown"),
+            ),
             exemplar: finding.clone(),
             finding_count: 0,
             finding_ids: Vec::new(),
@@ -242,7 +254,11 @@ impl RootCauseCluster {
         );
         if let Some(refs) = finding["evidence_refs"].as_array() {
             for reference in refs.iter().filter_map(Value::as_str) {
-                push_unique_compact(&mut self.evidence_refs, reference, MAX_EVIDENCE_REFS_PER_FINDING);
+                push_unique_compact(
+                    &mut self.evidence_refs,
+                    reference,
+                    MAX_EVIDENCE_REFS_PER_FINDING,
+                );
             }
         }
     }
@@ -277,7 +293,11 @@ fn root_cause_cluster_key(finding: &Value) -> String {
     let root_family = finding["root_frame"]
         .as_str()
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| finding["root_cause_hypothesis"].as_str().unwrap_or("unknown"));
+        .unwrap_or_else(|| {
+            finding["root_cause_hypothesis"]
+                .as_str()
+                .unwrap_or("unknown")
+        });
     format!(
         "{}|{}|{}|{}",
         finding["owner_guess"].as_str().unwrap_or("unknown"),
@@ -298,7 +318,13 @@ fn fingerprint_family(fingerprint: &str) -> String {
 
 fn normalized_cluster_text(raw: &str) -> String {
     raw.chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_lowercase() } else { '_' })
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .split('_')
         .filter(|part| !part.is_empty())
@@ -350,8 +376,10 @@ struct FindingQuality {
     missing_requirements: Vec<&'static str>,
     owner_guess: String,
     root_cause_hypothesis: String,
-    recurrence_or_freshness_support: bool, current_truth_freshness_window: bool,
-    stale_do_not_use: bool, freshness: Value,
+    recurrence_or_freshness_support: bool,
+    current_truth_freshness_window: bool,
+    stale_do_not_use: bool,
+    freshness: Value,
     concrete_next_action: bool,
 }
 
@@ -393,23 +421,38 @@ fn finding_quality(finding: &Value) -> FindingQuality {
     let has_evidence = !evidence_refs.is_empty();
     let freshness = classify_finding_freshness(finding);
     let recurrence_or_freshness_support = freshness.current_truth
-        || evidence_refs.iter().any(|reference| trusted_evidence_ref(reference));
+        || evidence_refs
+            .iter()
+            .any(|reference| trusted_evidence_ref(reference));
     let owner_guess = owner_guess(finding);
     let root_cause_hypothesis = root_cause_hypothesis(finding);
     let concrete_next_action =
         concrete_next_action(finding["recommended_action"].as_str().unwrap_or(""));
-    let status = finding["status"].as_str().unwrap_or("").to_ascii_lowercase();
+    let status = finding["status"]
+        .as_str()
+        .unwrap_or("")
+        .to_ascii_lowercase();
     let mut missing_requirements = Vec::new();
-    if !has_evidence { missing_requirements.push("evidence"); }
-    if !recurrence_or_freshness_support { missing_requirements.push("recurrence_or_freshness_support"); }
+    if !has_evidence {
+        missing_requirements.push("evidence");
+    }
+    if !recurrence_or_freshness_support {
+        missing_requirements.push("recurrence_or_freshness_support");
+    }
     if freshness.stale_do_not_use {
         missing_requirements.push("stale_do_not_use");
     } else if !freshness.current_truth {
         missing_requirements.push("current_truth_freshness_window");
     }
-    if owner_guess.is_empty() { missing_requirements.push("owner_guess"); }
-    if root_cause_hypothesis.is_empty() { missing_requirements.push("root_cause_hypothesis"); }
-    if !concrete_next_action { missing_requirements.push("concrete_next_action"); }
+    if owner_guess.is_empty() {
+        missing_requirements.push("owner_guess");
+    }
+    if root_cause_hypothesis.is_empty() {
+        missing_requirements.push("root_cause_hypothesis");
+    }
+    if !concrete_next_action {
+        missing_requirements.push("concrete_next_action");
+    }
     if matches!(
         status.as_str(),
         "draft" | "triage" | "needs_root_cause_synthesis" | "stale_do_not_use"
@@ -431,8 +474,12 @@ fn finding_quality(finding: &Value) -> FindingQuality {
 
 fn owner_guess(finding: &Value) -> String {
     match finding["category"].as_str().unwrap_or("") {
-        "receipt_integrity" | "capability_enforcement" | "state_transition" | "security_boundary"
-        | "runtime_correctness" | "self_maintenance_loop" => "kernel".to_string(),
+        "receipt_integrity"
+        | "capability_enforcement"
+        | "state_transition"
+        | "security_boundary"
+        | "runtime_correctness"
+        | "self_maintenance_loop" => "kernel".to_string(),
         "gateway_isolation" => "gateways".to_string(),
         "queue_backpressure" | "retry_storm" | "boundedness" | "performance_regression" => {
             "observability".to_string()
@@ -484,15 +531,35 @@ fn compact_text(input: &str) -> String {
 
 fn evidence_stream_refs(state_dir: &Path) -> Vec<String> {
     vec![
-        state_dir.join("evidence/kernel_receipts.jsonl").display().to_string(),
-        state_dir.join("evidence/runtime_observations.jsonl").display().to_string(),
-        state_dir.join("evidence/control_plane_eval.jsonl").display().to_string(),
-        state_dir.join("evidence/release_proof_packs.jsonl").display().to_string(),
-        state_dir.join("evidence/gateway_health.jsonl").display().to_string(),
-        state_dir.join("evidence/queue_backpressure.jsonl").display().to_string(),
+        state_dir
+            .join("evidence/kernel_receipts.jsonl")
+            .display()
+            .to_string(),
+        state_dir
+            .join("evidence/runtime_observations.jsonl")
+            .display()
+            .to_string(),
+        state_dir
+            .join("evidence/control_plane_eval.jsonl")
+            .display()
+            .to_string(),
+        state_dir
+            .join("evidence/release_proof_packs.jsonl")
+            .display()
+            .to_string(),
+        state_dir
+            .join("evidence/gateway_health.jsonl")
+            .display()
+            .to_string(),
+        state_dir
+            .join("evidence/queue_backpressure.jsonl")
+            .display()
+            .to_string(),
     ]
 }
 
 fn serialized_len(value: &Value) -> usize {
-    serde_json::to_vec(value).map(|body| body.len()).unwrap_or(usize::MAX)
+    serde_json::to_vec(value)
+        .map(|body| body.len())
+        .unwrap_or(usize::MAX)
 }

@@ -40,7 +40,10 @@ fn gateway_health_conflict_names_durable_listener_invariant() {
     let row = finding(
         "dashboard_healthz_not_ready",
         "healthz not ready while alternate_healthz_ready on 5173",
-        vec!["gateway://healthz/4173", "health://alternate_healthz_ready/5173"],
+        vec![
+            "gateway://healthz/4173",
+            "health://alternate_healthz_ready/5173",
+        ],
     );
     let report = build_kernel_sentinel_causal_hypotheses(&[row], &json!({}), &[]);
     let first = &report["top_hypotheses"][0];

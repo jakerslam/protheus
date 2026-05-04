@@ -235,7 +235,9 @@ pub fn apply_waivers(
                 && applies_to(waiver, finding)
             {
                 finding.status = "waived".to_string();
-                finding.evidence.push(format!("waiver://{id};receipt={}", waiver.receipt));
+                finding
+                    .evidence
+                    .push(format!("waiver://{id};receipt={}", waiver.receipt));
                 applied += 1;
             }
         }
@@ -325,7 +327,10 @@ mod tests {
         let mut findings = vec![critical()];
         let (report, generated) = apply_waivers(&mut findings, &dir, &[]);
         assert_eq!(report["rejected_count"], Value::from(1));
-        assert_eq!(generated[0].category, KernelSentinelFindingCategory::SecurityBoundary);
+        assert_eq!(
+            generated[0].category,
+            KernelSentinelFindingCategory::SecurityBoundary
+        );
         assert_eq!(findings[0].status, "open");
     }
 

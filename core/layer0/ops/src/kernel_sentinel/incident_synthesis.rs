@@ -7,8 +7,8 @@ use std::collections::BTreeSet;
 
 use super::{
     build_incident_diagnostic_follow_up_request, KernelSentinelDiagnosticRequest,
-    KernelSentinelFailureLevel, KernelSentinelIncidentCluster,
-    KernelSentinelIncidentClusterKey, KernelSentinelIncidentEvidenceLevel,
+    KernelSentinelFailureLevel, KernelSentinelIncidentCluster, KernelSentinelIncidentClusterKey,
+    KernelSentinelIncidentEvidenceLevel,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -48,10 +48,13 @@ fn confidence_percent(cluster: &KernelSentinelIncidentCluster) -> u8 {
         _ => 35,
     };
     let level_bonus = cluster.evidence_levels.len().saturating_sub(1).min(3) as u8 * 10;
-    let invariant_bonus = if cluster.invariant_ids.is_empty() { 0 } else { 10 };
+    let invariant_bonus = if cluster.invariant_ids.is_empty() {
+        0
+    } else {
+        10
+    };
     let failure_bonus = cluster.highest_failure_level.priority().saturating_mul(4);
-    40u8
-        .saturating_add(occurrence_bonus)
+    40u8.saturating_add(occurrence_bonus)
         .saturating_add(level_bonus)
         .saturating_add(invariant_bonus)
         .saturating_add(failure_bonus)
@@ -64,7 +67,10 @@ fn affected_layers(cluster: &KernelSentinelIncidentCluster) -> Vec<String> {
         layers.insert(cluster.key.affected_layer.clone());
     }
     for evidence in &cluster.evidence_refs {
-        if let Some((layer, _)) = evidence.strip_prefix("layer://").and_then(|row| row.split_once('/')) {
+        if let Some((layer, _)) = evidence
+            .strip_prefix("layer://")
+            .and_then(|row| row.split_once('/'))
+        {
             if !layer.trim().is_empty() {
                 layers.insert(layer.trim().to_string());
             }
@@ -96,44 +102,166 @@ fn mentions_any(cluster: &KernelSentinelIncidentCluster, needles: &[&str]) -> bo
 }
 
 fn command_success_runtime_contradiction(cluster: &KernelSentinelIncidentCluster) -> bool {
-    if mentions_any(cluster, &["command_output_contradicts_runtime", "command_success_but_runtime_failed", "success output contradicts"]) {
+    if mentions_any(
+        cluster,
+        &[
+            "command_output_contradicts_runtime",
+            "command_success_but_runtime_failed",
+            "success output contradicts",
+        ],
+    ) {
         return true;
     }
-    let rows: Vec<String> = cluster.evidence_refs.iter().chain(cluster.summaries.iter()).map(|row| row.to_ascii_lowercase()).collect();
-    let command_success = rows.iter().any(|row| (row.contains("command") || row.contains("restart")) && (row.contains("success") || row.contains("active")));
-    let runtime_unready = rows.iter().any(|row| ["listener_absent", "listener=absent", "without_listener", "healthz_not_ready", "not ready", "offline", "unavailable", "stale_duplicate", "lifecycle=failed", "runtime_failed"].iter().any(|needle| row.contains(needle)));
+    let rows: Vec<String> = cluster
+        .evidence_refs
+        .iter()
+        .chain(cluster.summaries.iter())
+        .map(|row| row.to_ascii_lowercase())
+        .collect();
+    let command_success = rows.iter().any(|row| {
+        (row.contains("command") || row.contains("restart"))
+            && (row.contains("success") || row.contains("active"))
+    });
+    let runtime_unready = rows.iter().any(|row| {
+        [
+            "listener_absent",
+            "listener=absent",
+            "without_listener",
+            "healthz_not_ready",
+            "not ready",
+            "offline",
+            "unavailable",
+            "stale_duplicate",
+            "lifecycle=failed",
+            "runtime_failed",
+        ]
+        .iter()
+        .any(|needle| row.contains(needle))
+    });
     command_success && runtime_unready
 }
 
 fn process_ownership_invariant_breach(cluster: &KernelSentinelIncidentCluster) -> bool {
-    mentions_any(cluster, &["duplicate_dashboard_hosts", "duplicate_host", "stale_duplicate", "stale host", "watchdog_owns_process_uniqueness_and_stale_host_cleanup", "process://dashboard_host"])
+    mentions_any(
+        cluster,
+        &[
+            "duplicate_dashboard_hosts",
+            "duplicate_host",
+            "stale_duplicate",
+            "stale host",
+            "watchdog_owns_process_uniqueness_and_stale_host_cleanup",
+            "process://dashboard_host",
+        ],
+    )
 }
 
 fn boot_route_dependency_risk(cluster: &KernelSentinelIncidentCluster) -> bool {
-    cluster.key.route_family.contains("startup") && mentions_any(cluster, &["unbounded_roster_scan", "rich_preview", "mutable_state", "registry_scan", "oversized_api_agents", "api/agents"])
+    cluster.key.route_family.contains("startup")
+        && mentions_any(
+            cluster,
+            &[
+                "unbounded_roster_scan",
+                "rich_preview",
+                "mutable_state",
+                "registry_scan",
+                "oversized_api_agents",
+                "api/agents",
+            ],
+        )
 }
 
 fn source_of_truth_ambiguity(cluster: &KernelSentinelIncidentCluster) -> bool {
-    let rows: Vec<String> = cluster.evidence_refs.iter().chain(cluster.summaries.iter()).map(|row| row.to_ascii_lowercase()).collect();
+    let rows: Vec<String> = cluster
+        .evidence_refs
+        .iter()
+        .chain(cluster.summaries.iter())
+        .map(|row| row.to_ascii_lowercase())
+        .collect();
     let domains = [
-        rows.iter().any(|row| row.contains("layer://shell") || row.contains("taskbar") || row.contains("shell_state")),
-        rows.iter().any(|row| row.contains("gateway://") || row.contains("api/agents") || row.contains("healthz")),
-        rows.iter().any(|row| row.contains("layer://kernel") || row.contains("lifecycle=") || row.contains("runtime_failed")),
+        rows.iter().any(|row| {
+            row.contains("layer://shell") || row.contains("taskbar") || row.contains("shell_state")
+        }),
+        rows.iter().any(|row| {
+            row.contains("gateway://") || row.contains("api/agents") || row.contains("healthz")
+        }),
+        rows.iter().any(|row| {
+            row.contains("layer://kernel")
+                || row.contains("lifecycle=")
+                || row.contains("runtime_failed")
+        }),
         rows.iter().any(|row| row.contains("watchdog")),
-        rows.iter().any(|row| row.contains("listener://") || row.contains("healthz") || row.contains("api health")),
+        rows.iter().any(|row| {
+            row.contains("listener://") || row.contains("healthz") || row.contains("api health")
+        }),
     ];
-    let available = rows.iter().any(|row| ["ready", "healthy", "success", "active", "available"].iter().any(|needle| row.contains(needle)));
-    let unavailable = rows.iter().any(|row| ["offline", "not ready", "unavailable", "failed", "absent", "stale_duplicate"].iter().any(|needle| row.contains(needle)));
+    let available = rows.iter().any(|row| {
+        ["ready", "healthy", "success", "active", "available"]
+            .iter()
+            .any(|needle| row.contains(needle))
+    });
+    let unavailable = rows.iter().any(|row| {
+        [
+            "offline",
+            "not ready",
+            "unavailable",
+            "failed",
+            "absent",
+            "stale_duplicate",
+        ]
+        .iter()
+        .any(|needle| row.contains(needle))
+    });
     domains.into_iter().filter(|present| *present).count() >= 3 && available && unavailable
 }
 
 fn authority_shaped_residue(cluster: &KernelSentinelIncidentCluster) -> bool {
     let cues = [
-        mentions_any(cluster, &["authority_shape", "removed_authority_syntax", "retained authority shape", "authority residue", "truth leak"]),
-        mentions_any(cluster, &["data_shape", "payload_shape", "schema_compat", "response_shape", "authority_payload"]),
-        mentions_any(cluster, &["lifecycle_affordance", "restart_affordance", "lifecycle affordance", "watchdog affordance"]),
-        mentions_any(cluster, &["fallback_path", "legacy_fallback_used", "adapter_fallback", "fallback route"]),
-        mentions_any(cluster, &["compatibility_shim", "legacy_intent_compatibility_shim", "shim"]),
+        mentions_any(
+            cluster,
+            &[
+                "authority_shape",
+                "removed_authority_syntax",
+                "retained authority shape",
+                "authority residue",
+                "truth leak",
+            ],
+        ),
+        mentions_any(
+            cluster,
+            &[
+                "data_shape",
+                "payload_shape",
+                "schema_compat",
+                "response_shape",
+                "authority_payload",
+            ],
+        ),
+        mentions_any(
+            cluster,
+            &[
+                "lifecycle_affordance",
+                "restart_affordance",
+                "lifecycle affordance",
+                "watchdog affordance",
+            ],
+        ),
+        mentions_any(
+            cluster,
+            &[
+                "fallback_path",
+                "legacy_fallback_used",
+                "adapter_fallback",
+                "fallback route",
+            ],
+        ),
+        mentions_any(
+            cluster,
+            &[
+                "compatibility_shim",
+                "legacy_intent_compatibility_shim",
+                "shim",
+            ],
+        ),
     ];
     cues[0] && cues.into_iter().filter(|present| *present).count() >= 3
 }
@@ -210,8 +338,30 @@ pub fn synthesize_kernel_sentinel_architectural_incidents(
         .map(|cluster| {
             let affected_layers = affected_layers(cluster);
             let stop_patching_reasons = stop_patching_reasons(cluster, &affected_layers);
-            let failure_level = if authority_shaped_residue(cluster) && cluster.highest_failure_level < KernelSentinelFailureLevel::L3PolicyTruthFailure { KernelSentinelFailureLevel::L3PolicyTruthFailure } else if source_of_truth_ambiguity(cluster) && cluster.highest_failure_level < KernelSentinelFailureLevel::L3PolicyTruthFailure { KernelSentinelFailureLevel::L3PolicyTruthFailure } else if process_ownership_invariant_breach(cluster) && cluster.highest_failure_level < KernelSentinelFailureLevel::L2BoundaryContractBreach { KernelSentinelFailureLevel::L2BoundaryContractBreach } else { cluster.highest_failure_level };
-            let remediation_class = remediation_class(&KernelSentinelIncidentCluster { highest_failure_level: failure_level, ..cluster.clone() }, &affected_layers, &stop_patching_reasons);
+            let failure_level = if authority_shaped_residue(cluster)
+                && cluster.highest_failure_level < KernelSentinelFailureLevel::L3PolicyTruthFailure
+            {
+                KernelSentinelFailureLevel::L3PolicyTruthFailure
+            } else if source_of_truth_ambiguity(cluster)
+                && cluster.highest_failure_level < KernelSentinelFailureLevel::L3PolicyTruthFailure
+            {
+                KernelSentinelFailureLevel::L3PolicyTruthFailure
+            } else if process_ownership_invariant_breach(cluster)
+                && cluster.highest_failure_level
+                    < KernelSentinelFailureLevel::L2BoundaryContractBreach
+            {
+                KernelSentinelFailureLevel::L2BoundaryContractBreach
+            } else {
+                cluster.highest_failure_level
+            };
+            let remediation_class = remediation_class(
+                &KernelSentinelIncidentCluster {
+                    highest_failure_level: failure_level,
+                    ..cluster.clone()
+                },
+                &affected_layers,
+                &stop_patching_reasons,
+            );
             let likely_root_frame = root_frame_for_failure_level(failure_level).to_string();
             let diagnostic_follow_up_request = build_incident_diagnostic_follow_up_request(
                 cluster.occurrence_count,
@@ -260,13 +410,25 @@ fn local_patching_insufficiency(incident: &KernelSentinelArchitecturalIncident) 
     }
 }
 
-fn architectural_acceptance_criteria(incident: &KernelSentinelArchitecturalIncident) -> Vec<String> {
+fn architectural_acceptance_criteria(
+    incident: &KernelSentinelArchitecturalIncident,
+) -> Vec<String> {
     vec![
-        format!("Kernel Sentinel no longer emits root_frame={} for this incident family", incident.likely_root_frame),
-        format!("violated invariants are either satisfied or explicitly waived: {}", incident.violated_invariants.join(", ")),
-        format!("affected layers publish consistent authoritative receipts: {}", incident.affected_layers.join(", ")),
+        format!(
+            "Kernel Sentinel no longer emits root_frame={} for this incident family",
+            incident.likely_root_frame
+        ),
+        format!(
+            "violated invariants are either satisfied or explicitly waived: {}",
+            incident.violated_invariants.join(", ")
+        ),
+        format!(
+            "affected layers publish consistent authoritative receipts: {}",
+            incident.affected_layers.join(", ")
+        ),
         "regression fixture covers the original evidence refs and failure level".to_string(),
-        "remediation proof includes rollback or recovery behavior for the owning boundary".to_string(),
+        "remediation proof includes rollback or recovery behavior for the owning boundary"
+            .to_string(),
     ]
 }
 

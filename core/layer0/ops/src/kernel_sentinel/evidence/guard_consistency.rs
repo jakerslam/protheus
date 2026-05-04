@@ -6,10 +6,12 @@ use serde_json::{json, Value};
 use std::collections::BTreeSet;
 
 fn record_bool(record: &Value, key: &str) -> Option<bool> {
-    record
-        .get(key)
-        .and_then(Value::as_bool)
-        .or_else(|| record.get("details").and_then(|details| details.get(key)).and_then(Value::as_bool))
+    record.get(key).and_then(Value::as_bool).or_else(|| {
+        record
+            .get("details")
+            .and_then(|details| details.get(key))
+            .and_then(Value::as_bool)
+    })
 }
 
 fn record_status(record: &Value) -> String {
@@ -46,7 +48,10 @@ fn record_evidence(record: &Value) -> Vec<String> {
 fn record_claims_pass(record: &Value) -> bool {
     record_bool(record, "pass") == Some(true)
         || record.get("ok").and_then(Value::as_bool) == Some(true)
-        || matches!(record_status(record).as_str(), "pass" | "passed" | "ok" | "healthy")
+        || matches!(
+            record_status(record).as_str(),
+            "pass" | "passed" | "ok" | "healthy"
+        )
 }
 
 fn record_claims_failure(record: &Value) -> bool {
@@ -69,8 +74,7 @@ fn records_overlap(left: &Value, right: &Value) -> bool {
     let left_fingerprint = record_fingerprint(left);
     let right_fingerprint = record_fingerprint(right);
     let left_evidence: BTreeSet<String> = record_evidence(left).into_iter().collect();
-    !left_fingerprint.is_empty()
-        && left_fingerprint == right_fingerprint
+    !left_fingerprint.is_empty() && left_fingerprint == right_fingerprint
         || record_evidence(right)
             .iter()
             .any(|ref_id| left_evidence.contains(ref_id))

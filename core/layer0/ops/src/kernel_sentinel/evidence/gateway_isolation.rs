@@ -49,8 +49,12 @@ fn value_str<'a>(record: &'a Value, key: &str) -> &'a str {
 fn value_bool(record: &Value, key: &str) -> bool {
     value(record, key)
         .map(|raw| {
-            raw.as_bool()
-                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes" | "fail" | "failed"))
+            raw.as_bool().unwrap_or_else(|| {
+                matches!(
+                    raw.as_str().unwrap_or("").trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes" | "fail" | "failed"
+                )
+            })
         })
         .unwrap_or(false)
 }
@@ -67,7 +71,13 @@ fn value_f64(record: &Value, key: &str) -> Option<f64> {
 fn normalize_key(raw: &str) -> String {
     raw.trim()
         .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_lowercase() } else { '_' })
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .trim_matches('_')
         .to_string()
@@ -104,7 +114,10 @@ fn row_mentions(record: &Value, token: &str) -> bool {
             || record
                 .get("evidence")
                 .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| row.as_str().unwrap_or("").contains(token)))
+                .map(|rows| {
+                    rows.iter()
+                        .any(|row| row.as_str().unwrap_or("").contains(token))
+                })
                 .unwrap_or(false))
 }
 
@@ -116,7 +129,11 @@ fn explicit_rule(record: &Value) -> Option<GatewayRule> {
         value_str(record, "gateway_rule"),
     ] {
         match raw {
-            "gateway_flapping" | "flapping" | "gateway_repeated_failure" | "repeated_gateway_failure" | "repeated_flapping" => {
+            "gateway_flapping"
+            | "flapping"
+            | "gateway_repeated_failure"
+            | "repeated_gateway_failure"
+            | "repeated_flapping" => {
                 return Some(GatewayRule {
                     rule: "gateway_repeated_failure",
                     severity: KernelSentinelSeverity::High,
@@ -178,8 +195,11 @@ fn gateway_outcome_kind(record: &Value) -> &'static str {
         value_str(record, "outcome"),
     ] {
         match normalize_key(raw).as_str() {
-            "gateway_quarantine_event" | "gateway_quarantine_receipt" | "gateway_quarantined"
-            | "quarantine" | "quarantined" => return "gateway_quarantine_event",
+            "gateway_quarantine_event"
+            | "gateway_quarantine_receipt"
+            | "gateway_quarantined"
+            | "quarantine"
+            | "quarantined" => return "gateway_quarantine_event",
             "gateway_recovery_event" | "gateway_recovered" | "recovery" | "recovered" => {
                 return "gateway_recovery_event";
             }
@@ -214,7 +234,10 @@ fn metric_rules(records: &[Value], record: &Value) -> Vec<GatewayRule> {
     let failure_budget = value_f64(record, "failure_budget")
         .or_else(|| value_f64(record, "failure_limit"))
         .unwrap_or(3.0);
-    if failures.map(|count| count > failure_budget).unwrap_or(false) {
+    if failures
+        .map(|count| count > failure_budget)
+        .unwrap_or(false)
+    {
         rules.push(GatewayRule {
             rule: "gateway_repeated_failure",
             severity: KernelSentinelSeverity::High,

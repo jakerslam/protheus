@@ -188,10 +188,11 @@ pub fn kernel_sentinel_failure_level_for_parts(
         return KernelSentinelFailureLevel::L3PolicyTruthFailure;
     }
     match category {
-        "receipt_integrity" | "capability_enforcement" | "release_evidence"
-        | "security_boundary" | "state_transition" => {
-            KernelSentinelFailureLevel::L3PolicyTruthFailure
-        }
+        "receipt_integrity"
+        | "capability_enforcement"
+        | "release_evidence"
+        | "security_boundary"
+        | "state_transition" => KernelSentinelFailureLevel::L3PolicyTruthFailure,
         "nexus_boundary" | "gateway_isolation" => {
             KernelSentinelFailureLevel::L2BoundaryContractBreach
         }
@@ -201,8 +202,12 @@ pub fn kernel_sentinel_failure_level_for_parts(
         "runtime_correctness" | "correctness" if severity == "critical" || severity == "high" => {
             KernelSentinelFailureLevel::L2BoundaryContractBreach
         }
-        "boundedness" | "queue_backpressure" | "retry_storm" | "performance_regression"
-        | "runtime_correctness" | "correctness" => KernelSentinelFailureLevel::L1ComponentRegression,
+        "boundedness"
+        | "queue_backpressure"
+        | "retry_storm"
+        | "performance_regression"
+        | "runtime_correctness"
+        | "correctness" => KernelSentinelFailureLevel::L1ComponentRegression,
         _ => KernelSentinelFailureLevel::L0LocalDefect,
     }
 }
@@ -210,8 +215,11 @@ pub fn kernel_sentinel_failure_level_for_parts(
 pub fn kernel_sentinel_failure_level_for_finding(
     finding: &KernelSentinelFinding,
 ) -> KernelSentinelFailureLevel {
-    let text = format!("{} {} {}", finding.fingerprint, finding.summary, finding.recommended_action)
-        .to_ascii_lowercase();
+    let text = format!(
+        "{} {} {}",
+        finding.fingerprint, finding.summary, finding.recommended_action
+    )
+    .to_ascii_lowercase();
     if text.contains("self_model")
         || text.contains("self-model")
         || text.contains("rsi")
@@ -363,7 +371,10 @@ mod tests {
             KernelSentinelFailureLevel::L5SelfModelFailure.remediation_level(),
             "self_model_repair"
         );
-        assert_eq!(KernelSentinelFailureLevel::L0LocalDefect.failure_class(), "symptom");
+        assert_eq!(
+            KernelSentinelFailureLevel::L0LocalDefect.failure_class(),
+            "symptom"
+        );
         assert_eq!(
             KernelSentinelFailureLevel::L4ArchitecturalMisalignment.review_depth(),
             "architecture_review"

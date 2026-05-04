@@ -31,7 +31,12 @@ fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
     value
         .get(key)
         .or_else(|| value.get("details").and_then(|details| details.get(key)))
-        .or_else(|| value.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
+        .or_else(|| {
+            value
+                .get("details")
+                .and_then(|details| details.get("details"))
+                .and_then(|details| details.get(key))
+        })
         .and_then(Value::as_str)
         .unwrap_or("")
 }
@@ -72,7 +77,10 @@ fn row_contains_token(value: &Value, token: &str) -> bool {
             || value
                 .get("evidence")
                 .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| row.as_str().unwrap_or("").contains(token)))
+                .map(|rows| {
+                    rows.iter()
+                        .any(|row| row.as_str().unwrap_or("").contains(token))
+                })
                 .unwrap_or(false))
 }
 
@@ -132,11 +140,13 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                     rule: "nexus_bypass",
                     category: KernelSentinelFindingCategory::NexusBoundary,
                     severity: KernelSentinelSeverity::Critical,
-                    recommended_action:
-                        "remove the bypass and restore nexus-mediated execution",
+                    recommended_action: "remove the bypass and restore nexus-mediated execution",
                 });
             }
-            "shell_truth_leak" | "client_truth_leak" | "ui_truth_leak" | "presentation_truth_leak" => {
+            "shell_truth_leak"
+            | "client_truth_leak"
+            | "ui_truth_leak"
+            | "presentation_truth_leak" => {
                 return Some(BoundaryRule {
                     rule: "shell_truth_leak",
                     category: KernelSentinelFindingCategory::SecurityBoundary,
@@ -145,8 +155,12 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "move truth inference back to Kernel authority and expose only backend state",
                 });
             }
-            "authority_ghost" | "authority_shape_residue" | "projection_authority_ghost"
-            | "cache_authority_ghost" | "shim_authority_ghost" | "adapter_authority_ghost" => {
+            "authority_ghost"
+            | "authority_shape_residue"
+            | "projection_authority_ghost"
+            | "cache_authority_ghost"
+            | "shim_authority_ghost"
+            | "adapter_authority_ghost" => {
                 return Some(BoundaryRule {
                     rule: "authority_ghost",
                     category: KernelSentinelFindingCategory::SecurityBoundary,
@@ -155,8 +169,10 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "remove retained authority shape from the projection/cache/shim/adapter and prove Kernel remains the only authority source",
                 });
             }
-            "policy_runtime_contradiction" | "doctrine_runtime_contradiction"
-            | "contract_artifact_contradiction" | "projection_policy_runtime_state_mirror"
+            "policy_runtime_contradiction"
+            | "doctrine_runtime_contradiction"
+            | "contract_artifact_contradiction"
+            | "projection_policy_runtime_state_mirror"
             | "policy_says_projection_only_runtime_mirrors_state" => {
                 return Some(BoundaryRule {
                     rule: "policy_runtime_contradiction",
@@ -166,7 +182,8 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "realign runtime behavior with the declared policy/contract and add a regression artifact proving the contradiction is gone",
                 });
             }
-            "gateway_scheduler_admission_touch" | "gateway_admission_touch"
+            "gateway_scheduler_admission_touch"
+            | "gateway_admission_touch"
             | "gateway_scheduler_touch" => {
                 return Some(BoundaryRule {
                     rule: "gateway_scheduler_admission_touch",
@@ -176,22 +193,24 @@ fn boundary_rule(record: &Value) -> Option<BoundaryRule> {
                         "remove scheduler/admission authority from the gateway boundary",
                 });
             }
-            "orchestration_policy_ownership" | "orchestration_policy_authority" | "control_plane_policy_authority" => {
+            "orchestration_policy_ownership"
+            | "orchestration_policy_authority"
+            | "control_plane_policy_authority" => {
                 return Some(BoundaryRule {
                     rule: "orchestration_policy_ownership",
                     category: KernelSentinelFindingCategory::SecurityBoundary,
                     severity: KernelSentinelSeverity::Critical,
-                    recommended_action:
-                        "move hard policy ownership back to Kernel authority",
+                    recommended_action: "move hard policy ownership back to Kernel authority",
                 });
             }
-            "orchestration_receipt_authority" | "orchestration_receipt_ownership" | "control_plane_receipt_authority" => {
+            "orchestration_receipt_authority"
+            | "orchestration_receipt_ownership"
+            | "control_plane_receipt_authority" => {
                 return Some(BoundaryRule {
                     rule: "orchestration_receipt_authority",
                     category: KernelSentinelFindingCategory::SecurityBoundary,
                     severity: KernelSentinelSeverity::Critical,
-                    recommended_action:
-                        "move receipt authority back to Kernel authority",
+                    recommended_action: "move receipt authority back to Kernel authority",
                 });
             }
             "boundary_violation" | "architecture_boundary_violation" | "nexus_boundary" => {

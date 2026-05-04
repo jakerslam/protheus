@@ -17,7 +17,7 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use walkdir::WalkDir;
 
-const DEFAULT_MODEL: &str = "ollama/kimi-k2.5:cloud";
+const DEFAULT_MODEL: &str = "ollama/kimi-k2.6:cloud";
 const DEFAULT_OUTPUT_VALIDATE_MAX_QUERY: usize = 6000;
 const DEFAULT_OUTPUT_VALIDATE_MAX_CREATIVE: usize = 9000;
 const DEFAULT_OUTPUT_VALIDATE_MAX_GOVERNANCE: usize = 7000;

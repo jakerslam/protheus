@@ -13,7 +13,8 @@ use super::write_json;
 mod malformed;
 mod repair;
 
-const DEFAULT_COLLECTOR_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_collector_current.json";
+const DEFAULT_COLLECTOR_ARTIFACT: &str =
+    "core/local/artifacts/kernel_sentinel_collector_current.json";
 const DEFAULT_MAX_FILES_PER_PRODUCER: usize = 200;
 
 struct ProducerSpec {
@@ -178,7 +179,9 @@ fn artifact_matches(spec_id: &str, path: &Path) -> bool {
         .unwrap_or("")
         .to_lowercase();
     match spec_id {
-        "release_proof_pack_artifacts" => name.contains("proof") || name.contains("release_verdict"),
+        "release_proof_pack_artifacts" => {
+            name.contains("proof") || name.contains("release_verdict")
+        }
         "release_repair_artifacts" => name.contains("repair") || name.contains("fallback"),
         "gateway_artifacts" => {
             (name.contains("gateway") || name.contains("adapter"))
@@ -251,7 +254,10 @@ fn collect_files_inner(spec: &ProducerSpec, path: &Path, max_files: usize, out: 
         return;
     }
     if path.is_file() {
-        let extension = path.extension().and_then(|value| value.to_str()).unwrap_or("");
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("");
         if matches!(extension, "json" | "jsonl") && artifact_matches(spec.id, path) {
             out.push(path.to_path_buf());
         }
@@ -311,19 +317,22 @@ fn raw_string(raw: &Value, key: &str) -> Option<String> {
 }
 
 fn stream_category(spec: &ProducerSpec, raw: &Value) -> String {
-    raw_string(raw, "category").unwrap_or_else(|| match spec.target_stream {
-        "kernel_receipts.jsonl" => "ReceiptIntegrity",
-        "runtime_observations.jsonl" => "RuntimeCorrectness",
-        "release_proof_packs.jsonl" | "release_repairs.jsonl" => "ReleaseEvidence",
-        "gateway_health.jsonl" | "gateway_quarantine.jsonl" | "gateway_recovery.jsonl" | "gateway_isolation.jsonl" => {
-            "GatewayIsolation"
+    raw_string(raw, "category").unwrap_or_else(|| {
+        match spec.target_stream {
+            "kernel_receipts.jsonl" => "ReceiptIntegrity",
+            "runtime_observations.jsonl" => "RuntimeCorrectness",
+            "release_proof_packs.jsonl" | "release_repairs.jsonl" => "ReleaseEvidence",
+            "gateway_health.jsonl"
+            | "gateway_quarantine.jsonl"
+            | "gateway_recovery.jsonl"
+            | "gateway_isolation.jsonl" => "GatewayIsolation",
+            "queue_backpressure.jsonl" => "QueueBackpressure",
+            "boundedness_observations.jsonl" => "Boundedness",
+            "control_plane_eval.jsonl" => "RuntimeCorrectness",
+            _ => "RuntimeCorrectness",
         }
-        "queue_backpressure.jsonl" => "QueueBackpressure",
-        "boundedness_observations.jsonl" => "Boundedness",
-        "control_plane_eval.jsonl" => "RuntimeCorrectness",
-        _ => "RuntimeCorrectness",
-    }
-    .to_string())
+        .to_string()
+    })
 }
 
 fn stream_severity(spec: &ProducerSpec, raw: &Value) -> Option<String> {
@@ -339,12 +348,14 @@ fn stream_severity(spec: &ProducerSpec, raw: &Value) -> Option<String> {
     if !failed {
         return None;
     }
-    Some(match spec.target_stream {
-        "kernel_receipts.jsonl" | "release_proof_packs.jsonl" => "Critical",
-        "control_plane_eval.jsonl" => "Medium",
-        _ => "High",
-    }
-    .to_string())
+    Some(
+        match spec.target_stream {
+            "kernel_receipts.jsonl" | "release_proof_packs.jsonl" => "Critical",
+            "control_plane_eval.jsonl" => "Medium",
+            _ => "High",
+        }
+        .to_string(),
+    )
 }
 
 fn stream_status(raw: &Value) -> String {
@@ -355,12 +366,7 @@ fn stream_status(raw: &Value) -> String {
             .map(|ok| !ok)
             .or_else(|| raw.get("pass").and_then(Value::as_bool).map(|pass| !pass))
             .unwrap_or(false);
-        if failed {
-            "failed"
-        } else {
-            "observed"
-        }
-        .to_string()
+        if failed { "failed" } else { "observed" }.to_string()
     })
 }
 
@@ -540,10 +546,8 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
     let malformed_remediation_hints = malformed::remediation_hints(&all_malformed_records);
     let malformed_deterministic_record_count =
         malformed::deterministic_record_count(&all_malformed_records);
-    let malformed_deterministic_guard = malformed::threshold_guard(
-        &all_malformed_records,
-        max_malformed_deterministic_records,
-    );
+    let malformed_deterministic_guard =
+        malformed::threshold_guard(&all_malformed_records, max_malformed_deterministic_records);
     let malformed_deterministic_guard_ok =
         malformed_deterministic_record_count <= max_malformed_deterministic_records;
     let mut output_streams = Vec::new();
@@ -749,10 +753,7 @@ mod tests {
             .find(|row| row["producer_id"] == "eval_agent_feedback")
             .unwrap();
         assert_eq!(eval_source["malformed_by_file_name"]["feedback.jsonl"], 1);
-        assert_eq!(
-            eval_source["malformed_by_error_class"]["truncated_json"],
-            1
-        );
+        assert_eq!(eval_source["malformed_by_error_class"]["truncated_json"], 1);
     }
 
     #[test]
@@ -783,7 +784,10 @@ mod tests {
             .find(|row| row["producer_id"] == "verity_receipts")
             .expect("verity source");
         assert_eq!(verity_source["malformed_by_file_name"]["receipts.jsonl"], 1);
-        assert_eq!(verity_source["malformed_by_error_class"]["invalid_json_syntax"], 1);
+        assert_eq!(
+            verity_source["malformed_by_error_class"]["invalid_json_syntax"],
+            1
+        );
     }
 
     #[test]
@@ -848,7 +852,10 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("receipt JSON"));
-        assert_eq!(receipt_hint["rerun"], "infring kernel-sentinel collect --json");
+        assert_eq!(
+            receipt_hint["rerun"],
+            "infring kernel-sentinel collect --json"
+        );
 
         let eval_hint = hints
             .iter()
@@ -862,7 +869,10 @@ mod tests {
             .iter()
             .find(|row| row["producer_id"] == "verity_receipts")
             .expect("verity source");
-        assert_eq!(verity_source["malformed_remediation_hints"][0]["producer_id"], "verity_receipts");
+        assert_eq!(
+            verity_source["malformed_remediation_hints"][0]["producer_id"],
+            "verity_receipts"
+        );
     }
 
     #[test]
@@ -901,9 +911,18 @@ mod tests {
         let artifacts = root.join("core/local/artifacts");
         fs::create_dir_all(&artifacts).unwrap();
         for (file_name, subject) in [
-            ("stateful_upgrade_rollback_gate_current.json", "stateful-upgrade"),
-            ("agent_surface_status_guard_current.json", "scheduler-admission"),
-            ("workflow_failure_recovery_current.json", "workflow-recovery"),
+            (
+                "stateful_upgrade_rollback_gate_current.json",
+                "stateful-upgrade",
+            ),
+            (
+                "agent_surface_status_guard_current.json",
+                "scheduler-admission",
+            ),
+            (
+                "workflow_failure_recovery_current.json",
+                "workflow-recovery",
+            ),
             ("gateway_boundary_guard_current.json", "gateway-boundary"),
         ] {
             fs::write(
@@ -921,11 +940,15 @@ mod tests {
             .iter()
             .filter_map(|row| row["stream"].as_str().map(str::to_string))
             .collect();
-        assert!(streams.iter().any(|stream| stream == "state_mutations.jsonl"));
+        assert!(streams
+            .iter()
+            .any(|stream| stream == "state_mutations.jsonl"));
         assert!(streams
             .iter()
             .any(|stream| stream == "scheduler_admission.jsonl"));
         assert!(streams.iter().any(|stream| stream == "live_recovery.jsonl"));
-        assert!(streams.iter().any(|stream| stream == "gateway_isolation.jsonl"));
+        assert!(streams
+            .iter()
+            .any(|stream| stream == "gateway_isolation.jsonl"));
     }
 }

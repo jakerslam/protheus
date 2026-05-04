@@ -85,7 +85,8 @@ pub fn assess_kernel_sentinel_big_picture_regression(
         && (input.repeated_local_fixes >= 2 || input.command_runtime_contradiction);
     let repeated_cross_layer_failure =
         symptoms.len() >= 5 && layers.len() >= 2 && input.repeated_local_fixes >= 2;
-    let structural_required = reasons.len() >= 3 || architecture_failure || repeated_cross_layer_failure;
+    let structural_required =
+        reasons.len() >= 3 || architecture_failure || repeated_cross_layer_failure;
     let mode = if rebuild_required {
         KernelSentinelBigPictureMode::RebuildRealignment
     } else if structural_required {
@@ -95,8 +96,12 @@ pub fn assess_kernel_sentinel_big_picture_regression(
     };
     let recommended_action = match mode {
         KernelSentinelBigPictureMode::LocalTicketing => "continue_local_ticketing",
-        KernelSentinelBigPictureMode::StructuralDiagnosis => "pause_local_tickets_emit_structural_diagnosis",
-        KernelSentinelBigPictureMode::RebuildRealignment => "stop_patching_rebuild_or_realign_authority_model",
+        KernelSentinelBigPictureMode::StructuralDiagnosis => {
+            "pause_local_tickets_emit_structural_diagnosis"
+        }
+        KernelSentinelBigPictureMode::RebuildRealignment => {
+            "stop_patching_rebuild_or_realign_authority_model"
+        }
     };
 
     KernelSentinelBigPictureAssessment {
@@ -153,7 +158,10 @@ mod tests {
     #[test]
     fn multi_layer_authority_ghost_stops_local_ticketing() {
         let assessment = assess_kernel_sentinel_big_picture_regression(input());
-        assert_eq!(assessment.mode, KernelSentinelBigPictureMode::RebuildRealignment);
+        assert_eq!(
+            assessment.mode,
+            KernelSentinelBigPictureMode::RebuildRealignment
+        );
         assert!(assessment.stop_local_ticketing);
         assert_eq!(
             assessment.recommended_action,
@@ -166,32 +174,33 @@ mod tests {
 
     #[test]
     fn sparse_single_layer_symptoms_remain_local_tickets() {
-        let assessment = assess_kernel_sentinel_big_picture_regression(
-            KernelSentinelBigPictureInput {
+        let assessment =
+            assess_kernel_sentinel_big_picture_regression(KernelSentinelBigPictureInput {
                 symptom_ids: vec!["one_broken_widget".into()],
                 affected_layers: vec!["shell".into()],
                 repeated_local_fixes: 0,
                 command_runtime_contradiction: false,
                 authority_shape_ghost: false,
                 policy_syntax_removed_but_behavior_remains: false,
-            },
+            });
+        assert_eq!(
+            assessment.mode,
+            KernelSentinelBigPictureMode::LocalTicketing
         );
-        assert_eq!(assessment.mode, KernelSentinelBigPictureMode::LocalTicketing);
         assert!(!assessment.stop_local_ticketing);
     }
 
     #[test]
     fn repeated_cross_layer_symptoms_trigger_structural_diagnosis() {
-        let assessment = assess_kernel_sentinel_big_picture_regression(
-            KernelSentinelBigPictureInput {
+        let assessment =
+            assess_kernel_sentinel_big_picture_regression(KernelSentinelBigPictureInput {
                 symptom_ids: vec!["a".into(), "b".into(), "c".into(), "d".into(), "e".into()],
                 affected_layers: vec!["gateway".into(), "observability".into()],
                 repeated_local_fixes: 2,
                 command_runtime_contradiction: false,
                 authority_shape_ghost: false,
                 policy_syntax_removed_but_behavior_remains: false,
-            },
-        );
+            });
         assert_eq!(
             assessment.mode,
             KernelSentinelBigPictureMode::StructuralDiagnosis

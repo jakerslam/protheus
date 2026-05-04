@@ -53,9 +53,7 @@ fn deterministic_records(records: &[Value]) -> Vec<Value> {
     records
         .iter()
         .filter(|record| {
-            record
-                .get("authority_class")
-                .and_then(Value::as_str)
+            record.get("authority_class").and_then(Value::as_str)
                 == Some("deterministic_kernel_authority")
         })
         .cloned()

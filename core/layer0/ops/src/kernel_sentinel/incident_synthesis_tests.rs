@@ -2,8 +2,7 @@ use super::*;
 use crate::kernel_sentinel::{
     cluster_kernel_sentinel_incident_events, validate_kernel_sentinel_incident_event,
     KernelSentinelDiagnosticProbeClass, KernelSentinelIncidentEvent,
-    KernelSentinelIncidentEvidenceLevel,
-    KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION,
+    KernelSentinelIncidentEvidenceLevel, KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION,
 };
 use serde::Deserialize;
 
@@ -46,7 +45,11 @@ fn architectural_synthesis_maps_cluster_to_root_frame_and_remediation() {
     let clusters = cluster_kernel_sentinel_incident_events(
         &[
             event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Policy),
-            event("b", "gateway", KernelSentinelIncidentEvidenceLevel::Architecture),
+            event(
+                "b",
+                "gateway",
+                KernelSentinelIncidentEvidenceLevel::Architecture,
+            ),
         ],
         60,
     );
@@ -76,29 +79,33 @@ fn architectural_synthesis_maps_cluster_to_root_frame_and_remediation() {
 fn architectural_synthesis_keeps_distinct_layers_as_distinct_incidents() {
     let clusters = cluster_kernel_sentinel_incident_events(
         &[
-            event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Boundary),
+            event(
+                "a",
+                "gateway",
+                KernelSentinelIncidentEvidenceLevel::Boundary,
+            ),
             event("b", "shell", KernelSentinelIncidentEvidenceLevel::Boundary),
         ],
         60,
     );
     let incidents = synthesize_kernel_sentinel_architectural_incidents(&clusters);
     assert_eq!(incidents.len(), 2);
-    assert!(
-        incidents
-            .iter()
-            .any(|incident| incident.affected_layers == vec!["gateway"])
-    );
-    assert!(
-        incidents
-            .iter()
-            .any(|incident| incident.affected_layers == vec!["shell"])
-    );
+    assert!(incidents
+        .iter()
+        .any(|incident| incident.affected_layers == vec!["gateway"]));
+    assert!(incidents
+        .iter()
+        .any(|incident| incident.affected_layers == vec!["shell"]));
 }
 
 #[test]
 fn detects_command_success_contradicting_listener_process_lifecycle_state() {
     let mut cluster = cluster_kernel_sentinel_incident_events(
-        &[event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Event)],
+        &[event(
+            "a",
+            "gateway",
+            KernelSentinelIncidentEvidenceLevel::Event,
+        )],
         60,
     )
     .remove(0);
@@ -137,7 +144,11 @@ fn detects_command_success_contradicting_listener_process_lifecycle_state() {
 #[test]
 fn detects_authority_shaped_residue_when_removed_authority_can_re_emerge() {
     let mut cluster = cluster_kernel_sentinel_incident_events(
-        &[event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Boundary)],
+        &[event(
+            "a",
+            "gateway",
+            KernelSentinelIncidentEvidenceLevel::Boundary,
+        )],
         60,
     )
     .remove(0);
@@ -153,7 +164,10 @@ fn detects_authority_shaped_residue_when_removed_authority_can_re_emerge() {
     );
 
     let incident = synthesize_kernel_sentinel_architectural_incidents(&[cluster]).remove(0);
-    assert!(incident.stop_patching_reasons.iter().any(|r| r == "authority_shaped_residue"));
+    assert!(incident
+        .stop_patching_reasons
+        .iter()
+        .any(|r| r == "authority_shaped_residue"));
     assert_eq!(
         incident.failure_level,
         KernelSentinelFailureLevel::L3PolicyTruthFailure
@@ -165,9 +179,18 @@ fn detects_authority_shaped_residue_when_removed_authority_can_re_emerge() {
 fn remediation_classifier_distinguishes_all_required_classes() {
     let cases = [
         (KernelSentinelIncidentEvidenceLevel::Event, "symptom_patch"),
-        (KernelSentinelIncidentEvidenceLevel::Boundary, "structural_fix"),
-        (KernelSentinelIncidentEvidenceLevel::Policy, "policy_realignment"),
-        (KernelSentinelIncidentEvidenceLevel::SelfModel, "self_model_repair"),
+        (
+            KernelSentinelIncidentEvidenceLevel::Boundary,
+            "structural_fix",
+        ),
+        (
+            KernelSentinelIncidentEvidenceLevel::Policy,
+            "policy_realignment",
+        ),
+        (
+            KernelSentinelIncidentEvidenceLevel::SelfModel,
+            "self_model_repair",
+        ),
     ];
 
     for (idx, (level, expected)) in cases.into_iter().enumerate() {
@@ -184,7 +207,11 @@ fn architectural_issue_template_carries_multilevel_diagnosis() {
     let mut cluster = cluster_kernel_sentinel_incident_events(
         &[
             event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Policy),
-            event("b", "gateway", KernelSentinelIncidentEvidenceLevel::Architecture),
+            event(
+                "b",
+                "gateway",
+                KernelSentinelIncidentEvidenceLevel::Architecture,
+            ),
         ],
         60,
     )
@@ -197,7 +224,10 @@ fn architectural_issue_template_carries_multilevel_diagnosis() {
     let incident = synthesize_kernel_sentinel_architectural_incidents(&[cluster]).remove(0);
     let template = kernel_sentinel_architectural_issue_template(&incident);
 
-    assert_eq!(template["type"], "kernel_sentinel_architectural_issue_template");
+    assert_eq!(
+        template["type"],
+        "kernel_sentinel_architectural_issue_template"
+    );
     assert_eq!(template["failure_level"], "L4_architectural_misalignment");
     assert_eq!(template["root_frame"], "architectural_shape_mismatch");
     assert_eq!(
@@ -206,18 +236,14 @@ fn architectural_issue_template_carries_multilevel_diagnosis() {
     );
     assert_eq!(template["affected_layers"].as_array().unwrap().len(), 3);
     assert_eq!(template["stop_patching"], true);
-    assert!(
-        template["why_local_patching_is_insufficient"]
-            .as_str()
-            .unwrap()
-            .contains("STOP_PATCHING is active")
-    );
-    assert!(
-        template["structural_remediation"]
-            .as_str()
-            .unwrap()
-            .contains("fix the boundary")
-    );
+    assert!(template["why_local_patching_is_insufficient"]
+        .as_str()
+        .unwrap()
+        .contains("STOP_PATCHING is active"));
+    assert!(template["structural_remediation"]
+        .as_str()
+        .unwrap()
+        .contains("fix the boundary"));
     assert!(template["acceptance_criteria"].as_array().unwrap().len() >= 5);
 }
 
@@ -238,7 +264,10 @@ fn shell_gateway_lifecycle_golden_fixture_synthesizes_one_architectural_incident
         "false_restart_success",
         "stale_duplicate_dashboard_hosts",
     ] {
-        assert!(fixture.required_signals.iter().any(|row| row == required_signal));
+        assert!(fixture
+            .required_signals
+            .iter()
+            .any(|row| row == required_signal));
     }
     for event in &fixture.events {
         validate_kernel_sentinel_incident_event(event).expect("valid fixture event");
@@ -266,26 +295,20 @@ fn shell_gateway_lifecycle_golden_fixture_synthesizes_one_architectural_incident
     assert_eq!(incident.likely_root_frame, "architectural_shape_mismatch");
     assert_eq!(incident.remediation_class, "structural_fix");
     assert!(incident.stop_patching);
-    assert!(
-        incident
-            .stop_patching_reasons
-            .iter()
-            .any(|reason| reason == "boot_route_dependency_risk")
-    );
-    assert!(
-        incident
-            .stop_patching_reasons
-            .iter()
-            .any(|reason| reason == "source_of_truth_ambiguity")
-    );
+    assert!(incident
+        .stop_patching_reasons
+        .iter()
+        .any(|reason| reason == "boot_route_dependency_risk"));
+    assert!(incident
+        .stop_patching_reasons
+        .iter()
+        .any(|reason| reason == "source_of_truth_ambiguity"));
     assert_eq!(incident.affected_layers, vec!["gateway", "kernel", "shell"]);
     assert_eq!(incident.occurrence_count, 6);
-    assert!(
-        incident
-            .summaries
-            .iter()
-            .any(|summary| summary.contains("hanging_oversized_api_agents"))
-    );
+    assert!(incident
+        .summaries
+        .iter()
+        .any(|summary| summary.contains("hanging_oversized_api_agents")));
 }
 
 #[test]
@@ -304,7 +327,10 @@ fn authority_shape_residue_golden_fixture_flags_policy_truth_risk() {
         "legacy_fallback_path",
         "compatibility_shim_authority_residue",
     ] {
-        assert!(fixture.required_signals.iter().any(|row| row == required_signal));
+        assert!(fixture
+            .required_signals
+            .iter()
+            .any(|row| row == required_signal));
     }
     for event in &fixture.events {
         validate_kernel_sentinel_incident_event(event).expect("valid residue fixture event");
@@ -341,7 +367,11 @@ fn authority_shape_residue_golden_fixture_flags_policy_truth_risk() {
 #[test]
 fn source_of_truth_ambiguity_requests_safe_topology_follow_up_only_when_disambiguating() {
     let mut cluster = cluster_kernel_sentinel_incident_events(
-        &[event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Boundary)],
+        &[event(
+            "a",
+            "gateway",
+            KernelSentinelIncidentEvidenceLevel::Boundary,
+        )],
         60,
     )
     .remove(0);
@@ -370,7 +400,11 @@ fn source_of_truth_ambiguity_requests_safe_topology_follow_up_only_when_disambig
 #[test]
 fn local_only_incident_does_not_request_diagnostic_follow_up() {
     let cluster = cluster_kernel_sentinel_incident_events(
-        &[event("a", "gateway", KernelSentinelIncidentEvidenceLevel::Event)],
+        &[event(
+            "a",
+            "gateway",
+            KernelSentinelIncidentEvidenceLevel::Event,
+        )],
         60,
     )
     .remove(0);

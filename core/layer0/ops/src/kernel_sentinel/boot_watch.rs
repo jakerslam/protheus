@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Layer ownership: core/layer0/ops (authoritative)
 
+use super::cli_args::option_usize;
 use super::{
     KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
     KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
@@ -9,7 +10,6 @@ use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-use super::cli_args::option_usize;
 
 fn bool_flag(args: &[String], name: &str) -> bool {
     args.iter()
@@ -82,7 +82,12 @@ fn required_freshness_rows(dir: &Path, now: u64, stale_window_seconds: u64) -> V
     .collect()
 }
 
-fn finding(id: String, evidence: Vec<String>, summary: String, action: &str) -> KernelSentinelFinding {
+fn finding(
+    id: String,
+    evidence: Vec<String>,
+    summary: String,
+    action: &str,
+) -> KernelSentinelFinding {
     KernelSentinelFinding {
         schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
         id: id.clone(),
@@ -113,7 +118,10 @@ fn dir_check(label: &str, path: &Path) -> (Value, Option<KernelSentinelFinding>)
 
 fn required_path_check(path: &Path) -> (Value, Option<KernelSentinelFinding>) {
     if path.exists() {
-        return (json!({"check": "required_path", "path": path, "ok": true}), None);
+        return (
+            json!({"check": "required_path", "path": path, "ok": true}),
+            None,
+        );
     }
     (
         json!({"check": "required_path", "path": path, "ok": false, "error": "missing_required_path"}),
@@ -136,7 +144,10 @@ pub fn build_boot_watch_report(
     let mut checks = Vec::new();
     let mut findings = Vec::new();
     if boot_self_check || watch_refresh {
-        for (row, finding) in [dir_check("state_dir", state_dir), dir_check("evidence_dir", &evidence_dir)] {
+        for (row, finding) in [
+            dir_check("state_dir", state_dir),
+            dir_check("evidence_dir", &evidence_dir),
+        ] {
             checks.push(row);
             if let Some(finding) = finding {
                 findings.push(finding);
@@ -180,11 +191,15 @@ pub fn write_watch_metadata(dir: &Path, report: &Value, args: &[String]) -> Resu
     let artifact_freshness = required_freshness_rows(dir, now, stale_window_seconds);
     let missing_required_artifact_count = artifact_freshness
         .iter()
-        .filter(|row| row["required"].as_bool().unwrap_or(false) && !row["exists"].as_bool().unwrap_or(false))
+        .filter(|row| {
+            row["required"].as_bool().unwrap_or(false) && !row["exists"].as_bool().unwrap_or(false)
+        })
         .count();
     let stale_required_artifact_count = artifact_freshness
         .iter()
-        .filter(|row| row["required"].as_bool().unwrap_or(false) && row["stale"].as_bool().unwrap_or(true))
+        .filter(|row| {
+            row["required"].as_bool().unwrap_or(false) && row["stale"].as_bool().unwrap_or(true)
+        })
         .count();
     let freshness_age_seconds = artifact_freshness
         .iter()
@@ -225,7 +240,9 @@ mod tests {
         ];
         let (report, findings) = build_boot_watch_report(&dir, &args);
         assert_eq!(report["failure_count"], Value::from(1));
-        assert!(findings[0].fingerprint.starts_with("boot_self_check:missing_required_path:"));
+        assert!(findings[0]
+            .fingerprint
+            .starts_with("boot_self_check:missing_required_path:"));
     }
 
     #[test]

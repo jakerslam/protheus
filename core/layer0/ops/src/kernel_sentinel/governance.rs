@@ -2,8 +2,8 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::graders::build_grader_stack;
-use super::rsi_handoff::build_rsi_handoff_report;
 use super::release_gate_synthesis::release_gate_synthesis_status;
+use super::rsi_handoff::build_rsi_handoff_report;
 use super::{
     KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
     KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
@@ -16,7 +16,10 @@ const DEFAULT_FRESHNESS_WINDOW_SECONDS: u64 = 3600;
 fn option_u64(args: &[String], name: &str, fallback: u64) -> u64 {
     let prefix = format!("{name}=");
     args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<u64>().ok()))
+        .find_map(|arg| {
+            arg.strip_prefix(&prefix)
+                .and_then(|raw| raw.parse::<u64>().ok())
+        })
         .unwrap_or(fallback)
 }
 
@@ -24,15 +27,22 @@ fn value_u64(value: &Value, key: &str) -> Option<u64> {
     field(value, key).and_then(|raw| {
         raw.as_u64()
             .or_else(|| raw.as_i64().and_then(|number| u64::try_from(number).ok()))
-            .or_else(|| raw.as_str().and_then(|text| text.trim().parse::<u64>().ok()))
+            .or_else(|| {
+                raw.as_str()
+                    .and_then(|text| text.trim().parse::<u64>().ok())
+            })
     })
 }
 
 fn value_bool(value: &Value, key: &str) -> bool {
     field(value, key)
         .map(|raw| {
-            raw.as_bool()
-                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes" | "fail" | "failed"))
+            raw.as_bool().unwrap_or_else(|| {
+                matches!(
+                    raw.as_str().unwrap_or("").trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes" | "fail" | "failed"
+                )
+            })
         })
         .unwrap_or(false)
 }
@@ -194,14 +204,20 @@ fn invariant_from_finding(finding: &KernelSentinelFinding) -> Option<String> {
     if finding.status != "open" {
         return None;
     }
-    let haystack = format!("{} {} {}", finding.fingerprint, finding.summary, finding.recommended_action).to_lowercase();
+    let haystack = format!(
+        "{} {} {}",
+        finding.fingerprint, finding.summary, finding.recommended_action
+    )
+    .to_lowercase();
     if haystack.contains("forged") || haystack.contains("forgery") {
         Some("receipt_forgery".to_string())
     } else if haystack.contains("payload_shortcut") || haystack.contains("transport_available") {
         Some("capability_bypass".to_string())
     } else if finding.category == KernelSentinelFindingCategory::StateTransition {
         Some("illegal_state_transition".to_string())
-    } else if haystack.contains("expired") && (haystack.contains("waiver") || haystack.contains("exemption")) {
+    } else if haystack.contains("expired")
+        && (haystack.contains("waiver") || haystack.contains("exemption"))
+    {
         Some("expired_critical_exemption".to_string())
     } else if finding.category == KernelSentinelFindingCategory::ReleaseEvidence
         && (haystack.contains("required_missing") || haystack.contains("missing_required"))
@@ -244,8 +260,11 @@ pub fn build_governance_preflight(
     evidence_report: &Value,
     args: &[String],
 ) -> (Value, Vec<KernelSentinelFinding>) {
-    let freshness_window_seconds =
-        option_u64(args, "--freshness-window-seconds", DEFAULT_FRESHNESS_WINDOW_SECONDS);
+    let freshness_window_seconds = option_u64(
+        args,
+        "--freshness-window-seconds",
+        DEFAULT_FRESHNESS_WINDOW_SECONDS,
+    );
     let records = normalized_records(evidence_report);
     let mut generated = Vec::new();
     let mut invariant_rows = Vec::new();
@@ -293,19 +312,22 @@ pub fn build_governance_preflight(
         .get("blocking_failure_count")
         .and_then(Value::as_u64)
         .unwrap_or(0);
-    (json!({
-        "ok": hard_fail_count == 0 && stale_count == 0 && grader_blocking_count == 0 && rsi_blocking_count == 0,
-        "type": "kernel_sentinel_governance_preflight",
-        "hard_fail_invariant_count": hard_fail_count,
-        "freshness_stale_count": stale_count,
-        "grader_blocking_count": grader_blocking_count,
-        "rsi_handoff_blocking_count": rsi_blocking_count,
-        "freshness_window_seconds": freshness_window_seconds,
-        "hard_fail_invariants": invariant_rows,
-        "freshness_slos": freshness_rows,
-        "grader_stack": grader_stack,
-        "rsi_safety_handoff": rsi_handoff_report
-    }), generated)
+    (
+        json!({
+            "ok": hard_fail_count == 0 && stale_count == 0 && grader_blocking_count == 0 && rsi_blocking_count == 0,
+            "type": "kernel_sentinel_governance_preflight",
+            "hard_fail_invariant_count": hard_fail_count,
+            "freshness_stale_count": stale_count,
+            "grader_blocking_count": grader_blocking_count,
+            "rsi_handoff_blocking_count": rsi_blocking_count,
+            "freshness_window_seconds": freshness_window_seconds,
+            "hard_fail_invariants": invariant_rows,
+            "freshness_slos": freshness_rows,
+            "grader_stack": grader_stack,
+            "rsi_safety_handoff": rsi_handoff_report
+        }),
+        generated,
+    )
 }
 
 fn malformed_issue_count(issue_synthesis: &Value) -> usize {
@@ -318,7 +340,10 @@ fn malformed_issue_count(issue_synthesis: &Value) -> usize {
                     text(row, "title", "").is_empty()
                         || text(row, "fingerprint", "").is_empty()
                         || text(row, "recommended_fix", "").is_empty()
-                        || row.get("evidence").and_then(Value::as_array).map_or(true, |e| e.is_empty())
+                        || row
+                            .get("evidence")
+                            .and_then(Value::as_array)
+                            .map_or(true, |e| e.is_empty())
                         || row
                             .get("acceptance_criteria")
                             .and_then(Value::as_array)
@@ -344,7 +369,10 @@ fn malformed_maintenance_count(maintenance_synthesis: &Value) -> usize {
                 .and_then(Value::as_array)
                 .map(|rows| {
                     rows.iter()
-                        .filter(|row| text(row, "fingerprint", "").is_empty() || text(row, "type", "").is_empty())
+                        .filter(|row| {
+                            text(row, "fingerprint", "").is_empty()
+                                || text(row, "type", "").is_empty()
+                        })
                         .count()
                 })
                 .unwrap_or(0)
@@ -363,23 +391,39 @@ pub fn build_release_gate(
 ) -> Value {
     let critical_open_count = findings
         .iter()
-        .filter(|finding| finding.severity == KernelSentinelSeverity::Critical && finding.status == "open")
+        .filter(|finding| {
+            finding.severity == KernelSentinelSeverity::Critical && finding.status == "open"
+        })
         .count();
     let malformed_issue_count = malformed_issue_count(issue_synthesis);
     let malformed_maintenance_count = malformed_maintenance_count(maintenance_synthesis);
-    let hard_fail_count = governance_preflight["hard_fail_invariant_count"].as_u64().unwrap_or(0);
-    let freshness_stale_count = governance_preflight["freshness_stale_count"].as_u64().unwrap_or(0);
-    let grader_blocking_count = governance_preflight["grader_blocking_count"].as_u64().unwrap_or(0);
-    let rsi_handoff_blocking_count = governance_preflight["rsi_handoff_blocking_count"].as_u64().unwrap_or(0);
-    let evidence_record_count = evidence_report["normalized_record_count"].as_u64().unwrap_or(0);
+    let hard_fail_count = governance_preflight["hard_fail_invariant_count"]
+        .as_u64()
+        .unwrap_or(0);
+    let freshness_stale_count = governance_preflight["freshness_stale_count"]
+        .as_u64()
+        .unwrap_or(0);
+    let grader_blocking_count = governance_preflight["grader_blocking_count"]
+        .as_u64()
+        .unwrap_or(0);
+    let rsi_handoff_blocking_count = governance_preflight["rsi_handoff_blocking_count"]
+        .as_u64()
+        .unwrap_or(0);
+    let evidence_record_count = evidence_report["normalized_record_count"]
+        .as_u64()
+        .unwrap_or(0);
     let data_starved = evidence_report["data_starved"]
         .as_bool()
         .unwrap_or(evidence_record_count == 0);
     let observation_state = evidence_report["observation_state"]
         .as_str()
         .unwrap_or("unknown");
-    let malformed_evidence = evidence_report["malformed_evidence"].as_bool().unwrap_or(false);
-    let partial_evidence = evidence_report["partial_evidence"].as_bool().unwrap_or(false);
+    let malformed_evidence = evidence_report["malformed_evidence"]
+        .as_bool()
+        .unwrap_or(false);
+    let partial_evidence = evidence_report["partial_evidence"]
+        .as_bool()
+        .unwrap_or(false);
     let (
         multi_layer_incident_count,
         missing_architectural_synthesis_count,

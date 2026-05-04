@@ -115,7 +115,11 @@ fn trend_delta(previous: Option<&Value>, current: &Value) -> Value {
     };
     let mut regressions = Vec::new();
     let mut improvements = Vec::new();
-    for key in ["finding_count", "critical_open_count", "malformed_finding_count"] {
+    for key in [
+        "finding_count",
+        "critical_open_count",
+        "malformed_finding_count",
+    ] {
         let before = usize_at(previous, &[key]);
         let after = usize_at(current, &[key]);
         if after > before {
@@ -190,17 +194,44 @@ fn rsi_missing_condition_action(condition: &str) -> &'static str {
     }
 }
 
-fn rsi_readiness(report: &Value, history_len: usize, feedback_len: usize, trend_delta: &Value) -> Value {
+fn rsi_readiness(
+    report: &Value,
+    history_len: usize,
+    feedback_len: usize,
+    trend_delta: &Value,
+) -> Value {
     let mut missing = Vec::new();
-    let evidence_record_count = usize_at(report, &["evidence_ingestion", "normalized_record_count"]);
-    let missing_required_source_count =
-        usize_at(report, &["evidence_ingestion", "coverage", "missing_required_source_count"]);
-    let present_required_source_count =
-        usize_at(report, &["evidence_ingestion", "coverage", "present_required_source_count"]);
-    let missing_optional_source_count =
-        usize_at(report, &["evidence_ingestion", "coverage", "missing_optional_source_count"]);
-    let evidence_observation_state =
-        string_at(report, &["evidence_ingestion", "observation_state"], "unknown");
+    let evidence_record_count =
+        usize_at(report, &["evidence_ingestion", "normalized_record_count"]);
+    let missing_required_source_count = usize_at(
+        report,
+        &[
+            "evidence_ingestion",
+            "coverage",
+            "missing_required_source_count",
+        ],
+    );
+    let present_required_source_count = usize_at(
+        report,
+        &[
+            "evidence_ingestion",
+            "coverage",
+            "present_required_source_count",
+        ],
+    );
+    let missing_optional_source_count = usize_at(
+        report,
+        &[
+            "evidence_ingestion",
+            "coverage",
+            "missing_optional_source_count",
+        ],
+    );
+    let evidence_observation_state = string_at(
+        report,
+        &["evidence_ingestion", "observation_state"],
+        "unknown",
+    );
     let deterministic_evidence_record_count = report
         .get("evidence_ingestion")
         .and_then(|ingestion| ingestion.get("normalized_records"))
@@ -209,7 +240,9 @@ fn rsi_readiness(report: &Value, history_len: usize, feedback_len: usize, trend_
             rows.iter()
                 .filter(|row| {
                     matches!(
-                        row.get("authority_class").and_then(Value::as_str).unwrap_or(""),
+                        row.get("authority_class")
+                            .and_then(Value::as_str)
+                            .unwrap_or(""),
                         "DeterministicKernelAuthority" | "deterministic_kernel_authority"
                     )
                 })
@@ -304,14 +337,23 @@ fn rsi_readiness(report: &Value, history_len: usize, feedback_len: usize, trend_
     })
 }
 
-fn write_daily_report(path: &Path, report: &Value, trend: &Value, top_holes: &Value, readiness: &Value) -> Result<(), String> {
+fn write_daily_report(
+    path: &Path,
+    report: &Value,
+    trend: &Value,
+    top_holes: &Value,
+    readiness: &Value,
+) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     }
     let mut body = String::new();
     body.push_str("# Kernel Sentinel Daily Self-Study Report\n\n");
     body.push_str(&format!("- generated_at: {}\n", crate::now_iso()));
-    body.push_str(&format!("- ok: {}\n", report["ok"].as_bool().unwrap_or(false)));
+    body.push_str(&format!(
+        "- ok: {}\n",
+        report["ok"].as_bool().unwrap_or(false)
+    ));
     body.push_str(&format!(
         "- critical_open_count: {}\n",
         usize_at(report, &["operator_summary", "critical_open_count"])
@@ -330,19 +372,44 @@ fn write_daily_report(path: &Path, report: &Value, trend: &Value, top_holes: &Va
     ));
     body.push_str(&format!(
         "- present_required_source_count: {}\n",
-        usize_at(report, &["evidence_ingestion", "coverage", "present_required_source_count"])
+        usize_at(
+            report,
+            &[
+                "evidence_ingestion",
+                "coverage",
+                "present_required_source_count"
+            ]
+        )
     ));
     body.push_str(&format!(
         "- missing_required_source_count: {}\n",
-        usize_at(report, &["evidence_ingestion", "coverage", "missing_required_source_count"])
+        usize_at(
+            report,
+            &[
+                "evidence_ingestion",
+                "coverage",
+                "missing_required_source_count"
+            ]
+        )
     ));
     body.push_str(&format!(
         "- missing_optional_source_count: {}\n",
-        usize_at(report, &["evidence_ingestion", "coverage", "missing_optional_source_count"])
+        usize_at(
+            report,
+            &[
+                "evidence_ingestion",
+                "coverage",
+                "missing_optional_source_count"
+            ]
+        )
     ));
     body.push_str(&format!(
         "- evidence_observation_state: {}\n",
-        string_at(report, &["evidence_ingestion", "observation_state"], "unknown")
+        string_at(
+            report,
+            &["evidence_ingestion", "observation_state"],
+            "unknown"
+        )
     ));
     body.push_str(&format!(
         "- malformed_evidence_count: {}\n",
@@ -355,16 +422,26 @@ fn write_daily_report(path: &Path, report: &Value, trend: &Value, top_holes: &Va
     body.push_str("## Trend\n\n");
     body.push_str(&format!(
         "- regressions: {}\n",
-        trend.get("regressions").and_then(Value::as_array).map(Vec::len).unwrap_or(0)
+        trend
+            .get("regressions")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0)
     ));
     body.push_str(&format!(
         "- improvements: {}\n\n",
-        trend.get("improvements").and_then(Value::as_array).map(Vec::len).unwrap_or(0)
+        trend
+            .get("improvements")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0)
     ));
     body.push_str("## RSI Readiness\n\n");
     body.push_str(&format!(
         "- ready_for_autonomous_rsi: {}\n",
-        readiness["ready_for_autonomous_rsi"].as_bool().unwrap_or(false)
+        readiness["ready_for_autonomous_rsi"]
+            .as_bool()
+            .unwrap_or(false)
     ));
     body.push_str("- missing_conditions:\n");
     for condition in readiness
@@ -451,7 +528,13 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
     write_json(&trend_report_path, &trend_report)?;
     write_json(&top_holes_path, &top_holes)?;
     write_json(&rsi_path, &readiness)?;
-    write_daily_report(&daily_report_path, report, &trend_report["delta"], &top_holes, &readiness)?;
+    write_daily_report(
+        &daily_report_path,
+        report,
+        &trend_report["delta"],
+        &top_holes,
+        &readiness,
+    )?;
 
     let mut manifest = json!({
         "type": "kernel_sentinel_self_study_outputs",

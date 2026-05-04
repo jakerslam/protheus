@@ -7,7 +7,12 @@ use std::collections::BTreeMap;
 const MAX_EVIDENCE_REFS_PER_FINDING: usize = 12;
 
 pub(super) fn normalize_finding_status(status: &str) -> String {
-    match status.trim().to_ascii_lowercase().replace('-', "_").as_str() {
+    match status
+        .trim()
+        .to_ascii_lowercase()
+        .replace('-', "_")
+        .as_str()
+    {
         "" | "active" | "new" | "unresolved" | "blocking" => "open".to_string(),
         "waive" | "waived_by_human" | "human_waived" => "waived".to_string(),
         "fixed" | "closed" | "complete" | "completed" => "resolved".to_string(),

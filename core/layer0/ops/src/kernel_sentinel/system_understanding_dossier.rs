@@ -181,7 +181,11 @@ pub fn validate_system_understanding_dossier(
     if dossier.owners.is_empty() || dossier.owners.iter().any(|item| item.trim().is_empty()) {
         return Err("missing_owners".to_string());
     }
-    if dossier.evidence_index.iter().any(|item| item.trim().is_empty()) {
+    if dossier
+        .evidence_index
+        .iter()
+        .any(|item| item.trim().is_empty())
+    {
         return Err("invalid_evidence_index".to_string());
     }
     for (name, value) in [
@@ -194,27 +198,54 @@ pub fn validate_system_understanding_dossier(
         ("capability_confidence", dossier.capability_confidence),
         ("failure_model_confidence", dossier.failure_model_confidence),
         ("transfer_confidence", dossier.transfer_confidence),
-        ("implementation_confidence", dossier.implementation_confidence),
+        (
+            "implementation_confidence",
+            dossier.implementation_confidence,
+        ),
         ("syntax_confidence", dossier.syntax_confidence),
     ] {
         require_confidence(name, value)?;
     }
-    if dossier.runtime_evidence.iter().any(|item| item.trim().is_empty()) {
+    if dossier
+        .runtime_evidence
+        .iter()
+        .any(|item| item.trim().is_empty())
+    {
         return Err("invalid_runtime_evidence".to_string());
     }
-    if dossier.required_next_probes.iter().any(|item| item.trim().is_empty()) {
+    if dossier
+        .required_next_probes
+        .iter()
+        .any(|item| item.trim().is_empty())
+    {
         return Err("invalid_required_next_probes".to_string());
     }
-    if dossier.authority_evidence.iter().any(|item| item.trim().is_empty()) {
+    if dossier
+        .authority_evidence
+        .iter()
+        .any(|item| item.trim().is_empty())
+    {
         return Err("invalid_authority_evidence".to_string());
     }
-    if dossier.runtime_architecture_mismatches.iter().any(|item| item.trim().is_empty()) {
+    if dossier
+        .runtime_architecture_mismatches
+        .iter()
+        .any(|item| item.trim().is_empty())
+    {
         return Err("invalid_runtime_architecture_mismatches".to_string());
     }
-    if dossier.stop_patching_triggers.iter().any(|item| item.trim().is_empty()) {
+    if dossier
+        .stop_patching_triggers
+        .iter()
+        .any(|item| item.trim().is_empty())
+    {
         return Err("invalid_stop_patching_triggers".to_string());
     }
-    if dossier.files_inspected.iter().any(|item| item.trim().is_empty()) {
+    if dossier
+        .files_inspected
+        .iter()
+        .any(|item| item.trim().is_empty())
+    {
         return Err("invalid_files_inspected".to_string());
     }
     for row in &dossier.capabilities {

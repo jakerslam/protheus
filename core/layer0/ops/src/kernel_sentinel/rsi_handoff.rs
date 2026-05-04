@@ -3,8 +3,7 @@
 
 use super::{
     KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
-    SystemUnderstandingDossier,
-    KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
+    SystemUnderstandingDossier, KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
 };
 use serde_json::{json, Value};
 
@@ -32,7 +31,9 @@ fn detail<'a>(record: &'a Value, key: &str) -> Option<&'a Value> {
 }
 
 fn detail_bool(record: &Value, key: &str) -> bool {
-    detail(record, key).and_then(Value::as_bool).unwrap_or(false)
+    detail(record, key)
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn detail_text(record: &Value, key: &str) -> String {
@@ -55,8 +56,7 @@ fn is_self_modification(record: &Value) -> bool {
     matches!(
         text(record, "kind", "").as_str(),
         "self_modification_proposal" | "rsi_safety_handoff" | "self_modification"
-    )
-        || detail_bool(record, "rsi_safety_handoff")
+    ) || detail_bool(record, "rsi_safety_handoff")
         || detail_bool(record, "self_modification_proposal")
 }
 
@@ -234,13 +234,13 @@ pub fn build_internal_rsi_proposals(dossier: &SystemUnderstandingDossier) -> Val
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::kernel_sentinel::system_understanding_dossier::SystemUnderstandingImplementationItem;
     use crate::kernel_sentinel::{
         SystemUnderstandingCapabilityKind, SystemUnderstandingCapabilityRow,
         SystemUnderstandingCapabilityValue, SystemUnderstandingDossier,
         SystemUnderstandingDossierStatus, SystemUnderstandingDossierTargetMode,
         SystemUnderstandingTransferTarget,
     };
-    use crate::kernel_sentinel::system_understanding_dossier::SystemUnderstandingImplementationItem;
 
     fn sample_dossier(required_next_probes: Vec<&str>) -> SystemUnderstandingDossier {
         let has_required_next_probes = !required_next_probes.is_empty();
@@ -258,16 +258,26 @@ mod tests {
             blocking_unknowns: if !has_required_next_probes {
                 Vec::new()
             } else {
-                vec!["structural_recommendations_blocked_until_dossier_confidence_recovers".to_string()]
+                vec![
+                    "structural_recommendations_blocked_until_dossier_confidence_recovers"
+                        .to_string(),
+                ]
             },
-            evidence_index: vec!["local/state/kernel_sentinel/kernel_sentinel_report_current.json".to_string()],
+            evidence_index: vec![
+                "local/state/kernel_sentinel/kernel_sentinel_report_current.json".to_string(),
+            ],
             soul_confidence: 0.80,
             soul_evidence: vec!["receipt-first deterministic runtime".to_string()],
             soul_unknowns: Vec::new(),
             runtime_confidence: 0.84,
-            runtime_evidence: vec!["local/state/kernel_sentinel/kernel_sentinel_health_current.json".to_string()],
+            runtime_evidence: vec![
+                "local/state/kernel_sentinel/kernel_sentinel_health_current.json".to_string(),
+            ],
             runtime_unknowns: Vec::new(),
-            required_next_probes: required_next_probes.into_iter().map(str::to_string).collect(),
+            required_next_probes: required_next_probes
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
             ecology_confidence: 0.75,
             ecology_evidence: vec!["feedback_inbox.jsonl".to_string()],
             ecology_unknowns: Vec::new(),
@@ -295,14 +305,19 @@ mod tests {
             known_failure_modes: Vec::new(),
             violated_invariants: Vec::new(),
             stop_patching_triggers: Vec::new(),
-            transfer_confidence: if !has_required_next_probes { 0.84 } else { 0.62 },
+            transfer_confidence: if !has_required_next_probes {
+                0.84
+            } else {
+                0.62
+            },
             implementation_items: if !has_required_next_probes {
                 vec![SystemUnderstandingImplementationItem {
                     id: "strengthen-sentinel-dossier".to_string(),
                     summary: "Emit internal RSI proposals from the self-dossier.".to_string(),
                     owner_layer: "core/layer0/ops".to_string(),
                     invariant: "kernel_owns_truth".to_string(),
-                    proof_requirement: "internal_rsi_proposals_current.json must stay schema-complete".to_string(),
+                    proof_requirement:
+                        "internal_rsi_proposals_current.json must stay schema-complete".to_string(),
                     rollback_plan: "revert to dossier-only output".to_string(),
                 }]
             } else {
@@ -329,7 +344,10 @@ mod tests {
         })];
         let (report, findings) = build_rsi_handoff_report(&records);
         assert_eq!(report["blocking_failure_count"], Value::from(1));
-        assert_eq!(findings[0].fingerprint, "rsi_handoff:missing_contract:patch-loop-1");
+        assert_eq!(
+            findings[0].fingerprint,
+            "rsi_handoff:missing_contract:patch-loop-1"
+        );
         assert!(findings[0].summary.contains("rollback_plan"));
     }
 
@@ -354,7 +372,10 @@ mod tests {
     #[test]
     fn internal_rsi_bundle_emits_structured_proposals_when_dossier_is_ready() {
         let bundle = build_internal_rsi_proposals(&sample_dossier(Vec::new()));
-        assert_eq!(bundle["type"], "kernel_sentinel_internal_rsi_proposal_bundle");
+        assert_eq!(
+            bundle["type"],
+            "kernel_sentinel_internal_rsi_proposal_bundle"
+        );
         assert_eq!(bundle["mode"], "proposal_ready");
         assert_eq!(bundle["proposal_count"], 1);
         assert_eq!(bundle["proposals"][0]["owner_layer"], "core/layer0/ops");

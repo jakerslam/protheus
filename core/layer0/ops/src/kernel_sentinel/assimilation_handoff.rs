@@ -45,7 +45,9 @@ fn capability_transfer_row(
     })
 }
 
-pub fn build_external_assimilation_transfer_plan(source_dossier: &SystemUnderstandingDossier) -> Value {
+pub fn build_external_assimilation_transfer_plan(
+    source_dossier: &SystemUnderstandingDossier,
+) -> Value {
     let dossier_mode_ok = matches!(
         source_dossier.target_mode,
         SystemUnderstandingDossierTargetMode::ExternalAssimilation
@@ -56,7 +58,12 @@ pub fn build_external_assimilation_transfer_plan(source_dossier: &SystemUndersta
         source_dossier
             .capabilities
             .iter()
-            .filter(|row| !matches!(row.transfer_target, SystemUnderstandingTransferTarget::Reject))
+            .filter(|row| {
+                !matches!(
+                    row.transfer_target,
+                    SystemUnderstandingTransferTarget::Reject
+                )
+            })
             .map(|row| capability_transfer_row(source_dossier, row))
             .collect::<Vec<_>>()
     } else {
@@ -203,7 +210,10 @@ mod tests {
     #[test]
     fn external_assimilation_plan_emits_capability_transfer_rows() {
         let plan = build_external_assimilation_transfer_plan(&source_dossier(Vec::new()));
-        assert_eq!(plan["type"], "kernel_sentinel_external_assimilation_transfer_plan");
+        assert_eq!(
+            plan["type"],
+            "kernel_sentinel_external_assimilation_transfer_plan"
+        );
         assert_eq!(plan["mode"], "capability_plan_ready");
         assert_eq!(plan["capability_plan_count"], 2);
         assert_eq!(

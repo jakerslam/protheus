@@ -87,7 +87,10 @@ fn merge_family(existing: &mut Value, row: &Value) {
         .and_then(Value::as_array_mut)
     {
         let key = string_field(row, "dedupe_key");
-        if !keys.iter().any(|value| value.as_str() == Some(key.as_str())) {
+        if !keys
+            .iter()
+            .any(|value| value.as_str() == Some(key.as_str()))
+        {
             keys.push(json!(key));
         }
     }
@@ -96,12 +99,16 @@ fn merge_family(existing: &mut Value, row: &Value) {
 fn recurring_failure_families(feedback_rows: &[Value]) -> Vec<Value> {
     let mut by_family = BTreeMap::<String, Value>::new();
     for row in feedback_rows {
-        let recurring =
-            bool_at(row, &["issue_candidate_ready"], false) || usize_at(row, &["recurrence_count"]) >= 2;
+        let recurring = bool_at(row, &["issue_candidate_ready"], false)
+            || usize_at(row, &["recurrence_count"]) >= 2;
         if !recurring {
             continue;
         }
-        let key = format!("{}:{}", string_field(row, "category"), recurring_family_fingerprint(row));
+        let key = format!(
+            "{}:{}",
+            string_field(row, "category"),
+            recurring_family_fingerprint(row)
+        );
         match by_family.get_mut(&key) {
             Some(existing) => merge_family(existing, row),
             None => {
@@ -113,9 +120,16 @@ fn recurring_failure_families(feedback_rows: &[Value]) -> Vec<Value> {
     families.sort_by(|left, right| {
         bool_at(right, &["issue_candidate_ready"], false)
             .cmp(&bool_at(left, &["issue_candidate_ready"], false))
-            .then_with(|| usize_at(right, &["recurrence_count"]).cmp(&usize_at(left, &["recurrence_count"])))
-            .then_with(|| usize_at(left, &["operator_value_rank"]).cmp(&usize_at(right, &["operator_value_rank"])))
-            .then_with(|| usize_at(left, &["priority_rank"]).cmp(&usize_at(right, &["priority_rank"])))
+            .then_with(|| {
+                usize_at(right, &["recurrence_count"]).cmp(&usize_at(left, &["recurrence_count"]))
+            })
+            .then_with(|| {
+                usize_at(left, &["operator_value_rank"])
+                    .cmp(&usize_at(right, &["operator_value_rank"]))
+            })
+            .then_with(|| {
+                usize_at(left, &["priority_rank"]).cmp(&usize_at(right, &["priority_rank"]))
+            })
             .then_with(|| string_field(left, "family_key").cmp(&string_field(right, "family_key")))
     });
     families
@@ -301,7 +315,10 @@ mod tests {
         );
 
         assert_eq!(top["summary"]["recurring_failure_family_count"], 1);
-        assert_eq!(top["summary"]["raw_finding_count_is_not_family_count"], true);
+        assert_eq!(
+            top["summary"]["raw_finding_count_is_not_family_count"],
+            true
+        );
         assert_eq!(
             top["recurring_failure_families"][0]["family_key"],
             "correctness:repeated_failure"

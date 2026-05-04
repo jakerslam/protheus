@@ -177,11 +177,14 @@ fn repeated_symptoms_are_clustered_by_structural_root_cause_family() {
             row["root_cause_cluster"]["policy"],
             "repeated_symptoms_must_be_triaged_as_one_structural_failure_family_before_opening_separate_local_tickets"
         );
-        assert_eq!(row["root_cause_cluster"]["members"].as_array().unwrap().len(), 2);
         assert_eq!(
-            row["todo_actionability"]["root_cause_cluster_ready"],
-            true
+            row["root_cause_cluster"]["members"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
         );
+        assert_eq!(row["todo_actionability"]["root_cause_cluster_ready"], true);
     }
     assert_eq!(gateway_rows[0]["root_cause_cluster_repeated"], false);
     assert_eq!(gateway_rows[0]["root_cause_cluster_member_count"], 1);
@@ -228,7 +231,10 @@ fn feedback_quality_ranking_prefers_specific_actionable_evidence_with_same_sever
             > rows[1]["feedback_quality_score"].as_u64().unwrap()
     );
     assert_eq!(rows[0]["todo_actionability_state"], "triage_to_todo");
-    assert_eq!(rows[1]["todo_actionability_state"], "needs_root_cause_synthesis");
+    assert_eq!(
+        rows[1]["todo_actionability_state"],
+        "needs_root_cause_synthesis"
+    );
     assert_eq!(
         rows[1]["todo_actionability"]["missing_requirements"],
         json!(["concrete_next_action"])

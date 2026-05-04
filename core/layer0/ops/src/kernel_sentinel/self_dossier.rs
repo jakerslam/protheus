@@ -18,7 +18,8 @@ const MIN_CAPABILITY_CONFIDENCE_FOR_STRUCTURAL_RECOMMENDATIONS: f64 = 0.70;
 const MIN_TRANSFER_CONFIDENCE_FOR_STRUCTURAL_RECOMMENDATIONS: f64 = 0.80;
 
 fn strings(value: &Value) -> Vec<String> {
-    value.as_array()
+    value
+        .as_array()
         .into_iter()
         .flatten()
         .filter_map(|row| row.as_str().map(str::to_string))
@@ -123,7 +124,9 @@ pub fn build_infring_self_dossier(
     let missing_required_source_count = report["operator_summary"]["missing_required_source_count"]
         .as_u64()
         .unwrap_or(0);
-    let trend_history_runs = self_study_outputs["trend_history_runs"].as_u64().unwrap_or(0);
+    let trend_history_runs = self_study_outputs["trend_history_runs"]
+        .as_u64()
+        .unwrap_or(0);
     let diagnostic_follow_up_request_count = diagnostic_run["diagnostic_follow_up_request_count"]
         .as_u64()
         .unwrap_or(0);
@@ -139,7 +142,10 @@ pub fn build_infring_self_dossier(
     let mut stop_patching_triggers = Vec::new();
     let mut runtime_architecture_mismatches = Vec::new();
     for incident in &incidents {
-        if let Some(summary) = incident["summary"].as_str().filter(|row| !row.trim().is_empty()) {
+        if let Some(summary) = incident["summary"]
+            .as_str()
+            .filter(|row| !row.trim().is_empty())
+        {
             known_failure_modes.push(summary.to_string());
             if incident["stop_patching"].as_bool().unwrap_or(false) {
                 stop_patching_triggers.push(summary.to_string());
@@ -183,9 +189,7 @@ pub fn build_infring_self_dossier(
         diagnostic_run_path.clone(),
         readiness_path.clone(),
         trend_path.clone(),
-        format!(
-            "diagnostic_follow_up_request_count:{diagnostic_follow_up_request_count}"
-        ),
+        format!("diagnostic_follow_up_request_count:{diagnostic_follow_up_request_count}"),
         format!(
             "scheduler_status:{}",
             report["operator_summary"]["scheduler_status"]
@@ -218,7 +222,10 @@ pub fn build_infring_self_dossier(
                 .unwrap_or(false)
         ),
         format!("authorized_probe_count:{authorized_probe_count}"),
-        format!("verdict:{}", verdict["verdict"].as_str().unwrap_or("unknown")),
+        format!(
+            "verdict:{}",
+            verdict["verdict"].as_str().unwrap_or("unknown")
+        ),
     ];
     let architecture_evidence = vec![
         architectural_path.clone(),
@@ -295,10 +302,13 @@ pub fn build_infring_self_dossier(
         "core/layer0/ops/src/kernel_sentinel/system_understanding_dossier.rs".to_string(),
         "core/layer0/ops/src/kernel_sentinel/self_dossier.rs".to_string(),
     ];
-    let soul_confidence =
-        confidence_with_unknown_penalty(0.66, soul_evidence.len(), 0, 0.04, 0.06);
+    let soul_confidence = confidence_with_unknown_penalty(0.66, soul_evidence.len(), 0, 0.04, 0.06);
     let runtime_confidence = confidence_with_unknown_penalty(
-        if missing_required_source_count == 0 { 0.62 } else { 0.44 },
+        if missing_required_source_count == 0 {
+            0.62
+        } else {
+            0.44
+        },
         runtime_evidence.len(),
         runtime_unknowns.len() + required_next_probes.len(),
         0.035,
@@ -375,18 +385,17 @@ pub fn build_infring_self_dossier(
     );
     let syntax_confidence =
         confidence_with_unknown_penalty(0.54, syntax_evidence.len(), 0, 0.04, 0.05);
-    let confidence_overall = (
-        soul_confidence
-            + runtime_confidence
-            + ecology_confidence
-            + authority_confidence
-            + architecture_confidence
-            + capability_confidence
-            + failure_model_confidence
-            + transfer_confidence
-            + implementation_confidence
-            + syntax_confidence
-    ) / 10.0;
+    let confidence_overall = (soul_confidence
+        + runtime_confidence
+        + ecology_confidence
+        + authority_confidence
+        + architecture_confidence
+        + capability_confidence
+        + failure_model_confidence
+        + transfer_confidence
+        + implementation_confidence
+        + syntax_confidence)
+        / 10.0;
     let status = if blocking_unknowns.is_empty() {
         SystemUnderstandingDossierStatus::Usable
     } else {
