@@ -176,6 +176,7 @@ fn inferred_model_profile(provider_id: &str, model_id: &str, force_local: bool) 
         "api"
     };
 
+    let context_window = infer_model_context_window(&provider, &model);
     json!({
         "power_rating": power_rating,
         "cost_rating": cost_rating,
@@ -183,7 +184,12 @@ fn inferred_model_profile(provider_id: &str, model_id: &str, force_local: bool) 
         "specialty": specialty,
         "specialty_tags": specialty_tags,
         "deployment_kind": deployment_kind,
-        "context_window": infer_model_context_window(&provider, &model)
+        "context_window": context_window,
+        "max_output_tokens": if context_window > 0 {
+            (context_window / 8).clamp(1024, 131_072)
+        } else {
+            0
+        }
     })
 }
 
@@ -231,6 +237,16 @@ fn enrich_single_model_profile(
         .get("context_window")
         .and_then(Value::as_i64)
         .unwrap_or(0);
+    let inferred_max_output = inferred_obj
+        .get("max_output_tokens")
+        .and_then(Value::as_i64)
+        .unwrap_or_else(|| {
+            if inferred_context > 0 {
+                (inferred_context / 8).clamp(1024, 131_072)
+            } else {
+                0
+            }
+        });
     let inferred_specialty = inferred_obj
         .get("specialty")
         .and_then(Value::as_str)
@@ -263,6 +279,11 @@ fn enrich_single_model_profile(
         .and_then(Value::as_i64)
         .unwrap_or(0)
         .max(0);
+    let current_max_output = merged
+        .get("max_output_tokens")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0);
     let current_specialty = merged
         .get("specialty")
         .and_then(Value::as_str)
@@ -288,6 +309,9 @@ fn enrich_single_model_profile(
         && (current_context == 0 || (enforce_context_floor && current_context < inferred_context))
     {
         merged.insert("context_window".to_string(), json!(inferred_context));
+    }
+    if current_max_output == 0 && inferred_max_output > 0 {
+        merged.insert("max_output_tokens".to_string(), json!(inferred_max_output));
     }
     if (current_specialty.is_empty() || current_specialty == "general")
         && inferred_specialty != "general"

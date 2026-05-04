@@ -1,6 +1,5 @@
 mod tests {
     use super::*;
-    use std::fs;
 
     #[test]
     fn routing_policy_requires_signature_on_update() {
@@ -242,11 +241,11 @@ mod tests {
     }
 
     #[test]
-    fn invoke_chat_auto_route_emits_decision_and_inference_receipt() {
+    fn invoke_chat_requires_explicit_model_selection() {
         let root = tempfile::tempdir().expect("tempdir");
         let _ = add_custom_model(root.path(), "openai", "gpt-4o-mini", 128_000, 4_096);
         let _ = save_provider_key(root.path(), "openai", "sk-test-openai");
-        let out = invoke_chat(
+        let err = invoke_chat(
             root.path(),
             "auto",
             "auto",
@@ -254,41 +253,7 @@ mod tests {
             &[],
             "Write a concise code review checklist.",
         )
-        .expect("auto route invoke");
-        assert!(
-            out.get("provider")
-                .and_then(Value::as_str)
-                .map(|row| !row.is_empty() && row != "auto")
-                .unwrap_or(false),
-            "auto route should resolve a concrete provider"
-        );
-        assert!(
-            out.get("model")
-                .and_then(Value::as_str)
-                .map(|row| !row.is_empty() && row != "auto")
-                .unwrap_or(false),
-            "auto route should resolve a concrete model"
-        );
-        assert!(
-            out.get("auto_route_decision")
-                .and_then(Value::as_object)
-                .is_some(),
-            "resolved auto route decision should be visible in response"
-        );
-        assert!(
-            out.get("response_hash")
-                .and_then(Value::as_str)
-                .map(|row| !row.is_empty())
-                .unwrap_or(false),
-            "response hash should be attached for deterministic receipts"
-        );
-        let receipts = fs::read_to_string(root.path().join(PROVIDER_INFERENCE_RECEIPTS_REL))
-            .expect("provider inference receipts");
-        assert!(
-            receipts.contains("\"type\":\"infring_provider_inference_receipt\"")
-                && receipts.contains("\"provider\"")
-                && receipts.contains("\"response_hash\""),
-            "inference receipts should be persisted with provider and response hash fields"
-        );
+        .expect_err("chat invocation should not silently auto-route model selection");
+        assert_eq!(err, "explicit_model_selection_required");
     }
 }

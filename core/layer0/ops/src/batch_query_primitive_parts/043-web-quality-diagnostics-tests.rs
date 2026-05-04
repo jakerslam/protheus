@@ -291,4 +291,103 @@ mod web_quality_diagnostics_tests {
         assert!(flags.iter().any(|flag| flag == "potential_source_conflict"));
         assert!(report.pointer("/candidate_quality/0/snippet_preview").is_some());
     }
+
+    #[test]
+    fn weak_single_research_source_recommends_agent_retry() {
+        let report = web_tool_quality_report(
+            "CrewAI multi agent framework documentation",
+            "ok",
+            1,
+            1,
+            &[],
+            &[],
+            &[(
+                candidate(
+                    "https://www.crewai.io/lander",
+                    "AI and automation are revolutionizing workforce training by reshaping job roles, necessitating reskilling, and enhancing learning experiences.",
+                ),
+                0.52,
+            )],
+        );
+        let flags = report
+            .get("flags")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(flags.iter().any(|flag| flag == "weak_single_source"), "{flags:?}");
+        assert_eq!(
+            report.pointer("/retry/recommended").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            report.pointer("/retry/reason").and_then(Value::as_str),
+            Some("weak_single_source")
+        );
+    }
+
+    #[test]
+    fn cached_weak_single_source_is_not_replayed_as_clean_success() {
+        let report = cached_web_tool_quality_report(
+            "CrewAI multi agent framework documentation",
+            "ok",
+            &json!([]),
+            &json!([
+                {
+                    "title": "AI and Automation Impact on Workforce Training | .Training - crewai.io",
+                    "locator": "https://www.crewai.io/lander",
+                    "score": 0.52
+                }
+            ]),
+        );
+        assert_eq!(
+            report.get("version").and_then(Value::as_str),
+            Some(web_tool_quality_version())
+        );
+        assert_eq!(
+            report.pointer("/retry/reason").and_then(Value::as_str),
+            Some("weak_single_source")
+        );
+        assert_eq!(
+            report.pointer("/retry/recommended").and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn comparison_research_requires_more_than_one_evidence_source() {
+        let report = web_tool_quality_report(
+            "compare CrewAI and LangGraph agent frameworks",
+            "ok",
+            1,
+            1,
+            &[],
+            &[],
+            &[(
+                candidate(
+                    "https://www.langchain.com/langgraph",
+                    "LangGraph is an agent orchestration framework for reliable AI agents.",
+                ),
+                0.92,
+            )],
+        );
+        let flags = report
+            .get("flags")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            flags
+                .iter()
+                .any(|flag| flag == "comparison_evidence_insufficient"),
+            "{flags:?}"
+        );
+        assert_eq!(
+            report.pointer("/retry/recommended").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            report.pointer("/retry/reason").and_then(Value::as_str),
+            Some("comparison_evidence_insufficient")
+        );
+    }
 }

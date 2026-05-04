@@ -3,34 +3,34 @@
   "slots": {
     "master": {
       "tier": 1,
-      "model": "kimi-k2.5:cloud",
+      "model": "kimi-k2.6:cloud",
       "fallbacks": ["deepseek-v3:1:671b-cloud", "gpt-oss:120b", "glm-4.6-cloud"]
     },
     "agent": {
       "tier": 2,
-      "model": "qwen3-coder:480b-cloud",
+      "model": "kimi-k2.6:cloud",
       "fallbacks": ["qwen3-v1:235b-cloud", "minmax-m2-cloud"]
     },
     "grunt": {
       "tier": 3,
-      "model": "qwen3:4b",
+      "model": "kimi-k2.6:cloud",
       "fallbacks": ["gemma3:4b", "phi", "gemma3:1b"]
     },
     "coder": {
       "tier": 2,
-      "model": "qwen3-coder:480b-cloud",
+      "model": "kimi-k2.6:cloud",
       "fallbacks": ["qwen3-v1:235b-cloud"]
     },
     "fallback": {
       "tier": 3,
-      "model": "gemma3:4b",
+      "model": "kimi-k2.6:cloud",
       "fallbacks": ["qwen3:4b", "phi"]
     }
   },
   "model_pool": {
     "api": ["gemini", "chatgpt"],
     "ollama_cloud": [
-      "kimi-k2.5:cloud",
+      "kimi-k2.6:cloud",
       "gpt-oss:120b",
       "chat-gpt-oss-20b-cloud",
       "deepseek-v3:1:671b-cloud",

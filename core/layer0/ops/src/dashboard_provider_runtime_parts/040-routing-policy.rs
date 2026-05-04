@@ -355,6 +355,17 @@ fn fallback_routes(
     routes
 }
 
+fn explicit_chat_invocation_routes(
+    _root: &Path,
+    primary_provider: &str,
+    primary_model: &str,
+) -> Vec<(String, String)> {
+    vec![(
+        normalize_provider_id(primary_provider),
+        clean_text(primary_model, 240),
+    )]
+}
+
 pub fn routing_fallback_chain(
     root: &Path,
     primary_provider: &str,

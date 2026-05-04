@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// thin desktop shell only
+// thin desktop UI shell 1.0 only
 
 const bridge = require('../../client/runtime/lib/phone_runtime_bridge.ts');
 const BRIDGE_PATH = 'adapters/protocol/phone_bridge.ts';
