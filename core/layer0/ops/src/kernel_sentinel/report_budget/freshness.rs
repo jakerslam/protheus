@@ -33,7 +33,13 @@ impl FindingFreshness {
 
 pub(super) fn classify_finding_freshness(finding: &Value) -> FindingFreshness {
     if bool_field(finding, "stale").unwrap_or(false) {
-        return freshness("stale_reference_only", "explicit_stale_flag", false, true, age_seconds(finding));
+        return freshness(
+            "stale_reference_only",
+            "explicit_stale_flag",
+            false,
+            true,
+            age_seconds(finding),
+        );
     }
     if let Some(age) = age_seconds(finding) {
         return freshness_for_age(age, "bounded_age_seconds");
@@ -46,9 +52,21 @@ pub(super) fn classify_finding_freshness(finding: &Value) -> FindingFreshness {
         return freshness_for_age(age, "generated_at_epoch_seconds");
     }
     if has_text_field(finding, "generated_at") || has_text_field(finding, "observed_at") {
-        return freshness("recent_but_not_current", "timestamp_without_age", false, false, None);
+        return freshness(
+            "recent_but_not_current",
+            "timestamp_without_age",
+            false,
+            false,
+            None,
+        );
     }
-    freshness("stale_reference_only", "missing_freshness_metadata", false, true, None)
+    freshness(
+        "stale_reference_only",
+        "missing_freshness_metadata",
+        false,
+        true,
+        None,
+    )
 }
 
 fn freshness_for_age(age: u64, signal: &'static str) -> FindingFreshness {
@@ -87,17 +105,25 @@ fn freshness(
 }
 
 fn age_seconds(finding: &Value) -> Option<u64> {
-    ["freshness_age_seconds", "age_seconds", "source_artifact_age_seconds"]
-        .iter()
-        .find_map(|key| u64_field(finding, key))
+    [
+        "freshness_age_seconds",
+        "age_seconds",
+        "source_artifact_age_seconds",
+    ]
+    .iter()
+    .find_map(|key| u64_field(finding, key))
 }
 
 fn evidence_freshness_age_seconds(finding: &Value) -> Option<u64> {
-    finding["evidence"].as_array()?.iter().filter_map(Value::as_str).find_map(|reference| {
-        reference
-            .strip_prefix("freshness://age_seconds/")
-            .and_then(|raw| raw.trim().parse::<u64>().ok())
-    })
+    finding["evidence"]
+        .as_array()?
+        .iter()
+        .filter_map(Value::as_str)
+        .find_map(|reference| {
+            reference
+                .strip_prefix("freshness://age_seconds/")
+                .and_then(|raw| raw.trim().parse::<u64>().ok())
+        })
 }
 
 fn u64_field(finding: &Value, key: &str) -> Option<u64> {
@@ -108,21 +134,28 @@ fn u64_field(finding: &Value, key: &str) -> Option<u64> {
         .and_then(|raw| {
             raw.as_u64()
                 .or_else(|| raw.as_i64().and_then(|value| u64::try_from(value).ok()))
-                .or_else(|| raw.as_str().and_then(|text| text.trim().parse::<u64>().ok()))
+                .or_else(|| {
+                    raw.as_str()
+                        .and_then(|text| text.trim().parse::<u64>().ok())
+                })
         })
 }
 
 fn bool_field(finding: &Value, key: &str) -> Option<bool> {
     let details = finding.get("details").unwrap_or(&Value::Null);
-    details.get(key).or_else(|| finding.get(key)).and_then(|raw| {
-        raw.as_bool().or_else(|| {
-            raw.as_str().and_then(|text| match text.trim().to_ascii_lowercase().as_str() {
-                "true" | "1" | "yes" => Some(true),
-                "false" | "0" | "no" => Some(false),
-                _ => None,
+    details
+        .get(key)
+        .or_else(|| finding.get(key))
+        .and_then(|raw| {
+            raw.as_bool().or_else(|| {
+                raw.as_str()
+                    .and_then(|text| match text.trim().to_ascii_lowercase().as_str() {
+                        "true" | "1" | "yes" => Some(true),
+                        "false" | "0" | "no" => Some(false),
+                        _ => None,
+                    })
             })
         })
-    })
 }
 
 fn has_text_field(finding: &Value, key: &str) -> bool {

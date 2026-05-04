@@ -88,7 +88,11 @@ fn dossier_model_exposes_shared_schema_for_sentinel_rsi_and_assimilation() {
     assert_eq!(model["schema_version"], 1);
     assert_eq!(
         model["shared_consumers"],
-        json!(["kernel_sentinel", "internal_rsi_planning", "external_assimilation"])
+        json!([
+            "kernel_sentinel",
+            "internal_rsi_planning",
+            "external_assimilation"
+        ])
     );
     assert_eq!(
         model["sections"]["authority"]["minimum_confidence"],

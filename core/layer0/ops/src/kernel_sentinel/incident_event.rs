@@ -56,9 +56,13 @@ impl KernelSentinelIncidentEvidenceLevel {
             Self::Event => "single observation, command output, receipt, probe, or log line",
             Self::Component => "repeated evidence localized to one component or runtime unit",
             Self::Boundary => "evidence that two surfaces disagree across a declared boundary",
-            Self::Policy => "evidence that runtime behavior contradicts declared authority or policy",
+            Self::Policy => {
+                "evidence that runtime behavior contradicts declared authority or policy"
+            }
             Self::Architecture => "evidence that system shape makes local fixes recur or fail",
-            Self::SelfModel => "evidence that the system misunderstood itself or its remediation level",
+            Self::SelfModel => {
+                "evidence that the system misunderstood itself or its remediation level"
+            }
         }
     }
 

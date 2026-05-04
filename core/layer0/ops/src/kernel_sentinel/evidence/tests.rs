@@ -6,7 +6,10 @@ use super::*;
 #[test]
 fn required_missing_kernel_sources_become_blocking_findings() {
     let dir = std::env::temp_dir().join("kernel-sentinel-evidence-missing");
-    let args = vec!["--require-evidence=1".to_string(), format!("--evidence-dir={}", dir.display())];
+    let args = vec![
+        "--require-evidence=1".to_string(),
+        format!("--evidence-dir={}", dir.display()),
+    ];
     let ingestion = ingest_evidence_sources(&dir, &args);
     assert!(ingestion.findings.iter().any(|finding| {
         finding.fingerprint == "kernel_receipt:missing_required_source"
@@ -27,7 +30,10 @@ fn control_plane_eval_is_advisory_even_when_reported_critical() {
     let ingestion = ingest_evidence_sources(&dir, &args);
     assert_eq!(ingestion.findings.len(), 1);
     assert_eq!(ingestion.findings[0].severity, KernelSentinelSeverity::High);
-    assert_eq!(ingestion.report["normalized_records"][0]["advisory"], Value::Bool(true));
+    assert_eq!(
+        ingestion.report["normalized_records"][0]["advisory"],
+        Value::Bool(true)
+    );
 }
 
 #[test]
@@ -42,7 +48,10 @@ fn severity_without_explicit_failure_signal_does_not_open_finding() {
     let args = vec![format!("--evidence-dir={}", dir.display())];
     let ingestion = ingest_evidence_sources(&dir, &args);
     assert!(ingestion.findings.is_empty());
-    assert_eq!(ingestion.report["normalized_records"][0]["severity"], "critical");
+    assert_eq!(
+        ingestion.report["normalized_records"][0]["severity"],
+        "critical"
+    );
 }
 
 #[test]
@@ -84,7 +93,10 @@ fn control_plane_eval_authority_claim_opens_advisory_bridge_finding() {
     .unwrap();
     let args = vec![format!("--evidence-dir={}", dir.display())];
     let ingestion = ingest_evidence_sources(&dir, &args);
-    assert_eq!(ingestion.report["advisory_bridge"]["authority_claim_count"], Value::from(1));
+    assert_eq!(
+        ingestion.report["advisory_bridge"]["authority_claim_count"],
+        Value::from(1)
+    );
     assert!(ingestion.findings.iter().any(|finding| {
         finding.category == KernelSentinelFindingCategory::SecurityBoundary
             && finding.fingerprint == "advisory_bridge:authority_claim:workflow"
@@ -102,13 +114,18 @@ fn bridge_only_authority_claim_stays_advisory_without_corroboration() {
     .unwrap();
     let args = vec![format!("--evidence-dir={}", dir.display())];
     let ingestion = ingest_evidence_sources(&dir, &args);
-    assert_eq!(ingestion.report["advisory_bridge"]["authority_claim_count"], Value::from(1));
-    assert_eq!(ingestion.report["advisory_bridge"]["advisory_only_count"], Value::from(1));
-    assert!(
-        !ingestion.findings.iter().any(|finding| {
-            finding.fingerprint == "advisory_bridge:authority_claim:workflow"
-        })
+    assert_eq!(
+        ingestion.report["advisory_bridge"]["authority_claim_count"],
+        Value::from(1)
     );
+    assert_eq!(
+        ingestion.report["advisory_bridge"]["advisory_only_count"],
+        Value::from(1)
+    );
+    assert!(!ingestion
+        .findings
+        .iter()
+        .any(|finding| { finding.fingerprint == "advisory_bridge:authority_claim:workflow" }));
 }
 
 #[test]
@@ -122,16 +139,11 @@ fn bridge_only_missing_source_reference_stays_advisory_without_corroboration() {
         "may_write_verdict": false
     })];
     let (report, findings) = build_advisory_bridge_report(&records);
-    assert_eq!(
-        report["missing_source_reference_count"],
-        Value::from(1)
-    );
+    assert_eq!(report["missing_source_reference_count"], Value::from(1));
     assert_eq!(report["advisory_only_count"], Value::from(1));
-    assert!(
-        !findings.iter().any(|finding| {
-            finding.fingerprint == "advisory_bridge:missing_source_reference:workflow"
-        })
-    );
+    assert!(!findings.iter().any(|finding| {
+        finding.fingerprint == "advisory_bridge:missing_source_reference:workflow"
+    }));
 }
 
 #[test]
@@ -205,7 +217,10 @@ fn authoritative_guard_pass_with_matching_failure_is_reported_as_contradiction()
         ingestion.report["guard_consistency"]["contradiction_count"],
         Value::from(1)
     );
-    assert_eq!(ingestion.report["guard_consistency"]["ok"], Value::Bool(false));
+    assert_eq!(
+        ingestion.report["guard_consistency"]["ok"],
+        Value::Bool(false)
+    );
     assert_eq!(
         ingestion.report["guard_consistency"]["contradictions"][0]["record_id"],
         "gateway-pass"
@@ -235,7 +250,8 @@ fn authoritative_guard_pass_caps_uncorroborated_critical_finding_to_high() {
         .unwrap();
     assert_eq!(finding.severity, KernelSentinelSeverity::High);
     assert_eq!(
-        ingestion.report["guard_consistency"]["contradictions"][0]["matching_findings"][0]["severity"],
+        ingestion.report["guard_consistency"]["contradictions"][0]["matching_findings"][0]
+            ["severity"],
         "high"
     );
 }
@@ -256,10 +272,21 @@ fn sentinel_finding_cites_exact_failing_fields_from_upstream_artifact() {
         .iter()
         .find(|finding| finding.id == "release-fail")
         .unwrap();
-    assert!(finding.evidence.iter().any(|row| row == "field://release_proof_pack/release-fail/ok=false"));
-    assert!(finding.evidence.iter().any(|row| row == "field://release_proof_pack/release-fail/status=error"));
-    assert!(finding.evidence.iter().any(|row| row == "field://release_proof_pack/release-fail/pass=false"));
-    assert!(finding.evidence.iter().any(|row| row == "check://release_proof_pack/release-fail/failing_check=boundedness_budget"));
+    assert!(finding
+        .evidence
+        .iter()
+        .any(|row| row == "field://release_proof_pack/release-fail/ok=false"));
+    assert!(finding
+        .evidence
+        .iter()
+        .any(|row| row == "field://release_proof_pack/release-fail/status=error"));
+    assert!(finding
+        .evidence
+        .iter()
+        .any(|row| row == "field://release_proof_pack/release-fail/pass=false"));
+    assert!(finding.evidence.iter().any(
+        |row| row == "check://release_proof_pack/release-fail/failing_check=boundedness_budget"
+    ));
 }
 
 #[test]
@@ -282,13 +309,18 @@ fn cross_artifact_truth_consistency_reports_authoritative_artifact_disagreement(
         ingestion.report["guard_consistency"]["cross_artifact_contradiction_count"],
         Value::from(1)
     );
-    assert_eq!(ingestion.report["guard_consistency"]["ok"], Value::Bool(false));
     assert_eq!(
-        ingestion.report["guard_consistency"]["cross_artifact_contradictions"][0]["pass_record"]["record_id"],
+        ingestion.report["guard_consistency"]["ok"],
+        Value::Bool(false)
+    );
+    assert_eq!(
+        ingestion.report["guard_consistency"]["cross_artifact_contradictions"][0]["pass_record"]
+            ["record_id"],
         "gateway-pass"
     );
     assert_eq!(
-        ingestion.report["guard_consistency"]["cross_artifact_contradictions"][0]["failed_record"]["record_id"],
+        ingestion.report["guard_consistency"]["cross_artifact_contradictions"][0]["failed_record"]
+            ["record_id"],
         "runtime-fail"
     );
 }

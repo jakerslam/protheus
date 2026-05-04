@@ -197,30 +197,22 @@ mod tests {
         assert!(
             kernel_sentinel_invariant_by_id("gateway_success_requires_durable_listener").is_some()
         );
-        assert!(
-            kernel_sentinel_invariant_by_id(
-                "shell_connectivity_uses_authoritative_runtime_state"
-            )
-            .is_some()
-        );
-        assert!(
-            kernel_sentinel_invariant_by_id(
-                "api_routing_preserves_semantic_request_information"
-            )
-            .is_some()
-        );
-        assert!(
-            kernel_sentinel_invariant_by_id(
-                "boot_critical_routes_are_bounded_lightweight_and_nonblocking"
-            )
-            .is_some()
-        );
-        assert!(
-            kernel_sentinel_invariant_by_id(
-                "watchdog_owns_process_uniqueness_and_stale_host_cleanup"
-            )
-            .is_some()
-        );
+        assert!(kernel_sentinel_invariant_by_id(
+            "shell_connectivity_uses_authoritative_runtime_state"
+        )
+        .is_some());
+        assert!(kernel_sentinel_invariant_by_id(
+            "api_routing_preserves_semantic_request_information"
+        )
+        .is_some());
+        assert!(kernel_sentinel_invariant_by_id(
+            "boot_critical_routes_are_bounded_lightweight_and_nonblocking"
+        )
+        .is_some());
+        assert!(kernel_sentinel_invariant_by_id(
+            "watchdog_owns_process_uniqueness_and_stale_host_cleanup"
+        )
+        .is_some());
         assert!(
             kernel_sentinel_invariant_by_id("sentinel_feedback_preserves_root_frame").is_some()
         );
@@ -279,7 +271,9 @@ mod tests {
         assert_eq!(invariant.root_frame, "cross_boundary_contract");
         assert_eq!(invariant.remediation_level, "boundary_repair");
         assert_eq!(invariant.authority, "kernel");
-        assert!(invariant.required_evidence.contains(&"incoming_request_path"));
+        assert!(invariant
+            .required_evidence
+            .contains(&"incoming_request_path"));
         assert!(invariant.required_evidence.contains(&"query_string"));
         assert!(invariant
             .required_evidence
@@ -301,15 +295,21 @@ mod tests {
         assert_eq!(invariant.root_frame, "component_runtime_regression");
         assert_eq!(invariant.remediation_level, "component_repair");
         assert_eq!(invariant.authority, "kernel");
-        assert!(invariant.required_evidence.contains(&"boot_route_inventory"));
-        assert!(invariant.required_evidence.contains(&"startup_latency_budget"));
+        assert!(invariant
+            .required_evidence
+            .contains(&"boot_route_inventory"));
+        assert!(invariant
+            .required_evidence
+            .contains(&"startup_latency_budget"));
         assert!(invariant
             .required_evidence
             .contains(&"nonblocking_readiness_probe"));
         assert!(invariant
             .required_evidence
             .contains(&"optional_surface_deferral"));
-        assert!(invariant.required_evidence.contains(&"boot_lifecycle_receipt"));
+        assert!(invariant
+            .required_evidence
+            .contains(&"boot_lifecycle_receipt"));
     }
 
     #[test]
@@ -326,7 +326,9 @@ mod tests {
         assert_eq!(invariant.enforcement_scope, "watchdog_process_lifecycle");
         assert!(invariant.required_evidence.contains(&"watchdog_state"));
         assert!(invariant.required_evidence.contains(&"process_inventory"));
-        assert!(invariant.required_evidence.contains(&"duplicate_host_probe"));
+        assert!(invariant
+            .required_evidence
+            .contains(&"duplicate_host_probe"));
         assert!(invariant
             .required_evidence
             .contains(&"stale_host_cleanup_receipt"));

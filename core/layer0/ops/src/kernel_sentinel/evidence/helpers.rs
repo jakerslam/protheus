@@ -98,7 +98,10 @@ pub(super) fn bool_flag(args: &[String], name: &str) -> bool {
 pub(super) fn option_u64(args: &[String], name: &str, fallback: u64) -> u64 {
     let prefix = format!("{name}=");
     args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<u64>().ok()))
+        .find_map(|arg| {
+            arg.strip_prefix(&prefix)
+                .and_then(|raw| raw.parse::<u64>().ok())
+        })
         .unwrap_or(fallback)
 }
 
@@ -119,16 +122,23 @@ pub(super) fn malformed_count_by_key(records: &[Value], key: &str) -> BTreeMap<S
 
 pub(super) fn record_freshness_age_seconds(record: &Value) -> Option<u64> {
     let details = record.get("details").unwrap_or(&Value::Null);
-    ["freshness_age_seconds", "age_seconds", "source_artifact_age_seconds"]
-        .iter()
-        .find_map(|key| {
-            details
-                .get(*key)
-                .or_else(|| record.get(*key))
-                .and_then(|raw| {
-                    raw.as_u64()
-                        .or_else(|| raw.as_i64().and_then(|value| u64::try_from(value).ok()))
-                        .or_else(|| raw.as_str().and_then(|text| text.trim().parse::<u64>().ok()))
-                })
-        })
+    [
+        "freshness_age_seconds",
+        "age_seconds",
+        "source_artifact_age_seconds",
+    ]
+    .iter()
+    .find_map(|key| {
+        details
+            .get(*key)
+            .or_else(|| record.get(*key))
+            .and_then(|raw| {
+                raw.as_u64()
+                    .or_else(|| raw.as_i64().and_then(|value| u64::try_from(value).ok()))
+                    .or_else(|| {
+                        raw.as_str()
+                            .and_then(|text| text.trim().parse::<u64>().ok())
+                    })
+            })
+    })
 }

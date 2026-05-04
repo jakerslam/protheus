@@ -193,7 +193,10 @@ pub fn execute_kernel_sentinel_golden_replay_probe(
         let result = refused_result(
             request,
             authorization.authorization_reason,
-            snapshot.artifact_path.as_deref().or(Some(DEFAULT_REPLAY_ARTIFACT)),
+            snapshot
+                .artifact_path
+                .as_deref()
+                .or(Some(DEFAULT_REPLAY_ARTIFACT)),
         );
         validate_kernel_sentinel_diagnostic_result(&result)?;
         return Ok(result);
@@ -203,55 +206,57 @@ pub fn execute_kernel_sentinel_golden_replay_probe(
         let result = refused_result(
             request,
             "golden_replay_executor_requires_diagnostic_replay".to_string(),
-            snapshot.artifact_path.as_deref().or(Some(DEFAULT_REPLAY_ARTIFACT)),
+            snapshot
+                .artifact_path
+                .as_deref()
+                .or(Some(DEFAULT_REPLAY_ARTIFACT)),
         );
         validate_kernel_sentinel_diagnostic_result(&result)?;
         return Ok(result);
     }
 
     let confidence_before = 0.42;
-    let (outcome, confidence_after, confidence_delta, stop_reason, next_probe) =
-        if snapshot.replay_completed
-            && snapshot.fixture_detected_expected_incident
-            && snapshot.fixture_preserved_invariant_labels
-        {
+    let (outcome, confidence_after, confidence_delta, stop_reason, next_probe) = if snapshot
+        .replay_completed
+        && snapshot.fixture_detected_expected_incident
+        && snapshot.fixture_preserved_invariant_labels
+    {
+        (
+            KernelSentinelDiagnosticOutcome::Pass,
+            0.9,
+            0.48,
             (
-                KernelSentinelDiagnosticOutcome::Pass,
-                0.9,
-                0.48,
-                (
-                    KernelSentinelDiagnosticStopReason::SufficientConfidenceReached,
-                    "golden_replay_confirmed_expected_incident_and_invariant_projection"
-                        .to_string(),
-                ),
-                None,
-            )
-        } else if snapshot.replay_completed
-            && (!snapshot.fixture_detected_expected_incident
-                || !snapshot.fixture_preserved_invariant_labels)
-        {
+                KernelSentinelDiagnosticStopReason::SufficientConfidenceReached,
+                "golden_replay_confirmed_expected_incident_and_invariant_projection".to_string(),
+            ),
+            None,
+        )
+    } else if snapshot.replay_completed
+        && (!snapshot.fixture_detected_expected_incident
+            || !snapshot.fixture_preserved_invariant_labels)
+    {
+        (
+            KernelSentinelDiagnosticOutcome::Fail,
+            0.86,
+            0.44,
             (
-                KernelSentinelDiagnosticOutcome::Fail,
-                0.86,
-                0.44,
-                (
-                    KernelSentinelDiagnosticStopReason::SufficientConfidenceReached,
-                    "golden_replay_exposed_fixture_to_runtime_projection_mismatch".to_string(),
-                ),
-                Some("contract://kernel_sentinel/invariant_registry".to_string()),
-            )
-        } else {
+                KernelSentinelDiagnosticStopReason::SufficientConfidenceReached,
+                "golden_replay_exposed_fixture_to_runtime_projection_mismatch".to_string(),
+            ),
+            Some("contract://kernel_sentinel/invariant_registry".to_string()),
+        )
+    } else {
+        (
+            KernelSentinelDiagnosticOutcome::Inconclusive,
+            0.5,
+            0.08,
             (
-                KernelSentinelDiagnosticOutcome::Inconclusive,
-                0.5,
-                0.08,
-                (
-                    KernelSentinelDiagnosticStopReason::ConfidenceGainExhausted,
-                    "golden_replay_did_not_complete_and_cannot_raise_confidence".to_string(),
-                ),
-                Some("replay://retry/golden_fixture".to_string()),
-            )
-        };
+                KernelSentinelDiagnosticStopReason::ConfidenceGainExhausted,
+                "golden_replay_did_not_complete_and_cannot_raise_confidence".to_string(),
+            ),
+            Some("replay://retry/golden_fixture".to_string()),
+        )
+    };
 
     let result = KernelSentinelDiagnosticResult {
         schema_version: KERNEL_SENTINEL_DIAGNOSTIC_RESULT_SCHEMA_VERSION,
@@ -337,8 +342,7 @@ mod tests {
             failure_signature: "authority_shape_residue_reemergence".to_string(),
             hypothesis: "golden replay should reproduce the architectural incident cleanly"
                 .to_string(),
-            competing_explanation: "fixture may no longer align with runtime synthesis"
-                .to_string(),
+            competing_explanation: "fixture may no longer align with runtime synthesis".to_string(),
             probe_class: KernelSentinelDiagnosticProbeClass::DiagnosticReplay,
             selected_probe: "golden://kernel_sentinel/authority_shape_residue".to_string(),
             expected_confidence_gain: 0.28,

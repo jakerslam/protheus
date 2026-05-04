@@ -62,7 +62,11 @@ pub(super) fn build_kernel_sentinel_causal_hypotheses(
     architectural_incident_report: &Value,
     args: &[String],
 ) -> Value {
-    let limit = option_usize(args, "--causal-hypothesis-limit", DEFAULT_CAUSAL_HYPOTHESIS_LIMIT);
+    let limit = option_usize(
+        args,
+        "--causal-hypothesis-limit",
+        DEFAULT_CAUSAL_HYPOTHESIS_LIMIT,
+    );
     let mut hypotheses = findings
         .iter()
         .filter(|finding| finding.status == "open")
@@ -107,7 +111,12 @@ fn hypothesis_for_finding(
     let support_evidence = support_evidence(finding, &pattern);
     let counter_evidence = counter_evidence(finding);
     let missing_evidence = missing_evidence(&pattern, finding);
-    let confidence = confidence_percent(finding, &pattern, support_evidence.len(), missing_evidence.len());
+    let confidence = confidence_percent(
+        finding,
+        &pattern,
+        support_evidence.len(),
+        missing_evidence.len(),
+    );
     let causal_power = causal_power_score(&pattern, finding, architectural_incident_report);
     json!({
         "id": format!("causal_hypothesis:{}", finding.fingerprint),
@@ -142,7 +151,16 @@ fn hypothesis_for_finding(
 
 fn classify_pattern(finding: &KernelSentinelFinding, evidence_refs: &[String]) -> CausalPattern {
     let text = joined_text(finding, evidence_refs);
-    if any(&text, &["os_reason_codesigning", "codesign", "exit 137", "code-signing", "codesigning"]) {
+    if any(
+        &text,
+        &[
+            "os_reason_codesigning",
+            "codesign",
+            "exit 137",
+            "code-signing",
+            "codesigning",
+        ],
+    ) {
         return pattern(
             "installed_runtime_identity_invalid",
             "the operating system kills the installed runtime before Kernel ops can emit a receipt",
@@ -157,7 +175,16 @@ fn classify_pattern(finding: &KernelSentinelFinding, evidence_refs: &[String]) -
             &["installer_update_event", "launchd_last_exit_reason"],
         );
     }
-    if any(&text, &["authority ghost", "authority_ghost", "truth leak", "removed_authority_syntax", "authority residue"]) {
+    if any(
+        &text,
+        &[
+            "authority ghost",
+            "authority_ghost",
+            "truth leak",
+            "removed_authority_syntax",
+            "authority residue",
+        ],
+    ) {
         return pattern(
             "authority_shape_residue",
             "old authority behavior survives after the visible syntax or route was removed",
@@ -172,7 +199,16 @@ fn classify_pattern(finding: &KernelSentinelFinding, evidence_refs: &[String]) -
             &["shape_guard_output", "fallback_route_trace", "owner_policy_ref"],
         );
     }
-    if any(&text, &["healthz", "listener_absent", "stale_duplicate", "dashboard", "gateway"]) {
+    if any(
+        &text,
+        &[
+            "healthz",
+            "listener_absent",
+            "stale_duplicate",
+            "dashboard",
+            "gateway",
+        ],
+    ) {
         return pattern(
             "gateway_lifecycle_truth_contradiction",
             "configured gateway health disagrees with process, listener, or alternate-route observations",
@@ -187,7 +223,17 @@ fn classify_pattern(finding: &KernelSentinelFinding, evidence_refs: &[String]) -
             &["configured_listener_probe", "watchdog_state", "pid_file_state"],
         );
     }
-    if any(&text, &["mini os", "shell", "full_state", "mirror", "projection", "browser heap"]) {
+    if any(
+        &text,
+        &[
+            "mini os",
+            "shell",
+            "full_state",
+            "mirror",
+            "projection",
+            "browser heap",
+        ],
+    ) {
         return pattern(
             "projection_surface_became_runtime_owner",
             "a projection surface retains or reconstructs runtime-owned state",
@@ -202,7 +248,16 @@ fn classify_pattern(finding: &KernelSentinelFinding, evidence_refs: &[String]) -
             &["live_payload_sample", "heap_budget_probe", "detail_route_receipt"],
         );
     }
-    if any(&text, &["oversized", "report size", "noise", "raw evidence", "bounded report"]) {
+    if any(
+        &text,
+        &[
+            "oversized",
+            "report size",
+            "noise",
+            "raw evidence",
+            "bounded report",
+        ],
+    ) {
         return pattern(
             "observability_noise_release",
             "raw evidence volume escapes into operator-facing reports",
@@ -217,7 +272,16 @@ fn classify_pattern(finding: &KernelSentinelFinding, evidence_refs: &[String]) -
             &["report_budget_artifact", "raw_stream_refs"],
         );
     }
-    if any(&text, &["empty reply", "empty direct reply", "final llm", "finalization", "no response"]) {
+    if any(
+        &text,
+        &[
+            "empty reply",
+            "empty direct reply",
+            "final llm",
+            "finalization",
+            "no response",
+        ],
+    ) {
         return pattern(
             "response_finalization_gap",
             "workflow/tool progress does not synthesize into a user-visible final response",
@@ -247,7 +311,10 @@ fn classify_pattern(finding: &KernelSentinelFinding, evidence_refs: &[String]) -
             &["action_stream_ref", "receipt_stream_ref"],
         );
     }
-    if any(&text, &["boundedness", "rss", "queue", "backpressure", "memory"]) {
+    if any(
+        &text,
+        &["boundedness", "rss", "queue", "backpressure", "memory"],
+    ) {
         return pattern(
             "boundedness_budget_regression",
             "resource or queue metrics exceed declared budget",
@@ -342,14 +409,25 @@ fn support_evidence(finding: &KernelSentinelFinding, pattern: &CausalPattern) ->
 fn counter_evidence(finding: &KernelSentinelFinding) -> Vec<String> {
     let text = joined_text(finding, &finding.evidence);
     let mut rows = Vec::new();
-    if any(&text, &["alternate_healthz_ready", "5173", "backend healthy"]) {
+    if any(
+        &text,
+        &["alternate_healthz_ready", "5173", "backend healthy"],
+    ) {
         rows.push("alternate route is healthy, so the root is scoped to configured route ownership rather than total runtime death".to_string());
     }
-    if any(&text, &["waived", "expected degradation", "controlled violation"]) {
-        rows.push("finding may be expected or waived; verify waiver freshness before promotion".to_string());
+    if any(
+        &text,
+        &["waived", "expected degradation", "controlled violation"],
+    ) {
+        rows.push(
+            "finding may be expected or waived; verify waiver freshness before promotion"
+                .to_string(),
+        );
     }
     if rows.is_empty() {
-        rows.push("no direct contradiction observed yet; keep falsification probe mandatory".to_string());
+        rows.push(
+            "no direct contradiction observed yet; keep falsification probe mandatory".to_string(),
+        );
     }
     rows
 }
@@ -436,10 +514,20 @@ fn quality_failures(hypotheses: &[Value]) -> Vec<Value> {
         .iter()
         .filter_map(|hypothesis| {
             let mut reasons = Vec::new();
-            if hypothesis["support_evidence"].as_array().map(Vec::len).unwrap_or(0) == 0 {
+            if hypothesis["support_evidence"]
+                .as_array()
+                .map(Vec::len)
+                .unwrap_or(0)
+                == 0
+            {
                 reasons.push("missing_support_evidence");
             }
-            if hypothesis["counter_evidence"].as_array().map(Vec::len).unwrap_or(0) == 0 {
+            if hypothesis["counter_evidence"]
+                .as_array()
+                .map(Vec::len)
+                .unwrap_or(0)
+                == 0
+            {
                 reasons.push("missing_counter_evidence");
             }
             if hypothesis["confidence_percent"].as_u64().unwrap_or(0) < 60 {
@@ -478,7 +566,10 @@ fn id_for_sort(row: &Value) -> String {
 fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
     let prefix = format!("{name}=");
     args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<usize>().ok()))
+        .find_map(|arg| {
+            arg.strip_prefix(&prefix)
+                .and_then(|raw| raw.parse::<usize>().ok())
+        })
         .unwrap_or(fallback)
 }
 
@@ -491,7 +582,20 @@ fn compact(value: &str, max: usize) -> String {
 }
 
 fn pattern_catalog() -> Vec<Value> {
-    ["installed_runtime_identity_invalid", "gateway_lifecycle_truth_contradiction", "authority_shape_residue", "projection_surface_became_runtime_owner", "observability_noise_release", "response_finalization_gap", "receipt_integrity_gap", "boundedness_budget_regression", "semantic_frame_default"].iter().map(|id| json!({"id": id, "kind": "causal_pattern"})).collect()
+    [
+        "installed_runtime_identity_invalid",
+        "gateway_lifecycle_truth_contradiction",
+        "authority_shape_residue",
+        "projection_surface_became_runtime_owner",
+        "observability_noise_release",
+        "response_finalization_gap",
+        "receipt_integrity_gap",
+        "boundedness_budget_regression",
+        "semantic_frame_default",
+    ]
+    .iter()
+    .map(|id| json!({"id": id, "kind": "causal_pattern"}))
+    .collect()
 }
 
 #[cfg(test)]

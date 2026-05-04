@@ -30,7 +30,12 @@ fn value<'a>(record: &'a Value, key: &str) -> Option<&'a Value> {
     record
         .get(key)
         .or_else(|| record.get("details").and_then(|details| details.get(key)))
-        .or_else(|| record.get("details").and_then(|details| details.get("details")).and_then(|details| details.get(key)))
+        .or_else(|| {
+            record
+                .get("details")
+                .and_then(|details| details.get("details"))
+                .and_then(|details| details.get(key))
+        })
 }
 
 fn value_str<'a>(record: &'a Value, key: &str) -> &'a str {
@@ -40,8 +45,12 @@ fn value_str<'a>(record: &'a Value, key: &str) -> &'a str {
 fn value_bool(record: &Value, key: &str) -> bool {
     value(record, key)
         .map(|raw| {
-            raw.as_bool()
-                .unwrap_or_else(|| matches!(raw.as_str().unwrap_or("").trim().to_lowercase().as_str(), "1" | "true" | "yes" | "fail" | "failed" | "regressed"))
+            raw.as_bool().unwrap_or_else(|| {
+                matches!(
+                    raw.as_str().unwrap_or("").trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes" | "fail" | "failed" | "regressed"
+                )
+            })
         })
         .unwrap_or(false)
 }
@@ -98,7 +107,10 @@ fn explicit_rule(record: &Value) -> Option<SignalRule> {
                         "shed, defer, or quarantine the loop and require recovery evidence before retrying",
                 });
             }
-            "queue_backpressure_failure" | "queue_backpressure" | "queue_saturation" | "queue_depth_exceeded" => {
+            "queue_backpressure_failure"
+            | "queue_backpressure"
+            | "queue_saturation"
+            | "queue_depth_exceeded" => {
                 return Some(SignalRule {
                     rule: "queue_depth",
                     category: KernelSentinelFindingCategory::QueueBackpressure,
@@ -108,7 +120,10 @@ fn explicit_rule(record: &Value) -> Option<SignalRule> {
                         "apply queue shed/defer/quarantine policy and restore bounded queue depth",
                 });
             }
-            "boundedness_regression" | "threshold_regression" | "boundedness_failure" | "budget_regression" => {
+            "boundedness_regression"
+            | "threshold_regression"
+            | "boundedness_failure"
+            | "budget_regression" => {
                 return Some(SignalRule {
                     rule: "threshold_regression",
                     category: KernelSentinelFindingCategory::Boundedness,
@@ -164,8 +179,19 @@ fn metric_rules(record: &Value) -> Vec<SignalRule> {
         }
     }
     if let (Some(depth), Some(limit)) = (
-        first_metric(record, &["queue_depth_max", "queue_depth_p95", "queue_depth", "queue_depth_current"]),
-        first_metric(record, &["queue_depth_limit", "queue_depth_budget", "queue_limit"]),
+        first_metric(
+            record,
+            &[
+                "queue_depth_max",
+                "queue_depth_p95",
+                "queue_depth",
+                "queue_depth_current",
+            ],
+        ),
+        first_metric(
+            record,
+            &["queue_depth_limit", "queue_depth_budget", "queue_limit"],
+        ),
     ) {
         if depth > limit {
             rules.push(SignalRule {
@@ -183,8 +209,19 @@ fn metric_rules(record: &Value) -> Vec<SignalRule> {
         }
     }
     if let (Some(retry_count), Some(limit)) = (
-        first_metric(record, &["retry_count", "retry_loop_count", "repeated_retry_count", "retry_attempts"]),
-        first_metric(record, &["retry_budget", "retry_limit", "retry_window_budget"]),
+        first_metric(
+            record,
+            &[
+                "retry_count",
+                "retry_loop_count",
+                "repeated_retry_count",
+                "retry_attempts",
+            ],
+        ),
+        first_metric(
+            record,
+            &["retry_budget", "retry_limit", "retry_window_budget"],
+        ),
     ) {
         if retry_count > limit {
             rules.push(SignalRule {
@@ -211,7 +248,10 @@ fn metric_rules(record: &Value) -> Vec<SignalRule> {
     }
     if let (Some(recovery_ms), Some(limit)) = (
         first_metric(record, &["recovery_time_ms", "recovery_time_p95_ms"]),
-        first_metric(record, &["recovery_time_budget_ms", "recovery_time_limit_ms"]),
+        first_metric(
+            record,
+            &["recovery_time_budget_ms", "recovery_time_limit_ms"],
+        ),
     ) {
         if recovery_ms > limit {
             rules.push(SignalRule {
@@ -219,7 +259,8 @@ fn metric_rules(record: &Value) -> Vec<SignalRule> {
                 category: KernelSentinelFindingCategory::Boundedness,
                 severity: KernelSentinelSeverity::High,
                 summary_subject: "recovery time",
-                recommended_action: "tighten recovery path or adjust boundedness budget with evidence",
+                recommended_action:
+                    "tighten recovery path or adjust boundedness budget with evidence",
             });
         }
     }
@@ -233,7 +274,8 @@ fn metric_rules(record: &Value) -> Vec<SignalRule> {
                 category: KernelSentinelFindingCategory::Boundedness,
                 severity: KernelSentinelSeverity::High,
                 summary_subject: "stale surface",
-                recommended_action: "restore freshness propagation and prove dashboard truth parity",
+                recommended_action:
+                    "restore freshness propagation and prove dashboard truth parity",
             });
         }
     }
@@ -266,9 +308,7 @@ fn boundedness_finding(record: &Value, rule: SignalRule) -> KernelSentinelFindin
     }
 }
 
-pub(super) fn build_boundedness_report(
-    records: &[Value],
-) -> (Value, Vec<KernelSentinelFinding>) {
+pub(super) fn build_boundedness_report(records: &[Value]) -> (Value, Vec<KernelSentinelFinding>) {
     let mut findings = Vec::new();
     let mut checked_metric_count = 0usize;
     let mut retry_storm_count = 0usize;
@@ -326,7 +366,10 @@ mod tests {
         })];
         let (report, findings) = build_boundedness_report(&records);
         assert_eq!(report["retry_storm_count"], Value::from(1));
-        assert_eq!(findings[0].category, KernelSentinelFindingCategory::RetryStorm);
+        assert_eq!(
+            findings[0].category,
+            KernelSentinelFindingCategory::RetryStorm
+        );
         assert_eq!(findings[0].severity, KernelSentinelSeverity::Critical);
     }
 

@@ -2,9 +2,8 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
-    build_kernel_sentinel_diagnostic_report_section,
-    finding_lifecycle::normalize_finding_status, KernelSentinelFinding,
-    KernelSentinelFindingCategory, KernelSentinelSeverity,
+    build_kernel_sentinel_diagnostic_report_section, finding_lifecycle::normalize_finding_status,
+    KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -16,7 +15,9 @@ pub(super) fn build_health_report(
     self_study_outputs: Option<&Value>,
     diagnostic_run: Option<&Value>,
 ) -> Value {
-    let data_starved = report["operator_summary"]["data_starved"].as_bool().unwrap_or(true);
+    let data_starved = report["operator_summary"]["data_starved"]
+        .as_bool()
+        .unwrap_or(true);
     let partial_evidence = report["operator_summary"]["partial_evidence"]
         .as_bool()
         .unwrap_or(true);
@@ -72,12 +73,12 @@ pub(super) fn build_health_report(
         .and_then(|outputs| outputs["rsi_readiness"]["ready_for_observation"].as_bool());
     let self_study_ready_for_autonomous_rsi = self_study_outputs
         .and_then(|outputs| outputs["rsi_readiness"]["ready_for_autonomous_rsi"].as_bool());
-    let trend_history_runs = self_study_outputs
-        .and_then(|outputs| outputs["trend_history_runs"].as_u64());
-    let regression_count = self_study_outputs
-        .and_then(|outputs| outputs["regression_count"].as_u64());
-    let improvement_count = self_study_outputs
-        .and_then(|outputs| outputs["improvement_count"].as_u64());
+    let trend_history_runs =
+        self_study_outputs.and_then(|outputs| outputs["trend_history_runs"].as_u64());
+    let regression_count =
+        self_study_outputs.and_then(|outputs| outputs["regression_count"].as_u64());
+    let improvement_count =
+        self_study_outputs.and_then(|outputs| outputs["improvement_count"].as_u64());
     let trend_status = self_study_outputs
         .and_then(|outputs| outputs["trend_status"].as_str())
         .unwrap_or("unavailable");

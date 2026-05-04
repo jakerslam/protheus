@@ -2,13 +2,10 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
-    kernel_sentinel_diagnostic_authorization_model,
-    kernel_sentinel_diagnostic_executor_model,
-    kernel_sentinel_diagnostic_failure_probe_policies,
-    kernel_sentinel_diagnostic_request_model,
-    kernel_sentinel_diagnostic_result_model,
-    kernel_sentinel_targeted_regression_executor_model,
-    kernel_sentinel_failure_level_taxonomy, kernel_sentinel_incident_event_model,
+    kernel_sentinel_diagnostic_authorization_model, kernel_sentinel_diagnostic_executor_model,
+    kernel_sentinel_diagnostic_failure_probe_policies, kernel_sentinel_diagnostic_request_model,
+    kernel_sentinel_diagnostic_result_model, kernel_sentinel_failure_level_taxonomy,
+    kernel_sentinel_incident_event_model, kernel_sentinel_targeted_regression_executor_model,
     kernel_system_understanding_dossier_model, KernelSentinelAuthorityClass,
     KernelSentinelAuthorityRule, KernelSentinelEvidenceSource, KERNEL_SENTINEL_CLI_DOMAIN,
     KERNEL_SENTINEL_CONTRACT_VERSION, KERNEL_SENTINEL_MODULE_ID, KERNEL_SENTINEL_NAME,

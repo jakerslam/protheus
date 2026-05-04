@@ -5,12 +5,11 @@ use super::{
     causal_hypothesis::root_cause_hypothesis_text,
     diagnostic_run_artifact::attach_diagnostic_context_to_issue_draft,
     incident_report::violated_invariants,
-    kernel_sentinel_semantic_frame_for_finding,
     issue_cluster_semantics::{
         cluster_fields, issue_cluster_key, issue_family_fingerprint, issue_family_kind,
         issue_summary, issue_title, severity_rank, synthetic_issue_scenario_id, FindingCluster,
     },
-    KernelSentinelFinding,
+    kernel_sentinel_semantic_frame_for_finding, KernelSentinelFinding,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -20,7 +19,10 @@ use std::path::Path;
 fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
     let prefix = format!("{name}=");
     args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<usize>().ok()))
+        .find_map(|arg| {
+            arg.strip_prefix(&prefix)
+                .and_then(|raw| raw.parse::<usize>().ok())
+        })
         .unwrap_or(fallback)
 }
 
@@ -67,8 +69,13 @@ fn issue_draft(cluster: &FindingCluster) -> Value {
         .to_string();
     let validation_route = issue_validation_route(cluster, &semantic_frame);
     let acceptance_criteria = issue_acceptance_criteria(&validation_route);
-    let recommended_fix =
-        issue_recommended_fix(finding, cluster, &semantic_frame, &component, &validation_route);
+    let recommended_fix = issue_recommended_fix(
+        finding,
+        cluster,
+        &semantic_frame,
+        &component,
+        &validation_route,
+    );
     let anti_patching = anti_patching_assessment(cluster);
     json!({
         "type": "kernel_sentinel_issue_draft",
@@ -184,7 +191,9 @@ fn issue_root_cause_hypothesis(
     cluster: &FindingCluster,
     semantic_frame: &Value,
 ) -> String {
-    let root_frame = semantic_frame["root_frame"].as_str().unwrap_or("unknown_root_frame");
+    let root_frame = semantic_frame["root_frame"]
+        .as_str()
+        .unwrap_or("unknown_root_frame");
     let invariant = cluster
         .violated_invariants
         .iter()
@@ -203,7 +212,9 @@ fn issue_recommended_fix(
     component: &str,
     validation_route: &[Value],
 ) -> String {
-    let root_frame = semantic_frame["root_frame"].as_str().unwrap_or("unknown_root_frame");
+    let root_frame = semantic_frame["root_frame"]
+        .as_str()
+        .unwrap_or("unknown_root_frame");
     let invariant = cluster
         .violated_invariants
         .iter()
@@ -213,7 +224,9 @@ fn issue_recommended_fix(
     let validation_command = validation_route
         .first()
         .and_then(|route| route["command"].as_str())
-        .unwrap_or("cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture");
+        .unwrap_or(
+            "cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture",
+        );
     let upstream = finding.recommended_action.trim();
     let prefix = if upstream.is_empty()
         || upstream == "inspect deterministic kernel evidence and restore fail-closed behavior"
@@ -229,7 +242,9 @@ fn issue_recommended_fix(
 }
 
 fn issue_validation_route(cluster: &FindingCluster, semantic_frame: &Value) -> Vec<Value> {
-    let root_frame = semantic_frame["root_frame"].as_str().unwrap_or("unknown_root_frame");
+    let root_frame = semantic_frame["root_frame"]
+        .as_str()
+        .unwrap_or("unknown_root_frame");
     vec![json!({
         "route": "kernel_sentinel_regression",
         "command": "cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture",
@@ -243,7 +258,9 @@ fn issue_acceptance_criteria(validation_route: &[Value]) -> Vec<String> {
     let validation_command = validation_route
         .first()
         .and_then(|route| route["command"].as_str())
-        .unwrap_or("cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture");
+        .unwrap_or(
+            "cargo test --manifest-path core/layer0/ops/Cargo.toml kernel_sentinel -- --nocapture",
+        );
     vec![
         "deterministic evidence no longer emits this fingerprint".to_string(),
         "strict Kernel Sentinel report returns allow for this scenario".to_string(),
@@ -272,8 +289,16 @@ fn issue_quality_failures(drafts: &[Value]) -> Vec<Value> {
             .get("fingerprint")
             .and_then(Value::as_str)
             .unwrap_or("unknown_fingerprint");
-        let title = draft.get("title").and_then(Value::as_str).unwrap_or("").trim();
-        let impact = draft.get("impact").and_then(Value::as_str).unwrap_or("").trim();
+        let title = draft
+            .get("title")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim();
+        let impact = draft
+            .get("impact")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim();
         let recommended_fix = draft
             .get("recommended_fix")
             .and_then(Value::as_str)
@@ -308,10 +333,21 @@ fn issue_quality_failures(drafts: &[Value]) -> Vec<Value> {
         for (key, reason, min_len) in [
             ("component", "missing_component", 3usize),
             ("observed_failure", "missing_observed_failure", 16usize),
-            ("root_cause_hypothesis", "missing_root_cause_hypothesis", 24usize),
+            (
+                "root_cause_hypothesis",
+                "missing_root_cause_hypothesis",
+                24usize,
+            ),
             ("repair_type", "missing_repair_type", 3usize),
         ] {
-            if draft.get(key).and_then(Value::as_str).unwrap_or("").trim().len() < min_len {
+            if draft
+                .get(key)
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim()
+                .len()
+                < min_len
+            {
                 reasons.push(reason);
             }
         }
@@ -319,7 +355,13 @@ fn issue_quality_failures(drafts: &[Value]) -> Vec<Value> {
             reasons.push("missing_validation_route");
         }
         for required in ["failure_level", "root_frame", "remediation_level"] {
-            if draft.get(required).and_then(Value::as_str).unwrap_or("").trim().is_empty() {
+            if draft
+                .get(required)
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim()
+                .is_empty()
+            {
                 reasons.push("missing_semantic_frame");
                 break;
             }

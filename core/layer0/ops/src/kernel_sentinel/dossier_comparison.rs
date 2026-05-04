@@ -53,12 +53,20 @@ fn transfer_ready_capability_ids(source_dossier: &SystemUnderstandingDossier) ->
     source_dossier
         .capabilities
         .iter()
-        .filter(|row| !matches!(row.transfer_target, SystemUnderstandingTransferTarget::Reject))
+        .filter(|row| {
+            !matches!(
+                row.transfer_target,
+                SystemUnderstandingTransferTarget::Reject
+            )
+        })
         .map(|row| row.id.clone())
         .collect()
 }
 
-fn soul_fit(source_dossier: &SystemUnderstandingDossier, self_dossier: &SystemUnderstandingDossier) -> Value {
+fn soul_fit(
+    source_dossier: &SystemUnderstandingDossier,
+    self_dossier: &SystemUnderstandingDossier,
+) -> Value {
     let source = normalized_set(&source_dossier.soul_evidence);
     let target = normalized_set(&self_dossier.soul_evidence);
     let shared = ordered_strings(source.intersection(&target).cloned().collect());
@@ -82,7 +90,12 @@ fn authority_fit(
     let shell_pressure = source_dossier
         .capabilities
         .iter()
-        .filter(|row| matches!(row.transfer_target, SystemUnderstandingTransferTarget::Shell))
+        .filter(|row| {
+            matches!(
+                row.transfer_target,
+                SystemUnderstandingTransferTarget::Shell
+            )
+        })
         .map(|row| row.id.clone())
         .collect::<Vec<_>>();
     let aligned = source_dossier
@@ -208,7 +221,11 @@ mod tests {
             owners: vec!["kernel-sentinel".to_string()],
             status: SystemUnderstandingDossierStatus::Usable,
             confidence_overall: 0.85,
-            blocking_unknowns: if required_next_probes.is_empty() { Vec::new() } else { vec!["needs_more_truth".to_string()] },
+            blocking_unknowns: if required_next_probes.is_empty() {
+                Vec::new()
+            } else {
+                vec!["needs_more_truth".to_string()]
+            },
             evidence_index: vec!["evidence.json".to_string()],
             soul_confidence: 0.8,
             soul_evidence: soul_evidence.into_iter().map(str::to_string).collect(),
@@ -216,7 +233,10 @@ mod tests {
             runtime_confidence: 0.82,
             runtime_evidence: vec!["runtime.json".to_string()],
             runtime_unknowns: Vec::new(),
-            required_next_probes: required_next_probes.into_iter().map(str::to_string).collect(),
+            required_next_probes: required_next_probes
+                .into_iter()
+                .map(str::to_string)
+                .collect(),
             ecology_confidence: 0.72,
             ecology_evidence: vec!["ecology.json".to_string()],
             ecology_unknowns: Vec::new(),
@@ -278,44 +298,84 @@ mod tests {
             SystemUnderstandingDossierTargetMode::ExternalAssimilation,
             "forgecode",
             "ForgeCode",
-            vec!["agentic coding workflow", "receipt-first deterministic runtime"],
+            vec![
+                "agentic coding workflow",
+                "receipt-first deterministic runtime",
+            ],
             Vec::new(),
             vec![
-                capability("tooling_surface", SystemUnderstandingTransferTarget::Kernel, vec!["tooling-proof.json"]),
-                capability("role_workflow", SystemUnderstandingTransferTarget::WorkflowJson, vec!["workflow-proof.json"]),
-                capability("shell_agent_authority", SystemUnderstandingTransferTarget::Shell, vec!["shell-proof.json"]),
+                capability(
+                    "tooling_surface",
+                    SystemUnderstandingTransferTarget::Kernel,
+                    vec!["tooling-proof.json"],
+                ),
+                capability(
+                    "role_workflow",
+                    SystemUnderstandingTransferTarget::WorkflowJson,
+                    vec!["workflow-proof.json"],
+                ),
+                capability(
+                    "shell_agent_authority",
+                    SystemUnderstandingTransferTarget::Shell,
+                    vec!["shell-proof.json"],
+                ),
             ],
-            vec![capability("shell_truth_authority", SystemUnderstandingTransferTarget::Reject, Vec::new())],
+            vec![capability(
+                "shell_truth_authority",
+                SystemUnderstandingTransferTarget::Reject,
+                Vec::new(),
+            )],
         );
         let self_dossier = dossier(
             SystemUnderstandingDossierTargetMode::InternalRsi,
             "infring",
             "InfRing",
-            vec!["receipt-first deterministic runtime", "kernel authority with orchestration as non-canonical coordination"],
+            vec![
+                "receipt-first deterministic runtime",
+                "kernel authority with orchestration as non-canonical coordination",
+            ],
             Vec::new(),
             vec![
-                capability("tooling_surface", SystemUnderstandingTransferTarget::Kernel, vec!["tooling-proof.json"]),
-                capability("architectural_incident_synthesis", SystemUnderstandingTransferTarget::Kernel, vec!["incident-proof.json"]),
+                capability(
+                    "tooling_surface",
+                    SystemUnderstandingTransferTarget::Kernel,
+                    vec!["tooling-proof.json"],
+                ),
+                capability(
+                    "architectural_incident_synthesis",
+                    SystemUnderstandingTransferTarget::Kernel,
+                    vec!["incident-proof.json"],
+                ),
             ],
-            vec![capability("shell_truth_authority", SystemUnderstandingTransferTarget::Reject, Vec::new())],
+            vec![capability(
+                "shell_truth_authority",
+                SystemUnderstandingTransferTarget::Reject,
+                Vec::new(),
+            )],
         );
         let comparison = build_external_assimilation_dossier_comparison(&source, &self_dossier);
         assert_eq!(comparison["mode"], "comparison_ready");
-        assert!(comparison["capability_gap_analysis"]["shared_capability_ids"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("tooling_surface")));
-        assert!(comparison["capability_gap_analysis"]["source_only_capability_ids"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("role_workflow")));
-        assert!(comparison["authority_fit"]["shell_authority_pressure_capability_ids"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("shell_agent_authority")));
+        assert!(
+            comparison["capability_gap_analysis"]["shared_capability_ids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|row| row.as_str() == Some("tooling_surface"))
+        );
+        assert!(
+            comparison["capability_gap_analysis"]["source_only_capability_ids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|row| row.as_str() == Some("role_workflow"))
+        );
+        assert!(
+            comparison["authority_fit"]["shell_authority_pressure_capability_ids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|row| row.as_str() == Some("shell_agent_authority"))
+        );
         assert!(comparison["soul_fit"]["score"].as_f64().unwrap() > 0.0);
     }
 
@@ -327,7 +387,11 @@ mod tests {
             "ForgeCode",
             vec!["agentic coding workflow"],
             vec!["probe_runtime_surface"],
-            vec![capability("tooling_surface", SystemUnderstandingTransferTarget::Kernel, Vec::new())],
+            vec![capability(
+                "tooling_surface",
+                SystemUnderstandingTransferTarget::Kernel,
+                Vec::new(),
+            )],
             Vec::new(),
         );
         let self_dossier = dossier(
@@ -336,7 +400,11 @@ mod tests {
             "InfRing",
             vec!["receipt-first deterministic runtime"],
             vec!["raise_runtime_dossier_confidence"],
-            vec![capability("tooling_surface", SystemUnderstandingTransferTarget::Kernel, vec!["proof.json"])],
+            vec![capability(
+                "tooling_surface",
+                SystemUnderstandingTransferTarget::Kernel,
+                vec!["proof.json"],
+            )],
             Vec::new(),
         );
         let comparison = build_external_assimilation_dossier_comparison(&source, &self_dossier);
@@ -351,10 +419,12 @@ mod tests {
             .unwrap()
             .iter()
             .any(|row| row.as_str() == Some("raise_runtime_dossier_confidence")));
-        assert!(comparison["proof_burden"]["capabilities_missing_runtime_proof"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|row| row.as_str() == Some("tooling_surface")));
+        assert!(
+            comparison["proof_burden"]["capabilities_missing_runtime_proof"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|row| row.as_str() == Some("tooling_surface"))
+        );
     }
 }

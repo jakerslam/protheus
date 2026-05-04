@@ -2,8 +2,8 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use super::{
-    kernel_sentinel_semantic_frame_for_finding,
-    KernelSentinelFinding, KernelSentinelFindingCategory, KernelSentinelSeverity,
+    kernel_sentinel_semantic_frame_for_finding, KernelSentinelFinding,
+    KernelSentinelFindingCategory, KernelSentinelSeverity,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -22,7 +22,10 @@ struct MaintenanceCluster {
 fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
     let prefix = format!("{name}=");
     args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<usize>().ok()))
+        .find_map(|arg| {
+            arg.strip_prefix(&prefix)
+                .and_then(|raw| raw.parse::<usize>().ok())
+        })
         .unwrap_or(fallback)
 }
 
@@ -126,7 +129,9 @@ fn build_clusters(findings: &[KernelSentinelFinding]) -> BTreeMap<String, Mainte
                 evidence: BTreeSet::new(),
             });
         entry.occurrence_count += 1;
-        entry.exemplar_fingerprints.insert(finding.fingerprint.clone());
+        entry
+            .exemplar_fingerprints
+            .insert(finding.fingerprint.clone());
         entry.evidence.extend(finding.evidence.iter().cloned());
         if severity_rank(finding.severity) > severity_rank(entry.exemplar.severity) {
             entry.exemplar = finding.clone();
@@ -267,7 +272,13 @@ mod tests {
 
     #[test]
     fn repeated_evidence_produces_nonblocking_suggestion() {
-        let report = build_maintenance_synthesis(&[finding(KernelSentinelSeverity::Medium), finding(KernelSentinelSeverity::Medium)], &[]);
+        let report = build_maintenance_synthesis(
+            &[
+                finding(KernelSentinelSeverity::Medium),
+                finding(KernelSentinelSeverity::Medium),
+            ],
+            &[],
+        );
         assert_eq!(report["suggestion_count"], Value::from(1));
         assert_eq!(report["suggestions"][0]["label"], "optimization");
         assert_eq!(report["suggestions"][0]["blocks_release"], false);
@@ -304,7 +315,10 @@ mod tests {
             "L1_component_regression"
         );
         assert_eq!(report["automation_candidates"][0]["allowed_apply"], false);
-        assert_eq!(report["automation_candidates"][0]["may_waive_findings"], false);
+        assert_eq!(
+            report["automation_candidates"][0]["may_waive_findings"],
+            false
+        );
     }
 
     #[test]

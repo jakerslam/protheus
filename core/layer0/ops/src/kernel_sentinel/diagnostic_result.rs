@@ -155,20 +155,16 @@ mod tests {
         let model = kernel_sentinel_diagnostic_result_model();
         assert_eq!(model["type"], "kernel_sentinel_diagnostic_result_model");
         assert_eq!(model["schema_version"], 1);
-        assert!(
-            model["outcomes"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|value| value == "refused")
-        );
-        assert!(
-            model["stop_reasons"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|value| value == "budget_exhausted")
-        );
+        assert!(model["outcomes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value == "refused"));
+        assert!(model["stop_reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value == "budget_exhausted"));
     }
 
     #[test]

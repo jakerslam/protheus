@@ -27,7 +27,9 @@ pub(super) fn build_promotion_lane(
         .iter()
         .filter(|candidate| candidate["promotion_state"] == "stale_do_not_use")
         .count();
-    let needs_triage_count = triage_candidates.len().saturating_sub(stale_candidate_count);
+    let needs_triage_count = triage_candidates
+        .len()
+        .saturating_sub(stale_candidate_count);
 
     json!({
         "type": "kernel_sentinel_human_review_promotion_lane",
@@ -91,7 +93,9 @@ fn promotion_candidate(index: usize, cluster: &Value, top_findings: &[Value]) ->
 
 fn triage_candidate(index: usize, finding: &Value) -> Value {
     let stale = finding["actionability_state"].as_str() == Some("stale_do_not_use")
-        || finding["quality"]["stale_do_not_use"].as_bool().unwrap_or(false);
+        || finding["quality"]["stale_do_not_use"]
+            .as_bool()
+            .unwrap_or(false);
     json!({
         "candidate_id": format!("ksent-triage-{index}"),
         "source_finding_id": finding["id"].clone(),
@@ -149,12 +153,22 @@ mod tests {
 fn compact_array(value: &Value, limit: usize) -> Vec<String> {
     value
         .as_array()
-        .map(|rows| rows.iter().filter_map(Value::as_str).take(limit).map(compact_text).collect())
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .take(limit)
+                .map(compact_text)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
 fn compact_text(raw: &str) -> String {
-    let mut out = raw.trim().chars().take(MAX_PROMOTION_TEXT).collect::<String>();
+    let mut out = raw
+        .trim()
+        .chars()
+        .take(MAX_PROMOTION_TEXT)
+        .collect::<String>();
     if raw.trim().chars().count() > MAX_PROMOTION_TEXT {
         out.push_str("...");
     }

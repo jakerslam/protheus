@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
-    KernelSentinelFailureLevel, KernelSentinelIncidentEvent,
-    KernelSentinelIncidentEvidenceLevel,
+    KernelSentinelFailureLevel, KernelSentinelIncidentEvent, KernelSentinelIncidentEvidenceLevel,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -64,7 +63,10 @@ fn time_window_label(observed_at: &str, window_seconds: i64) -> String {
             let start = epoch - epoch.rem_euclid(window_seconds);
             format!("epoch_seconds:{start}:window_seconds:{window_seconds}")
         }
-        None => format!("unparsed:{}:window_seconds:{window_seconds}", observed_at.trim()),
+        None => format!(
+            "unparsed:{}:window_seconds:{window_seconds}",
+            observed_at.trim()
+        ),
     }
 }
 
@@ -131,11 +133,18 @@ pub fn cluster_kernel_sentinel_incident_events(
     events: &[KernelSentinelIncidentEvent],
     window_seconds: i64,
 ) -> Vec<KernelSentinelIncidentCluster> {
-    let mut clusters = BTreeMap::<KernelSentinelIncidentClusterKey, KernelSentinelIncidentCluster>::new();
-    let mut cluster_invariant_seen = BTreeMap::<KernelSentinelIncidentClusterKey, BTreeSet<String>>::new();
-    let mut cluster_level_seen = BTreeMap::<KernelSentinelIncidentClusterKey, BTreeSet<KernelSentinelIncidentEvidenceLevel>>::new();
-    let mut cluster_evidence_seen = BTreeMap::<KernelSentinelIncidentClusterKey, BTreeSet<String>>::new();
-    let mut cluster_summary_seen = BTreeMap::<KernelSentinelIncidentClusterKey, BTreeSet<String>>::new();
+    let mut clusters =
+        BTreeMap::<KernelSentinelIncidentClusterKey, KernelSentinelIncidentCluster>::new();
+    let mut cluster_invariant_seen =
+        BTreeMap::<KernelSentinelIncidentClusterKey, BTreeSet<String>>::new();
+    let mut cluster_level_seen = BTreeMap::<
+        KernelSentinelIncidentClusterKey,
+        BTreeSet<KernelSentinelIncidentEvidenceLevel>,
+    >::new();
+    let mut cluster_evidence_seen =
+        BTreeMap::<KernelSentinelIncidentClusterKey, BTreeSet<String>>::new();
+    let mut cluster_summary_seen =
+        BTreeMap::<KernelSentinelIncidentClusterKey, BTreeSet<String>>::new();
 
     for event in events {
         let key = cluster_key(event, window_seconds);
@@ -145,7 +154,11 @@ pub fn cluster_kernel_sentinel_incident_events(
         cluster.occurrence_count += 1;
         cluster.incident_ids.push(event.id.clone());
         let invariant_ids = cluster_invariant_seen.entry(key.clone()).or_default();
-        insert_unique(&mut cluster.invariant_ids, invariant_ids, event.invariant_id.clone());
+        insert_unique(
+            &mut cluster.invariant_ids,
+            invariant_ids,
+            event.invariant_id.clone(),
+        );
         if event.failure_level > cluster.highest_failure_level {
             cluster.highest_failure_level = event.failure_level;
         }
@@ -175,7 +188,7 @@ pub fn cluster_kernel_sentinel_incident_events(
 mod tests {
     use super::*;
     use crate::kernel_sentinel::{
-        KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION, KernelSentinelIncidentEvidenceLevel,
+        KernelSentinelIncidentEvidenceLevel, KERNEL_SENTINEL_INCIDENT_EVENT_SCHEMA_VERSION,
     };
 
     fn event(
@@ -297,7 +310,13 @@ mod tests {
                 KernelSentinelIncidentEvidenceLevel::Boundary,
             ),
         ];
-        assert_eq!(cluster_kernel_sentinel_incident_events(&events, 60).len(), 2);
-        assert_eq!(cluster_kernel_sentinel_incident_events(&events, 120).len(), 1);
+        assert_eq!(
+            cluster_kernel_sentinel_incident_events(&events, 60).len(),
+            2
+        );
+        assert_eq!(
+            cluster_kernel_sentinel_incident_events(&events, 120).len(),
+            1
+        );
     }
 }

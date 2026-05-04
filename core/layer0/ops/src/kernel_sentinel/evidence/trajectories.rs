@@ -56,7 +56,14 @@ fn details(record: &Value) -> &Value {
 fn phase_status_ok(status: &str) -> bool {
     matches!(
         status,
-        "ok" | "pass" | "passed" | "allow" | "allowed" | "complete" | "completed" | "synthesized" | "skipped"
+        "ok" | "pass"
+            | "passed"
+            | "allow"
+            | "allowed"
+            | "complete"
+            | "completed"
+            | "synthesized"
+            | "skipped"
     )
 }
 
@@ -64,9 +71,15 @@ fn normalized_phase_name(raw: &str) -> String {
     let lowered = raw.trim().to_lowercase().replace('-', "_");
     let lowered = match lowered.as_str() {
         "capability" | "precondition" | "preconditions" | "probe" | "probes" => "capability_check",
-        "tool" | "tool_call" | "tool_invocation" | "tool_execute" | "tool_execution" => "tool_start",
-        "tool_done" | "tool_complete" | "tool_completion" | "tool_observation" | "tool_output" => "tool_result",
-        "final" | "response" | "assistant_response" | "llm_final" | "llm_finalization" => "finalization",
+        "tool" | "tool_call" | "tool_invocation" | "tool_execute" | "tool_execution" => {
+            "tool_start"
+        }
+        "tool_done" | "tool_complete" | "tool_completion" | "tool_observation" | "tool_output" => {
+            "tool_result"
+        }
+        "final" | "response" | "assistant_response" | "llm_final" | "llm_finalization" => {
+            "finalization"
+        }
         "recover" | "retry" | "fallback" | "escalation" => "recovery",
         _ => lowered.as_str(),
     }
@@ -156,7 +169,11 @@ fn trajectory_record(record: &Value, phases: &[Phase], first_failed: Option<&Pha
     })
 }
 
-fn finding_for_failed_trajectory(record: &Value, phase: &Phase, phases: &[Phase]) -> KernelSentinelFinding {
+fn finding_for_failed_trajectory(
+    record: &Value,
+    phase: &Phase,
+    phases: &[Phase],
+) -> KernelSentinelFinding {
     let subject = trajectory_subject(record);
     let timeline = compact_timeline(phases);
     let mut evidence = evidence(record, &format!("trajectory://{subject}"));
@@ -172,7 +189,9 @@ fn finding_for_failed_trajectory(record: &Value, phase: &Phase, phases: &[Phase]
         fingerprint: format!("trajectory:{}:{}", subject, phase.name),
         evidence,
         summary: format!("{subject} first failed during `{}` phase", phase.name),
-        recommended_action: "replay the ordered trajectory and repair the first failed phase before retrying".to_string(),
+        recommended_action:
+            "replay the ordered trajectory and repair the first failed phase before retrying"
+                .to_string(),
         status: "open".to_string(),
     }
 }
@@ -228,7 +247,10 @@ mod tests {
         let (report, findings) = build_trajectory_report(&records);
         assert_eq!(report["failed_trajectory_count"], Value::from(1));
         assert_eq!(findings[0].fingerprint, "trajectory:turn-7:tool_result");
-        assert!(findings[0].evidence.iter().any(|row| row.contains("first_failed_phase=tool_result")));
+        assert!(findings[0]
+            .evidence
+            .iter()
+            .any(|row| row.contains("first_failed_phase=tool_result")));
     }
 
     #[test]

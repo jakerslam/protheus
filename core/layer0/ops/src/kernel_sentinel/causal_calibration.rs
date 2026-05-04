@@ -45,7 +45,11 @@ pub(super) fn build_kernel_sentinel_causal_calibration(
         "--causal-fix-results-path",
         state_dir.join("causal_fix_results.jsonl"),
     );
-    let limit = option_usize(args, "--calibrated-hypothesis-limit", DEFAULT_CALIBRATED_HYPOTHESIS_LIMIT);
+    let limit = option_usize(
+        args,
+        "--calibrated-hypothesis-limit",
+        DEFAULT_CALIBRATED_HYPOTHESIS_LIMIT,
+    );
     let outcome_rows = read_jsonl(&outcome_ledger_path);
     let fix_rows = read_jsonl(&fix_results_path);
     let outcome_counts = outcome_counts(&outcome_rows, &fix_rows);
@@ -116,8 +120,15 @@ pub(super) fn write_causal_calibration_artifacts(
         .filter_map(|row| serde_json::to_string(row).ok())
         .collect::<Vec<_>>()
         .join("\n");
-    fs::write(&entries_path, if body.is_empty() { body } else { format!("{body}\n") })
-        .map_err(|err| err.to_string())?;
+    fs::write(
+        &entries_path,
+        if body.is_empty() {
+            body
+        } else {
+            format!("{body}\n")
+        },
+    )
+    .map_err(|err| err.to_string())?;
     super::write_json(&score_path, &report["causal_calibration"]["pattern_scores"])
 }
 
@@ -148,12 +159,27 @@ fn calibrate_hypothesis(
     output
 }
 
-fn promotion_gate(row: &Value, calibrated_confidence: u64, cluster_size: usize, counts: &OutcomeCounts) -> Value {
+fn promotion_gate(
+    row: &Value,
+    calibrated_confidence: u64,
+    cluster_size: usize,
+    counts: &OutcomeCounts,
+) -> Value {
     let mut missing = Vec::new();
-    if row["support_evidence"].as_array().map(Vec::len).unwrap_or(0) == 0 {
+    if row["support_evidence"]
+        .as_array()
+        .map(Vec::len)
+        .unwrap_or(0)
+        == 0
+    {
         missing.push("support_evidence");
     }
-    if row["counter_evidence"].as_array().map(Vec::len).unwrap_or(0) == 0 {
+    if row["counter_evidence"]
+        .as_array()
+        .map(Vec::len)
+        .unwrap_or(0)
+        == 0
+    {
         missing.push("counter_evidence");
     }
     if text_at(row, &["falsification_probe", "probe"]).is_empty() {
@@ -174,7 +200,8 @@ fn promotion_gate(row: &Value, calibrated_confidence: u64, cluster_size: usize, 
     if row["causal_power_score"].as_u64().unwrap_or(0) < DEFAULT_PROMOTION_CAUSAL_POWER {
         missing.push("causal_power");
     }
-    let recurrent_or_confirmed = cluster_size > 1 || counts.confirmed + counts.partially_confirmed > 0;
+    let recurrent_or_confirmed =
+        cluster_size > 1 || counts.confirmed + counts.partially_confirmed > 0;
     if !recurrent_or_confirmed {
         missing.push("recurrence_or_confirmed_outcome");
     }
@@ -218,7 +245,11 @@ fn final_report_summary(
     promotion_ready_count: usize,
     counts: &BTreeMap<String, OutcomeCounts>,
 ) -> Value {
-    let top = rows.iter().take(3).map(compact_hypothesis).collect::<Vec<_>>();
+    let top = rows
+        .iter()
+        .take(3)
+        .map(compact_hypothesis)
+        .collect::<Vec<_>>();
     json!({
         "type": "kernel_sentinel_causal_calibration_summary",
         "ledger_path": ledger_path.display().to_string(),
@@ -262,7 +293,11 @@ fn root_cause_clusters(rows: &[Value]) -> Vec<Value> {
 
 fn cluster_json(key: &str, rows: &[&Value]) -> Value {
     let exemplar = rows.first().copied().unwrap_or(&Value::Null);
-    let ids = rows.iter().map(|row| text(row, "id")).take(6).collect::<Vec<_>>();
+    let ids = rows
+        .iter()
+        .map(|row| text(row, "id"))
+        .take(6)
+        .collect::<Vec<_>>();
     json!({
         "cluster_key": key,
         "pattern": text(exemplar, "pattern"),
@@ -293,7 +328,12 @@ fn outcome_counts(outcome_rows: &[Value], fix_rows: &[Value]) -> BTreeMap<String
 
 fn patterns_for_row(row: &Value) -> BTreeSet<String> {
     let mut patterns = BTreeSet::new();
-    for key in ["pattern", "validated_pattern", "partially_validated_pattern", "contradicted_pattern"] {
+    for key in [
+        "pattern",
+        "validated_pattern",
+        "partially_validated_pattern",
+        "contradicted_pattern",
+    ] {
         let value = text(row, key);
         if !value.is_empty() {
             patterns.insert(value);
@@ -307,11 +347,17 @@ fn outcome_for_row(row: &Value) -> String {
     if !raw.is_empty() {
         return raw;
     }
-    if !text(row, "validated_hypothesis_id").is_empty() || !text(row, "validated_pattern").is_empty() {
+    if !text(row, "validated_hypothesis_id").is_empty()
+        || !text(row, "validated_pattern").is_empty()
+    {
         "confirmed".to_string()
-    } else if !text(row, "partially_validated_hypothesis_id").is_empty() || !text(row, "partially_validated_pattern").is_empty() {
+    } else if !text(row, "partially_validated_hypothesis_id").is_empty()
+        || !text(row, "partially_validated_pattern").is_empty()
+    {
         "partially_confirmed".to_string()
-    } else if !text(row, "contradicted_hypothesis_id").is_empty() || !text(row, "contradicted_pattern").is_empty() {
+    } else if !text(row, "contradicted_hypothesis_id").is_empty()
+        || !text(row, "contradicted_pattern").is_empty()
+    {
         "contradicted".to_string()
     } else {
         "unresolved".to_string()
@@ -334,7 +380,8 @@ fn pattern_scores_json(counts: &BTreeMap<String, OutcomeCounts>) -> Vec<Value> {
 
 fn confidence_delta(counts: &OutcomeCounts) -> i64 {
     ((counts.confirmed as i64) * 8 + (counts.partially_confirmed as i64) * 4
-        - (counts.contradicted as i64) * 10 - (counts.unresolved.min(4) as i64))
+        - (counts.contradicted as i64) * 10
+        - (counts.unresolved.min(4) as i64))
         .clamp(-20, 20)
 }
 
@@ -382,8 +429,12 @@ fn cluster_key(row: &Value) -> String {
 
 fn owner_guess(row: &Value) -> String {
     match text(row, "pattern").as_str() {
-        "gateway_lifecycle_truth_contradiction" | "installed_runtime_identity_invalid" => "gateways".to_string(),
-        "observability_noise_release" | "boundedness_budget_regression" => "observability".to_string(),
+        "gateway_lifecycle_truth_contradiction" | "installed_runtime_identity_invalid" => {
+            "gateways".to_string()
+        }
+        "observability_noise_release" | "boundedness_budget_regression" => {
+            "observability".to_string()
+        }
         "authority_shape_residue" | "receipt_integrity_gap" => "kernel".to_string(),
         "projection_surface_became_runtime_owner" => "gateway_shell_boundary".to_string(),
         "response_finalization_gap" => "orchestration_control_plane".to_string(),
@@ -412,12 +463,18 @@ fn option_path(args: &[String], name: &str, fallback: PathBuf) -> PathBuf {
 fn option_usize(args: &[String], name: &str, fallback: usize) -> usize {
     let prefix = format!("{name}=");
     args.iter()
-        .find_map(|arg| arg.strip_prefix(&prefix).and_then(|raw| raw.parse::<usize>().ok()))
+        .find_map(|arg| {
+            arg.strip_prefix(&prefix)
+                .and_then(|raw| raw.parse::<usize>().ok())
+        })
         .unwrap_or(fallback)
 }
 
 fn score_for_sort(row: &Value) -> u64 {
-    row["calibration"]["calibrated_confidence_percent"].as_u64().unwrap_or(0) * 1000
+    row["calibration"]["calibrated_confidence_percent"]
+        .as_u64()
+        .unwrap_or(0)
+        * 1000
         + row["causal_power_score"].as_u64().unwrap_or(0)
 }
 
@@ -443,7 +500,13 @@ fn text_at(row: &Value, keys: &[&str]) -> String {
 
 fn normalized(raw: &str) -> String {
     raw.chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_lowercase() } else { '_' })
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() {
+                ch.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .split('_')
         .filter(|part| !part.is_empty())

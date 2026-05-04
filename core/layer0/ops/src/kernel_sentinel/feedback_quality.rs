@@ -155,7 +155,8 @@ mod tests {
             reviewer: "codex".to_string(),
             evidence_refs: vec!["local/state/kernel_sentinel/report.json".to_string()],
             root_cause_hypothesis: "The finding maps to a boundary ownership gap.".to_string(),
-            concrete_next_action: "Move the repair into the owning domain and add a replay guard.".to_string(),
+            concrete_next_action: "Move the repair into the owning domain and add a replay guard."
+                .to_string(),
             resolution_ref: "commit:demo".to_string(),
         }
     }

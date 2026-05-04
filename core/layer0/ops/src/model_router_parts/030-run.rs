@@ -227,10 +227,10 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     let provider_online = parse_bool_flag(flag_value(args, "provider-online"), true);
     let preferred_model = flag_value(args, "preferred-model")
         .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "ollama/llama3.2:latest".to_string());
+        .unwrap_or_else(|| "ollama/kimi-k2.6:cloud".to_string());
     let fallback_model = flag_value(args, "fallback-model")
         .filter(|v| !v.trim().is_empty())
-        .unwrap_or_else(|| "ollama/kimi-k2.5:cloud".to_string());
+        .unwrap_or_else(|| "ollama/kimi-k2.6:cloud".to_string());
     let (selected_model, fallback_applied) =
         select_route_model(provider_online, &preferred_model, &fallback_model);
 
@@ -420,4 +420,3 @@ pub fn infer_role(intent: &str, task: &str) -> String {
 
     "general".to_string()
 }
-

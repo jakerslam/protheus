@@ -10,15 +10,20 @@ use std::time::{Duration, Instant};
 
 use super::cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 use super::diagnostic_run_artifact::{
-    build_kernel_sentinel_diagnostic_report_section,
-    build_kernel_sentinel_diagnostic_run_artifact, KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME,
+    build_kernel_sentinel_diagnostic_report_section, build_kernel_sentinel_diagnostic_run_artifact,
+    KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME,
 };
 use super::report_summary::build_health_report;
+use super::rsi_handoff::build_internal_rsi_proposals;
 use super::self_dossier::build_infring_self_dossier;
 use super::self_dossier_markdown::render_infring_self_dossier_markdown;
-use super::system_understanding_worksheet::{build_system_understanding_worksheet, render_system_understanding_worksheet_markdown};
-use super::rsi_handoff::build_internal_rsi_proposals;
-use super::{boot_watch, build_report, issue_synthesis, maintenance_synthesis, report_output, self_study, waivers, write_json};
+use super::system_understanding_worksheet::{
+    build_system_understanding_worksheet, render_system_understanding_worksheet_markdown,
+};
+use super::{
+    boot_watch, build_report, issue_synthesis, maintenance_synthesis, report_output, self_study,
+    waivers, write_json,
+};
 
 const DEFAULT_AUTO_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_auto_run_current.json";
 const DEFAULT_STALE_MINUTES: usize = 90;
@@ -129,8 +134,15 @@ fn write_auto_run_diagnostic(
     exit_code: i32,
     started_at: Instant,
 ) -> Result<Value, String> {
-    let artifact =
-        build_auto_run_diagnostic_artifact(root, args, status, stage, failure_kind, exit_code, started_at);
+    let artifact = build_auto_run_diagnostic_artifact(
+        root,
+        args,
+        status,
+        stage,
+        failure_kind,
+        exit_code,
+        started_at,
+    );
     write_json(&auto_artifact_path(root, args), &artifact)?;
     Ok(artifact)
 }
@@ -155,10 +167,20 @@ fn persist_run_outputs(
     let write_full_internal_report = report_output::should_write_full_internal_report(args);
     let bounded_report =
         report_output::bounded_report_index(report, dir, write_full_internal_report);
-    write_json(&dir.join("kernel_sentinel_report_current.json"), &bounded_report)?;
-    write_json(&dir.join("kernel_sentinel_final_report_current.json"), &report["final_report"])?;
+    write_json(
+        &dir.join("kernel_sentinel_report_current.json"),
+        &bounded_report,
+    )?;
+    write_json(
+        &dir.join("kernel_sentinel_final_report_current.json"),
+        &report["final_report"],
+    )?;
     super::causal_calibration::write_causal_calibration_artifacts(dir, report)?;
-    report_output::write_full_internal_report_if_requested(dir, report, write_full_internal_report)?;
+    report_output::write_full_internal_report_if_requested(
+        dir,
+        report,
+        write_full_internal_report,
+    )?;
     write_json(
         &dir.join("architectural_incident_report_current.json"),
         &report["architectural_incident_report"],
@@ -166,24 +188,30 @@ fn persist_run_outputs(
     write_json(&dir.join("kernel_sentinel_verdict.json"), verdict)?;
     let self_study_outputs = self_study::write_self_study_outputs(dir, report)?;
     let diagnostic_run = build_kernel_sentinel_diagnostic_run_artifact(report);
-    write_json(&dir.join(KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME), &diagnostic_run)?;
-    let dossier = build_infring_self_dossier(
-        root,
-        report,
-        verdict,
-        &self_study_outputs,
+    write_json(
+        &dir.join(KERNEL_SENTINEL_DIAGNOSTIC_RUN_ARTIFACT_NAME),
         &diagnostic_run,
     )?;
+    let dossier =
+        build_infring_self_dossier(root, report, verdict, &self_study_outputs, &diagnostic_run)?;
     let dossier_value = dossier.clone();
     let parsed_dossier: super::SystemUnderstandingDossier =
         serde_json::from_value(dossier).map_err(|err| err.to_string())?;
     let internal_rsi_proposals = build_internal_rsi_proposals(&parsed_dossier);
-    let worksheet = build_system_understanding_worksheet(&parsed_dossier, report, &self_study_outputs, &diagnostic_run);
+    let worksheet = build_system_understanding_worksheet(
+        &parsed_dossier,
+        report,
+        &self_study_outputs,
+        &diagnostic_run,
+    );
     write_json(
         &root.join("local/state/system_understanding/infring_dossier.json"),
         &dossier_value,
     )?;
-    write_json(&root.join("local/state/system_understanding/infring_worksheet_current.json"), &worksheet)?;
+    write_json(
+        &root.join("local/state/system_understanding/infring_worksheet_current.json"),
+        &worksheet,
+    )?;
     write_json(
         &dir.join("internal_rsi_proposals_current.json"),
         &internal_rsi_proposals,
@@ -195,10 +223,19 @@ fn persist_run_outputs(
         fs::create_dir_all(parent).map_err(|err| err.to_string())?;
     }
     fs::write(&markdown_path, dossier_markdown).map_err(|err| err.to_string())?;
-    fs::write(root.join("docs/workspace/system_understanding/infring_worksheet.md"), worksheet_markdown).map_err(|err| err.to_string())?;
+    fs::write(
+        root.join("docs/workspace/system_understanding/infring_worksheet.md"),
+        worksheet_markdown,
+    )
+    .map_err(|err| err.to_string())?;
     write_json(
         &dir.join("kernel_sentinel_health_current.json"),
-        &build_health_report(report, verdict, Some(&self_study_outputs), Some(&diagnostic_run)),
+        &build_health_report(
+            report,
+            verdict,
+            Some(&self_study_outputs),
+            Some(&diagnostic_run),
+        ),
     )?;
     issue_synthesis::write_issue_drafts_jsonl(
         &dir.join("issues.jsonl"),
@@ -221,7 +258,8 @@ pub fn build_auto_run_artifact(
 ) -> Value {
     let dir = state_dir_from_args(root, args);
     let evidence_dir = option_path(args, "--evidence-dir", dir.join("evidence"));
-    let system_understanding_dossier_path = root.join("local/state/system_understanding/infring_dossier.json");
+    let system_understanding_dossier_path =
+        root.join("local/state/system_understanding/infring_dossier.json");
     let cadence = option_string(args, "--cadence", "maintenance");
     let max_stale_minutes = option_usize(args, "--max-stale-minutes", DEFAULT_STALE_MINUTES);
     let report_path = dir.join("kernel_sentinel_report_current.json");
@@ -237,7 +275,8 @@ pub fn build_auto_run_artifact(
     let blocker_count = self_study_outputs["rsi_readiness"]["operator_summary"]["blocker_count"]
         .as_u64()
         .unwrap_or(0);
-    let primary_blocker = self_study_outputs["rsi_readiness"]["operator_summary"]["primary_blocker"]
+    let primary_blocker = self_study_outputs["rsi_readiness"]["operator_summary"]
+        ["primary_blocker"]
         .as_str()
         .unwrap_or("none")
         .to_string();
@@ -390,11 +429,18 @@ fn run_auto_inner(root: &Path, effective: &[String]) -> i32 {
     let self_study_outputs = match persist_run_outputs(root, &dir, &report, &verdict, effective) {
         Ok(outputs) => outputs,
         Err(err) => {
-        eprintln!("kernel_sentinel_auto_persist_failed: {err}");
-        return 1;
+            eprintln!("kernel_sentinel_auto_persist_failed: {err}");
+            return 1;
         }
     };
-    let artifact = build_auto_run_artifact(root, effective, &report, &verdict, exit, &self_study_outputs);
+    let artifact = build_auto_run_artifact(
+        root,
+        effective,
+        &report,
+        &verdict,
+        exit,
+        &self_study_outputs,
+    );
     let out = auto_artifact_path(root, effective);
     if let Err(err) = write_json(&out, &artifact) {
         eprintln!("kernel_sentinel_auto_write_artifact_failed: {err}");
@@ -459,8 +505,9 @@ pub fn run_auto(root: &Path, args: &[String]) -> i32 {
             if !bool_flag(&effective, "--quiet-success") {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&artifact)
-                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                    serde_json::to_string_pretty(&artifact).unwrap_or_else(|_| {
+                        "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()
+                    })
                 );
             }
             exit_after_worker_failure(AUTO_TIMEOUT_EXIT_CODE)
@@ -485,8 +532,9 @@ pub fn run_auto(root: &Path, args: &[String]) -> i32 {
             if !bool_flag(&effective, "--quiet-success") {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&artifact)
-                        .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+                    serde_json::to_string_pretty(&artifact).unwrap_or_else(|_| {
+                        "{\"ok\":false,\"error\":\"encode_failed\"}".to_string()
+                    })
                 );
             }
             exit_after_worker_failure(1)

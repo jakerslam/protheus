@@ -7,7 +7,9 @@ use std::fs;
 
 fn finding_row(finding: KernelSentinelFinding, freshness_age_seconds: u64) -> String {
     let mut finding = finding;
-    finding.evidence.push(format!("freshness://age_seconds/{freshness_age_seconds}"));
+    finding
+        .evidence
+        .push(format!("freshness://age_seconds/{freshness_age_seconds}"));
     let value = serde_json::to_value(finding).unwrap();
     serde_json::to_string(&value).unwrap()
 }
@@ -22,19 +24,26 @@ fn final_report_is_budgeted_and_excludes_raw_evidence_payloads() {
     let findings_path = root.join("findings.jsonl");
     let mut rows = Vec::new();
     for index in 0..40 {
-        rows.push(
-            finding_row(KernelSentinelFinding {
+        rows.push(finding_row(
+            KernelSentinelFinding {
                 schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
                 id: format!("ks-budget-{index}"),
                 severity: KernelSentinelSeverity::High,
                 category: KernelSentinelFindingCategory::RuntimeCorrectness,
                 fingerprint: format!("runtime:budget:{index}"),
-                evidence: vec![format!("evidence://large-raw-stream/{index}/{}", "x".repeat(2048))],
+                evidence: vec![format!(
+                    "evidence://large-raw-stream/{index}/{}",
+                    "x".repeat(2048)
+                )],
                 summary: format!("large summary should be compacted {}", "s".repeat(2048)),
-                recommended_action: format!("large action should be compacted {}", "a".repeat(2048)),
+                recommended_action: format!(
+                    "large action should be compacted {}",
+                    "a".repeat(2048)
+                ),
                 status: "open".to_string(),
-            }, 30),
-        );
+            },
+            30,
+        ));
     }
     fs::write(&findings_path, rows.join("\n")).unwrap();
 
@@ -48,13 +57,18 @@ fn final_report_is_budgeted_and_excludes_raw_evidence_payloads() {
     let final_report = &report["final_report"];
     assert_eq!(final_report["type"], "kernel_sentinel_final_report");
     assert_eq!(final_report["raw_evidence"]["embedded"], false);
-    assert_eq!(final_report["report_budget"]["raw_evidence_embedded"], false);
+    assert_eq!(
+        final_report["report_budget"]["raw_evidence_embedded"],
+        false
+    );
     assert_eq!(final_report["report_budget"]["full_report_embedded"], false);
     assert_eq!(final_report["report_budget"]["within_budget"], true);
     assert!(serde_json::to_vec(final_report).unwrap().len() <= 12_000);
     assert!(final_report.get("evidence_ingestion").is_none());
     assert!(final_report.get("malformed_findings").is_none());
-    assert!(final_report["issue_synthesis"].get("issue_drafts").is_none());
+    assert!(final_report["issue_synthesis"]
+        .get("issue_drafts")
+        .is_none());
     let top_findings = final_report["top_findings"].as_array().unwrap();
     assert!(top_findings.len() <= 20);
     assert_eq!(final_report["quality_filter"]["triage_finding_count"], 0);
@@ -119,24 +133,20 @@ fn final_report_releases_only_quality_filtered_findings() {
     assert_eq!(top_findings[0]["id"], "ks-quality-good");
     assert_eq!(top_findings[0]["quality"]["release_ready"], true);
     assert_eq!(top_findings[0]["owner_guess"], "gateways");
-    assert_eq!(
-        final_report["quality_filter"]["triage_finding_count"],
-        1
-    );
-    assert_eq!(
-        final_report["quality_filter"]["released_finding_count"],
-        1
-    );
+    assert_eq!(final_report["quality_filter"]["triage_finding_count"], 1);
+    assert_eq!(final_report["quality_filter"]["released_finding_count"], 1);
     assert_eq!(final_report["triage_findings"][0]["id"], "ks-quality-weak");
     assert_eq!(
         final_report["triage_findings"][0]["quality"]["missing_requirements"][0],
         "recurrence_or_freshness_support"
     );
-    assert!(final_report["triage_findings"][0]["quality"]["missing_requirements"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|row| row.as_str() == Some("concrete_next_action")));
+    assert!(
+        final_report["triage_findings"][0]["quality"]["missing_requirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row.as_str() == Some("concrete_next_action"))
+    );
 }
 
 #[test]
@@ -168,7 +178,11 @@ fn final_report_marks_stale_findings_do_not_use_before_promotion() {
     };
     fs::write(
         &findings_path,
-        format!("{}\n{}", finding_row(fresh, 30), finding_row(stale, 900_000)),
+        format!(
+            "{}\n{}",
+            finding_row(fresh, 30),
+            finding_row(stale, 900_000)
+        ),
     )
     .unwrap();
 
@@ -190,11 +204,13 @@ fn final_report_marks_stale_findings_do_not_use_before_promotion() {
         final_report["triage_findings"][0]["quality"]["freshness"]["state"],
         "stale_reference_only"
     );
-    assert!(final_report["triage_findings"][0]["quality"]["missing_requirements"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|row| row.as_str() == Some("stale_do_not_use")));
+    assert!(
+        final_report["triage_findings"][0]["quality"]["missing_requirements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row.as_str() == Some("stale_do_not_use"))
+    );
     assert_eq!(
         final_report["promotion_lane"]["candidate_state_counts"]["stale_do_not_use"],
         1
@@ -221,7 +237,8 @@ fn final_report_clusters_release_ready_symptoms_by_root_cause() {
         fingerprint: "boundedness:workspace_queue:a".to_string(),
         evidence: vec!["evidence://boundedness/workspace/a".to_string()],
         summary: "workspace queue exceeded boundedness budget in a fresh run".to_string(),
-        recommended_action: "repair workspace queue boundedness and add replay coverage".to_string(),
+        recommended_action: "repair workspace queue boundedness and add replay coverage"
+            .to_string(),
         status: "open".to_string(),
     };
     let bounded_b = KernelSentinelFinding {
@@ -261,7 +278,10 @@ fn final_report_clusters_release_ready_symptoms_by_root_cause() {
     let (report, _verdict, _exit) = build_report(&root, &args);
     let final_report = &report["final_report"];
     assert_eq!(final_report["quality_filter"]["released_finding_count"], 3);
-    assert_eq!(final_report["quality_filter"]["clustered_top_finding_count"], 2);
+    assert_eq!(
+        final_report["quality_filter"]["clustered_top_finding_count"],
+        2
+    );
     assert_eq!(
         final_report["quality_filter"]["clustered_duplicate_finding_count"],
         1
@@ -285,7 +305,10 @@ fn final_report_clusters_release_ready_symptoms_by_root_cause() {
         .iter()
         .any(|finding| finding["cluster"]["occurrence_count"] == 2));
     assert_eq!(final_report["promotion_lane"]["mode"], "draft_only");
-    assert_eq!(final_report["promotion_lane"]["human_review_required"], true);
+    assert_eq!(
+        final_report["promotion_lane"]["human_review_required"],
+        true
+    );
     assert_eq!(final_report["promotion_lane"]["safe_to_mutate_todo"], false);
     assert_eq!(
         final_report["promotion_lane"]["candidate_state_counts"]["todo_ready"],
@@ -299,11 +322,16 @@ fn final_report_clusters_release_ready_symptoms_by_root_cause() {
         final_report["promotion_lane"]["promotion_candidates"][0]["promotion_state"],
         "human_review_required"
     );
-    assert!(final_report["promotion_lane"]["promotion_candidates"][0]["acceptance_criteria"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|row| row.as_str() == Some("todo_or_issue_is_created_by_reviewed_promotion_not_sentinel_auto_mutation")));
+    assert!(
+        final_report["promotion_lane"]["promotion_candidates"][0]["acceptance_criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row.as_str()
+                == Some(
+                    "todo_or_issue_is_created_by_reviewed_promotion_not_sentinel_auto_mutation"
+                ))
+    );
 }
 
 #[test]
@@ -316,17 +344,20 @@ fn final_report_collapses_findings_when_budget_is_tiny() {
     let findings_path = root.join("findings.jsonl");
     fs::write(
         &findings_path,
-        finding_row(KernelSentinelFinding {
-            schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
-            id: "ks-budget-tiny".to_string(),
-            severity: KernelSentinelSeverity::High,
-            category: KernelSentinelFindingCategory::Boundedness,
-            fingerprint: "boundedness:large-report".to_string(),
-            evidence: vec!["evidence://stream/ref".to_string()],
-            summary: "large report surface".to_string(),
-            recommended_action: "keep raw evidence out of final reports".to_string(),
-            status: "open".to_string(),
-        }, 30),
+        finding_row(
+            KernelSentinelFinding {
+                schema_version: KERNEL_SENTINEL_FINDING_SCHEMA_VERSION,
+                id: "ks-budget-tiny".to_string(),
+                severity: KernelSentinelSeverity::High,
+                category: KernelSentinelFindingCategory::Boundedness,
+                fingerprint: "boundedness:large-report".to_string(),
+                evidence: vec!["evidence://stream/ref".to_string()],
+                summary: "large report surface".to_string(),
+                recommended_action: "keep raw evidence out of final reports".to_string(),
+                status: "open".to_string(),
+            },
+            30,
+        ),
     )
     .unwrap();
     let args = vec![
@@ -337,7 +368,13 @@ fn final_report_collapses_findings_when_budget_is_tiny() {
     let (report, _verdict, _exit) = build_report(&root, &args);
     let final_report = &report["final_report"];
     assert_eq!(final_report["top_findings"], Value::Array(Vec::new()));
-    assert_eq!(final_report["report_budget"]["retained_top_finding_count"], 0);
-    assert_eq!(final_report["report_budget"]["dropped_top_finding_count"], 1);
+    assert_eq!(
+        final_report["report_budget"]["retained_top_finding_count"],
+        0
+    );
+    assert_eq!(
+        final_report["report_budget"]["dropped_top_finding_count"],
+        1
+    );
     assert_eq!(final_report["raw_evidence"]["embedded"], false);
 }

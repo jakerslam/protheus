@@ -9,8 +9,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 use super::{auto_run, write_json};
 
-const DEFAULT_SCHEDULE_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_schedule_current.json";
-const DEFAULT_HEARTBEAT_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_heartbeat_current.json";
+const DEFAULT_SCHEDULE_ARTIFACT: &str =
+    "core/local/artifacts/kernel_sentinel_schedule_current.json";
+const DEFAULT_HEARTBEAT_ARTIFACT: &str =
+    "core/local/artifacts/kernel_sentinel_heartbeat_current.json";
 const DEFAULT_SCHEDULE_INTERVAL_SECONDS: usize = 900;
 const DEFAULT_HEARTBEAT_INTERVAL_SECONDS: usize = 1800;
 const DEFAULT_STALE_WINDOW_SECONDS: usize = 5400;
@@ -237,8 +239,8 @@ fn build_mode_health(root: &Path, args: &[String], mode: SchedulerMode) -> Value
     let last_exit_code = state
         .as_ref()
         .and_then(|value| value["last_exit_code"].as_i64());
-    let next_due_epoch_secs = last_success_epoch_secs
-        .map(|last| last.saturating_add(interval_seconds as u64));
+    let next_due_epoch_secs =
+        last_success_epoch_secs.map(|last| last.saturating_add(interval_seconds as u64));
     let stale_age_seconds = last_success_epoch_secs.map(|last| now.saturating_sub(last));
     let due = last_success_epoch_secs
         .map(|last| now.saturating_sub(last) >= interval_seconds as u64)
@@ -293,11 +295,12 @@ pub fn build_scheduler_health_summary(root: &Path, args: &[String]) -> Value {
     let heartbeat = build_mode_health(root, args, SchedulerMode::Heartbeat);
     let fresh = schedule["fresh"].as_bool().unwrap_or(false)
         && heartbeat["fresh"].as_bool().unwrap_or(false);
-    let stale = schedule["stale"].as_bool().unwrap_or(true)
-        || heartbeat["stale"].as_bool().unwrap_or(true);
+    let stale =
+        schedule["stale"].as_bool().unwrap_or(true) || heartbeat["stale"].as_bool().unwrap_or(true);
     let configured = schedule["configured"].as_bool().unwrap_or(false)
         || heartbeat["configured"].as_bool().unwrap_or(false);
-    let running = schedule["lifecycle_status"] == "running" || heartbeat["lifecycle_status"] == "running";
+    let running =
+        schedule["lifecycle_status"] == "running" || heartbeat["lifecycle_status"] == "running";
     let lifecycle_status = if !configured {
         "unconfigured"
     } else if stale {
@@ -328,8 +331,11 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
     let dir = state_dir_from_args(root, &effective);
     let previous_success = read_last_success_for_mode(&dir, mode);
     let interval_seconds = option_usize(&effective, "--interval-seconds", default_interval(mode));
-    let stale_window_seconds =
-        option_usize(&effective, "--stale-window-seconds", DEFAULT_STALE_WINDOW_SECONDS);
+    let stale_window_seconds = option_usize(
+        &effective,
+        "--stale-window-seconds",
+        DEFAULT_STALE_WINDOW_SECONDS,
+    );
     let force = bool_flag(&effective, "--force");
     let strict = bool_flag(&effective, "--strict");
     let due = force
@@ -357,8 +363,7 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
         last_success_after,
         auto_exit,
         stale,
-    )
-    {
+    ) {
         eprintln!("kernel_sentinel_schedule_state_write_failed: {err}");
         return 1;
     }
@@ -442,10 +447,16 @@ mod tests {
         assert_eq!(artifact["auto_run_invoked"], true);
         assert_eq!(artifact["cadence"], "maintenance");
         assert_eq!(artifact["stale"], false);
-        assert_eq!(artifact["schedule_state_path"], state_path.display().to_string());
+        assert_eq!(
+            artifact["schedule_state_path"],
+            state_path.display().to_string()
+        );
         assert_eq!(state["cadence"], "maintenance");
         assert_eq!(state["last_attempt_epoch_secs"], artifact["now_epoch_secs"]);
-        assert_eq!(state["last_success_epoch_secs"], artifact["last_success_epoch_secs"]);
+        assert_eq!(
+            state["last_success_epoch_secs"],
+            artifact["last_success_epoch_secs"]
+        );
         assert_eq!(state["stale"], false);
         assert!(auto.exists());
     }
@@ -472,10 +483,16 @@ mod tests {
         assert_eq!(artifact["heartbeat"], true);
         assert_eq!(artifact["auto_run_invoked"], true);
         assert_eq!(artifact["cadence"], "heartbeat");
-        assert_eq!(artifact["schedule_state_path"], state_path.display().to_string());
+        assert_eq!(
+            artifact["schedule_state_path"],
+            state_path.display().to_string()
+        );
         assert_eq!(state["cadence"], "heartbeat");
         assert_eq!(state["last_attempt_epoch_secs"], artifact["now_epoch_secs"]);
-        assert_eq!(state["last_success_epoch_secs"], artifact["last_success_epoch_secs"]);
+        assert_eq!(
+            state["last_success_epoch_secs"],
+            artifact["last_success_epoch_secs"]
+        );
         assert_eq!(state["stale"], false);
         assert!(auto.exists());
     }
@@ -504,7 +521,10 @@ mod tests {
         assert_eq!(exit, 2);
         let artifact: Value = serde_json::from_str(&fs::read_to_string(out).unwrap()).unwrap();
         assert_eq!(artifact["stale"], true);
-        assert_eq!(artifact["stale_escalation"]["reason"], "kernel_sentinel_auto_run_stale");
+        assert_eq!(
+            artifact["stale_escalation"]["reason"],
+            "kernel_sentinel_auto_run_stale"
+        );
         assert_eq!(artifact["auto_run_invoked"], false);
     }
 
