@@ -36,20 +36,12 @@
         );
     }
     let _ = (message, &response_tools);
-    let tool_gate_should_call_tools = response_workflow
-        .pointer("/tool_gate/should_call_tools")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
     let direct_answer_rate =
         response_workflow_quality_rate(&response_workflow, "direct_answer_rate");
     let retry_rate = response_workflow_quality_rate(&response_workflow, "retry_rate");
     let off_topic_reject_rate =
         response_workflow_quality_rate(&response_workflow, "off_topic_reject_rate");
-    let tool_overcall_rate = if !tool_gate_should_call_tools && tooling_attempted {
-        1.0
-    } else {
-        0.0
-    };
+    let tool_overcall_rate = 0.0;
     response_workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(final_fallback_used);
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);
     let response_quality_telemetry = build_response_quality_telemetry_payload(

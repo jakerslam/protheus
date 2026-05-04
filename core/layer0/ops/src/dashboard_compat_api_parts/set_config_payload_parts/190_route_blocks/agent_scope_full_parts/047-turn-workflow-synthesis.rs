@@ -133,65 +133,37 @@ fn workflow_final_response_used(workflow: &Value) -> bool {
             .unwrap_or(false)
 }
 
-fn response_contains_route_classification_retry_template(lowered: &str) -> bool {
+fn workflow_diagnostic_marker_count(response_text: &str, marker_key: &str) -> usize {
+    let lowered = clean_text(response_text, 8_000).to_ascii_lowercase();
     if lowered.is_empty() {
-        return false;
+        return 0;
     }
-    let mentions_first_gate = lowered.contains("the first gate");
-    let mentions_route_name =
-        lowered.contains("workflow_route") || lowered.contains("task_or_info_route");
-    let mentions_info_vs_task =
-        lowered.contains("still classifying this as an \"info\" route rather than a \"task\" route")
-            || lowered.contains("still classifying this as an 'info' route rather than a 'task' route");
-    let mentions_binary_classifier = lowered.contains("binary classification")
-        || lowered.contains("automated classification based on semantic analysis")
-        || lowered.contains("not a true/false decision i control")
-        || lowered.contains("defaults to info")
-        || contains_deprecated_workflow_source_marker(lowered);
-    let mentions_decision_tree_autoclassifier = lowered.contains("decision tree")
-        && lowered.contains("automatically classifies")
-        && lowered.contains("\"info\"")
-        && lowered.contains("\"task\"")
-        && lowered.contains("semantic analysis");
-    let mentions_trigger_copy = lowered.contains("explicit tool-related phrasing")
-        || lowered.contains("task classification path")
-        || lowered.contains("conversational exchange rather than a tool operation request")
-        || lowered.contains("tool operation request")
-        || lowered.contains("conversation bypass mode is currently active")
-        || lowered.contains("restricted from running web searches")
-        || lowered.contains("can't autonomously decide to use web tools")
-        || lowered.contains("requires manual step-by-step authorization for tool usage");
-    (mentions_first_gate
-        && mentions_route_name
-        && (mentions_info_vs_task
-            || mentions_binary_classifier
-            || mentions_decision_tree_autoclassifier
-            || mentions_trigger_copy))
-        || (mentions_route_name && mentions_info_vs_task)
-        || (mentions_route_name && mentions_binary_classifier)
-        || mentions_decision_tree_autoclassifier
+    let marker_key = clean_text(marker_key, 120);
+    if marker_key.is_empty() {
+        return 0;
+    }
+    let pointer = format!("/diagnostic_markers/{marker_key}");
+    default_workflow_tool_menu_contract()
+        .pointer(&pointer)
+        .and_then(Value::as_array)
+        .map(|markers| {
+            markers
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|marker| clean_text(marker, 240).to_ascii_lowercase())
+                .filter(|marker| !marker.is_empty())
+                .filter(|marker| lowered.contains(marker))
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+fn response_contains_route_classification_retry_template(lowered: &str) -> bool {
+    workflow_diagnostic_marker_count(lowered, "legacy_retry_templates") > 0
 }
 
 fn workflow_response_repetition_breaker_active(latest_assistant_text: &str) -> bool {
-    let lowered = latest_assistant_text.to_ascii_lowercase();
-    let macro_signals = workflow_retry_macro_signal_count(&lowered);
-    let route_classification_template =
-        response_contains_route_classification_retry_template(&lowered);
-    lowered.contains("i completed the workflow gate, but the final workflow state was unexpected")
-        || lowered.contains("i completed the run, but the final reply did not render")
-        || lowered.contains("i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session")
-        || lowered.contains("this is a policy gate, not a web-provider outage")
-        || lowered.contains("file list step was blocked before i could finish the answer")
-        || lowered.contains("please retry so i can rerun the chain cleanly")
-        || lowered.contains("ask me to continue and i will synthesize")
-        || route_classification_template
-        || (lowered.contains("next actions:")
-            && lowered.contains("run one targeted tool call")
-            && lowered.contains("return a concise answer from current context"))
-        || (macro_signals >= 3
-            && (lowered.contains("workflow gate")
-                || lowered.contains("next actions")
-                || lowered.contains("final reply did not render")))
+    response_contains_unexpected_state_retry_boilerplate(latest_assistant_text)
 }
 
 fn recent_assistant_retry_loop_detected(active_messages: &[Value]) -> bool {
@@ -228,236 +200,30 @@ fn recent_assistant_retry_loop_detected(active_messages: &[Value]) -> bool {
 }
 
 fn workflow_retry_macro_signal_count(lowered: &str) -> usize {
-    let macro_signals = [
-        "workflow gate",
-        "the first gate",
-        "workflow_route",
-        "task_or_info_route",
-        "still classifying this as an \"info\" route rather than a \"task\" route",
-        "still classifying this as an 'info' route rather than a 'task' route",
-        "binary classification",
-        "decision tree",
-        "automatically classifies",
-        "automated classification based on semantic analysis",
-        "not a true/false decision i control",
-        "defaults to info",
-        "[source:workflow_gate]",
-        "source:workflow_gate",
-        "[source:tool_gate]",
-        "source:tool_gate",
-        "[source:workflow_route_classification]",
-        "source:workflow_route_classification",
-        "[source:gate_enforcement_mode]",
-        "source:gate_enforcement_mode",
-        "[source:tool_decision_policy]",
-        "source:tool_decision_policy",
-        "[source:conversation_bypass_control]",
-        "source:conversation_bypass_control",
-        "[source:agent_framework_analysis]",
-        "source:agent_framework_analysis",
-        "explicit tool-related phrasing",
-        "task classification path",
-        "tool operation request",
-        "conversation bypass mode is currently active",
-        "restricted from running web searches",
-        "can't autonomously decide to use web tools",
-        "requires manual step-by-step authorization for tool usage",
-        "final workflow state was unexpected",
-        "workflow state was unexpected. please retry",
-        "final reply did not render",
-        "completed the run, but the final reply did not render",
-        "please retry",
-        "rerun the chain",
-        "rerun the chain cleanly",
-        "ask me to continue",
-        "synthesize from the recorded workflow state",
-        "next actions",
-        "targeted tool call",
-        "concise answer from current context",
-        "this is a policy gate, not a web-provider outage",
-        "client_ingress_domain_boundary",
-        "lease_denied:client_ingress_domain_boundary",
-    ];
-    macro_signals
-        .iter()
-        .filter(|token| lowered.contains(**token))
-        .count()
+    workflow_diagnostic_marker_count(lowered, "legacy_retry_templates")
 }
 
 fn response_contains_unexpected_state_retry_boilerplate(response_text: &str) -> bool {
-    let lowered = clean_text(response_text, 8_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    let macro_signals = workflow_retry_macro_signal_count(&lowered);
-    let route_classification_template =
-        response_contains_route_classification_retry_template(&lowered);
-    let workflow_gate_template = lowered.contains("workflow gate")
-        && lowered.contains("unexpected")
-        && (lowered.contains("retry") || lowered.contains("rerun"));
-    let next_actions_template = lowered.contains("next actions:")
-        && lowered.contains("clarify the exact outcome you want")
-        && lowered.contains("run one targeted tool call")
-        && lowered.contains("return a concise answer from current context");
-    lowered.contains("final workflow state was unexpected")
-        || lowered.contains("final reply did not render") || lowered.contains("finalization edge")
-        || lowered.contains("i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session")
-        || lowered.contains("this is a policy gate, not a web-provider outage")
-        || lowered.contains("file list step was blocked before i could finish the answer")
-        || lowered.contains("please retry so i can rerun the chain cleanly")
-        || lowered.contains("ask me to continue and i will synthesize")
-        || route_classification_template
-        || workflow_gate_template
-        || next_actions_template
-        || (macro_signals >= 3
-            && (lowered.contains("workflow gate")
-                || lowered.contains("next actions")
-                || lowered.contains("final reply did not render")))
+    workflow_retry_macro_signal_count(response_text) > 0
 }
 
-fn message_requests_plain_direct_reply(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
+fn tooling_failure_diagnostic_detected(
+    message: &str,
+    finalized_response: &str,
+    latest_assistant_response: &str,
+) -> bool {
+    let failure_shaped = response_is_no_findings_placeholder(finalized_response)
+        || response_looks_like_tool_ack_without_findings(finalized_response)
+        || response_mentions_context_guard(finalized_response);
+    if !failure_shaped {
         return false;
     }
-    lowered.contains("just answer")
-        || lowered.contains("regular response")
-        || lowered.contains("talk to me")
-        || lowered == "hello"
-}
-
-fn message_is_minimal_conversational_ping(message: &str) -> bool {
-    let lowered = clean_text(message, 200).trim().to_ascii_lowercase();
-    matches!(
-        lowered.as_str(),
-        "hi" | "hello" | "hey" | "hey there" | "hello there" | "yo"
-    )
-}
-
-fn message_requests_diagnostic_explanation(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    lowered.contains("what do you think is happening")
-        || lowered.contains("what do you think happened")
-        || lowered.contains("what happened")
-        || lowered.contains("what's going on")
-        || lowered.contains("whats going on")
-        || lowered.contains("why is this happening")
-        || lowered.contains("why do you think")
-        || lowered.contains("is it too strict")
-        || lowered.contains("too strict or what")
-        || lowered.contains("policy gate")
-        || lowered.contains("lease denied")
-        || lowered.contains("domain boundary")
-        || lowered.contains("hardlocked")
-        || lowered.contains("hard-locked")
-        || lowered.contains("hard coded")
-        || lowered.contains("hard-coded")
-        || lowered.contains("system response")
-        || lowered.contains("improve the system")
-}
-
-fn message_mentions_tool_routing_authority(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    let mentions_authority = lowered.contains("automatic tool")
-        || lowered.contains("auto tool")
-        || lowered.contains("tool routing")
-        || lowered.contains("tool selection")
-        || lowered.contains("llm should")
-        || lowered.contains("llm-controlled")
-        || lowered.contains("llm controlled");
-    let mentions_tooling_surface =
-        lowered.contains("tool") || lowered.contains("routing") || lowered.contains("selection");
-    mentions_authority && mentions_tooling_surface
-}
-
-fn message_checks_hardcoded_response(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    let hardcoded_signal = lowered.contains("hard coded")
-        || lowered.contains("hard-coded")
-        || lowered.contains("hardlocked")
-        || lowered.contains("hard-locked");
-    let system_response_signal =
-        lowered.contains("system response") || lowered.contains("coded response");
-    hardcoded_signal || system_response_signal
-}
-
-fn message_requests_workspace_file_action(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    let mentions_workspace_surface = lowered.contains("file")
-        || lowered.contains("file list")
-        || lowered.contains("file_list")
-        || lowered.contains("file read")
-        || lowered.contains("file tooling")
-        || lowered.contains("local files")
-        || lowered.contains("directory")
-        || lowered.contains("local dir")
-        || lowered.contains("local directory")
-        || lowered.contains("current directory")
-        || lowered.contains("working directory")
-        || lowered.contains("repo root")
-        || lowered.contains("workspace")
-        || lowered.contains("path");
-    let mentions_action = lowered.contains("look at")
-        || lowered.contains("check")
-        || lowered.contains("access")
-        || lowered.contains("read")
-        || lowered.contains("list")
-        || lowered.contains("ls")
-        || lowered.contains("dir")
-        || lowered.contains("show")
-        || lowered.contains("open");
-    mentions_workspace_surface && mentions_action
-}
-
-fn message_requests_file_tooling_validation(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    (lowered.contains("file tooling") || lowered.contains("workspace tooling"))
-        && (lowered.contains("can you")
-            || lowered.contains("are you able")
-            || lowered.contains("try")
-            || lowered.contains("check")
-            || lowered.contains("use")
-            || lowered.contains("working"))
-}
-
-fn message_requests_system_improvement_plan(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    lowered.contains("improve the system")
-        || lowered.contains("make infring better")
-        || lowered.contains("make the system better")
-        || lowered.contains("what would make")
-        || lowered.contains("what do we need to do")
-}
-
-fn message_requests_patch_effectiveness_check(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    lowered.contains("are the patches working")
-        || lowered.contains("patches we've done are working")
-        || lowered.contains("notice any improvements")
-        || lowered.contains("did the patches work")
-        || lowered.contains("is it working now")
-        || lowered.contains("on your end")
+    let asks_diagnosis = message_requests_tooling_failure_diagnosis(message);
+    let repeated_placeholder = !latest_assistant_response.trim().is_empty()
+        && response_is_no_findings_placeholder(latest_assistant_response)
+        && normalize_placeholder_signature(latest_assistant_response)
+            == normalize_placeholder_signature(finalized_response);
+    asks_diagnosis || repeated_placeholder || response_mentions_context_guard(finalized_response)
 }
 
 fn workflow_policy_block_summary(response_tools: &[Value]) -> String {
@@ -646,61 +412,7 @@ fn response_repeats_latest_assistant_copy(response_text: &str, latest_assistant_
             || first_sentence_match)
 }
 
-#[cfg(test)]
-fn fallback_reply_variant_seed(message: &str, latest_assistant_text: &str) -> usize {
-    let mut acc: usize = 0;
-    for byte in clean_text(message, 2_000).bytes() {
-        acc = acc.wrapping_mul(131).wrapping_add(byte as usize);
-    }
-    for byte in clean_text(latest_assistant_text, 2_000).bytes() {
-        acc = acc.wrapping_mul(131).wrapping_add(byte as usize);
-    }
-    acc
-}
-
-#[cfg(test)]
-fn pick_non_repeating_reply_variant(
-    candidates: &[&str],
-    message: &str,
-    latest_assistant_text: &str,
-) -> String {
-    if candidates.is_empty() {
-        return String::new();
-    }
-    let seed = fallback_reply_variant_seed(message, latest_assistant_text);
-    let start = seed % candidates.len();
-    for offset in 0..candidates.len() {
-        let idx = (start + offset) % candidates.len();
-        let candidate = candidates[idx];
-        if !response_repeats_latest_assistant_copy(candidate, latest_assistant_text) {
-            return candidate.to_string();
-        }
-    }
-    candidates[start].to_string()
-}
-
-#[cfg(test)]
-fn workflow_non_repeating_last_resort_reply(
-    message: &str,
-    latest_assistant_text: &str,
-    response_tools: &[Value],
-) -> String {
-    let _ = (message, latest_assistant_text, response_tools);
-    String::new()
-}
-
-fn workflow_unexpected_state_user_fallback(
-    message: &str,
-    latest_assistant_text: &str,
-    response_tools: &[Value],
-) -> String {
-    let _ = (message, latest_assistant_text, response_tools);
-    // Policy: workflow telemetry may record failure state, but chat output must remain
-    // LLM-authored. Do not synthesize operator-facing fallback prose here.
-    String::new()
-}
-
-fn should_force_direct_workflow_fallback(
+fn should_record_workflow_failure_diagnostic(
     last_reject_reason: &str,
     last_invalid_excerpt: &str,
     latest_assistant_text: &str,
@@ -716,7 +428,7 @@ fn should_force_direct_workflow_fallback(
 
 fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
     let cleaned = clean_text(response, 8_000);
-    if cleaned.is_empty() || !response_is_visible_workflow_gate_choice(&cleaned) {
+    if cleaned.is_empty() {
         return cleaned;
     }
     if response_is_no_tool_category_gate_submission(&cleaned)
@@ -724,22 +436,7 @@ fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
     {
         return String::new();
     }
-    let lowered = cleaned.to_ascii_lowercase();
-    let trimmed = lowered.trim_start();
-    if !(trimmed.starts_with("no.") || trimmed.starts_with("no,") || trimmed.starts_with("no ")) {
-        return cleaned;
-    }
-    let leading_ws = lowered.len().saturating_sub(trimmed.len());
-    let token_len = if trimmed.starts_with("no.") || trimmed.starts_with("no,") { 3 } else { 2 };
-    let rest_start = leading_ws + token_len;
-    let rest = cleaned.get(rest_start..).unwrap_or("").trim_start();
-    let direct_rest = rest
-        .strip_prefix("I can answer directly:")
-        .or_else(|| rest.strip_prefix("I can answer directly."))
-        .or_else(|| rest.strip_prefix("I can answer directly"))
-        .unwrap_or(rest)
-        .trim_start();
-    clean_text(direct_rest, 8_000)
+    cleaned
 }
 
 fn direct_llm_response_from_initial_draft(draft_response: &str) -> Option<String> {
@@ -778,14 +475,14 @@ fn preserve_direct_llm_response_without_fallback(workflow: &mut Value, draft_res
     }
 }
 
-fn mark_workflow_fallback_guard_reason(workflow: &mut Value, reason: &str, stage: &str) {
+fn record_workflow_diagnostic_event(workflow: &mut Value, reason: &str, stage: &str) {
     let cleaned_reason = clean_text(reason, 80);
     let cleaned_stage = clean_text(stage, 80);
     if cleaned_reason.is_empty() {
         return;
     }
     let mut reason_history = workflow
-        .pointer("/final_llm_response/fallback_guard_reasons")
+        .pointer("/final_llm_response/diagnostic_event_reasons")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -802,7 +499,7 @@ fn mark_workflow_fallback_guard_reason(workflow: &mut Value, reason: &str, stage
         }
     }
     let mut stage_history = workflow
-        .pointer("/final_llm_response/fallback_guard_stages")
+        .pointer("/final_llm_response/diagnostic_event_stages")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -821,7 +518,7 @@ fn mark_workflow_fallback_guard_reason(workflow: &mut Value, reason: &str, stage
         }
     }
     let mut guard_events = workflow
-        .pointer("/final_llm_response/fallback_guard_events")
+        .pointer("/final_llm_response/diagnostic_event_events")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
@@ -833,28 +530,28 @@ fn mark_workflow_fallback_guard_reason(workflow: &mut Value, reason: &str, stage
         let overflow = guard_events.len() - 16;
         guard_events.drain(0..overflow);
     }
-    workflow["final_llm_response"]["fallback_guard_reason"] = Value::String(cleaned_reason);
-    workflow["final_llm_response"]["fallback_guard_reasons"] = Value::Array(reason_history);
-    workflow["final_llm_response"]["fallback_guard_stages"] = Value::Array(stage_history.clone());
+    workflow["final_llm_response"]["diagnostic_event_reason"] = Value::String(cleaned_reason);
+    workflow["final_llm_response"]["diagnostic_event_reasons"] = Value::Array(reason_history);
+    workflow["final_llm_response"]["diagnostic_event_stages"] = Value::Array(stage_history.clone());
     let trigger_count = workflow
-        .pointer("/quality_telemetry/fallback_guard_trigger_count")
+        .pointer("/quality_telemetry/diagnostic_event_trigger_count")
         .and_then(Value::as_u64)
         .unwrap_or(0)
         + 1;
     let distinct_reason_count = workflow
-        .pointer("/final_llm_response/fallback_guard_reasons")
+        .pointer("/final_llm_response/diagnostic_event_reasons")
         .and_then(Value::as_array)
         .map(|rows| rows.len())
         .unwrap_or(0);
     let distinct_stage_count = stage_history.len();
     let multi_stage = stage_history.len() > 1;
     let (severity, requires_operator_review, escalation_reason, recommended_action) =
-        workflow_fallback_guard_summary_classification(trigger_count, distinct_stage_count);
-    workflow["final_llm_response"]["fallback_guard_multi_stage"] = Value::Bool(multi_stage);
-    workflow["final_llm_response"]["fallback_guard_events"] = Value::Array(guard_events);
-    workflow["final_llm_response"]["fallback_guard_last_stage"] =
+        workflow_diagnostic_summary_classification(trigger_count, distinct_stage_count);
+    workflow["final_llm_response"]["diagnostic_event_multi_stage"] = Value::Bool(multi_stage);
+    workflow["final_llm_response"]["diagnostic_event_events"] = Value::Array(guard_events);
+    workflow["final_llm_response"]["diagnostic_event_last_stage"] =
         Value::String(cleaned_stage);
-    workflow["final_llm_response"]["fallback_guard_summary"] = json!({
+    workflow["final_llm_response"]["diagnostic_event_summary"] = json!({
         "trigger_count": trigger_count,
         "distinct_reason_count": distinct_reason_count,
         "distinct_stage_count": distinct_stage_count,
@@ -864,16 +561,16 @@ fn mark_workflow_fallback_guard_reason(workflow: &mut Value, reason: &str, stage
         "escalation_reason": escalation_reason,
         "recommended_action": recommended_action
     });
-    let stage_counter_key = workflow_fallback_guard_stage_counter_key(stage);
-    let reason_counter_key = workflow_fallback_guard_reason_counter_key(reason);
+    let stage_counter_key = workflow_diagnostic_stage_counter_key(stage);
+    let reason_counter_key = workflow_diagnostic_reason_counter_key(reason);
     bump_workflow_quality_counter(workflow, &stage_counter_key);
     bump_workflow_quality_counter(workflow, &reason_counter_key);
-    bump_workflow_quality_counter(workflow, "fallback_guard_trigger_count");
+    bump_workflow_quality_counter(workflow, "diagnostic_event_trigger_count");
 }
 
-fn workflow_fallback_guard_stage_counter_key(stage: &str) -> String {
+fn workflow_diagnostic_stage_counter_key(stage: &str) -> String {
     let mut out = String::with_capacity(96);
-    out.push_str("fallback_guard_stage_");
+    out.push_str("diagnostic_event_stage_");
     let mut previous_underscore = false;
     for ch in clean_text(stage, 80).chars() {
         let mapped = if ch.is_ascii_alphanumeric() { ch } else { '_' };
@@ -890,16 +587,16 @@ fn workflow_fallback_guard_stage_counter_key(stage: &str) -> String {
     while out.ends_with('_') {
         out.pop();
     }
-    if out == "fallback_guard_stage" {
-        "fallback_guard_stage_unknown".to_string()
+    if out == "diagnostic_event_stage" {
+        "diagnostic_event_stage_unknown".to_string()
     } else {
         out
     }
 }
 
-fn workflow_fallback_guard_reason_counter_key(reason: &str) -> String {
+fn workflow_diagnostic_reason_counter_key(reason: &str) -> String {
     let mut out = String::with_capacity(96);
-    out.push_str("fallback_guard_reason_");
+    out.push_str("diagnostic_event_reason_");
     let mut previous_underscore = false;
     for ch in clean_text(reason, 80).chars() {
         let mapped = if ch.is_ascii_alphanumeric() { ch } else { '_' };
@@ -916,14 +613,14 @@ fn workflow_fallback_guard_reason_counter_key(reason: &str) -> String {
     while out.ends_with('_') {
         out.pop();
     }
-    if out == "fallback_guard_reason" {
-        "fallback_guard_reason_unknown".to_string()
+    if out == "diagnostic_event_reason" {
+        "diagnostic_event_reason_unknown".to_string()
     } else {
         out
     }
 }
 
-fn workflow_fallback_guard_summary_classification(
+fn workflow_diagnostic_summary_classification(
     trigger_count: u64,
     distinct_stage_count: usize,
 ) -> (&'static str, bool, &'static str, &'static str) {
@@ -951,28 +648,7 @@ fn workflow_fallback_guard_summary_classification(
     }
 }
 
-fn ensure_no_retry_boilerplate_copy(
-    _message: &str,
-    latest_assistant_text: &str,
-    _response_tools: &[Value],
-    response_text: &str,
-) -> String {
-    let cleaned = sanitize_workflow_final_response_candidate(
-        &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(response_text)),
-    );
-    if cleaned.is_empty() {
-        return String::new();
-    }
-    if response_repeats_latest_assistant_copy(&cleaned, latest_assistant_text) {
-        return String::new();
-    }
-    if response_contains_unexpected_state_retry_boilerplate(&cleaned) {
-        return String::new();
-    }
-    cleaned
-}
-
-fn apply_final_retry_boilerplate_guard(
+fn apply_final_retry_boilerplate_diagnostic(
     workflow: &mut Value,
     message: &str,
     latest_assistant_text: &str,
@@ -997,16 +673,16 @@ fn apply_final_retry_boilerplate_guard(
     workflow["final_llm_response"]["error"] =
         Value::String("retry_boilerplate_detected".to_string());
     workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("diagnostic_only_guard".to_string());
-    mark_workflow_fallback_guard_reason(
+        Value::String("diagnostic_only".to_string());
+    record_workflow_diagnostic_event(
         workflow,
-        "retry_boilerplate_guard",
-        "final_retry_guard",
+        "retry_boilerplate_diagnostic",
+        "final_retry_diagnostic",
     );
     set_turn_workflow_final_stage_status(workflow, "guard_violation_pass_through");
 }
 
-fn apply_final_response_presence_guard(
+fn apply_final_empty_response_diagnostic(
     workflow: &mut Value,
     message: &str,
     latest_assistant_text: &str,
@@ -1028,11 +704,11 @@ fn apply_final_response_presence_guard(
     workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
     workflow["final_llm_response"]["error"] = Value::String("empty_response".to_string());
     workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("diagnostic_only_presence_guard".to_string());
-    mark_workflow_fallback_guard_reason(
+        Value::String("diagnostic_only_presence".to_string());
+    record_workflow_diagnostic_event(
         workflow,
-        "empty_response_presence_guard",
-        "final_presence_guard",
+        "empty_response_presence_diagnostic",
+        "final_presence_diagnostic",
     );
     set_turn_workflow_final_stage_status(workflow, "empty_llm_response");
 }
@@ -1097,15 +773,7 @@ fn augment_turn_workflow_events_for_final_response(
 ) -> Vec<Value> {
     let mut events = workflow_events.to_vec();
     let cleaned_draft = clean_text(draft_response, 4_000);
-    let direct_recovery_answer = workflow_turn_is_meta_control_message(message)
-        && cleaned_draft.to_ascii_lowercase().contains("answer directly")
-        && !response_contains_unexpected_state_retry_boilerplate(&cleaned_draft)
-        && !response_contains_route_classification_retry_template(
-            &cleaned_draft.to_ascii_lowercase(),
-        );
-    if direct_recovery_answer {
-        return events;
-    }
+    let _ = message;
     if response_is_no_findings_placeholder(&cleaned_draft) {
         events.push(turn_workflow_event(
             "draft_response_invalid",
@@ -1177,7 +845,7 @@ fn augment_turn_workflow_events_for_final_response(
             }),
         ));
     }
-    if maybe_tooling_failure_fallback(message, draft_response, latest_assistant_text).is_some() {
+    if tooling_failure_diagnostic_detected(message, draft_response, latest_assistant_text) {
         events.push(turn_workflow_event(
             "tooling_failure_diagnostic",
             json!({
@@ -1187,22 +855,7 @@ fn augment_turn_workflow_events_for_final_response(
         // Tooling failures are carried as diagnostics only. Visible wording belongs to
         // the final LLM stage, not to workflow-authored fallback text.
     }
-    if message_requests_comparative_answer(message) {
-        events.push(turn_workflow_event(
-            "comparative_answer_requested",
-            json!({
-                "live_web_focus": false
-            }),
-        ));
-        if response_is_no_findings_placeholder(&cleaned_draft) || !failure_summary.is_empty() {
-            events.push(turn_workflow_event(
-                "comparative_diagnostic",
-                json!({
-                    "status": "insufficient_recorded_tool_evidence"
-                }),
-            ));
-        }
-    }
+    let _ = message;
     events
 }
 
@@ -1225,57 +878,12 @@ fn workflow_test_llm_enabled(_root: &Path) -> bool {
 }
 
 fn workflow_response_template_label(message: &str) -> &'static str {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return "quick_qa";
-    }
-    if message_is_tooling_status_check(message) || lowered.starts_with("did you") {
-        return "status_check";
-    }
-    if lowered.contains("debug")
-        || lowered.contains("root cause")
-        || lowered.contains("why")
-        || lowered.contains("diagnos")
-    {
-        return "debug_diagnosis";
-    }
-    if message_requests_comparative_answer(message) || lowered.contains("compare") {
-        return "compare";
-    }
-    if lowered.contains("implement")
-        || lowered.contains("patch")
-        || lowered.contains("fix")
-        || lowered.contains("build")
-        || lowered.contains("create")
-        || lowered.contains("wire")
-    {
-        return "implement_request";
-    }
-    "quick_qa"
+    let _ = message;
+    "workflow_final_response"
 }
 
-fn workflow_user_prefers_deep_dive(message: &str) -> bool {
-    let lowered = clean_text(message, 1_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    lowered.contains("deep dive")
-        || lowered.contains("in depth")
-        || lowered.contains("in-depth")
-        || lowered.contains("detailed")
-        || lowered.contains("thorough")
-        || lowered.contains("full analysis")
-        || lowered.contains("step by step")
-}
-
-fn response_tools_prompt_only_gate_required(message: &str, latent_tool_candidates: &Value) -> bool {
-    if message_explicitly_disallows_tool_calls(message) {
-        return false;
-    }
-    latent_tool_candidates
-        .as_array()
-        .map(|candidates| !candidates.is_empty())
-        .unwrap_or(false)
+fn response_tools_prompt_only_gate_required(_message: &str, _latent_tool_candidates: &Value) -> bool {
+    false
 }
 
 fn direct_gate_recovery_response_answers_user(
@@ -1283,19 +891,11 @@ fn direct_gate_recovery_response_answers_user(
     response_text: &str,
     direct_gate_recovery_turn: bool,
 ) -> bool {
+    let _ = direct_gate_recovery_turn;
     if response_answers_user_early(message, response_text) {
         return true;
     }
-    if !direct_gate_recovery_turn || !workflow_turn_is_meta_control_message(message) {
-        return false;
-    }
-
-    let lowered = clean_text(response_text, 800).to_ascii_lowercase();
-    lowered.contains("answer directly")
-        && (lowered.contains("fallback")
-            || lowered.contains("repeating")
-            || lowered.contains("response-finalization")
-            || lowered.contains("finalization loop"))
+    false
 }
 
 fn response_answers_tool_confirmation_with_recorded_result(
@@ -1318,26 +918,17 @@ fn response_answers_tool_confirmation_with_recorded_result(
     if response_is_no_findings_placeholder(&lowered) {
         return true;
     }
-    let mentions_tool_result = lowered.contains("tool")
-        || lowered.contains("search")
-        || lowered.contains("query")
-        || lowered.contains("source")
-        || lowered.contains("result")
-        || lowered.contains("find");
-    let explains_no_result = lowered.contains("didn't find")
-        || lowered.contains("did not find")
-        || lowered.contains("couldn't find")
-        || lowered.contains("could not find")
-        || lowered.contains("no relevant")
-        || lowered.contains("no usable")
-        || lowered.contains("no source")
-        || lowered.contains("not enough")
-        || lowered.contains("enough relevant information")
-        || lowered.contains("source coverage")
-        || lowered.contains("did not produce enough")
-        || lowered.contains("retrieval-quality")
-        || lowered.contains("low-signal")
-        || lowered.contains("hit issues");
+    let contract = default_workflow_tool_menu_contract();
+    let mentions_tool_result = workflow_message_matches_contract_markers(
+        &contract,
+        "/diagnostic_markers/recorded_tool_result_answer/tool_result_terms",
+        &lowered,
+    );
+    let explains_no_result = workflow_message_matches_contract_markers(
+        &contract,
+        "/diagnostic_markers/recorded_tool_result_answer/no_result_explanation_phrases",
+        &lowered,
+    );
     mentions_tool_result && explains_no_result
 }
 
@@ -1514,15 +1105,9 @@ fn run_turn_workflow_final_response(
     let tool_rows_json = serde_json::to_string(&tool_rows_for_llm_recovery(response_tools, 6))
         .unwrap_or_else(|_| "[]".to_string());
     let template_label = workflow_response_template_label(message);
-    let detail_style = if workflow_user_prefers_deep_dive(message) {
-        "detailed"
-    } else {
-        "concise"
-    };
-    let workflow_mode_clean = clean_text(workflow_mode, 80);
-    let direct_no_tool_exit_turn = workflow_mode_clean == "direct_no_tool_exit";
-    let direct_simple_conversation_turn = workflow_mode_clean == "direct_simple_conversation";
-    let direct_conversation_recovery_turn = workflow_mode_clean == "direct_conversation_recovery";
+    let detail_style = "workflow_cd_default";
+    let final_answer_instruction = workflow_final_answer_prompt_context();
+    let _workflow_mode_clean = clean_text(workflow_mode, 80);
     let initial_no_tool_category_submission =
         response_tools.is_empty() && response_is_exact_no_tool_gate_submission(draft_response);
     if initial_no_tool_category_submission {
@@ -1531,23 +1116,15 @@ fn run_turn_workflow_final_response(
     }
     let manual_toolbox_gate_turn = response_tools.is_empty()
         && !initial_no_tool_category_submission
-        && !(direct_no_tool_exit_turn
-            || direct_simple_conversation_turn
-            || direct_conversation_recovery_turn)
         && enriched_workflow_events.iter().any(|event| {
             matches!(
                 event.get("kind").and_then(Value::as_str).unwrap_or(""),
                 "manual_toolbox_candidate_menu"
             )
         });
-    let workflow_events_json = serde_json::to_string(&enriched_workflow_events)
-        .unwrap_or_else(|_| "[]".to_string());
     let direct_gate_recovery_turn = response_tools.is_empty()
         && !manual_toolbox_gate_turn
-        && (direct_no_tool_exit_turn
-            || direct_simple_conversation_turn
-            || direct_conversation_recovery_turn
-            || initial_no_tool_category_submission
+        && (initial_no_tool_category_submission
             || enriched_workflow_events.iter().any(|event| {
                 event.get("kind").and_then(Value::as_str).unwrap_or("")
                     == "draft_response_invalid"
@@ -1555,15 +1132,11 @@ fn run_turn_workflow_final_response(
     let (system_prompt, user_prompt) = if manual_toolbox_gate_turn {
         (
             clean_text(&workflow_library_prompt_context(message, &[]), 2_000),
-            clean_text(
-                &format!("User message:\n{message}\n\nAvailable tool menu:\n{workflow_events_json}"),
-                10_000,
-            ),
+            clean_text(&format!("User message:\n{message}"), 8_000),
         )
     } else if direct_gate_recovery_turn {
         let temporal_context = agent_runtime_temporal_context_prompt();
-        let direct_gate_system_prompt =
-            "Respond to the latest user message. Final user-facing answer only.";
+        let direct_gate_system_prompt = final_answer_instruction.clone();
         let project_boundary_prompt = current_turn_project_boundary_prompt(message);
         let direct_gate_system_prompt = if project_boundary_prompt.is_empty() {
             direct_gate_system_prompt.to_string()
@@ -1580,9 +1153,10 @@ fn run_turn_workflow_final_response(
         (
             clean_text(
                 &format!(
-                    "{}\n\n{}\n\nRespond to the user message. Final user-facing answer only.",
+                    "{}\n\n{}\n\n{}",
                     AGENT_RUNTIME_SYSTEM_PROMPT,
-                    agent_runtime_temporal_context_prompt()
+                    agent_runtime_temporal_context_prompt(),
+                    final_answer_instruction
                 ),
                 12_000,
             ),
@@ -1721,10 +1295,7 @@ fn run_turn_workflow_final_response(
                 &manual_toolbox_selected_category_label,
             )
         } else if manual_toolbox_no_selected || compact_tool_retry {
-            clean_text(
-                "Respond to the user message. Final user-facing answer only.",
-                2_000,
-            )
+            clean_text(&final_answer_instruction, 2_000)
         } else {
             system_prompt.clone()
         };
@@ -1741,7 +1312,7 @@ fn run_turn_workflow_final_response(
             )
         } else if attempt > 1 {
             clean_text(
-                &format!("{user_prompt}\n\nRespond to the user message. Final user-facing answer only."),
+                &format!("{user_prompt}\n\n{final_answer_instruction}"),
                 20_000,
             )
         } else {
@@ -1781,9 +1352,49 @@ fn run_turn_workflow_final_response(
                 }
                 let manual_toolbox_gate_choice =
                     response_is_manual_toolbox_gate_choice(&retried_text);
+                let structured_final_answer =
+                    workflow_structured_gate_final_answer(&retried_text);
                 if active_manual_toolbox_gate_turn
-                    && response_is_exact_no_tool_gate_submission(&retried_text)
+                    && response_tools.is_empty()
+                    && (response_is_exact_no_tool_gate_submission(&retried_text)
+                        || (structured_final_answer.is_some()
+                            && !response_is_tool_bearing_category_gate_submission(&retried_text)))
                 {
+                    if let Some(final_answer) = structured_final_answer {
+                        let response_provider = clean_text(
+                            retried
+                                .get("provider")
+                                .and_then(Value::as_str)
+                                .unwrap_or(&attempt_provider),
+                            80,
+                        );
+                        let response_model = clean_text(
+                            retried
+                                .get("runtime_model")
+                                .or_else(|| retried.get("model"))
+                                .and_then(Value::as_str)
+                                .unwrap_or(&attempt_model),
+                            240,
+                        );
+                        workflow["response"] = Value::String(final_answer);
+                        mark_workflow_direct_llm_no_tool_answer(&mut workflow);
+                        workflow["final_llm_response"]["used"] = Value::Bool(true);
+                        workflow["final_llm_response"]["status"] =
+                            Value::String("synthesized".to_string());
+                        workflow["final_llm_response"]["source"] =
+                            Value::String("structured_gate_final_answer".to_string());
+                        workflow["final_llm_response"]["provider"] =
+                            Value::String(response_provider.clone());
+                        workflow["final_llm_response"]["model"] =
+                            Value::String(response_model.clone());
+                        workflow["final_llm_response"]["runtime_model"] =
+                            Value::String(response_model.clone());
+                        workflow["provider"] = Value::String(response_provider);
+                        workflow["model"] = Value::String(response_model.clone());
+                        workflow["runtime_model"] = Value::String(response_model);
+                        set_turn_workflow_final_stage_status(&mut workflow, "synthesized");
+                        return workflow;
+                    }
                     manual_toolbox_no_selected = true;
                     workflow["workflow_control"]["direct_response_path"] =
                         Value::String("first_gate_no_tool_category".to_string());
@@ -1900,8 +1511,7 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                     );
                 let prompt_scaffold_reply = response_contains_prompt_scaffold(&retried_text);
-                let prompt_echo_reply = prompt_scaffold_reply || if (direct_simple_conversation_turn
-                    || direct_gate_recovery_turn)
+                let prompt_echo_reply = prompt_scaffold_reply || if direct_gate_recovery_turn
                     && !clean_text(message, 240)
                         .eq_ignore_ascii_case(&clean_text(&retried_text, 240))
                 {
@@ -2027,6 +1637,14 @@ fn run_turn_workflow_final_response(
                         Value::String(last_reject_reason.clone());
                     workflow["final_llm_response"]["diagnostic_invalid_excerpt"] =
                         Value::String(last_invalid_excerpt.clone());
+                    if active_manual_toolbox_gate_turn
+                        && response_tools.is_empty()
+                        && (invalid_manual_toolbox_gate_submission
+                            || visible_gate_choice_reply
+                            || unresolved_tool_need_without_progress)
+                    {
+                        continue;
+                    }
                 }
                 let response_provider = clean_text(
                     retried
@@ -2137,7 +1755,7 @@ fn run_turn_workflow_final_response(
         set_turn_workflow_final_stage_status(&mut workflow, "invoke_failed");
         workflow["final_llm_response"]["error"] = Value::String(last_error);
     }
-    if should_force_direct_workflow_fallback(
+    if should_record_workflow_failure_diagnostic(
         &last_reject_reason,
         &last_invalid_excerpt,
         latest_assistant_text,
@@ -2152,23 +1770,23 @@ fn run_turn_workflow_final_response(
         workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
         workflow["final_llm_response"]["last_reject_reason"] =
             Value::String("synthesis_failure_diagnostic_only".to_string());
-        mark_workflow_fallback_guard_reason(
+        record_workflow_diagnostic_event(
             &mut workflow,
-            "forced_fallback_after_synthesis_failure_suppressed",
-            "forced_synthesis_failure_fallback",
+            "synthesis_failure_runtime_fallback_suppressed",
+            "synthesis_failure_diagnostic",
         );
         set_turn_workflow_final_stage_status(
             &mut workflow,
             "diagnostic_failure_pass_through",
         );
     }
-    apply_final_retry_boilerplate_guard(
+    apply_final_retry_boilerplate_diagnostic(
         &mut workflow,
         message,
         latest_assistant_text,
         response_tools,
     );
-    apply_final_response_presence_guard(
+    apply_final_empty_response_diagnostic(
         &mut workflow,
         message,
         latest_assistant_text,
@@ -2180,10 +1798,14 @@ fn run_turn_workflow_final_response(
 fn mark_workflow_direct_llm_no_tool_answer(workflow: &mut Value) {
     let contract = default_workflow_tool_menu_contract();
     let first_gate_id = workflow_first_gate_id(&contract);
-    let direct_option = workflow_gate_options(&contract, &first_gate_id)
+    let Some(direct_option) = workflow_gate_options(&contract, &first_gate_id)
         .into_iter()
         .find(|option| option.get("has_tools").and_then(Value::as_bool) == Some(false))
-        .unwrap_or_else(|| json!({"key": "respond_directly", "label": "Respond directly"}));
+    else {
+        workflow["final_llm_response"]["direct_answer_marker_error"] =
+            Value::String("workflow_cd_missing_no_tool_option".to_string());
+        return;
+    };
     let direct_key = workflow_option_key(&direct_option);
     let direct_label = workflow_option_label(&direct_option);
     let gate_submission = json!({
@@ -2202,11 +1824,13 @@ fn mark_workflow_direct_llm_no_tool_answer(workflow: &mut Value) {
     workflow["tool_gate"]["gate_1_decision_source"] =
         Value::String("llm_direct_answer".to_string());
     workflow["tool_gate"]["gate_submission"] = gate_submission.clone();
-    workflow["tool_gate"]["gates"]["gate_1"]["submission_status"] =
-        Value::String("submitted".to_string());
-    workflow["tool_gate"]["gates"]["gate_1"]["decision_source"] =
-        Value::String("llm_direct_answer".to_string());
-    workflow["tool_gate"]["gates"]["gate_1"]["gate_submission"] = gate_submission;
+    mark_workflow_gate_row_submission(
+        workflow,
+        &first_gate_id,
+        "submitted",
+        "llm_direct_answer",
+        gate_submission,
+    );
     workflow["tool_gate"]["info_source"] = Value::String("llm_direct_answer".to_string());
     if let Some(rows) = workflow
         .get_mut("stage_statuses")
@@ -2226,9 +1850,92 @@ fn mark_workflow_direct_llm_no_tool_answer(workflow: &mut Value) {
     }
 }
 
+fn mark_workflow_gate_row_submission(
+    workflow: &mut Value,
+    gate_id: &str,
+    submission_status: &str,
+    decision_source: &str,
+    gate_submission: Value,
+) {
+    let Some(gates) = workflow
+        .get_mut("tool_gate")
+        .and_then(|tool_gate| tool_gate.get_mut("gates"))
+    else {
+        return;
+    };
+    if let Some(gate_map) = gates.as_object_mut() {
+        let gate_row = gate_map
+            .entry(gate_id.to_string())
+            .or_insert_with(|| json!({}));
+        gate_row["submission_status"] = Value::String(submission_status.to_string());
+        gate_row["decision_source"] = Value::String(decision_source.to_string());
+        gate_row["gate_submission"] = gate_submission;
+        return;
+    }
+    if let Some(gate_rows) = gates.as_array_mut() {
+        let mut updated = false;
+        for row in gate_rows.iter_mut() {
+            let row_gate_id = row
+                .get("gate_id")
+                .or_else(|| row.get("id"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if row_gate_id == gate_id {
+                row["submission_status"] = Value::String(submission_status.to_string());
+                row["decision_source"] = Value::String(decision_source.to_string());
+                row["gate_submission"] = gate_submission.clone();
+                updated = true;
+            }
+        }
+        if !updated {
+            gate_rows.push(json!({
+                "gate_id": gate_id,
+                "submission_status": submission_status,
+                "decision_source": decision_source,
+                "gate_submission": gate_submission
+            }));
+        }
+    }
+}
+
 #[cfg(test)]
 mod workflow_fallback_tests {
     use super::*;
+
+    #[test]
+    fn direct_llm_no_tool_answer_updates_array_gates_without_panic() {
+        let mut workflow = json!({
+            "tool_gate": {
+                "gates": [
+                    {"gate_id": "gate_1_work_category_menu", "submission_status": "presented"}
+                ]
+            },
+            "stage_statuses": [
+                {"stage": "gate_1_work_category_menu", "status": "presented"}
+            ]
+        });
+
+        mark_workflow_direct_llm_no_tool_answer(&mut workflow);
+
+        assert_eq!(
+            workflow
+                .pointer("/tool_gate/gates/0/submission_status")
+                .and_then(Value::as_str),
+            Some("submitted")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/tool_gate/gates/0/decision_source")
+                .and_then(Value::as_str),
+            Some("llm_direct_answer")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/stage_statuses/0/status")
+                .and_then(Value::as_str),
+            Some("answered_no_tool_category")
+        );
+    }
 
     #[test]
     fn manual_toolbox_selection_parses_pending_web_request() {
@@ -2530,17 +2237,15 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn meta_control_recovery_takes_precedence_over_latent_tool_candidates() {
+    fn latent_tool_candidates_do_not_force_prompt_only_gate() {
         let message = "what? why are you repeating the same fallback text?";
         let latent_tool_candidates = json!([{"tool": "web_search"}]);
-        let no_tool_minimal_final_turn = workflow_turn_is_meta_control_message(message)
-            || message_explicitly_disallows_tool_calls(message)
-            || workflow_turn_is_simple_conversation_without_tool_intent(message);
+        let no_tool_minimal_final_turn = message_explicitly_disallows_tool_calls(message);
         let manual_toolbox_prompt_only_turn = !no_tool_minimal_final_turn
             && response_tools_prompt_only_gate_required(message, &latent_tool_candidates);
 
         assert!(!no_tool_minimal_final_turn);
-        assert!(manual_toolbox_prompt_only_turn);
+        assert!(!manual_toolbox_prompt_only_turn);
     }
 
     #[test]
@@ -2572,21 +2277,6 @@ mod workflow_fallback_tests {
             Some("initial_llm_response")
         );
         assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
-    }
-
-    #[test]
-    fn workflow_unexpected_state_fallback_never_injects_visible_chat_text() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "is this a hard coded system response?",
-            "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
-            &tools,
-        );
-        assert!(response.trim().is_empty(), "{response}");
     }
 
     #[test]
@@ -2657,27 +2347,12 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn workflow_unexpected_state_fallback_withholds_plain_reply_when_user_requests_direct_answer() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "just answer the question",
-            "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
-            &tools,
-        );
-        assert!(response.trim().is_empty(), "{response}");
-    }
-
-    #[test]
-    fn force_direct_workflow_fallback_when_retry_boilerplate_reject_was_seen() {
+    fn workflow_failure_diagnostic_records_when_retry_boilerplate_reject_was_seen() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": false
         })];
-        assert!(should_force_direct_workflow_fallback(
+        assert!(should_record_workflow_failure_diagnostic(
             "unexpected_state_retry_boilerplate",
             "",
             "",
@@ -2687,22 +2362,22 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn force_direct_workflow_fallback_when_policy_block_tool_is_present() {
+    fn workflow_failure_diagnostic_records_when_policy_block_tool_is_present() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": true,
             "result": "lease_denied:client_ingress_domain_boundary"
         })];
-        assert!(should_force_direct_workflow_fallback("", "", "", &tools, false));
+        assert!(should_record_workflow_failure_diagnostic("", "", "", &tools, false));
     }
 
     #[test]
-    fn force_direct_workflow_fallback_when_latest_reply_is_repeated_legacy_copy() {
+    fn workflow_failure_diagnostic_records_when_latest_reply_is_legacy_copy() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": false
         })];
-        assert!(should_force_direct_workflow_fallback(
+        assert!(should_record_workflow_failure_diagnostic(
             "",
             "",
             "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
@@ -2712,12 +2387,12 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn force_direct_workflow_fallback_when_invalid_excerpt_has_retry_boilerplate() {
+    fn workflow_failure_diagnostic_records_when_invalid_excerpt_has_retry_boilerplate() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": false
         })];
-        assert!(should_force_direct_workflow_fallback(
+        assert!(should_record_workflow_failure_diagnostic(
             "",
             "final reply did not render; please retry so i can rerun the chain cleanly",
             "",
@@ -2748,33 +2423,18 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn force_direct_workflow_fallback_when_recent_loop_detected() {
+    fn workflow_failure_diagnostic_records_when_recent_loop_detected() {
         let tools = vec![json!({
             "name": "file_list",
             "blocked": false
         })];
-        assert!(should_force_direct_workflow_fallback(
+        assert!(should_record_workflow_failure_diagnostic(
             "",
             "",
             "normal latest",
             &tools,
             true
         ));
-    }
-
-    #[test]
-    fn workflow_policy_block_fallback_withholds_diagnostic_copy_when_requested() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let response = workflow_unexpected_state_user_fallback(
-            "what do you think is happening?",
-            "",
-            &tools,
-        );
-        assert!(response.trim().is_empty(), "{response}");
     }
 
     #[test]
@@ -2796,78 +2456,10 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn ensure_no_retry_boilerplate_copy_rewrites_legacy_template() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let response = ensure_no_retry_boilerplate_copy(
-            "hello",
-            "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
-            &tools,
-            "I completed the run, but the final reply did not render. Ask me to continue and I will synthesize from the recorded workflow state.",
-        );
-        assert!(response.trim().is_empty());
-    }
-
-    #[test]
-    fn ensure_no_retry_boilerplate_copy_breaks_exact_repeat_of_latest_copy() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "The prior tool step was blocked by a local policy gate. I can still answer directly from current context without another tool call.";
-        let response = ensure_no_retry_boilerplate_copy("status?", latest, &tools, latest);
-        assert!(response.trim().is_empty());
-    }
-
-    #[test]
     fn response_repeat_detector_catches_near_duplicate_formatting_variants() {
         let latest = "I'm not hard-locked. The previous fallback repeated, so I'm switching to a plain direct response path and avoiding extra tool calls unless you explicitly request one.";
         let response = "Im not hard locked - the previous fallback repeated so im switching to a plain direct response path and avoiding extra tool calls unless you explicitly request one";
         assert!(response_repeats_latest_assistant_copy(response, latest));
-    }
-
-    #[test]
-    fn ensure_no_retry_boilerplate_copy_breaks_near_duplicate_latest_copy() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
-        let latest = "The previous fallback repeated, so I'm switching to a stable direct-answer path now and keeping tools off unless you explicitly request one.";
-        let candidate = "The previous fallback repeated so Im switching to a stable direct answer path now and keeping tools off unless you explicitly request one";
-        let response = ensure_no_retry_boilerplate_copy("status?", latest, &tools, candidate);
-        assert!(response.trim().is_empty());
-    }
-
-    #[test]
-    fn ensure_no_retry_boilerplate_copy_uses_last_resort_variant_when_alternate_still_repeats() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "Answering directly from current context now. The last tool attempt was policy-blocked, and I'll keep tools off unless you explicitly request one.";
-        let response = ensure_no_retry_boilerplate_copy("status?", latest, &tools, latest);
-        assert!(response.trim().is_empty());
-    }
-
-    #[test]
-    fn workflow_non_repeating_last_resort_reply_rotates_to_non_matching_variant() {
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": true,
-            "result": "lease_denied:client_ingress_domain_boundary"
-        })];
-        let latest = "Direct answer mode is active. Prior tool execution was policy-blocked, and I will continue from current context unless you explicitly request a tool.";
-        let response = workflow_non_repeating_last_resort_reply(
-            "what happened?",
-            latest,
-            &tools,
-        );
-        assert!(response.is_empty());
     }
 
     #[test]
@@ -2887,7 +2479,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn final_retry_boilerplate_guard_rewrites_response_and_sets_metadata() {
+    fn final_retry_boilerplate_diagnostic_rewrites_response_and_sets_metadata() {
         let mut workflow = json!({
             "response": "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
             "quality_telemetry": {},
@@ -2901,7 +2493,7 @@ mod workflow_fallback_tests {
             "blocked": true,
             "result": "lease_denied:client_ingress_domain_boundary"
         })];
-        apply_final_retry_boilerplate_guard(
+        apply_final_retry_boilerplate_diagnostic(
             &mut workflow,
             "hello",
             "I completed the workflow gate, but the final workflow state was unexpected. Please retry so I can rerun the chain cleanly.",
@@ -2922,92 +2514,92 @@ mod workflow_fallback_tests {
         assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_reason")
+                .pointer("/final_llm_response/diagnostic_event_reason")
                 .and_then(Value::as_str),
-            Some("retry_boilerplate_guard")
+            Some("retry_boilerplate_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_last_stage")
+                .pointer("/final_llm_response/diagnostic_event_last_stage")
                 .and_then(Value::as_str),
-            Some("final_retry_guard")
+            Some("final_retry_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_reasons/0")
+                .pointer("/final_llm_response/diagnostic_event_reasons/0")
                 .and_then(Value::as_str),
-            Some("retry_boilerplate_guard")
+            Some("retry_boilerplate_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_events/0/stage")
+                .pointer("/final_llm_response/diagnostic_event_events/0/stage")
                 .and_then(Value::as_str),
-            Some("final_retry_guard")
+            Some("final_retry_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_stages/0")
+                .pointer("/final_llm_response/diagnostic_event_stages/0")
                 .and_then(Value::as_str),
-            Some("final_retry_guard")
+            Some("final_retry_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_multi_stage")
+                .pointer("/final_llm_response/diagnostic_event_multi_stage")
                 .and_then(Value::as_bool),
             Some(false)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/trigger_count")
+                .pointer("/final_llm_response/diagnostic_event_summary/trigger_count")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/severity")
+                .pointer("/final_llm_response/diagnostic_event_summary/severity")
                 .and_then(Value::as_str),
             Some("low")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/requires_operator_review")
+                .pointer("/final_llm_response/diagnostic_event_summary/requires_operator_review")
                 .and_then(Value::as_bool),
             Some(false)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/escalation_reason")
+                .pointer("/final_llm_response/diagnostic_event_summary/escalation_reason")
                 .and_then(Value::as_str),
             Some("single_guard_activation")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/recommended_action")
+                .pointer("/final_llm_response/diagnostic_event_summary/recommended_action")
                 .and_then(Value::as_str),
             Some("continue_direct_mode")
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_trigger_count")
+                .pointer("/quality_telemetry/diagnostic_event_trigger_count")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_stage_final_retry_guard")
+                .pointer("/quality_telemetry/diagnostic_event_stage_final_retry_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_reason_retry_boilerplate_guard")
+                .pointer("/quality_telemetry/diagnostic_event_reason_retry_boilerplate_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
     }
 
     #[test]
-    fn final_response_presence_guard_fills_empty_response_and_sets_metadata() {
+    fn final_empty_response_diagnostic_records_metadata() {
         let mut workflow = json!({
             "response": "",
             "quality_telemetry": {},
@@ -3020,7 +2612,7 @@ mod workflow_fallback_tests {
             "name": "file_list",
             "blocked": false
         })];
-        apply_final_response_presence_guard(&mut workflow, "hello", "", &tools);
+        apply_final_empty_response_diagnostic(&mut workflow, "hello", "", &tools);
         let response = workflow
             .get("response")
             .and_then(Value::as_str)
@@ -3035,295 +2627,295 @@ mod workflow_fallback_tests {
         assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_reason")
+                .pointer("/final_llm_response/diagnostic_event_reason")
                 .and_then(Value::as_str),
-            Some("empty_response_presence_guard")
+            Some("empty_response_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_last_stage")
+                .pointer("/final_llm_response/diagnostic_event_last_stage")
                 .and_then(Value::as_str),
-            Some("final_presence_guard")
+            Some("final_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_reasons/0")
+                .pointer("/final_llm_response/diagnostic_event_reasons/0")
                 .and_then(Value::as_str),
-            Some("empty_response_presence_guard")
+            Some("empty_response_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_events/0/stage")
+                .pointer("/final_llm_response/diagnostic_event_events/0/stage")
                 .and_then(Value::as_str),
-            Some("final_presence_guard")
+            Some("final_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_stages/0")
+                .pointer("/final_llm_response/diagnostic_event_stages/0")
                 .and_then(Value::as_str),
-            Some("final_presence_guard")
+            Some("final_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_multi_stage")
+                .pointer("/final_llm_response/diagnostic_event_multi_stage")
                 .and_then(Value::as_bool),
             Some(false)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/trigger_count")
+                .pointer("/final_llm_response/diagnostic_event_summary/trigger_count")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/severity")
+                .pointer("/final_llm_response/diagnostic_event_summary/severity")
                 .and_then(Value::as_str),
             Some("low")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/requires_operator_review")
+                .pointer("/final_llm_response/diagnostic_event_summary/requires_operator_review")
                 .and_then(Value::as_bool),
             Some(false)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/escalation_reason")
+                .pointer("/final_llm_response/diagnostic_event_summary/escalation_reason")
                 .and_then(Value::as_str),
             Some("single_guard_activation")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/recommended_action")
+                .pointer("/final_llm_response/diagnostic_event_summary/recommended_action")
                 .and_then(Value::as_str),
             Some("continue_direct_mode")
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_trigger_count")
+                .pointer("/quality_telemetry/diagnostic_event_trigger_count")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_stage_final_presence_guard")
+                .pointer("/quality_telemetry/diagnostic_event_stage_final_presence_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_reason_empty_response_presence_guard")
+                .pointer("/quality_telemetry/diagnostic_event_reason_empty_response_presence_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
     }
 
     #[test]
-    fn mark_workflow_fallback_guard_reason_tracks_history_and_counter() {
+    fn record_workflow_diagnostic_event_tracks_history_and_counter() {
         let mut workflow = json!({
             "final_llm_response": {},
             "quality_telemetry": {}
         });
-        mark_workflow_fallback_guard_reason(
+        record_workflow_diagnostic_event(
             &mut workflow,
-            "retry_boilerplate_guard",
-            "final_retry_guard",
+            "retry_boilerplate_diagnostic",
+            "final_retry_diagnostic",
         );
-        mark_workflow_fallback_guard_reason(
+        record_workflow_diagnostic_event(
             &mut workflow,
-            "empty_response_presence_guard",
-            "final_presence_guard",
+            "empty_response_presence_diagnostic",
+            "final_presence_diagnostic",
         );
-        mark_workflow_fallback_guard_reason(
+        record_workflow_diagnostic_event(
             &mut workflow,
-            "retry_boilerplate_guard",
-            "forced_synthesis_failure_fallback",
+            "retry_boilerplate_diagnostic",
+            "synthesis_failure_diagnostic",
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_reason")
+                .pointer("/final_llm_response/diagnostic_event_reason")
                 .and_then(Value::as_str),
-            Some("retry_boilerplate_guard")
+            Some("retry_boilerplate_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_last_stage")
+                .pointer("/final_llm_response/diagnostic_event_last_stage")
                 .and_then(Value::as_str),
-            Some("forced_synthesis_failure_fallback")
+            Some("synthesis_failure_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_reasons/0")
+                .pointer("/final_llm_response/diagnostic_event_reasons/0")
                 .and_then(Value::as_str),
-            Some("retry_boilerplate_guard")
+            Some("retry_boilerplate_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_reasons/1")
+                .pointer("/final_llm_response/diagnostic_event_reasons/1")
                 .and_then(Value::as_str),
-            Some("empty_response_presence_guard")
+            Some("empty_response_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_events/0/stage")
+                .pointer("/final_llm_response/diagnostic_event_events/0/stage")
                 .and_then(Value::as_str),
-            Some("final_retry_guard")
+            Some("final_retry_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_events/1/stage")
+                .pointer("/final_llm_response/diagnostic_event_events/1/stage")
                 .and_then(Value::as_str),
-            Some("final_presence_guard")
+            Some("final_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_events/2/stage")
+                .pointer("/final_llm_response/diagnostic_event_events/2/stage")
                 .and_then(Value::as_str),
-            Some("forced_synthesis_failure_fallback")
+            Some("synthesis_failure_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_stages/0")
+                .pointer("/final_llm_response/diagnostic_event_stages/0")
                 .and_then(Value::as_str),
-            Some("final_retry_guard")
+            Some("final_retry_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_stages/1")
+                .pointer("/final_llm_response/diagnostic_event_stages/1")
                 .and_then(Value::as_str),
-            Some("final_presence_guard")
+            Some("final_presence_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_stages/2")
+                .pointer("/final_llm_response/diagnostic_event_stages/2")
                 .and_then(Value::as_str),
-            Some("forced_synthesis_failure_fallback")
+            Some("synthesis_failure_diagnostic")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_multi_stage")
+                .pointer("/final_llm_response/diagnostic_event_multi_stage")
                 .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/trigger_count")
+                .pointer("/final_llm_response/diagnostic_event_summary/trigger_count")
                 .and_then(Value::as_u64),
             Some(3)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/distinct_reason_count")
+                .pointer("/final_llm_response/diagnostic_event_summary/distinct_reason_count")
                 .and_then(Value::as_u64),
             Some(2)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/distinct_stage_count")
+                .pointer("/final_llm_response/diagnostic_event_summary/distinct_stage_count")
                 .and_then(Value::as_u64),
             Some(3)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/multi_stage")
+                .pointer("/final_llm_response/diagnostic_event_summary/multi_stage")
                 .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/severity")
+                .pointer("/final_llm_response/diagnostic_event_summary/severity")
                 .and_then(Value::as_str),
             Some("high")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/requires_operator_review")
+                .pointer("/final_llm_response/diagnostic_event_summary/requires_operator_review")
                 .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/escalation_reason")
+                .pointer("/final_llm_response/diagnostic_event_summary/escalation_reason")
                 .and_then(Value::as_str),
             Some("high_trigger_or_stage_diversity")
         );
         assert_eq!(
             workflow
-                .pointer("/final_llm_response/fallback_guard_summary/recommended_action")
+                .pointer("/final_llm_response/diagnostic_event_summary/recommended_action")
                 .and_then(Value::as_str),
             Some("operator_review_recommended")
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_trigger_count")
+                .pointer("/quality_telemetry/diagnostic_event_trigger_count")
                 .and_then(Value::as_u64),
             Some(3)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_stage_final_retry_guard")
+                .pointer("/quality_telemetry/diagnostic_event_stage_final_retry_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_stage_final_presence_guard")
+                .pointer("/quality_telemetry/diagnostic_event_stage_final_presence_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_stage_forced_synthesis_failure_fallback")
+                .pointer("/quality_telemetry/diagnostic_event_stage_synthesis_failure_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_reason_retry_boilerplate_guard")
+                .pointer("/quality_telemetry/diagnostic_event_reason_retry_boilerplate_diagnostic")
                 .and_then(Value::as_u64),
             Some(2)
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/fallback_guard_reason_empty_response_presence_guard")
+                .pointer("/quality_telemetry/diagnostic_event_reason_empty_response_presence_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
         );
     }
 
     #[test]
-    fn workflow_fallback_guard_stage_counter_key_sanitizes_non_alnum_stage_tokens() {
+    fn workflow_diagnostic_stage_counter_key_sanitizes_non_alnum_stage_tokens() {
         assert_eq!(
-            workflow_fallback_guard_stage_counter_key("Final Presence Guard!!"),
-            "fallback_guard_stage_final_presence_guard"
+            workflow_diagnostic_stage_counter_key("Final Presence Guard!!"),
+            "diagnostic_event_stage_final_presence_diagnostic"
         );
         assert_eq!(
-            workflow_fallback_guard_stage_counter_key("___"),
-            "fallback_guard_stage_unknown"
-        );
-    }
-
-    #[test]
-    fn workflow_fallback_guard_reason_counter_key_sanitizes_non_alnum_reason_tokens() {
-        assert_eq!(
-            workflow_fallback_guard_reason_counter_key("Retry Boilerplate Guard!!"),
-            "fallback_guard_reason_retry_boilerplate_guard"
-        );
-        assert_eq!(
-            workflow_fallback_guard_reason_counter_key("___"),
-            "fallback_guard_reason_unknown"
+            workflow_diagnostic_stage_counter_key("___"),
+            "diagnostic_event_stage_unknown"
         );
     }
 
     #[test]
-    fn workflow_fallback_guard_summary_classification_escalates_with_counts() {
+    fn workflow_diagnostic_reason_counter_key_sanitizes_non_alnum_reason_tokens() {
         assert_eq!(
-            workflow_fallback_guard_summary_classification(1, 1),
+            workflow_diagnostic_reason_counter_key("Retry Boilerplate Guard!!"),
+            "diagnostic_event_reason_retry_boilerplate_diagnostic"
+        );
+        assert_eq!(
+            workflow_diagnostic_reason_counter_key("___"),
+            "diagnostic_event_reason_unknown"
+        );
+    }
+
+    #[test]
+    fn workflow_diagnostic_summary_classification_escalates_with_counts() {
+        assert_eq!(
+            workflow_diagnostic_summary_classification(1, 1),
             ("low", false, "single_guard_activation", "continue_direct_mode")
         );
         assert_eq!(
-            workflow_fallback_guard_summary_classification(2, 1),
+            workflow_diagnostic_summary_classification(2, 1),
             (
                 "moderate",
                 false,
@@ -3332,7 +2924,7 @@ mod workflow_fallback_tests {
             )
         );
         assert_eq!(
-            workflow_fallback_guard_summary_classification(1, 3),
+            workflow_diagnostic_summary_classification(1, 3),
             (
                 "high",
                 true,
@@ -3343,7 +2935,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn final_response_presence_guard_does_not_override_non_empty_response() {
+    fn final_empty_response_diagnostic_preserves_non_empty_response() {
         let mut workflow = json!({
             "response": "Answer already present.",
             "quality_telemetry": {},
@@ -3356,7 +2948,7 @@ mod workflow_fallback_tests {
             "name": "file_list",
             "blocked": false
         })];
-        apply_final_response_presence_guard(&mut workflow, "hello", "", &tools);
+        apply_final_empty_response_diagnostic(&mut workflow, "hello", "", &tools);
         assert_eq!(
             workflow.get("response").and_then(Value::as_str),
             Some("Answer already present.")
@@ -3461,5 +3053,45 @@ mod workflow_fallback_tests {
 
         assert_eq!(category_key, "web_research");
         assert_eq!(category_label, "Web research");
+    }
+
+    #[test]
+    fn structured_response_gate_fragment_selects_json_alias_category() {
+        let response = r#""response_gate": "3"}"#;
+
+        assert!(response_is_tool_bearing_category_gate_submission(response));
+        let (category_key, category_label) = workflow_category_selection(
+            &default_workflow_tool_menu_contract(),
+            response,
+            Some(true),
+        )
+        .expect("response_gate web research alias");
+
+        assert_eq!(category_key, "web_research");
+        assert_eq!(category_label, "Web research");
+        assert!(response_is_tool_bearing_category_gate_submission(
+            r#"{"gate": 3}"#
+        ));
+        assert!(response_is_tool_bearing_category_gate_submission(
+            r#""workflow_gate": 3}"#
+        ));
+    }
+
+    #[test]
+    fn structured_no_tool_gate_submission_preserves_llm_final_answer() {
+        let response =
+            r#"{"gate":1,"token":"1","final_answer":"Hey there - I'm here and ready."}"#;
+
+        assert!(response_is_exact_no_tool_gate_submission(response));
+        assert_eq!(
+            workflow_structured_gate_final_answer(response),
+            Some("Hey there - I'm here and ready.".to_string())
+        );
+        assert_eq!(
+            workflow_structured_gate_final_answer(
+                r#""gate_6_final_answer": "Hey, I'm here!""#
+            ),
+            Some("Hey, I'm here!".to_string())
+        );
     }
 }

@@ -41,25 +41,6 @@ fn important_memory_terms(text: &str, limit: usize) -> Vec<String> {
     out
 }
 
-const DEPRECATED_WORKFLOW_SOURCE_MARKERS: &[&str] = &[
-    "[source:workflow_gate]",
-    "source:workflow_gate",
-    "[source:tool_gate]",
-    "source:tool_gate",
-    "[source:tool_decision_tree_v3]",
-    "source:tool_decision_tree_v3",
-    "[source:workflow_route_classification]",
-    "source:workflow_route_classification",
-    "[source:gate_enforcement_mode]",
-    "source:gate_enforcement_mode",
-    "[source:tool_decision_policy]",
-    "source:tool_decision_policy",
-    "[source:conversation_bypass_control]",
-    "source:conversation_bypass_control",
-    "[source:agent_framework_analysis]",
-    "source:agent_framework_analysis",
-];
-
 fn strip_disallowed_source_tags(text: &str) -> String {
     let mut cleaned = clean_text(text, 4_000);
     if cleaned.is_empty() {
@@ -76,16 +57,7 @@ fn strip_disallowed_source_tags(text: &str) -> String {
         let end = start + 8 + rel_end;
         cleaned.replace_range(start..=end, "");
     }
-    for marker in DEPRECATED_WORKFLOW_SOURCE_MARKERS {
-        cleaned = cleaned.replace(marker, "");
-    }
     clean_text(&cleaned, 4_000)
-}
-
-fn contains_deprecated_workflow_source_marker(lowered: &str) -> bool {
-    DEPRECATED_WORKFLOW_SOURCE_MARKERS
-        .iter()
-        .any(|marker| lowered.contains(marker))
 }
 
 fn message_mentions_host_project(text: &str) -> bool {
@@ -95,10 +67,8 @@ fn message_mentions_host_project(text: &str) -> bool {
 }
 
 fn current_turn_project_boundary_prompt(message: &str) -> String {
-    if !message_mentions_host_project(message) {
-        return String::new();
-    }
-    "Current-turn project boundary: answer about Infring as the host system. Treat recently discussed external repos, frameworks, benchmarks, and assimilation targets as optional references only; do not reinterpret Infring as one of those external systems unless the current user explicitly asks for comparison or assimilation details.".to_string()
+    let _ = message;
+    String::new()
 }
 
 fn normalized_identity_subject(raw: &str) -> String {
@@ -174,59 +144,17 @@ fn contains_deprecated_workflow_ghost_phrase(text: &str) -> bool {
     if lowered.is_empty() {
         return false;
     }
-    let route_classification_template = lowered.contains("the first gate")
-        && (lowered.contains("workflow_route") || lowered.contains("task_or_info_route"))
-        && (lowered.contains("still classifying this as an \"info\" route rather than a \"task\" route")
-            || lowered.contains("still classifying this as an 'info' route rather than a 'task' route")
-            || lowered.contains("explicit tool-related phrasing")
-            || lowered.contains("task classification path")
-            || lowered.contains("tool operation request"));
-    let route_binary_classifier_template =
-        (lowered.contains("workflow_route") || lowered.contains("task_or_info_route"))
-            && (lowered.contains("binary classification")
-                || lowered.contains("automated classification based on semantic analysis")
-                || lowered.contains("not a true/false decision i control")
-                || lowered.contains("defaults to info")
-                || contains_deprecated_workflow_source_marker(&lowered));
-    let decision_tree_autoclassifier_template = lowered.contains("decision tree")
-        && lowered.contains("automatically classifies")
-        && lowered.contains("\"info\"")
-        && lowered.contains("\"task\"")
-        && lowered.contains("semantic analysis");
-    lowered.contains("task_or_info_route")
-        || route_classification_template
-        || route_binary_classifier_template
-        || decision_tree_autoclassifier_template
-        || lowered.contains("i completed the workflow gate, but the final workflow state was unexpected")
-        || lowered.contains("please retry so i can rerun the chain cleanly")
-        || lowered.contains("final reply did not render")
-        || lowered.contains("ask me to continue and i will synthesize")
-        || lowered.contains("i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session")
-        || lowered.contains("conversation bypass mode is currently active")
-        || lowered.contains("restricted from running web searches")
-        || lowered.contains("can't autonomously decide to use web tools")
-        || lowered.contains("cannot autonomously decide to use web tools")
-        || lowered.contains("requires manual step-by-step authorization for tool usage")
-        || lowered.contains("before i even get to make any manual decisions")
-        || lowered.contains("automatic classification based on semantic analysis of your input")
-        || (lowered.contains("tool workflow")
-            && lowered.contains("direct conversation")
-            && lowered.contains("semantic analysis"))
-        || contains_deprecated_workflow_source_marker(&lowered)
+    workflow_message_matches_contract_markers(
+        &default_workflow_tool_menu_contract(),
+        "/diagnostic_markers/legacy_retry_templates",
+        &lowered,
+    )
 }
 
 fn scrub_deprecated_workflow_ghost_text(text: &str) -> String {
-    let mut cleaned = strip_disallowed_source_tags(text);
+    let cleaned = strip_disallowed_source_tags(text);
     if cleaned.is_empty() {
         return cleaned;
-    }
-    for legacy in [
-        "`task_or_info_route`",
-        "\"task_or_info_route\"",
-        "'task_or_info_route'",
-        "task_or_info_route",
-    ] {
-        cleaned = cleaned.replace(legacy, "workflow_route");
     }
     let stabilized = strip_disallowed_source_tags(&cleaned);
     if contains_deprecated_workflow_ghost_phrase(&stabilized) {
@@ -301,16 +229,11 @@ fn tool_outcome_keyframe_from_turn(user_text: &str, assistant_text: &str) -> Opt
     if !(mentions_web && low_signal) {
         return None;
     }
-    let query = natural_web_search_query_from_message(user_text)
-        .or_else(|| comparative_web_query_from_message(user_text))
-        .unwrap_or_default();
+    let query = natural_web_search_query_from_message(user_text).unwrap_or_default();
     let url = first_http_url_in_text(user_text);
     let tool = if lowered.contains("web fetch") || !url.is_empty() {
         "web_fetch"
-    } else if lowered.contains("batch_query")
-        || lowered.contains("batch query")
-        || message_requests_live_web_comparison(user_text)
-    {
+    } else if lowered.contains("batch_query") || lowered.contains("batch query") {
         "batch_query"
     } else {
         "web_search"

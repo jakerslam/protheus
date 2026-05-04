@@ -26,18 +26,9 @@ fn misty_wave3_gate_one_is_literal_llm_controlled_yes_no() {
             .and_then(Value::as_str),
         Some("multiple_choice")
     );
-    assert_eq!(
-        decision
-            .get("semantic_route_classifier_active")
-            .and_then(Value::as_bool),
-        Some(false)
-    );
-    assert_eq!(
-        decision
-            .get("info_task_route_classifier_active")
-            .and_then(Value::as_bool),
-        Some(false)
-    );
+    assert!(decision.get("semantic_route_classifier_active").is_none());
+    assert!(decision.get("info_task_route_classifier_active").is_none());
+    assert!(decision.get("workflow_route_classifier_active").is_none());
     assert_eq!(
         decision
             .get("system_may_select_tools")

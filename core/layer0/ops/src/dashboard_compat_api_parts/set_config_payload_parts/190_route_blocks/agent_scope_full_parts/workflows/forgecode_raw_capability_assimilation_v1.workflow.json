@@ -96,7 +96,7 @@
             "eval_trace",
             "prompt_analysis"
           ],
-          "chat_requirement": "write only the final user-facing answer"
+          "chat_requirement": "Respond to the user message. Write only the final user-facing answer."
         }
       },
       "gate_1_work_category_menu": {
@@ -121,6 +121,18 @@
             "Memory/notes",
             "8",
             "External apps/integrations"
+          ],
+          "structured_token_fields": [
+            "token",
+            "choice",
+            "selection",
+            "selected_option",
+            "response_gate",
+            "workflow_gate",
+            "gate",
+            "category",
+            "work_category",
+            "option"
           ],
           "forbidden_output_classes": [
             "choice_narration",
@@ -248,7 +260,312 @@
         "status",
         "done yet",
         "request??"
-      ]
+      ],
+      "legacy_retry_templates": [
+        "ask me to continue and i will synthesize",
+        "automated classification based on semantic analysis",
+        "automatically classifies",
+        "binary classification",
+        "can't autonomously decide to use web tools",
+        "cant autonomously decide to use web tools",
+        "clarify the exact outcome you want",
+        "client_ingress_domain_boundary",
+        "completed the run, but the final reply did not render",
+        "concise answer from current context",
+        "conversation bypass mode is currently active",
+        "decision tree",
+        "defaults to info",
+        "explicit tool-related phrasing",
+        "file list step was blocked before i could finish the answer",
+        "final reply did not render",
+        "final workflow state was unexpected",
+        "finalization edge",
+        "i can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session",
+        "i completed the run, but the final reply did not render",
+        "i completed the workflow gate, but the final workflow state was unexpected",
+        "lease_denied:client_ingress_domain_boundary",
+        "next actions",
+        "not a true/false decision i control",
+        "please retry",
+        "please retry so i can rerun the chain cleanly",
+        "requires manual step-by-step authorization for tool usage",
+        "rerun the chain",
+        "restricted from running web searches",
+        "return a concise answer from current context",
+        "run one targeted tool call",
+        "source:agent_framework_analysis",
+        "source:conversation_bypass_control",
+        "source:gate_enforcement_mode",
+        "source:tool_decision_policy",
+        "source:tool_gate",
+        "source:workflow_gate",
+        "source:workflow_route_classification",
+        "still classifying this as an \"info\" route rather than a \"task\" route",
+        "still classifying this as an 'info' route rather than a 'task' route",
+        "still classifying this as an info route rather than a task route",
+        "synthesize from the recorded workflow state",
+        "targeted tool call",
+        "task classification path",
+        "task_or_info_route",
+        "this is a policy gate, not a web-provider outage",
+        "tool operation request",
+        "workflow gate",
+        "workflow state was unexpected. please retry",
+        "workflow_route"
+      ],
+      "deferred_tool_request_phrases": [
+        "i'll get you an update",
+        "i will get you an update",
+        "let me get you an update",
+        "i'll look into",
+        "i will look into",
+        "let me look into",
+        "i'll check",
+        "i will check",
+        "let me check",
+        "working on it",
+        "one moment",
+        "stand by",
+        "i'll report back",
+        "i will report back",
+        "let me search",
+        "i'll search",
+        "i will search",
+        "i'll use the web search",
+        "i will use the web search",
+        "please hold while i gather",
+        "once i have that information",
+        "let me start that process",
+        "let's inspect",
+        "need to perform a web search",
+        "i need to perform a web search",
+        "would you like me to search",
+        "would you like me to fetch",
+        "search for more",
+        "rerun with",
+        "retry with",
+        "narrower query",
+        "specific source url",
+        "need to search",
+        "need targeted web research",
+        "need more specific",
+        "let me try",
+        "i'll try",
+        "i will try",
+        "if you'd like, i can search",
+        "if you would like, i can search",
+        "if you'd like, i can fetch",
+        "if you would like, i can fetch",
+        "if you'd like, i can look deeper",
+        "if you would like, i can look deeper",
+        "more targeted approach",
+        "another search",
+        "technical documentation",
+        "architecture details to enable"
+      ],
+      "unresolved_tool_need_phrases": [
+        "i don't have current web search results",
+        "i do not have current web search results",
+        "i don't have usable tool findings",
+        "i do not have usable tool findings",
+        "i'll need to perform a web search",
+        "i will need to perform a web search",
+        "web search didn't return",
+        "web search did not return",
+        "web search returned limited",
+        "search returned limited",
+        "tool returned no new results",
+        "let me run that search",
+        "if you'd like me to search",
+        "if you would like me to search",
+        "if you'd like me to fetch",
+        "if you would like me to fetch"
+      ],
+      "gate_choice_prefix_leakage_phrases": [
+        "need tools yes",
+        "need tools no",
+        "use workflow yes",
+        "use workflow no",
+        "answer directly",
+        "direct answer mode",
+        "direct-answer mode",
+        "direct answer path",
+        "direct-answer path",
+        "workflow gate",
+        "manual toolbox",
+        "selected tool",
+        "selected_tool",
+        "request payload:"
+      ],
+      "prompt_analysis_leak_phrases": [
+        "according to the instructions",
+        "in the runtime context",
+        "the instruction says",
+        "instruction says",
+        "the output format says",
+        "the user says",
+        "the user asks",
+        "user asks for",
+        "we must reply",
+        "we need to reply",
+        "we'll make",
+        "so we answer",
+        "we answer normally",
+        "i should answer",
+        "i need to answer"
+      ],
+      "unsupported_tool_claim": {
+        "tool_surface_terms": [
+          "tool",
+          "batch query",
+          "batch_query",
+          "web search",
+          "web retrieval",
+          "live web retrieval",
+          "workspace",
+          "file search",
+          "file tooling",
+          "searched the files",
+          "searched files",
+          "read the file",
+          "opened the file",
+          "inspected the file",
+          "scanned the repo",
+          "searched the repo",
+          "terminal",
+          "command"
+        ],
+        "execution_claim_phrases": [
+          "i searched",
+          "i ran",
+          "i used",
+          "i called",
+          "i executed",
+          "i opened",
+          "i read",
+          "i inspected",
+          "i scanned",
+          "i found",
+          "live web retrieval",
+          "web retrieval",
+          "batch query",
+          "tool ran",
+          "tool succeeded",
+          "tool completed",
+          "search returned",
+          "search found",
+          "returned no findings",
+          "returned no results",
+          "found no results",
+          "found no findings",
+          "returned these",
+          "returned the following"
+        ],
+        "empty_result_claim_phrases": [
+          "no findings",
+          "no results",
+          "didn't return",
+          "did not return",
+          "limited results"
+        ],
+        "result_context_terms": [
+          "search",
+          "tool",
+          "workspace",
+          "retrieval",
+          "batch_query",
+          "batch query"
+        ],
+        "listing_claim_phrases": [
+          "files i found",
+          "file i found",
+          "found these files",
+          "found the following files",
+          "workspace results",
+          "search results",
+          "returned listings",
+          "listing",
+          "listings"
+        ],
+        "hypothetical_phrases": [
+          "i would ",
+          "i'd ",
+          "i can ",
+          "i could ",
+          "i should ",
+          "would use",
+          "would choose",
+          "would run",
+          "would search",
+          "would inspect",
+          "would read",
+          "next i would"
+        ]
+      },
+      "recorded_tool_result_answer": {
+        "tool_result_terms": [
+          "tool",
+          "search",
+          "query",
+          "source",
+          "result",
+          "find"
+        ],
+        "no_result_explanation_phrases": [
+          "didn't find",
+          "did not find",
+          "couldn't find",
+          "could not find",
+          "no relevant",
+          "no usable",
+          "no source",
+          "not enough",
+          "enough relevant information",
+          "source coverage",
+          "did not produce enough",
+          "retrieval-quality",
+          "low-signal",
+          "hit issues"
+        ]
+      }
+    },
+    "trace_status_messages": {
+      "pending_final_llm": {
+        "ui": "Workflow at final answer gate; waiting for LLM-authored output.",
+        "agent_process": "Final answer gate active. Submit the user-facing answer only."
+      },
+      "synthesized": {
+        "ui": "Workflow complete; final answer came from the LLM final gate.",
+        "agent_process": "Final answer gate complete."
+      },
+      "no_post_synthesis_required": {
+        "ui": "Workflow complete; no-tool category selected and direct LLM answer is available.",
+        "agent_process": "No-tool category selected. Respond directly without tool menus."
+      },
+      "skipped_missing_model": {
+        "ui": "Workflow paused; no model was available for the final answer gate.",
+        "agent_process": "Final answer gate blocked because the model provider is unavailable."
+      },
+      "diagnostic_failure_pass_through": {
+        "ui": "Workflow recorded a diagnostic failure; no system-authored chat text was injected.",
+        "agent_process": "Diagnostic recorded. Visible chat remains LLM-authored only."
+      },
+      "guard_violation_pass_through": {
+        "ui": "Workflow recorded a guard diagnostic; visible chat remains the LLM output.",
+        "agent_process": "Guard diagnostic recorded. Do not replace the final answer with system prose."
+      },
+      "empty_llm_response": {
+        "ui": "Workflow final answer gate returned empty output; no system-authored chat text was injected.",
+        "agent_process": "Final answer gate returned empty output. Retry must produce LLM-authored output."
+      },
+      "synthesis_failed": {
+        "ui": "Workflow final answer gate failed; no system-authored chat text was injected.",
+        "agent_process": "Final answer gate failed. Retry must produce LLM-authored output."
+      },
+      "default": {
+        "ui": "Workflow state exported for trace visibility.",
+        "agent_process": "Follow the currently presented workflow gate."
+      }
     },
     "tool_family_menu": [
       {
@@ -468,14 +785,16 @@
     "rust_reader_role": "validate_execute_trace_only",
     "hardcoded_interaction_behavior_allowed": false,
     "json_owns": [
-      "interaction_gates",
+      "confirmation_states",
+      "diagnostic_markers",
+      "final_output_contract",
       "gate_options",
       "gate_transitions",
+      "interaction_gates",
+      "loopbacks",
       "tool_family_menus",
       "tool_input_schemas",
-      "confirmation_states",
-      "loopbacks",
-      "final_output_contract"
+      "trace_status_messages"
     ],
     "rust_owns": [
       "json_loading",

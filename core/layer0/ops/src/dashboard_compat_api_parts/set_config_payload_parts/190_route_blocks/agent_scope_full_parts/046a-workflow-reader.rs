@@ -63,6 +63,31 @@ fn workflow_contract_array_strings_at(value: &Value, pointer: &str) -> Vec<Strin
         .unwrap_or_default()
 }
 
+fn workflow_contract_array_contains(value: &Value, pointer: &str, expected: &str) -> bool {
+    let expected = clean_text(expected, 120);
+    !expected.is_empty()
+        && workflow_contract_array_strings_at(value, pointer)
+            .iter()
+            .any(|row| row == &expected)
+}
+
+fn workflow_trace_status_message_pair_is_complete(contract: &Value, status: &str) -> bool {
+    let status = clean_text(status, 120);
+    !status.is_empty()
+        && workflow_contract_string_at(
+            contract,
+            &format!("/trace_status_messages/{status}/ui"),
+            240,
+        )
+        .is_some()
+        && workflow_contract_string_at(
+            contract,
+            &format!("/trace_status_messages/{status}/agent_process"),
+            240,
+        )
+        .is_some()
+}
+
 fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
     if workflow_contract_string_at(contract, "/version", 80).is_none()
         || workflow_contract_string_at(contract, "/llm_gate_instruction", 1_400).is_none()
@@ -82,6 +107,24 @@ fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
     if gate_order.is_empty() || allowed_shapes.is_empty() || gates.is_empty() {
         return false;
     }
+    let first_gate_id = gate_order.first().cloned().unwrap_or_default();
+    let first_gate_submission_complete = !first_gate_id.is_empty()
+        && !workflow_contract_array_strings_at(
+            contract,
+            &format!("/gates/{first_gate_id}/submission_contract/accepted_outputs"),
+        )
+        .is_empty()
+        && !workflow_contract_array_strings_at(
+            contract,
+            &format!("/gates/{first_gate_id}/submission_contract/structured_token_fields"),
+        )
+        .is_empty()
+        && contract
+            .pointer(&format!(
+                "/gates/{first_gate_id}/submission_contract/chat_injection_allowed"
+            ))
+            .and_then(Value::as_bool)
+            == Some(false);
     let tool_request_fields =
         workflow_contract_array_strings_at(contract, "/tool_request_submission_contract/field_order");
     let tool_request_contract_complete = !tool_request_fields.is_empty()
@@ -101,6 +144,56 @@ fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
             .pointer("/tool_request_submission_contract/system_may_infer_missing_fields")
             .and_then(Value::as_bool)
             == Some(false);
+    let trace_status_messages_complete = [
+        "default",
+        "pending_final_llm",
+        "synthesized",
+        "no_post_synthesis_required",
+        "skipped_missing_model",
+        "diagnostic_failure_pass_through",
+        "synthesis_failed",
+        "guard_violation_pass_through",
+        "empty_llm_response",
+    ]
+    .iter()
+    .all(|status| workflow_trace_status_message_pair_is_complete(contract, status));
+    let diagnostic_markers_complete = workflow_contract_array_at(
+        contract,
+        "/diagnostic_markers/legacy_retry_templates",
+    )
+    .is_some()
+        && workflow_contract_array_at(
+            contract,
+            "/diagnostic_markers/deferred_tool_request_phrases",
+        )
+        .is_some()
+        && workflow_contract_array_at(
+            contract,
+            "/diagnostic_markers/unresolved_tool_need_phrases",
+        )
+        .is_some()
+        && workflow_contract_array_at(
+            contract,
+            "/diagnostic_markers/gate_choice_prefix_leakage_phrases",
+        )
+        .is_some()
+        && workflow_contract_array_at(
+            contract,
+            "/diagnostic_markers/prompt_analysis_leak_phrases",
+        )
+        .is_some()
+        && [
+            "/diagnostic_markers/unsupported_tool_claim/tool_surface_terms",
+            "/diagnostic_markers/unsupported_tool_claim/execution_claim_phrases",
+            "/diagnostic_markers/unsupported_tool_claim/empty_result_claim_phrases",
+            "/diagnostic_markers/unsupported_tool_claim/result_context_terms",
+            "/diagnostic_markers/unsupported_tool_claim/listing_claim_phrases",
+            "/diagnostic_markers/unsupported_tool_claim/hypothetical_phrases",
+            "/diagnostic_markers/recorded_tool_result_answer/tool_result_terms",
+            "/diagnostic_markers/recorded_tool_result_answer/no_result_explanation_phrases",
+        ]
+        .iter()
+        .all(|pointer| workflow_contract_array_at(contract, pointer).is_some());
     let declared_gates_are_valid = gate_order.iter().all(|gate_id| {
         gates
             .get(gate_id)
@@ -111,10 +204,107 @@ fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
     });
     let declares_final_output = gates.values().any(|gate| {
         gate.get("final_output_contract")
-            .filter(|contract| contract.is_object())
+            .filter(|contract| {
+                contract.is_object()
+                    && workflow_contract_string_at(
+                        contract,
+                        "/chat_requirement",
+                        400,
+                    )
+                    .is_some()
+            })
             .is_some()
     });
-    tool_request_contract_complete && declared_gates_are_valid && declares_final_output
+    let first_gate_options = workflow_gate_options_from_contract(contract, &first_gate_id);
+    let final_gate_id = workflow_final_gate_id_from_contract(contract);
+    let has_no_tool_option = first_gate_options.iter().any(|option| {
+        option.get("has_tools").and_then(Value::as_bool) == Some(false)
+            && workflow_contract_string_at(option, "/key", 120).is_some()
+            && workflow_contract_string_at(option, "/label", 120).is_some()
+            && workflow_contract_string_at(option, "/transition", 120)
+                .map(|transition| transition == final_gate_id)
+                .unwrap_or(false)
+    });
+    let tool_family_menu = workflow_contract_array_at(contract, "/tool_family_menu")
+        .unwrap_or_default();
+    let tool_menu_by_family = workflow_contract_object_at(contract, "/tool_menu_by_family")
+        .unwrap_or_else(|| json!({}));
+    let has_tool_option = first_gate_options.iter().any(|option| {
+        let key = workflow_contract_string_at(option, "/key", 120).unwrap_or_default();
+        option.get("has_tools").and_then(Value::as_bool) == Some(true)
+            && !key.is_empty()
+            && workflow_contract_string_at(option, "/label", 120).is_some()
+            && workflow_contract_string_at(option, "/transition", 120).is_some()
+            && tool_menu_by_family.get(&key).is_some()
+    });
+    let tool_family_menu_complete = !tool_family_menu.is_empty()
+        && !tool_menu_by_family.as_object().map(|rows| rows.is_empty()).unwrap_or(true);
+    let confirmation_gate_complete = gates.values().any(|gate| {
+        gate.get("options")
+            .and_then(Value::as_array)
+            .map(|options| {
+                let has_confirm = options.iter().any(|option| {
+                    workflow_contract_string_at(option, "/key", 80)
+                        .map(|key| key == "confirm")
+                        .unwrap_or(false)
+                        && workflow_contract_string_at(option, "/transition", 120)
+                            .map(|transition| transition == "execute_tool")
+                            .unwrap_or(false)
+                });
+                let has_cancel = options.iter().any(|option| {
+                    workflow_contract_string_at(option, "/key", 80)
+                        .map(|key| key == "cancel")
+                        .unwrap_or(false)
+                        && workflow_contract_string_at(option, "/terminal_state", 120)
+                            .map(|state| state == "cancelled")
+                            .unwrap_or(false)
+                });
+                has_confirm && has_cancel
+            })
+            .unwrap_or(false)
+    });
+    let loopback_declared = contract
+        .get("declared_loopbacks")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false);
+    first_gate_submission_complete
+        && tool_request_contract_complete
+        && trace_status_messages_complete
+        && diagnostic_markers_complete
+        && declared_gates_are_valid
+        && declares_final_output
+        && has_no_tool_option
+        && has_tool_option
+        && tool_family_menu_complete
+        && confirmation_gate_complete
+        && loopback_declared
+}
+
+fn workflow_gate_options_from_contract(contract: &Value, gate_id: &str) -> Vec<Value> {
+    contract
+        .pointer(&format!("/gates/{gate_id}/options"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn workflow_final_gate_id_from_contract(contract: &Value) -> String {
+    let gates = contract
+        .get("gates")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    workflow_contract_array_strings_at(contract, "/gate_order")
+        .into_iter()
+        .find(|gate_id| {
+            gates
+                .get(gate_id)
+                .and_then(|gate| gate.get("final_output_contract"))
+                .filter(|value| value.is_object())
+                .is_some()
+        })
+        .unwrap_or_default()
 }
 
 fn workflow_source_of_truth_contract_is_complete(contract: &Value) -> bool {
@@ -126,6 +316,16 @@ fn workflow_source_of_truth_contract_is_complete(contract: &Value) -> bool {
             == Some(false)
         && workflow_contract_array_at(contract, "/json_owns").is_some()
         && workflow_contract_array_at(contract, "/rust_owns").is_some()
+        && workflow_contract_array_contains(contract, "/json_owns", "interaction_gates")
+        && workflow_contract_array_contains(contract, "/json_owns", "gate_options")
+        && workflow_contract_array_contains(contract, "/json_owns", "gate_transitions")
+        && workflow_contract_array_contains(contract, "/json_owns", "tool_family_menus")
+        && workflow_contract_array_contains(contract, "/json_owns", "tool_input_schemas")
+        && workflow_contract_array_contains(contract, "/json_owns", "confirmation_states")
+        && workflow_contract_array_contains(contract, "/json_owns", "loopbacks")
+        && workflow_contract_array_contains(contract, "/json_owns", "final_output_contract")
+        && workflow_contract_array_contains(contract, "/json_owns", "trace_status_messages")
+        && workflow_contract_array_contains(contract, "/json_owns", "diagnostic_markers")
 }
 
 fn parse_workflow_definition(source_path: &str, raw_spec: &str) -> Option<WorkflowDefinition> {
@@ -294,7 +494,6 @@ fn default_workflow_definition() -> Option<WorkflowDefinition> {
         .iter()
         .find(|row| row.default_workflow)
         .cloned()
-        .or_else(|| workflow_library_registry().first().cloned())
 }
 
 fn turn_workflow_library_catalog() -> Vec<Value> {
@@ -341,11 +540,18 @@ fn workflow_name_hint_from_mode(workflow_mode: &str) -> String {
 
 fn selected_turn_workflow(workflow_mode: &str) -> Value {
     let hint = workflow_name_hint_from_mode(workflow_mode);
-    let Some(selected) = (if hint.is_empty() {
-        default_workflow_definition()
-    } else {
-        workflow_definition_by_name(&hint).or_else(default_workflow_definition)
-    }) else {
+    if !hint.is_empty() && workflow_definition_by_name(&hint).is_none() {
+        return json!({
+            "workflow_loaded": false,
+            "mode": clean_text(workflow_mode, 80),
+            "selection_reason": "explicit_workflow_hint_not_found",
+            "requested_workflow": hint
+        });
+    }
+    let Some(selected) = default_workflow_definition()
+        .filter(|_| hint.is_empty())
+        .or_else(|| workflow_definition_by_name(&hint))
+    else {
         return json!({
             "workflow_loaded": false,
             "mode": clean_text(workflow_mode, 80),
@@ -354,10 +560,8 @@ fn selected_turn_workflow(workflow_mode: &str) -> Value {
     };
     let selection_reason = if hint.is_empty() {
         "default_library_workflow".to_string()
-    } else if workflow_definition_by_name(&hint).is_some() {
-        "mode_hint_workflow".to_string()
     } else {
-        "mode_hint_unknown_fallback_default".to_string()
+        "explicit_workflow_hint".to_string()
     };
     json!({
         "name": selected.name,
@@ -444,6 +648,56 @@ mod workflow_reader_tests {
                 .any(|value| value.as_str() == Some("prompt_analysis")),
             "{}",
             selected
+        );
+    }
+
+    #[test]
+    fn workflow_reader_projects_trace_status_messages_from_json_spec() {
+        let selected = selected_turn_workflow("");
+        assert_eq!(
+            selected
+                .pointer("/tool_menu_interface_contract/trace_status_messages/synthesized/ui")
+                .and_then(Value::as_str),
+            Some("Workflow complete; final answer came from the LLM final gate.")
+        );
+        for status in [
+            "default",
+            "pending_final_llm",
+            "synthesized",
+            "no_post_synthesis_required",
+            "skipped_missing_model",
+            "diagnostic_failure_pass_through",
+            "synthesis_failed",
+            "guard_violation_pass_through",
+            "empty_llm_response",
+        ] {
+            assert!(
+                selected
+                    .pointer(&format!(
+                        "/tool_menu_interface_contract/trace_status_messages/{status}/ui"
+                    ))
+                    .and_then(Value::as_str)
+                    .map(|row| !row.trim().is_empty())
+                    .unwrap_or(false),
+                "missing ui trace status for {status}"
+            );
+            assert!(
+                selected
+                    .pointer(&format!(
+                        "/tool_menu_interface_contract/trace_status_messages/{status}/agent_process"
+                    ))
+                    .and_then(Value::as_str)
+                    .map(|row| !row.trim().is_empty())
+                    .unwrap_or(false),
+                "missing agent_process trace status for {status}"
+            );
+        }
+        assert_eq!(
+            selected
+                .pointer("/workflow_source_of_truth_contract/json_owns")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| row.as_str() == Some("trace_status_messages"))),
+            Some(true)
         );
     }
 
@@ -600,6 +854,23 @@ mod workflow_reader_tests {
         assert_eq!(
             workflow_name_hint_from_mode("workflow=complex_prompt_chain_v1"),
             "complex_prompt_chain_v1"
+        );
+    }
+
+    #[test]
+    fn workflow_reader_does_not_replace_unknown_explicit_workflow_with_default() {
+        let selected = selected_turn_workflow("workflow=missing_cd_v1");
+        assert_eq!(
+            selected.get("workflow_loaded").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            selected.get("selection_reason").and_then(Value::as_str),
+            Some("explicit_workflow_hint_not_found")
+        );
+        assert_eq!(
+            selected.get("requested_workflow").and_then(Value::as_str),
+            Some("missing_cd_v1")
         );
     }
 }

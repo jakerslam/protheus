@@ -208,30 +208,19 @@ fn workflow_visibility_payload(response_workflow: &Value, response_finalization:
         .get("visibility")
         .cloned()
         .unwrap_or_else(|| json!({}));
-    let read_visibility = |key: &str, fallback: &str, max_len: usize| -> String {
+    let read_visibility = |key: &str, max_len: usize| -> String {
         let value = visibility
             .get(key)
             .or_else(|| response_workflow.get(key))
             .and_then(Value::as_str)
-            .unwrap_or(fallback);
+            .unwrap_or("");
         clean_text(value, max_len)
     };
-    let current_stage = {
-        let stage = read_visibility("current_stage", "final_response", 80);
-        if stage.is_empty() {
-            "final_response".to_string()
-        } else {
-            stage
-        }
-    };
-    let current_stage_status = read_visibility("current_stage_status", "complete", 80);
-    let ui_status = read_visibility("ui_status", "Workflow status available.", 180);
-    let agent_process_status = read_visibility(
-        "agent_process_status",
-        "Workflow diagnostics available in payload.",
-        220,
-    );
-    let debug_status = read_visibility("debug_status", "", 320);
+    let current_stage = read_visibility("current_stage", 80);
+    let current_stage_status = read_visibility("current_stage_status", 80);
+    let ui_status = read_visibility("ui_status", 180);
+    let agent_process_status = read_visibility("agent_process_status", 220);
+    let debug_status = read_visibility("debug_status", 320);
     let formats = visibility
         .get("formats")
         .filter(|value| value.is_object())

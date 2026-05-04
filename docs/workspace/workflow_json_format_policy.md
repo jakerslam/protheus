@@ -25,6 +25,7 @@ JSON owns:
 6. Confirmation states
 7. Loopbacks
 8. Final-output contract
+9. Trace/status wording for workflow visibility surfaces
 
 Rust owns:
 
@@ -84,14 +85,16 @@ Required reader-acceptance fields:
 10. `typed_execution_contract` (object, required for control-plane promotion)
 
 If any required field is invalid/empty, the reader rejects that spec.
-Assistant toolbox workflows are also rejected unless `tool_menu_interface_contract` declares non-empty `llm_gate_instruction`, `gate_order`, `gate_shapes_allowed`, `terminal_states`, `declared_loopbacks`, `tool_family_menu`, `tool_menu_by_family`, the canonical gate objects, Gate 1 accepted outputs/options, and `system_injected_chat_text_allowed: false`. The Rust reader must never synthesize missing menus or prompt text from partial workflow JSON.
+Assistant toolbox workflows are also rejected unless `tool_menu_interface_contract` declares non-empty `llm_gate_instruction`, `llm_tool_request_instruction`, `tool_request_submission_contract`, `gate_order`, `gate_shapes_allowed`, `terminal_states`, `declared_loopbacks`, `tool_family_menu`, `tool_menu_by_family`, `trace_status_messages`, `diagnostic_markers`, the canonical gate objects, Gate 1 accepted outputs/options, at least one no-tool category, at least one tool category with a matching `tool_menu_by_family` entry, formal confirm/cancel states, and `system_injected_chat_text_allowed: false`. The Rust reader must never synthesize missing menus, prompt text, diagnostic phrase lists, or fallback tool categories from partial workflow JSON.
+
+`trace_status_messages` is the source of truth for status wording shown in workflow visibility surfaces such as the UI thinking bubble and agent-process trace. Rust may produce deterministic status keys and gate resume tokens while executing the workflow, but it must read human/agent-facing status text from the JSON CD. Assistant toolbox CDs must provide both `ui` and `agent_process` text for every runtime-visible status key: `default`, `pending_final_llm`, `synthesized`, `no_post_synthesis_required`, `skipped_missing_model`, `diagnostic_failure_pass_through`, `synthesis_failed`, `guard_violation_pass_through`, and `empty_llm_response`.
 
 Control-plane promotion requires the Rust workflow contract guard to compile each JSON workflow into a typed graph before runtime use. `workflow_source_of_truth_contract` must include:
 
 1. `interaction_source`: `json_workflow_spec`
 2. `rust_reader_role`: `validate_execute_trace_only`
 3. `hardcoded_interaction_behavior_allowed`: `false`
-4. `json_owns` containing `interaction_gates`, `gate_options`, `gate_transitions`, `tool_family_menus`, `tool_input_schemas`, `confirmation_states`, `loopbacks`, and `final_output_contract`
+4. `json_owns` containing `interaction_gates`, `gate_options`, `gate_transitions`, `tool_family_menus`, `tool_input_schemas`, `confirmation_states`, `loopbacks`, `final_output_contract`, `trace_status_messages`, and `diagnostic_markers`
 5. `rust_owns` containing `json_loading`, `schema_validation`, `state_transition_execution`, `tool_execution_handoff`, `receipt_binding`, `trace_export`, and `kernel_policy_enforcement`
 
 Example:
@@ -110,7 +113,9 @@ Example:
       "tool_input_schemas",
       "confirmation_states",
       "loopbacks",
-      "final_output_contract"
+      "final_output_contract",
+      "trace_status_messages",
+      "diagnostic_markers"
     ],
     "rust_owns": [
       "json_loading",
@@ -205,6 +210,7 @@ Fail-closed behavior:
 3. If no valid specs load, the reader emits a fail-closed loader diagnostic, not a substitute workflow.
 4. The loader diagnostic may expose trace/debug data, but it must not define interaction gates, tool menus, transitions, prompt text, or final-answer wording.
 5. Runtime mode strings such as direct-answer/tool-execution telemetry must not be mapped to workflow names. Workflow selection is either the one JSON-declared default or an explicit `workflow=<name>` hint.
+6. If an explicit `workflow=<name>` hint names a missing workflow, the reader must emit an explicit not-found diagnostic and must not silently replace it with the default workflow.
 
 ## Interface-Only Workflow Rule
 
@@ -265,6 +271,15 @@ Required fields:
 9. `declared_loopbacks`: explicit loopback transitions
 10. `gates.gate_6_llm_final_output.final_output_contract`: final visible answer contract
 11. `gates.gate_1_work_category_menu.submission_contract`: private Gate 1 submission contract
+12. `gates.gate_1_work_category_menu.submission_contract.structured_token_fields`: JSON-declared field names the reader may inspect when the LLM submits a structured Gate 1 object
+13. `tool_request_submission_contract`: JSON-declared field order, labels, aliases, and `system_may_infer_missing_fields: false`
+14. `diagnostic_markers.legacy_retry_templates`: JSON-declared ghost/fallback signatures for trace/eval diagnostics
+15. `diagnostic_markers.deferred_tool_request_phrases`: JSON-declared phrases that indicate a draft is only asking for tools instead of submitting the declared gate/tool request
+16. `diagnostic_markers.unresolved_tool_need_phrases`: JSON-declared phrases that indicate an unresolved tool need inside the private workflow gate
+17. `diagnostic_markers.gate_choice_prefix_leakage_phrases`: JSON-declared visible-chat signatures for leaked private gate choices
+18. `diagnostic_markers.prompt_analysis_leak_phrases`: JSON-declared visible-chat signatures for leaked prompt/workflow analysis
+19. `diagnostic_markers.unsupported_tool_claim`: JSON-declared marker groups for detecting tool-result claims without current-turn tool receipts; required groups are `tool_surface_terms`, `execution_claim_phrases`, `empty_result_claim_phrases`, `result_context_terms`, `listing_claim_phrases`, and `hypothetical_phrases`
+20. `diagnostic_markers.recorded_tool_result_answer`: JSON-declared marker groups for deciding whether an LLM answer acknowledges a recorded low-signal or failed tool result; required groups are `tool_result_terms` and `no_result_explanation_phrases`
 
 Required gate semantics:
 
@@ -273,17 +288,18 @@ Required gate semantics:
 3. Tool-bearing categories are `Web research`, `Workspace/files`, `Code execution / terminal`, `Agent management`, `Memory/notes`, and `External apps/integrations`.
 4. Gate 1 accepts only private submissions: a no-tool category token or `Category: <category>. Tool family: <family>. Tool: <tool>. Request payload: <JSON>.`.
 5. Gate 1 forbids choice narration, recommendations without submission, and visible chat text.
-6. `gate_2_tool_family_menu` is multiple choice.
-7. `gate_3_tool_menu` is multiple choice.
-8. `gate_4_request_payload_input` is text input.
-9. `gate_4b_tool_confirmation_menu` is multiple choice and contains `confirm` and `cancel`.
-10. `cancel` is a formal terminal state transition to `cancelled`; it is not an emergent runtime convention.
-11. `gate_5_post_tool_menu` is multiple choice and contains `finish` and `another_tool`.
-12. `another_tool` must declare an explicit loopback to `gate_2_tool_family_menu`.
-13. `gate_6_llm_final_output` is LLM-only final-authority text input.
-14. `gate_6_llm_final_output.final_output_contract.visible_chat_source` is `llm_final_answer_only`.
-15. `gate_6_llm_final_output.final_output_contract.internal_streams` includes `workflow_state`, `agent_internal_notes`, `tool_trace`, and `eval_trace`.
-16. `gate_6_llm_final_output.final_output_contract.chat_excludes` includes every internal stream plus `prompt_analysis`.
+6. Structured Gate 1 object submissions are valid only when their token field is named in `structured_token_fields`; Rust must not carry hidden built-in field names.
+7. `gate_2_tool_family_menu` is multiple choice.
+8. `gate_3_tool_menu` is multiple choice.
+9. `gate_4_request_payload_input` is text input.
+10. `gate_4b_tool_confirmation_menu` is multiple choice and contains `confirm` and `cancel`.
+11. `cancel` is a formal terminal state transition to `cancelled`; it is not an emergent runtime convention.
+12. `gate_5_post_tool_menu` is multiple choice and contains `finish` and `another_tool`.
+13. `another_tool` must declare an explicit loopback to `gate_2_tool_family_menu`.
+14. `gate_6_llm_final_output` is LLM-only final-authority text input.
+15. `gate_6_llm_final_output.final_output_contract.visible_chat_source` is `llm_final_answer_only`.
+16. `gate_6_llm_final_output.final_output_contract.internal_streams` includes `workflow_state`, `agent_internal_notes`, `tool_trace`, and `eval_trace`.
+17. `gate_6_llm_final_output.final_output_contract.chat_excludes` includes every internal stream plus `prompt_analysis`.
 
 Visibility rule:
 

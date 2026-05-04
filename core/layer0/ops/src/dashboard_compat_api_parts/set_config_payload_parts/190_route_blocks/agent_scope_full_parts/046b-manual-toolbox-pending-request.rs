@@ -37,7 +37,7 @@ fn record_manual_toolbox_pending_request(
     };
     workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
     workflow["response"] = Value::String(String::new());
-    workflow["visible_response_source"] = Value::String("private_workflow_gate_submission".to_string());
+    workflow["visible_response_source"] = Value::String("json_private_tool_request".to_string());
     workflow["workflow_control"]["direct_response_path"] =
         Value::String("first_gate_pending_tool_confirmation".to_string());
     if let Some(events) = workflow.get_mut("system_events").and_then(Value::as_array_mut) {
