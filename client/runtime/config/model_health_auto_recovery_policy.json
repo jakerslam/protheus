@@ -10,7 +10,7 @@
     500,
     2000
   ],
-  "fallback_model": "ollama/kimi-k2.5:cloud",
+  "fallback_model": "ollama/kimi-k2.6:cloud",
   "fallback_for_models": [
     "llama3.2:latest",
     "llama3.2:3b"

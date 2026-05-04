@@ -88,25 +88,9 @@ fn extract_text_between_for_test(text: &str, start_marker: &str, end_marker: &st
 }
 
 #[cfg(test)]
-fn scripted_compare_prompt(lowered: &str) -> bool {
-    lowered.contains("compare openclaw to this system/workspace")
-        || lowered.contains("compare this system to openclaw")
-}
-
-#[cfg(test)]
 fn scripted_batch_query_call(query: &str) -> String {
     format!(
         "<function=batch_query>{{\"source\":\"web\",\"query\":\"{}\",\"aperture\":\"medium\"}}</function>",
-        serde_json::to_string(query)
-            .unwrap_or_else(|_| "\"\"".to_string())
-            .trim_matches('"')
-    )
-}
-
-#[cfg(test)]
-fn scripted_workspace_analyze_call(query: &str) -> String {
-    format!(
-        "<function=workspace_analyze>{{\"path\":\".\",\"query\":\"{}\",\"full\":true}}</function>",
         serde_json::to_string(query)
             .unwrap_or_else(|_| "\"\"".to_string())
             .trim_matches('"')
@@ -275,21 +259,27 @@ fn infer_test_manual_toolbox_gate_response(user_message: &str) -> Option<String>
     let request = extract_text_between_for_test(&cleaned, "User request:\n", "\n\n")
         .unwrap_or_else(|| clean_text(&cleaned, 600));
     if lowered.contains("workspace_analyze") || lowered.contains("workspace_search") {
+        let payload = serde_json::json!({
+            "path": ".",
+            "pattern": clean_text(&request, 320)
+        });
         return Some(format!(
-            "I would choose workspace search first to gather local evidence for: {}.",
-            clean_text(&request, 320)
+            "Category: Workspace/files. Tool family: Workspace/files. Tool: workspace_search. Request payload: {}.",
+            payload
         ));
     }
     if lowered.contains("batch_query") || lowered.contains("web_search") {
+        let payload = serde_json::json!({
+            "aperture": "medium",
+            "query": clean_text(&request, 320),
+            "source": "web"
+        });
         return Some(format!(
-            "I would choose web search to gather current external evidence for: {}.",
-            clean_text(&request, 320)
+            "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {}.",
+            payload
         ));
     }
-    Some(format!(
-        "I can answer directly from current context for: {}.",
-        clean_text(&request, 320)
-    ))
+    Some("Respond directly".to_string())
 }
 
 #[cfg(test)]
@@ -310,7 +300,7 @@ fn infer_test_inline_tool_response(user_message: &str) -> Option<String> {
     }
     if lowered.contains("run `infring web search` as the next safe step") {
         return Some(
-            "`infring web search` needs a query before it can run. Ask me to web search for a specific topic, for example `try to web search \"top AI agent frameworks\"`."
+            "`infring web search` needs a query before it can run. Ask me to web search for the exact topic you want searched."
                 .to_string(),
         );
     }
@@ -323,12 +313,6 @@ fn infer_test_inline_tool_response(user_message: &str) -> Option<String> {
                     .unwrap_or_else(|_| "\"\"".to_string())
                     .trim_matches('"')
             ));
-        }
-    }
-    if let Some(rest) = lowered.strip_prefix("tool::compare:::") {
-        let query = clean_text(rest, 600);
-        if !query.is_empty() {
-            return Some(scripted_batch_query_call(&query));
         }
     }
     if let Some(rest) = lowered.strip_prefix("tool::fetch:::") {
@@ -414,16 +398,6 @@ fn infer_test_inline_tool_response(user_message: &str) -> Option<String> {
                 serde_json::to_string(&path)
                     .unwrap_or_else(|_| "\"\"".to_string())
                     .trim_matches('"')
-            ));
-        }
-    }
-    if scripted_compare_prompt(&lowered) {
-        let query = clean_text(&cleaned, 600);
-        if !query.is_empty() {
-            return Some(format!(
-                "{}\n{}",
-                scripted_workspace_analyze_call(&query),
-                scripted_batch_query_call(&query)
             ));
         }
     }

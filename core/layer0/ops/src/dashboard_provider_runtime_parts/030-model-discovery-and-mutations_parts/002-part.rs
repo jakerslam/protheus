@@ -6,38 +6,29 @@
     } else {
         requested_model_raw
     };
-    let snapshot = read_json(&PathBuf::from(root).join(
-        "client/runtime/local/state/ui/infring_dashboard/latest_snapshot.json",
-    ))
-    .unwrap_or_else(|| json!({}));
-    let route_request = infer_auto_route_request(system_prompt, session_messages, user_message);
-    let (resolved_provider, resolved_model, auto_route_decision) =
-        crate::dashboard_model_catalog::resolve_model_selection(
-            root,
-            &snapshot,
-            &requested_provider,
-            &requested_model,
-            &route_request,
-        );
-    if let Some(decision) = auto_route_decision.clone() {
-        append_routing_event(
-            root,
-            &json!({
-                "ts": crate::now_iso(),
-                "ok": true,
-                "provider": clean_text(&resolved_provider, 80),
-                "model": clean_text(&resolved_model, 240),
-                "auto_route_decision": decision,
-                "route_request": route_request
-            }),
-        );
-    }
+    let resolved_provider = requested_provider;
+    let resolved_model = requested_model;
     let primary_provider = normalize_provider_id(&resolved_provider);
     let primary_model = clean_text(&resolved_model, 240);
-    if primary_provider.is_empty() || primary_model.is_empty() {
-        return Err("provider_or_model_required".to_string());
+    #[cfg(test)]
+    let (primary_provider, primary_model) = if scripted_chat_harness_path(root).exists()
+        && (primary_provider.is_empty()
+            || primary_provider.eq_ignore_ascii_case("auto")
+            || primary_model.is_empty()
+            || primary_model.eq_ignore_ascii_case("auto"))
+    {
+        ("scripted".to_string(), "scripted-chat-harness".to_string())
+    } else {
+        (primary_provider, primary_model)
+    };
+    if primary_provider.is_empty()
+        || primary_provider.eq_ignore_ascii_case("auto")
+        || primary_model.is_empty()
+        || primary_model.eq_ignore_ascii_case("auto")
+    {
+        return Err("explicit_model_selection_required".to_string());
     }
-    let routes = fallback_routes(root, &primary_provider, &primary_model);
+    let routes = explicit_chat_invocation_routes(root, &primary_provider, &primary_model);
     let (max_attempts_per_route, max_total_attempts, base_backoff_ms, max_backoff_ms, factor) =
         retry_policy_limits(root);
     let mut attempts = Vec::<Value>::new();
@@ -109,9 +100,6 @@
                     }));
                     response["response_hash"] = json!(response_hash.clone());
                     response["prompt_optimization"] = route_prompt_metadata.clone();
-                    if let Some(decision) = auto_route_decision.clone() {
-                        response["auto_route_decision"] = decision;
-                    }
                     let mut trace_rows = attempts.clone();
                     trace_rows.push(json!({
                         "provider": provider,

@@ -110,6 +110,39 @@ mod tests {
     }
 
     #[test]
+    fn explicit_model_selection_is_not_auto_routed_before_failure() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_json(
+            &root.path().join(PROVIDER_REGISTRY_REL),
+            &json!({
+                "providers": {
+                    "ollama": {
+                        "id": "ollama",
+                        "is_local": true,
+                        "needs_key": false,
+                        "auth_status": "ok",
+                        "model_profiles": {
+                            "qwen2.5:3b": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 3, "specialty":"general"}
+                        }
+                    }
+                }
+            }),
+        );
+
+        let (provider, model, auto_route) = resolve_model_selection(
+            root.path(),
+            &json!({"ok": true}),
+            "openai",
+            "kimi-k2.6:thinking",
+            &json!({"task_type": "general"}),
+        );
+
+        assert_eq!(provider, "openai");
+        assert_eq!(model, "kimi-k2.6:thinking");
+        assert!(auto_route.is_none());
+    }
+
+    #[test]
     fn route_applies_session_analytics_tuning_budget_and_model_bias() {
         let root = tempfile::tempdir().expect("tempdir");
         write_json(
