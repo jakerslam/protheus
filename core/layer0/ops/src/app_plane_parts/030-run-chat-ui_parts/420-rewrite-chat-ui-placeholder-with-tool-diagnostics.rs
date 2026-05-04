@@ -54,50 +54,6 @@ fn rewrite_chat_ui_placeholder_with_tool_diagnostics(
     (current, "unchanged".to_string())
 }
 
-fn chat_ui_contains_legacy_route_classifier_copy(text: &str) -> bool {
-    let lowered = clean(text, 8_000).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    let route_classifier_template = lowered.contains("the first gate")
-        && (lowered.contains("workflow_route") || lowered.contains("task_or_info_route"))
-        && (lowered.contains("still classifying this as an \"info\" route rather than a \"task\" route")
-            || lowered.contains("still classifying this as an 'info' route rather than a 'task' route")
-            || lowered.contains("binary classification")
-            || lowered.contains("task classification path"));
-    let decision_tree_autoclassifier_template = lowered.contains("decision tree")
-        && lowered.contains("automatically classifies")
-        && lowered.contains("\"info\"")
-        && lowered.contains("\"task\"")
-        && lowered.contains("semantic analysis");
-    route_classifier_template
-        || decision_tree_autoclassifier_template
-        || lowered.contains("[source:workflow_gate]")
-        || lowered.contains("[source:tool_gate]")
-        || lowered.contains("[source:tool_decision_tree_v3]")
-        || lowered.contains("[source:workflow_route_classification]")
-        || lowered.contains("[source:gate_enforcement_mode]")
-        || lowered.contains("[source:tool_decision_policy]")
-        || lowered.contains("[source:conversation_bypass_control]")
-        || lowered.contains("[source:agent_framework_analysis]")
-        || lowered.contains("source:workflow_route_classification")
-        || lowered.contains("source:gate_enforcement_mode")
-        || lowered.contains("source:tool_decision_policy")
-        || lowered.contains("source:conversation_bypass_control")
-        || lowered.contains("source:agent_framework_analysis")
-        || lowered.contains("conversation bypass mode is currently active")
-        || lowered.contains("restricted from running web searches")
-        || lowered.contains("can't autonomously decide to use web tools")
-        || lowered.contains("requires manual step-by-step authorization for tool usage")
-}
-
 fn rewrite_chat_ui_legacy_route_classifier_copy(assistant: &str) -> (String, String) {
-    let current = clean(assistant, 16_000);
-    if current.is_empty() || !chat_ui_contains_legacy_route_classifier_copy(&current) {
-        return (current, "unchanged".to_string());
-    }
-    (
-        current,
-        "legacy_route_classifier_copy_detected".to_string(),
-    )
+    (clean(assistant, 16_000), "unchanged".to_string())
 }

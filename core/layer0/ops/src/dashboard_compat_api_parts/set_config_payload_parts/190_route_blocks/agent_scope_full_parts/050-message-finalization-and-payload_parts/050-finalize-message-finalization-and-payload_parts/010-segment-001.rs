@@ -54,22 +54,10 @@ fn finalize_message_finalization_and_payload(
     let initial_draft_response = clean_chat_text(&response_text, 32_000);
     let initial_ack_only = response_looks_like_tool_ack_without_findings(&initial_draft_response)
         || response_is_no_findings_placeholder(&initial_draft_response);
-    let web_intent = natural_web_intent_from_user_message(message);
-    let web_intent_route = web_intent
-        .as_ref()
-        .map(|(tool, _)| clean_text(tool, 80))
-        .unwrap_or_default();
-    let web_intent_detected = web_intent.is_some();
-    let web_intent_source = if web_intent.is_some() {
-        "message"
-    } else {
-        "none"
-    };
-    let web_intent_confidence = if web_intent.is_some() {
-        0.92
-    } else {
-        0.0
-    };
+    let web_intent_route = String::new();
+    let web_intent_detected = false;
+    let web_intent_source = "workflow_llm_manual_only";
+    let web_intent_confidence = 0.0;
     let web_forced_fallback_attempted = false;
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
     let workflow_provider = provider.clone();

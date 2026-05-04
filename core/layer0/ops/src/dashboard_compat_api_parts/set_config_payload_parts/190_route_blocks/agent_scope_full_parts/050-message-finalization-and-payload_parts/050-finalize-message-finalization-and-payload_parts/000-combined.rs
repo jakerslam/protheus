@@ -1,3 +1,38 @@
+fn workflow_json_final_chat_is_llm_only(response_workflow: &Value) -> bool {
+    response_workflow
+        .pointer("/selected_workflow/final_output_contract/visible_chat_source")
+        .and_then(Value::as_str)
+        == Some("llm_final_answer_only")
+        || response_workflow
+            .pointer("/selected_workflow/tool_menu_interface_contract/visible_chat_policy")
+            .and_then(Value::as_str)
+            == Some("llm_final_only_no_system_injection")
+}
+
+fn workflow_json_private_gate_chat_is_disallowed(response_workflow: &Value) -> bool {
+    workflow_json_final_chat_is_llm_only(response_workflow)
+        && response_workflow
+            .pointer("/selected_workflow/tool_menu_interface_contract/system_injected_chat_text_allowed")
+            .and_then(Value::as_bool)
+            == Some(false)
+}
+
+fn workflow_json_pending_tool_chat_is_disallowed(
+    response_workflow: &Value,
+    pending_request: &Value,
+) -> bool {
+    pending_request
+        .get("chat_injection_allowed")
+        .and_then(Value::as_bool)
+        == Some(false)
+        || response_workflow
+            .pointer(
+                "/selected_workflow/tool_menu_interface_contract/tool_request_submission_contract/chat_injection_allowed",
+            )
+            .and_then(Value::as_bool)
+            == Some(false)
+}
+
 fn finalize_message_finalization_and_payload(
     root: &Path,
     agent_id: &str,
@@ -42,22 +77,10 @@ fn finalize_message_finalization_and_payload(
     let initial_draft_response = clean_chat_text(&response_text, 32_000);
     let initial_ack_only = response_looks_like_tool_ack_without_findings(&initial_draft_response)
         || response_is_no_findings_placeholder(&initial_draft_response);
-    let web_intent = natural_web_intent_from_user_message(message);
-    let web_intent_route = web_intent
-        .as_ref()
-        .map(|(tool, _)| clean_text(tool, 80))
-        .unwrap_or_default();
-    let web_intent_detected = web_intent.is_some();
-    let web_intent_source = if web_intent.is_some() {
-        "message"
-    } else {
-        "none"
-    };
-    let web_intent_confidence = if web_intent.is_some() {
-        0.92
-    } else {
-        0.0
-    };
+    let web_intent_route = String::new();
+    let web_intent_detected = false;
+    let web_intent_source = "workflow_llm_manual_only";
+    let web_intent_confidence = 0.0;
     let web_forced_fallback_attempted = false;
     let latest_assistant_text = latest_assistant_message_text(&active_messages);
     let workflow_provider = provider.clone();
@@ -66,20 +89,13 @@ fn finalize_message_finalization_and_payload(
         && !message_explicitly_disallows_tool_calls(message)
         && !message_is_affirmative_confirmation(message)
         && !message_is_negative_confirmation(message)
-        && !response_contains_workflow_prompt_analysis_leak(&initial_draft_response)
     {
-        let candidates = latent_tool_candidates
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
         workflow_system_events.push(turn_workflow_event(
             "manual_toolbox_candidate_menu",
             json!({
                 "selection_authority": "llm_only",
                 "automatic_execution_allowed": false,
-                "candidate_count": candidates.len(),
-                "candidates": candidates.iter().take(4).cloned().collect::<Vec<_>>(),
-                "candidate_source": if candidates.is_empty() { "json_cd_default_gate" } else { "latent_tool_candidates" }
+                "candidate_source": "json_cd_default_gate"
             }),
         ));
     }
@@ -108,7 +124,7 @@ fn finalize_message_finalization_and_payload(
         .pointer("/workflow_control/direct_response_path")
         .and_then(Value::as_str)
         .unwrap_or("");
-    let workflow_blocks_initial_draft_fallback = matches!(
+    let workflow_waiting_for_private_json_gate = matches!(
         workflow_direct_response_path_for_visibility,
         "first_gate_pending_llm_tool_choice"
             | "first_gate_pending_tool_confirmation"
@@ -159,17 +175,23 @@ fn finalize_message_finalization_and_payload(
         finalization_outcome =
             merge_response_outcomes(&finalization_outcome, &contract_outcome, 200);
     }
-    if workflow_blocks_initial_draft_fallback {
-        response_workflow["final_llm_response"]["invalid_gate_draft_fallback_withheld"] =
-            json!(false);
+    if workflow_waiting_for_private_json_gate
+        && workflow_json_private_gate_chat_is_disallowed(&response_workflow)
+        && response_tools.is_empty()
+    {
+        response_workflow["final_llm_response"]["private_gate_visible_chat_blocked_by_json"] =
+            json!(true);
         response_workflow["final_llm_response"]["invalid_gate_draft_diagnostic_only"] =
             json!(true);
         response_workflow["final_llm_response"]["runtime_interference_disabled"] = json!(true);
         response_workflow["final_llm_response"]["diagnostic_source"] =
-            json!("invalid_gate_draft_diagnostic_pass_through");
+            json!("json_private_gate_nonfinal");
+        finalized_response.clear();
+        response_workflow["response"] = json!("");
+        response_workflow["visible_response_source"] = json!("json_private_gate_nonfinal");
         finalization_outcome = merge_response_outcomes(
             &finalization_outcome,
-            "workflow_initial_draft_diagnostic_pass_through",
+            "json_private_gate_nonfinal_visible_chat_blocked",
             220,
         );
     }
@@ -223,15 +245,17 @@ fn finalize_message_finalization_and_payload(
                 "manual_toolbox_pending_tool_request_awaiting_llm_input",
                 200,
             );
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                "pending_tool_request_visible_chat_diagnostic_only",
-                240,
-            );
-            response_text.clear();
-            response_workflow["response"] = json!("");
-            response_workflow["visible_response_source"] =
-                json!("private_workflow_gate_submission");
+            if workflow_json_pending_tool_chat_is_disallowed(&response_workflow, pending_request) {
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    "json_pending_tool_visible_chat_blocked",
+                    240,
+                );
+                response_text.clear();
+                response_workflow["response"] = json!("");
+                response_workflow["visible_response_source"] =
+                    json!("json_private_tool_request");
+            }
         }
     }
     let web_tool_attempted = response_tools_include_web_attempt(&response_tools);
@@ -325,22 +349,11 @@ fn finalize_message_finalization_and_payload(
         response_workflow["tool_gate"]["needs_tool_access"] = Value::Bool(true);
         response_workflow["tool_gate"]["should_call_tools"] = Value::Bool(true);
     }
-    let tool_gate_should_call_tools = response_workflow
-        .pointer("/tool_gate/should_call_tools")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
     let direct_answer_rate = response_workflow_quality_rate(&response_workflow, "direct_answer_rate");
     let retry_rate = response_workflow_quality_rate(&response_workflow, "retry_rate");
     let off_topic_reject_rate =
         response_workflow_quality_rate(&response_workflow, "off_topic_reject_rate");
-    let tool_overcall_rate = if !tool_gate_should_call_tools
-        && tooling_attempted
-        && !manual_toolbox_executed_pending_tool_request
-    {
-        1.0
-    } else {
-        0.0
-    };
+    let tool_overcall_rate = 0.0;
     response_workflow["quality_telemetry"]["final_fallback_used"] =
         Value::Bool(final_fallback_used);
     let final_ack_only = response_looks_like_tool_ack_without_findings(&response_text);

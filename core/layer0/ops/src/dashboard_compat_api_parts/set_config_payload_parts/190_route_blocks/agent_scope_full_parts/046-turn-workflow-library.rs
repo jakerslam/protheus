@@ -1,145 +1,3 @@
-const CONVERSATION_BYPASS_MAX_TURNS: u64 = 3;
-
-fn workflow_turn_contains_any(lowered: &str, markers: &[&str]) -> bool {
-    markers.iter().any(|marker| lowered.contains(marker))
-}
-
-fn message_requests_conversation_bypass(message: &str) -> bool {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    workflow_turn_contains_any(
-        &lowered,
-        &[
-            "break the workflow",
-            "bypass the workflow",
-            "workflow bypass",
-            "respond directly",
-            "direct mode",
-            "talk freely",
-            "no workflow",
-            "skip workflow",
-        ],
-    )
-}
-
-fn message_requests_conversation_bypass_disable(message: &str) -> bool {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    workflow_turn_contains_any(
-        &lowered,
-        &[
-            "resume workflow",
-            "restore workflow",
-            "turn workflow back on",
-            "re-enable workflow",
-            "enable workflow",
-            "use normal workflow",
-        ],
-    )
-}
-
-fn message_requests_high_risk_external_action(message: &str) -> bool {
-    let lowered = clean_text(message, 1_200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    workflow_turn_contains_any(
-        &lowered,
-        &[
-            "send email",
-            "send an email",
-            "tweet",
-            "post publicly",
-            "publish",
-            "deploy to production",
-            "drop database",
-            "delete production",
-            "exfiltrate",
-            "leak secrets",
-        ],
-    )
-}
-
-fn value_as_u64_like(value: Option<&Value>) -> u64 {
-    value
-        .and_then(|row| {
-            row.as_u64()
-                .or_else(|| row.as_i64().map(|v| v.max(0) as u64))
-        })
-        .unwrap_or(0)
-}
-
-fn latest_assistant_conversation_bypass_remaining_turns(active_messages: &[Value]) -> u64 {
-    for row in active_messages.iter().rev() {
-        let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
-            .to_ascii_lowercase();
-        if role != "assistant" && role != "agent" {
-            continue;
-        }
-        let from_finalization = value_as_u64_like(row.pointer(
-            "/response_finalization/workflow_control/conversation_bypass/remaining_turns_after",
-        ));
-        if from_finalization > 0 {
-            return from_finalization;
-        }
-        let from_workflow = value_as_u64_like(row.pointer(
-            "/response_workflow/workflow_control/conversation_bypass/remaining_turns_after",
-        ));
-        if from_workflow > 0 {
-            return from_workflow;
-        }
-    }
-    0
-}
-
-fn workflow_conversation_bypass_control_for_turn(
-    message: &str,
-    active_messages: &[Value],
-    inline_tools_allowed: bool,
-) -> Value {
-    let requested_enable = message_requests_conversation_bypass(message);
-    let requested_disable = message_requests_conversation_bypass_disable(message);
-    let previous_remaining = latest_assistant_conversation_bypass_remaining_turns(active_messages);
-    let retired_sticky_state_seen = previous_remaining > 0;
-    let explicit_tool_request = inline_tool_calls_allowed_for_user_message(message)
-        && !message_explicitly_disallows_tool_calls(message);
-    let high_risk_external_action = message_requests_high_risk_external_action(message);
-
-    json!({
-        "enabled": false,
-        "source": "retired",
-        "reason": "direct_response_uses_first_gate_no_tool_category",
-        "blocked": false,
-        "block_reason": "",
-        "requested_enable": requested_enable,
-        "requested_disable": requested_disable,
-        "sticky_requested": retired_sticky_state_seen,
-        "explicit_tool_request": explicit_tool_request,
-        "gate_is_advisory": false,
-        "inline_tools_allowed": inline_tools_allowed,
-        "high_risk_external_action": high_risk_external_action,
-        "requested_ttl_turns": CONVERSATION_BYPASS_MAX_TURNS,
-        "remaining_turns_before": previous_remaining,
-        "remaining_turns_after": 0,
-        "workflow_mode_override": "",
-        "should_emit_event": false
-    })
-}
-
-fn workflow_turn_is_meta_control_message(message: &str) -> bool {
-    let _ = message;
-    false
-}
-
-fn workflow_turn_is_simple_conversation_without_tool_intent(message: &str) -> bool {
-    let _ = message;
-    false
-}
-
 fn default_workflow_tool_menu_contract() -> Value {
     default_workflow_definition()
         .map(|workflow| workflow.tool_menu_interface_contract)
@@ -250,6 +108,103 @@ fn normalized_workflow_token(value: &str) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn workflow_structured_gate_submission(response: &str) -> Option<Value> {
+    let mut raw = clean_text(response, 8_000);
+    let trimmed = raw.trim();
+    if trimmed.starts_with("```") {
+        raw = trimmed
+            .trim_matches('`')
+            .trim_start_matches("json")
+            .trim()
+            .to_string();
+    }
+    if !raw.trim_start().starts_with('{') && raw.trim_start().starts_with('"') {
+        raw = format!("{{{}", raw.trim());
+    }
+    serde_json::from_str::<Value>(raw.trim())
+        .ok()
+        .filter(Value::is_object)
+}
+
+fn workflow_structured_gate_token_fields(contract: &Value) -> Vec<String> {
+    let first_gate_id = workflow_first_gate_id(contract);
+    workflow_contract_gate(contract, &first_gate_id)
+        .pointer("/submission_contract/structured_token_fields")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 120))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn workflow_structured_gate_token_value(token: &Value) -> Option<String> {
+    token
+        .as_str()
+        .map(|row| clean_text(row, 120))
+        .or_else(|| token.as_i64().map(|row| row.to_string()))
+        .filter(|row| !row.is_empty())
+}
+
+fn workflow_structured_gate_token(contract: &Value, response: &str) -> Option<String> {
+    let value = workflow_structured_gate_submission(response)?;
+    let object = value.as_object()?;
+    workflow_structured_gate_token_fields(contract)
+        .into_iter()
+        .map(|field| normalized_workflow_token(&field))
+        .find_map(|field| {
+            object.iter().find_map(|(key, token)| {
+                (normalized_workflow_token(key) == field)
+                    .then(|| workflow_structured_gate_token_value(token))
+                    .flatten()
+            })
+        })
+}
+
+fn workflow_structured_gate_final_answer(response: &str) -> Option<String> {
+    if let Some(value) = workflow_structured_gate_submission(response) {
+        if let Some(answer) = value.as_object().and_then(|object| {
+            object.iter().find_map(|(key, value)| {
+                let normalized_key = normalized_workflow_token(key);
+                (matches!(
+                    normalized_key.as_str(),
+                    "final answer" | "final response" | "visible response" | "message" | "answer"
+                ) || normalized_key.ends_with(" final answer")
+                    || normalized_key.ends_with(" final response"))
+                    .then(|| value.as_str())
+                    .flatten()
+            })
+        }) {
+            let answer = sanitize_workflow_final_response_candidate(answer);
+            if !answer.is_empty() {
+                return Some(answer);
+            }
+        }
+    }
+    let raw = clean_text(response, 8_000);
+    let Some((key_part, value_part)) = raw.split_once(':') else {
+        return None;
+    };
+    let normalized_key = normalized_workflow_token(key_part);
+    if !(normalized_key.ends_with("final answer")
+        || normalized_key.ends_with("final response")
+        || normalized_key.ends_with("visible response"))
+    {
+        return None;
+    }
+    let answer = sanitize_workflow_final_response_candidate(
+        value_part
+            .trim()
+            .trim_matches('{')
+            .trim_matches('}')
+            .trim_matches('"'),
+    );
+    (!answer.is_empty()).then_some(answer)
 }
 
 fn normalized_workflow_option_tokens(option: &Value) -> Vec<String> {
@@ -380,6 +335,18 @@ fn workflow_final_output_contract(contract: &Value) -> Value {
         .unwrap_or_else(|| json!({}))
 }
 
+fn workflow_final_answer_instruction(contract: &Value) -> String {
+    workflow_final_output_contract(contract)
+        .get("chat_requirement")
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 400))
+        .unwrap_or_default()
+}
+
+fn workflow_final_answer_prompt_context() -> String {
+    workflow_final_answer_instruction(&default_workflow_tool_menu_contract())
+}
+
 fn workflow_example_tool_key(contract: &Value) -> String {
     contract
         .get("tool_menu_by_family")
@@ -488,7 +455,9 @@ fn workflow_category_selection(
     response: &str,
     has_tools: Option<bool>,
 ) -> Option<(String, String)> {
-    let token = normalized_workflow_token(response);
+    let token = workflow_structured_gate_token(contract, response)
+        .map(|row| normalized_workflow_token(&row))
+        .unwrap_or_else(|| normalized_workflow_token(response));
     if token.is_empty() {
         return None;
     }
@@ -516,7 +485,10 @@ fn workflow_category_selection(
         })
 }
 
-fn workflow_category_phrase_matches(response: &str, has_tools: Option<bool>) -> bool {
+fn workflow_category_token_matches_any_declared_option(
+    response: &str,
+    has_tools: Option<bool>,
+) -> bool {
     let token = normalized_workflow_token(response);
     if token.is_empty() {
         return false;
@@ -539,12 +511,7 @@ fn workflow_category_phrase_matches(response: &str, has_tools: Option<bool>) -> 
         .any(|option| {
             normalized_workflow_option_tokens(&option)
                 .into_iter()
-                .any(|candidate| {
-                    token == candidate
-                        || token == format!("work category {candidate}")
-                        || token == format!("this kind of work is {candidate}")
-                        || token.starts_with(&format!("this kind of work is {candidate} "))
-                })
+                .any(|candidate| token == candidate)
         })
 }
 
@@ -755,7 +722,6 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     json!({
         "contract": "manual_toolbox_gate_v1", "workflow_gate_contract": "tool_menu_interface_v1",
         "gate_decision_mode": gate_decision_mode,
-        "semantic_route_classifier_active": false, "info_task_route_classifier_active": false, "workflow_route_classifier_active": false,
         "system_may_select_tools": false, "tool_recommendations_allowed": false,
         "gate_1_question_type": "multiple_choice", "gate_1_allowed_outputs": gate_1_allowed_outputs,
         "first_gate_id": gate_submission.get("gate_id").cloned().unwrap_or(Value::Null),
@@ -897,31 +863,13 @@ fn turn_workflow_stage_rows(
         .and_then(Value::as_str)
         .map(|row| clean_text(row, 120))
         .unwrap_or_default();
-    let workflow_mode = clean_text(workflow_mode, 80);
+    let _ = workflow_mode;
     let cleaned_draft = clean_text(draft_response, 2_000);
     let final_stage_status = if requires_final_llm {
         "pending_final_llm"
     } else {
         "no_post_synthesis_required"
     };
-    if workflow_mode == "direct_conversation_recovery"
-        || workflow_mode == "direct_no_tool_exit"
-        || workflow_mode == "direct_simple_conversation"
-    {
-        return vec![
-            json!({
-                "stage": first_gate_id,
-                "status": "answered_no_tool_category",
-                "selection_mode": "multiple_choice",
-                "question": first_gate_question
-            }),
-            json!({
-                "stage": final_gate_id,
-                "required": requires_final_llm,
-                "status": final_stage_status
-            }),
-        ];
-    }
     if !requires_final_llm && response_tools.is_empty() && workflow_events.is_empty() {
         return vec![
             json!({
@@ -977,6 +925,30 @@ fn turn_workflow_stage_rows(
     ]
 }
 
+fn workflow_trace_status_message(contract: &Value, status: &str, field: &str) -> String {
+    let status = clean_text(status, 120);
+    let field = clean_text(field, 80);
+    if status.is_empty() || field.is_empty() {
+        return String::new();
+    }
+    contract
+        .pointer(&format!("/trace_status_messages/{status}/{field}"))
+        .or_else(|| contract.pointer(&format!("/trace_status_messages/default/{field}")))
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 320))
+        .unwrap_or_default()
+}
+
+fn workflow_trace_status_key(status: &str) -> String {
+    match clean_text(status, 80).as_str() {
+        "skipped_not_required" | "skipped_test" | "no_post_synthesis_required" => {
+            "no_post_synthesis_required".to_string()
+        }
+        "invoke_failed" | "synthesis_failed" => "synthesis_failed".to_string(),
+        other => clean_text(other, 80),
+    }
+}
+
 fn turn_workflow_visibility(final_stage_status: &str) -> Value {
     let status = clean_text(final_stage_status, 80);
     let contract = default_workflow_tool_menu_contract();
@@ -986,45 +958,25 @@ fn turn_workflow_visibility(final_stage_status: &str) -> Value {
     let final_pending_status = workflow_gate_resume_token(&final_gate_id, "pending_final_llm");
     let final_synthesized_status = workflow_gate_resume_token(&final_gate_id, "synthesized");
     let final_unavailable_status = workflow_gate_resume_token(&final_gate_id, "skipped_missing_model");
-    let final_fallback_status =
-        workflow_gate_resume_token(&final_gate_id, "fallback_diagnostic_only");
+    let final_diagnostic_status =
+        workflow_gate_resume_token(&final_gate_id, "diagnostic_only");
     let final_failed_status = workflow_gate_resume_token(&final_gate_id, "final_synthesis_failed");
-    let (ui_status, agent_process_status, debug_status) = match status.as_str() {
-        "pending_final_llm" => (
-            "Workflow at final synthesis; waiting for the LLM-authored answer.",
-            "Final workflow gate active: compose final answer from current context.",
-            final_pending_status.as_str(),
-        ),
-        "synthesized" => (
-            "Workflow complete; final answer was authored by the LLM.",
-            "Final workflow gate complete: final answer submitted.",
-            final_synthesized_status.as_str(),
-        ),
-        "skipped_not_required" | "skipped_test" | "no_post_synthesis_required" => (
-            "Workflow complete; a no-tool work category was selected and direct LLM answer is ready.",
-            "First workflow gate selected a no-tool category: respond directly without tool menus.",
-            first_gate_direct_status.as_str(),
-        ),
-        "skipped_missing_model" => (
-            "Workflow paused; model provider is unavailable for final synthesis.",
-            "Final workflow gate blocked: model provider unavailable.",
-            final_unavailable_status.as_str(),
-        ),
-        "withheld_non_llm_fallback_response" => (
-            "Workflow marked a non-LLM fallback diagnostic; visible output remains LLM-authored.",
-            "Final workflow gate diagnostic: non-LLM fallback text is trace-only.",
-            final_fallback_status.as_str(),
-        ),
-        "synthesis_failed" | "invoke_failed" => (
-            "Workflow final synthesis failed; no system fallback text will be injected.",
-            "Final workflow gate failed: retry needs an LLM-authored response.",
-            final_failed_status.as_str(),
-        ),
-        _ => (
-            "Workflow state visible; waiting for the next LLM-controlled step.",
-            "Follow the currently presented workflow gate.",
-            "workflow.state_visible",
-        ),
+    let status_key = workflow_trace_status_key(&status);
+    let ui_status = workflow_trace_status_message(&contract, &status_key, "ui");
+    let agent_process_status =
+        workflow_trace_status_message(&contract, &status_key, "agent_process");
+    let debug_status = match status.as_str() {
+        "pending_final_llm" => final_pending_status.as_str(),
+        "synthesized" => final_synthesized_status.as_str(),
+        "skipped_not_required" | "skipped_test" | "no_post_synthesis_required" => {
+            first_gate_direct_status.as_str()
+        }
+        "skipped_missing_model" => final_unavailable_status.as_str(),
+        "diagnostic_failure_pass_through" | "withheld_non_llm_fallback_response" => {
+            final_diagnostic_status.as_str()
+        }
+        "synthesis_failed" | "invoke_failed" => final_failed_status.as_str(),
+        _ => "",
     };
     json!({
         "current_stage": final_gate_id,
@@ -1043,13 +995,7 @@ fn turn_workflow_visibility(final_stage_status: &str) -> Value {
 }
 
 fn turn_workflow_direct_response_path(workflow_mode: &str, workflow_events: &[Value]) -> &'static str {
-    let mode = clean_text(workflow_mode, 80);
-    if mode == "direct_conversation_recovery"
-        || mode == "direct_no_tool_exit"
-        || mode == "direct_simple_conversation"
-    {
-        return "first_gate_no_tool_category";
-    }
+    let _ = workflow_mode;
     let has_pending = workflow_events.iter().any(|event| {
         matches!(
             event.get("kind").and_then(Value::as_str).unwrap_or(""),
@@ -1113,15 +1059,15 @@ fn turn_workflow_metadata(
         "ui_status": visibility
             .get("ui_status")
             .cloned()
-            .unwrap_or_else(|| json!("Workflow state visible.")),
+            .unwrap_or_else(|| json!("")),
         "agent_process_status": visibility
             .get("agent_process_status")
             .cloned()
-            .unwrap_or_else(|| json!("Follow the currently presented workflow gate.")),
+            .unwrap_or_else(|| json!("")),
         "debug_status": visibility
             .get("debug_status")
             .cloned()
-            .unwrap_or_else(|| json!("workflow.state_visible")),
+            .unwrap_or_else(|| json!("")),
         "visibility": visibility,
         "workflow_gate": {
             "required": false,
@@ -1166,15 +1112,15 @@ fn set_turn_workflow_final_stage_status(workflow: &mut Value, status: &str) {
     workflow["ui_status"] = visibility
         .get("ui_status")
         .cloned()
-        .unwrap_or_else(|| json!("Workflow state visible."));
+        .unwrap_or_else(|| json!(""));
     workflow["agent_process_status"] = visibility
         .get("agent_process_status")
         .cloned()
-        .unwrap_or_else(|| json!("Follow the currently presented workflow gate."));
+        .unwrap_or_else(|| json!(""));
     workflow["debug_status"] = visibility
         .get("debug_status")
         .cloned()
-        .unwrap_or_else(|| json!("workflow.state_visible"));
+        .unwrap_or_else(|| json!(""));
     workflow["visibility"] = visibility;
     if let Some(rows) = workflow
         .get_mut("stage_statuses")
@@ -1194,87 +1140,19 @@ fn set_turn_workflow_final_stage_status(workflow: &mut Value, status: &str) {
 }
 
 fn workflow_response_requests_more_tooling(response: &str) -> bool {
-    let lowered = clean_text(response, 800).to_ascii_lowercase();
-    !lowered.is_empty()
-        && [
-            "i'll get you an update",
-            "i will get you an update",
-            "let me get you an update",
-            "i'll look into",
-            "i will look into",
-            "let me look into",
-            "i'll check",
-            "i will check",
-            "let me check",
-            "working on it",
-            "one moment",
-            "stand by",
-            "i'll report back",
-            "i will report back",
-            "let me search",
-            "i'll search",
-            "i will search",
-            "i'll use the web search",
-            "i will use the web search",
-            "please hold while i gather",
-            "once i have that information",
-            "let me start that process",
-            "let's inspect",
-            "need to perform a web search",
-            "i need to perform a web search",
-            "would you like me to search",
-            "would you like me to fetch",
-            "search for more",
-            "rerun with",
-            "retry with",
-            "narrower query",
-            "specific source url",
-            "need to search",
-            "need targeted web research",
-            "need more specific",
-            "let me try",
-            "i'll try",
-            "i will try",
-            "if you'd like, i can search",
-            "if you would like, i can search",
-            "if you'd like, i can fetch",
-            "if you would like, i can fetch",
-            "if you'd like, i can look deeper",
-            "if you would like, i can look deeper",
-            "more targeted approach",
-            "another search",
-            "technical documentation",
-            "architecture details to enable",
-        ]
-        .iter()
-        .any(|marker| lowered.contains(marker))
+    workflow_message_matches_contract_markers(
+        &default_workflow_tool_menu_contract(),
+        "/diagnostic_markers/deferred_tool_request_phrases",
+        response,
+    )
 }
 
 fn manual_toolbox_response_exposes_unresolved_tool_need(response: &str) -> bool {
-    let lowered = clean_text(response, 1_200).to_ascii_lowercase();
-    if lowered.is_empty() {
-        return false;
-    }
-    [
-        "i don't have current web search results",
-        "i do not have current web search results",
-        "i don't have usable tool findings",
-        "i do not have usable tool findings",
-        "i'll need to perform a web search",
-        "i will need to perform a web search",
-        "web search didn't return",
-        "web search did not return",
-        "web search returned limited",
-        "search returned limited",
-        "tool returned no new results",
-        "let me run that search",
-        "if you'd like me to search",
-        "if you would like me to search",
-        "if you'd like me to fetch",
-        "if you would like me to fetch",
-    ]
-    .iter()
-    .any(|marker| lowered.contains(marker))
+    workflow_message_matches_contract_markers(
+        &default_workflow_tool_menu_contract(),
+        "/diagnostic_markers/unresolved_tool_need_phrases",
+        response,
+    )
 }
 
 fn response_is_no_tool_category_gate_submission(response: &str) -> bool {
@@ -1431,7 +1309,7 @@ fn response_is_visible_workflow_gate_choice(response: &str) -> bool {
     response_is_manual_toolbox_gate_choice(trimmed)
         || response_is_no_tool_category_gate_submission(trimmed)
         || response_is_tool_bearing_category_gate_submission(trimmed)
-        || workflow_category_phrase_matches(&compact, None)
+        || workflow_category_token_matches_any_declared_option(&compact, None)
         || has_tool_request_labels
 }
 
@@ -1510,6 +1388,21 @@ mod workflow_control_tests {
     }
 
     #[test]
+    fn workflow_gate_prompt_does_not_embed_latent_tool_candidates() {
+        let latent = json!([
+            {"tool": "web_search", "reason": "hidden suggestion"},
+            {"tool": "terminal_exec", "reason": "hidden suggestion"}
+        ]);
+        let prompt = workflow_library_prompt_context(
+            "compare agent frameworks",
+            latent.as_array().map(Vec::as_slice).unwrap_or(&[]),
+        );
+        assert!(!prompt.contains("hidden suggestion"));
+        assert!(!prompt.contains("web_search"));
+        assert!(!prompt.contains("terminal_exec"));
+    }
+
+    #[test]
     fn workflow_tool_request_prompt_comes_from_json_contract() {
         let prompt = workflow_tool_request_prompt_context("web_research", "Web research");
         assert!(prompt.contains("Private workflow gate submission only"));
@@ -1554,97 +1447,4 @@ mod workflow_control_tests {
         );
     }
 
-    #[test]
-    fn conversation_bypass_control_enables_for_direct_override_phrase() {
-        let control = workflow_conversation_bypass_control_for_turn(
-            "break the workflow and respond directly",
-            &[],
-            false,
-        );
-        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
-        assert_eq!(
-            control.get("source").and_then(Value::as_str),
-            Some("retired")
-        );
-        assert_eq!(
-            control
-                .get("workflow_mode_override")
-                .and_then(Value::as_str),
-            Some("")
-        );
-    }
-
-    #[test]
-    fn conversation_bypass_control_blocks_when_tooling_is_required() {
-        let control = workflow_conversation_bypass_control_for_turn(
-            "break the workflow and respond directly",
-            &[],
-            true,
-        );
-        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
-        assert_eq!(control.get("blocked").and_then(Value::as_bool), Some(false));
-        assert_eq!(
-            control.get("block_reason").and_then(Value::as_str),
-            Some("")
-        );
-    }
-
-    #[test]
-    fn conversation_bypass_control_continues_sticky_state() {
-        let active_messages = vec![json!({
-            "role": "assistant",
-            "response_finalization": {
-                "workflow_control": {
-                    "conversation_bypass": {
-                        "remaining_turns_after": 2
-                    }
-                }
-            }
-        })];
-        let control =
-            workflow_conversation_bypass_control_for_turn("status?", &active_messages, false);
-        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
-        assert_eq!(
-            control.get("source").and_then(Value::as_str),
-            Some("retired")
-        );
-        assert_eq!(
-            control
-                .get("remaining_turns_before")
-                .and_then(Value::as_u64),
-            Some(2)
-        );
-        assert_eq!(
-            control.get("remaining_turns_after").and_then(Value::as_u64),
-            Some(0)
-        );
-    }
-
-    #[test]
-    fn conversation_bypass_control_disables_when_user_requests_resume() {
-        let active_messages = vec![json!({
-            "role": "assistant",
-            "response_finalization": {
-                "workflow_control": {
-                    "conversation_bypass": {
-                        "remaining_turns_after": 2
-                    }
-                }
-            }
-        })];
-        let control = workflow_conversation_bypass_control_for_turn(
-            "resume workflow now",
-            &active_messages,
-            false,
-        );
-        assert_eq!(control.get("enabled").and_then(Value::as_bool), Some(false));
-        assert_eq!(
-            control.get("source").and_then(Value::as_str),
-            Some("retired")
-        );
-        assert_eq!(
-            control.get("remaining_turns_after").and_then(Value::as_u64),
-            Some(0)
-        );
-    }
 }
