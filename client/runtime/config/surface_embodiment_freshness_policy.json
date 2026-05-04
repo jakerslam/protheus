@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "enabled": true,
+  "max_surface_age_minutes": 60,
+  "max_embodiment_age_minutes": 60,
+  "surface_state_path": "local/state/hardware/surface_budget/latest.json",
+  "embodiment_state_path": "local/state/hardware/embodiment/latest.json",
+  "latest_path": "local/state/hardware/freshness_guard/latest.json",
+  "receipts_path": "local/state/hardware/freshness_guard/receipts.jsonl"
+}

@@ -1,0 +1,308 @@
+{
+  "type": "gateway_external_surface_contract",
+  "schema_version": 1,
+  "owner": "assurance.validation",
+  "status": "enforced",
+  "updated_at": "2026-05-01",
+  "policy_refs": [
+    "docs/workspace/gateway_ingress_egress_policy.md",
+    "docs/workspace/interface_payload_budget_policy.md",
+    "docs/workspace/nexus_conduit_checkpoint_policy.md",
+    "docs/workspace/conduit_scrambler_posture_policy.md",
+    "docs/workspace/shell_ui_projection_policy.md",
+    "docs/workspace/shell_ui_message_detail_contract.md"
+  ],
+  "policy_doc_required_tokens": [
+    "The Gateway is the external ambiguity firewall.",
+    "Issue-reporting and eval-submission routes are request ingress routes with additional controls.",
+    "External surfaces have no first-party Shell exception"
+  ],
+  "required_route_classes": [
+    "request_ingress",
+    "event_output_egress",
+    "health_status",
+    "detail_fetch",
+    "bounded_search_query"
+  ],
+  "global_rules": {
+    "gateway_only_external_ingress": true,
+    "no_first_party_shell_exception": true,
+    "issue_eval_submission_gateway_only": true,
+    "bounded_default_payloads": true,
+    "nexus_checkpoint_required": true,
+    "no_direct_kernel_or_orchestration_external_surface": true,
+    "detail_payloads_lazy_by_ref": true
+  },
+  "required_forbidden_bypass_patterns": [
+    "direct_kernel_or_core_authority_call",
+    "direct_orchestration_internal_import",
+    "first_party_shell_exception",
+    "raw_runtime_state_upload",
+    "full_state_mirror"
+  ],
+  "evidence_gates": [
+    {
+      "id": "ops:gateway:interface:guard",
+      "required_package_script": true,
+      "required_tooling_registry": false,
+      "proves": [
+        "route classes",
+        "Gateway enforcement responsibilities",
+        "forbidden full-state route shapes"
+      ]
+    },
+    {
+      "id": "ops:interface:payload-budget:guard",
+      "required_package_script": true,
+      "required_tooling_registry": false,
+      "proves": [
+        "default payload ceilings",
+        "cursor/detail-ref behavior",
+        "raw payload exclusion"
+      ]
+    },
+    {
+      "id": "ops:nexus:route-inventory:guard",
+      "required_package_script": true,
+      "required_tooling_registry": false,
+      "proves": [
+        "cross-domain route inventory",
+        "Nexus checkpoint coverage"
+      ]
+    },
+    {
+      "id": "ops:conduit:scrambler-posture:guard",
+      "required_package_script": true,
+      "required_tooling_registry": false,
+      "proves": [
+        "Conduit posture",
+        "sensitive route scrambler strength"
+      ]
+    },
+    {
+      "id": "ops:shell:projection:guard",
+      "required_package_script": true,
+      "required_tooling_registry": false,
+      "proves": [
+        "Shell projection-only behavior",
+        "no Shell full-state mirrors"
+      ]
+    },
+    {
+      "id": "ops:shell:ui-message-contract:guard",
+      "required_package_script": true,
+      "required_tooling_registry": false,
+      "proves": [
+        "message/detail route split",
+        "lazy detail refs"
+      ]
+    },
+    {
+      "id": "ops:shell:truth-leak:guard",
+      "required_package_script": true,
+      "required_tooling_registry": true,
+      "proves": [
+        "Shell does not own runtime truth",
+        "Shell does not infer health or admission"
+      ]
+    },
+    {
+      "id": "ops:eval:issue-authority:guard",
+      "required_package_script": true,
+      "required_tooling_registry": true,
+      "proves": [
+        "eval issue synthesis authority",
+        "proposal-only issue candidates"
+      ]
+    },
+    {
+      "id": "ops:gateway-boundary:guard",
+      "required_package_script": true,
+      "required_tooling_registry": true,
+      "proves": [
+        "Gateway isolation",
+        "Gateway quarantine and recovery boundary"
+      ]
+    }
+  ],
+  "external_surfaces": [
+    {
+      "id": "shell",
+      "domain": "client/runtime/systems/ui",
+      "owner": "shell.presentation",
+      "status": "active",
+      "allowed_route_classes": [
+        "request_ingress",
+        "event_output_egress",
+        "health_status",
+        "detail_fetch",
+        "bounded_search_query"
+      ],
+      "forbidden_bypass": [
+        "direct_kernel_or_core_authority_call",
+        "direct_orchestration_internal_import",
+        "first_party_shell_exception",
+        "raw_runtime_state_upload",
+        "full_state_mirror",
+        "shell_owned_policy",
+        "shell_owned_mutation"
+      ],
+      "required_evidence_gates": [
+        "ops:gateway:interface:guard",
+        "ops:interface:payload-budget:guard",
+        "ops:shell:projection:guard",
+        "ops:shell:ui-message-contract:guard",
+        "ops:shell:truth-leak:guard"
+      ]
+    },
+    {
+      "id": "cli",
+      "domain": "client/runtime/operator_cli",
+      "owner": "gateway.operator_ingress",
+      "status": "active",
+      "allowed_route_classes": [
+        "request_ingress",
+        "health_status",
+        "detail_fetch",
+        "bounded_search_query"
+      ],
+      "forbidden_bypass": [
+        "direct_kernel_or_core_authority_call",
+        "direct_orchestration_internal_import",
+        "first_party_shell_exception",
+        "raw_runtime_state_upload",
+        "full_state_mirror"
+      ],
+      "required_evidence_gates": [
+        "ops:gateway:interface:guard",
+        "ops:interface:payload-budget:guard",
+        "ops:nexus:route-inventory:guard"
+      ]
+    },
+    {
+      "id": "sdk",
+      "domain": "client/runtime/sdk",
+      "owner": "gateway.sdk_ingress",
+      "status": "active",
+      "allowed_route_classes": [
+        "request_ingress",
+        "event_output_egress",
+        "health_status",
+        "detail_fetch",
+        "bounded_search_query"
+      ],
+      "forbidden_bypass": [
+        "direct_kernel_or_core_authority_call",
+        "direct_orchestration_internal_import",
+        "first_party_shell_exception",
+        "raw_runtime_state_upload",
+        "full_state_mirror"
+      ],
+      "required_evidence_gates": [
+        "ops:gateway:interface:guard",
+        "ops:interface:payload-budget:guard",
+        "ops:nexus:route-inventory:guard"
+      ]
+    },
+    {
+      "id": "issue_submission",
+      "domain": "shell_or_cli_issue_report",
+      "owner": "gateway.issue_ingress",
+      "status": "active",
+      "allowed_route_classes": [
+        "request_ingress",
+        "detail_fetch"
+      ],
+      "forbidden_bypass": [
+        "direct_kernel_or_core_authority_call",
+        "direct_orchestration_internal_import",
+        "first_party_shell_exception",
+        "raw_runtime_state_upload",
+        "full_state_mirror",
+        "shell_owned_policy",
+        "shell_owned_mutation"
+      ],
+      "required_evidence_gates": [
+        "ops:gateway:interface:guard",
+        "ops:interface:payload-budget:guard",
+        "ops:eval:issue-authority:guard"
+      ]
+    },
+    {
+      "id": "eval_submission",
+      "domain": "shell_or_cli_eval_report",
+      "owner": "gateway.eval_ingress",
+      "status": "active",
+      "allowed_route_classes": [
+        "request_ingress",
+        "detail_fetch"
+      ],
+      "forbidden_bypass": [
+        "direct_kernel_or_core_authority_call",
+        "direct_orchestration_internal_import",
+        "first_party_shell_exception",
+        "raw_runtime_state_upload",
+        "full_state_mirror",
+        "shell_owned_policy",
+        "shell_owned_mutation"
+      ],
+      "required_evidence_gates": [
+        "ops:gateway:interface:guard",
+        "ops:interface:payload-budget:guard",
+        "ops:eval:issue-authority:guard"
+      ]
+    },
+    {
+      "id": "plugin_external_agent",
+      "domain": "external_agent_or_plugin",
+      "owner": "gateway.external_agent_ingress",
+      "status": "active",
+      "allowed_route_classes": [
+        "request_ingress",
+        "event_output_egress",
+        "health_status",
+        "detail_fetch",
+        "bounded_search_query"
+      ],
+      "forbidden_bypass": [
+        "direct_kernel_or_core_authority_call",
+        "direct_orchestration_internal_import",
+        "first_party_shell_exception",
+        "raw_runtime_state_upload",
+        "full_state_mirror"
+      ],
+      "required_evidence_gates": [
+        "ops:gateway:interface:guard",
+        "ops:interface:payload-budget:guard",
+        "ops:gateway-boundary:guard",
+        "ops:conduit:scrambler-posture:guard"
+      ]
+    },
+    {
+      "id": "future_app_mobile_tauri",
+      "domain": "future_app_mobile_tauri",
+      "owner": "gateway.future_surface_ingress",
+      "status": "reserved",
+      "activation_rule": "Before any future app, mobile, Tauri, package, or embedded surface becomes active, it must add an explicit Gateway route contract row, payload budget row, Nexus inventory row, and evidence-gate mapping here.",
+      "allowed_route_classes": [
+        "request_ingress",
+        "event_output_egress",
+        "health_status",
+        "detail_fetch",
+        "bounded_search_query"
+      ],
+      "forbidden_bypass": [
+        "direct_kernel_or_core_authority_call",
+        "direct_orchestration_internal_import",
+        "first_party_shell_exception",
+        "raw_runtime_state_upload",
+        "full_state_mirror"
+      ],
+      "required_evidence_gates": [
+        "ops:gateway:interface:guard",
+        "ops:interface:payload-budget:guard",
+        "ops:nexus:route-inventory:guard"
+      ]
+    }
+  ]
+}
