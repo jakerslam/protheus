@@ -6,5 +6,8 @@
   "allow_force_push": false,
   "require_signed_commits": true,
   "require_linear_history": true,
-  "require_status_checks": true
+  "require_status_checks": true,
+  "required_status_checks": [
+    "Conventional Commit Lint / conventional-commit-lint"
+  ]
 }

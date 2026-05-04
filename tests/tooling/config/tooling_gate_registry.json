@@ -360,8 +360,6 @@
       "canonical_definition_paths": [
         "validation/domain_manifest.json",
         "observability/domain_manifest.json",
-        "validation/conformance/compatibility_mirrors.json",
-        "observability/compatibility_mirrors.json",
         "validation/conformance/contracts/assurance_physical_domain_placement_exemptions.json"
       ],
       "artifact_paths": [

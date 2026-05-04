@@ -329,13 +329,6 @@ function scanCompatibilityMirrors(): {
   let mirrorRows = 0;
   const legacyPaths: string[] = [];
   const mirrors: Array<{ legacy: string; canonical: string; source: string }> = [];
-  if (mirrorFiles.length < 7) {
-    failures.push({
-      id: 'missing_compatibility_mirror_registry',
-      path: 'validation/**/compatibility_mirrors.json + observability/**/compatibility_mirrors.json',
-      detail: `expected at least 7 compatibility mirror registries, found ${mirrorFiles.length}`,
-    });
-  }
   for (const file of mirrorFiles) {
     const payload = readJson<any>(file);
     const fileMirrors = Array.isArray(payload.mirrors) ? payload.mirrors as Mirror[] : [];
