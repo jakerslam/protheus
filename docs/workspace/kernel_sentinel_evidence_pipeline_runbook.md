@@ -137,6 +137,6 @@ The canonical Observability source registry is `observability/source_coverage/as
 
 Sentinel should use that registry as the source-class inventory for required coverage, freshness posture, and Shell telemetry authority limits.
 
-Sentinel-facing source coverage, freshness, health, trace maps, runtime finding schemas, evidence envelope normalization, and the resident-observer contract are physically owned by `observability/**`. Legacy paths are compatibility mirrors only and are listed in `observability/compatibility_mirrors.json` or the physical-domain exemption registry.
+Sentinel-facing source coverage, freshness, health, trace maps, runtime finding schemas, evidence envelope normalization, and the resident-observer contract are physically owned by `observability/**`. Legacy paths are compatibility mirrors only when active debt is declared through an owning `compatibility_mirrors.json`; otherwise the physical-domain exemption registry is the remaining debt control.
 
 Shell telemetry is presentation-only context. It can make issues clearer, but it cannot open findings, block release, waive findings, or write Sentinel verdicts unless Governance corroborates it with deterministic or advisory evidence.
