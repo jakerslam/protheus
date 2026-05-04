@@ -211,6 +211,11 @@ Completion requires all of the following:
   - `BLOCKED — file size policy violation (missing cap compliance or exception)`
 
 ## Git Hygiene Rules (Mandatory)
+- Commit messages must use a standard conventional prefix such as `feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`, `perf:`, `build:`, `ci:`, or `revert:`.
+- Commit messages may include a useful scope in the standard form `type(scope): message`, for example `fix(gateway): ...`, `feat(sentinel): ...`, or `docs(enforcer): ...`.
+- Use a scope when it clarifies the affected subsystem or review lane; omit it when the scope would be vague or redundant.
+- Choose the prefix by primary intent; when unsure for maintenance, policy, docs, or backlog-only changes, prefer `chore:` or `docs:` rather than an unprefixed message.
+- The commit message rule is enforced by the `Conventional Commit Lint` GitHub workflow and the local `npm run -s ops:commit-message:guard -- --from=<base> --to=<head>` gate; branch protection must require that workflow for server-side push rejection on protected branches.
 - Do not leave path migrations as unstaged delete+untracked churn.
 - For any directory/file relocation, stage as one atomic move set immediately (`git add -A <old> <new>` or `git mv`).
 - Before reporting completion, run `npm run -s ops:churn:guard`; unresolved move-pair churn is a hard fail.

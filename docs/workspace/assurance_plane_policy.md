@@ -217,4 +217,4 @@ The physical-domain placement guard is `ops:assurance:physical-domain-placement:
 
 The contract defines how Orchestration, Shell, Gateway, and Kernel consume Assurance without owning Assurance. Consumers may use bounded Assurance projections and detail refs, but they must not recompute verdicts, waive gates, or auto-apply patches.
 
-The migration-debt markers for compatibility wrappers are the `compatibility_mirrors.json` files under `validation/**` and `observability/**`, plus the time-bounded exemption registry at `validation/conformance/contracts/assurance_physical_domain_placement_exemptions.json`.
+The migration-debt marker for compatibility wrappers is an explicit `compatibility_mirrors.json` file under the owning `validation/**` or `observability/**` subdomain whenever active mirror debt exists, plus the time-bounded exemption registry at `validation/conformance/contracts/assurance_physical_domain_placement_exemptions.json`.

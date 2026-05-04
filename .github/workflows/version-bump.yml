@@ -1,0 +1,130 @@
+name: Version Bump
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_channel:
+        description: Release channel used when writing runtime version metadata
+        required: false
+        default: alpha
+        type: choice
+        options:
+          - alpha
+          - beta
+          - stable
+      dry_run:
+        description: Plan the bump without writing version files or committing
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: version-bump-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version-bump:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.actor != 'github-actions[bot]' && vars.INFRING_RELEASE_PERSIST_VERSION != '1') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve release channel
+        id: channel
+        env:
+          RELEASE_CHANNEL_INPUT: ${{ github.event.inputs.release_channel }}
+        run: |
+          set -euo pipefail
+          CHANNEL_INPUT="${RELEASE_CHANNEL_INPUT:-}"
+          if [ -z "$CHANNEL_INPUT" ]; then
+            CHANNEL_INPUT="$(node -e 'const fs=require("fs");let ch="alpha";try{const p=JSON.parse(fs.readFileSync("client/runtime/config/release_channel_policy.json","utf8"));if(typeof p.default_channel==="string"&&p.default_channel.trim()) ch=p.default_channel.trim().toLowerCase();}catch{};if(!["alpha","beta","stable"].includes(ch)) ch="alpha";process.stdout.write(ch);')"
+          fi
+          echo "release_channel=${CHANNEL_INPUT}" >> "$GITHUB_OUTPUT"
+          echo "Release channel: ${CHANNEL_INPUT}"
+
+      - name: Resolve semantic version bump from conventional commits
+        id: semver
+        env:
+          DRY_RUN_INPUT: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          mkdir -p core/local/artifacts
+          DRY_RUN="${DRY_RUN_INPUT:-false}"
+          WRITE="1"
+          if [ "$DRY_RUN" = "true" ]; then
+            WRITE="0"
+          fi
+          node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/release_semver_contract.ts run \
+            --strict=1 \
+            --write="${WRITE}" \
+            --channel=${{ steps.channel.outputs.release_channel }} \
+            > core/local/artifacts/version_bump_plan_current.json
+          cat core/local/artifacts/version_bump_plan_current.json
+          RELEASE_READY="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("core/local/artifacts/version_bump_plan_current.json","utf8"));process.stdout.write(p.release_ready?"1":"0");')"
+          TAG="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("core/local/artifacts/version_bump_plan_current.json","utf8"));process.stdout.write(String(p.next_tag||"none"));')"
+          NEXT_VERSION="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("core/local/artifacts/version_bump_plan_current.json","utf8"));process.stdout.write(String(p.next_version||"0.0.0"));')"
+          BUMP="$(node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("core/local/artifacts/version_bump_plan_current.json","utf8"));process.stdout.write(String(p.bump||"none"));')"
+          echo "release_ready=${RELEASE_READY}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bump=${BUMP}" >> "$GITHUB_OUTPUT"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry_run=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "dry_run=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload version bump plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-bump-plan
+          path: core/local/artifacts/version_bump_plan_current.json
+          if-no-files-found: error
+
+      - name: Stop when no releasable conventional commits
+        if: steps.semver.outputs.release_ready != '1'
+        run: |
+          echo "No conventional commit requiring a version bump."
+          exit 0
+
+      - name: Stop after dry run
+        if: steps.semver.outputs.release_ready == '1' && steps.semver.outputs.dry_run == '1'
+        run: |
+          echo "Dry run only. Planned ${{ steps.semver.outputs.bump }} bump to ${{ steps.semver.outputs.tag }}."
+          exit 0
+
+      - name: Commit version files
+        if: steps.semver.outputs.release_ready == '1' && steps.semver.outputs.dry_run != '1'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json client/runtime/config/runtime_version.json
+          if git diff --cached --quiet; then
+            echo "No version files changed."
+            exit 0
+          fi
+          git commit -m "chore(release): ${{ steps.semver.outputs.tag }} [skip ci]"
+          git push origin HEAD:main

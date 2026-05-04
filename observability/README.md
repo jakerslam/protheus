@@ -47,4 +47,4 @@ Kernel Sentinel is a privileged resident of Observability. It synthesizes findin
 
 ## Migration Rule
 
-Legacy Observability compatibility locations are retired. New live-evidence contracts, reports, runbooks, dashboard specs, and observability research should land under `observability/**`; compatibility mirrors are declared in `observability/compatibility_mirrors.json` only when an explicit burn-down path exists.
+Legacy Observability compatibility locations are retired. New live-evidence contracts, reports, runbooks, dashboard specs, and observability research should land under `observability/**`; compatibility mirrors should be declared only if new migration debt is explicitly introduced and given a burn-down path.

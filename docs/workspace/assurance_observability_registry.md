@@ -110,7 +110,7 @@ Shell telemetry and Sentinel self-study outputs are intentionally not required p
 
 ## Physical Domain Migration
 
-The Observability registry and schema now live in the physical Observability domain. The older `tests/tooling/**` copies are compatibility mirrors only and are declared in `observability/compatibility_mirrors.json`.
+The Observability registry and schema now live in the physical Observability domain. Any future legacy `tests/tooling/**` copies must be temporary compatibility mirrors declared under the owning Observability subdomain; none are active right now.
 
 Related Observability-owned contracts:
 

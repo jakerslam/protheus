@@ -15,11 +15,26 @@ type GateReport = {
   type: 'conventional_commit_gate';
   strict: boolean;
   range: string;
+  allowed_types: string[];
   scanned: number;
   invalid_count: number;
   invalid: Array<{ sha: string; subject: string; reason: string }>;
   accepted_examples: string[];
 };
+
+const ALLOWED_TYPES = [
+  'feat',
+  'fix',
+  'docs',
+  'style',
+  'refactor',
+  'perf',
+  'test',
+  'build',
+  'ci',
+  'chore',
+  'revert',
+];
 
 function cleanText(value: unknown, maxLen = 6000): string {
   return String(value == null ? '' : value).replace(/\s+/g, ' ').trim().slice(0, maxLen);
@@ -82,12 +97,7 @@ function isConventionalSubject(subject: string): boolean {
   if (!s) return false;
   if (/^Merge\b/.test(s)) return true;
   if (/^Revert\b/.test(s)) return true;
-  if (/^release:\s+.+/i.test(s)) return true;
-  if (/^(Fix|Add|Update|Refactor|Remove|Rename|Improve)\b.+/.test(s)) return true;
-  if (/^chore\(release\):\s*v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(s)) return true;
-  return /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|release|ui|ops|wave\d+)(\([^)]+\))?(!)?: .+/i.test(
-    s
-  );
+  return new RegExp(`^(${ALLOWED_TYPES.join('|')})(\\([a-z0-9._-]+\\))?(!)?: .+`, 'i').test(s);
 }
 
 function reasonForInvalid(subject: string): string {
@@ -120,18 +130,18 @@ function main() {
     type: 'conventional_commit_gate',
     strict: args.strict,
     range,
+    allowed_types: ALLOWED_TYPES,
     scanned: rows.length,
     invalid_count: invalid.length,
     invalid,
     accepted_examples: [
       'feat(router): discover local ollama models',
       'fix(installer): verify checksum manifest before install',
+      'docs(enforcer): require conventional commit prefixes',
+      'ci(commit): enforce conventional commit subjects',
+      'test(sentinel): cover compact report fallback',
+      'refactor(kernel): split receipt serialization helpers',
       'chore(release): v0.4.0-alpha',
-      'release: enforce windows prebuilt asset continuity',
-      'ui: move hamburger menu into left shared input pill',
-      'ops: harden eval troubleshooting flow',
-      'wave3: add graph runtime checkpoints + hitl',
-      'Fix chat menu close behavior and restore shimmer visibility',
     ],
   };
   if (args.outPath) {

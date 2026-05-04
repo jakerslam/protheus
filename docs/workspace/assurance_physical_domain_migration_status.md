@@ -57,17 +57,9 @@ Observability-owned definitions currently include:
 
 Compatibility mirrors are migration debt markers, not alternate owners.
 
-The active mirror registries are:
+There are currently no active Assurance compatibility mirrors. The retired mirror registries were compacted once every active row had been burned down.
 
-- `validation/evals/compatibility_mirrors.json`
-- `validation/release_gates/compatibility_mirrors.json`
-- `validation/scorecards/compatibility_mirrors.json`
-- `validation/benchmarks/compatibility_mirrors.json`
-- `validation/regression/compatibility_mirrors.json`
-- `validation/conformance/compatibility_mirrors.json`
-- `observability/compatibility_mirrors.json`
-
-Each mirror must point from an old consumer-visible path to a canonical Validation or Observability definition. Mirrors exist to preserve command compatibility while callers migrate inward.
+If compatibility debt returns, declare it in a `compatibility_mirrors.json` file under the owning Validation or Observability subdomain. Each mirror must point from an old consumer-visible path to a canonical Validation or Observability definition and exist only while callers migrate inward.
 
 ## Physical-Domain Placement Guard
 
