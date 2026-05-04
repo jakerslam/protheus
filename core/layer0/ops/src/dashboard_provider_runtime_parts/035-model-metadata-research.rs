@@ -265,6 +265,11 @@ fn research_model_profile_overlay(
     model_id: &str,
     base_profile: &Value,
 ) -> Option<Value> {
+    #[cfg(test)]
+    if scripted_chat_harness_path(root).exists() {
+        return None;
+    }
+
     let route = crate::dashboard_model_catalog::route_decision_payload(
         root,
         &json!({}),

@@ -16,6 +16,10 @@ fn current_web_intent(query: &str) -> bool {
     .any(|marker| lowered.contains(marker))
 }
 
+fn web_tool_quality_version() -> &'static str {
+    "web_tool_quality_v2"
+}
+
 fn current_year() -> String {
     crate::now_iso().chars().take(4).collect::<String>()
 }
@@ -317,6 +321,9 @@ fn web_tool_quality_report(
     if evidence_count > 1 && domains.len() < evidence_count {
         flags.push("source_diversity_limited".to_string());
     }
+    if is_benchmark_or_comparison_intent(query) && evidence_count < 2 {
+        flags.push("comparison_evidence_insufficient".to_string());
+    }
     if is_benchmark_or_comparison_intent(query) && evidence_count > 1 {
         flags.push("comparative_synthesis_required".to_string());
     }
@@ -339,17 +346,44 @@ fn web_tool_quality_report(
             })
         })
         .collect::<Vec<_>>();
+    let weak_single_source = evidence_count == 1
+        && actionable_ranked.first().is_some_and(|(candidate, score)| {
+            let candidate_flags = candidate_quality_flags(query, candidate, *score);
+            *score < 0.65
+                && candidate_flags.iter().any(|flag| {
+                    matches!(
+                        flag.as_str(),
+                        "thin_query_overlap"
+                            | "low_score"
+                            | "low_trust_source"
+                            | "freshness_unproven"
+                            | "junk_marker"
+                    )
+                })
+        });
+    if weak_single_source {
+        flags.push("weak_single_source".to_string());
+    }
+    flags.sort();
+    flags.dedup();
     let retry_reason = if flags.iter().any(|flag| flag == "anti_bot_filtered") {
         "anti_bot_filtered"
     } else if flags.iter().any(|flag| flag == "insufficient_evidence") {
         "insufficient_evidence"
+    } else if flags
+        .iter()
+        .any(|flag| flag == "comparison_evidence_insufficient")
+    {
+        "comparison_evidence_insufficient"
+    } else if flags.iter().any(|flag| flag == "weak_single_source") {
+        "weak_single_source"
     } else if flags.iter().any(|flag| flag == "low_signal") {
         "low_signal"
     } else {
         "none"
     };
     json!({
-        "version": "web_tool_quality_v1",
+        "version": web_tool_quality_version(),
         "status": status,
         "flags": flags,
         "candidate_count": candidate_count,
@@ -399,5 +433,25 @@ fn cached_web_tool_quality_report(
         })
         .unwrap_or_default();
     let evidence_count = evidence_refs.as_array().map(Vec::len).unwrap_or(0);
-    web_tool_quality_report(query, status, 0, evidence_count, &failures, &failures, &[])
+    let mut report =
+        web_tool_quality_report(query, status, 0, evidence_count, &failures, &failures, &[]);
+    let weak_cached_single_source = evidence_count == 1
+        && evidence_refs
+            .as_array()
+            .and_then(|rows| rows.first())
+            .and_then(|row| row.get("score"))
+            .and_then(Value::as_f64)
+            .map(|score| score < 0.65)
+            .unwrap_or(false);
+    if weak_cached_single_source {
+        if let Some(flags) = report.get_mut("flags").and_then(Value::as_array_mut) {
+            if !flags.iter().any(|flag| flag == "weak_single_source") {
+                flags.push(json!("weak_single_source"));
+            }
+        }
+        report["retry"]["recommended"] = json!(true);
+        report["retry"]["reason"] = json!("weak_single_source");
+        report["retry"]["next_action"] = json!("ask_agent_for_narrower_query_or_specific_source_url");
+    }
+    report
 }

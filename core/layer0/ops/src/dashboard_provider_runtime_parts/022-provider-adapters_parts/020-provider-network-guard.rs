@@ -184,6 +184,10 @@ impl LlmProviderAdapter for OllamaAdapter {
         let payload = json!({
             "model": input.model,
             "stream": false,
+            "think": false,
+            "options": {
+                "num_predict": 512
+            },
             "messages": openai_style_messages(input.system, input.messages)
         });
         let (status, value) = curl_json(
@@ -191,7 +195,7 @@ impl LlmProviderAdapter for OllamaAdapter {
             "POST",
             &["Content-Type: application/json".to_string()],
             Some(&payload),
-            180,
+            60,
         )?;
         if !(200..300).contains(&status) {
             return Err(model_backend_unavailable(&value));

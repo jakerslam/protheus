@@ -157,9 +157,17 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             &evidence_refs,
             &partial_failure_details,
         );
-        let tool_result_quality = cached.get("tool_result_quality").cloned().unwrap_or_else(|| {
+        let cached_quality = cached.get("tool_result_quality").cloned();
+        let cached_quality_is_current = cached_quality
+            .as_ref()
+            .and_then(|quality| quality.get("version"))
+            .and_then(Value::as_str)
+            == Some(web_tool_quality_version());
+        let tool_result_quality = if cached_quality_is_current {
+            cached_quality.unwrap_or_else(|| json!({}))
+        } else {
             cached_web_tool_quality_report(&query, &status, &partial_failure_details, &evidence_refs)
-        });
+        };
         let parallel_retrieval_used = cached
             .get("parallel_retrieval_used")
             .and_then(Value::as_bool)

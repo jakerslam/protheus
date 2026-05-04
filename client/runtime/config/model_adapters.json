@@ -4,7 +4,7 @@
   "tiers": {
     "tier1_governance": {
       "purpose": "plans, security/finance decisions, policy enforcement, final approval",
-      "fallback_order": ["openai/gpt-5.2-thinking", "ollama/kimi-k2.5:cloud"],
+      "fallback_order": ["ollama/kimi-k2.6:cloud"],
       "limits": {
         "max_tokens": 1800,
         "tools_allowed": ["memory", "web", "cron"]
@@ -12,7 +12,7 @@
     },
     "tier2_build": {
       "purpose": "coding, refactors, drafts, implementations",
-      "fallback_order": ["ollama/kimi-k2.5:cloud", "openai/gpt-5.2"],
+      "fallback_order": ["ollama/kimi-k2.6:cloud"],
       "limits": {
         "max_tokens": 1600,
         "tools_allowed": ["memory", "web"]
@@ -20,7 +20,7 @@
     },
     "tier3_grunt": {
       "purpose": "index rebuilds, formatting, linting, summaries",
-      "fallback_order": ["ollama/kimi-k2.5:cloud"],
+      "fallback_order": ["ollama/kimi-k2.6:cloud"],
       "limits": {
         "max_tokens": 900,
         "tools_allowed": ["memory"]

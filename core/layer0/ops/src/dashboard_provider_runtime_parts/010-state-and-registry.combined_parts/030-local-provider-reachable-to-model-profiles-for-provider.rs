@@ -173,6 +173,7 @@ fn model_profiles_for_provider(provider_id: &str) -> Map<String, Value> {
             "qwen2.5-coder:7b": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 7, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "ollama", "context_window": 131072},
             "qwen2.5-coder:latest": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 7, "specialty": "coding", "specialty_tags": ["coding", "general"], "deployment_kind": "ollama", "context_window": 131072},
             "qwen2.5:3b": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 3, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
+            "qwen2.5:3b-instruct-q4_K_M": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 3, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
             "qwen3:4b": {"power_rating": 2, "cost_rating": 1, "param_count_billion": 4, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
             "qwen3:8b": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 8, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},
             "qwen3:14b": {"power_rating": 3, "cost_rating": 1, "param_count_billion": 14, "specialty": "general", "specialty_tags": ["general"], "deployment_kind": "ollama", "context_window": 131072},

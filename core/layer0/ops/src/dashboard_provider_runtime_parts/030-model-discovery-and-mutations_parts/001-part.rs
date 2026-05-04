@@ -1,62 +1,3 @@
-) -> Value {
-    let system = clean_chat_text(system_prompt, 2_000).to_ascii_lowercase();
-    let user = clean_chat_text(user_message, 4_000).to_ascii_lowercase();
-    let transcript = content_from_message_rows(session_messages)
-        .into_iter()
-        .rev()
-        .take(6)
-        .map(|(_, text)| clean_chat_text(&text, 320))
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_ascii_lowercase();
-    let merged = format!("{system} {user} {transcript}");
-    let complexity = if merged.contains("deep")
-        || merged.contains("in-depth")
-        || merged.contains("comprehensive")
-        || merged.contains("thorough")
-        || merged.contains("analyze")
-    {
-        "high"
-    } else {
-        "general"
-    };
-    let task_type = if merged.contains("code")
-        || merged.contains("bug")
-        || merged.contains("test")
-        || merged.contains("refactor")
-    {
-        "code"
-    } else if merged.contains("research")
-        || merged.contains("docs")
-        || merged.contains("cite")
-    {
-        "research"
-    } else {
-        "general"
-    };
-    let budget_mode = if merged.contains("cheap")
-        || merged.contains("low cost")
-        || merged.contains("save tokens")
-        || merged.contains("fast")
-    {
-        "cheap"
-    } else {
-        "balanced"
-    };
-    let prefer_local = merged.contains("local")
-        || merged.contains("offline")
-        || merged.contains("private")
-        || merged.contains("air-gapped");
-    let token_count = ((system.len() + user.len() + transcript.len()) / 4).max(1) as i64;
-    json!({
-        "task_type": task_type,
-        "complexity": complexity,
-        "budget_mode": budget_mode,
-        "prefer_local": prefer_local,
-        "token_count": token_count
-    })
-}
-
 #[cfg(test)]
 fn scripted_chat_harness_response(
     root: &Path,
@@ -107,7 +48,22 @@ fn scripted_chat_harness_response(
             })))
         }
     });
-    let response = inferred.or_else(|| {
+    let response = if script_exists && inferred.is_none() {
+        Some(Ok(json!({
+            "ok": true,
+            "provider": normalize_provider_id(provider_id),
+            "model": clean_text(model_name, 240),
+            "runtime_model": clean_text(model_name, 240),
+            "response": "",
+            "input_tokens": ((user_message.len() as i64) / 4).max(1),
+            "output_tokens": 0,
+            "cost_usd": 0.0,
+            "context_window": 0,
+            "latency_ms": 1,
+            "tools": []
+        })))
+    } else {
+        inferred.or_else(|| {
         infer_test_inline_tool_response(user_message).map(|response| {
             Ok(json!({
                 "ok": true,
@@ -123,7 +79,7 @@ fn scripted_chat_harness_response(
                 "tools": []
             }))
         })
-    });
+    })};
     let response_excerpt = match &response {
         Some(Ok(value)) => clean_chat_text(
             value

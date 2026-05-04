@@ -383,8 +383,3 @@ fn invoke_chat_live(
     }
     Ok(response)
 }
-
-fn infer_auto_route_request(
-    system_prompt: &str,
-    session_messages: &[Value],
-    user_message: &str,

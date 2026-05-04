@@ -4,8 +4,7 @@
     let needs_route = provider.is_empty()
         || provider.eq_ignore_ascii_case("auto")
         || model.is_empty()
-        || model.eq_ignore_ascii_case("auto")
-        || !model_ref_available(root, snapshot, &provider, &model);
+        || model.eq_ignore_ascii_case("auto");
     if !needs_route {
         return (provider, model, None);
     }
