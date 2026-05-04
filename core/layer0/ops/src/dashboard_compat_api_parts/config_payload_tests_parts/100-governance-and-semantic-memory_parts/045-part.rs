@@ -60,6 +60,9 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
         &json!({
             "queue": [
                 {
+                    "response": "Respond directly"
+                },
+                {
                     "response": "The workflow and tool menu are working, and I can answer directly."
                 }
             ],
@@ -84,7 +87,7 @@ fn workflow_library_allows_direct_answer_without_second_synthesis() {
             .payload
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
-        Some("skipped_not_required")
+        Some("synthesized")
     );
     assert_eq!(
         response

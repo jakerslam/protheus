@@ -1,9 +1,9 @@
 // Layer ownership: orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     ControlPlaneDecisionTrace, ControlPlaneDecisionTraceStep, ControlPlaneLifecycleState,
-    ForgeCodeWorkflowQualitySignals, OrchestrationFallbackAction, OrchestrationPlan,
-    OrchestrationResultPackage, PlanStatus, PlanVariant, RecoveryReason, RequestClass,
-    RuntimeQualitySignals, StepStatus, WorkflowQualitySignals, WorkflowTemplate,
+    CoreContractCall, ForgeCodeWorkflowQualitySignals, OrchestrationFallbackAction,
+    OrchestrationPlan, OrchestrationResultPackage, PlanStatus, PlanVariant, RecoveryReason,
+    RequestClass, RuntimeQualitySignals, StepStatus, WorkflowQualitySignals, WorkflowTemplate,
 };
 
 pub fn package_result(
@@ -379,6 +379,14 @@ fn decision_step_records(plan: &OrchestrationPlan) -> Vec<ControlPlaneDecisionTr
                         plan.selected_plan.mutates_session_context
                     ),
                     format!(
+                        "context_preparation={}",
+                        if step.target_contract == CoreContractCall::ContextAtomAppend {
+                            "explicit"
+                        } else {
+                            "none"
+                        }
+                    ),
+                    format!(
                         "expected_contract_refs={}",
                         step.expected_contract_refs.len()
                     ),
@@ -412,6 +420,14 @@ fn decision_receipt_metadata(plan: &OrchestrationPlan) -> Vec<String> {
         format!(
             "plan_mutates_session_context={}",
             plan.selected_plan.mutates_session_context
+        ),
+        format!(
+            "context_preparation={}",
+            if plan.selected_plan.mutates_session_context {
+                "explicit"
+            } else {
+                "none"
+            }
         ),
         format!(
             "expected_core_contract_count={}",

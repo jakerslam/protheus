@@ -106,6 +106,7 @@ pub fn recommend_chat_failover(
     };
 
     let active = model_variant_set(active_model_ids);
+    let auto_selected = active.contains("auto");
     let mut seen = std::collections::HashSet::new();
     let target = candidate_model_ids.iter().find_map(|candidate| {
         let normalized = candidate.trim();
@@ -124,10 +125,19 @@ pub fn recommend_chat_failover(
     });
 
     match target {
-        Some(model_id) => ChatRecoveryPlan {
+        Some(model_id) if auto_selected => ChatRecoveryPlan {
             action: ChatRecoveryAction::RetryWithModel { model_id },
             failure: Some(failure),
-            telemetry_note: "retry with first non-active model candidate".to_string(),
+            telemetry_note: "retry with first non-active model candidate because Auto is selected"
+                .to_string(),
+        },
+        Some(_) => ChatRecoveryPlan {
+            action: ChatRecoveryAction::Escalate {
+                reason: "model switch requires Auto selection or explicit user request".to_string(),
+            },
+            failure: Some(failure),
+            telemetry_note: "escalate because explicit selected model cannot be changed automatically"
+                .to_string(),
         },
         None => ChatRecoveryPlan {
             action: ChatRecoveryAction::Escalate {
@@ -207,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn recommends_first_non_active_candidate_for_failover() {
+    fn escalates_instead_of_switching_explicit_selected_model() {
         let plan = recommend_chat_failover(
             "hosted_model_provider_sync_failed",
             &["openai/gpt-5.4".to_string()],
@@ -220,13 +230,32 @@ mod tests {
 
         assert_eq!(
             plan.action,
-            ChatRecoveryAction::RetryWithModel {
-                model_id: "anthropic/claude-4.2".to_string()
+            ChatRecoveryAction::Escalate {
+                reason: "model switch requires Auto selection or explicit user request".to_string()
             }
         );
         assert_eq!(
             plan.failure.expect("failure should be carried").kind,
             ChatBackendFailureKind::ProviderSyncFailed
+        );
+    }
+
+    #[test]
+    fn auto_selection_can_recommend_first_non_active_candidate_for_failover() {
+        let plan = recommend_chat_failover(
+            "hosted_model_provider_sync_failed",
+            &["auto".to_string()],
+            &[
+                "anthropic/claude-4.2".to_string(),
+                "anthropic/claude-4.2".to_string(),
+            ],
+        );
+
+        assert_eq!(
+            plan.action,
+            ChatRecoveryAction::RetryWithModel {
+                model_id: "anthropic/claude-4.2".to_string()
+            }
         );
     }
 

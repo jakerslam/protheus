@@ -5,6 +5,12 @@ Owner: Jay
 Scope: Shell-facing chat, session, workflow-status, tool, artifact, and trace display payloads
 Effective: April 2026
 
+## Active Shell Instance
+
+The current concrete consumer for this contract is `desktop UI shell 1.0`.
+Future shells must satisfy the same projection/detail contract unless they
+declare a new versioned contract.
+
 ## Purpose
 
 The Shell renders message projections by default and fetches heavy details only when an operator asks for them.

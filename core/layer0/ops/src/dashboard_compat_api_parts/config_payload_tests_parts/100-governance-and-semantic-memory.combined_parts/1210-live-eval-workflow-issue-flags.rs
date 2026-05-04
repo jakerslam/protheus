@@ -37,7 +37,7 @@ fn live_eval_monitor_flags_workflow_failure_modes_without_chat_injection() {
             "final_llm_response": {
                 "status": "skipped",
                 "attempt_count": 2,
-                "fallback_guard_multi_stage": true
+                "diagnostic_event_multi_stage": true
             },
             "tool_completion": {
                 "status": "ok",
@@ -133,8 +133,8 @@ fn live_eval_monitor_flags_unresolved_tool_intent_final_answer() {
     let report = live_eval_monitor_turn(
         root.path(),
         "misty-unresolved-tool-intent-eval",
-        "compare infring to top agentic frameworks",
-        "I would choose to run a batch_query to collect external evidence about top agentic frameworks for comparison.",
+        "research the current release status",
+        "I would choose to run a web search to collect current evidence before answering.",
         "",
         "",
         &json!({"final_llm_response": {"status": "synthesized"}}),
@@ -157,8 +157,8 @@ fn live_eval_monitor_flags_unresolved_tool_intent_final_answer() {
 #[test]
 fn live_eval_monitor_flags_unsupported_low_signal_tool_claim_without_evidence() {
     let guard = final_response_guard_report(
-        "compare infring to top agentic frameworks",
-        "Live web retrieval was low-signal in this turn. Provisional comparison: Infring is strongest in identity persistence.",
+        "research the current release status",
+        "Live web retrieval was low-signal in this turn. Provisional answer: the release appears stable.",
         &[],
         false,
     );
@@ -177,12 +177,13 @@ fn live_eval_monitor_flags_unsupported_low_signal_tool_claim_without_evidence() 
 }
 
 #[test]
-fn runtime_system_prompt_uses_workflow_gate_not_direct_repo_tool_claims() {
+fn runtime_system_prompt_does_not_own_workflow_gate_behavior() {
     let prompt = AGENT_RUNTIME_SYSTEM_PROMPT.to_ascii_lowercase();
-    assert!(prompt.contains("workflow gates"), "{prompt}");
+    assert!(!prompt.contains("workflow gates"), "{prompt}");
     assert!(!prompt.contains("workspace files"), "{prompt}");
     assert!(!prompt.contains("<function="), "{prompt}");
     assert!(!prompt.contains("use those capabilities directly"), "{prompt}");
+    assert!(!prompt.contains("tool access"), "{prompt}");
 }
 
 #[test]

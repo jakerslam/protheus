@@ -1776,6 +1776,87 @@
       "drift_surface": "workflow authority transitions",
       "runtime_enforced_by": null,
       "validation_scope": "Workflow authority transition audit."
+    },
+    {
+      "gate_id": "ops:architecture:transition-residue:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Post-rearchitecture transition residue must be explicitly governed so stale paths, missing virtual-repo manifests, and unregistered command wiring cannot hide.",
+      "drift_surface": "Architecture transition registers, command wiring, Shell Cognition burn-down, and virtual-repo domain manifests.",
+      "runtime_enforced_by": null,
+      "validation_scope": "Static transition-residue governance and command-surface registration.",
+      "strengthen_signal": "Repeated findings mean architecture transition debt needs physical relocation or canonical domain manifests, not looser tooling exemptions."
+    },
+    {
+      "gate_id": "ops:gateway:external-surface:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "External Shell, CLI, SDK, issue/eval submission, plugin, and future app surfaces must enter through Gateways without first-party bypass.",
+      "drift_surface": "Gateway external surface roster, route classes, bypass blocks, and command wiring.",
+      "runtime_enforced_by": "Gateway ingress and egress route contracts",
+      "validation_scope": "Gateway-only external boundary conformance.",
+      "strengthen_signal": "Any bypass means external boundary authority is leaking around Gateway and must be repaired in Gateway contracts."
+    },
+    {
+      "gate_id": "ops:orchestration:naming:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Orchestration Control Plane remains the canonical coordination name and Tower/Cognition labels stay rejected or historical only.",
+      "drift_surface": "Architecture terminology in active maps, manifests, package scripts, gate registries, and policy docs.",
+      "runtime_enforced_by": null,
+      "validation_scope": "Canonical orchestration naming and rejected-alias scan.",
+      "strengthen_signal": "Repeated naming drift means ownership docs and generated maps are diverging from architecture policy."
+    },
+    {
+      "gate_id": "ops:representation-collapse:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Runtime entities must not accumulate undeclared source-of-truth, projection, detail, and cache representations.",
+      "drift_surface": "Representation-collapse policy and entity representation declarations.",
+      "runtime_enforced_by": null,
+      "validation_scope": "Representation-count and projection/raw-internal drift scan.",
+      "strengthen_signal": "Repeated findings mean a domain is rebuilding a second source of truth instead of using projection/detail contracts."
+    },
+    {
+      "gate_id": "ops:representation-collapse:report",
+      "classification": "architecture_drift_guard",
+      "invariant": "Representation-collapse risk remains visible as an operator-reviewable architecture report.",
+      "drift_surface": "Representation-collapse inventory report and architecture risk findings.",
+      "runtime_enforced_by": null,
+      "validation_scope": "Advisory architecture report for source-of-truth and projection representation drift.",
+      "strengthen_signal": "High-risk report findings should graduate into hard representation-collapse guards or relocation tasks."
+    },
+    {
+      "gate_id": "ops:shell:amputation:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "Kernel, Orchestration, CLI, and Gateway health/status operation must remain independent of browser Shell assets.",
+      "drift_surface": "Shell-independent operation fixture and non-UI runtime import/access paths.",
+      "runtime_enforced_by": "Gateway health/status and Shell-independent operation policy",
+      "validation_scope": "No-browser-Shell amputation regression proof.",
+      "strengthen_signal": "Any failure means Shell presentation assets are still coupled to runtime authority or operator health paths."
+    },
+    {
+      "gate_id": "ops:shell:runtime-payload-budget:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Shell session, message-window, and runtime-event default payloads stay bounded and free of raw/full-state fields.",
+      "runtime_enforced_by": "Gateway payload budgets and Shell projection contracts",
+      "proof_artifact": "core/local/artifacts/shell_runtime_payload_budget_guard_current.json",
+      "validation_scope": "Runtime-shaped Shell projection payload budget evidence.",
+      "strengthen_signal": "Payload regressions indicate Gateway default projections are too broad or Shell detail refs are being bypassed."
+    },
+    {
+      "gate_id": "ops:shell:tiered-long-chat-heap:guard",
+      "classification": "release_evidence_gate",
+      "invariant": "Long-chat Shell evidence must stay bounded across store projection, rendered fixture budgets, and Gateway-to-Shell projection stress.",
+      "runtime_enforced_by": "Shell projection contract and Gateway message-window payload budgets",
+      "proof_artifact": "core/local/artifacts/shell_tiered_long_chat_heap_guard_current.json",
+      "validation_scope": "Tiered long-chat heap, DOM, storage, and raw-payload regression proof.",
+      "strengthen_signal": "Failures mean the Shell is drifting back toward full-message/full-payload ownership and needs projection compression."
+    },
+    {
+      "gate_id": "ops:tooling:harness-only:guard",
+      "classification": "architecture_drift_guard",
+      "invariant": "tests/tooling remains harness-only executor glue while Assurance domains own definition-shaped validation and observability truth.",
+      "drift_surface": "tests/tooling definition-shaped files, declared transition debt, and Assurance-domain target prefixes.",
+      "runtime_enforced_by": null,
+      "validation_scope": "Tooling harness-only placement and time-bounded migration-debt enforcement.",
+      "strengthen_signal": "Any undeclared tooling definition means Validation/Observability/Governance ownership is incomplete and tests/tooling is becoming a shadow domain."
     }
   ]
 }

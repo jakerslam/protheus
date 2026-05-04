@@ -1,0 +1,416 @@
+{
+  "schema_version": 1,
+  "description": "Level 1 fixed-input agent capability ladder for repeatable conversation, research, coding, and agentic-work checks through the normal user-message route.",
+  "harness": {
+    "runner": "synthetic_user_chat_harness",
+    "offline_command": "npm run -s ops:eval:agent-capability:l1",
+    "live_command": "AGENT_ID=<agent-id> npm run -s ops:eval:agent-capability:l1:live",
+    "user_injection_route": "/api/agents/{agent_id}/message",
+    "request_body_keys": ["message"],
+    "grader_mode": "auto_fail_plus_agent_or_eval_review",
+    "autofail_examples": [
+      "blank final response without pending tool",
+      "visible workflow gate leakage",
+      "missing workflow trace",
+      "tool need without tool progress",
+      "tool result without final synthesis"
+    ]
+  },
+  "thresholds": {
+    "min_cases": 6,
+    "min_pass_rate": 1.0,
+    "max_failures": 0,
+    "simple_direct_max_latency_ms": 5000,
+    "simple_direct_live_max_latency_ms": 15000,
+    "simple_direct_max_response_tokens": 80,
+    "simple_direct_max_stage_count": 2,
+    "pending_tool_stuck_max_latency_ms": 30000
+  },
+  "defaults": {
+    "agent_id": "synthetic-capability-l1-agent"
+  },
+  "cases": [
+    {
+      "id": "conversation_l1_direct_exit",
+      "turns": [
+        {
+          "turn_id": "conversation_001",
+          "capability": {
+            "domain": "conversation",
+            "level": 1
+          },
+          "user_message": "hey",
+          "mock_response": {
+            "response": "Hey, I am here. What would you like to work on?",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "simple_conversation_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_no"
+                }
+              ],
+              "tool_gate": {
+                "should_call_tools": false
+              }
+            },
+            "tools": [],
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["Hey"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "simple_direct_conversation": true
+          },
+          "grader": {
+            "rubric": [
+              "Responds conversationally",
+              "Does not enter the tool workflow",
+              "Does not leak gate tokens"
+            ],
+            "pass_threshold": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "research_l1_web_tool_progress",
+      "turns": [
+        {
+          "turn_id": "research_001",
+          "capability": {
+            "domain": "research",
+            "level": 1
+          },
+          "user_message": "Use web search to compare infring to top agentic frameworks in April 2026. Return a source-backed comparison.",
+          "mock_response": {
+            "response": "",
+            "pending_tool_request": {
+              "status": "pending_confirmation",
+              "source": "natural_tool_choice",
+              "tool_name": "web_search",
+              "selected_tool_family": "Web Search / Fetch",
+              "selected_tool_label": "Web search",
+              "input": {
+                "source": "web",
+                "query": "infring top agentic frameworks comparison April 2026",
+                "aperture": "medium"
+              },
+              "receipt_binding": "fixture-research-l1-web-pending",
+              "chat_injection_allowed": false,
+              "execution_claim_allowed": false
+            },
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "pending_tool_request": {
+                "status": "pending_confirmation",
+                "tool_name": "web_search",
+                "execution_claim_allowed": false
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_yes"
+                },
+                {
+                  "stage": "gate_2_tool_family_menu",
+                  "status": "selected_web_search"
+                }
+              ]
+            },
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "require_tool_progress": true,
+            "forbid_unresolved_tool_need_without_progress": true
+          },
+          "grader": {
+            "rubric": [
+              "Selects web_search rather than exposing backend primitive names",
+              "Provides a concrete query payload",
+              "Does not claim search results before the tool runs"
+            ],
+            "pass_threshold": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "research_l1_tool_result_synthesis",
+      "turns": [
+        {
+          "turn_id": "research_002",
+          "capability": {
+            "domain": "research",
+            "level": 1
+          },
+          "user_message": "After the web tool returns, synthesize a concise comparison of infring, OpenHands, LangGraph, CrewAI, and AutoGen.",
+          "mock_response": {
+            "response": "The tool evidence points to a tradeoff: Infring is emphasizing LLM-controlled workflow traces and receipt-backed orchestration, while OpenHands is stronger on sandboxed execution, LangGraph on graph-shaped workflows, CrewAI on role-based teams, and AutoGen on multi-agent conversation patterns.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "final_llm_response": {
+                "status": "synthesized"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_5_tool_observation",
+                  "status": "tool_result_received"
+                },
+                {
+                  "stage": "gate_6_llm_final_output",
+                  "status": "synthesized"
+                }
+              ]
+            },
+            "tools": [
+              {
+                "name": "web_search",
+                "status": "success",
+                "receipt": "fixture-research-l1-web-receipt",
+                "summary": "Evidence covers Infring, OpenHands, LangGraph, CrewAI, and AutoGen."
+              }
+            ],
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["OpenHands", "LangGraph", "CrewAI", "AutoGen", "tradeoff"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "require_tool_execution_evidence": true,
+            "require_final_synthesis": true,
+            "require_tool_result_synthesis": true
+          },
+          "grader": {
+            "rubric": [
+              "Synthesizes from tool evidence",
+              "Mentions the requested frameworks",
+              "Gives comparative strengths rather than a one-line ranking"
+            ],
+            "pass_threshold": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "coding_l1_workspace_tool_progress",
+      "turns": [
+        {
+          "turn_id": "coding_001",
+          "capability": {
+            "domain": "coding",
+            "level": 1
+          },
+          "user_message": "Inspect the tiny fixture repo and identify the smallest bugfix you would make. Use workspace tools before answering.",
+          "mock_response": {
+            "response": "",
+            "pending_tool_request": {
+              "status": "pending_confirmation",
+              "source": "natural_tool_choice",
+              "tool_name": "workspace_search",
+              "selected_tool_family": "File / Workspace",
+              "selected_tool_label": "Search workspace",
+              "input": {
+                "path": ".",
+                "pattern": "tiny fixture repo bugfix"
+              },
+              "receipt_binding": "fixture-coding-l1-workspace-pending",
+              "chat_injection_allowed": false,
+              "execution_claim_allowed": false
+            },
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "pending_tool_request": {
+                "status": "pending_confirmation",
+                "tool_name": "workspace_search",
+                "execution_claim_allowed": false
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_yes"
+                },
+                {
+                  "stage": "gate_2_tool_family_menu",
+                  "status": "selected_workspace_search"
+                }
+              ]
+            },
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "require_tool_progress": true,
+            "forbid_unresolved_tool_need_without_progress": true
+          },
+          "grader": {
+            "rubric": [
+              "Selects workspace tooling before coding claims",
+              "Provides a concrete search/read payload",
+              "Does not hallucinate file findings before the tool runs"
+            ],
+            "pass_threshold": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "coding_l1_patch_synthesis",
+      "turns": [
+        {
+          "turn_id": "coding_002",
+          "capability": {
+            "domain": "coding",
+            "level": 1
+          },
+          "user_message": "After reading the fixture repo, explain the smallest safe patch and how you would verify it.",
+          "mock_response": {
+            "response": "The smallest safe patch is to add the missing empty-input guard before indexing the collection, then verify it with one regression test for empty input and one normal-path test.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "final_llm_response": {
+                "status": "synthesized"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_5_tool_observation",
+                  "status": "tool_result_received"
+                },
+                {
+                  "stage": "gate_6_llm_final_output",
+                  "status": "synthesized"
+                }
+              ]
+            },
+            "tools": [
+              {
+                "name": "workspace_read",
+                "status": "success",
+                "receipt": "fixture-coding-l1-read-receipt",
+                "summary": "Fixture code indexes a collection before checking empty input."
+              }
+            ],
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["patch", "empty-input guard", "regression test"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "require_tool_execution_evidence": true,
+            "require_final_synthesis": true,
+            "require_tool_result_synthesis": true
+          },
+          "grader": {
+            "rubric": [
+              "Identifies a minimal patch",
+              "Names verification steps",
+              "Does not claim unobserved files beyond the tool result"
+            ],
+            "pass_threshold": 0.8
+          }
+        }
+      ]
+    },
+    {
+      "id": "agentic_l1_recovery_and_packaging",
+      "turns": [
+        {
+          "turn_id": "agentic_001",
+          "capability": {
+            "domain": "agentic_work",
+            "level": 1
+          },
+          "user_message": "The first tool result was low signal. Recover and package the next useful action without inventing results.",
+          "mock_response": {
+            "response": "The first tool result was low signal, so the safe recovery is to narrow the query, retry once, and only synthesize after a receipt-backed result arrives. Current status: no supported conclusion yet.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "final_llm_response": {
+                "status": "synthesized"
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_5_tool_observation",
+                  "status": "tool_result_low_signal"
+                },
+                {
+                  "stage": "recovery_escalation",
+                  "status": "retry_planned"
+                },
+                {
+                  "stage": "gate_6_llm_final_output",
+                  "status": "synthesized"
+                }
+              ]
+            },
+            "tools": [
+              {
+                "name": "web_search",
+                "status": "low_signal",
+                "receipt": "fixture-agentic-l1-low-signal-receipt",
+                "summary": "Search result did not provide synthesis-quality evidence."
+              }
+            ],
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": ["low signal", "narrow the query", "receipt-backed"],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "require_tool_execution_evidence": true,
+            "require_final_synthesis": true,
+            "require_tool_result_synthesis": true
+          },
+          "grader": {
+            "rubric": [
+              "Acknowledges low-signal evidence",
+              "Chooses recovery instead of hallucinating success",
+              "Packages the next action clearly"
+            ],
+            "pass_threshold": 0.8
+          }
+        }
+      ]
+    }
+  ]
+}

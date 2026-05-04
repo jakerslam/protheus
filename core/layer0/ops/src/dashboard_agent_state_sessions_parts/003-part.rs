@@ -55,7 +55,7 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
         }
     }
 
-    let mut rows = Vec::<Value>::new();
+    let mut candidates = Vec::<(std::time::SystemTime, std::path::PathBuf, String)>::new();
     let dir = sessions_dir(root);
     if let Ok(read_dir) = fs::read_dir(&dir) {
         for entry in read_dir.flatten() {
@@ -76,7 +76,19 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
             {
                 continue;
             }
-            if let Some(state) = read_json_file(&path) {
+            let modified = entry
+                .metadata()
+                .and_then(|meta| meta.modified())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            candidates.push((modified, path, file_agent_id));
+        }
+    }
+    candidates.sort_by_key(|(modified, _, _)| std::cmp::Reverse(*modified));
+    candidates.truncate(limit.clamp(1, 500).saturating_mul(2));
+
+    let mut rows = Vec::<Value>::new();
+    for (_, path, file_agent_id) in candidates {
+        if let Some(state) = read_json_file(&path) {
                 let mut agent_id = clean_text(
                     state.get("agent_id").and_then(Value::as_str).unwrap_or(""),
                     140,
@@ -127,7 +139,6 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
                     "message_count": messages.len(),
                     "updated_at": updated_at
                 }));
-            }
         }
     }
     rows.sort_by_key(|row| {

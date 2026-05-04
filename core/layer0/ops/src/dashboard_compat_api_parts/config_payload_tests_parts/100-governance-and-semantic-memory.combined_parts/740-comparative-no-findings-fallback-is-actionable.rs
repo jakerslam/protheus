@@ -1,6 +1,5 @@
-fn comparative_no_findings_fallback_is_diagnostics_only() {
-    let fallback = comparative_no_findings_fallback("rank infring among peers");
-    assert!(fallback.is_empty());
+fn comparative_no_findings_visible_fallback_is_not_authored() {
+    assert!(no_findings_user_facing_response().is_empty());
 }
 
 #[test]

@@ -47,6 +47,78 @@ fn agent_create_without_name_returns_non_generic_identity_name() {
 }
 
 #[test]
+fn agent_create_preserves_auto_model_selection_until_invocation() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    save_app_settings(root.path(), "auto", "auto");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Auto Model","role":"analyst"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create agent");
+    assert_eq!(created.status, 200);
+    assert_eq!(
+        created.payload.get("model_provider").and_then(Value::as_str),
+        Some("auto")
+    );
+    assert_eq!(
+        created.payload.get("model_name").and_then(Value::as_str),
+        Some("auto")
+    );
+    assert_eq!(
+        created.payload.get("runtime_model").and_then(Value::as_str),
+        Some("auto")
+    );
+}
+
+#[test]
+fn agent_model_update_to_auto_does_not_materialize_routed_model() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    save_app_settings(root.path(), "auto", "auto");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Auto Update","role":"analyst","provider":"openai","model":"gpt-5"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create agent");
+    assert_eq!(created.status, 200);
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    let updated = handle(
+        root.path(),
+        "PUT",
+        &format!("/api/agents/{agent_id}/model"),
+        br#"{"model":"auto"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("update model");
+    assert_eq!(updated.status, 200);
+    assert_eq!(updated.payload.get("provider").and_then(Value::as_str), Some("auto"));
+    assert_eq!(updated.payload.get("model").and_then(Value::as_str), Some("auto"));
+    let listed =
+        handle(root.path(), "GET", "/api/agents", &[], &agent_create_ok_snapshot()).expect("list agents");
+    let rows = listed.payload.as_array().cloned().unwrap_or_default();
+    let row = rows
+        .iter()
+        .find(|row| row.get("id").and_then(Value::as_str) == Some(agent_id.as_str()))
+        .expect("agent row");
+    assert_eq!(row.get("model_provider").and_then(Value::as_str), Some("auto"));
+    assert_eq!(row.get("model_name").and_then(Value::as_str), Some("auto"));
+}
+
+#[test]
 fn agents_sidebar_compact_view_skips_heavy_profile_fields() {
     let root = agent_create_temp_root();
     init_git_repo(root.path());

@@ -87,36 +87,23 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
     let root = root.as_ref();
     let contracts = read_text(root, "orchestration/src/contracts.rs");
     let preconditions = read_text(root, "orchestration/src/planner/preconditions.rs");
-    let capability_registry = read_text(
-        root,
-        "orchestration/src/planner/capability_registry.rs",
-    );
-    let planner_candidates =
-        read_text(root, "orchestration/src/planner/plan_candidates.rs");
-    let planner_common = read_text(
-        root,
-        "orchestration/src/planner/plan_candidates/common.rs",
-    );
-    let planner_chain = read_text(
-        root,
-        "orchestration/src/planner/plan_candidates/chain.rs",
-    );
+    let capability_registry = read_text(root, "orchestration/src/planner/capability_registry.rs");
+    let planner_candidates = read_text(root, "orchestration/src/planner/plan_candidates.rs");
+    let planner_common = read_text(root, "orchestration/src/planner/plan_candidates/common.rs");
+    let planner_chain = read_text(root, "orchestration/src/planner/plan_candidates/chain.rs");
     let planner_strategy = read_text(
         root,
         "orchestration/src/planner/plan_candidates/strategy.rs",
     );
     let sequencing = read_text(root, "orchestration/src/sequencing.rs");
-    let probe_matrix = read_text(
-        root,
-        "orchestration/tests/conformance/probe_matrix.rs",
-    );
+    let probe_matrix = read_text(root, "orchestration/tests/conformance/probe_matrix.rs");
     let route_guard = read_text(
         root,
         "tests/tooling/scripts/ci/tool_route_misdirection_guard.ts",
     );
     let route_fixture = read_text(
         root,
-        "tests/tooling/fixtures/tool_route_misdirection_matrix.json",
+        "validation/regression/fixtures/tool_route_misdirection_matrix.json",
     );
     let package_json = read_text(root, "package.json");
     let request_surface_policy = read_text(
@@ -131,10 +118,8 @@ pub fn build_tool_routing_authority_report(root: impl AsRef<Path>) -> ToolRoutin
         root,
         "tests/tooling/scripts/ci/release_proof_pack_assemble.ts",
     );
-    let self_maintenance_executor = read_text(
-        root,
-        "orchestration/src/self_maintenance/executor.rs",
-    );
+    let self_maintenance_executor =
+        read_text(root, "orchestration/src/self_maintenance/executor.rs");
     let self_maintenance_noise_policy_doc = read_text(
         root,
         "docs/workspace/policy/self_maintenance_noise_discipline_policy.md",
@@ -759,9 +744,7 @@ fn planner_payload_audit_scope_complete(
     }
     let non_legacy_shortcut_rows = rows
         .iter()
-        .filter(|row| {
-            row.legacy_only && row.path != "orchestration/src/planner/preconditions.rs"
-        })
+        .filter(|row| row.legacy_only && row.path != "orchestration/src/planner/preconditions.rs")
         .map(|row| format!("{} [{}]", row.path, row.decision_scope))
         .collect::<Vec<_>>();
     missing.extend(non_legacy_shortcut_rows.into_iter().map(|row| {

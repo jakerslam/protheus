@@ -2289,7 +2289,7 @@ fn workflow_library_owns_successful_tool_turn_final_response() {
             .payload
             .pointer("/response_workflow/visibility/formats/ui")
             .and_then(Value::as_str),
-        Some("Workflow complete; final answer was authored by the LLM.")
+        Some("Workflow complete; final answer came from the LLM final gate.")
     );
 }
 

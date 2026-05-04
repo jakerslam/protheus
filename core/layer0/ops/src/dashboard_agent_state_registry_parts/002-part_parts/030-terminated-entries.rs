@@ -35,6 +35,18 @@ pub fn terminated_entries(root: &Path) -> Value {
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
+    let mut known_agent_contracts = entries
+        .iter()
+        .map(|row| {
+            (
+                normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or("")),
+                clean_text(
+                    row.get("contract_id").and_then(Value::as_str).unwrap_or(""),
+                    120,
+                ),
+            )
+        })
+        .collect::<HashSet<_>>();
     for (agent_id, contract) in contracts {
         let status = contract
             .get("status")
@@ -50,15 +62,7 @@ pub fn terminated_entries(root: &Path) -> Value {
                 .unwrap_or(""),
             120,
         );
-        let exists = entries.iter().any(|row| {
-            normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""))
-                == agent_id
-                && clean_text(
-                    row.get("contract_id").and_then(Value::as_str).unwrap_or(""),
-                    120,
-                ) == contract_id
-        });
-        if !exists {
+        if known_agent_contracts.insert((agent_id.clone(), contract_id.clone())) {
             entries.push(json!({
                 "agent_id": agent_id,
                 "contract_id": contract_id,
@@ -89,16 +93,17 @@ pub fn terminated_entries(root: &Path) -> Value {
             archived_candidates.push(agent_id.clone());
         }
     }
+    let mut known_agent_ids = entries
+        .iter()
+        .map(|row| normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or("")))
+        .filter(|agent_id| !agent_id.is_empty())
+        .collect::<HashSet<_>>();
     for raw_id in archived_candidates {
         let agent_id = normalize_agent_id(&raw_id);
         if agent_id.is_empty() {
             continue;
         }
-        let exists = entries.iter().any(|row| {
-            normalize_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""))
-                == agent_id
-        });
-        if exists {
+        if !known_agent_ids.insert(agent_id.clone()) {
             continue;
         }
         let archived_at = archived

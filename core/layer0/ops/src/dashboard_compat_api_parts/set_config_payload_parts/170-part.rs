@@ -90,7 +90,7 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
                 out_input["scope"] = json!("agent");
             }
         }
-        "web_search" | "batch_query" | "search" | "compare" => {
+        "web_search" | "batch_query" | "search" => {
             let query_source = clean_text(
                 parsed_object
                     .and_then(|obj| obj.get("query").or_else(|| obj.get("q")))
@@ -104,7 +104,7 @@ fn parse_explicit_tool_command_from_message(message: &str) -> Option<Result<(Str
                 return Some(Err(explicit_tool_command_error(
                     mapped,
                     "tool_command_query_required",
-                    "`web_search`, `search`, `compare`, and `batch_query` require a query string.",
+                    "`web_search`, `search`, and `batch_query` require a query string.",
                     None,
                 )));
             }

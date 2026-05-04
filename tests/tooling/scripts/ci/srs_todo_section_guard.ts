@@ -9,7 +9,10 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 const ROOT = process.cwd();
 
 const DEFAULT_SRS_PATH = 'docs/workspace/SRS.md';
-const DEFAULT_TODO_PATH = 'docs/workspace/TODO.md';
+const DEFAULT_TODO_PATH = 'docs/workspace/todo/TODO.md';
+const DEFAULT_TODO_REGISTRY = 'docs/workspace/todo/todo_registry.json';
+const DEFAULT_TODO_ARCHIVE_REGISTRY = 'docs/workspace/todo/todo_archive_registry.json';
+const DEFAULT_TODO_ARCHIVE = 'docs/workspace/todo/TODO_ARCHIVE.md';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/srs_todo_section_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/SRS_TODO_SECTION_GUARD_CURRENT.md';
 
@@ -228,6 +231,99 @@ function parseTodoSectionChecklist(markdown: string): Map<string, ParsedTodoSect
   return map;
 }
 
+function readJsonFile(abs: string): any | null {
+  try {
+    return JSON.parse(fs.readFileSync(abs, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function todoUsesJsonBoard(markdown: string): boolean {
+  return (
+    markdown.includes('This is the live operating board, not the historical ledger') &&
+    markdown.includes('todo_registry.json') &&
+    markdown.includes('TODO_ARCHIVE.md')
+  );
+}
+
+function markdownCount(markdown: string, key: string): number | null {
+  const match = markdown.match(new RegExp(`^- ${key}:\\s*(\\d+)\\s*$`, 'm'));
+  return match ? Number(match[1]) : null;
+}
+
+function validateJsonTodoBoard(
+  todoSource: string,
+  violations: Array<{ type: string; detail: string }>,
+): boolean {
+  const registryAbs = path.resolve(ROOT, DEFAULT_TODO_REGISTRY);
+  const archiveRegistryAbs = path.resolve(ROOT, DEFAULT_TODO_ARCHIVE_REGISTRY);
+  const archiveAbs = path.resolve(ROOT, DEFAULT_TODO_ARCHIVE);
+  let ok = true;
+  for (const required of [registryAbs, archiveRegistryAbs, archiveAbs]) {
+    if (!fs.existsSync(required)) {
+      ok = false;
+      violations.push({ type: 'todo_json_board_missing_file', detail: rel(required) });
+    }
+  }
+  if (!ok) return false;
+
+  const registry = readJsonFile(registryAbs);
+  const archiveRegistry = readJsonFile(archiveRegistryAbs);
+  if (!registry || !Array.isArray(registry.items)) {
+    violations.push({
+      type: 'todo_json_board_invalid_registry',
+      detail: rel(registryAbs),
+    });
+    return false;
+  }
+  if (!archiveRegistry || !Array.isArray(archiveRegistry.items)) {
+    violations.push({
+      type: 'todo_json_board_invalid_archive_registry',
+      detail: rel(archiveRegistryAbs),
+    });
+    return false;
+  }
+
+  const activeItems = registry.items;
+  const sectionCounts = new Map<string, number>();
+  for (const item of activeItems) {
+    for (const field of ['id', 'title', 'section', 'owner', 'deadline', 'source_family', 'summary']) {
+      if (!item[field]) {
+        violations.push({
+          type: 'todo_json_board_item_missing_field',
+          detail: `${item.id || 'unknown'}:${field}`,
+        });
+      }
+    }
+    sectionCounts.set(item.section, (sectionCounts.get(item.section) || 0) + 1);
+  }
+
+  const expectedRollup = {
+    active_items: activeItems.length,
+    red: sectionCounts.get('red') || 0,
+    yellow: sectionCounts.get('yellow') || 0,
+    white: sectionCounts.get('white') || 0,
+  };
+  for (const [key, expected] of Object.entries(expectedRollup)) {
+    const actual = markdownCount(todoSource, key);
+    if (actual !== expected) {
+      violations.push({
+        type: 'todo_json_board_rollup_mismatch',
+        detail: `${key}: todo=${actual ?? 'missing'} expected=${expected}`,
+      });
+    }
+  }
+
+  if (!activeItems.some((item: any) => item.id === 'SRS-ACTIVE')) {
+    violations.push({
+      type: 'todo_json_board_missing_srs_active_pointer',
+      detail: 'SRS-ACTIVE',
+    });
+  }
+  return true;
+}
+
 function expectedCheckbox(summary: SectionSummary): 'x' | ' ' {
   const open =
     summary.queued + summary.in_progress + summary.blocked + summary.blocked_external_prepared;
@@ -287,16 +383,21 @@ function main() {
     const srsSource = fs.readFileSync(srsAbs, 'utf8');
     const todoSource = fs.readFileSync(todoAbs, 'utf8');
     const srsRows = parseSrsRows(srsSource);
+    const jsonBoardMode = todoUsesJsonBoard(todoSource);
     const expectedRollup = summarizeRollup(srsRows);
     const expectedSections = summarizeBySection(srsRows);
-    const todoRollup = parseTodoGlobalRollup(todoSource);
-    const todoSections = parseTodoSectionChecklist(todoSource);
+    const todoRollup = jsonBoardMode ? expectedRollup : parseTodoGlobalRollup(todoSource);
+    const todoSections = jsonBoardMode ? expectedSections : parseTodoSectionChecklist(todoSource);
+
+    if (jsonBoardMode) {
+      validateJsonTodoBoard(todoSource, violations);
+    }
 
     if (!todoRollup) {
       violations.push({
         type: 'todo_rollup_missing',
         detail:
-          'docs/workspace/TODO.md is missing one or more required Global Rollup keys (total_rows, queued, in_progress, blocked, blocked_external_prepared, done, existing_coverage_validated)',
+          'docs/workspace/todo/TODO.md is missing one or more required Global Rollup keys (total_rows, queued, in_progress, blocked, blocked_external_prepared, done, existing_coverage_validated)',
       });
     } else {
       const rollupKeys: Array<keyof RollupSummary> = [
@@ -319,7 +420,7 @@ function main() {
       }
     }
 
-    for (const [section, expected] of expectedSections.entries()) {
+    for (const [section, expected] of jsonBoardMode ? [] : expectedSections.entries()) {
       const todo = todoSections.get(section);
       if (!todo) {
         sectionMissingInTodo += 1;
@@ -356,7 +457,7 @@ function main() {
       }
     }
 
-    for (const section of todoSections.keys()) {
+    for (const section of jsonBoardMode ? [] : todoSections.keys()) {
       if (!expectedSections.has(section)) {
         sectionExtraInTodo += 1;
         violations.push({

@@ -67,7 +67,7 @@ type CaseEvaluation = {
   failures: string[];
 };
 
-const DEFAULT_FIXTURE_PATH = 'tests/tooling/fixtures/synthesis_mixed_evidence_regression_matrix.json';
+const DEFAULT_FIXTURE_PATH = 'validation/regression/fixtures/synthesis_mixed_evidence_regression_matrix.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/synthesis_mixed_evidence_quality_current.json';
 const DEFAULT_OUT_LATEST_PATH = 'artifacts/synthesis_mixed_evidence_quality_latest.json';
 const DEFAULT_STATE_PATH = 'local/state/ops/synthesis_mixed_evidence/latest.json';

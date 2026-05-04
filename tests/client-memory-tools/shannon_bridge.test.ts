@@ -174,7 +174,7 @@ function run() {
 
   const notify = desktop.notify({
     title: 'Launch update',
-    message: 'desktop shell relayed',
+    message: 'desktop UI shell 1.0 relayed',
     desktop_history_path: desktopHistoryPath,
     state_path: statePath,
     history_path: historyPath,

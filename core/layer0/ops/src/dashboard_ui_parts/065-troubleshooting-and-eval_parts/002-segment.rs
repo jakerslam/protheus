@@ -143,7 +143,7 @@ fn dashboard_troubleshooting_row_matches_chat_scope(row: &Value, chat_scope: &st
     .any(|candidate| candidate == expected)
 }
 
-fn dashboard_troubleshooting_recent_viable_chat_model(
+fn dashboard_troubleshooting_recent_chat_model(
     root: &Path,
     chat_scope: Option<&str>,
 ) -> Option<(String, i64)> {
@@ -155,13 +155,19 @@ fn dashboard_troubleshooting_recent_viable_chat_model(
             continue;
         }
         let model = [
+            "/workflow/runtime_model",
+            "/workflow/final_llm_response/runtime_model",
             "/workflow/model",
             "/workflow/model_id",
             "/workflow/model_override",
             "/workflow/final_model",
+            "/response_workflow/runtime_model",
+            "/response_workflow/final_llm_response/runtime_model",
             "/response_workflow/model",
             "/response_workflow/model_id",
+            "/response_finalization/runtime_model",
             "/model",
+            "/runtime_model",
         ]
         .iter()
         .find_map(|pointer| row.pointer(pointer).and_then(Value::as_str))
@@ -183,14 +189,54 @@ fn dashboard_troubleshooting_recent_viable_chat_model(
         .iter()
         .find_map(|pointer| row.pointer(pointer))
         .map(dashboard_troubleshooting_parse_i64_value)
-        .unwrap_or(0)
-        .max(dashboard_troubleshooting_parse_model_param_billion_hint(&model))
-        .max(0);
-        if dashboard_troubleshooting_eval_model_meets_threshold(&model, params_billion) {
-            return Some((model, params_billion));
-        }
+            .unwrap_or(0)
+            .max(dashboard_troubleshooting_parse_model_param_billion_hint(&model))
+            .max(0);
+        return Some((model, params_billion));
     }
     None
+}
+
+fn dashboard_troubleshooting_payload_monitored_model(payload: &Value) -> Option<(String, String)> {
+    [
+        "/response_workflow/final_llm_response/runtime_model",
+        "/response_workflow/runtime_model",
+        "/response_finalization/runtime_model",
+        "/workflow/final_llm_response/runtime_model",
+        "/workflow/runtime_model",
+        "/runtime_model",
+        "/response_workflow/model",
+        "/response_workflow/model_id",
+        "/response_finalization/model",
+        "/response_finalization/model_id",
+        "/workflow/model",
+        "/workflow/model_id",
+        "/model",
+    ]
+    .iter()
+    .find_map(|pointer| payload.pointer(pointer).and_then(Value::as_str))
+    .map(|raw| clean_text(raw, 140))
+    .filter(|candidate| !candidate.is_empty())
+    .map(|model| (model, "monitored_agent_payload_model".to_string()))
+}
+
+fn dashboard_troubleshooting_current_menu_model(root: &Path) -> Option<(String, String)> {
+    let settings = read_json_file(
+        &root
+            .join("core")
+            .join("local")
+            .join("state")
+            .join("ops")
+            .join("app_plane")
+            .join("chat_ui")
+            .join("settings.json"),
+    )?;
+    let model = clean_text(settings.get("model").and_then(Value::as_str).unwrap_or(""), 140);
+    if model.is_empty() {
+        None
+    } else {
+        Some((model, "current_menu_selection".to_string()))
+    }
 }
 
 fn dashboard_troubleshooting_eval_model_strength(model: &str) -> &'static str {
@@ -207,48 +253,45 @@ fn dashboard_troubleshooting_resolve_eval_model(
     let payload_chat_scope =
         payload.map(dashboard_troubleshooting_extract_chat_scope).filter(|v| !v.is_empty());
     if let Some(args) = payload {
-        for key in ["eval_model", "evalModel", "llm_model", "llmModel", "model"] {
+        for key in ["eval_model", "evalModel"] {
             let candidate = clean_text(args.get(key).and_then(Value::as_str).unwrap_or(""), 120);
-            let params_billion = args
-                .get("model_params_billion")
-                .or_else(|| args.get("param_count_billion"))
-                .map(dashboard_troubleshooting_parse_i64_value)
-                .unwrap_or(0)
-                .max(dashboard_troubleshooting_parse_model_param_billion_hint(&candidate))
-                .max(0);
-            if !candidate.is_empty()
-                && dashboard_troubleshooting_eval_model_meets_threshold(&candidate, params_billion)
-            {
-                return (candidate, "payload".to_string());
+            if !candidate.is_empty() {
+                return (candidate, "explicit_eval_model_payload".to_string());
             }
+        }
+        if let Some(inherited) = dashboard_troubleshooting_payload_monitored_model(args) {
+            return inherited;
         }
     }
     if let Some(state_root) = root {
         if let Some(scope) = payload_chat_scope.as_deref() {
             if let Some((model, params_billion)) =
-                dashboard_troubleshooting_recent_viable_chat_model(state_root, Some(scope))
+                dashboard_troubleshooting_recent_chat_model(state_root, Some(scope))
             {
                 let source = if params_billion > 0 {
-                    format!("recent_viable_chat_model_scoped_{params_billion}b")
+                    format!("recent_chat_model_scoped_{params_billion}b")
                 } else {
-                    "recent_viable_chat_model_scoped".to_string()
+                    "recent_chat_model_scoped".to_string()
                 };
                 return (model, source);
             }
         } else if let Some((model, params_billion)) =
-            dashboard_troubleshooting_recent_viable_chat_model(state_root, None)
+            dashboard_troubleshooting_recent_chat_model(state_root, None)
         {
             let source = if params_billion > 0 {
-                format!("recent_viable_chat_model_{params_billion}b")
+                format!("recent_chat_model_{params_billion}b")
             } else {
-                "recent_viable_chat_model".to_string()
+                "recent_chat_model".to_string()
             };
             return (model, source);
+        }
+        if let Some(current_menu_model) = dashboard_troubleshooting_current_menu_model(state_root) {
+            return current_menu_model;
         }
     }
     (
         DASHBOARD_TROUBLESHOOTING_DEFAULT_EVAL_MODEL.to_string(),
-        "default_strong".to_string(),
+        "default_no_monitored_model_available".to_string(),
     )
 }
 fn dashboard_troubleshooting_generate_eval_report(
@@ -461,4 +504,38 @@ fn dashboard_troubleshooting_clear_active_context(root: &Path, reason: &str) {
         &root.join(DASHBOARD_TROUBLESHOOTING_SNAPSHOT_HISTORY_REL),
         &marker,
     );
+}
+
+#[cfg(test)]
+mod eval_model_resolution_tests {
+    use super::*;
+
+    #[test]
+    fn eval_model_inherits_monitored_runtime_model_without_strength_filter() {
+        let payload = json!({
+            "response_workflow": {
+                "runtime_model": "qwen2.5:3b"
+            }
+        });
+
+        let (model, source) = dashboard_troubleshooting_resolve_eval_model(None, Some(&payload));
+
+        assert_eq!(model, "qwen2.5:3b");
+        assert_eq!(source, "monitored_agent_payload_model");
+    }
+
+    #[test]
+    fn explicit_eval_model_override_wins_over_monitored_model() {
+        let payload = json!({
+            "eval_model": "gpt-5.4-mini",
+            "response_workflow": {
+                "runtime_model": "qwen2.5:3b"
+            }
+        });
+
+        let (model, source) = dashboard_troubleshooting_resolve_eval_model(None, Some(&payload));
+
+        assert_eq!(model, "gpt-5.4-mini");
+        assert_eq!(source, "explicit_eval_model_payload");
+    }
 }

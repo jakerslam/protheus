@@ -42,15 +42,15 @@ const MARKDOWN_PATH = path.join(
 );
 const FIXTURE_PATH = path.join(
   ROOT,
-  'tests',
-  'tooling',
+  'validation',
+  'regression',
   'fixtures',
   'workspace_tooling_context_replay_matrix.json',
 );
 const PATH_TARGETING_FIXTURE_PATH = path.join(
   ROOT,
-  'tests',
-  'tooling',
+  'validation',
+  'regression',
   'fixtures',
   'workspace_path_targeting_replay_matrix.json',
 );
