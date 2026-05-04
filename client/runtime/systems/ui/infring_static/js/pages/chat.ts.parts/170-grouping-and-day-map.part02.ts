@@ -19,7 +19,7 @@
           kind: kind,
           label: label || 'Discover models',
           reason: String(action.reason || '').trim(),
-          starter_model: String(action.starter_model || 'qwen2.5:3b-instruct').trim(),
+          starter_model: String(action.starter_model || '').trim(),
           starter_provider: String(action.starter_provider || 'ollama').trim(),
           busy: !!action.busy
         };
@@ -125,13 +125,15 @@
             if (msg) msg.notice_action = null;
           } else {
             var starterProvider = String(action.starter_provider || 'ollama').trim();
-            var starterModel = String(action.starter_model || 'qwen2.5:3b-instruct').trim();
-            await InfringAPI.post('/api/models/download', {
-              provider: starterProvider,
-              model: starterProvider + '/' + starterModel
-            }).catch(function() { return null; });
-            models = await this.refreshModelCatalogAndGuidance({ discover: true, guidance: true });
-            available = this.availableModelRowsCount(models);
+            var starterModel = String(action.starter_model || '').trim();
+            if (starterProvider && starterModel) {
+              await InfringAPI.post('/api/models/download', {
+                provider: starterProvider,
+                model: starterProvider + '/' + starterModel
+              }).catch(function() { return null; });
+              models = await this.refreshModelCatalogAndGuidance({ discover: true, guidance: true });
+              available = this.availableModelRowsCount(models);
+            }
             if (available > 0) {
               this.addNoticeEvent({
                 notice_label: 'Starter model ready. You can chat now.',

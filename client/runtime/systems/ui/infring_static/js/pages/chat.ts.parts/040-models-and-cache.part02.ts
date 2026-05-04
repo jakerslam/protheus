@@ -309,7 +309,7 @@
         'To enable models now:',
         '1. Install Ollama: https://ollama.com/download',
         '2. Start it: `ollama serve`',
-        '3. Pull a model: `ollama pull qwen2.5:3b-instruct`',
+        '3. Pull any model you choose from the Ollama library',
         '4. Or add an API key with `/apikey <key>`',
         '',
         'Useful links:',
