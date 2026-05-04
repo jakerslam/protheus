@@ -1,31 +1,3 @@
-        this.tokenCount = 0;
-        this._clearTypingTimeout();
-        this._clearPendingWsRequest(agentId);
-        this.setAgentLiveActivity(agentId, 'idle');
-        await this._sendPayload(
-          payload.final_text,
-          Array.isArray(payload.uploaded_files) ? payload.uploaded_files : [],
-          Array.isArray(payload.msg_images) ? payload.msg_images : [],
-          { retry_from_failover: true }
-        );
-        return true;
-      } catch (error) {
-        this.pushSystemMessage({
-          text:
-            'Automatic model recovery failed: ' +
-            String(error && error.message ? error.message : error),
-          meta: '',
-          tools: [],
-          system_origin: 'model:auto-recover:error',
-          ts: Date.now(),
-          dedupe_window_ms: 15000
-        });
-        return false;
-      } finally {
-        this._inflightFailoverInProgress = false;
-      }
-    },
-
     // Fetch dynamic slash commands from server
     fetchCommands: function() {
       var self = this;

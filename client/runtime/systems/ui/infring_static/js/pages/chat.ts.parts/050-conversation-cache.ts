@@ -238,31 +238,12 @@
     },
 
     captureAutoModelSwitchBaseline() {
-      if (!this.currentAgent || !this.isAutoModelSelected()) return '';
-      var current = String(this.currentAgent.runtime_model || this.currentAgent.model_name || '').trim();
-      return this.formatAutoModelSwitchLabel(current);
+      return '';
     },
 
     maybeAddAutoModelSwitchNotice(previousLabel, route) {
-      if (!this.currentAgent || !this.isAutoModelSelected()) return;
-      var previous = String(previousLabel || '').trim();
-      if (!previous) {
-        previous = this.formatAutoModelSwitchLabel(this.currentAgent.runtime_model || this.currentAgent.model_name || '');
-      }
-      var nextModel = '';
-      if (route && typeof route === 'object') {
-        nextModel = String(route.model || route.selected_model || route.selected_model_id || '').trim();
-      }
-      if (!nextModel) {
-        nextModel = String(this.currentAgent.runtime_model || this.currentAgent.model_name || '').trim();
-      }
-      var next = this.formatAutoModelSwitchLabel(nextModel);
-      if (!next || previous === next) return;
-      this.addNoticeEvent({
-        notice_label: 'Model switched from ' + previous + ' to ' + next,
-        notice_type: 'model',
-        ts: Date.now()
-      });
+      void previousLabel;
+      void route;
     },
 
     applyAutoRouteTelemetry(data) {
@@ -274,38 +255,12 @@
         route = data.route;
       }
       if (!route) return null;
-      if (!this.currentAgent) return route;
-      if (!this.isAutoModelSelected()) return route;
-      var provider = String(route.provider || route.selected_provider || this.currentAgent.model_provider || '').trim();
-      var model = String(route.model || route.selected_model || route.selected_model_id || '').trim();
-      if (provider) this.currentAgent.model_provider = provider;
-      if (model) {
-        this.currentAgent.runtime_model = model.indexOf('/') >= 0 ? model.split('/').slice(-1)[0] : model;
-        this.touchModelUsage(this.currentAgent.runtime_model);
-      }
-      this.setContextWindowFromCurrentAgent();
       return route;
     },
 
     async fetchAutoRoutePreflight(message, uploadedFiles) {
-      if (!this.currentAgent || !this.isAutoModelSelected()) return null;
-      var text = String(message || '').trim();
-      if (!text) return null;
-      var files = Array.isArray(uploadedFiles) ? uploadedFiles : [];
-      var hasVision = files.some(function(f) {
-        return String(f && f.content_type ? f.content_type : '').toLowerCase().indexOf('image/') === 0;
-      });
-      try {
-        var result = await InfringAPI.post('/api/route/auto', {
-          agent_id: this.currentAgent.id,
-          message: text,
-          token_count: this.estimateTokenCountFromText(text),
-          has_vision: hasVision,
-          attachments: files,
-        });
-        if (result && result.route && typeof result.route === 'object') return result.route;
-        if (result && (result.selected_model || result.selected_provider)) return result;
-      } catch (_) {}
+      void message;
+      void uploadedFiles;
       return null;
     },
 

@@ -2538,7 +2538,7 @@ function chatPage() {
         'To enable models now:',
         '1. Install Ollama: https://ollama.com/download',
         '2. Start it: `ollama serve`',
-        '3. Pull a model: `ollama pull qwen2.5:3b-instruct`',
+        '3. Pull any model you choose from the Ollama library',
         '4. Or add an API key with `/apikey <key>`',
         '',
         'Useful links:',
@@ -2976,31 +2976,12 @@ function chatPage() {
     },
 
     captureAutoModelSwitchBaseline() {
-      if (!this.currentAgent || !this.isAutoModelSelected()) return '';
-      var current = String(this.currentAgent.runtime_model || this.currentAgent.model_name || '').trim();
-      return this.formatAutoModelSwitchLabel(current);
+      return '';
     },
 
     maybeAddAutoModelSwitchNotice(previousLabel, route) {
-      if (!this.currentAgent || !this.isAutoModelSelected()) return;
-      var previous = String(previousLabel || '').trim();
-      if (!previous) {
-        previous = this.formatAutoModelSwitchLabel(this.currentAgent.runtime_model || this.currentAgent.model_name || '');
-      }
-      var nextModel = '';
-      if (route && typeof route === 'object') {
-        nextModel = String(route.model || route.selected_model || route.selected_model_id || '').trim();
-      }
-      if (!nextModel) {
-        nextModel = String(this.currentAgent.runtime_model || this.currentAgent.model_name || '').trim();
-      }
-      var next = this.formatAutoModelSwitchLabel(nextModel);
-      if (!next || previous === next) return;
-      this.addNoticeEvent({
-        notice_label: 'Model switched from ' + previous + ' to ' + next,
-        notice_type: 'model',
-        ts: Date.now()
-      });
+      void previousLabel;
+      void route;
     },
 
     applyAutoRouteTelemetry(data) {
@@ -3012,16 +2993,6 @@ function chatPage() {
         route = data.route;
       }
       if (!route) return null;
-      if (!this.currentAgent) return route;
-      if (!this.isAutoModelSelected()) return route;
-      var provider = String(route.provider || route.selected_provider || this.currentAgent.model_provider || '').trim();
-      var model = String(route.model || route.selected_model || route.selected_model_id || '').trim();
-      if (provider) this.currentAgent.model_provider = provider;
-      if (model) {
-        this.currentAgent.runtime_model = model.indexOf('/') >= 0 ? model.split('/').slice(-1)[0] : model;
-        this.touchModelUsage(this.currentAgent.runtime_model);
-      }
-      this.setContextWindowFromCurrentAgent();
       return route;
     },
 
@@ -6699,96 +6670,15 @@ function chatPage() {
     },
 
     attemptAutomaticFailoverRecovery: async function(source, rawFailure, options) {
-      var failure = this.extractRecoverableBackendFailure(rawFailure);
-      if (!failure) return false;
-      if (this._inflightFailoverInProgress) return false;
-      if (!this.currentAgent || !this.currentAgent.id) return false;
-      var agentId = String(this.currentAgent.id || '').trim();
-      if (!agentId) return false;
       var payload = this._inflightPayload;
-      if (!payload || String(payload.agent_id || '') !== agentId) return false;
-      if (payload.failover_attempted) return false;
-
-      var opts = options && typeof options === 'object' ? options : {};
-      this._inflightFailoverInProgress = true;
-      payload.failover_attempted = true;
-      payload.failover_reason = failure.summary;
-      payload.failover_source = String(source || 'runtime');
-
-      try {
-        var candidates = await this.collectFailoverModelCandidates();
-        if (!candidates.length) return false;
-        var targetModel = String(candidates[0] || '').trim();
-        if (!targetModel) return false;
-
-        if (opts.remove_last_agent_failure) {
-          var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
-          if (last && last.role === 'agent') {
-            var lastText = String(last.text || '').trim();
-            if (this.extractRecoverableBackendFailure(lastText)) {
-              this.messages.pop();
-            }
-          }
-        }
-
-        this.messages.push({
-          id: ++msgId,
-          role: 'system',
-          text:
-            'Model backend failed (' +
-            failure.summary +
-            '). Switching to ' +
-            targetModel +
-            ' and retrying the last request automatically.',
-          meta: '',
-          tools: [],
-          system_origin: 'model:auto-recover',
-          ts: Date.now()
-        });
-        this.scrollToBottom();
-        this.scheduleConversationPersist();
-
-        var previousModel = String(
-          (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || 'unknown'
-        ).trim() || 'unknown';
-        var previousProvider = String(
-          (this.currentAgent && this.currentAgent.model_provider) || ''
-        ).trim();
-        await this.switchAgentModelWithGuards({ id: targetModel }, {
-          agent_id: agentId,
-          previous_model: previousModel,
-          previous_provider: previousProvider
-        });
-
-        this.sending = false;
-        this._responseStartedAt = 0;
-
-        this.tokenCount = 0;
-        this._clearTypingTimeout();
-        this._clearPendingWsRequest(agentId);
-        this.setAgentLiveActivity(agentId, 'idle');
-        await this._sendPayload(
-          payload.final_text,
-          Array.isArray(payload.uploaded_files) ? payload.uploaded_files : [],
-          Array.isArray(payload.msg_images) ? payload.msg_images : [],
-          { retry_from_failover: true }
-        );
-        return true;
-      } catch (error) {
-        this.pushSystemMessage({
-          text:
-            'Automatic model recovery failed: ' +
-            String(error && error.message ? error.message : error),
-          meta: '',
-          tools: [],
-          system_origin: 'model:auto-recover:error',
-          ts: Date.now(),
-          dedupe_window_ms: 15000
-        });
-        return false;
-      } finally {
-        this._inflightFailoverInProgress = false;
+      if (payload && typeof payload === 'object') {
+        payload.failover_skipped = true;
+        payload.failover_skip_reason = 'automatic_model_failover_disabled';
+        payload.failover_source = String(source || 'runtime');
       }
+      void rawFailure;
+      void options;
+      return false;
     },
 
     // Fetch dynamic slash commands from server
@@ -12199,7 +12089,7 @@ function chatPage() {
           kind: kind,
           label: label || 'Discover models',
           reason: String(action.reason || '').trim(),
-          starter_model: String(action.starter_model || 'qwen2.5:3b-instruct').trim(),
+          starter_model: String(action.starter_model || '').trim(),
           starter_provider: String(action.starter_provider || 'ollama').trim(),
           busy: !!action.busy
         };
@@ -12305,13 +12195,15 @@ function chatPage() {
             if (msg) msg.notice_action = null;
           } else {
             var starterProvider = String(action.starter_provider || 'ollama').trim();
-            var starterModel = String(action.starter_model || 'qwen2.5:3b-instruct').trim();
-            await InfringAPI.post('/api/models/download', {
-              provider: starterProvider,
-              model: starterProvider + '/' + starterModel
-            }).catch(function() { return null; });
-            models = await this.refreshModelCatalogAndGuidance({ discover: true, guidance: true });
-            available = this.availableModelRowsCount(models);
+            var starterModel = String(action.starter_model || '').trim();
+            if (starterProvider && starterModel) {
+              await InfringAPI.post('/api/models/download', {
+                provider: starterProvider,
+                model: starterProvider + '/' + starterModel
+              }).catch(function() { return null; });
+              models = await this.refreshModelCatalogAndGuidance({ discover: true, guidance: true });
+              available = this.availableModelRowsCount(models);
+            }
             if (available > 0) {
               this.addNoticeEvent({
                 notice_label: 'Starter model ready. You can chat now.',
@@ -15784,7 +15676,7 @@ function chatPage() {
         this._inflightPayload.msg_images = safeImages;
         this._inflightPayload.retry_started_at = Date.now();
       }
-      this._pendingAutoModelSwitchBaseline = this.captureAutoModelSwitchBaseline();
+      this._pendingAutoModelSwitchBaseline = '';
       var preflightMeta = '';
       if (!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) {
         this.connectWs(targetAgentId);

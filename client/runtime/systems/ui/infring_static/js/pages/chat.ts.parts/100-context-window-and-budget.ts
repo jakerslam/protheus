@@ -365,66 +365,13 @@
     },
 
     attemptAutomaticFailoverRecovery: async function(source, rawFailure, options) {
-      var failure = this.extractRecoverableBackendFailure(rawFailure);
-      if (!failure) return false;
-      if (this._inflightFailoverInProgress) return false;
-      if (!this.currentAgent || !this.currentAgent.id) return false;
-      var agentId = String(this.currentAgent.id || '').trim();
-      if (!agentId) return false;
       var payload = this._inflightPayload;
-      if (!payload || String(payload.agent_id || '') !== agentId) return false;
-      if (payload.failover_attempted) return false;
-
-      var opts = options && typeof options === 'object' ? options : {};
-      this._inflightFailoverInProgress = true;
-      payload.failover_attempted = true;
-      payload.failover_reason = failure.summary;
-      payload.failover_source = String(source || 'runtime');
-
-      try {
-        var candidates = await this.collectFailoverModelCandidates();
-        if (!candidates.length) return false;
-        var targetModel = String(candidates[0] || '').trim();
-        if (!targetModel) return false;
-
-        if (opts.remove_last_agent_failure) {
-          var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
-          if (last && last.role === 'agent') {
-            var lastText = String(last.text || '').trim();
-            if (this.extractRecoverableBackendFailure(lastText)) {
-              this.messages.pop();
-            }
-          }
-        }
-
-        this.messages.push({
-          id: ++msgId,
-          role: 'system',
-          text:
-            'Model backend failed (' +
-            failure.summary +
-            '). Switching to ' +
-            targetModel +
-            ' and retrying the last request automatically.',
-          meta: '',
-          tools: [],
-          system_origin: 'model:auto-recover',
-          ts: Date.now()
-        });
-        this.scrollToBottom();
-        this.scheduleConversationPersist();
-
-        var previousModel = String(
-          (this.currentAgent && (this.currentAgent.runtime_model || this.currentAgent.model_name)) || 'unknown'
-        ).trim() || 'unknown';
-        var previousProvider = String(
-          (this.currentAgent && this.currentAgent.model_provider) || ''
-        ).trim();
-        await this.switchAgentModelWithGuards({ id: targetModel }, {
-          agent_id: agentId,
-          previous_model: previousModel,
-          previous_provider: previousProvider
-        });
-
-        this.sending = false;
-        this._responseStartedAt = 0;
+      if (payload && typeof payload === 'object') {
+        payload.failover_skipped = true;
+        payload.failover_skip_reason = 'automatic_model_failover_disabled';
+        payload.failover_source = String(source || 'runtime');
+      }
+      void rawFailure;
+      void options;
+      return false;
+    },

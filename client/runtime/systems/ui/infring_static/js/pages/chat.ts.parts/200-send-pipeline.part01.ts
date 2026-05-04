@@ -283,10 +283,9 @@
         this._inflightPayload.msg_images = safeImages;
         this._inflightPayload.retry_started_at = Date.now();
       }
-      this._pendingAutoModelSwitchBaseline = this.captureAutoModelSwitchBaseline();
-      var preflightRoute = await this.fetchAutoRoutePreflight(finalText, uploadedFiles);
-      var preflightMeta = this.formatAutoRouteMeta(preflightRoute);
-      if (preflightRoute) this.applyAutoRouteTelemetry({ auto_route: preflightRoute });
+      this._pendingAutoModelSwitchBaseline = '';
+      var preflightRoute = null;
+      var preflightMeta = '';
       if (!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) {
         this.connectWs(targetAgentId);
         var waitStarted = Date.now();
