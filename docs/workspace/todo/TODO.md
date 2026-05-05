@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-03T21:04:55.659Z
+Updated: 2026-05-05T23:30:07.065Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,10 +13,10 @@ Updated: 2026-05-03T21:04:55.659Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 25
+- active_items: 30
 - red: 8
-- yellow: 10
-- white: 7
+- yellow: 13
+- white: 9
 
 ## Red Section (Do Immediately)
 - `SHELL-CLEANUP` — Finish the Shell source-of-truth cleanup
@@ -91,16 +91,31 @@ Updated: 2026-05-03T21:04:55.659Z
   deadline: `2026-05-17`
   source_family: `Digital DNA Foundation Graduation Audit`
   summary: Yellow flag: Digital DNA has real Kernel metakernel code and tests, but SRS/TODO still mark V6-FOUNDATION-DNA-001/002 queued and it is not proven as the unavoidable base substrate for every instance, mutation, critical action, receipt, and Sentinel integrity check.
-- `WF-UTILITY` — Build the workflow utility spine
-  owner: `unassigned`
-  deadline: `2026-05-20`
-  source_family: `Workflow Utility Spine After Shell Purge`
-  summary: Build the workflow utility spine so the system is useful for real work after Shell de-authority.
-- `TRACE-IMPL` — Implement end-to-end unified trace_id propagation
-  owner: `unassigned`
-  deadline: `2026-05-23`
-  source_family: `Universal Trace Runtime Implementation Checklist`
-  summary: Implement end-to-end unified trace_id propagation from initial request through Orchestration, workflows, tools, Kernel receipts, Sentinel, and final response.
+- `HYGIENE-RUST-COMBINED-SPLIT-DEBT` — Classify combined Rust split artifacts
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: Classify 000-combined.rs and .combined_parts warning-heavy files as generated split debt, live source, or deletion candidates before attempting broad cleanup.
+- `HYGIENE-RUST-DEADCODE-BASELINE` — Capture Rust dead-code warning baseline
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: Capture the current cargo dead-code and unused-warning surface by crate, module, warning kind, and likely action so future cleanup can happen in safe rollback-sized batches.
+- `HYGIENE-RUST-DEADCODE-GUARD` — Add Rust dead-code trend guard
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: Add or extend a validation report that tracks Rust unused/dead-code warning counts by crate so the surface trends down instead of silently growing.
+- `HYGIENE-RUST-UNUSED-HELPERS` — Triage unused Rust helper functions
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: For unused private helpers, decide whether each should be deleted, reconnected to the intended path, moved behind tests, or marked as intentional compatibility surface with a documented reason.
+- `HYGIENE-RUST-UNUSED-IMPORTS` — Remove unused Rust imports in narrow batches
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: Work through unused import warnings in Kernel and runtime crates in small scoped commits, preserving behavior and validating each touched crate with cargo check or cargo test.
 - `ARCH-TOOLING-NEXT` — Hold important architecture and tooling deltas behind current closure work
   owner: `unassigned`
   deadline: `after_red_section`
@@ -113,6 +128,16 @@ Updated: 2026-05-03T21:04:55.659Z
   summary: Queue the next SRS stream after the red intake set so the active SRS flow stays coherent instead of fragmenting into too many parallel themes.
 
 ## White Section (Do At Leisure)
+- `WF-UTILITY` — Build the workflow utility spine
+  owner: `unassigned`
+  deadline: `2026-05-20`
+  source_family: `Workflow Utility Spine After Shell Purge`
+  summary: Build the workflow utility spine so the system is useful for real work after Shell de-authority.
+- `TRACE-IMPL` — Implement end-to-end unified trace_id propagation
+  owner: `unassigned`
+  deadline: `2026-05-23`
+  source_family: `Universal Trace Runtime Implementation Checklist`
+  summary: Implement end-to-end unified trace_id propagation from initial request through Orchestration, workflows, tools, Kernel receipts, Sentinel, and final response.
 - `SHELL-NEXT` — Build Shell-next only after authority extraction proofs
   owner: `unassigned`
   deadline: `after_red_section`
