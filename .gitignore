@@ -432,3 +432,6 @@ __pycache__/
 
 # Canonical Codex assimilation ledgers live under validation/fixtures/assimilation/codex/.
 /local/workspace/reports/CODEX_FILE_LEDGER_*
+
+# Local runtime uploads (binary/session artifacts)
+.infring/uploads/
