@@ -235,15 +235,34 @@ fn response_field_from_json_wrapper(payload: &Value) -> Option<String> {
     let Value::Object(map) = payload else {
         return None;
     };
-    let output_keys = ["response", "text", "answer", "message", "content", "output"];
+    let output_keys = [
+        "response",
+        "text",
+        "answer",
+        "message",
+        "content",
+        "output",
+        "final_answer",
+    ];
     let output_key = output_keys
         .iter()
         .find(|key| map.contains_key(**key))?;
-    let allowed_keys = [
-        "response", "text", "answer", "message", "content", "output", "source", "status", "type",
-        "format", "kind", "style", "schema", "language",
+    // Gate-submission guard: if every non-output key is a gate/tool routing key, this is a gate
+    // submission that happens to have an output-key field — don't extract it.
+    // Extra semantic keys (e.g. "substantive_response", "engagement_prompt") are allowed so that
+    // structured LLM responses have their primary field extracted rather than leaking full JSON.
+    let gate_routing_keys = [
+        "gate", "category", "tool", "tool_family", "tool_name", "request_payload", "payload",
     ];
-    if map.keys().any(|key| !allowed_keys.contains(&key.as_str())) {
+    let has_extra_keys = map.keys().any(|k| !output_keys.contains(&k.as_str()));
+    let extra_keys_are_all_gate = map
+        .keys()
+        .filter(|k| !output_keys.contains(&k.as_str()))
+        .all(|k| gate_routing_keys.contains(&k.as_str()));
+    if has_extra_keys
+        && extra_keys_are_all_gate
+        && *output_key != "final_answer"
+    {
         return None;
     }
     let response = clean_chat_text(
@@ -258,7 +277,7 @@ fn response_field_from_json_wrapper(payload: &Value) -> Option<String> {
 
 fn response_wrapper_starts_with_output_key(text: &str) -> bool {
     let lowered = text.to_ascii_lowercase();
-    ["response", "text", "answer", "message", "content", "output"].iter().any(|key| {
+    ["response", "text", "answer", "message", "content", "output", "final_answer"].iter().any(|key| {
         lowered.starts_with(&format!("\"{key}\""))
             || lowered.starts_with(&format!("'{key}'"))
             || lowered.starts_with(&format!("{key}:"))
@@ -1117,4 +1136,29 @@ fn response_answers_user_early(user_message: &str, response_text: &str) -> bool 
         || early
             .to_ascii_lowercase()
             .starts_with("based on")
+}
+
+#[cfg(test)]
+mod tests_json_wrapper {
+    use super::*;
+
+    #[test]
+    fn normalize_response_field_json_wrapper_extracts_final_answer() {
+        assert_eq!(
+            normalize_response_field_json_wrapper(
+                r#"{"gate":"respond_directly","final_answer":"Hello! How can I help?"}"#
+            ),
+            Some("Hello! How can I help?".to_string())
+        );
+    }
+
+    #[test]
+    fn normalize_response_field_json_wrapper_rejects_tool_request_like_json() {
+        assert_eq!(
+            normalize_response_field_json_wrapper(
+                r#"{"tool_family":"web_research","tool":"web_search","request_payload":{"query":"agentic frameworks"}}"#,
+            ),
+            None
+        );
+    }
 }
