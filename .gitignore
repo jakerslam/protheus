@@ -435,3 +435,6 @@ __pycache__/
 
 # Local runtime uploads (binary/session artifacts)
 .infring/uploads/
+
+# Local Claude worktrees (external session workspaces)
+.claude/worktrees/
