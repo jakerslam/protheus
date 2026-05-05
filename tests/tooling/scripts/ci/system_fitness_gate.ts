@@ -102,8 +102,8 @@ function summarizeGate(id: string, relPath: string, required: boolean): GateResu
 
 function codexProgress(root: string): { done: number; queued: number } | null {
   const pathCandidates = [
-    'local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.json',
-    'local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.tsv',
+    'validation/fixtures/assimilation/codex/CODEX_FILE_LEDGER_2026-04-08.full.json',
+    'validation/fixtures/assimilation/codex/CODEX_FILE_LEDGER_2026-04-08.full.tsv',
   ];
   for (const relPath of pathCandidates) {
     const abs = path.resolve(root, relPath);

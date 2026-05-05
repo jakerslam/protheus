@@ -429,3 +429,6 @@ __pycache__/
 
 # HMAN preparation materials (sensitive auditor/vendor communications)
 /hman-prep/
+
+# Canonical Codex assimilation ledgers live under validation/fixtures/assimilation/codex/.
+/local/workspace/reports/CODEX_FILE_LEDGER_*
