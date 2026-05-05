@@ -405,3 +405,23 @@ fn write_transition_receipt(
     policy: &TransitionPolicy,
     payload: &Value,
     claims: &[ClaimEvidenceRow],
+) {
+    let ts = payload
+        .get("ts")
+        .and_then(Value::as_str)
+        .map(|v| v.to_string())
+        .unwrap_or_else(now_iso);
+    let row = match build_receipt_row(
+        payload,
+        "rust_memory_transition_receipt",
+        "1.0",
+        "receipt",
+        &ts,
+        claims,
+    ) {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let _ = write_json_atomic(&policy.paths.latest_path, &row);
+    let _ = append_jsonl(&policy.paths.receipts_path, &row);
+}

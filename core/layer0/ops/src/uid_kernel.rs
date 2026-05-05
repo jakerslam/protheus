@@ -3,8 +3,7 @@
 
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::Rng;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -143,7 +142,7 @@ fn random_uid(prefix: &str, length: usize) -> String {
         .unwrap_or(0);
     let ts = bytes_to_base36(&ts_ms.to_be_bytes());
     let mut random = [0u8; 24];
-    OsRng.fill_bytes(&mut random);
+    rand::rng().fill_bytes(&mut random);
     let body = bytes_to_base36(&random);
     format!("{normalized_prefix}{ts}{body}")
         .chars()
@@ -160,12 +159,15 @@ fn contract_uid(payload: &Map<String, Value>) -> Value {
         .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '.'))
         .collect::<String>();
     let prefix = clean_text(payload.get("prefix"), 32);
-    let seed = format!(
-        "contract_uid|plugin={plugin_id}|provider={provider_id}|contract={contract}"
-    );
+    let seed =
+        format!("contract_uid|plugin={plugin_id}|provider={provider_id}|contract={contract}");
     let uid = stable_uid(
         &seed,
-        if prefix.is_empty() { "c" } else { prefix.as_str() },
+        if prefix.is_empty() {
+            "c"
+        } else {
+            prefix.as_str()
+        },
         parse_length(payload.get("length")),
     );
     json!({

@@ -41,10 +41,6 @@ pub fn normalize_embedding_ref_token(raw: &str) -> String {
         .collect::<String>()
 }
 
-fn has_parent_segment(raw: &str) -> bool {
-    raw.split(['/', '\\']).any(|segment| segment.trim() == "..")
-}
-
 fn is_absolute_like_path(raw: &str) -> bool {
     raw.starts_with('/') || raw.starts_with('\\') || raw.get(1..3) == Some(":\\")
 }

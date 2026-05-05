@@ -1,3 +1,4 @@
+#[cfg(test)]
 mod tests {
     use super::{evaluate_auto_selector, load_policy, policy_scope_id, write_transition_receipt};
     use crate::lane_contracts::ClaimEvidenceRow;

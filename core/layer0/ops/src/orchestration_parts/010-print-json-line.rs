@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::{now_iso, parse_args};
 use chrono::{Datelike, Timelike, Utc};
-use rand::RngCore;
+use rand::Rng;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap, HashSet};

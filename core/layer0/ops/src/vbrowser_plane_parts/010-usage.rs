@@ -10,7 +10,7 @@ use crate::{clean, parse_args};
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine as _;
-use rand::RngCore;
+use rand::Rng;
 use serde_json::{json, Value};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -45,7 +45,9 @@ fn usage() {
     println!("  infring-ops vbrowser-plane screenshot [--session-id=<id>] [--annotate=1|0] [--delay-ms=<n>|--delay_ms=<n>|--delay=<n>|--settle-ms=<n>|--settle_ms=<n>|--settle=<n>] [--strict=1|0]");
     println!("  infring-ops vbrowser-plane action-policy [--session-id=<id>] [--action=<navigate|click|fill|submit>] [--action-policy=<path>] [--confirm=1|0] [--strict=1|0]");
     println!("  infring-ops vbrowser-plane auth-save [--provider=<id>] [--profile=<id>] [--username=<id>] [--secret=<token>] [--strict=1|0]");
-    println!("  infring-ops vbrowser-plane auth-login [--provider=<id>] [--profile=<id>] [--strict=1|0]");
+    println!(
+        "  infring-ops vbrowser-plane auth-login [--provider=<id>] [--profile=<id>] [--strict=1|0]"
+    );
     println!(
         "  infring-ops vbrowser-plane native [--session-id=<id>] [--url=<url>] [--strict=1|0]"
     );
@@ -333,7 +335,7 @@ fn encrypt_secret(root: &Path, plaintext: &str) -> Option<Value> {
     let key_bytes = auth_key_material(root);
     let cipher = Aes256Gcm::new_from_slice(&key_bytes).ok()?;
     let mut nonce_bytes = [0u8; 12];
-    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    rand::rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
     let ciphertext = cipher.encrypt(nonce, plaintext.as_bytes()).ok()?;
     Some(json!({

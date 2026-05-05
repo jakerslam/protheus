@@ -217,7 +217,7 @@ fn main() {
                     "rag-chat",
                     "stable-status"
                 ]
-            });
+            }));
         }
     }
 }

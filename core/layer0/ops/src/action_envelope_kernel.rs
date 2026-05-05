@@ -3,7 +3,7 @@
 
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use rand::RngCore;
+use rand::Rng;
 use regex::Regex;
 use serde_json::{json, Map, Value};
 use std::sync::OnceLock;
@@ -31,14 +31,16 @@ fn usage() {
     println!("action-envelope-kernel commands:");
     println!("  infring-ops action-envelope-kernel create [--payload-base64=<base64_json>]");
     println!("  infring-ops action-envelope-kernel classify [--payload-base64=<base64_json>]");
-    println!(
-        "  infring-ops action-envelope-kernel auto-classify [--payload-base64=<base64_json>]"
-    );
+    println!("  infring-ops action-envelope-kernel auto-classify [--payload-base64=<base64_json>]");
     println!(
         "  infring-ops action-envelope-kernel requires-approval [--payload-base64=<base64_json>]"
     );
-    println!("  infring-ops action-envelope-kernel detect-irreversible [--payload-base64=<base64_json>]");
-    println!("  infring-ops action-envelope-kernel web-query-shape [--payload-base64=<base64_json>]");
+    println!(
+        "  infring-ops action-envelope-kernel detect-irreversible [--payload-base64=<base64_json>]"
+    );
+    println!(
+        "  infring-ops action-envelope-kernel web-query-shape [--payload-base64=<base64_json>]"
+    );
     println!("  infring-ops action-envelope-kernel web-auth-presence");
     println!("  infring-ops action-envelope-kernel generate-id");
 }
@@ -165,7 +167,7 @@ fn to_base36(mut value: u128) -> String {
 fn generate_action_id() -> String {
     let timestamp = to_base36(now_millis());
     let mut bytes = [0_u8; 4];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     format!("act_{timestamp}_{}", hex::encode(bytes))
 }
 
@@ -203,11 +205,33 @@ fn high_stakes_rules() -> &'static [(&'static str, &'static str)] {
 }
 
 fn low_risk_patterns() -> &'static [&'static str] {
-    &[r"read", r"list", r"get", r"fetch", r"search", r"grep", r"cat\s+", r"ls\s+", r"echo", r"test", r"benchmark"]
+    &[
+        r"read",
+        r"list",
+        r"get",
+        r"fetch",
+        r"search",
+        r"grep",
+        r"cat\s+",
+        r"ls\s+",
+        r"echo",
+        r"test",
+        r"benchmark",
+    ]
 }
 
 fn irreversible_patterns() -> &'static [&'static str] {
-    &[r"rm\s+-rf", r"rm\s+.*\/\*", r"drop\s+database", r"drop\s+table", r"truncate.*table", r"delete.*where", r"destroy", r"reset\s+--hard", r"git\s+clean\s+-fd"]
+    &[
+        r"rm\s+-rf",
+        r"rm\s+.*\/\*",
+        r"drop\s+database",
+        r"drop\s+table",
+        r"truncate.*table",
+        r"delete.*where",
+        r"destroy",
+        r"reset\s+--hard",
+        r"git\s+clean\s+-fd",
+    ]
 }
 
 fn classify_value(payload: &Map<String, Value>) -> Value {
@@ -402,12 +426,23 @@ fn run_command(command: &str, payload: &Map<String, Value>) -> Result<Value, Str
                 }));
             }
             let domain = as_str(payload.get("domain").or_else(|| payload.get("domain_hint")));
-            let provider = clean_text(&as_str(payload.get("provider").or_else(|| payload.get("provider_hint"))), 80)
-                .to_ascii_lowercase();
+            let provider = clean_text(
+                &as_str(
+                    payload
+                        .get("provider")
+                        .or_else(|| payload.get("provider_hint")),
+                ),
+                80,
+            )
+            .to_ascii_lowercase();
             let sanitized = lane_utils::sanitize_web_tooling_query(&query);
             let canonical = lane_utils::canonicalize_web_tooling_query(
                 &query,
-                if domain.is_empty() { None } else { Some(domain.as_str()) },
+                if domain.is_empty() {
+                    None
+                } else {
+                    Some(domain.as_str())
+                },
             );
             Ok(json!({
                 "ok": true,

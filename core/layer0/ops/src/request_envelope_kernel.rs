@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use hex::decode as hex_decode;
 use hmac::{Hmac, Mac};
-use rand::RngCore;
+use rand::Rng;
 use serde_json::{json, Map, Value};
 use sha2::Sha256;
 
@@ -223,7 +223,7 @@ fn normalize_files(value: Option<&Value>) -> Vec<String> {
 }
 fn random_nonce() -> String {
     let mut bytes = [0_u8; 12];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     hex::encode(bytes)
 }
 fn envelope_payload_map(input: &Map<String, Value>) -> Value {
@@ -603,7 +603,10 @@ mod tests {
 
     #[test]
     fn normalize_web_freshness_maps_shortcuts() {
-        assert_eq!(normalize_web_freshness("day", "brave"), Some("pd".to_string()));
+        assert_eq!(
+            normalize_web_freshness("day", "brave"),
+            Some("pd".to_string())
+        );
         assert_eq!(
             normalize_web_freshness("pw", "perplexity"),
             Some("week".to_string())
