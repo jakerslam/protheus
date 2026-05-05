@@ -18,15 +18,25 @@ fn response_tool_workflow_events(response_tools: &[Value]) -> Vec<Value> {
     let mut events = Vec::<Value>::new();
     let mut seen = HashSet::<String>::new();
     for tool in response_tools.iter().take(8) {
-        let tool_name = normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool"));
+        let tool_name =
+            normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool"));
         if tool_name.is_empty() {
             continue;
         }
         let status = clean_text(tool.get("status").and_then(Value::as_str).unwrap_or(""), 80)
             .to_ascii_lowercase();
-        let blocked = tool.get("blocked").and_then(Value::as_bool).unwrap_or(false);
-        let is_error = tool.get("is_error").and_then(Value::as_bool).unwrap_or(false);
-        let result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 600);
+        let blocked = tool
+            .get("blocked")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let is_error = tool
+            .get("is_error")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let result = clean_text(
+            tool.get("result").and_then(Value::as_str).unwrap_or(""),
+            600,
+        );
         let attempt_reason = clean_text(
             tool.pointer("/tool_attempt_receipt/reason")
                 .and_then(Value::as_str)
@@ -241,8 +251,7 @@ fn workflow_policy_block_summary(response_tools: &[Value]) -> String {
             || result_lower.contains("domain_boundary")
             || error_lower.contains("client_ingress_domain_boundary")
             || error_lower.contains("domain_boundary");
-        let file_list_boundary_block = result_lower
-            .contains("file_list")
+        let file_list_boundary_block = result_lower.contains("file_list")
             && (result_lower.contains("ingress delivery policy")
                 || result_lower.contains("domain_boundary")
                 || result_lower.contains("lease_denied"));
@@ -371,11 +380,12 @@ fn normalized_response_similarity_key(text: &str) -> String {
     out.trim().to_string()
 }
 
-fn response_repeats_latest_assistant_copy(response_text: &str, latest_assistant_text: &str) -> bool {
+fn response_repeats_latest_assistant_copy(
+    response_text: &str,
+    latest_assistant_text: &str,
+) -> bool {
     let cleaned_response = sanitize_workflow_visible_response_text(response_text);
-    let cleaned_latest = sanitize_workflow_visible_response_text(
-        latest_assistant_text,
-    );
+    let cleaned_latest = sanitize_workflow_visible_response_text(latest_assistant_text);
     let normalized_response = normalized_response_similarity_key(&cleaned_response);
     let normalized_latest = normalized_response_similarity_key(&cleaned_latest);
     let compact_response = normalized_response.replace(' ', "");
@@ -500,7 +510,9 @@ fn tool_payload_shape_looks_raw(response_payload: &Value) -> bool {
             {
                 return true;
             }
-            if map.contains_key("tool_call_id") && (map.contains_key("status") || map.contains_key("result")) {
+            if map.contains_key("tool_call_id")
+                && (map.contains_key("status") || map.contains_key("result"))
+            {
                 return true;
             }
             if map.contains_key("name")
@@ -516,7 +528,9 @@ fn tool_payload_shape_looks_raw(response_payload: &Value) -> bool {
                 return true;
             }
             if map.contains_key("findings")
-                && (map.contains_key("sources") || map.contains_key("results") || map.contains_key("tool"))
+                && (map.contains_key("sources")
+                    || map.contains_key("results")
+                    || map.contains_key("tool"))
                 && !has_visible
             {
                 return true;
@@ -588,21 +602,12 @@ fn workflow_workspace_tool_request_inference(
     if normalized_workflow_token(category_key) != "workspace files" {
         return None;
     }
-    let lowered = clean_text(&format!("{message} {response_text}"), 4_000)
-        .to_ascii_lowercase();
+    let lowered = clean_text(&format!("{message} {response_text}"), 4_000).to_ascii_lowercase();
     if lowered.is_empty() {
         return None;
     }
     if ![
-        "inspect",
-        "search",
-        "read",
-        "patch",
-        "find",
-        "open",
-        "update",
-        "fix",
-        "bugfix",
+        "inspect", "search", "read", "patch", "find", "open", "update", "fix", "bugfix",
     ]
     .iter()
     .any(|needle| lowered.contains(needle))
@@ -627,8 +632,9 @@ fn workflow_workspace_tool_request_inference(
     }
     let mut input = json!({});
     if tool_name == "workspace_search" {
-        let mut pattern =
-            workflow_workspace_tool_fallback_pattern_from_text(&format!("{message} {response_text}"));
+        let mut pattern = workflow_workspace_tool_fallback_pattern_from_text(&format!(
+            "{message} {response_text}"
+        ));
         if pattern.is_empty() {
             pattern = "workspace bugfix".to_string();
         }
@@ -667,6 +673,8 @@ fn workflow_gate_stability_contract() -> Value {
                 "tracked_gates": [
                     "gate_1_work_category_menu",
                     "gate_2_tool_family_menu",
+                    "gate_3_tool_menu",
+                    "gate_4_request_payload_input",
                     "gate_5_post_tool_menu",
                     "gate_6_llm_final_output"
                 ],
@@ -719,7 +727,53 @@ fn workflow_gate_required_artifact_present(workflow: &Value, artifact: &str) -> 
             .get("manual_toolbox_pending_tool_request")
             .filter(|value| value.is_object())
             .is_some(),
-        "tool_result" => workflow.get("tool_count").and_then(Value::as_u64).unwrap_or(0) > 0,
+        "tool_family_selection" => workflow
+            .pointer("/tool_gate/selected_tool_family")
+            .and_then(Value::as_str)
+            .or_else(|| {
+                workflow
+                    .pointer("/manual_toolbox_pending_tool_request/selected_tool_family")
+                    .and_then(Value::as_str)
+            })
+            .map(|value| !value.trim().is_empty() && value != "none")
+            .unwrap_or(false),
+        "tool_selection" => workflow
+            .pointer("/tool_gate/selected_tool")
+            .and_then(Value::as_str)
+            .or_else(|| {
+                workflow
+                    .pointer("/tool_gate/selected_tool_label")
+                    .and_then(Value::as_str)
+            })
+            .or_else(|| {
+                workflow
+                    .pointer("/manual_toolbox_pending_tool_request/tool_name")
+                    .and_then(Value::as_str)
+            })
+            .or_else(|| {
+                workflow
+                    .pointer("/manual_toolbox_pending_tool_request/selected_tool_label")
+                    .and_then(Value::as_str)
+            })
+            .map(|value| !value.trim().is_empty())
+            .unwrap_or(false),
+        "request_payload" => {
+            workflow
+                .pointer("/tool_gate/request_payload")
+                .filter(|value| value.is_object())
+                .is_some()
+                || workflow
+                    .pointer("/manual_toolbox_pending_tool_request/input")
+                    .filter(|value| value.is_object())
+                    .is_some()
+        }
+        "tool_result" => {
+            workflow
+                .get("tool_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                > 0
+        }
         "final_response" => {
             let has_visible_response = workflow
                 .get("response")
@@ -762,19 +816,30 @@ fn workflow_gate_is_applicable(workflow: &Value, gate: &str) -> bool {
     let selected_category_uses_tools = !selected_category.is_empty()
         && !matches!(
             selected_category.as_str(),
-            "respond directly" | "respond_directly" | "planning current context" | "planning_current_context"
+            "respond directly"
+                | "respond_directly"
+                | "planning current context"
+                | "planning_current_context"
         );
     match gate {
-        "gate_2_tool_family_menu" => {
+        "gate_2_tool_family_menu" | "gate_3_tool_menu" | "gate_4_request_payload_input" => {
             selected_category_uses_tools
                 || workflow
                     .get("manual_toolbox_pending_tool_request")
                     .filter(|value| value.is_object())
                     .is_some()
                 || direct_path.contains("gate_2")
+                || direct_path.contains("gate_3")
+                || direct_path.contains("gate_4")
                 || direct_path == "first_gate_pending_tool_confirmation"
         }
-        "gate_5_post_tool_menu" => workflow.get("tool_count").and_then(Value::as_u64).unwrap_or(0) > 0,
+        "gate_5_post_tool_menu" => {
+            workflow
+                .get("tool_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+                > 0
+        }
         "gate_6_llm_final_output" => {
             workflow
                 .pointer("/final_llm_response/required")
@@ -834,7 +899,10 @@ fn workflow_gate_stability_rows(workflow: &Value) -> Vec<Value> {
                 "failed"
             };
             let failure_class = if status == "failed" {
-                if missing_artifacts.iter().any(|artifact| artifact == "final_response") {
+                if missing_artifacts
+                    .iter()
+                    .any(|artifact| artifact == "final_response")
+                {
                     "empty_response"
                 } else {
                     "invalid_artifact"
@@ -1032,7 +1100,10 @@ fn workflow_gate_stability_update_version_ring(
         .cloned()
         .unwrap_or_default()
     {
-        let gate = clean_text(gate_row.get("gate").and_then(Value::as_str).unwrap_or(""), 120);
+        let gate = clean_text(
+            gate_row.get("gate").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
         if gate.is_empty() {
             continue;
         }
@@ -1058,9 +1129,20 @@ fn workflow_gate_stability_update_version_ring(
         }
     }
     version["last_seen"] = Value::String(ts.to_string());
-    version["turn_count"] = json!(version.get("turn_count").and_then(Value::as_u64).unwrap_or(0) + 1);
-    version["event_count"] =
-        json!(version.get("event_count").and_then(Value::as_u64).unwrap_or(0) + rows.len() as u64);
+    version["turn_count"] = json!(
+        version
+            .get("turn_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            + 1
+    );
+    version["event_count"] = json!(
+        version
+            .get("event_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            + rows.len() as u64
+    );
     version["per_gate"] = Value::Array(workflow_gate_stability_per_gate_rollup_from_counts(counts));
     versions.insert(0, version);
     versions.truncate(3);
@@ -1115,7 +1197,8 @@ fn finalize_workflow_gate_stability(root: &Path, mut workflow: Value, message: &
         "message": clean_text(message, 2_000)
     }));
     let ts = crate::now_iso();
-    let workflow_snapshot = workflow_gate_stability_current_workflow_snapshot(&workflow_id, &contract);
+    let workflow_snapshot =
+        workflow_gate_stability_current_workflow_snapshot(&workflow_id, &contract);
     let version_hash = workflow_gate_stability_version_hash(&workflow_id, &workflow_snapshot);
     let stream_path = root.join("local/state/ops/workflow_gate_stability/events.jsonl");
     for row in &rows {
@@ -1135,15 +1218,14 @@ fn finalize_workflow_gate_stability(root: &Path, mut workflow: Value, message: &
         );
     }
     let rolling = workflow_gate_stability_latest_rollup(root, &workflow_id);
-    let version_ring =
-        workflow_gate_stability_update_version_ring(
-            root,
-            &workflow_id,
-            &version_hash,
-            &workflow_snapshot,
-            &rows,
-            &ts,
-        );
+    let version_ring = workflow_gate_stability_update_version_ring(
+        root,
+        &workflow_id,
+        &version_hash,
+        &workflow_snapshot,
+        &rows,
+        &ts,
+    );
     write_json_pretty(
         &root.join("local/state/ops/workflow_gate_stability/latest.json"),
         &json!({
@@ -1186,8 +1268,7 @@ fn preserve_direct_llm_response_without_fallback(workflow: &mut Value, draft_res
     if let Some(direct_response) = direct_llm_response_from_initial_draft(draft_response) {
         workflow["response"] = Value::String(direct_response);
         workflow["final_llm_response"]["used"] = Value::Bool(true);
-        workflow["final_llm_response"]["status"] =
-            Value::String("direct_llm_response".to_string());
+        workflow["final_llm_response"]["status"] = Value::String("direct_llm_response".to_string());
         workflow["final_llm_response"]["source"] =
             Value::String("initial_llm_response".to_string());
         workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
@@ -1274,8 +1355,7 @@ fn record_workflow_diagnostic_event(workflow: &mut Value, reason: &str, stage: &
         workflow_diagnostic_summary_classification(trigger_count, distinct_stage_count);
     workflow["final_llm_response"]["diagnostic_event_multi_stage"] = Value::Bool(multi_stage);
     workflow["final_llm_response"]["diagnostic_event_events"] = Value::Array(guard_events);
-    workflow["final_llm_response"]["diagnostic_event_last_stage"] =
-        Value::String(cleaned_stage);
+    workflow["final_llm_response"]["diagnostic_event_last_stage"] = Value::String(cleaned_stage);
     workflow["final_llm_response"]["diagnostic_event_summary"] = json!({
         "trigger_count": trigger_count,
         "distinct_reason_count": distinct_reason_count,
@@ -1392,10 +1472,14 @@ fn apply_final_retry_boilerplate_diagnostic(
     response_tools: &[Value],
 ) {
     let response_text = clean_text(
-        workflow.get("response").and_then(Value::as_str).unwrap_or(""),
+        workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         32_000,
     );
-    if response_text.is_empty() || !response_contains_unexpected_state_retry_boilerplate(&response_text)
+    if response_text.is_empty()
+        || !response_contains_unexpected_state_retry_boilerplate(&response_text)
     {
         return;
     }
@@ -1426,14 +1510,20 @@ fn apply_final_empty_response_diagnostic(
     response_tools: &[Value],
 ) {
     let response_text = clean_text(
-        workflow.get("response").and_then(Value::as_str).unwrap_or(""),
+        workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         32_000,
     );
     if !response_text.is_empty() {
         return;
     }
     let _ = latest_assistant_text;
-    let fallback_response = clean_text(&fallback_final_response_from_tool_evidence(message, response_tools), 3_000);
+    let fallback_response = clean_text(
+        &fallback_final_response_from_tool_evidence(message, response_tools),
+        3_000,
+    );
     if !fallback_response.is_empty() {
         workflow["response"] = Value::String(fallback_response);
         workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
@@ -1441,15 +1531,15 @@ fn apply_final_empty_response_diagnostic(
         workflow["final_llm_response"]["status"] = Value::String("synthesized".to_string());
         workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
         workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(true);
-        workflow["final_llm_response"]["fallback_source"] = Value::String("tool_evidence".to_string());
+        workflow["final_llm_response"]["fallback_source"] =
+            Value::String("tool_evidence".to_string());
         set_turn_workflow_final_stage_status(workflow, "synthesized");
         return;
     }
 
     workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
     workflow["final_llm_response"]["used"] = Value::Bool(false);
-    workflow["final_llm_response"]["status"] =
-        Value::String("empty_llm_response".to_string());
+    workflow["final_llm_response"]["status"] = Value::String("empty_llm_response".to_string());
     workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
     workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
     workflow["final_llm_response"]["error"] = Value::String("empty_response".to_string());
@@ -1481,7 +1571,9 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
 
     let mut response_parts = Vec::<String>::new();
     if !failure_reason.is_empty() {
-        response_parts.push(format!("I couldn't turn this tool output into a complete final answer: {failure_reason}"));
+        response_parts.push(format!(
+            "I couldn't turn this tool output into a complete final answer: {failure_reason}"
+        ));
     }
     if !findings.is_empty() {
         response_parts.push(format!("Tool findings from this turn:\n{findings}"));
@@ -1668,7 +1760,10 @@ fn workflow_response_template_label(message: &str) -> &'static str {
     "workflow_final_response"
 }
 
-fn response_tools_prompt_only_gate_required(_message: &str, _latent_tool_candidates: &Value) -> bool {
+fn response_tools_prompt_only_gate_required(
+    _message: &str,
+    _latent_tool_candidates: &Value,
+) -> bool {
     false
 }
 
@@ -1695,9 +1790,10 @@ fn response_answers_tool_confirmation_with_recorded_result(
     if lowered.is_empty() {
         return false;
     }
-    let has_recorded_failure =
-        !response_tools_failure_reason_for_user(response_tools, 4).trim().is_empty()
-            || response_tools_any_low_signal(response_tools);
+    let has_recorded_failure = !response_tools_failure_reason_for_user(response_tools, 4)
+        .trim()
+        .is_empty()
+        || response_tools_any_low_signal(response_tools);
     if !has_recorded_failure {
         return false;
     }
@@ -1782,7 +1878,8 @@ fn response_looks_like_raw_tool_payload_dump(response_text: &str) -> bool {
         || lowered.contains("<function=")
         || lowered.contains("<tool")
         || lowered.contains("</tool>")
-        || parse_json_payload_dump(&cleaned).is_some_and(|payload| tool_payload_shape_looks_raw(&payload))
+        || parse_json_payload_dump(&cleaned)
+            .is_some_and(|payload| tool_payload_shape_looks_raw(&payload))
         || looks_like_tool_payload_json_literal(&cleaned)
 }
 
@@ -1828,8 +1925,10 @@ fn looks_like_tool_payload_json_literal(response_text: &str) -> bool {
         .filter(|signal| compact_lower.contains(*signal))
         .count();
     signal_hits >= 3 || {
-        let has_tool_token = compact_lower.contains("\"tool\"") || compact_lower.contains("\"tool_name\"");
-        let has_name_token = compact_lower.contains("\"name\"") || compact_lower.contains("\"tool_name\"");
+        let has_tool_token =
+            compact_lower.contains("\"tool\"") || compact_lower.contains("\"tool_name\"");
+        let has_name_token =
+            compact_lower.contains("\"name\"") || compact_lower.contains("\"tool_name\"");
         let has_payload_token = compact_lower.contains("\"request_payload\"")
             || compact_lower.contains("\"input\"")
             || compact_lower.contains("\"query\"")
@@ -1969,8 +2068,7 @@ fn run_turn_workflow_final_response(
         && !manual_toolbox_gate_turn
         && (initial_no_tool_category_submission
             || enriched_workflow_events.iter().any(|event| {
-                event.get("kind").and_then(Value::as_str).unwrap_or("")
-                    == "draft_response_invalid"
+                event.get("kind").and_then(Value::as_str).unwrap_or("") == "draft_response_invalid"
             }));
     let (system_prompt, user_prompt) = if manual_toolbox_gate_turn {
         (
@@ -2040,10 +2138,14 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = if manual_toolbox_gate_turn { 2 } else { 1 };
+    let max_attempts: u64 = if manual_toolbox_gate_turn { 4 } else { 1 };
     let mut manual_toolbox_no_selected = false;
     let mut manual_toolbox_selected_category_key = String::new();
     let mut manual_toolbox_selected_category_label = String::new();
+    let mut manual_toolbox_selected_family_key = String::new();
+    let mut manual_toolbox_selected_family_label = String::new();
+    let mut manual_toolbox_selected_tool_key = String::new();
+    let mut manual_toolbox_selected_tool_label = String::new();
     let mut last_error = String::new();
     let mut last_invalid_excerpt = String::new();
     let mut last_reject_reason = String::new();
@@ -2102,8 +2204,7 @@ fn run_turn_workflow_final_response(
     };
     workflow["final_llm_response"]["attempted"] = Value::Bool(true);
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
-    workflow["final_llm_response"]["coherence_window_messages"] =
-        json!(coherence_window_messages);
+    workflow["final_llm_response"]["coherence_window_messages"] = json!(coherence_window_messages);
     workflow["gate_trace"] = json!({
         "active": manual_toolbox_gate_turn,
         "attempt_count": 0,
@@ -2117,40 +2218,72 @@ fn run_turn_workflow_final_response(
     for attempt in 1..=max_attempts {
         if manual_toolbox_gate_turn {
             workflow["gate_trace"]["attempt_count"] = json!(attempt);
-            workflow["gate_trace"]["current_step"] = if manual_toolbox_selected_category_key.is_empty() {
-                Value::String("gate_1_work_category_menu".to_string())
-            } else {
-                Value::String("gate_2_tool_request_input".to_string())
-            };
+            workflow["gate_trace"]["current_step"] = Value::String(
+                manual_toolbox_active_gate_id(
+                    &manual_toolbox_selected_category_key,
+                    &manual_toolbox_selected_family_key,
+                    &manual_toolbox_selected_tool_key,
+                )
+                .to_string(),
+            );
         } else {
             workflow["gate_trace"]["final_synthesis_attempt_count"] = json!(attempt);
         }
-        let active_manual_toolbox_gate_turn = manual_toolbox_gate_turn
+        let active_manual_toolbox_category_turn = manual_toolbox_gate_turn
             && !manual_toolbox_no_selected
             && manual_toolbox_selected_category_key.is_empty();
-        let active_manual_toolbox_tool_request_turn = manual_toolbox_gate_turn
+        let active_manual_toolbox_family_turn = manual_toolbox_gate_turn
             && !manual_toolbox_no_selected
-            && !manual_toolbox_selected_category_key.is_empty();
-        if !active_manual_toolbox_gate_turn && !active_manual_toolbox_tool_request_turn {
+            && !manual_toolbox_selected_category_key.is_empty()
+            && manual_toolbox_selected_family_key.is_empty();
+        let active_manual_toolbox_tool_turn = manual_toolbox_gate_turn
+            && !manual_toolbox_no_selected
+            && !manual_toolbox_selected_category_key.is_empty()
+            && !manual_toolbox_selected_family_key.is_empty()
+            && manual_toolbox_selected_tool_key.is_empty();
+        let active_manual_toolbox_payload_turn = manual_toolbox_gate_turn
+            && !manual_toolbox_no_selected
+            && !manual_toolbox_selected_category_key.is_empty()
+            && !manual_toolbox_selected_family_key.is_empty()
+            && !manual_toolbox_selected_tool_key.is_empty();
+        let active_manual_toolbox_private_gate_turn = active_manual_toolbox_category_turn
+            || active_manual_toolbox_family_turn
+            || active_manual_toolbox_tool_turn
+            || active_manual_toolbox_payload_turn;
+        if !active_manual_toolbox_private_gate_turn {
             synthesis_attempt_count += 1;
         }
         workflow["final_llm_response"]["attempt_count"] = json!(synthesis_attempt_count.max(1));
         let compact_tool_retry = attempt > 1 && !response_tools.is_empty();
-        let attempt_system_prompt = if active_manual_toolbox_gate_turn {
+        let attempt_system_prompt = if active_manual_toolbox_category_turn {
             system_prompt.clone()
-        } else if active_manual_toolbox_tool_request_turn {
-            workflow_tool_request_prompt_context(
+        } else if active_manual_toolbox_family_turn {
+            workflow_tool_family_prompt_context(
                 &manual_toolbox_selected_category_key,
                 &manual_toolbox_selected_category_label,
+            )
+        } else if active_manual_toolbox_tool_turn {
+            workflow_tool_selection_prompt_context(
+                &manual_toolbox_selected_family_key,
+                &manual_toolbox_selected_family_label,
+            )
+        } else if active_manual_toolbox_payload_turn {
+            workflow_tool_payload_prompt_context(
+                &manual_toolbox_selected_family_key,
+                &manual_toolbox_selected_tool_key,
+                &manual_toolbox_selected_tool_label,
             )
         } else if manual_toolbox_no_selected || compact_tool_retry {
             clean_text(&final_answer_instruction, 2_000)
         } else {
             system_prompt.clone()
         };
-        let attempt_user_prompt = if active_manual_toolbox_gate_turn {
+        let attempt_user_prompt = if active_manual_toolbox_category_turn {
             user_prompt.clone()
-        } else if active_manual_toolbox_tool_request_turn {
+        } else if active_manual_toolbox_family_turn
+            || active_manual_toolbox_tool_turn
+            || active_manual_toolbox_payload_turn
+        {
             clean_text(&format!("User message:\n{message}"), 8_000)
         } else if manual_toolbox_no_selected {
             clean_text(&format!("User message:\n{message}"), 8_000)
@@ -2191,192 +2324,60 @@ fn run_turn_workflow_final_response(
                         .unwrap_or(""),
                     32_000,
                 );
-                // Gate turns (gate_1 and gate_2) are never user-visible; skip sanitization so
-                // gate_2 JSON (which contains "tool"/"request_payload" keys) isn't stripped by
-                // the raw tool payload dump guard inside sanitize_workflow_visible_response_text.
-                if !active_manual_toolbox_gate_turn && !active_manual_toolbox_tool_request_turn {
+                // Private gate turns (gate_1 through gate_4) are never user-visible; skip
+                // sanitization so structured gate JSON is preserved between internal stages.
+                if !active_manual_toolbox_private_gate_turn {
                     retried_text = workflow_final_visible_response_text(&retried_text);
                     if !user_requested_internal_runtime_details(message) {
                         retried_text = abstract_runtime_mechanics_terms(&retried_text);
                     }
                 }
-                let manual_toolbox_gate_choice =
-                    response_is_manual_toolbox_gate_choice(&retried_text);
-                let structured_final_answer =
-                    workflow_structured_gate_final_answer(&retried_text);
-                if active_manual_toolbox_gate_turn
-                    && response_tools.is_empty()
-                    && (response_is_exact_no_tool_gate_submission(&retried_text)
-                        || (structured_final_answer.is_some()
-                            && !response_is_tool_bearing_category_gate_submission(&retried_text)))
-                {
-                    if let Some(final_answer) = structured_final_answer {
-                        let response_provider = clean_text(
-                            retried
-                                .get("provider")
-                                .and_then(Value::as_str)
-                                .unwrap_or(&attempt_provider),
-                            80,
-                        );
-                        let response_model = clean_text(
-                            retried
-                                .get("runtime_model")
-                                .or_else(|| retried.get("model"))
-                                .and_then(Value::as_str)
-                                .unwrap_or(&attempt_model),
-                            240,
-                        );
-                        workflow["response"] = Value::String(final_answer);
-                        mark_workflow_direct_llm_no_tool_answer(&mut workflow);
-                        workflow["final_llm_response"]["used"] = Value::Bool(true);
-                        workflow["final_llm_response"]["status"] =
-                            Value::String("synthesized".to_string());
-                        workflow["final_llm_response"]["source"] =
-                            Value::String("structured_gate_final_answer".to_string());
-                        workflow["final_llm_response"]["provider"] =
-                            Value::String(response_provider.clone());
-                        workflow["final_llm_response"]["model"] =
-                            Value::String(response_model.clone());
-                        workflow["final_llm_response"]["runtime_model"] =
-                            Value::String(response_model.clone());
-                        workflow["provider"] = Value::String(response_provider);
-                        workflow["model"] = Value::String(response_model.clone());
-                        workflow["runtime_model"] = Value::String(response_model);
-                        set_turn_workflow_final_stage_status(&mut workflow, "synthesized");
-                        return finalize_workflow_gate_stability(root, workflow, message);
+                if let Some(gate_outcome) = handle_manual_toolbox_private_gate_turn(
+                    &mut workflow,
+                    message,
+                    response_tools,
+                    attempt,
+                    &attempt_provider,
+                    &attempt_model,
+                    &retried,
+                    &retried_text,
+                    active_manual_toolbox_category_turn,
+                    active_manual_toolbox_family_turn,
+                    active_manual_toolbox_tool_turn,
+                    active_manual_toolbox_payload_turn,
+                    &mut manual_toolbox_no_selected,
+                    &mut manual_toolbox_selected_category_key,
+                    &mut manual_toolbox_selected_category_label,
+                    &mut manual_toolbox_selected_family_key,
+                    &mut manual_toolbox_selected_family_label,
+                    &mut manual_toolbox_selected_tool_key,
+                    &mut manual_toolbox_selected_tool_label,
+                    &mut last_invalid_excerpt,
+                    &mut last_reject_reason,
+                ) {
+                    match gate_outcome {
+                        ManualToolboxPrivateGateOutcome::Continue => continue,
+                        ManualToolboxPrivateGateOutcome::Finalize => {
+                            return finalize_workflow_gate_stability(root, workflow, message);
+                        }
                     }
-                    manual_toolbox_no_selected = true;
-                    workflow["workflow_control"]["direct_response_path"] =
-                        Value::String("first_gate_no_tool_category".to_string());
-                    set_turn_workflow_final_stage_status(
-                        &mut workflow,
-                        "first_gate_no_pending_final_output",
-                    );
-                    continue;
-                }
-                if active_manual_toolbox_gate_turn
-                    && response_is_tool_bearing_category_gate_submission(&retried_text)
-                {
-                    if let Some((category_key, category_label)) = workflow_category_selection(
-                        &default_workflow_tool_menu_contract(),
-                        &retried_text,
-                        Some(true),
-                    ) {
-                        manual_toolbox_selected_category_key = category_key.clone();
-                        manual_toolbox_selected_category_label = category_label.clone();
-                        workflow["tool_gate"]["selected_work_category"] =
-                            Value::String(category_key.clone());
-                        workflow["tool_gate"]["selected_tool_family"] =
-                            Value::String(category_key.clone());
-                        workflow["workflow_control"]["direct_response_path"] =
-                            Value::String("gate_2_pending_llm_tool_request".to_string());
-                        set_turn_workflow_final_stage_status(
-                            &mut workflow,
-                            "gate_2_pending_tool_request",
-                        );
-                    } else {
-                        last_invalid_excerpt = first_sentence(&retried_text, 220);
-                        last_reject_reason = "tool_category_without_tool_payload".to_string();
-                        bump_workflow_quality_counter(&mut workflow, "alignment_reject");
-                    }
-                    continue;
                 }
                 let visible_gate_choice_reply =
                     response_is_visible_workflow_gate_choice(&retried_text)
                         || response_has_gate_choice_prefix_leakage(&retried_text);
-                let parsed_pending_tool_request =
-                    manual_toolbox_pending_request_from_response(&retried_text, message);
-                let fallback_pending_tool_request = if parsed_pending_tool_request.is_none()
-                    && active_manual_toolbox_tool_request_turn
-                {
-                    workflow_workspace_tool_request_inference(
-                        &retried_text,
-                        message,
-                        &manual_toolbox_selected_category_key,
-                    )
-                } else {
-                    None
-                };
-                let pending_tool_choice_reply =
-                    parsed_pending_tool_request.is_some() || fallback_pending_tool_request.is_some();
-                if manual_toolbox_gate_choice
-                    || visible_gate_choice_reply
-                    || pending_tool_choice_reply
-                {
-                    if parsed_pending_tool_request.is_none()
-                        && fallback_pending_tool_request.is_some()
-                    {
-                        let fallback_payload = serde_json::to_string(
-                            fallback_pending_tool_request
-                                .as_ref()
-                                .unwrap_or(&json!({})),
-                        )
-                        .unwrap_or_default();
-                        if !fallback_payload.is_empty() {
-                            record_manual_toolbox_pending_request(&mut workflow, &fallback_payload, message);
-                        }
-                    } else {
-                        record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
-                    }
-                }
-                if workflow
-                    .get("manual_toolbox_pending_tool_request")
-                    .filter(|value| value.is_object())
-                    .is_some()
-                {
-                    mark_workflow_pending_gate_without_final_synthesis(
-                        &mut workflow,
-                        "skipped_pending_tool_confirmation",
-                        "manual_toolbox_gate_submission",
-                        attempt,
-                    );
-                    return finalize_workflow_gate_stability(root, workflow, message);
-                }
-                if active_manual_toolbox_tool_request_turn
-                    && response_tools.is_empty()
-                    && !retried_text.is_empty()
-                {
-                    last_invalid_excerpt = first_sentence(&retried_text, 220);
-                    last_reject_reason =
-                        "tool_request_without_payload_submission_diagnostic_only".to_string();
-                    workflow["workflow_control"]["direct_response_path"] =
-                        Value::String("gate_2_pending_llm_tool_request".to_string());
-                    set_turn_workflow_final_stage_status(
-                        &mut workflow,
-                        "gate_2_pending_tool_request",
-                    );
-                    bump_workflow_quality_counter(&mut workflow, "alignment_reject");
-                    workflow["final_llm_response"]["runtime_interference_disabled"] =
-                        Value::Bool(true);
-                    workflow["final_llm_response"]["invalid_gate_draft_diagnostic_only"] =
-                        Value::Bool(true);
-                }
                 let recorded_tool_result_answer =
                     response_answers_tool_confirmation_with_recorded_result(
                         &retried_text,
                         response_tools,
-                    )
-                    || response_answers_successful_tool_result(
+                    ) || response_answers_successful_tool_result(
                         message,
                         &retried_text,
                         response_tools,
                     );
-                let unresolved_tool_need_without_progress = active_manual_toolbox_gate_turn
-                    && response_tools.is_empty()
-                    && !manual_toolbox_gate_choice
-                    && !pending_tool_choice_reply
-                    && manual_toolbox_response_exposes_unresolved_tool_need(&retried_text);
-                let invalid_manual_toolbox_gate_submission = active_manual_toolbox_gate_turn
-                    && response_tools.is_empty()
-                    && !manual_toolbox_gate_choice
-                    && !visible_gate_choice_reply
-                    && !pending_tool_choice_reply;
                 let deferred_reply = !recorded_tool_result_answer
                     && (response_is_deferred_execution_preamble(&retried_text)
                         || response_is_deferred_retry_prompt(&retried_text)
-                        || (workflow_response_requests_more_tooling(&retried_text)
-                            && !manual_toolbox_gate_choice
-                            && !pending_tool_choice_reply));
+                        || workflow_response_requests_more_tooling(&retried_text));
                 let off_topic_reply = response_is_unrelated_context_dump(message, &retried_text);
                 let stale_code_context_reply =
                     response_contains_stale_code_context_dump(message, &retried_text);
@@ -2387,14 +2388,15 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                     );
                 let prompt_scaffold_reply = response_contains_prompt_scaffold(&retried_text);
-                let prompt_echo_reply = prompt_scaffold_reply || if direct_gate_recovery_turn
-                    && !clean_text(message, 240)
-                        .eq_ignore_ascii_case(&clean_text(&retried_text, 240))
-                {
-                    false
-                } else {
-                    response_prompt_echo_detected(message, &retried_text)
-                };
+                let prompt_echo_reply = prompt_scaffold_reply
+                    || if direct_gate_recovery_turn
+                        && !clean_text(message, 240)
+                            .eq_ignore_ascii_case(&clean_text(&retried_text, 240))
+                    {
+                        false
+                    } else {
+                        response_prompt_echo_detected(message, &retried_text)
+                    };
                 let receipt_mapped_sources = response_tools
                     .iter()
                     .any(|row| !response_tool_receipt_id(row).is_empty());
@@ -2420,18 +2422,14 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                         response_tools,
                     );
-                let raw_tool_payload_dump = response_looks_like_raw_tool_payload_dump(&retried_text);
+                let raw_tool_payload_dump =
+                    response_looks_like_raw_tool_payload_dump(&retried_text);
                 let prompt_analysis_leak =
                     response_contains_workflow_prompt_analysis_leak(&retried_text);
                 let reject_checks = [
                     (
                         visible_gate_choice_reply,
                         "visible_gate_choice_reply",
-                        "alignment_reject",
-                    ),
-                    (
-                        invalid_manual_toolbox_gate_submission,
-                        "invalid_manual_toolbox_gate_submission",
                         "alignment_reject",
                     ),
                     (
@@ -2446,7 +2444,11 @@ fn run_turn_workflow_final_response(
                         "stale_code_context_dump",
                         "contamination_reject",
                     ),
-                    (low_alignment_reply, "low_alignment_reply", "alignment_reject"),
+                    (
+                        low_alignment_reply,
+                        "low_alignment_reply",
+                        "alignment_reject",
+                    ),
                     (prompt_echo_reply, "prompt_echo_reply", "prompt_echo_reject"),
                     (
                         missing_direct_answer,
@@ -2476,11 +2478,6 @@ fn run_turn_workflow_final_response(
                         "contamination_reject",
                     ),
                     (
-                        unresolved_tool_need_without_progress,
-                        "unresolved_tool_need_without_progress",
-                        "deferred_reply_reject",
-                    ),
-                    (
                         response_looks_like_tool_ack_without_findings(&retried_text)
                             && !recorded_tool_result_answer,
                         "ack_only_reply",
@@ -2498,9 +2495,6 @@ fn run_turn_workflow_final_response(
                     .map(|(_, reason, counter)| (reason, counter))
                     .unwrap_or(("", ""));
                 if !reject_reason.is_empty() {
-                    if visible_gate_choice_reply {
-                        record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
-                    }
                     if !reject_counter.is_empty() {
                         bump_workflow_quality_counter(&mut workflow, reject_counter);
                     }
@@ -2512,14 +2506,6 @@ fn run_turn_workflow_final_response(
                         Value::String(last_reject_reason.clone());
                     workflow["final_llm_response"]["diagnostic_invalid_excerpt"] =
                         Value::String(last_invalid_excerpt.clone());
-                    if active_manual_toolbox_gate_turn
-                        && response_tools.is_empty()
-                        && (invalid_manual_toolbox_gate_submission
-                            || visible_gate_choice_reply
-                            || unresolved_tool_need_without_progress)
-                    {
-                        continue;
-                    }
                     if attempt < max_attempts {
                         continue;
                     }
@@ -2540,8 +2526,7 @@ fn run_turn_workflow_final_response(
                     240,
                 );
                 workflow["final_llm_response"]["used"] = Value::Bool(true);
-                workflow["final_llm_response"]["status"] =
-                    Value::String("synthesized".to_string());
+                workflow["final_llm_response"]["status"] = Value::String("synthesized".to_string());
                 workflow["final_llm_response"]["provider"] =
                     Value::String(response_provider.clone());
                 workflow["final_llm_response"]["model"] = Value::String(response_model.clone());
@@ -2588,7 +2573,8 @@ fn run_turn_workflow_final_response(
                 };
                 workflow["quality_telemetry"]["direct_answer_rate"] = json!(direct_answer_rate);
                 workflow["quality_telemetry"]["retry_rate"] = json!(retry_rate);
-                workflow["quality_telemetry"]["off_topic_reject_rate"] = json!(off_topic_reject_rate);
+                workflow["quality_telemetry"]["off_topic_reject_rate"] =
+                    json!(off_topic_reject_rate);
                 workflow["response"] = Value::String(retried_text);
                 return finalize_workflow_gate_stability(root, workflow, message);
             }
@@ -2598,22 +2584,24 @@ fn run_turn_workflow_final_response(
         }
     }
     if manual_toolbox_gate_turn && response_tools.is_empty() && !last_reject_reason.is_empty() {
-        workflow["workflow_control"]["direct_response_path"] =
-            if manual_toolbox_selected_category_key.is_empty() {
-                Value::String("first_gate_pending_llm_tool_choice".to_string())
-            } else {
-                Value::String("gate_2_pending_llm_tool_request".to_string())
-            };
+        workflow["workflow_control"]["direct_response_path"] = Value::String(
+            manual_toolbox_pending_direct_response_path(
+                &manual_toolbox_selected_category_key,
+                &manual_toolbox_selected_family_key,
+                &manual_toolbox_selected_tool_key,
+            )
+            .to_string(),
+        );
         workflow["final_llm_response"]["last_reject_reason"] =
             Value::String(last_reject_reason.clone());
         workflow["final_llm_response"]["error"] = Value::String(last_invalid_excerpt.clone());
         mark_workflow_pending_gate_without_final_synthesis(
             &mut workflow,
-            if manual_toolbox_selected_category_key.is_empty() {
-                "first_gate_pending_tool_choice"
-            } else {
-                "gate_2_pending_tool_request"
-            },
+            manual_toolbox_pending_stage_status(
+                &manual_toolbox_selected_category_key,
+                &manual_toolbox_selected_family_key,
+                &manual_toolbox_selected_tool_key,
+            ),
             "invalid_gate_draft_diagnostic_only",
             max_attempts,
         );
@@ -2653,10 +2641,7 @@ fn run_turn_workflow_final_response(
             "synthesis_failure_runtime_fallback_suppressed",
             "synthesis_failure_diagnostic",
         );
-        set_turn_workflow_final_stage_status(
-            &mut workflow,
-            "diagnostic_failure_pass_through",
-        );
+        set_turn_workflow_final_stage_status(&mut workflow, "diagnostic_failure_pass_through");
     }
     apply_final_retry_boilerplate_diagnostic(
         &mut workflow,
@@ -2695,8 +2680,7 @@ fn mark_workflow_direct_llm_no_tool_answer(workflow: &mut Value) {
     });
     workflow["workflow_control"]["direct_response_path"] =
         Value::String("first_gate_no_tool_category".to_string());
-    workflow["tool_gate"]["selected_work_category"] =
-        Value::String(direct_key);
+    workflow["tool_gate"]["selected_work_category"] = Value::String(direct_key);
     workflow["tool_gate"]["selected_tool_family"] = Value::String("none".to_string());
     workflow["tool_gate"]["gate_1_submission_status"] = Value::String("submitted".to_string());
     workflow["tool_gate"]["gate_1_decision_source"] =
@@ -2841,13 +2825,11 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_bool),
             Some(false)
         );
-        assert!(
-            pending
-                .get("receipt_binding")
-                .and_then(Value::as_str)
-                .map(|value| !value.is_empty())
-                .unwrap_or(false)
-        );
+        assert!(pending
+            .get("receipt_binding")
+            .and_then(Value::as_str)
+            .map(|value| !value.is_empty())
+            .unwrap_or(false));
     }
 
     #[test]
@@ -2888,102 +2870,11 @@ mod workflow_fallback_tests {
             pending.pointer("/input/source").and_then(Value::as_str),
             Some("web")
         );
-        assert_eq!(pending.get("source").and_then(Value::as_str), Some("unit_test"));
-    }
-
-    #[test]
-    fn workflow_workspace_tool_request_inference_builds_workspace_search_request() {
-        let message = "Inspect the tiny fixture repo and identify the smallest bugfix you would make. Use workspace tools before answering.";
-        let retried = "I'll inspect the repository and identify the smallest bugfix needed.";
-        let pending = workflow_workspace_tool_request_inference(
-            retried,
-            message,
-            "workspace_files",
-        )
-        .expect("workspace fallback request");
-
         assert_eq!(
-            pending.get("tool_family").and_then(Value::as_str),
-            Some("workspace_files")
-        );
-        assert_eq!(
-            pending.get("tool").and_then(Value::as_str),
-            Some("workspace_search")
-        );
-        assert_eq!(
-            pending.pointer("/request_payload/path").and_then(Value::as_str),
-            Some(".")
-        );
-        assert_eq!(
-            pending
-                .pointer("/request_payload/pattern")
-                .and_then(Value::as_str),
-            Some("tiny fixture repo bugfix")
+            pending.get("source").and_then(Value::as_str),
+            Some("unit_test")
         );
     }
-
-    #[test]
-    fn workflow_gate_stability_rows_score_pending_workspace_request() {
-        let workflow = json!({
-            "selected_workflow": {
-                "name": "simple_conversation_v1"
-            },
-            "workflow_control": {
-                "direct_response_path": "first_gate_pending_tool_confirmation"
-            },
-            "tool_gate": {
-                "selected_work_category": "workspace_files"
-            },
-            "manual_toolbox_pending_tool_request": {
-                "status": "pending_confirmation",
-                "tool_name": "workspace_search",
-                "input": {
-                    "path": ".",
-                    "pattern": "tiny fixture repo bugfix"
-                }
-            },
-            "tool_count": 0,
-            "response": "",
-            "final_llm_response": {
-                "required": false,
-                "status": "skipped_pending_tool_confirmation"
-            },
-            "stage_statuses": [
-                {
-                    "stage": "gate_1_work_category_menu",
-                    "status": "presented"
-                },
-                {
-                    "stage": "gate_6_llm_final_output",
-                    "status": "skipped_pending_tool_confirmation"
-                }
-            ]
-        });
-        let rows = workflow_gate_stability_rows(&workflow);
-
-        assert_eq!(
-            rows.iter()
-                .find(|row| row.get("gate").and_then(Value::as_str)
-                    == Some("gate_1_work_category_menu"))
-                .and_then(|row| row.get("status").and_then(Value::as_str)),
-            Some("passed")
-        );
-        assert_eq!(
-            rows.iter()
-                .find(|row| row.get("gate").and_then(Value::as_str)
-                    == Some("gate_2_tool_family_menu"))
-                .and_then(|row| row.get("status").and_then(Value::as_str)),
-            Some("passed")
-        );
-        assert_eq!(
-            rows.iter()
-                .find(|row| row.get("gate").and_then(Value::as_str)
-                    == Some("gate_6_llm_final_output"))
-                .and_then(|row| row.get("status").and_then(Value::as_str)),
-            Some("not_applicable")
-        );
-    }
-
     #[test]
     fn workflow_gate_stability_rows_score_direct_llm_response_as_final() {
         let workflow = json!({
@@ -3031,7 +2922,6 @@ mod workflow_fallback_tests {
             Some("not_applicable")
         );
     }
-
     #[test]
     fn workflow_gate_stability_version_ring_keeps_latest_three_versions() {
         let root = std::env::temp_dir().join(format!(
@@ -3106,10 +2996,7 @@ mod workflow_fallback_tests {
             Some(2)
         );
         assert!(!versions.iter().any(|value| {
-            value
-                .get("workflow_version_hash")
-                .and_then(Value::as_str)
-                == Some("v1")
+            value.get("workflow_version_hash").and_then(Value::as_str) == Some("v1")
         }));
         assert!(versions.iter().all(|value| {
             value
@@ -3184,7 +3071,9 @@ mod workflow_fallback_tests {
             "I would use web search to compare infring to other frameworks.",
             "Compare this platform to a current external tool category.",
         );
-        assert!(workflow.get("manual_toolbox_pending_tool_request").is_none());
+        assert!(workflow
+            .get("manual_toolbox_pending_tool_request")
+            .is_none());
     }
 
     #[test]
@@ -3258,11 +3147,9 @@ mod workflow_fallback_tests {
             "Use web search for the exact comparison topic supplied by the user.",
         );
 
-        assert!(
-            workflow
-                .pointer("/manual_toolbox_pending_tool_request")
-                .is_none()
-        );
+        assert!(workflow
+            .pointer("/manual_toolbox_pending_tool_request")
+            .is_none());
         assert_eq!(
             workflow
                 .pointer("/workflow_control/direct_response_path")
@@ -3377,8 +3264,7 @@ mod workflow_fallback_tests {
             &tools,
         ));
         assert!(!response_answers_tool_confirmation_with_recorded_result(
-            "",
-            &tools,
+            "", &tools,
         ));
     }
 
@@ -3415,14 +3301,19 @@ mod workflow_fallback_tests {
             "final_llm_response": {}
         });
         preserve_direct_llm_response_without_fallback(&mut workflow, "Direct response");
-        assert_eq!(workflow.get("response").and_then(Value::as_str), Some("Direct response"));
+        assert_eq!(
+            workflow.get("response").and_then(Value::as_str),
+            Some("Direct response")
+        );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/source")
                 .and_then(Value::as_str),
             Some("initial_llm_response")
         );
-        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
+        assert!(workflow
+            .pointer("/final_llm_response/fallback_source")
+            .is_none());
     }
 
     #[test]
@@ -3451,7 +3342,8 @@ mod workflow_fallback_tests {
 
     #[test]
     fn workflow_unexpected_state_retry_boilerplate_detector_does_not_flag_plain_retry_offer() {
-        let normal_text = "I can retry the query if you want, or I can answer directly from current context.";
+        let normal_text =
+            "I can retry the query if you want, or I can answer directly from current context.";
         assert!(!response_contains_unexpected_state_retry_boilerplate(
             normal_text
         ));
@@ -3469,8 +3361,8 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn workflow_unexpected_state_retry_boilerplate_detector_catches_runtime_capability_surface_template()
-    {
+    fn workflow_unexpected_state_retry_boilerplate_detector_catches_runtime_capability_surface_template(
+    ) {
         let retry_boilerplate = "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session.";
         assert!(response_contains_unexpected_state_retry_boilerplate(
             retry_boilerplate
@@ -3514,7 +3406,9 @@ mod workflow_fallback_tests {
             "blocked": true,
             "result": "lease_denied:client_ingress_domain_boundary"
         })];
-        assert!(should_record_workflow_failure_diagnostic("", "", "", &tools, false));
+        assert!(should_record_workflow_failure_diagnostic(
+            "", "", "", &tools, false
+        ));
     }
 
     #[test]
@@ -3621,7 +3515,9 @@ mod workflow_fallback_tests {
             Some(false)
         );
         assert!(workflow.get("response").is_none());
-        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
+        assert!(workflow
+            .pointer("/final_llm_response/fallback_source")
+            .is_none());
     }
 
     #[test]
@@ -3633,7 +3529,9 @@ mod workflow_fallback_tests {
             "Based on the results: ..."
         );
         assert_eq!(
-            workflow_final_visible_response_text(r#"{"tool_family":"web_research","tool":"web_search","request_payload":{"query":"compare frameworks","source":"web"}}"#),
+            workflow_final_visible_response_text(
+                r#"{"tool_family":"web_research","tool":"web_search","request_payload":{"query":"compare frameworks","source":"web"}}"#
+            ),
             ""
         );
         assert_eq!(
@@ -3668,14 +3566,19 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_ascii_lowercase();
-        assert!(response.contains("i completed the workflow gate"), "{response}");
+        assert!(
+            response.contains("i completed the workflow gate"),
+            "{response}"
+        );
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/status")
                 .and_then(Value::as_str),
             Some("guard_violation_pass_through")
         );
-        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
+        assert!(workflow
+            .pointer("/final_llm_response/fallback_source")
+            .is_none());
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/diagnostic_event_reason")
@@ -3785,7 +3688,9 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_str),
             Some("empty_llm_response")
         );
-        assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
+        assert!(workflow
+            .pointer("/final_llm_response/fallback_source")
+            .is_none());
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/diagnostic_event_reason")
@@ -3866,7 +3771,9 @@ mod workflow_fallback_tests {
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/diagnostic_event_reason_empty_response_presence_diagnostic")
+                .pointer(
+                    "/quality_telemetry/diagnostic_event_reason_empty_response_presence_diagnostic"
+                )
                 .and_then(Value::as_u64),
             Some(1)
         );
@@ -3890,8 +3797,16 @@ mod workflow_fallback_tests {
             "result": "Top findings: OpenHands is an AI coding agent platform with strong automation capabilities."
         })];
 
-        apply_final_empty_response_diagnostic(&mut workflow, "Compare infring to top agentic frameworks", "", &tools);
-        let response = workflow.get("response").and_then(Value::as_str).unwrap_or("");
+        apply_final_empty_response_diagnostic(
+            &mut workflow,
+            "Compare infring to top agentic frameworks",
+            "",
+            &tools,
+        );
+        let response = workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         assert!(!response.trim().is_empty());
         assert!(response.contains("Tool findings from this turn"));
         assert_eq!(
@@ -3938,8 +3853,16 @@ mod workflow_fallback_tests {
             "error": "search service returned timeout"
         })];
 
-        apply_final_empty_response_diagnostic(&mut workflow, "Find latest agentic frameworks", "", &tools);
-        let response = workflow.get("response").and_then(Value::as_str).unwrap_or("");
+        apply_final_empty_response_diagnostic(
+            &mut workflow,
+            "Find latest agentic frameworks",
+            "",
+            &tools,
+        );
+        let response = workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         assert!(!response.trim().is_empty());
         assert!(response.contains("Tool failures"));
         assert_eq!(
@@ -4117,7 +4040,9 @@ mod workflow_fallback_tests {
         );
         assert_eq!(
             workflow
-                .pointer("/quality_telemetry/diagnostic_event_reason_empty_response_presence_diagnostic")
+                .pointer(
+                    "/quality_telemetry/diagnostic_event_reason_empty_response_presence_diagnostic"
+                )
                 .and_then(Value::as_u64),
             Some(1)
         );
@@ -4151,7 +4076,12 @@ mod workflow_fallback_tests {
     fn workflow_diagnostic_summary_classification_escalates_with_counts() {
         assert_eq!(
             workflow_diagnostic_summary_classification(1, 1),
-            ("low", false, "single_guard_activation", "continue_direct_mode")
+            (
+                "low",
+                false,
+                "single_guard_activation",
+                "continue_direct_mode"
+            )
         );
         assert_eq!(
             workflow_diagnostic_summary_classification(2, 1),
@@ -4301,12 +4231,9 @@ mod workflow_fallback_tests {
     #[test]
     fn numeric_workflow_gate_submission_selects_json_alias_category() {
         assert!(response_is_tool_bearing_category_gate_submission("3"));
-        let (category_key, category_label) = workflow_category_selection(
-            &default_workflow_tool_menu_contract(),
-            "3",
-            Some(true),
-        )
-        .expect("numeric web research alias");
+        let (category_key, category_label) =
+            workflow_category_selection(&default_workflow_tool_menu_contract(), "3", Some(true))
+                .expect("numeric web research alias");
 
         assert_eq!(category_key, "web_research");
         assert_eq!(category_label, "Web research");
@@ -4336,8 +4263,7 @@ mod workflow_fallback_tests {
 
     #[test]
     fn structured_no_tool_gate_submission_preserves_llm_final_answer() {
-        let response =
-            r#"{"gate":1,"token":"1","final_answer":"Hey there - I'm here and ready."}"#;
+        let response = r#"{"gate":1,"token":"1","final_answer":"Hey there - I'm here and ready."}"#;
 
         assert!(response_is_exact_no_tool_gate_submission(response));
         assert_eq!(
@@ -4345,9 +4271,7 @@ mod workflow_fallback_tests {
             Some("Hey there - I'm here and ready.".to_string())
         );
         assert_eq!(
-            workflow_structured_gate_final_answer(
-                r#""gate_6_final_answer": "Hey, I'm here!""#
-            ),
+            workflow_structured_gate_final_answer(r#""gate_6_final_answer": "Hey, I'm here!""#),
             Some("Hey, I'm here!".to_string())
         );
     }
