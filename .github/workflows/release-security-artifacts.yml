@@ -325,7 +325,7 @@ jobs:
           printf '\ninfringd static binary: %s MB (musl)\n' "$STATIC_MB" >> release-notes-${GITHUB_REF_NAME}.md
 
       - name: Upload release artifacts
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             state/release/provenance/artifacts/infringd-x86_64-unknown-linux-musl
