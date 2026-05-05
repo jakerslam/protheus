@@ -281,6 +281,42 @@
       "blocked",
       "failed"
     ],
+    "gate_stability_contract": {
+      "version": "gate_stability_v1",
+      "event_stream": "local/state/ops/workflow_gate_stability/events.jsonl",
+      "latest_summary": "local/state/ops/workflow_gate_stability/latest.json",
+      "versions_ring": "local/state/ops/workflow_gate_stability/versions_ring.json",
+      "workflow_snapshots_dir": "local/state/ops/workflow_gate_stability/workflow_versions",
+      "versions_ring_size": 3,
+      "tracked_gates": [
+        "gate_1_work_category_menu",
+        "gate_2_tool_family_menu",
+        "gate_5_post_tool_menu",
+        "gate_6_llm_final_output"
+      ],
+      "required_artifacts": {
+        "gate_1_work_category_menu": [
+          "workflow_category_or_direct_final_answer"
+        ],
+        "gate_2_tool_family_menu": [
+          "tool_request"
+        ],
+        "gate_5_post_tool_menu": [
+          "tool_result"
+        ],
+        "gate_6_llm_final_output": [
+          "final_response"
+        ]
+      },
+      "failure_classes": [
+        "empty_response",
+        "invalid_artifact",
+        "leaked_internal_payload",
+        "missing_transition",
+        "retry_exhausted",
+        "not_applicable"
+      ]
+    },
     "declared_loopbacks": [
       {
         "from": "gate_5_post_tool_menu",
@@ -710,6 +746,19 @@
             "path": "core/layer0/ops/src/main.rs",
             "patch": "*** Begin Patch\\n*** Update File: core/layer0/ops/src/main.rs\\n@@\\n- old\\n+ new\\n*** End Patch"
           }
+        },
+        {
+          "option": 4,
+          "key": "workspace_search",
+          "label": "Search workspace",
+          "request_format": {
+            "path": "<path>",
+            "pattern": "<criteria>"
+          },
+          "request_example": {
+            "path": ".",
+            "pattern": "tiny fixture repo bugfix"
+          }
         }
       ],
       "code_execution_terminal": [
@@ -791,8 +840,8 @@
       ],
       "none": []
     },
-    "llm_gate_instruction": "INTERNAL GATE \u2014 output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. No-tool values \u2014 {no_tool_categories} \u2014 skip tools and go straight to synthesis. Tool values \u2014 {tool_bearing_categories} \u2014 open the tool menu. Example for a web lookup: {\"gate\": \"web_research\"}. Example for a direct answer: {\"gate\": \"respond_directly\"}. Do NOT write any other text, explanation, or sentence \u2014 only the JSON object.",
-    "llm_tool_request_instruction": "Private workflow gate submission only. Selected category: `{selected_category_label}`. Pick one catalog tool from this JSON menu and provide its request payload. Reply exactly as: `Category: {selected_category_label}. Tool family: {selected_category_label}. Tool: <catalog tool key>. Request payload: <JSON>.` Do not narrate or say what you would choose. Visible chat is only Gate 6 final answer.\n\nTool menu JSON:\n{selected_tool_menu_json}",
+    "llm_gate_instruction": "INTERNAL GATE \u2014 output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. No-tool values \u2014 {no_tool_categories} \u2014 skip tools and go straight to synthesis. Tool values \u2014 {tool_bearing_categories} \u2014 open the tool menu. IMPORTANT: when you choose a no-tool gate value (respond_directly or equivalent), you MUST also include a \"final_answer\" field with the actual natural-language reply the user should see. Example for a direct conversational reply: {\"gate\": \"respond_directly\", \"final_answer\": \"Hey! What can I help you with?\"}. Example for a synthesis reply: {\"gate\": \"respond_directly\", \"final_answer\": \"Based on the results: ...\"}. Example for a web lookup (no final_answer needed): {\"gate\": \"web_research\"}. Do NOT write any other text outside the JSON object.",
+    "llm_tool_request_instruction": "INTERNAL GATE — output is never shown to the user. Gate 2: Select one tool from the `{selected_category_label}` category. You MUST output ONLY a JSON object and nothing else. Format: {\"tool_family\": \"{selected_category_key}\", \"tool\": \"<tool_key>\", \"request_payload\": <payload_object>}. Choose exactly one tool_key from the available tools below, and fill request_payload to match that tool's request_format. Do NOT write any other text, explanation, or sentence — only the JSON object. Example: {\"tool_family\": \"{selected_category_key}\", \"tool\": \"web_search\", \"request_payload\": {\"source\": \"web\", \"query\": \"search terms here\", \"aperture\": \"medium\"}}.\n\nAvailable tools (JSON):\n{selected_tool_menu_json}",
     "tool_request_submission_contract": {
       "version": "tool_request_submission_contract_v1",
       "field_order": [
