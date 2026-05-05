@@ -62,7 +62,10 @@ fn workflow_post_tool_gate_id(contract: &Value) -> String {
     contract
         .get("declared_loopbacks")
         .and_then(Value::as_array)
-        .and_then(|rows| rows.iter().find_map(|row| row.get("from").and_then(Value::as_str)))
+        .and_then(|rows| {
+            rows.iter()
+                .find_map(|row| row.get("from").and_then(Value::as_str))
+        })
         .map(|row| clean_text(row, 120))
         .filter(|row| !row.is_empty())
         .or_else(|| {
@@ -86,7 +89,10 @@ fn workflow_gate_resume_token(gate_id: &str, status: &str) -> String {
 }
 
 fn workflow_option_label(option: &Value) -> String {
-    clean_text(option.get("label").and_then(Value::as_str).unwrap_or(""), 120)
+    clean_text(
+        option.get("label").and_then(Value::as_str).unwrap_or(""),
+        120,
+    )
 }
 
 fn workflow_option_key(option: &Value) -> String {
@@ -97,13 +103,7 @@ fn normalized_workflow_token(value: &str) -> String {
     clean_text(value, 240)
         .to_ascii_lowercase()
         .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch
-            } else {
-                ' '
-            }
-        })
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { ' ' })
         .collect::<String>()
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -176,8 +176,8 @@ fn workflow_structured_gate_final_answer(response: &str) -> Option<String> {
                     "final answer" | "final response" | "visible response" | "message" | "answer"
                 ) || normalized_key.ends_with(" final answer")
                     || normalized_key.ends_with(" final response"))
-                    .then(|| value.as_str())
-                    .flatten()
+                .then(|| value.as_str())
+                .flatten()
             })
         }) {
             let answer = sanitize_workflow_final_response_candidate(answer);
@@ -305,7 +305,8 @@ fn workflow_tool_family_menu(contract: &Value, selected_family: &str) -> Value {
         rows.into_iter()
             .map(|mut row| {
                 let key = clean_text(row.get("key").and_then(Value::as_str).unwrap_or(""), 120);
-                row["selected"] = Value::Bool(!selected_family.is_empty() && key == selected_family);
+                row["selected"] =
+                    Value::Bool(!selected_family.is_empty() && key == selected_family);
                 row
             })
             .collect(),
@@ -339,7 +340,7 @@ fn workflow_final_answer_instruction(contract: &Value) -> String {
     workflow_final_output_contract(contract)
         .get("chat_requirement")
         .and_then(Value::as_str)
-        .map(|row| clean_text(row, 400))
+        .map(|row| clean_text(row, 2_400))
         .unwrap_or_default()
 }
 
@@ -377,7 +378,11 @@ fn workflow_tool_submission_format(contract: &Value) -> String {
         .unwrap_or_default()
 }
 
-fn workflow_message_matches_contract_markers(contract: &Value, pointer: &str, message: &str) -> bool {
+fn workflow_message_matches_contract_markers(
+    contract: &Value,
+    pointer: &str,
+    message: &str,
+) -> bool {
     let lowered = clean_text(message, 1_200).to_ascii_lowercase();
     if lowered.is_empty() {
         return false;
@@ -405,7 +410,8 @@ fn render_workflow_instruction_template(contract: &Value, template: &str) -> Str
         .unwrap_or_default();
     let category_options = workflow_gate_option_menu_entries(contract, None).join("`, `");
     let no_tool_categories = workflow_gate_option_menu_entries(contract, Some(false)).join("`, `");
-    let tool_bearing_categories = workflow_gate_option_menu_entries(contract, Some(true)).join("`, `");
+    let tool_bearing_categories =
+        workflow_gate_option_menu_entries(contract, Some(true)).join("`, `");
     let tool_submission_format = workflow_tool_submission_format(contract);
     let example_tool_key = workflow_example_tool_key(contract);
     clean_text(
@@ -424,7 +430,8 @@ fn render_workflow_instruction_template(contract: &Value, template: &str) -> Str
 }
 
 fn workflow_category_token_matches(response: &str, has_tools: Option<bool>) -> bool {
-    workflow_category_selection(&default_workflow_tool_menu_contract(), response, has_tools).is_some()
+    workflow_category_selection(&default_workflow_tool_menu_contract(), response, has_tools)
+        .is_some()
 }
 
 fn response_contains_no_tool_gate_token_fragment(response: &str) -> bool {
@@ -436,18 +443,17 @@ fn response_contains_no_tool_gate_token_fragment(response: &str) -> bool {
     let contract = default_workflow_tool_menu_contract();
     let first_gate_id = workflow_first_gate_id(&contract);
     workflow_gate_options(&contract, &first_gate_id)
-    .into_iter()
-    .filter(|option| {
-        !option
-            .get("has_tools")
-            .and_then(Value::as_bool)
-            .unwrap_or(false)
-    })
-    .flat_map(|option| normalized_workflow_option_tokens(&option))
-    .any(|candidate| {
-        candidate.split_whitespace().count() > 1
-            && haystack.contains(&format!(" {candidate} "))
-    })
+        .into_iter()
+        .filter(|option| {
+            !option
+                .get("has_tools")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+        .flat_map(|option| normalized_workflow_option_tokens(&option))
+        .any(|candidate| {
+            candidate.split_whitespace().count() > 1 && haystack.contains(&format!(" {candidate} "))
+        })
 }
 
 fn workflow_category_selection(
@@ -542,13 +548,19 @@ fn workflow_tool_key_for_selection(contract: &Value, family: &str, tool_label: &
         return String::new();
     }
     let selected_family = workflow_family_key_for_selection(contract, family);
-    let Some(tool_menus) = contract.get("tool_menu_by_family").and_then(Value::as_object) else {
+    let Some(tool_menus) = contract
+        .get("tool_menu_by_family")
+        .and_then(Value::as_object)
+    else {
         return String::new();
     };
     let families = if selected_family.is_empty() {
         tool_menus.values().collect::<Vec<_>>()
     } else {
-        tool_menus.get(&selected_family).into_iter().collect::<Vec<_>>()
+        tool_menus
+            .get(&selected_family)
+            .into_iter()
+            .collect::<Vec<_>>()
     };
     families
         .into_iter()
@@ -571,7 +583,9 @@ fn workflow_tool_request_field_labels(contract: &Value, field: &str) -> Vec<Stri
     }
     let mut labels = Vec::new();
     if let Some(label) = contract
-        .pointer(&format!("/tool_request_submission_contract/field_labels/{field}"))
+        .pointer(&format!(
+            "/tool_request_submission_contract/field_labels/{field}"
+        ))
         .and_then(Value::as_str)
         .map(|row| clean_text(row, 80))
         .filter(|row| !row.is_empty())
@@ -579,7 +593,9 @@ fn workflow_tool_request_field_labels(contract: &Value, field: &str) -> Vec<Stri
         labels.push(label);
     }
     if let Some(aliases) = contract
-        .pointer(&format!("/tool_request_submission_contract/field_aliases/{field}"))
+        .pointer(&format!(
+            "/tool_request_submission_contract/field_aliases/{field}"
+        ))
         .and_then(Value::as_array)
     {
         labels.extend(
@@ -685,7 +701,13 @@ fn workflow_turn_tool_decision_tree(message: &str) -> Value {
     let gate_1_allowed_outputs = workflow_gate_1_allowed_outputs(&contract);
     let gate_1_submission_status = "awaiting_llm_submission";
     let gate_1_decision_source = "pending_llm_submission";
-    let gate_prompt = clean_text(first_gate.get("question").and_then(Value::as_str).unwrap_or(""), 120);
+    let gate_prompt = clean_text(
+        first_gate
+            .get("question")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
     let first_gate_resume_token =
         workflow_gate_resume_token(&first_gate_id, gate_1_submission_status);
     let gate_submission = json!({
@@ -957,9 +979,9 @@ fn turn_workflow_visibility(final_stage_status: &str) -> Value {
     let first_gate_direct_status = workflow_gate_resume_token(&first_gate_id, "no_tool_category");
     let final_pending_status = workflow_gate_resume_token(&final_gate_id, "pending_final_llm");
     let final_synthesized_status = workflow_gate_resume_token(&final_gate_id, "synthesized");
-    let final_unavailable_status = workflow_gate_resume_token(&final_gate_id, "skipped_missing_model");
-    let final_diagnostic_status =
-        workflow_gate_resume_token(&final_gate_id, "diagnostic_only");
+    let final_unavailable_status =
+        workflow_gate_resume_token(&final_gate_id, "skipped_missing_model");
+    let final_diagnostic_status = workflow_gate_resume_token(&final_gate_id, "diagnostic_only");
     let final_failed_status = workflow_gate_resume_token(&final_gate_id, "final_synthesis_failed");
     let status_key = workflow_trace_status_key(&status);
     let ui_status = workflow_trace_status_message(&contract, &status_key, "ui");
@@ -994,7 +1016,10 @@ fn turn_workflow_visibility(final_stage_status: &str) -> Value {
     })
 }
 
-fn turn_workflow_direct_response_path(workflow_mode: &str, workflow_events: &[Value]) -> &'static str {
+fn turn_workflow_direct_response_path(
+    workflow_mode: &str,
+    workflow_events: &[Value],
+) -> &'static str {
     let _ = workflow_mode;
     let has_pending = workflow_events.iter().any(|event| {
         matches!(
@@ -1008,7 +1033,7 @@ fn turn_workflow_direct_response_path(workflow_mode: &str, workflow_events: &[Va
     let has_manual_toolbox_menu = workflow_events.iter().any(|event| {
         matches!(
             event.get("kind").and_then(Value::as_str).unwrap_or(""),
-                "manual_toolbox_candidate_menu"
+            "manual_toolbox_candidate_menu"
         )
     });
     if has_manual_toolbox_menu {
@@ -1173,7 +1198,12 @@ fn response_is_manual_toolbox_gate_choice(response: &str) -> bool {
         .into_iter()
         .map(|label| label.to_ascii_lowercase())
         .collect::<Vec<_>>();
-    !labels.is_empty() && labels.iter().filter(|label| lowered.contains(label.as_str())).count() >= 3
+    !labels.is_empty()
+        && labels
+            .iter()
+            .filter(|label| lowered.contains(label.as_str()))
+            .count()
+            >= 3
 }
 
 fn response_is_exact_no_tool_gate_submission(response: &str) -> bool {
@@ -1188,7 +1218,11 @@ fn workflow_tool_request_object_field(
     let mut candidate_keys = vec![field.to_string()];
     candidate_keys.extend(workflow_tool_request_field_labels(contract, field));
     let fallback_aliases = match field {
-        "category" => vec!["selected_category_label", "selected_category", "category_label"],
+        "category" => vec![
+            "selected_category_label",
+            "selected_category",
+            "category_label",
+        ],
         "tool_family" => vec!["selected_tool_family", "tool family", "family"],
         "tool" => vec![
             "tool_name",
@@ -1197,7 +1231,14 @@ fn workflow_tool_request_object_field(
             "selected_tool_name",
             "selected_tool_key",
         ],
-        "request_payload" => vec!["payload", "input", "arguments", "args", "parameters", "params"],
+        "request_payload" => vec![
+            "payload",
+            "input",
+            "arguments",
+            "args",
+            "parameters",
+            "params",
+        ],
         _ => Vec::new(),
     };
     candidate_keys.extend(fallback_aliases.into_iter().map(str::to_string));
@@ -1226,7 +1267,11 @@ fn workflow_tool_request_payload_from_json_value(value: &Value) -> Option<Value>
     None
 }
 
-fn workflow_tool_request_string_field(request: &Value, contract: &Value, field: &str) -> Option<String> {
+fn workflow_tool_request_string_field(
+    request: &Value,
+    contract: &Value,
+    field: &str,
+) -> Option<String> {
     workflow_tool_request_object_field(request, contract, field).and_then(|value| {
         value
             .as_str()
@@ -1241,7 +1286,8 @@ fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -
         let family = workflow_tool_request_string_field(&request, &contract, "tool_family")
             .or_else(|| workflow_tool_request_string_field(&request, &contract, "category"))
             .unwrap_or_default();
-        let tool_label = workflow_tool_request_string_field(&request, &contract, "tool").unwrap_or_default();
+        let tool_label =
+            workflow_tool_request_string_field(&request, &contract, "tool").unwrap_or_default();
         let payload = workflow_tool_request_object_field(&request, &contract, "request_payload")
             .and_then(|value| workflow_tool_request_payload_from_json_value(&value));
         if !family.is_empty() && !tool_label.is_empty() && payload.is_some() {
@@ -1344,7 +1390,13 @@ fn manual_toolbox_selection_field(response: &str, label: &str, end_labels: &[&st
             value_end = value_end.min(value_start + end);
         }
     }
-    clean_text(response.get(value_start..value_end).unwrap_or("").trim_matches([' ', '.', '\n', '\r']), 2_000)
+    clean_text(
+        response
+            .get(value_start..value_end)
+            .unwrap_or("")
+            .trim_matches([' ', '.', '\n', '\r']),
+        2_000,
+    )
 }
 
 trait EmptyStringExt {
@@ -1353,7 +1405,11 @@ trait EmptyStringExt {
 
 impl EmptyStringExt for String {
     fn if_empty_then<F: FnOnce() -> String>(self, fallback: F) -> String {
-        if self.trim().is_empty() { fallback() } else { self }
+        if self.trim().is_empty() {
+            fallback()
+        } else {
+            self
+        }
     }
 }
 
@@ -1458,13 +1514,11 @@ mod workflow_control_tests {
         assert!(response_is_visible_workflow_gate_choice(
             "This kind of work is `Respond directly`."
         ));
-        let web_category = workflow_gate_option_labels(
-            &default_workflow_tool_menu_contract(),
-            Some(true),
-        )
-        .into_iter()
-        .find(|label| label == "Web research")
-        .expect("web research option comes from workflow JSON");
+        let web_category =
+            workflow_gate_option_labels(&default_workflow_tool_menu_contract(), Some(true))
+                .into_iter()
+                .find(|label| label == "Web research")
+                .expect("web research option comes from workflow JSON");
         assert!(response_is_visible_workflow_gate_choice(&format!(
             "Category: {web_category}. Tool family: {web_category}. Tool: web_search. Request payload: {{\"source\":\"web\",\"query\":\"x\"}}."
         )));
@@ -1515,9 +1569,22 @@ mod workflow_control_tests {
     }
 
     #[test]
+    fn workflow_final_answer_prompt_keeps_cd_synthesis_requirements() {
+        let prompt = workflow_final_answer_prompt_context();
+        assert!(prompt.contains("tradeoff"));
+        assert!(prompt.contains("regression test"));
+        assert!(prompt.contains("receipt-backed"));
+        assert!(prompt.contains("narrow the query"));
+    }
+
+    #[test]
     fn no_tool_gate_submission_is_exact_private_token() {
-        assert!(response_is_exact_no_tool_gate_submission("Respond directly"));
-        assert!(!response_is_exact_no_tool_gate_submission("No, I can answer directly."));
+        assert!(response_is_exact_no_tool_gate_submission(
+            "Respond directly"
+        ));
+        assert!(!response_is_exact_no_tool_gate_submission(
+            "No, I can answer directly."
+        ));
         assert!(!response_is_exact_no_tool_gate_submission(
             "No. I would use web search later."
         ));
@@ -1545,5 +1612,4 @@ mod workflow_control_tests {
             ""
         );
     }
-
 }
