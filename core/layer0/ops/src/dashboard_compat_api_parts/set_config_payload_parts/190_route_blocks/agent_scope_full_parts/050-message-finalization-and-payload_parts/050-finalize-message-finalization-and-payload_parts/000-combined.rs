@@ -214,8 +214,13 @@ fn finalize_message_finalization_and_payload(
         .get("manual_toolbox_pending_tool_request")
         .filter(|value| value.is_object())
         .cloned();
-    let manual_toolbox_executed_pending_tool_request = false;
-    if let Some(pending_request) = manual_toolbox_pending_tool_request.as_ref() {
+    let manual_toolbox_executed_pending_tool_request = if let Some(pending_request) =
+        manual_toolbox_pending_tool_request.as_ref()
+    {
+        let pending_status = pending_request
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("");
         let pending_tool = clean_text(
             pending_request
                 .get("tool_name")
@@ -224,28 +229,69 @@ fn finalize_message_finalization_and_payload(
                 .unwrap_or(""),
             120,
         );
+        let tool_names_match = response_tools.iter().any(|tool| {
+            let tool_name = normalize_tool_name(
+                tool.get("name")
+                    .or_else(|| tool.get("tool"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+            );
+            !pending_tool.is_empty() && tool_name == pending_tool
+        });
+        pending_status == "pending_confirmation" && !response_tools.is_empty() && tool_names_match
+    } else {
+        false
+    };
+    if let Some(pending_request) = manual_toolbox_pending_tool_request.clone() {
+        let pending_tool = clean_text(
+            pending_request
+                .get("tool_name")
+                .or_else(|| pending_request.get("tool"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        let pending_tool = normalize_tool_name(&pending_tool);
         if !pending_tool.is_empty() {
-            let pending_input = pending_request
-                .get("input")
-                .cloned()
-                .unwrap_or_else(|| json!({}));
-            store_pending_tool_confirmation(
-                root,
-                agent_id,
-                &pending_tool,
-                &pending_input,
-                pending_request
+            let mut pending_request = pending_request;
+            if manual_toolbox_executed_pending_tool_request {
+                clear_pending_tool_confirmation(root, agent_id);
+            } else {
+                let pending_input = pending_request
+                    .get("input")
+                    .cloned()
+                    .unwrap_or_else(|| json!({}));
+                let pending_source = pending_request
                     .get("source")
                     .and_then(Value::as_str)
-                    .unwrap_or("manual_toolbox_gate"),
-            );
+                    .unwrap_or("manual_toolbox_gate");
+                store_pending_tool_confirmation(
+                    root,
+                    agent_id,
+                    &pending_tool,
+                    &pending_input,
+                    pending_source,
+                );
+            }
+            if manual_toolbox_executed_pending_tool_request {
+                pending_request["status"] = json!("executed");
+            }
             response_workflow["pending_tool_request"] = pending_request.clone();
-            finalization_outcome = merge_response_outcomes(
-                &finalization_outcome,
-                "manual_toolbox_pending_tool_request_awaiting_llm_input",
-                200,
-            );
-            if workflow_json_pending_tool_chat_is_disallowed(&response_workflow, pending_request) {
+            response_workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
+            if manual_toolbox_executed_pending_tool_request {
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    "manual_toolbox_pending_tool_request_executed",
+                    200,
+                );
+            } else {
+                finalization_outcome = merge_response_outcomes(
+                    &finalization_outcome,
+                    "manual_toolbox_pending_tool_request_awaiting_llm_input",
+                    200,
+                );
+            }
+            if workflow_json_pending_tool_chat_is_disallowed(&response_workflow, &pending_request) {
                 finalization_outcome = merge_response_outcomes(
                     &finalization_outcome,
                     "json_pending_tool_visible_chat_blocked",

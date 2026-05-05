@@ -372,15 +372,9 @@ fn normalized_response_similarity_key(text: &str) -> String {
 }
 
 fn response_repeats_latest_assistant_copy(response_text: &str, latest_assistant_text: &str) -> bool {
-    let cleaned_response = sanitize_workflow_final_response_candidate(
-        &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
-            response_text,
-        )),
-    );
-    let cleaned_latest = sanitize_workflow_final_response_candidate(
-        &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
-            latest_assistant_text,
-        )),
+    let cleaned_response = sanitize_workflow_visible_response_text(response_text);
+    let cleaned_latest = sanitize_workflow_visible_response_text(
+        latest_assistant_text,
     );
     let normalized_response = normalized_response_similarity_key(&cleaned_response);
     let normalized_latest = normalized_response_similarity_key(&cleaned_latest);
@@ -439,13 +433,114 @@ fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
     cleaned
 }
 
+fn tool_payload_shape_looks_raw(response_payload: &Value) -> bool {
+    match response_payload {
+        Value::Object(map) => {
+            let visible_fields = [
+                "answer",
+                "final_answer",
+                "visible_response",
+                "final_response",
+                "message",
+                "text",
+                "response",
+                "content",
+                "output",
+            ];
+            let has_visible = map
+                .keys()
+                .any(|key| visible_fields.iter().any(|visible| key == visible));
+            let toolish_fields = [
+                "tool",
+                "tool_name",
+                "name",
+                "query",
+                "input",
+                "arguments",
+                "args",
+                "payload",
+                "params",
+                "parameters",
+                "request_payload",
+                "result",
+                "status",
+                "error",
+                "blocked",
+                "is_error",
+                "source",
+                "findings",
+                "results",
+                "tool_attempt_receipt",
+                "tool_call",
+                "tool_call_id",
+                "tool_receipt",
+            ];
+            let toolish_count = toolish_fields
+                .iter()
+                .filter(|field| map.contains_key(**field))
+                .count();
+            if map.contains_key("tool_attempt_receipt") {
+                return true;
+            }
+            if let Some(tool_value) = map.get("tool").and_then(Value::as_str) {
+                if !tool_value.trim().is_empty()
+                    && (map.contains_key("input")
+                        || map.contains_key("arguments")
+                        || map.contains_key("query")
+                        || map.contains_key("result")
+                        || map.contains_key("request_payload"))
+                {
+                    return true;
+                }
+            }
+            if map.contains_key("tool_call")
+                && (map.contains_key("tool")
+                    || map.contains_key("tool_name")
+                    || map.contains_key("name"))
+            {
+                return true;
+            }
+            if map.contains_key("tool_call_id") && (map.contains_key("status") || map.contains_key("result")) {
+                return true;
+            }
+            if map.contains_key("name")
+                && (map.contains_key("result")
+                    || map.contains_key("status")
+                    || map.contains_key("request_payload")
+                    || map.contains_key("query")
+                    || map.contains_key("input"))
+            {
+                return true;
+            }
+            if map.contains_key("query") && map.contains_key("source") && !has_visible {
+                return true;
+            }
+            if map.contains_key("findings")
+                && (map.contains_key("sources") || map.contains_key("results") || map.contains_key("tool"))
+                && !has_visible
+            {
+                return true;
+            }
+            (toolish_count >= 2 && !has_visible) || (toolish_count >= 3)
+        }
+        Value::Array(rows) => rows.iter().any(|entry| tool_payload_shape_looks_raw(entry)),
+        _ => false,
+    }
+}
+
+fn sanitize_workflow_visible_response_text(response_text: &str) -> String {
+    let cleaned = sanitize_workflow_final_response_candidate(&strip_internal_cache_control_markup(
+        &strip_internal_context_metadata_prefix(response_text),
+    ));
+    if response_looks_like_raw_tool_payload_dump(&cleaned) {
+        String::new()
+    } else {
+        cleaned
+    }
+}
+
 fn direct_llm_response_from_initial_draft(draft_response: &str) -> Option<String> {
-    let cleaned = clean_text(
-        &strip_internal_cache_control_markup(&strip_internal_context_metadata_prefix(
-            draft_response,
-        )),
-        32_000,
-    );
+    let cleaned = sanitize_workflow_visible_response_text(draft_response);
     if cleaned.is_empty()
         || response_is_manual_toolbox_gate_choice(&cleaned)
         || response_is_visible_workflow_gate_choice(&cleaned)
@@ -587,8 +682,14 @@ fn workflow_diagnostic_stage_counter_key(stage: &str) -> String {
     while out.ends_with('_') {
         out.pop();
     }
+    if out.ends_with("_guard") {
+        out.truncate(out.len() - "_guard".len());
+    }
     if out == "diagnostic_event_stage" {
         "diagnostic_event_stage_unknown".to_string()
+    } else if !out.ends_with("_diagnostic") {
+        out.push_str("_diagnostic");
+        out
     } else {
         out
     }
@@ -613,8 +714,14 @@ fn workflow_diagnostic_reason_counter_key(reason: &str) -> String {
     while out.ends_with('_') {
         out.pop();
     }
+    if out.ends_with("_guard") {
+        out.truncate(out.len() - "_guard".len());
+    }
     if out == "diagnostic_event_reason" {
         "diagnostic_event_reason_unknown".to_string()
+    } else if !out.ends_with("_diagnostic") {
+        out.push_str("_diagnostic");
+        out
     } else {
         out
     }
@@ -695,7 +802,20 @@ fn apply_final_empty_response_diagnostic(
     if !response_text.is_empty() {
         return;
     }
-    let _ = (message, latest_assistant_text, response_tools);
+    let _ = latest_assistant_text;
+    let fallback_response = clean_text(&fallback_final_response_from_tool_evidence(message, response_tools), 3_000);
+    if !fallback_response.is_empty() {
+        workflow["response"] = Value::String(fallback_response);
+        workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(true);
+        workflow["final_llm_response"]["used"] = Value::Bool(true);
+        workflow["final_llm_response"]["status"] = Value::String("synthesized".to_string());
+        workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
+        workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(true);
+        workflow["final_llm_response"]["fallback_source"] = Value::String("tool_evidence".to_string());
+        set_turn_workflow_final_stage_status(workflow, "synthesized");
+        return;
+    }
+
     workflow["quality_telemetry"]["final_fallback_used"] = Value::Bool(false);
     workflow["final_llm_response"]["used"] = Value::Bool(false);
     workflow["final_llm_response"]["status"] =
@@ -711,6 +831,42 @@ fn apply_final_empty_response_diagnostic(
         "final_presence_diagnostic",
     );
     set_turn_workflow_final_stage_status(workflow, "empty_llm_response");
+}
+
+fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[Value]) -> String {
+    let cleaned_message = clean_text(message, 220);
+    let user_topic = if cleaned_message.is_empty() {
+        String::new()
+    } else {
+        first_sentence(&cleaned_message, 120)
+    };
+    let failure_reason = clean_text(
+        &response_tools_failure_reason_for_user(response_tools, 4),
+        1_200,
+    );
+    let findings = clean_text(&response_tools_summary_for_user(response_tools, 4), 2_000);
+    if findings.is_empty() && failure_reason.is_empty() {
+        return String::new();
+    }
+
+    let mut response_parts = Vec::<String>::new();
+    if !failure_reason.is_empty() {
+        response_parts.push(format!("I couldn't turn this tool output into a complete final answer: {failure_reason}"));
+    }
+    if !findings.is_empty() {
+        response_parts.push(format!("Tool findings from this turn:\n{findings}"));
+    }
+    if !user_topic.is_empty() {
+        response_parts.push(format!(
+            "I can keep going, but I need a tighter query or a target scope for {user_topic}."
+        ));
+    } else {
+        response_parts.push(
+            "I can keep going, but I need a tighter query or a target scope to finish this response."
+                .to_string(),
+        );
+    }
+    clean_text(&response_parts.join("\n\n"), 3_000)
 }
 
 fn agent_runtime_temporal_context_prompt() -> String {
@@ -994,6 +1150,63 @@ fn response_looks_like_raw_tool_payload_dump(response_text: &str) -> bool {
         || lowered.contains("<custommetadata")
         || lowered.contains("xmlns=")
         || lowered.contains("<function=")
+        || lowered.contains("<tool")
+        || lowered.contains("</tool>")
+        || parse_json_payload_dump(&cleaned).is_some_and(|payload| tool_payload_shape_looks_raw(&payload))
+        || looks_like_tool_payload_json_literal(&cleaned)
+}
+
+fn looks_like_tool_payload_json_literal(response_text: &str) -> bool {
+    let compact = response_text
+        .chars()
+        .filter(|ch| !ch.is_whitespace())
+        .collect::<String>();
+    if compact.is_empty() {
+        return false;
+    }
+    if !(compact.starts_with('{') || compact.starts_with('[')) {
+        return false;
+    }
+    let compact_lower = compact.to_ascii_lowercase();
+    let raw_signals = [
+        "\"tool\"",
+        "\"tool_name\"",
+        "\"name\"",
+        "\"query\"",
+        "\"input\"",
+        "\"arguments\"",
+        "\"args\"",
+        "\"params\"",
+        "\"parameters\"",
+        "\"result\"",
+        "\"status\"",
+        "\"error\"",
+        "\"tool_attempt_receipt\"",
+        "\"receipt\"",
+        "\"toolcall\"",
+        "\"request_payload\"",
+        "\"findings\"",
+        "\"sources\"",
+        "\"results\"",
+        "\"blocked\"",
+        "\"is_error\"",
+        "\"tool_call\"",
+        "\"tool_call_id\"",
+    ];
+    let signal_hits = raw_signals
+        .iter()
+        .filter(|signal| compact_lower.contains(*signal))
+        .count();
+    signal_hits >= 3 || {
+        let has_tool_token = compact_lower.contains("\"tool\"") || compact_lower.contains("\"tool_name\"");
+        let has_name_token = compact_lower.contains("\"name\"") || compact_lower.contains("\"tool_name\"");
+        let has_payload_token = compact_lower.contains("\"request_payload\"")
+            || compact_lower.contains("\"input\"")
+            || compact_lower.contains("\"query\"")
+            || compact_lower.contains("\"arguments\"")
+            || compact_lower.contains("\"args\"");
+        has_tool_token && has_name_token && has_payload_token
+    }
 }
 
 fn mark_workflow_pending_gate_without_final_synthesis(
@@ -1268,6 +1481,9 @@ fn run_turn_workflow_final_response(
         "final_synthesis_attempt_count": 0,
         "authority": "llm_private_gate_submission"
     });
+    // Track synthesis iterations separately from gate routing iterations so that
+    // final_llm_response.attempt_count only reflects synthesis retries, not gate steps.
+    let mut synthesis_attempt_count: u64 = 0;
     for attempt in 1..=max_attempts {
         if manual_toolbox_gate_turn {
             workflow["gate_trace"]["attempt_count"] = json!(attempt);
@@ -1279,13 +1495,16 @@ fn run_turn_workflow_final_response(
         } else {
             workflow["gate_trace"]["final_synthesis_attempt_count"] = json!(attempt);
         }
-        workflow["final_llm_response"]["attempt_count"] = json!(attempt);
         let active_manual_toolbox_gate_turn = manual_toolbox_gate_turn
             && !manual_toolbox_no_selected
             && manual_toolbox_selected_category_key.is_empty();
         let active_manual_toolbox_tool_request_turn = manual_toolbox_gate_turn
             && !manual_toolbox_no_selected
             && !manual_toolbox_selected_category_key.is_empty();
+        if !active_manual_toolbox_gate_turn && !active_manual_toolbox_tool_request_turn {
+            synthesis_attempt_count += 1;
+        }
+        workflow["final_llm_response"]["attempt_count"] = json!(synthesis_attempt_count.max(1));
         let compact_tool_retry = attempt > 1 && !response_tools.is_empty();
         let attempt_system_prompt = if active_manual_toolbox_gate_turn {
             system_prompt.clone()
@@ -1342,11 +1561,7 @@ fn run_turn_workflow_final_response(
                         .unwrap_or(""),
                     32_000,
                 );
-                retried_text = sanitize_workflow_final_response_candidate(
-                    &strip_internal_cache_control_markup(
-                        &strip_internal_context_metadata_prefix(&retried_text),
-                    ),
-                );
+                retried_text = sanitize_workflow_visible_response_text(&retried_text);
                 if !user_requested_internal_runtime_details(message) {
                     retried_text = abstract_runtime_mechanics_terms(&retried_text);
                 }
@@ -1544,8 +1759,7 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                         response_tools,
                     );
-                let raw_tool_payload_dump = !response_tools.is_empty()
-                    && response_looks_like_raw_tool_payload_dump(&retried_text);
+                let raw_tool_payload_dump = response_looks_like_raw_tool_payload_dump(&retried_text);
                 let prompt_analysis_leak =
                     response_contains_workflow_prompt_analysis_leak(&retried_text);
                 let reject_checks = [
@@ -1986,6 +2200,38 @@ mod workflow_fallback_tests {
         let pending = manual_toolbox_pending_request_from_response(
             "Category: Web research. Tool family: Search. Tool: Keyword search. Request payload: {\"keywords\":\"infring frameworks\"}.",
             "Compare this platform to current external tools.",
+        );
+        assert!(pending.is_none());
+    }
+
+    #[test]
+    fn manual_toolbox_selection_parses_json_tool_request() {
+        let pending = manual_toolbox_pending_request_from_response(
+            "{\"tool_family\": \"Web research\", \"tool\": \"web_search\", \"request_payload\": {\"query\": \"compare infring to top agentic frameworks\", \"source\":\"web\"}, \"selection_source\": \"unit_test\"}",
+            "Compare infring to top agentic frameworks.",
+        )
+        .expect("pending request");
+
+        assert_eq!(
+            pending.get("status").and_then(Value::as_str),
+            Some("pending_confirmation")
+        );
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("web_search")
+        );
+        assert_eq!(
+            pending.pointer("/input/source").and_then(Value::as_str),
+            Some("web")
+        );
+        assert_eq!(pending.get("source").and_then(Value::as_str), Some("unit_test"));
+    }
+
+    #[test]
+    fn manual_toolbox_selection_rejects_json_request_without_payload() {
+        let pending = manual_toolbox_pending_request_from_response(
+            "{\"tool_family\": \"Web research\", \"tool\": \"web_search\"}",
+            "Compare infring to top agentic frameworks.",
         );
         assert!(pending.is_none());
     }
@@ -2608,10 +2854,7 @@ mod workflow_fallback_tests {
                 "status": "synthesis_failed"
             }
         });
-        let tools = vec![json!({
-            "name": "file_list",
-            "blocked": false
-        })];
+        let tools = Vec::<Value>::new();
         apply_final_empty_response_diagnostic(&mut workflow, "hello", "", &tools);
         let response = workflow
             .get("response")
@@ -2708,6 +2951,84 @@ mod workflow_fallback_tests {
                 .pointer("/quality_telemetry/diagnostic_event_reason_empty_response_presence_diagnostic")
                 .and_then(Value::as_u64),
             Some(1)
+        );
+    }
+
+    #[test]
+    fn final_empty_response_diagnostic_uses_tool_evidence_fallback_when_findings_exist() {
+        let mut workflow = json!({
+            "response": "",
+            "quality_telemetry": {},
+            "final_llm_response": {
+                "used": false,
+                "status": "synthesis_failed"
+            }
+        });
+        let tools = vec![json!({
+            "name": "web_search",
+            "status": "ok",
+            "is_error": false,
+            "blocked": false,
+            "result": "Top findings: OpenHands is an AI coding agent platform with strong automation capabilities."
+        })];
+
+        apply_final_empty_response_diagnostic(&mut workflow, "Compare infring to top agentic frameworks", "", &tools);
+        let response = workflow.get("response").and_then(Value::as_str).unwrap_or("");
+        assert!(!response.trim().is_empty());
+        assert!(response.contains("Tool findings from this turn"));
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/used")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/status")
+                .and_then(Value::as_str),
+            Some("synthesized")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/fallback_source")
+                .and_then(Value::as_str),
+            Some("tool_evidence")
+        );
+        assert_eq!(
+            workflow
+                .pointer("/quality_telemetry/final_fallback_used")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn final_empty_response_diagnostic_uses_tool_evidence_fallback_when_failure_exists() {
+        let mut workflow = json!({
+            "response": "",
+            "quality_telemetry": {},
+            "final_llm_response": {
+                "used": false,
+                "status": "synthesized"
+            }
+        });
+        let tools = vec![json!({
+            "name": "web_search",
+            "status": "error",
+            "is_error": true,
+            "blocked": false,
+            "error": "search service returned timeout"
+        })];
+
+        apply_final_empty_response_diagnostic(&mut workflow, "Find latest agentic frameworks", "", &tools);
+        let response = workflow.get("response").and_then(Value::as_str).unwrap_or("");
+        assert!(!response.trim().is_empty());
+        assert!(response.contains("Tool failures"));
+        assert_eq!(
+            workflow
+                .pointer("/final_llm_response/status")
+                .and_then(Value::as_str),
+            Some("synthesized")
         );
     }
 
@@ -3020,8 +3341,26 @@ mod workflow_fallback_tests {
         assert!(response_looks_like_raw_tool_payload_dump(
             "<function=web_search>{\"query\":\"x\"}</function>"
         ));
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "{\"tool\":\"web_search\",\"query\":\"latest web frameworks\"}"
+        ));
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "{\"name\":\"batch_query\",\"status\":\"ok\",\"result\":\"items\"}"
+        ));
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "{\"query\":\"agentic frameworks\",\"source\":\"web\",\"results\":[\"a\",\"b\"]}"
+        ));
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "[{\"tool\":\"web_search\",\"query\":\"foo\"},{\"tool\":\"web_fetch\",\"query\":\"bar\"}]"
+        ));
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "<tool>web_search</tool><query>foo</query>"
+        ));
         assert!(!response_looks_like_raw_tool_payload_dump(
             "OpenHands is an AI agent platform for software development."
+        ));
+        assert!(!response_looks_like_raw_tool_payload_dump(
+            "{\"answer\":\"OpenHands is an AI agent platform for software development.\"}"
         ));
     }
 

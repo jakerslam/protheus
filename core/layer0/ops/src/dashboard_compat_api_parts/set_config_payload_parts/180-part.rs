@@ -28,8 +28,84 @@ fn direct_tool_intent_from_user_message(message: &str) -> Option<(String, Value)
 }
 
 fn response_tools_failure_reason_for_user(response_tools: &[Value], max_items: usize) -> String {
-    let _ = (response_tools, max_items);
-    String::new()
+    let limit = max_items.clamp(1, 8);
+    let mut lines = Vec::<String>::new();
+    let mut seen = std::collections::HashSet::<String>::new();
+    for row in response_tools {
+        let raw_name = clean_text(
+            row.get("name").and_then(Value::as_str).unwrap_or("tool"),
+            80,
+        )
+        .replace('_', " ");
+        let tool_name = if raw_name.is_empty() {
+            "tool".to_string()
+        } else {
+            raw_name
+        };
+        let status = clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+            .to_ascii_lowercase();
+        let error = clean_text(row.get("error").and_then(Value::as_str).unwrap_or(""), 1_000);
+        let result = clean_text(row.get("result").and_then(Value::as_str).unwrap_or(""), 1_200);
+        let status_code = row
+            .get("status_code")
+            .and_then(Value::as_u64)
+            .or_else(|| row.get("http_status").and_then(Value::as_u64));
+        let blocked = row
+            .get("blocked")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            || matches!(status.as_str(), "blocked" | "policy_denied")
+            || status_code.is_some_and(|code| matches!(code, 401 | 403 | 404 | 422 | 429));
+        let failure_reason = if blocked {
+            if !error.is_empty() {
+                first_sentence(&error, 220)
+            } else if !result.is_empty() {
+                first_sentence(&result, 220)
+            } else {
+                "tool execution was blocked".to_string()
+            }
+        } else if matches!(
+            status.as_str(),
+            "error" | "failed" | "execution_error" | "timeout" | "no_response"
+        ) {
+            if !error.is_empty() {
+                first_sentence(&error, 220)
+            } else if !result.is_empty() {
+                first_sentence(&result, 220)
+            } else {
+                "tool execution failed".to_string()
+            }
+        } else if matches!(status.as_str(), "low_signal" | "no_results" | "partial_no_results")
+            || response_looks_like_tool_ack_without_findings(&result)
+            || response_is_no_findings_placeholder(&result)
+        {
+            if !result.is_empty() {
+                first_sentence(&result, 220)
+            } else {
+                "tool result was too narrow".to_string()
+            }
+        } else if status_code.map(|value| value >= 500).unwrap_or(false) && !result.is_empty() {
+            first_sentence(&result, 220)
+        } else if status_code.is_some() && !error.is_empty() {
+            first_sentence(&error, 220)
+        } else {
+            String::new()
+        };
+        if failure_reason.is_empty() {
+            continue;
+        }
+        let line = format!("{}: {}", tool_name, failure_reason);
+        if seen.insert(line.clone()) {
+            lines.push(line);
+        }
+        if lines.len() >= limit {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        return String::new();
+    }
+    clean_text(&format!("Tool failures: {}", lines.join(" | ")), 6_000)
 }
 
 fn workspace_analyze_intent_from_message(
