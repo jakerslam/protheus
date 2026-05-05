@@ -1,10 +1,10 @@
 {
-  "schema_version": 1,
-  "version": "0.2.1-alpha.1",
-  "tag": "v0.2.1-alpha.1",
-  "previous_tag": null,
+  "bump": "minor",
+  "previous_tag": "v0.3.15",
   "release_channel": "alpha",
-  "bump": "none",
-  "release_ready": false,
-  "source": "bootstrap"
+  "release_ready": true,
+  "schema_version": 1,
+  "source": "release_semver_contract",
+  "tag": "v0.4.0-alpha",
+  "version": "0.4.0"
 }
