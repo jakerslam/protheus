@@ -48,13 +48,18 @@ fn daemon_write_response(stream: &mut impl Write, payload: &Value) {
 fn finalize_daemon_response(mut payload: Value, cmd: &str, started: std::time::Instant) -> Value {
     if let Some(obj) = payload.as_object_mut() {
         let ok = obj.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-        let error = obj.get("error").and_then(|v| v.as_str());
+        let error = obj
+            .get("error")
+            .and_then(|v| v.as_str())
+            .map(|v| v.to_string());
         obj.entry("type".to_string())
             .or_insert_with(|| Value::String("memory_daemon_response".to_string()));
         obj.entry("cmd".to_string())
             .or_insert_with(|| Value::String(cmd.to_string()));
         obj.entry("execution_receipt".to_string())
-            .or_insert_with(|| daemon_execution_receipt(cmd, "dispatch", ok, error, started));
+            .or_insert_with(|| {
+                daemon_execution_receipt(cmd, "dispatch", ok, error.as_deref(), started)
+            });
     }
     payload
 }

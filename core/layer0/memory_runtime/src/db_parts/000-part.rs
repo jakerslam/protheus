@@ -1,6 +1,6 @@
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
-use rand::RngCore;
+use rand::Rng;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -142,7 +142,7 @@ fn encrypt_value(cipher_key: &[u8; 32], plaintext: &str) -> Result<String, Strin
     let cipher =
         Aes256Gcm::new_from_slice(cipher_key).map_err(|err| format!("aead_init_failed:{err}"))?;
     let mut nonce_bytes = [0u8; 12];
-    rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
+    rand::rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
     let ciphertext = cipher
         .encrypt(nonce, plaintext.as_bytes())

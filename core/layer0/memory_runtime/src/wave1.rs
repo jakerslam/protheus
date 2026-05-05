@@ -6,26 +6,12 @@ include!("wave1_parts/040-memory-matrix-payload.rs");
 
 const MAX_WAVE1_SUBJECTS: usize = 128;
 
-fn strip_invisible_unicode(raw: &str) -> String {
-    raw.chars()
-        .filter(|ch| {
-            !matches!(
-                *ch,
-                '\u{200B}'
-                    | '\u{200C}'
-                    | '\u{200D}'
-                    | '\u{200E}'
-                    | '\u{200F}'
-                    | '\u{202A}'
-                    | '\u{202B}'
-                    | '\u{202C}'
-                    | '\u{202D}'
-                    | '\u{202E}'
-                    | '\u{2060}'
-                    | '\u{FEFF}'
-            )
-        })
-        .collect::<String>()
+fn sha256_hex(raw: &str) -> String {
+    use sha2::{Digest, Sha256};
+
+    let mut hasher = Sha256::new();
+    hasher.update(raw.as_bytes());
+    hex::encode(hasher.finalize())
 }
 
 pub fn normalize_wave1_subject_token(raw: &str) -> String {
@@ -46,10 +32,7 @@ pub fn normalize_wave1_subject_token(raw: &str) -> String {
             break;
         }
     }
-    out
-        .chars()
-        .trim_matches('_')
-        .collect::<String>()
+    out.trim_matches('_').to_string()
 }
 
 pub fn normalize_wave1_subjects(subjects: &[String]) -> Vec<String> {

@@ -257,7 +257,7 @@ fn timestamp_token(now_ms: i64) -> String {
 fn nonce_token(length: usize) -> String {
     let width = length.max(4);
     let mut bytes = vec![0u8; width];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     let hex = bytes
         .iter()
         .map(|b| format!("{:02x}", b))

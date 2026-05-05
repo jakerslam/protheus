@@ -50,6 +50,46 @@ fn has_parent_segment(raw: &str) -> bool {
     raw.split(['/', '\\']).any(|segment| segment.trim() == "..")
 }
 
+fn clean_text(raw: &str, max_len: usize) -> String {
+    assim120_strip_invisible_unicode(raw)
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ")
+        .chars()
+        .take(max_len)
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn now_iso() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+}
+
+fn stable_json_value(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let mut sorted = BTreeMap::new();
+            for (key, val) in map {
+                sorted.insert(key.clone(), stable_json_value(val));
+            }
+            let mut out = serde_json::Map::new();
+            for (key, val) in sorted {
+                out.insert(key, val);
+            }
+            Value::Object(out)
+        }
+        Value::Array(rows) => Value::Array(rows.iter().map(stable_json_value).collect()),
+        _ => value.clone(),
+    }
+}
+
+fn stable_json_string(value: &Value) -> String {
+    serde_json::to_string(&stable_json_value(value)).unwrap_or_else(|_| "null".to_string())
+}
+
 pub fn normalize_memory_runtime_cli_args_with_contract(
     raw_args: &[String],
     strict_contract: bool,

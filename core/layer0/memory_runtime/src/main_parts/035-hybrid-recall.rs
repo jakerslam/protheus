@@ -1,11 +1,11 @@
 use infring_memory_core_v1::{
-    self, CapabilityAction, CapabilityToken, Classification, DefaultVerityMemoryPolicy, MemoryKind,
-    MemoryObject, MemoryRecallHit, MemoryRecallQuery, MemoryScope, OwnerScopeSettings, TrustState,
-    UnifiedMemoryHeap, UnifiedMemoryHeapConfig,
+    CapabilityAction, CapabilityToken, Classification, DefaultVerityMemoryPolicy, MemoryKind,
+    MemoryObject, MemoryRecallHit, MemoryRecallQuery, MemoryScope, NexusRouteContext,
+    OwnerScopeSettings, TrustState, UnifiedMemoryHeap, UnifiedMemoryHeapConfig,
 };
 
-fn runtime_memory_route() -> memory_core_v1::NexusRouteContext {
-    memory_core_v1::NexusRouteContext {
+fn runtime_memory_route() -> NexusRouteContext {
+    NexusRouteContext {
         issuer: "memory_runtime".to_string(),
         source: "memory_runtime".to_string(),
         target: "memory_heap".to_string(),
@@ -39,9 +39,7 @@ fn title_case(raw: &str) -> String {
         .map(|chunk| {
             let mut chars = chunk.chars();
             match chars.next() {
-                Some(first) => {
-                    first.to_ascii_uppercase().to_string() + chars.as_str()
-                }
+                Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
                 None => String::new(),
             }
         })
@@ -53,7 +51,9 @@ fn normalize_entity_tag(tag: &str) -> String {
     let trimmed = tag.trim().trim_start_matches('#').to_ascii_lowercase();
     trimmed
         .chars()
-        .filter(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, ':' | '_' | '-' | '='))
+        .filter(|ch| {
+            ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, ':' | '_' | '-' | '=')
+        })
         .collect::<String>()
 }
 
@@ -113,13 +113,18 @@ fn payload_from_entry(entry: &IndexEntry) -> Value {
 }
 
 fn infer_kind(tags: &[String]) -> MemoryKind {
-    if tags.iter().any(|tag| normalize_tag(tag).starts_with("procedure")) {
-        return MemoryKind::Procedural;
-    }
     if tags
         .iter()
-        .any(|tag| matches!(normalize_tag(tag).as_str(), "semantic" | "fact" | "knowledge"))
+        .any(|tag| normalize_tag(tag).starts_with("procedure"))
     {
+        return MemoryKind::Procedural;
+    }
+    if tags.iter().any(|tag| {
+        matches!(
+            normalize_tag(tag).as_str(),
+            "semantic" | "fact" | "knowledge"
+        )
+    }) {
         return MemoryKind::Semantic;
     }
     MemoryKind::Episodic
@@ -179,11 +184,19 @@ fn recall_query_from_args(
     }
 }
 
-fn remember_session_entities(root: &Path, args: &HashMap<String, String>, session_id: &str, hits: &[MemoryRecallHit]) {
+fn remember_session_entities(
+    root: &Path,
+    args: &HashMap<String, String>,
+    session_id: &str,
+    hits: &[MemoryRecallHit],
+) {
     let entity_refs = hits
         .iter()
         .flat_map(|hit| hit.explanation.matched_entity_ids.clone())
-        .chain(hits.iter().flat_map(|hit| hit.explanation.expanded_entity_ids.clone()))
+        .chain(
+            hits.iter()
+                .flat_map(|hit| hit.explanation.expanded_entity_ids.clone()),
+        )
         .take(12)
         .collect::<Vec<String>>();
     if entity_refs.is_empty() {
@@ -198,7 +211,11 @@ fn remember_session_entities(root: &Path, args: &HashMap<String, String>, sessio
     }
 }
 
-fn load_session_entities(root: &Path, args: &HashMap<String, String>, session_id: &str) -> Vec<String> {
+fn load_session_entities(
+    root: &Path,
+    args: &HashMap<String, String>,
+    session_id: &str,
+) -> Vec<String> {
     let db_path = arg_any(args, &["db-path", "db_path"]);
     let Ok(db) = MemoryDb::open(root, &db_path) else {
         return Vec::new();

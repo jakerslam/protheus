@@ -5,7 +5,7 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use base64::engine::general_purpose::STANDARD as BASE64_STD;
 use base64::Engine;
-use rand::RngCore;
+use rand::Rng;
 use std::fs;
 
 fn vault_dir(root: &Path) -> PathBuf {
@@ -43,7 +43,7 @@ fn encrypt_state(secret: &str, state: &[u8], aad: &[u8]) -> Result<(String, Stri
     let cipher = Aes256Gcm::new(key);
 
     let mut nonce = [0u8; 12];
-    rand::rngs::OsRng.fill_bytes(&mut nonce);
+    rand::rng().fill_bytes(&mut nonce);
     let nonce_ref = Nonce::from_slice(&nonce);
 
     let encrypted = cipher

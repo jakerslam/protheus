@@ -5,7 +5,7 @@ use base64::engine::general_purpose::{STANDARD as BASE64_STANDARD, URL_SAFE_NO_P
 use base64::Engine;
 use chrono::{DateTime, SecondsFormat, TimeZone, Utc};
 use hmac::{Hmac, Mac};
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -362,7 +362,7 @@ fn write_secret(path: &Path, value: &str) -> Result<(), String> {
 
 fn generated_key() -> String {
     let mut bytes = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     hex::encode(bytes)
 }
 
