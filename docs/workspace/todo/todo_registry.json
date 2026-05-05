@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-03T21:04:55.659Z",
+  "updated_at": "2026-05-05T23:30:07.065Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -133,7 +133,7 @@
     {
       "id": "WF-UTILITY",
       "title": "Build the workflow utility spine",
-      "section": "yellow",
+      "section": "white",
       "owner": "unassigned",
       "deadline": "2026-05-20",
       "source_family": "Workflow Utility Spine After Shell Purge",
@@ -142,7 +142,7 @@
     {
       "id": "TRACE-IMPL",
       "title": "Implement end-to-end unified trace_id propagation",
-      "section": "yellow",
+      "section": "white",
       "owner": "unassigned",
       "deadline": "2026-05-23",
       "source_family": "Universal Trace Runtime Implementation Checklist",
@@ -237,6 +237,51 @@
       "deadline": "2026-05-17",
       "source_family": "Digital DNA Foundation Graduation Audit",
       "summary": "Yellow flag: Digital DNA has real Kernel metakernel code and tests, but SRS/TODO still mark V6-FOUNDATION-DNA-001/002 queued and it is not proven as the unavoidable base substrate for every instance, mutation, critical action, receipt, and Sentinel integrity check."
+    },
+    {
+      "id": "HYGIENE-RUST-DEADCODE-BASELINE",
+      "title": "Capture Rust dead-code warning baseline",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-19",
+      "source_family": "Rust Dead-Code Hygiene Wave",
+      "summary": "Capture the current cargo dead-code and unused-warning surface by crate, module, warning kind, and likely action so future cleanup can happen in safe rollback-sized batches."
+    },
+    {
+      "id": "HYGIENE-RUST-UNUSED-IMPORTS",
+      "title": "Remove unused Rust imports in narrow batches",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-19",
+      "source_family": "Rust Dead-Code Hygiene Wave",
+      "summary": "Work through unused import warnings in Kernel and runtime crates in small scoped commits, preserving behavior and validating each touched crate with cargo check or cargo test."
+    },
+    {
+      "id": "HYGIENE-RUST-UNUSED-HELPERS",
+      "title": "Triage unused Rust helper functions",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-19",
+      "source_family": "Rust Dead-Code Hygiene Wave",
+      "summary": "For unused private helpers, decide whether each should be deleted, reconnected to the intended path, moved behind tests, or marked as intentional compatibility surface with a documented reason."
+    },
+    {
+      "id": "HYGIENE-RUST-COMBINED-SPLIT-DEBT",
+      "title": "Classify combined Rust split artifacts",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-19",
+      "source_family": "Rust Dead-Code Hygiene Wave",
+      "summary": "Classify 000-combined.rs and .combined_parts warning-heavy files as generated split debt, live source, or deletion candidates before attempting broad cleanup."
+    },
+    {
+      "id": "HYGIENE-RUST-DEADCODE-GUARD",
+      "title": "Add Rust dead-code trend guard",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-19",
+      "source_family": "Rust Dead-Code Hygiene Wave",
+      "summary": "Add or extend a validation report that tracks Rust unused/dead-code warning counts by crate so the surface trends down instead of silently growing."
     }
   ]
 }
