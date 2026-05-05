@@ -28,7 +28,7 @@ Scale Codex assimilation throughput without losing ledger trust.
 2. Churn is clean:
    - `npm run -s ops:churn:guard`
 3. Wave rows are valid:
-   - exist in `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.json`
+   - exist in `validation/fixtures/assimilation/codex/CODEX_FILE_LEDGER_2026-04-08.full.json`
    - each row is `queued`
    - row count is between 4 and 8
    - file paths are unique
@@ -48,9 +48,9 @@ Scale Codex assimilation throughput without losing ledger trust.
 ## Completion
 
 1. Update ledger rows to `done` in:
-   - `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.json`
-   - `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.tsv`
-   - summary progress in `local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.md`
+   - `validation/fixtures/assimilation/codex/CODEX_FILE_LEDGER_2026-04-08.full.json`
+   - `validation/fixtures/assimilation/codex/CODEX_FILE_LEDGER_2026-04-08.full.tsv`
+   - summary progress in `validation/fixtures/assimilation/codex/CODEX_FILE_LEDGER_2026-04-08.md`
 2. Confirm source-file burn-down closure for the wave:
    - each assimilated source file appears in `source-burn-down.tsv` with `status=burned_down`
    - each burned-down row carries a non-empty `dossier_capability_id`

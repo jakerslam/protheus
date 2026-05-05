@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 
 const OUT_JSON = 'core/local/artifacts/codex_wave_preflight_current.json';
 const OUT_MD = 'local/workspace/reports/CODEX_WAVE_PREFLIGHT_CURRENT.md';
-const DEFAULT_LEDGER = 'local/workspace/reports/CODEX_FILE_LEDGER_2026-04-08.full.json';
+const DEFAULT_LEDGER = 'validation/fixtures/assimilation/codex/CODEX_FILE_LEDGER_2026-04-08.full.json';
 
 function parseArgs(argv: string[]) {
   const strict = argv.includes('--strict=1') || argv.includes('--strict');
