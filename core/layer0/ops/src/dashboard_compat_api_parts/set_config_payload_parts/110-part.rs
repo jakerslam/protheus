@@ -297,6 +297,15 @@ fn message_is_affirmative_confirmation(message: &str) -> bool {
     if collapsed.is_empty() {
         return false;
     }
+    // Synthesis-intent messages auto-confirm a pending tool so it executes and
+    // the result feeds the synthesis turn (e.g. "After the web tool returns, synthesize…").
+    // Checked before the 12-token guard since synthesis messages are typically longer.
+    let synthesis_intent = (lowered.contains("after the") || lowered.starts_with("after reading"))
+        && (lowered.contains("tool") || lowered.contains("web") || lowered.contains("search") || lowered.contains("reading") || lowered.contains("fixture") || lowered.contains("repo"))
+        && (lowered.contains("synthesize") || lowered.contains("summarize") || lowered.contains("explain") || lowered.contains("comparison") || lowered.contains("compare") || lowered.contains("patch") || lowered.contains("returns"));
+    if synthesis_intent {
+        return true;
+    }
     let token_count = collapsed.split_whitespace().count();
     if token_count > 12 {
         return false;

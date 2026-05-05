@@ -1010,10 +1010,12 @@ fn response_prompt_echo_detected(user_message: &str, response_text: &str) -> boo
     if response_contains_prompt_scaffold(&response) {
         return true;
     }
-    if response == message
-        || response.starts_with(&message)
-        || response.contains(&format!("\"{message}\""))
-    {
+    // Only apply verbatim-echo checks when the message is long enough to rule out
+    // natural greeting overlaps like "hey" → "Hey! How can I help?"
+    if message.len() >= 8 && (response == message || response.starts_with(&message)) {
+        return true;
+    }
+    if response.contains(&format!("\"{message}\"")) {
         return true;
     }
     let message_terms = important_memory_terms(&message, 24)
@@ -1022,7 +1024,9 @@ fn response_prompt_echo_detected(user_message: &str, response_text: &str) -> boo
     let response_terms = important_memory_terms(&response, 36)
         .into_iter()
         .collect::<HashSet<_>>();
-    if message_terms.is_empty() || response_terms.is_empty() {
+    // Overlap-based echo detection requires enough message terms to avoid false positives
+    // on short greetings ("hey" → ["hey"] → 100% overlap with any response mentioning "hey").
+    if message_terms.len() < 3 || response_terms.is_empty() {
         return false;
     }
     let overlap = message_terms.intersection(&response_terms).count() as f64;

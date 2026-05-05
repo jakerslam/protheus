@@ -1180,7 +1180,101 @@ fn response_is_exact_no_tool_gate_submission(response: &str) -> bool {
     response_is_no_tool_category_gate_submission(response)
 }
 
+fn workflow_tool_request_object_field(
+    request: &Value,
+    contract: &Value,
+    field: &str,
+) -> Option<Value> {
+    let mut candidate_keys = vec![field.to_string()];
+    candidate_keys.extend(workflow_tool_request_field_labels(contract, field));
+    let fallback_aliases = match field {
+        "category" => vec!["selected_category_label", "selected_category", "category_label"],
+        "tool_family" => vec!["selected_tool_family", "tool family", "family"],
+        "tool" => vec![
+            "tool_name",
+            "tool name",
+            "selected_tool",
+            "selected_tool_name",
+            "selected_tool_key",
+        ],
+        "request_payload" => vec!["payload", "input", "arguments", "args", "parameters", "params"],
+        _ => Vec::new(),
+    };
+    candidate_keys.extend(fallback_aliases.into_iter().map(str::to_string));
+    let normalized_candidates = candidate_keys
+        .into_iter()
+        .map(|row| normalized_workflow_token(&row))
+        .collect::<Vec<_>>();
+    request.as_object().and_then(|object| {
+        object.iter().find_map(|(key, value)| {
+            let normalized_key = normalized_workflow_token(key);
+            normalized_candidates
+                .iter()
+                .any(|candidate| candidate == &normalized_key)
+                .then_some(value.clone())
+        })
+    })
+}
+
+fn workflow_tool_request_payload_from_json_value(value: &Value) -> Option<Value> {
+    if let Some(payload) = value.as_object() {
+        return Some(Value::Object(payload.clone()));
+    }
+    if let Some(raw) = value.as_str() {
+        return manual_toolbox_payload_json(raw);
+    }
+    None
+}
+
+fn workflow_tool_request_string_field(request: &Value, contract: &Value, field: &str) -> Option<String> {
+    workflow_tool_request_object_field(request, contract, field).and_then(|value| {
+        value
+            .as_str()
+            .map(|value| clean_text(value, 120))
+            .filter(|value| !value.is_empty())
+    })
+}
+
 fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -> Option<Value> {
+    if let Some(request) = workflow_structured_gate_submission(response) {
+        let contract = default_workflow_tool_menu_contract();
+        let family = workflow_tool_request_string_field(&request, &contract, "tool_family")
+            .or_else(|| workflow_tool_request_string_field(&request, &contract, "category"))
+            .unwrap_or_default();
+        let tool_label = workflow_tool_request_string_field(&request, &contract, "tool").unwrap_or_default();
+        let payload = workflow_tool_request_object_field(&request, &contract, "request_payload")
+            .and_then(|value| workflow_tool_request_payload_from_json_value(&value));
+        if !family.is_empty() && !tool_label.is_empty() && payload.is_some() {
+            let tool_name = canonical_manual_toolbox_tool_name(&family, &tool_label);
+            if !tool_name.is_empty() {
+                let input = payload.unwrap_or_else(|| json!({}));
+                let receipt_binding = crate::deterministic_receipt_hash(&json!({
+                    "type": "manual_toolbox_pending_tool_request",
+                    "tool_name": tool_name,
+                    "input": input,
+                    "message": clean_text(message, 600)
+                }));
+                return Some(json!({
+                    "status": "pending_confirmation",
+                    "source": request
+                        .get("source")
+                        .or_else(|| request.get("selection_source"))
+                        .and_then(|value| value.as_str())
+                        .map(|value| clean_text(value, 120))
+                        .filter(|value| !value.is_empty())
+                        .unwrap_or_else(|| "manual_toolbox_gate".to_string()),
+                    "tool_name": tool_name,
+                    "selected_tool_family": family,
+                    "selected_tool_label": tool_label,
+                    "input": input,
+                    "receipt_binding": receipt_binding,
+                    "chat_injection_allowed": false,
+                    "execution_claim_allowed": false
+                }));
+            }
+        }
+    }
+
     if !response_is_manual_toolbox_gate_choice(response) {
         return None;
     }
