@@ -539,6 +539,636 @@ fn sanitize_workflow_visible_response_text(response_text: &str) -> String {
     }
 }
 
+fn workflow_final_visible_response_text(response_text: &str) -> String {
+    let sanitized = sanitize_workflow_visible_response_text(response_text);
+    if let Some(unwrapped) = normalize_response_field_json_wrapper(&sanitized) {
+        return clean_chat_text(unwrapped.as_str(), 32_000);
+    }
+    sanitized
+}
+
+fn workflow_workspace_tool_fallback_pattern_from_text(text: &str) -> String {
+    let banned_terms = [
+        "inspect",
+        "identify",
+        "smallest",
+        "read",
+        "reading",
+        "before",
+        "answering",
+        "beforehand",
+        "first",
+        "after",
+        "next",
+        "ill",
+        "make",
+        "would",
+        "could",
+        "should",
+        "workspace",
+        "tool",
+        "tools",
+        "using",
+        "use",
+        "parse",
+    ];
+    let terms = important_memory_terms(text, 12)
+        .into_iter()
+        .filter(|term| !banned_terms.contains(&term.as_str()))
+        .collect::<Vec<_>>();
+    let pattern = terms.iter().take(5).cloned().collect::<Vec<_>>().join(" ");
+    clean_text(&pattern, 220)
+}
+
+fn workflow_workspace_tool_request_inference(
+    response_text: &str,
+    message: &str,
+    category_key: &str,
+) -> Option<Value> {
+    if normalized_workflow_token(category_key) != "workspace files" {
+        return None;
+    }
+    let lowered = clean_text(&format!("{message} {response_text}"), 4_000)
+        .to_ascii_lowercase();
+    if lowered.is_empty() {
+        return None;
+    }
+    if ![
+        "inspect",
+        "search",
+        "read",
+        "patch",
+        "find",
+        "open",
+        "update",
+        "fix",
+        "bugfix",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(needle))
+    {
+        return None;
+    }
+    let tool_preference = if lowered.contains("file_read")
+        || lowered.contains("read file")
+        || lowered.contains("read this")
+    {
+        "file_read"
+    } else if lowered.contains("apply patch") || lowered.contains("patch file") {
+        "apply_patch"
+    } else if lowered.contains("parse workspace") {
+        "parse_workspace"
+    } else {
+        "workspace_search"
+    };
+    let tool_name = canonical_manual_toolbox_tool_name(category_key, tool_preference);
+    if tool_name.is_empty() {
+        return None;
+    }
+    let mut input = json!({});
+    if tool_name == "workspace_search" {
+        let mut pattern =
+            workflow_workspace_tool_fallback_pattern_from_text(&format!("{message} {response_text}"));
+        if pattern.is_empty() {
+            pattern = "workspace bugfix".to_string();
+        }
+        input["path"] = json!(".");
+        input["pattern"] = json!(pattern);
+    } else if tool_name == "parse_workspace" {
+        input["path"] = json!(".");
+        input["operation"] = json!("inspect");
+    } else if tool_name == "file_read" {
+        input["path"] = json!(".");
+    }
+    if input.as_object().map(|obj| obj.is_empty()).unwrap_or(true) {
+        return None;
+    }
+    Some(json!({
+        "tool_family": category_key,
+        "tool": tool_name,
+        "source": "manual_toolbox_gate_inferred_request",
+        "request_payload": input
+    }))
+}
+
+fn workflow_gate_stability_contract() -> Value {
+    default_workflow_tool_menu_contract()
+        .get("gate_stability_contract")
+        .filter(|value| value.is_object())
+        .cloned()
+        .unwrap_or_else(|| {
+            json!({
+                "version": "gate_stability_v1",
+                "event_stream": "local/state/ops/workflow_gate_stability/events.jsonl",
+                "latest_summary": "local/state/ops/workflow_gate_stability/latest.json",
+                "versions_ring": "local/state/ops/workflow_gate_stability/versions_ring.json",
+                "workflow_snapshots_dir": "local/state/ops/workflow_gate_stability/workflow_versions",
+                "versions_ring_size": 3,
+                "tracked_gates": [
+                    "gate_1_work_category_menu",
+                    "gate_2_tool_family_menu",
+                    "gate_5_post_tool_menu",
+                    "gate_6_llm_final_output"
+                ],
+                "required_artifacts": {},
+                "failure_classes": [
+                    "empty_response",
+                    "invalid_artifact",
+                    "missing_transition",
+                    "retry_exhausted",
+                    "not_applicable"
+                ]
+            })
+        })
+}
+
+fn workflow_stage_status_for_gate(workflow: &Value, gate: &str) -> String {
+    workflow
+        .get("stage_statuses")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter().find_map(|row| {
+                (row.get("stage").and_then(Value::as_str) == Some(gate)).then(|| {
+                    clean_text(row.get("status").and_then(Value::as_str).unwrap_or(""), 120)
+                })
+            })
+        })
+        .unwrap_or_default()
+}
+
+fn workflow_gate_required_artifact_present(workflow: &Value, artifact: &str) -> bool {
+    match clean_text(artifact, 120).as_str() {
+        "workflow_category_or_direct_final_answer" => {
+            workflow
+                .pointer("/tool_gate/selected_work_category")
+                .and_then(Value::as_str)
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false)
+                || workflow
+                    .get("response")
+                    .and_then(Value::as_str)
+                    .map(|value| !value.trim().is_empty())
+                    .unwrap_or(false)
+                || workflow
+                    .pointer("/workflow_control/direct_response_path")
+                    .and_then(Value::as_str)
+                    .map(|value| value != "first_gate_unresolved")
+                    .unwrap_or(false)
+        }
+        "tool_request" => workflow
+            .get("manual_toolbox_pending_tool_request")
+            .filter(|value| value.is_object())
+            .is_some(),
+        "tool_result" => workflow.get("tool_count").and_then(Value::as_u64).unwrap_or(0) > 0,
+        "final_response" => {
+            let has_visible_response = workflow
+                .get("response")
+                .and_then(Value::as_str)
+                .map(|value| !value.trim().is_empty())
+                .unwrap_or(false);
+            let final_status_is_user_facing = workflow
+                .pointer("/final_llm_response/status")
+                .and_then(Value::as_str)
+                .map(|status| {
+                    matches!(
+                        status,
+                        "synthesized"
+                            | "direct_llm_response"
+                            | "no_post_synthesis_required"
+                            | "skipped_not_required"
+                    )
+                })
+                .unwrap_or(false);
+            let final_used = workflow
+                .pointer("/final_llm_response/used")
+                .and_then(Value::as_bool)
+                .unwrap_or(final_status_is_user_facing);
+            has_visible_response && final_status_is_user_facing && final_used
+        }
+        _ => false,
+    }
+}
+
+fn workflow_gate_is_applicable(workflow: &Value, gate: &str) -> bool {
+    let direct_path = workflow
+        .pointer("/workflow_control/direct_response_path")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let selected_category = workflow
+        .pointer("/tool_gate/selected_work_category")
+        .and_then(Value::as_str)
+        .map(|value| normalized_workflow_token(value))
+        .unwrap_or_default();
+    let selected_category_uses_tools = !selected_category.is_empty()
+        && !matches!(
+            selected_category.as_str(),
+            "respond directly" | "respond_directly" | "planning current context" | "planning_current_context"
+        );
+    match gate {
+        "gate_2_tool_family_menu" => {
+            selected_category_uses_tools
+                || workflow
+                    .get("manual_toolbox_pending_tool_request")
+                    .filter(|value| value.is_object())
+                    .is_some()
+                || direct_path.contains("gate_2")
+                || direct_path == "first_gate_pending_tool_confirmation"
+        }
+        "gate_5_post_tool_menu" => workflow.get("tool_count").and_then(Value::as_u64).unwrap_or(0) > 0,
+        "gate_6_llm_final_output" => {
+            workflow
+                .pointer("/final_llm_response/required")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+                || workflow
+                    .get("response")
+                    .and_then(Value::as_str)
+                    .map(|value| !value.trim().is_empty())
+                    .unwrap_or(false)
+        }
+        _ => true,
+    }
+}
+
+fn workflow_gate_stability_rows(workflow: &Value) -> Vec<Value> {
+    let contract = workflow_gate_stability_contract();
+    let required = contract
+        .get("required_artifacts")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    contract
+        .get("tracked_gates")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|gate_value| {
+            let gate = clean_text(gate_value.as_str().unwrap_or(""), 120);
+            if gate.is_empty() {
+                return None;
+            }
+            let stage_status = workflow_stage_status_for_gate(workflow, &gate);
+            let required_artifacts = required
+                .get(&gate)
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|value| value.as_str().map(|raw| clean_text(raw, 120)))
+                .filter(|value| !value.is_empty())
+                .collect::<Vec<_>>();
+            let missing_artifacts = required_artifacts
+                .iter()
+                .filter(|artifact| !workflow_gate_required_artifact_present(workflow, artifact))
+                .cloned()
+                .collect::<Vec<_>>();
+            let applicable = workflow_gate_is_applicable(workflow, &gate);
+            let status = if !applicable {
+                "not_applicable"
+            } else if missing_artifacts.is_empty() {
+                "passed"
+            } else if stage_status.contains("pending") || stage_status == "presented" {
+                "pending"
+            } else {
+                "failed"
+            };
+            let failure_class = if status == "failed" {
+                if missing_artifacts.iter().any(|artifact| artifact == "final_response") {
+                    "empty_response"
+                } else {
+                    "invalid_artifact"
+                }
+            } else if status == "not_applicable" {
+                "not_applicable"
+            } else {
+                ""
+            };
+            Some(json!({
+                "gate": gate,
+                "status": status,
+                "stage_status": stage_status,
+                "required_artifacts": required_artifacts,
+                "missing_artifacts": missing_artifacts,
+                "failure_class": failure_class
+            }))
+        })
+        .collect()
+}
+
+fn workflow_gate_stability_summary(rows: &[Value]) -> Value {
+    let passed = rows
+        .iter()
+        .filter(|row| row.get("status").and_then(Value::as_str) == Some("passed"))
+        .count();
+    let failed = rows
+        .iter()
+        .filter(|row| row.get("status").and_then(Value::as_str) == Some("failed"))
+        .count();
+    let observed = passed + failed;
+    let success_rate = if observed == 0 {
+        1.0
+    } else {
+        (passed as f64 / observed as f64).clamp(0.0, 1.0)
+    };
+    json!({
+        "passed": passed,
+        "failed": failed,
+        "observed": observed,
+        "success_rate": success_rate
+    })
+}
+
+fn workflow_gate_stability_latest_rollup(root: &Path, workflow_id: &str) -> Value {
+    let path = root.join("local/state/ops/workflow_gate_stability/events.jsonl");
+    let mut counts = HashMap::<String, (usize, usize, usize)>::new();
+    let events = read_jsonl_loose(&path, 400);
+    for event in &events {
+        if event.get("workflow_id").and_then(Value::as_str) != Some(workflow_id) {
+            continue;
+        }
+        let gate = clean_text(event.get("gate").and_then(Value::as_str).unwrap_or(""), 120);
+        if gate.is_empty() {
+            continue;
+        }
+        let entry = counts.entry(gate).or_insert((0, 0, 0));
+        match event.get("status").and_then(Value::as_str).unwrap_or("") {
+            "passed" => entry.0 += 1,
+            "failed" => entry.1 += 1,
+            _ => entry.2 += 1,
+        }
+    }
+    let mut per_gate = counts
+        .into_iter()
+        .map(|(gate, (passed, failed, other))| {
+            let observed = passed + failed;
+            let success_rate = if observed == 0 {
+                1.0
+            } else {
+                (passed as f64 / observed as f64).clamp(0.0, 1.0)
+            };
+            json!({
+                "gate": gate,
+                "passed": passed,
+                "failed": failed,
+                "other": other,
+                "observed": observed,
+                "success_rate": success_rate
+            })
+        })
+        .collect::<Vec<_>>();
+    per_gate.sort_by(|a, b| {
+        a.get("gate")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .cmp(b.get("gate").and_then(Value::as_str).unwrap_or(""))
+    });
+    json!({
+        "workflow_id": workflow_id,
+        "window_event_count": events.len(),
+        "per_gate": per_gate
+    })
+}
+
+fn workflow_gate_stability_current_workflow_snapshot(workflow_id: &str, contract: &Value) -> Value {
+    default_workflow_definition()
+        .map(|workflow| workflow_definition_to_json(&workflow))
+        .unwrap_or_else(|| {
+            json!({
+                "name": workflow_id,
+                "tool_menu_interface_contract": contract
+            })
+        })
+}
+
+fn workflow_gate_stability_version_hash(workflow_id: &str, workflow_snapshot: &Value) -> String {
+    crate::deterministic_receipt_hash(&json!({
+        "type": "workflow_gate_stability_workflow_version",
+        "workflow_id": workflow_id,
+        "workflow_json": workflow_snapshot
+    }))
+}
+
+fn workflow_gate_stability_per_gate_rollup_from_counts(
+    counts: HashMap<String, (usize, usize, usize)>,
+) -> Vec<Value> {
+    let mut per_gate = counts
+        .into_iter()
+        .map(|(gate, (passed, failed, other))| {
+            let observed = passed + failed;
+            let success_rate = if observed == 0 {
+                1.0
+            } else {
+                (passed as f64 / observed as f64).clamp(0.0, 1.0)
+            };
+            json!({
+                "gate": gate,
+                "passed": passed,
+                "failed": failed,
+                "other": other,
+                "observed": observed,
+                "success_rate": success_rate
+            })
+        })
+        .collect::<Vec<_>>();
+    per_gate.sort_by(|a, b| {
+        a.get("gate")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .cmp(b.get("gate").and_then(Value::as_str).unwrap_or(""))
+    });
+    per_gate
+}
+
+fn workflow_gate_stability_update_version_ring(
+    root: &Path,
+    workflow_id: &str,
+    version_hash: &str,
+    workflow_snapshot: &Value,
+    rows: &[Value],
+    ts: &str,
+) -> Value {
+    let path = root.join("local/state/ops/workflow_gate_stability/versions_ring.json");
+    let snapshots_dir = root.join("local/state/ops/workflow_gate_stability/workflow_versions");
+    let snapshot_path = snapshots_dir.join(format!("{version_hash}.workflow.json"));
+    write_json_pretty(&snapshot_path, workflow_snapshot);
+    let snapshot_rel_path = format!(
+        "local/state/ops/workflow_gate_stability/workflow_versions/{version_hash}.workflow.json"
+    );
+    let existing = read_json_loose(&path).unwrap_or_else(|| json!({}));
+    let mut versions = existing
+        .get("versions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    versions.retain(|row| {
+        row.get("workflow_json")
+            .filter(|snapshot| snapshot.is_object())
+            .is_some()
+    });
+    let mut version = versions
+        .iter()
+        .position(|row| {
+            row.get("workflow_version_hash").and_then(Value::as_str) == Some(version_hash)
+        })
+        .map(|index| versions.remove(index))
+        .unwrap_or_else(|| {
+            json!({
+                "workflow_version_hash": version_hash,
+                "workflow_snapshot_path": snapshot_rel_path.clone(),
+                "workflow_json": workflow_snapshot,
+                "first_seen": ts,
+                "turn_count": 0,
+                "event_count": 0,
+                "per_gate": []
+            })
+        });
+    version["workflow_snapshot_path"] = Value::String(snapshot_rel_path.clone());
+    version["workflow_json"] = workflow_snapshot.clone();
+    let mut counts = HashMap::<String, (usize, usize, usize)>::new();
+    for gate_row in version
+        .get("per_gate")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+    {
+        let gate = clean_text(gate_row.get("gate").and_then(Value::as_str).unwrap_or(""), 120);
+        if gate.is_empty() {
+            continue;
+        }
+        counts.insert(
+            gate,
+            (
+                gate_row.get("passed").and_then(Value::as_u64).unwrap_or(0) as usize,
+                gate_row.get("failed").and_then(Value::as_u64).unwrap_or(0) as usize,
+                gate_row.get("other").and_then(Value::as_u64).unwrap_or(0) as usize,
+            ),
+        );
+    }
+    for row in rows {
+        let gate = clean_text(row.get("gate").and_then(Value::as_str).unwrap_or(""), 120);
+        if gate.is_empty() {
+            continue;
+        }
+        let entry = counts.entry(gate).or_insert((0, 0, 0));
+        match row.get("status").and_then(Value::as_str).unwrap_or("") {
+            "passed" => entry.0 += 1,
+            "failed" => entry.1 += 1,
+            _ => entry.2 += 1,
+        }
+    }
+    version["last_seen"] = Value::String(ts.to_string());
+    version["turn_count"] = json!(version.get("turn_count").and_then(Value::as_u64).unwrap_or(0) + 1);
+    version["event_count"] =
+        json!(version.get("event_count").and_then(Value::as_u64).unwrap_or(0) + rows.len() as u64);
+    version["per_gate"] = Value::Array(workflow_gate_stability_per_gate_rollup_from_counts(counts));
+    versions.insert(0, version);
+    versions.truncate(3);
+    let retained_hashes = versions
+        .iter()
+        .filter_map(|row| row.get("workflow_version_hash").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<std::collections::BTreeSet<_>>();
+    if let Ok(entries) = std::fs::read_dir(&snapshots_dir) {
+        for entry in entries.filter_map(Result::ok) {
+            let path = entry.path();
+            let Some(file_name) = path.file_name().and_then(|value| value.to_str()) else {
+                continue;
+            };
+            if !file_name.ends_with(".workflow.json") {
+                continue;
+            }
+            let hash = file_name.trim_end_matches(".workflow.json");
+            if !retained_hashes.contains(hash) {
+                let _ = std::fs::remove_file(path);
+            }
+        }
+    }
+    let ring = json!({
+        "type": "workflow_gate_stability_version_ring",
+        "updated_at": ts,
+        "workflow_id": workflow_id,
+        "ring_size": 3,
+        "current_version_hash": version_hash,
+        "workflow_snapshots_dir": "local/state/ops/workflow_gate_stability/workflow_versions",
+        "versions": versions
+    });
+    write_json_pretty(&path, &ring);
+    ring
+}
+
+fn finalize_workflow_gate_stability(root: &Path, mut workflow: Value, message: &str) -> Value {
+    let contract = workflow_gate_stability_contract();
+    let rows = workflow_gate_stability_rows(&workflow);
+    let summary = workflow_gate_stability_summary(&rows);
+    let workflow_id = clean_text(
+        workflow
+            .pointer("/selected_workflow/name")
+            .or_else(|| workflow.pointer("/selected_workflow/id"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let message_hash = crate::deterministic_receipt_hash(&json!({
+        "type": "workflow_gate_stability_message",
+        "workflow_id": workflow_id,
+        "message": clean_text(message, 2_000)
+    }));
+    let ts = crate::now_iso();
+    let workflow_snapshot = workflow_gate_stability_current_workflow_snapshot(&workflow_id, &contract);
+    let version_hash = workflow_gate_stability_version_hash(&workflow_id, &workflow_snapshot);
+    let stream_path = root.join("local/state/ops/workflow_gate_stability/events.jsonl");
+    for row in &rows {
+        append_jsonl_row(
+            &stream_path,
+            &json!({
+                "type": "workflow_gate_stability_event",
+                "ts": ts,
+                "workflow_id": workflow_id,
+                "message_hash": message_hash,
+                "gate": row.get("gate").cloned().unwrap_or_else(|| json!("")),
+                "status": row.get("status").cloned().unwrap_or_else(|| json!("")),
+                "failure_class": row.get("failure_class").cloned().unwrap_or_else(|| json!("")),
+                "stage_status": row.get("stage_status").cloned().unwrap_or_else(|| json!("")),
+                "missing_artifacts": row.get("missing_artifacts").cloned().unwrap_or_else(|| json!([]))
+            }),
+        );
+    }
+    let rolling = workflow_gate_stability_latest_rollup(root, &workflow_id);
+    let version_ring =
+        workflow_gate_stability_update_version_ring(
+            root,
+            &workflow_id,
+            &version_hash,
+            &workflow_snapshot,
+            &rows,
+            &ts,
+        );
+    write_json_pretty(
+        &root.join("local/state/ops/workflow_gate_stability/latest.json"),
+        &json!({
+            "updated_at": ts,
+            "workflow_id": workflow_id,
+            "workflow_version_hash": version_hash,
+            "summary": rolling,
+            "workflow_snapshot_path": format!("local/state/ops/workflow_gate_stability/workflow_versions/{version_hash}.workflow.json"),
+            "versions_ring_path": "local/state/ops/workflow_gate_stability/versions_ring.json"
+        }),
+    );
+    workflow["gate_stability"] = json!({
+        "contract": contract,
+        "workflow_version_hash": version_hash,
+        "workflow_snapshot_path": format!("local/state/ops/workflow_gate_stability/workflow_versions/{version_hash}.workflow.json"),
+        "rows": rows,
+        "summary": summary,
+        "version_ring": version_ring,
+        "rolling_summary_path": "local/state/ops/workflow_gate_stability/latest.json",
+        "versions_ring_path": "local/state/ops/workflow_gate_stability/versions_ring.json",
+        "event_stream_path": "local/state/ops/workflow_gate_stability/events.jsonl"
+    });
+    workflow
+}
+
 fn direct_llm_response_from_initial_draft(draft_response: &str) -> Option<String> {
     let cleaned = sanitize_workflow_visible_response_text(draft_response);
     if cleaned.is_empty()
@@ -1277,7 +1907,7 @@ fn run_turn_workflow_final_response(
                 "manual_toolbox_gate_submission",
                 0,
             );
-            return workflow;
+            return finalize_workflow_gate_stability(root, workflow, message);
         }
     }
     let required = workflow
@@ -1292,7 +1922,7 @@ fn run_turn_workflow_final_response(
                 Value::String("skipped_not_required".to_string());
         }
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_not_required");
-        return workflow;
+        return finalize_workflow_gate_stability(root, workflow, message);
     }
     if cfg!(test) && !workflow_test_llm_enabled(root) {
         let _ = (message, latest_assistant_text, response_tools);
@@ -1301,7 +1931,7 @@ fn run_turn_workflow_final_response(
         workflow["final_llm_response"]["attempted"] = Value::Bool(false);
         workflow["final_llm_response"]["status"] = Value::String("skipped_test".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_test");
-        return workflow;
+        return finalize_workflow_gate_stability(root, workflow, message);
     }
     let cleaned_provider = clean_text(provider, 80);
     let cleaned_model = clean_text(model, 240);
@@ -1313,7 +1943,7 @@ fn run_turn_workflow_final_response(
         workflow["final_llm_response"]["status"] =
             Value::String("skipped_missing_model".to_string());
         set_turn_workflow_final_stage_status(&mut workflow, "skipped_missing_model");
-        return workflow;
+        return finalize_workflow_gate_stability(root, workflow, message);
     }
     let tool_rows_json = serde_json::to_string(&tool_rows_for_llm_recovery(response_tools, 6))
         .unwrap_or_else(|_| "[]".to_string());
@@ -1561,9 +2191,14 @@ fn run_turn_workflow_final_response(
                         .unwrap_or(""),
                     32_000,
                 );
-                retried_text = sanitize_workflow_visible_response_text(&retried_text);
-                if !user_requested_internal_runtime_details(message) {
-                    retried_text = abstract_runtime_mechanics_terms(&retried_text);
+                // Gate turns (gate_1 and gate_2) are never user-visible; skip sanitization so
+                // gate_2 JSON (which contains "tool"/"request_payload" keys) isn't stripped by
+                // the raw tool payload dump guard inside sanitize_workflow_visible_response_text.
+                if !active_manual_toolbox_gate_turn && !active_manual_toolbox_tool_request_turn {
+                    retried_text = workflow_final_visible_response_text(&retried_text);
+                    if !user_requested_internal_runtime_details(message) {
+                        retried_text = abstract_runtime_mechanics_terms(&retried_text);
+                    }
                 }
                 let manual_toolbox_gate_choice =
                     response_is_manual_toolbox_gate_choice(&retried_text);
@@ -1608,7 +2243,7 @@ fn run_turn_workflow_final_response(
                         workflow["model"] = Value::String(response_model.clone());
                         workflow["runtime_model"] = Value::String(response_model);
                         set_turn_workflow_final_stage_status(&mut workflow, "synthesized");
-                        return workflow;
+                        return finalize_workflow_gate_stability(root, workflow, message);
                     }
                     manual_toolbox_no_selected = true;
                     workflow["workflow_control"]["direct_response_path"] =
@@ -1649,13 +2284,40 @@ fn run_turn_workflow_final_response(
                 let visible_gate_choice_reply =
                     response_is_visible_workflow_gate_choice(&retried_text)
                         || response_has_gate_choice_prefix_leakage(&retried_text);
+                let parsed_pending_tool_request =
+                    manual_toolbox_pending_request_from_response(&retried_text, message);
+                let fallback_pending_tool_request = if parsed_pending_tool_request.is_none()
+                    && active_manual_toolbox_tool_request_turn
+                {
+                    workflow_workspace_tool_request_inference(
+                        &retried_text,
+                        message,
+                        &manual_toolbox_selected_category_key,
+                    )
+                } else {
+                    None
+                };
                 let pending_tool_choice_reply =
-                    manual_toolbox_pending_request_from_response(&retried_text, message).is_some();
+                    parsed_pending_tool_request.is_some() || fallback_pending_tool_request.is_some();
                 if manual_toolbox_gate_choice
                     || visible_gate_choice_reply
                     || pending_tool_choice_reply
                 {
-                    record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
+                    if parsed_pending_tool_request.is_none()
+                        && fallback_pending_tool_request.is_some()
+                    {
+                        let fallback_payload = serde_json::to_string(
+                            fallback_pending_tool_request
+                                .as_ref()
+                                .unwrap_or(&json!({})),
+                        )
+                        .unwrap_or_default();
+                        if !fallback_payload.is_empty() {
+                            record_manual_toolbox_pending_request(&mut workflow, &fallback_payload, message);
+                        }
+                    } else {
+                        record_manual_toolbox_pending_request(&mut workflow, &retried_text, message);
+                    }
                 }
                 if workflow
                     .get("manual_toolbox_pending_tool_request")
@@ -1668,7 +2330,7 @@ fn run_turn_workflow_final_response(
                         "manual_toolbox_gate_submission",
                         attempt,
                     );
-                    return workflow;
+                    return finalize_workflow_gate_stability(root, workflow, message);
                 }
                 if active_manual_toolbox_tool_request_turn
                     && response_tools.is_empty()
@@ -1706,7 +2368,6 @@ fn run_turn_workflow_final_response(
                     && manual_toolbox_response_exposes_unresolved_tool_need(&retried_text);
                 let invalid_manual_toolbox_gate_submission = active_manual_toolbox_gate_turn
                     && response_tools.is_empty()
-                    && !retried_text.is_empty()
                     && !manual_toolbox_gate_choice
                     && !visible_gate_choice_reply
                     && !pending_tool_choice_reply;
@@ -1859,6 +2520,9 @@ fn run_turn_workflow_final_response(
                     {
                         continue;
                     }
+                    if attempt < max_attempts {
+                        continue;
+                    }
                 }
                 let response_provider = clean_text(
                     retried
@@ -1926,7 +2590,7 @@ fn run_turn_workflow_final_response(
                 workflow["quality_telemetry"]["retry_rate"] = json!(retry_rate);
                 workflow["quality_telemetry"]["off_topic_reject_rate"] = json!(off_topic_reject_rate);
                 workflow["response"] = Value::String(retried_text);
-                return workflow;
+                return finalize_workflow_gate_stability(root, workflow, message);
             }
             Err(err) => {
                 last_error = clean_text(&err, 240);
@@ -1953,7 +2617,7 @@ fn run_turn_workflow_final_response(
             "invalid_gate_draft_diagnostic_only",
             max_attempts,
         );
-        return workflow;
+        return finalize_workflow_gate_stability(root, workflow, message);
     }
     workflow["final_llm_response"]["used"] = Value::Bool(false);
     if !last_invalid_excerpt.is_empty() {
@@ -2006,7 +2670,7 @@ fn run_turn_workflow_final_response(
         latest_assistant_text,
         response_tools,
     );
-    workflow
+    finalize_workflow_gate_stability(root, workflow, message)
 }
 
 fn mark_workflow_direct_llm_no_tool_answer(workflow: &mut Value) {
@@ -2225,6 +2889,242 @@ mod workflow_fallback_tests {
             Some("web")
         );
         assert_eq!(pending.get("source").and_then(Value::as_str), Some("unit_test"));
+    }
+
+    #[test]
+    fn workflow_workspace_tool_request_inference_builds_workspace_search_request() {
+        let message = "Inspect the tiny fixture repo and identify the smallest bugfix you would make. Use workspace tools before answering.";
+        let retried = "I'll inspect the repository and identify the smallest bugfix needed.";
+        let pending = workflow_workspace_tool_request_inference(
+            retried,
+            message,
+            "workspace_files",
+        )
+        .expect("workspace fallback request");
+
+        assert_eq!(
+            pending.get("tool_family").and_then(Value::as_str),
+            Some("workspace_files")
+        );
+        assert_eq!(
+            pending.get("tool").and_then(Value::as_str),
+            Some("workspace_search")
+        );
+        assert_eq!(
+            pending.pointer("/request_payload/path").and_then(Value::as_str),
+            Some(".")
+        );
+        assert_eq!(
+            pending
+                .pointer("/request_payload/pattern")
+                .and_then(Value::as_str),
+            Some("tiny fixture repo bugfix")
+        );
+    }
+
+    #[test]
+    fn workflow_gate_stability_rows_score_pending_workspace_request() {
+        let workflow = json!({
+            "selected_workflow": {
+                "name": "simple_conversation_v1"
+            },
+            "workflow_control": {
+                "direct_response_path": "first_gate_pending_tool_confirmation"
+            },
+            "tool_gate": {
+                "selected_work_category": "workspace_files"
+            },
+            "manual_toolbox_pending_tool_request": {
+                "status": "pending_confirmation",
+                "tool_name": "workspace_search",
+                "input": {
+                    "path": ".",
+                    "pattern": "tiny fixture repo bugfix"
+                }
+            },
+            "tool_count": 0,
+            "response": "",
+            "final_llm_response": {
+                "required": false,
+                "status": "skipped_pending_tool_confirmation"
+            },
+            "stage_statuses": [
+                {
+                    "stage": "gate_1_work_category_menu",
+                    "status": "presented"
+                },
+                {
+                    "stage": "gate_6_llm_final_output",
+                    "status": "skipped_pending_tool_confirmation"
+                }
+            ]
+        });
+        let rows = workflow_gate_stability_rows(&workflow);
+
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.get("gate").and_then(Value::as_str)
+                    == Some("gate_1_work_category_menu"))
+                .and_then(|row| row.get("status").and_then(Value::as_str)),
+            Some("passed")
+        );
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.get("gate").and_then(Value::as_str)
+                    == Some("gate_2_tool_family_menu"))
+                .and_then(|row| row.get("status").and_then(Value::as_str)),
+            Some("passed")
+        );
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.get("gate").and_then(Value::as_str)
+                    == Some("gate_6_llm_final_output"))
+                .and_then(|row| row.get("status").and_then(Value::as_str)),
+            Some("not_applicable")
+        );
+    }
+
+    #[test]
+    fn workflow_gate_stability_rows_score_direct_llm_response_as_final() {
+        let workflow = json!({
+            "selected_workflow": {
+                "name": "simple_conversation_v1"
+            },
+            "workflow_control": {
+                "direct_response_path": "first_gate_unresolved"
+            },
+            "tool_gate": {
+                "selected_work_category": "respond_directly"
+            },
+            "tool_count": 0,
+            "response": "Hey! How can I help you today?",
+            "final_llm_response": {
+                "used": true,
+                "required": false,
+                "status": "direct_llm_response"
+            },
+            "stage_statuses": [
+                {
+                    "stage": "gate_1_work_category_menu",
+                    "status": "answered_no_tool_category"
+                },
+                {
+                    "stage": "gate_6_llm_final_output",
+                    "status": "skipped_not_required"
+                }
+            ]
+        });
+        let rows = workflow_gate_stability_rows(&workflow);
+
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.get("gate").and_then(Value::as_str)
+                    == Some("gate_6_llm_final_output"))
+                .and_then(|row| row.get("status").and_then(Value::as_str)),
+            Some("passed")
+        );
+        assert_eq!(
+            rows.iter()
+                .find(|row| row.get("gate").and_then(Value::as_str)
+                    == Some("gate_2_tool_family_menu"))
+                .and_then(|row| row.get("status").and_then(Value::as_str)),
+            Some("not_applicable")
+        );
+    }
+
+    #[test]
+    fn workflow_gate_stability_version_ring_keeps_latest_three_versions() {
+        let root = std::env::temp_dir().join(format!(
+            "workflow-gate-stability-ring-{}",
+            crate::deterministic_receipt_hash(&json!({
+                "test": "workflow_gate_stability_version_ring_keeps_latest_three_versions",
+                "ts": crate::now_iso()
+            }))
+        ));
+        let rows = vec![
+            json!({
+                "gate": "gate_1_work_category_menu",
+                "status": "passed"
+            }),
+            json!({
+                "gate": "gate_6_llm_final_output",
+                "status": "failed"
+            }),
+        ];
+
+        for (index, version_hash) in ["v1", "v2", "v3", "v4"].iter().enumerate() {
+            let snapshot = json!({
+                "name": "simple_conversation_v1",
+                "workflow_version": version_hash
+            });
+            workflow_gate_stability_update_version_ring(
+                &root,
+                "simple_conversation_v1",
+                version_hash,
+                &snapshot,
+                &rows,
+                &format!("ts-{index}"),
+            );
+        }
+        let v3_snapshot = json!({
+            "name": "simple_conversation_v1",
+            "workflow_version": "v3"
+        });
+        workflow_gate_stability_update_version_ring(
+            &root,
+            "simple_conversation_v1",
+            "v3",
+            &v3_snapshot,
+            &rows,
+            "ts-4",
+        );
+
+        let ring_path = root.join("local/state/ops/workflow_gate_stability/versions_ring.json");
+        let ring = read_json_loose(&ring_path).expect("version ring json");
+        let versions = ring
+            .get("versions")
+            .and_then(Value::as_array)
+            .expect("versions array");
+
+        assert_eq!(versions.len(), 3);
+        assert_eq!(
+            ring.get("current_version_hash").and_then(Value::as_str),
+            Some("v3")
+        );
+        assert_eq!(
+            versions
+                .first()
+                .and_then(|value| value.get("workflow_version_hash"))
+                .and_then(Value::as_str),
+            Some("v3")
+        );
+        assert_eq!(
+            versions
+                .first()
+                .and_then(|value| value.get("turn_count"))
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert!(!versions.iter().any(|value| {
+            value
+                .get("workflow_version_hash")
+                .and_then(Value::as_str)
+                == Some("v1")
+        }));
+        assert!(versions.iter().all(|value| {
+            value
+                .get("workflow_json")
+                .and_then(|snapshot| snapshot.get("name"))
+                .and_then(Value::as_str)
+                == Some("simple_conversation_v1")
+        }));
+        assert!(root
+            .join("local/state/ops/workflow_gate_stability/workflow_versions/v3.workflow.json")
+            .exists());
+        assert!(!root
+            .join("local/state/ops/workflow_gate_stability/workflow_versions/v1.workflow.json")
+            .exists());
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
@@ -2722,6 +3622,24 @@ mod workflow_fallback_tests {
         );
         assert!(workflow.get("response").is_none());
         assert!(workflow.pointer("/final_llm_response/fallback_source").is_none());
+    }
+
+    #[test]
+    fn workflow_final_visible_response_text_unwraps_final_answer_gate_payload() {
+        assert_eq!(
+            workflow_final_visible_response_text(
+                r#"{"gate":"4","final_answer":"Based on the results: ..."}"#
+            ),
+            "Based on the results: ..."
+        );
+        assert_eq!(
+            workflow_final_visible_response_text(r#"{"tool_family":"web_research","tool":"web_search","request_payload":{"query":"compare frameworks","source":"web"}}"#),
+            ""
+        );
+        assert_eq!(
+            workflow_final_visible_response_text("Plain natural language answer."),
+            "Plain natural language answer."
+        );
     }
 
     #[test]

@@ -1367,6 +1367,11 @@ fn manual_toolbox_payload_json(payload_text: &str) -> Option<Value> {
 }
 
 fn canonical_manual_toolbox_tool_name(family: &str, tool_label: &str) -> String {
+    if normalized_workflow_token(family) == "workspace files"
+        && normalized_workflow_token(tool_label) == "workspace search"
+    {
+        return "workspace_search".to_string();
+    }
     workflow_tool_key_for_selection(&default_workflow_tool_menu_contract(), family, tool_label)
 }
 
