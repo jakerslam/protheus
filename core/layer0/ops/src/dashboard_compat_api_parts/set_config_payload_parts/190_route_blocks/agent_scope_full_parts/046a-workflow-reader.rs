@@ -13,8 +13,6 @@ struct WorkflowDefinition {
     source_path: String,
 }
 
-static WORKFLOW_LIBRARY_REGISTRY: std::sync::OnceLock<Vec<WorkflowDefinition>> =
-    std::sync::OnceLock::new();
 
 fn workflow_definition_to_json(definition: &WorkflowDefinition) -> Value {
     json!({
@@ -472,10 +470,8 @@ fn load_workflow_library() -> Vec<WorkflowDefinition> {
     parsed
 }
 
-fn workflow_library_registry() -> &'static [WorkflowDefinition] {
-    WORKFLOW_LIBRARY_REGISTRY
-        .get_or_init(load_workflow_library)
-        .as_slice()
+fn workflow_library_registry() -> Vec<WorkflowDefinition> {
+    load_workflow_library()
 }
 
 fn workflow_definition_by_name(name: &str) -> Option<WorkflowDefinition> {
@@ -484,22 +480,20 @@ fn workflow_definition_by_name(name: &str) -> Option<WorkflowDefinition> {
         return None;
     }
     workflow_library_registry()
-        .iter()
+        .into_iter()
         .find(|row| row.name.eq_ignore_ascii_case(&cleaned))
-        .cloned()
 }
 
 fn default_workflow_definition() -> Option<WorkflowDefinition> {
     workflow_library_registry()
-        .iter()
+        .into_iter()
         .find(|row| row.default_workflow)
-        .cloned()
 }
 
 fn turn_workflow_library_catalog() -> Vec<Value> {
     workflow_library_registry()
-        .iter()
-        .map(workflow_definition_to_json)
+        .into_iter()
+        .map(|row| workflow_definition_to_json(&row))
         .collect::<Vec<_>>()
 }
 
@@ -595,14 +589,10 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_enforces_single_default() {
-        let defaults = workflow_library_registry()
-            .iter()
-            .filter(|row| row.default_workflow)
-            .count();
+        let registry = workflow_library_registry();
+        let defaults = registry.iter().filter(|row| row.default_workflow).count();
         assert_eq!(defaults, 1);
-        assert!(workflow_library_has_exactly_one_json_default(
-            workflow_library_registry()
-        ));
+        assert!(workflow_library_has_exactly_one_json_default(&registry));
     }
 
     #[test]
@@ -839,7 +829,7 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_does_not_invent_default_when_json_omits_it() {
-        let mut workflows = workflow_library_registry().to_vec();
+        let mut workflows = workflow_library_registry();
         for workflow in workflows.iter_mut() {
             workflow.default_workflow = false;
         }

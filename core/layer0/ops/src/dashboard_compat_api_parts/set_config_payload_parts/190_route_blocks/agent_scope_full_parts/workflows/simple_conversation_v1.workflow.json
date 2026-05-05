@@ -10,6 +10,7 @@
     "gate_4_request_payload_input",
     "gate_4b_tool_confirmation_menu",
     "gate_5_post_tool_menu",
+    "gate_5b_synthesis_handoff",
     "gate_6_llm_final_output"
   ],
   "final_response_policy": "llm_authored_only_no_system_injection",
@@ -18,9 +19,11 @@
     "version": "tool_menu_interface_v1",
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "system_injected_chat_text_allowed": false,
+    "llm_gate_instruction": "INTERNAL GATE — output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. No-tool values — {no_tool_categories} — skip tools and go straight to synthesis. Tool values — {tool_bearing_categories} — open the tool menu. IMPORTANT: when you choose a no-tool gate value (respond_directly or equivalent), you MUST also include a \"final_answer\" field with the actual natural-language reply the user should see. Example for a direct conversational reply: {\"gate\": \"respond_directly\", \"final_answer\": \"Hey! What can I help you with?\"}. Example for a synthesis reply: {\"gate\": \"respond_directly\", \"final_answer\": \"Based on the results: ...\"}. Example for a web lookup (no final_answer needed): {\"gate\": \"web_research\"}. Do NOT write any other text outside the JSON object.",
     "gate_shapes_allowed": [
       "multiple_choice",
-      "text_input"
+      "text_input",
+      "internal_handoff"
     ],
     "gate_order": [
       "gate_1_work_category_menu",
@@ -29,6 +32,7 @@
       "gate_4_request_payload_input",
       "gate_4b_tool_confirmation_menu",
       "gate_5_post_tool_menu",
+      "gate_5b_synthesis_handoff",
       "gate_6_llm_final_output"
     ],
     "gates": {
@@ -69,7 +73,7 @@
           {
             "key": "finish",
             "label": "Finish and synthesize",
-            "transition": "gate_6_llm_final_output"
+            "transition": "gate_5b_synthesis_handoff"
           },
           {
             "key": "another_tool",
@@ -77,6 +81,32 @@
             "transition": "gate_2_tool_family_menu"
           }
         ]
+      },
+      "gate_5b_synthesis_handoff": {
+        "input_kind": "internal_handoff",
+        "purpose": "Bridge between an internal routing decision (gate_1 'respond directly' / 'planning from current context', or gate_5 'finish and synthesize') and the user-visible reply. This stage exists to guarantee that the model turn which emits the user-facing answer is NOT the same model turn that emitted any private routing token. Without this stage, the model tends to suffix the gate-1 menu option (e.g. '1 = Respond directly') onto the start of the answer it then writes.",
+        "submission_contract": {
+          "visibility": "private_token_only",
+          "structured_token_fields": [
+            "handoff_acknowledged",
+            "ready_for_synthesis"
+          ],
+          "accepted_outputs": [
+            "ready",
+            "ack",
+            "ok"
+          ],
+          "forbidden_output_classes": [
+            "choice_narration",
+            "tool_recommendation_without_submission",
+            "visible_chat_text",
+            "gate_choice_echo",
+            "menu_option_label_echo"
+          ],
+          "chat_injection_allowed": false
+        },
+        "handoff_prompt": "INTERNAL HANDOFF \u2014 NOT VISIBLE TO USER. The routing decision has been recorded by the runtime; the user has NOT seen and will NEVER see any menu option, gate label, gate number, or routing token. Do not repeat, restate, paraphrase, or acknowledge the routing choice in any form. Reply with only the literal token 'ready' on this turn. The next turn (gate_6_llm_final_output) is where you will write the user-facing answer to the original user message; this turn is purely a structural separator that exists so the choice-emitting turn and the answer-emitting turn are never the same turn.",
+        "transition": "gate_6_llm_final_output"
       },
       "gate_6_llm_final_output": {
         "input_kind": "text_input",
@@ -94,9 +124,15 @@
             "agent_internal_notes",
             "tool_trace",
             "eval_trace",
-            "prompt_analysis"
+            "prompt_analysis",
+            "tool_call_payload",
+            "function_call_json",
+            "tool_request_envelope",
+            "tool_observation_raw",
+            "stage_token",
+            "gate_token"
           ],
-          "chat_requirement": "Respond to the user message. Write only the final user-facing answer."
+          "chat_requirement": "This is the user-visible reply turn. The previous internal handoff turn has already separated routing/tool reasoning from synthesis, so write ONLY the answer to the original user message in natural prose, as if you were starting a fresh assistant turn with no prior internal scaffolding. Do not echo any menu option, gate label, gate number, routing token, tool name, function-call JSON, or raw tool observation \u2014 the user has not seen any of them and treating them as visible context will leak. If you used tools, present findings as knowledge you have, not as a process narrative ('I will search', 'I called X', 'please hold' are all forbidden). One coherent response, addressed to the user."
         }
       },
       "gate_1_work_category_menu": {
@@ -755,7 +791,7 @@
       ],
       "none": []
     },
-    "llm_gate_instruction": "Private workflow gate submission only. Gate 1: `{gate_question}`. Reply with one token only from this menu: {category_options}. Use a no-tool token ({no_tool_categories}) to go straight to final answer. Use a tool token ({tool_bearing_categories}) to open the private tool menu. Do not narrate, explain, or say what you would choose. Visible chat is only Gate 6 final answer.",
+    "llm_gate_instruction": "INTERNAL GATE \u2014 output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. No-tool values \u2014 {no_tool_categories} \u2014 skip tools and go straight to synthesis. Tool values \u2014 {tool_bearing_categories} \u2014 open the tool menu. Example for a web lookup: {\"gate\": \"web_research\"}. Example for a direct answer: {\"gate\": \"respond_directly\"}. Do NOT write any other text, explanation, or sentence \u2014 only the JSON object.",
     "llm_tool_request_instruction": "Private workflow gate submission only. Selected category: `{selected_category_label}`. Pick one catalog tool from this JSON menu and provide its request payload. Reply exactly as: `Category: {selected_category_label}. Tool family: {selected_category_label}. Tool: <catalog tool key>. Request payload: <JSON>.` Do not narrate or say what you would choose. Visible chat is only Gate 6 final answer.\n\nTool menu JSON:\n{selected_tool_menu_json}",
     "tool_request_submission_contract": {
       "version": "tool_request_submission_contract_v1",
