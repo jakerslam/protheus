@@ -3,6 +3,7 @@ include!("agent_scope_full_parts/045-tool-recovery-and-turn-persistence.rs");
 include!("agent_scope_full_parts/046a-workflow-reader.rs");
 include!("agent_scope_full_parts/046-turn-workflow-library.rs");
 include!("agent_scope_full_parts/046b-manual-toolbox-pending-request.rs");
+include!("agent_scope_full_parts/046c-manual-toolbox-private-gate-turn.rs");
 include!("agent_scope_full_parts/047aa-workflow-visibility-payload.rs");
 include!("agent_scope_full_parts/047a-visible-response-provenance-guards.rs");
 include!("agent_scope_full_parts/047ab-visible-response-provenance-source.rs");

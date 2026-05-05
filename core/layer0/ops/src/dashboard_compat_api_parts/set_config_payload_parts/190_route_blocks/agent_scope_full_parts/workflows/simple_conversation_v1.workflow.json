@@ -38,14 +38,53 @@
     "gates": {
       "gate_2_tool_family_menu": {
         "input_kind": "multiple_choice",
+        "artifact": "tool_family_selection",
+        "artifact_schema": {
+          "type": "object",
+          "required": [
+            "tool_family"
+          ],
+          "properties": {
+            "tool_family": {
+              "type": "string",
+              "source": "tool_menu_by_family key"
+            }
+          }
+        },
         "transition": "gate_3_tool_menu"
       },
       "gate_3_tool_menu": {
         "input_kind": "multiple_choice",
+        "artifact": "tool_selection",
+        "artifact_schema": {
+          "type": "object",
+          "required": [
+            "tool"
+          ],
+          "properties": {
+            "tool": {
+              "type": "string",
+              "source": "selected family tool key"
+            }
+          }
+        },
         "transition": "gate_4_request_payload_input"
       },
       "gate_4_request_payload_input": {
         "input_kind": "text_input",
+        "artifact": "request_payload",
+        "artifact_schema": {
+          "type": "object",
+          "required": [
+            "request_payload"
+          ],
+          "properties": {
+            "request_payload": {
+              "type": "object",
+              "source": "selected tool request_format"
+            }
+          }
+        },
         "transition": "gate_4b_tool_confirmation_menu"
       },
       "gate_4b_tool_confirmation_menu": {
@@ -291,6 +330,8 @@
       "tracked_gates": [
         "gate_1_work_category_menu",
         "gate_2_tool_family_menu",
+        "gate_3_tool_menu",
+        "gate_4_request_payload_input",
         "gate_5_post_tool_menu",
         "gate_6_llm_final_output"
       ],
@@ -299,7 +340,13 @@
           "workflow_category_or_direct_final_answer"
         ],
         "gate_2_tool_family_menu": [
-          "tool_request"
+          "tool_family_selection"
+        ],
+        "gate_3_tool_menu": [
+          "tool_selection"
+        ],
+        "gate_4_request_payload_input": [
+          "request_payload"
         ],
         "gate_5_post_tool_menu": [
           "tool_result"
@@ -841,7 +888,10 @@
       "none": []
     },
     "llm_gate_instruction": "INTERNAL GATE \u2014 output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. No-tool values \u2014 {no_tool_categories} \u2014 skip tools and go straight to synthesis. Tool values \u2014 {tool_bearing_categories} \u2014 open the tool menu. IMPORTANT: when you choose a no-tool gate value (respond_directly or equivalent), you MUST also include a \"final_answer\" field with the actual natural-language reply the user should see. Example for a direct conversational reply: {\"gate\": \"respond_directly\", \"final_answer\": \"Hey! What can I help you with?\"}. Example for a synthesis reply: {\"gate\": \"respond_directly\", \"final_answer\": \"Based on the results: ...\"}. Example for a web lookup (no final_answer needed): {\"gate\": \"web_research\"}. Do NOT write any other text outside the JSON object.",
-    "llm_tool_request_instruction": "INTERNAL GATE — output is never shown to the user. Gate 2: Select one tool from the `{selected_category_label}` category. You MUST output ONLY a JSON object and nothing else. Format: {\"tool_family\": \"{selected_category_key}\", \"tool\": \"<tool_key>\", \"request_payload\": <payload_object>}. Choose exactly one tool_key from the available tools below, and fill request_payload to match that tool's request_format. Do NOT write any other text, explanation, or sentence — only the JSON object. Example: {\"tool_family\": \"{selected_category_key}\", \"tool\": \"web_search\", \"request_payload\": {\"source\": \"web\", \"query\": \"search terms here\", \"aperture\": \"medium\"}}.\n\nAvailable tools (JSON):\n{selected_tool_menu_json}",
+    "llm_tool_family_instruction": "INTERNAL GATE — output is never shown to the user. Gate 2 selects the tool family only. You MUST output ONLY a JSON object and nothing else. Format: {\"tool_family\": \"<family_key>\"}. Choose exactly one `tool_family` from the menu below. The previous tool-bearing work category was `{previous_category_key}` (`{previous_category_label}`); use that as context, but the only accepted artifact for this gate is the selected family key. Do NOT include a tool key, request payload, explanation, or sentence. Example: {\"tool_family\": \"web_research\"}.\n\nTool families (JSON):\n{tool_family_menu_json}",
+    "llm_tool_selection_instruction": "INTERNAL GATE — output is never shown to the user. Gate 3 selects the specific tool within the already-selected family `{selected_family_key}` (`{selected_family_label}`). You MUST output ONLY a JSON object and nothing else. Format: {\"tool\": \"<tool_key>\"}. Choose exactly one `tool` from the menu below. Do NOT include the family again, do NOT include a request payload, and do NOT write any explanation or sentence. Example: {\"tool\": \"web_search\"}.\n\nAvailable tools for the selected family (JSON):\n{selected_tool_menu_json}",
+    "llm_tool_payload_instruction": "INTERNAL GATE — output is never shown to the user. Gate 4 fills the request payload for the already-selected tool `{selected_tool_key}` (`{selected_tool_label}`) inside family `{selected_family_key}`. You MUST output ONLY a JSON object and nothing else. Format: {\"request_payload\": <payload_object>}. The payload object MUST match this request_format JSON: {selected_tool_request_format_json}. Use this example only as shape guidance: {selected_tool_request_example_json}. Do NOT include the tool family, do NOT include the tool key, and do NOT write any explanation or sentence. Example: {\"request_payload\": {\"source\": \"web\", \"query\": \"compare infring to top agentic frameworks\", \"aperture\": \"medium\"}}",
+    "llm_tool_request_instruction": "LEGACY INTERNAL GATE — output is never shown to the user. Deprecated combined submission contract retained only for compatibility. Runtime should prefer the split Gate 2/3/4 instructions above. If used, output ONLY a JSON object in the format {\"tool_family\": \"{selected_category_key}\", \"tool\": \"<tool_key>\", \"request_payload\": <payload_object>} and nothing else.\n\nAvailable tools (JSON):\n{selected_tool_menu_json}",
     "tool_request_submission_contract": {
       "version": "tool_request_submission_contract_v1",
       "field_order": [
