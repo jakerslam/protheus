@@ -13,4 +13,3 @@ include!("runtime_systems_parts/105-entrypoint-authority-context.rs");
 include!("runtime_systems_parts/110-merge-payload.rs");
 include!("runtime_systems_parts/120-run-writes-latest-and-status-reads-it.rs");
 include!("runtime_systems_parts/125-contract-specific-regression-tests.rs");
-include!("runtime_systems_parts/130-placeholder.rs");
