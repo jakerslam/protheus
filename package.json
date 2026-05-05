@@ -1,4 +1,45 @@
 {
+  "bin": {
+    "infring": "./client/cli/bin/infring",
+    "infring-top": "./client/cli/bin/infring-top",
+    "infringctl": "./client/cli/bin/infringctl",
+    "infringd": "./client/cli/bin/infringd"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3",
+    "typescript": "^5.9.3",
+    "ws": "^8.19.0",
+    "xml2js": "^0.6.2"
+  },
+  "description": "Personal automation and orchestration toolkit for macOS/Linux workflows.",
+  "devDependencies": {
+    "@vitest/coverage-istanbul": "^2.1.9",
+    "@vitest/coverage-v8": "^2.1.8",
+    "svelte": "^4.2.20",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "license": "Apache-2.0 AND LicenseRef-InfRing-NC-1.0",
+  "name": "infring",
+  "overrides": {
+    "socket.io-parser": "^4.2.6"
+  },
+  "packageManager": "npm@11.10.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/infring/infring.git"
+  },
+  "runtimeDependencyContract": {
+    "dashboardHealthEndpoint": "/healthz",
+    "requiredNodeModules": [
+      "typescript",
+      "ws"
+    ],
+    "tier1RuntimeManifest": "client/runtime/config/install_runtime_manifest_v1.txt"
+  },
   "scripts": {
     "account:create": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/workflow/gated_account_creation_organ.ts create --template=\"$TEMPLATE_ID\" --objective-id=\"$OBJECTIVE_ID\" --apply=0",
     "actuation:defrag:run": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/compat/legacy_retired_lane.ts run --lane-id=SYSTEMS-ACTUATION-ADAPTER-DEFRAGMENTATION",
@@ -320,7 +361,6 @@
     "ops:chaos-self-healing:run": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/chaos_self_healing_automation.ts run --strict=0 --apply=0",
     "ops:churn:commit-gate": "npm run -s tooling:run -- --id=ops:churn:commit-gate --strict=1",
     "ops:churn:guard": "npm run -s tooling:run -- --id=ops:churn:guard --strict=1",
-    "ops:commit-message:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --out=core/local/artifacts/conventional_commit_gate_current.json",
     "ops:ci-baseline:guard": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/ci_baseline_guard.ts run",
     "ops:ci-quality:check": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_quality_scorecard_contract.ts --strict=1 --out-json=core/local/artifacts/ci_quality_scorecard_current.json --out-markdown=local/workspace/reports/CI_QUALITY_SCORECARD_CURRENT.md",
     "ops:ci-workflow:check": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_workflow_rationalization_contract.ts --strict=1 --out-json=core/local/artifacts/ci_workflow_rationalization_contract_current.json --out-markdown=local/workspace/reports/CI_WORKFLOW_RATIONALIZATION_CONTRACT_CURRENT.md",
@@ -335,6 +375,7 @@
     "ops:codex:wave:preflight": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/codex_wave_preflight.ts --strict=1",
     "ops:command-registry:check": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/command_registry_surface_contract.ts check --strict=1",
     "ops:command-registry:sync": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/command_registry_surface_contract.ts sync --strict=0",
+    "ops:commit-message:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --out=core/local/artifacts/conventional_commit_gate_current.json",
     "ops:compat-tail:run": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/compatibility_tail_retirement.ts run --strict=1",
     "ops:compatibility-conformance:run": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/compatibility_conformance_program.ts run --integration=local",
     "ops:competitive-matrix:run": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/run_infring_ops.ts benchmark-matrix run --refresh-runtime=1",
@@ -353,9 +394,9 @@
     "ops:debt:expiry:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/debt_expiry_guard.ts --strict=1 --out=core/local/artifacts/debt_expiry_guard_current.json",
     "ops:deny-telemetry:normalize": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/deny_telemetry_normalizer.ts run",
     "ops:dependency-boundary:check": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/dependency_boundary_guard.ts check --strict=1",
+    "ops:dna:integrity:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/digital_dna_integrity_gate.ts --strict=1",
     "ops:docs-surface:check": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/public_platform_contract_audit.ts --strict=1 --skip-public=1 --docs-surface-policy=client/runtime/config/docs_surface_contract_policy.json",
     "ops:dod:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/dod_policy_gate.ts --strict=1",
-    "ops:dna:integrity:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/digital_dna_integrity_gate.ts --strict=1",
     "ops:effective-loc:contract:guard": "npm run -s tooling:run -- --id=ops:effective-loc:contract:guard --strict=1",
     "ops:effective-loc:metric": "npm run -s tooling:run -- --id=ops:effective-loc:metric --strict=1",
     "ops:empty-fort:add-contributors": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/add_contributors_from_csv.ts",
@@ -369,6 +410,8 @@
     "ops:eval-agent:chat-monitor:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/eval_agent_chat_monitor_guard.ts --strict=1",
     "ops:eval-feedback:lifecycle:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/eval_feedback_lifecycle_guard.ts --strict=1 --out-json=core/local/artifacts/eval_feedback_lifecycle_guard_current.json --out-markdown=local/workspace/reports/EVAL_FEEDBACK_LIFECYCLE_GUARD_CURRENT.md",
     "ops:eval:adversarial:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/eval_adversarial_guard.ts --strict=1",
+    "ops:eval:agent-capability:l1": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- synthetic-user-chat-harness --strict=1 --cases=validation/evals/fixtures/agent_capability_ladder_l1_cases.json --out=core/local/artifacts/agent_capability_ladder_l1_current.json --out-latest=artifacts/agent_capability_ladder_l1_latest.json --out-markdown=local/workspace/reports/AGENT_CAPABILITY_LADDER_L1_CURRENT.md --failures-out=local/state/ops/agent_capability_ladder_l1/failures.jsonl",
+    "ops:eval:agent-capability:l1:live": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- synthetic-user-chat-harness --live=1 --agent-id=${AGENT_ID:-agent-5bc62b0875a9} --strict=1 --require-live-monitor-freshness=1 --cases=validation/evals/fixtures/agent_capability_ladder_l1_cases.json --out=core/local/artifacts/agent_capability_ladder_l1_live_current.json --out-latest=artifacts/agent_capability_ladder_l1_live_latest.json --out-markdown=local/workspace/reports/AGENT_CAPABILITY_LADDER_L1_LIVE_CURRENT.md --failures-out=local/state/ops/agent_capability_ladder_l1/live_failures.jsonl",
     "ops:eval:agent-feedback": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- agent-feedback --all=1 --strict=1",
     "ops:eval:agent-self-diagnosis": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- agent-self-diagnosis --agent-id=agent-5bc62b0875a9 --strict=1",
     "ops:eval:autopilot:full": "npm run -s ops:orchestration:phase-trace:collect && npm run -s ops:orchestration:phase-trace:guard && npm run -s ops:eval-agent:chat-monitor:guard && npm run -s ops:eval:monitor:slo:guard && npm run -s ops:eval:gold-dataset:schema:guard && npm run -s ops:eval:adversarial:guard && npm run -s ops:eval:quality:metrics:guard && npm run -s ops:eval:judge-lane:guard && npm run -s ops:eval:reviewer:weekly:ingest && npm run -s ops:eval:judge-human:agreement:guard && npm run -s ops:eval:issue:filing:guard && npm run -s ops:eval:issue:resolution:guard && npm run -s ops:eval:quality:gate:v1 && npm run -s ops:eval:runtime:authority:guard && npm run -s ops:eval:autopilot:guard && npm run -s ops:eval:feedback:router && npm run -s ops:eval:agent-feedback && npm run -s ops:eval:regression:guard",
@@ -389,8 +432,6 @@
     "ops:eval:regression:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/eval_regression_guard.ts --strict=1",
     "ops:eval:reviewer:weekly:ingest": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/eval_reviewer_feedback_ingest.ts --strict=1",
     "ops:eval:runtime:authority:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/eval_runtime_authority_guard.ts --strict=1",
-    "ops:eval:agent-capability:l1": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- synthetic-user-chat-harness --strict=1 --cases=validation/evals/fixtures/agent_capability_ladder_l1_cases.json --out=core/local/artifacts/agent_capability_ladder_l1_current.json --out-latest=artifacts/agent_capability_ladder_l1_latest.json --out-markdown=local/workspace/reports/AGENT_CAPABILITY_LADDER_L1_CURRENT.md --failures-out=local/state/ops/agent_capability_ladder_l1/failures.jsonl",
-    "ops:eval:agent-capability:l1:live": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- synthetic-user-chat-harness --live=1 --agent-id=${AGENT_ID:-agent-5bc62b0875a9} --strict=1 --require-live-monitor-freshness=1 --cases=validation/evals/fixtures/agent_capability_ladder_l1_cases.json --out=core/local/artifacts/agent_capability_ladder_l1_live_current.json --out-latest=artifacts/agent_capability_ladder_l1_live_latest.json --out-markdown=local/workspace/reports/AGENT_CAPABILITY_LADDER_L1_LIVE_CURRENT.md --failures-out=local/state/ops/agent_capability_ladder_l1/live_failures.jsonl",
     "ops:eval:synthetic-user-chat:harness": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- synthetic-user-chat-harness --strict=1",
     "ops:event-sourced:append": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/compat/legacy_retired_lane.ts append --stream=control --event=mutation --lane-id=SYSTEMS-OPS-EVENT-SOURCED-CONTROL-PLANE",
     "ops:event-sourced:replay": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/compat/legacy_retired_lane.ts replay --lane-id=SYSTEMS-OPS-EVENT-SOURCED-CONTROL-PLANE",
@@ -660,6 +701,12 @@
     "ops:shell-naming:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/naming_policy_guard.ts --policy=client/runtime/config/shell_naming_policy.json --out-json=core/local/artifacts/shell_naming_policy_guard_current.json --out-markdown=local/workspace/reports/SHELL_NAMING_POLICY_GUARD_CURRENT.md",
     "ops:shell-naming:guard:strict": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/naming_policy_guard.ts --strict=1 --policy=client/runtime/config/shell_naming_policy.json --out-json=core/local/artifacts/shell_naming_policy_guard_current.json --out-markdown=local/workspace/reports/SHELL_NAMING_POLICY_GUARD_CURRENT.md",
     "ops:shell-scope:inventory": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_scope_inventory.ts --out=core/local/artifacts/shell_scope_inventory_current.json",
+    "ops:shell-socket:client:self-test": "node client/runtime/lib/ts_entrypoint.ts shell/socket/client/shell_socket_gateway_client.ts --self-test=1",
+    "ops:shell-socket:contract:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_socket_contract_guard.ts --strict=1 --contract=shell/socket/contract/shell_socket_contract.json --out-json=core/local/artifacts/shell_socket_contract_guard_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_CONTRACT_GUARD_CURRENT.md",
+    "ops:shell-socket:gateway-route:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_socket_gateway_route_guard.ts --strict=1 --socket-contract=shell/socket/contract/shell_socket_contract.json --route-contract=validation/conformance/contracts/shell_socket_gateway_contract.json --out-json=core/local/artifacts/shell_socket_gateway_route_guard_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_GATEWAY_ROUTE_GUARD_CURRENT.md",
+    "ops:shell-socket:headless-probe": "node client/runtime/lib/ts_entrypoint.ts shell/socket/probe/shell_socket_headless_probe.ts --strict=1 --socket-contract=shell/socket/contract/shell_socket_contract.json --route-contract=validation/conformance/contracts/shell_socket_gateway_contract.json --out-json=core/local/artifacts/shell_socket_headless_probe_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_HEADLESS_PROBE_CURRENT.md",
+    "ops:shell-socket:legacy:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/legacy_browser_shell_guard.ts --strict=1 --manifest=shell/legacy/legacy_browser_shell_manifest.json --out-json=core/local/artifacts/legacy_browser_shell_guard_current.json --out-markdown=local/workspace/reports/LEGACY_BROWSER_SHELL_GUARD_CURRENT.md",
+    "ops:shell-socket:live-probe": "node client/runtime/lib/ts_entrypoint.ts shell/socket/probe/shell_socket_live_probe.ts --base-url=${SHELL_SOCKET_LIVE_BASE_URL:-http://127.0.0.1:5173} --require-live=${SHELL_SOCKET_REQUIRE_LIVE:-0} --out-json=core/local/artifacts/shell_socket_live_probe_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_LIVE_PROBE_CURRENT.md",
     "ops:shell-surface:disposition": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_surface_disposition.ts --out=core/local/artifacts/shell_surface_disposition_current.json",
     "ops:shell-target:audit": "npm run -s ops:shell-scope:inventory >/dev/null && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_layer_boundary_audit.ts --strict=1 --out=core/local/artifacts/shell_layer_boundary_audit_current.json >/dev/null && npm run -s ops:shell-surface:disposition >/dev/null && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_target_contract_audit.ts --strict=1 --scope=core/local/artifacts/shell_scope_inventory_current.json --boundary=core/local/artifacts/shell_layer_boundary_audit_current.json --disposition=core/local/artifacts/shell_surface_disposition_current.json --out=core/local/artifacts/shell_target_contract_audit_current.json",
     "ops:shell-transition:tracker": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_transition_completion_tracker.ts --strict=1 --out=core/local/artifacts/shell_transition_tracker_current.json --out-markdown=local/workspace/reports/SHELL_TRANSITION_TRACKER_CURRENT.md",
@@ -678,17 +725,6 @@
     "ops:shell:message-metadata:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_message_metadata_ownership_guard.ts --strict=1 --out-json=core/local/artifacts/shell_message_metadata_ownership_guard_current.json --out-markdown=local/workspace/reports/SHELL_MESSAGE_METADATA_OWNERSHIP_GUARD_CURRENT.md",
     "ops:shell:popup-runtime:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_popup_runtime_ownership_guard.ts --strict=1 --out-json=core/local/artifacts/shell_popup_runtime_ownership_guard_current.json --out-markdown=local/workspace/reports/SHELL_POPUP_RUNTIME_OWNERSHIP_GUARD_CURRENT.md",
     "ops:shell:projection:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_projection_guard.ts --strict=1 --out-json=core/local/artifacts/shell_projection_guard_current.json --out-markdown=local/workspace/reports/SHELL_PROJECTION_GUARD_CURRENT.md",
-    "ops:shell-socket:client:self-test": "node client/runtime/lib/ts_entrypoint.ts shell/socket/client/shell_socket_gateway_client.ts --self-test=1",
-    "ops:shell-socket:contract:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_socket_contract_guard.ts --strict=1 --contract=shell/socket/contract/shell_socket_contract.json --out-json=core/local/artifacts/shell_socket_contract_guard_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_CONTRACT_GUARD_CURRENT.md",
-    "ops:shell-socket:gateway-route:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_socket_gateway_route_guard.ts --strict=1 --socket-contract=shell/socket/contract/shell_socket_contract.json --route-contract=validation/conformance/contracts/shell_socket_gateway_contract.json --out-json=core/local/artifacts/shell_socket_gateway_route_guard_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_GATEWAY_ROUTE_GUARD_CURRENT.md",
-    "ops:shell-socket:headless-probe": "node client/runtime/lib/ts_entrypoint.ts shell/socket/probe/shell_socket_headless_probe.ts --strict=1 --socket-contract=shell/socket/contract/shell_socket_contract.json --route-contract=validation/conformance/contracts/shell_socket_gateway_contract.json --out-json=core/local/artifacts/shell_socket_headless_probe_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_HEADLESS_PROBE_CURRENT.md",
-    "ops:shell-socket:legacy:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/legacy_browser_shell_guard.ts --strict=1 --manifest=shell/legacy/legacy_browser_shell_manifest.json --out-json=core/local/artifacts/legacy_browser_shell_guard_current.json --out-markdown=local/workspace/reports/LEGACY_BROWSER_SHELL_GUARD_CURRENT.md",
-    "ops:shell-socket:live-probe": "node client/runtime/lib/ts_entrypoint.ts shell/socket/probe/shell_socket_live_probe.ts --base-url=${SHELL_SOCKET_LIVE_BASE_URL:-http://127.0.0.1:5173} --require-live=${SHELL_SOCKET_REQUIRE_LIVE:-0} --out-json=core/local/artifacts/shell_socket_live_probe_current.json --out-markdown=local/workspace/reports/SHELL_SOCKET_LIVE_PROBE_CURRENT.md",
-    "ops:terminal-shell:contract:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/terminal_shell_contract_guard.ts --strict=1 --source=shell/terminal/terminal_shell.ts --renderer=shell/terminal/terminal_output_renderer.ts --readme=shell/terminal/README.md --out-json=core/local/artifacts/terminal_shell_contract_guard_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_CONTRACT_GUARD_CURRENT.md",
-    "ops:terminal-shell:interactive-smoke": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_shell.ts --interactive-smoke=1 --out-json=core/local/artifacts/terminal_shell_interactive_smoke_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_INTERACTIVE_SMOKE_CURRENT.md",
-    "ops:terminal-shell:live-response-test": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_shell.ts --live=1 --base-url=${TERMINAL_SHELL_BASE_URL:-http://127.0.0.1:5173} --require-live=${TERMINAL_SHELL_REQUIRE_LIVE:-0} --out-json=core/local/artifacts/terminal_shell_live_response_test_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_LIVE_RESPONSE_TEST_CURRENT.md",
-    "ops:terminal-shell:render-fixture": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_output_renderer.ts --fixture=1 --out-text=core/local/artifacts/terminal_shell_render_fixture_current.txt --out-markdown=local/workspace/reports/TERMINAL_SHELL_RENDER_FIXTURE_CURRENT.md",
-    "ops:terminal-shell:response-test": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_shell.ts --out-json=core/local/artifacts/terminal_shell_response_test_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_RESPONSE_TEST_CURRENT.md",
     "ops:shell:runtime-payload-budget:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_runtime_payload_budget_guard.ts --strict=1 --contract=validation/regression/contracts/shell_runtime_payload_budget_contract.json --out-json=core/local/artifacts/shell_runtime_payload_budget_guard_current.json --out-markdown=local/workspace/reports/SHELL_RUNTIME_PAYLOAD_BUDGET_GUARD_CURRENT.md",
     "ops:shell:simple-page-panel:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_simple_page_panel_ownership_guard.ts --strict=1 --out-json=core/local/artifacts/shell_simple_page_panel_ownership_guard_current.json --out-markdown=local/workspace/reports/SHELL_SIMPLE_PAGE_PANEL_OWNERSHIP_GUARD_CURRENT.md",
     "ops:shell:taskbar-dock:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/shell_taskbar_dock_ownership_guard.ts --strict=1 --out-json=core/local/artifacts/shell_taskbar_dock_ownership_guard_current.json --out-markdown=local/workspace/reports/SHELL_TASKBAR_DOCK_OWNERSHIP_GUARD_CURRENT.md",
@@ -733,6 +769,11 @@
     "ops:system-map:status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/system_map_generator.ts status",
     "ops:system:fitness:gate": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/system_fitness_gate.ts --strict=1 --out=core/local/artifacts/system_fitness_gate_current.json",
     "ops:tech-debt:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/tech_debt_report.ts --strict=1 --out-json=core/local/artifacts/tech_debt_report_current.json --out-markdown=local/workspace/reports/TECH_DEBT_REPORT_CURRENT.md",
+    "ops:terminal-shell:contract:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/terminal_shell_contract_guard.ts --strict=1 --source=shell/terminal/terminal_shell.ts --renderer=shell/terminal/terminal_output_renderer.ts --readme=shell/terminal/README.md --out-json=core/local/artifacts/terminal_shell_contract_guard_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_CONTRACT_GUARD_CURRENT.md",
+    "ops:terminal-shell:interactive-smoke": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_shell.ts --interactive-smoke=1 --out-json=core/local/artifacts/terminal_shell_interactive_smoke_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_INTERACTIVE_SMOKE_CURRENT.md",
+    "ops:terminal-shell:live-response-test": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_shell.ts --live=1 --base-url=${TERMINAL_SHELL_BASE_URL:-http://127.0.0.1:5173} --require-live=${TERMINAL_SHELL_REQUIRE_LIVE:-0} --out-json=core/local/artifacts/terminal_shell_live_response_test_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_LIVE_RESPONSE_TEST_CURRENT.md",
+    "ops:terminal-shell:render-fixture": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_output_renderer.ts --fixture=1 --out-text=core/local/artifacts/terminal_shell_render_fixture_current.txt --out-markdown=local/workspace/reports/TERMINAL_SHELL_RENDER_FIXTURE_CURRENT.md",
+    "ops:terminal-shell:response-test": "node client/runtime/lib/ts_entrypoint.ts shell/terminal/terminal_shell.ts --out-json=core/local/artifacts/terminal_shell_response_test_current.json --out-markdown=local/workspace/reports/TERMINAL_SHELL_RESPONSE_TEST_CURRENT.md",
     "ops:terminology:transition:inventory": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/terminology_transition_inventory.ts --strict=1 --out-json=core/local/artifacts/terminology_transition_inventory_current.json --out-markdown=local/workspace/reports/TERMINOLOGY_TRANSITION_INVENTORY_CURRENT.md",
     "ops:test-maturity:registry:guard": "npm run -s tooling:run -- --id=ops:test-maturity:registry:guard --strict=1",
     "ops:test-priority:audit": "npm run -s tooling:run -- --id=ops:test-priority:audit --strict=1",
@@ -1122,46 +1163,5 @@
     "xai:trajectory-status": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/assimilation/trajectory_skill_distiller.ts status",
     "zero-permission:decide": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/autonomy/zero_permission_conversational_layer.ts decide --action-id=${ACTION_ID:-default_action} --risk-tier=${RISK_TIER:-medium} --estimated-cost-usd=${ESTIMATED_COST_USD:-8} --liability-score=${LIABILITY_SCORE:-0.35} --apply=${APPLY:-0}"
   },
-  "bin": {
-    "infring": "./client/cli/bin/infring",
-    "infringctl": "./client/cli/bin/infringctl",
-    "infringd": "./client/cli/bin/infringd",
-    "infring-top": "./client/cli/bin/infring-top"
-  },
-  "devDependencies": {
-    "@vitest/coverage-istanbul": "^2.1.9",
-    "@vitest/coverage-v8": "^2.1.8",
-    "svelte": "^4.2.20",
-    "vitest": "^2.1.8"
-  },
-  "dependencies": {
-    "typescript": "^5.9.3",
-    "ws": "^8.19.0",
-    "socket.io": "^4.8.3",
-    "xml2js": "^0.6.2"
-  },
-  "overrides": {
-    "socket.io-parser": "^4.2.6"
-  },
-  "name": "infring",
-  "version": "0.2.1-alpha.1",
-  "private": true,
-  "description": "Personal automation and orchestration toolkit for macOS/Linux workflows.",
-  "license": "Apache-2.0 AND LicenseRef-InfRing-NC-1.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/infring/infring.git"
-  },
-  "engines": {
-    "node": ">=22.0.0"
-  },
-  "packageManager": "npm@11.10.0",
-  "runtimeDependencyContract": {
-    "requiredNodeModules": [
-      "typescript",
-      "ws"
-    ],
-    "tier1RuntimeManifest": "client/runtime/config/install_runtime_manifest_v1.txt",
-    "dashboardHealthEndpoint": "/healthz"
-  }
+  "version": "0.4.0"
 }
