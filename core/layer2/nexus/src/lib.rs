@@ -99,4 +99,5 @@ pub(crate) fn now_ms() -> u64 {
 }
 
 #[cfg(test)]
+#[path = "../../../../validation/tests/rust/layer2_nexus/tests.rs"]
 mod tests;

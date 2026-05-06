@@ -502,4 +502,5 @@ pub fn ingest_evidence_sources(
 }
 
 #[cfg(test)]
+#[path = "../../../../../validation/tests/rust/kernel_sentinel/evidence/tests.rs"]
 mod tests;

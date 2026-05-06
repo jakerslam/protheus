@@ -102,4 +102,5 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
 }
 
 #[cfg(test)]
+#[path = "../../../../../validation/tests/rust/graph_toolkit/tests.rs"]
 mod tests;

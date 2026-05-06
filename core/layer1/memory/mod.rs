@@ -462,4 +462,5 @@ fn blake3_hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
+#[path = "../../../validation/tests/rust/layer1_memory/tests.rs"]
 mod tests;
