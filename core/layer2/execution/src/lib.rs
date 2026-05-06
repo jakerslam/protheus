@@ -450,4 +450,5 @@ pub unsafe extern "C" fn execution_core_string_free(ptr: *mut c_char) {
 }
 
 #[cfg(test)]
+#[path = "../../../../validation/tests/rust/layer2_execution/tests.rs"]
 mod tests;
