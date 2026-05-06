@@ -1,0 +1,559 @@
+{
+  "schema_version": 1,
+  "dataset_id": "research_golden_dataset_v1",
+  "domain": "research",
+  "created_at": "2026-05-06",
+  "description": "Human-authored seed golden dataset for judging research usefulness independently from workflow plumbing. Cases intentionally avoid exact canned answers; graders should score evidence behavior, synthesis quality, and task satisfaction.",
+  "answer_key_policy": {
+    "exact_answer_matching": false,
+    "requires_live_or_recorded_evidence": true,
+    "allow_reasoned_uncertainty": true,
+    "generated_examples_allowed": false,
+    "notes": "The dataset defines prompts, expected workflow/tool path, rubric traits, and forbidden failure modes. It does not define final answer text."
+  },
+  "reliability_thresholds": {
+    "min_cases_for_reliability_claim": 20,
+    "workflow_gate_pass_min": 0.95,
+    "research_success_min": 0.85,
+    "excellent_research_success_min": 0.95,
+    "max_empty_responses": 0,
+    "max_raw_tool_leaks": 0,
+    "max_tool_choice_as_final_response": 0,
+    "max_unsupported_factual_claims": 0
+  },
+  "workflow_expectations": {
+    "gate_1": "tool_required_for_current_or_external_research",
+    "gate_2": "select_tool_family",
+    "gate_3": "select_specific_tool_from_declared_artifacts",
+    "gate_4": "fill_tool_request_template",
+    "post_tool_required_stages": [
+      "tool_result_received",
+      "evidence_extracted",
+      "synthesis_performed",
+      "final_response_packaged"
+    ],
+    "allowed_terminal_user_visible_kinds": [
+      "final_response",
+      "clarification_request",
+      "structured_failure"
+    ],
+    "forbidden_terminal_user_visible_kinds": [
+      "tool_choice",
+      "raw_tool_result",
+      "workflow_trace",
+      "empty_response"
+    ]
+  },
+  "scoring_contract": {
+    "total_points": 100,
+    "pass_score": 85,
+    "excellent_score": 95,
+    "dimensions": [
+      {
+        "name": "workflow_path",
+        "points": 20,
+        "requirements": [
+          "Selects the research workflow path when the prompt needs external/current evidence.",
+          "Selects the web/search family at gate 2 for public-current research.",
+          "Selects a real declared web research tool at gate 3.",
+          "Produces a structured gate 4 request using the workflow template."
+        ]
+      },
+      {
+        "name": "evidence_behavior",
+        "points": 25,
+        "requirements": [
+          "Uses current or recorded source evidence for unstable factual claims.",
+          "Separates evidence from final prose instead of leaking raw tool payloads.",
+          "Names source limitations when evidence is weak or noisy.",
+          "Avoids unsupported rankings, dates, pricing, or capability claims."
+        ]
+      },
+      {
+        "name": "synthesis_quality",
+        "points": 35,
+        "requirements": [
+          "Answers the user's actual comparison or research question.",
+          "Organizes findings into scannable dimensions.",
+          "Explains tradeoffs, not just feature lists.",
+          "Distinguishes facts from inference and recommendation.",
+          "Includes limitations or next verification steps when needed."
+        ]
+      },
+      {
+        "name": "projection_safety",
+        "points": 20,
+        "requirements": [
+          "Emits exactly one user-facing final response, clarification request, or structured failure.",
+          "Does not expose gate labels, tool request JSON, raw receipts, trace bodies, or internal workflow state.",
+          "Does not return an empty assistant message when the tool path cannot complete.",
+          "Uses normal prose appropriate for the user's prompt."
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "research_gold_001_agentic_framework_landscape",
+      "category": "comparison",
+      "prompt": "Use web research to compare Infring with LangGraph, CrewAI, AutoGen, and OpenHands for agentic coding and research workflows as of May 2026. Give me the practical tradeoffs.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["Infring", "LangGraph", "CrewAI", "AutoGen", "OpenHands"],
+      "required_answer_traits": [
+        "Compares at least four frameworks across common dimensions.",
+        "Separates public evidence from inference about Infring if public evidence is limited.",
+        "States which framework fits which use case.",
+        "Includes caveats about source recency or availability."
+      ],
+      "forbidden": [
+        "Treats tool selection as the final answer.",
+        "Claims Infring public facts without evidence.",
+        "Ranks tools without explaining criteria."
+      ]
+    },
+    {
+      "id": "research_gold_002_langgraph_vs_crewai",
+      "category": "comparison",
+      "prompt": "Research LangGraph versus CrewAI for building a multi-agent research assistant. I care about reliability, observability, human review, and deployment maturity.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["LangGraph", "CrewAI"],
+      "required_answer_traits": [
+        "Uses the user's four criteria as comparison dimensions.",
+        "Gives a bounded recommendation by scenario.",
+        "Avoids assuming both projects have identical maturity.",
+        "Mentions source limitations if release or docs evidence is thin."
+      ],
+      "forbidden": [
+        "One-sentence answer.",
+        "Generic 'both are good' summary without criteria.",
+        "Raw source snippets in chat."
+      ]
+    },
+    {
+      "id": "research_gold_003_openai_agents_sdk_vs_langchain",
+      "category": "comparison",
+      "prompt": "Compare the current OpenAI Agents SDK with LangChain/LangGraph for production customer-support agents. Focus on tool orchestration, tracing, safety controls, and vendor lock-in.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["OpenAI Agents SDK", "LangChain", "LangGraph"],
+      "required_answer_traits": [
+        "Covers tool orchestration, tracing, safety controls, and lock-in.",
+        "Uses current official documentation or release evidence where possible.",
+        "Explains tradeoffs for a production support setting.",
+        "Avoids unsupported claims about pricing or roadmap."
+      ],
+      "forbidden": [
+        "Uses stale facts without date grounding.",
+        "Ignores the customer-support context.",
+        "Outputs JSON wrapper fields as visible chat."
+      ]
+    },
+    {
+      "id": "research_gold_004_browser_agents",
+      "category": "comparison",
+      "prompt": "Research browser-use, Playwright-based browser agents, and OpenHands for browser task automation. Which is most appropriate for repeatable QA-style workflows?",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["browser-use", "Playwright", "OpenHands"],
+      "required_answer_traits": [
+        "Distinguishes browser automation libraries from full coding agents.",
+        "Uses QA repeatability as the primary recommendation lens.",
+        "Names reliability risks for LLM-driven browser control.",
+        "Gives a practical choice and backup option."
+      ],
+      "forbidden": [
+        "Confuses browser automation with web search.",
+        "Claims real browser execution happened unless receipts prove it.",
+        "Omits the repeatable QA workflow criterion."
+      ]
+    },
+    {
+      "id": "research_gold_005_rag_stack_choice",
+      "category": "comparison",
+      "prompt": "Research current RAG stack options for a small team: LlamaIndex, LangChain, custom Postgres/pgvector, and managed vector databases. Give me a pragmatic recommendation.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["LlamaIndex", "LangChain", "pgvector", "vector database"],
+      "required_answer_traits": [
+        "Compares build complexity, operational burden, retrieval quality, and lock-in.",
+        "Separates framework choice from storage choice.",
+        "Gives a default recommendation for a small team.",
+        "Mentions where managed services become worth it."
+      ],
+      "forbidden": [
+        "Marketing-style list without decision criteria.",
+        "Assumes one stack is always best.",
+        "No evidence or source recency cues."
+      ]
+    },
+    {
+      "id": "research_gold_006_mcp_ecosystem_current",
+      "category": "current_state",
+      "prompt": "Research the current Model Context Protocol ecosystem and summarize what is mature, what is risky, and what a product team should avoid overcommitting to right now.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["Model Context Protocol", "MCP"],
+      "required_answer_traits": [
+        "Distinguishes protocol maturity from server ecosystem maturity.",
+        "Identifies practical adoption risks.",
+        "Gives near-term product guidance.",
+        "Grounds current-state claims in recent evidence."
+      ],
+      "forbidden": [
+        "Treats MCP as universally production-ready without caveats.",
+        "Speculates about adoption without evidence.",
+        "Fails silently if current sources are sparse."
+      ]
+    },
+    {
+      "id": "research_gold_007_model_provider_agentic_workloads",
+      "category": "current_state",
+      "prompt": "Research the current positioning of OpenAI, Anthropic, and Google models for agentic coding and tool-use workloads. I need a concise buyer-style comparison.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["OpenAI", "Anthropic", "Google"],
+      "required_answer_traits": [
+        "Uses current official or high-quality source evidence.",
+        "Avoids unsupported pricing, benchmark, or limit claims.",
+        "Separates coding quality, tool use, context limits, and ecosystem fit.",
+        "Gives a recommendation by workload."
+      ],
+      "forbidden": [
+        "Stale model names presented as latest.",
+        "Benchmark claims without source context.",
+        "Overconfident single-provider answer."
+      ]
+    },
+    {
+      "id": "research_gold_008_open_source_coding_agents",
+      "category": "current_state",
+      "prompt": "Research the strongest open-source coding agents right now and explain which are useful for real repositories versus demos.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["OpenHands", "Aider"],
+      "required_answer_traits": [
+        "Identifies multiple current open-source coding-agent projects.",
+        "Distinguishes repo-editing reliability from demo capability.",
+        "Mentions maintenance/community evidence.",
+        "Gives practical selection guidance."
+      ],
+      "forbidden": [
+        "Only lists project names.",
+        "No evidence of currentness.",
+        "Ignores real-repository workflow needs."
+      ]
+    },
+    {
+      "id": "research_gold_009_ai_browser_agent_security",
+      "category": "current_state",
+      "prompt": "Research current security concerns around AI browser agents. Focus on prompt injection, credential handling, and approval boundaries.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["prompt injection", "browser agent", "credential"],
+      "required_answer_traits": [
+        "Explains at least three concrete risk classes.",
+        "Distinguishes user approval boundaries from automation internals.",
+        "Gives engineering mitigations.",
+        "Does not provide unsafe operational instructions."
+      ],
+      "forbidden": [
+        "Dismisses security concerns as theoretical.",
+        "Leaks or asks for credentials.",
+        "No mitigation guidance."
+      ]
+    },
+    {
+      "id": "research_gold_010_recent_framework_changes",
+      "category": "current_state",
+      "prompt": "Look up recent changes in LangGraph, CrewAI, and AutoGen. Summarize what actually changed and whether it matters for production agent systems.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["LangGraph", "CrewAI", "AutoGen"],
+      "required_answer_traits": [
+        "Uses dated release, docs, or changelog evidence.",
+        "Separates meaningful production changes from minor updates.",
+        "Notes unknowns when release evidence is weak.",
+        "Answers whether each change matters."
+      ],
+      "forbidden": [
+        "Invented changelog claims.",
+        "No dates.",
+        "Raw search result dump."
+      ]
+    },
+    {
+      "id": "research_gold_011_pydantic_ai",
+      "category": "library_research",
+      "prompt": "Research PydanticAI for structured agent workflows. Is it a serious option for production Python teams, and where does it fit compared with heavier frameworks?",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["PydanticAI", "Python"],
+      "required_answer_traits": [
+        "Explains the core design of the library.",
+        "Compares fit against heavier orchestration frameworks.",
+        "Identifies production strengths and gaps.",
+        "Grounds claims in current docs or project evidence."
+      ],
+      "forbidden": [
+        "Assumes PydanticAI is just Pydantic validation.",
+        "No comparison to heavier frameworks.",
+        "Unsupported maturity claim."
+      ]
+    },
+    {
+      "id": "research_gold_012_mastra_typescript_agents",
+      "category": "library_research",
+      "prompt": "Research Mastra for TypeScript agent workflows. Explain its current strengths, weak points, and whether it competes with LangGraph or solves a different problem.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["Mastra", "TypeScript", "LangGraph"],
+      "required_answer_traits": [
+        "States what Mastra is and who it is for.",
+        "Compares against LangGraph without forcing false equivalence.",
+        "Mentions maturity, docs, and ecosystem signals.",
+        "Gives a clear adoption recommendation."
+      ],
+      "forbidden": [
+        "Confuses Mastra with unrelated products.",
+        "No TypeScript-specific analysis.",
+        "Unsupported production-readiness claim."
+      ]
+    },
+    {
+      "id": "research_gold_013_semantic_kernel_enterprise",
+      "category": "library_research",
+      "prompt": "Research Microsoft Semantic Kernel for enterprise agent orchestration. Where is it strong, where is it awkward, and what teams should consider it?",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["Semantic Kernel", "Microsoft"],
+      "required_answer_traits": [
+        "Covers enterprise integration and orchestration fit.",
+        "Explains drawbacks or awkwardness honestly.",
+        "Names team profiles that should consider it.",
+        "Uses current official or credible evidence."
+      ],
+      "forbidden": [
+        "Microsoft ecosystem bias without tradeoffs.",
+        "No use-case segmentation.",
+        "No current evidence."
+      ]
+    },
+    {
+      "id": "research_gold_014_llamaindex_vs_langchain_docs",
+      "category": "library_research",
+      "prompt": "Research LlamaIndex workflows versus LangChain/LangGraph for document-heavy research assistants. I care about ingestion, retrieval, workflow control, and maintenance.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["LlamaIndex", "LangChain", "LangGraph"],
+      "required_answer_traits": [
+        "Separates document ingestion/retrieval from workflow orchestration.",
+        "Uses the user's four criteria.",
+        "Gives a practical architecture recommendation.",
+        "Identifies maintenance risks."
+      ],
+      "forbidden": [
+        "Framework fanboy answer.",
+        "No document-heavy analysis.",
+        "No recommendation."
+      ]
+    },
+    {
+      "id": "research_gold_015_research_data_tools",
+      "category": "library_research",
+      "prompt": "Research Firecrawl, Tavily, and Exa as data tools for AI research agents. Which should we use for search, crawling, and evidence gathering?",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["Firecrawl", "Tavily", "Exa"],
+      "required_answer_traits": [
+        "Distinguishes search, crawl, extraction, and evidence gathering.",
+        "Gives a recommendation by data task.",
+        "Mentions pricing/limits only with current evidence.",
+        "Warns about source-quality and citation risks."
+      ],
+      "forbidden": [
+        "Treats all tools as interchangeable.",
+        "Unsupported pricing claims.",
+        "No evidence-quality discussion."
+      ]
+    },
+    {
+      "id": "research_gold_016_low_signal_infring_public",
+      "category": "low_signal",
+      "prompt": "Search the web for public evidence about Infring compared with agentic frameworks. If evidence is sparse, say that clearly and still give me a bounded comparison based on what can be verified.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["Infring"],
+      "required_answer_traits": [
+        "Explicitly handles sparse or missing public evidence.",
+        "Does not hallucinate Infring public facts.",
+        "Separates verified evidence from internal/contextual inference.",
+        "Still gives a useful bounded comparison plan."
+      ],
+      "forbidden": [
+        "Pretends sparse results are sufficient.",
+        "Empty response after low-signal search.",
+        "Raw tool no-results text as final answer."
+      ]
+    },
+    {
+      "id": "research_gold_017_marketing_noise_best_framework",
+      "category": "low_signal",
+      "prompt": "What is the best agentic framework in 2026? Search first, but do not trust marketing pages blindly. Give me a defensible answer.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["agentic framework"],
+      "required_answer_traits": [
+        "Rejects a single universal best answer unless evidence supports it.",
+        "Defines evaluation criteria before ranking.",
+        "Identifies marketing or SEO bias when present.",
+        "Gives best-by-use-case recommendations."
+      ],
+      "forbidden": [
+        "SEO-style top-10 list as final answer.",
+        "No criteria.",
+        "Unsupported universal winner."
+      ]
+    },
+    {
+      "id": "research_gold_018_sparse_benchmarks",
+      "category": "low_signal",
+      "prompt": "Find recent benchmarks comparing agent frameworks. If the benchmark evidence is weak, explain why and suggest a practical evaluation plan.",
+      "expected_gate_path": {
+        "gate_1": "tool_required",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"]
+      },
+      "required_entities": ["benchmark", "agent framework"],
+      "required_answer_traits": [
+        "Looks for benchmark evidence before answering.",
+        "Explains benchmark limitations or absence.",
+        "Proposes a practical internal eval plan.",
+        "Avoids pretending weak benchmark data is conclusive."
+      ],
+      "forbidden": [
+        "Invented benchmark results.",
+        "No uncertainty handling.",
+        "No proposed evaluation plan."
+      ]
+    },
+    {
+      "id": "research_gold_019_after_low_signal_tool_result",
+      "category": "post_tool_synthesis",
+      "prompt": "After the web tool returns low-signal results for Infring, synthesize a useful answer anyway. Tell me what we know, what we do not know, and the next best search query.",
+      "expected_gate_path": {
+        "gate_1": "tool_required_or_pending_tool_result",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"],
+        "post_tool": "must_synthesize_from_low_signal_evidence"
+      },
+      "required_entities": ["Infring"],
+      "required_answer_traits": [
+        "Does not collapse low-signal evidence into no response.",
+        "States knowns, unknowns, and next query.",
+        "Avoids raw low-signal payload leakage.",
+        "Gives a provisional but honest synthesis."
+      ],
+      "forbidden": [
+        "Asks the user to retry instead of synthesizing.",
+        "Generic fallback text.",
+        "No next query."
+      ]
+    },
+    {
+      "id": "research_gold_020_after_multiple_source_snippets",
+      "category": "post_tool_synthesis",
+      "prompt": "After the web tool returns several source snippets about agent frameworks, synthesize the tradeoffs and cite evidence refs without dumping the raw payload.",
+      "expected_gate_path": {
+        "gate_1": "tool_required_or_pending_tool_result",
+        "gate_2": "web_research",
+        "gate_3": "web_search",
+        "gate_4_required_fields": ["query", "aperture"],
+        "post_tool": "must_synthesize_from_evidence_refs"
+      },
+      "required_entities": ["agent frameworks"],
+      "required_answer_traits": [
+        "Uses evidence refs or source labels safely.",
+        "Synthesizes tradeoffs instead of concatenating snippets.",
+        "Makes uncertainty explicit when sources disagree.",
+        "Returns a normal user-facing answer only."
+      ],
+      "forbidden": [
+        "Raw JSON/source payload in chat.",
+        "No synthesis beyond snippet summary.",
+        "Missing final response after tool result."
+      ]
+    }
+  ]
+}
