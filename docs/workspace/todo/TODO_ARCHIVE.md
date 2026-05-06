@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-02T22:01:21.815Z
+Updated: 2026-05-06T02:45:51.226Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,14 @@ Updated: 2026-05-02T22:01:21.815Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `SHELL-EXTRACT-MATRIX` — Prove the headless capability matrix
+  completed_at: `2026-05-06T02:45:51.225Z`
+  previous_section: `red`
+  owner: `unassigned`
+  deadline: `2026-05-07`
+  source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
+  summary: Create the headless capability matrix and prove which Shell-visible operations already work through CLI/Gateway without browser assets before touching legacy dashboard code.
+  completion_note: Closed with named assurance matrix validation/conformance/contracts/shell_headless_capability_matrix.json plus existing Shell Socket contract, Gateway route mapping, and browser-free headless probe exercising 13/13 capabilities. Validation: metrics:effective-loc, python3 -m json.tool validation/conformance/contracts/shell_headless_capability_matrix.json, npm run -s ops:shell-socket:headless-probe.
 - `SHELL-SOCKET-LEGACY` — Quarantine Shell 1.0 as a legacy plug
   completed_at: `2026-05-02T22:01:21.814Z`
   previous_section: `white`

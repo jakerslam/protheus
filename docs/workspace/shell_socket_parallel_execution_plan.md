@@ -251,6 +251,10 @@ Create the socket path as independent artifacts:
 - `validation/conformance/contracts/shell_socket_gateway_contract.json`: mapping
   from every socket capability to Gateway route class, owner of truth, capability
   requirement, audit requirement, Nexus checkpoint, and payload budget.
+- `validation/conformance/contracts/shell_headless_capability_matrix.json`: named
+  headless capability matrix tying Shell-visible operations to the socket
+  contract, Gateway route mapping, headless probe, and live Gateway proof target
+  before legacy dashboard code is touched.
 - `tests/tooling/scripts/ci/shell_socket_contract_guard.ts`: fail-closed guard
   proving the socket contract stays projection-only, Gateway-only, and free of
   full-state/raw payload fields.
