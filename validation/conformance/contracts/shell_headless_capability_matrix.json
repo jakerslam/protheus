@@ -1,0 +1,199 @@
+{
+  "type": "shell_headless_capability_matrix",
+  "schema_version": 1,
+  "version": "2026-05-06",
+  "owner": "assurance.validation",
+  "status": "active",
+  "source_todo": "SHELL-EXTRACT-MATRIX",
+  "purpose": "Name the headless Shell capability matrix so Shell-visible operations can be proven through CLI/Gateway/Shell Socket paths before any legacy browser dashboard mutation.",
+  "policy_refs": [
+    "docs/workspace/shell_independent_operation_policy.md",
+    "docs/workspace/shell_ui_projection_policy.md",
+    "docs/workspace/gateway_ingress_egress_policy.md",
+    "docs/workspace/interface_payload_budget_policy.md",
+    "docs/workspace/nexus_conduit_checkpoint_policy.md",
+    "docs/workspace/conduit_scrambler_posture_policy.md",
+    "docs/workspace/shell_socket_parallel_execution_plan.md"
+  ],
+  "source_contracts": [
+    "shell/socket/contract/shell_socket_contract.json",
+    "validation/conformance/contracts/shell_socket_gateway_contract.json"
+  ],
+  "proof_surfaces": {
+    "contract_guard": {
+      "command": "npm run -s ops:shell-socket:contract:guard",
+      "artifact": "core/local/artifacts/shell_socket_contract_guard_current.json",
+      "proves": "Shell Socket capabilities are projection-only, Gateway-only, budgeted, and free of forbidden default payload fields."
+    },
+    "gateway_route_guard": {
+      "command": "npm run -s ops:shell-socket:gateway-route:guard",
+      "artifact": "core/local/artifacts/shell_socket_gateway_route_guard_current.json",
+      "proves": "Every Shell Socket capability maps to an explicit Gateway route class, owner of truth, Nexus checkpoint, audit receipt, and Conduit posture."
+    },
+    "headless_probe": {
+      "command": "npm run -s ops:shell-socket:headless-probe",
+      "artifact": "core/local/artifacts/shell_socket_headless_probe_current.json",
+      "proves": "All matrix capabilities are consumable through a browser-free Shell Socket client against a Gateway-shaped fixture."
+    },
+    "live_probe": {
+      "command": "SHELL_SOCKET_REQUIRE_LIVE=1 npm run -s ops:shell-socket:live-probe",
+      "artifact": "core/local/artifacts/shell_socket_live_probe_current.json",
+      "target": "http://127.0.0.1:5173",
+      "proves": "Gateway/backend route parity for live Shell Socket routes; 4173 remains legacy dashboard compatibility and is not canonical socket evidence."
+    }
+  },
+  "browser_asset_independence": {
+    "canonical_gateway_target": "http://127.0.0.1:5173",
+    "legacy_browser_host": "http://127.0.0.1:4173",
+    "legacy_browser_host_may_not_satisfy_matrix": true,
+    "must_not_depend_on": [
+      "Alpine",
+      "Svelte bundles",
+      "DOM APIs",
+      "localStorage",
+      "sessionStorage",
+      "dashboard hydration",
+      "browser event buses",
+      "client/runtime/systems/ui/infring_static"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "get_runtime_status",
+      "shell_operation": "Display bounded runtime readiness and degraded-state truth.",
+      "route_class": "health_status",
+      "default_projection": "RuntimeStatusProjection",
+      "gateway_route_id": "shell_socket.runtime_status",
+      "owner_of_truth": "kernel_or_gateway_status_owner",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "list_agents",
+      "shell_operation": "Display a bounded agent roster for navigation.",
+      "route_class": "bounded_search_query",
+      "default_projection": "AgentRosterProjection",
+      "gateway_route_id": "shell_socket.agent_roster",
+      "owner_of_truth": "kernel_agent_registry",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "list_sessions",
+      "shell_operation": "Display a bounded session list for one agent or operator scope.",
+      "route_class": "bounded_search_query",
+      "default_projection": "SessionListProjection",
+      "gateway_route_id": "shell_socket.session_list",
+      "owner_of_truth": "kernel_session_store",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "get_message_window",
+      "shell_operation": "Load a bounded message window without mirroring the whole conversation.",
+      "route_class": "event_output_egress",
+      "default_projection": "MessageWindowProjection",
+      "gateway_route_id": "shell_socket.message_window",
+      "owner_of_truth": "kernel_message_store",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "get_message_detail",
+      "shell_operation": "Fetch one referenced message, tool, trace, artifact, or workflow detail.",
+      "route_class": "detail_fetch",
+      "default_projection": "MessageDetailProjection",
+      "gateway_route_id": "shell_socket.message_detail",
+      "owner_of_truth": "kernel_or_orchestration_detail_owner",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "submit_input",
+      "shell_operation": "Submit operator input for authoritative admission and execution.",
+      "route_class": "request_ingress",
+      "default_projection": "IngressAck",
+      "gateway_route_id": "shell_socket.submit_input",
+      "owner_of_truth": "orchestration_message_execution",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "subscribe_events",
+      "shell_operation": "Subscribe to bounded runtime, workflow, and message projections by cursor.",
+      "route_class": "event_output_egress",
+      "default_projection": "ShellEventProjection",
+      "gateway_route_id": "shell_socket.subscribe_events",
+      "owner_of_truth": "orchestration_event_stream",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "search",
+      "shell_operation": "Request bounded indexed search results without stringifying raw payloads in a Shell plug.",
+      "route_class": "bounded_search_query",
+      "default_projection": "BoundedSearchResults",
+      "gateway_route_id": "shell_socket.search",
+      "owner_of_truth": "kernel_or_assurance_search_index",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "submit_issue",
+      "shell_operation": "Submit bounded issue or eval requests through Gateway controls.",
+      "route_class": "request_ingress",
+      "default_projection": "IngressAck",
+      "gateway_route_id": "shell_socket.submit_issue",
+      "owner_of_truth": "assurance_eval_issue_owner",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "submit_approval_decision",
+      "shell_operation": "Submit an explicit approval or rejection for an authority-owned pending approval.",
+      "route_class": "request_ingress",
+      "default_projection": "IngressAck",
+      "gateway_route_id": "shell_socket.submit_approval_decision",
+      "owner_of_truth": "kernel_approval_authority",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "set_model",
+      "shell_operation": "Request model or provider selection through Gateway admission.",
+      "route_class": "request_ingress",
+      "default_projection": "IngressAck",
+      "gateway_route_id": "shell_socket.set_model",
+      "owner_of_truth": "kernel_model_config_authority",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "set_git_tree",
+      "shell_operation": "Request git tree, branch, or workspace selection through Gateway admission.",
+      "route_class": "request_ingress",
+      "default_projection": "IngressAck",
+      "gateway_route_id": "shell_socket.set_git_tree",
+      "owner_of_truth": "kernel_git_workspace_authority",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    },
+    {
+      "id": "submit_terminal_command",
+      "shell_operation": "Submit a capability-gated terminal command request without Shell-owned execution authority.",
+      "route_class": "request_ingress",
+      "default_projection": "IngressAck",
+      "gateway_route_id": "shell_socket.submit_terminal_command",
+      "owner_of_truth": "kernel_terminal_execution_authority",
+      "headless_required": true,
+      "legacy_dashboard_required": false
+    }
+  ],
+  "completion_criteria": [
+    "Every Shell-visible operation in this matrix is represented in shell/socket/contract/shell_socket_contract.json.",
+    "Every matrix capability is mapped in validation/conformance/contracts/shell_socket_gateway_contract.json.",
+    "The headless probe exercises every matrix capability without browser assets.",
+    "The live probe targets the Gateway/backend route surface at 5173, not the legacy browser host at 4173.",
+    "Legacy dashboard compatibility may consume projections later but may not satisfy Shell Socket parity by itself."
+  ]
+}

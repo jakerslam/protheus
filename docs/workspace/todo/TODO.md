@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-06T00:45:01.131Z
+Updated: 2026-05-06T02:45:51.226Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,8 +13,8 @@ Updated: 2026-05-06T00:45:01.131Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 35
-- red: 8
+- active_items: 34
+- red: 7
 - yellow: 19
 - white: 8
 
@@ -39,11 +39,6 @@ Updated: 2026-05-06T00:45:01.131Z
   deadline: `2026-05-07`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
   summary: Expose message, tool, artifact, trace, and workflow detail fetches by stable refs through bounded audited Gateway routes instead of default Shell payloads.
-- `SHELL-EXTRACT-MATRIX` — Prove the headless capability matrix
-  owner: `unassigned`
-  deadline: `2026-05-07`
-  source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
-  summary: Create the headless capability matrix and prove which Shell-visible operations already work through CLI/Gateway without browser assets before touching legacy dashboard code.
 - `SHPURGE` — Finish the Shell authority purge
   owner: `unassigned`
   deadline: `2026-05-07`

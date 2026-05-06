@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-06T00:45:01.131Z",
+  "updated_at": "2026-05-06T02:45:51.226Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -48,15 +48,6 @@
       "deadline": "2026-05-07",
       "source_family": "Shell Authority Extraction Without Legacy Shell Mutation",
       "summary": "Expose message, tool, artifact, trace, and workflow detail fetches by stable refs through bounded audited Gateway routes instead of default Shell payloads."
-    },
-    {
-      "id": "SHELL-EXTRACT-MATRIX",
-      "title": "Prove the headless capability matrix",
-      "section": "red",
-      "owner": "unassigned",
-      "deadline": "2026-05-07",
-      "source_family": "Shell Authority Extraction Without Legacy Shell Mutation",
-      "summary": "Create the headless capability matrix and prove which Shell-visible operations already work through CLI/Gateway without browser assets before touching legacy dashboard code."
     },
     {
       "id": "SHPURGE",

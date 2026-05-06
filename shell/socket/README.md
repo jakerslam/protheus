@@ -17,6 +17,12 @@ a stateful runtime service.
 - `client/`: thin transport clients that call Gateway routes only.
 - `probe/`: headless or CLI proof harnesses for socket parity.
 
+The named headless capability matrix lives in
+[`validation/conformance/contracts/shell_headless_capability_matrix.json`](/Users/jay/.openclaw/workspace/validation/conformance/contracts/shell_headless_capability_matrix.json).
+It ties Shell-visible operations to the canonical socket contract, Gateway route
+mapping, and browser-free proof commands so the legacy dashboard is not treated
+as socket parity evidence.
+
 ## Local Route Targets
 
 - `http://127.0.0.1:5173` is the local Gateway/backend route surface used by
