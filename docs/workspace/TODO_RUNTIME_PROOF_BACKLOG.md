@@ -78,4 +78,5 @@ This file tracks remaining execution from the runtime-proof hardening intake aft
   - Propagate `trace_id` through dashboard tool turn loop, provider runtime adapters, and workflow synthesis boundaries (not just app-plane run receipts).
   - Add a span/export bridge for Rust `tracing` so tool call IDs and trace IDs can be joined in one searchable stream.
   - Add schema registry endpoint for agent capability discovery (tool name -> input/output contract -> auth/policy requirements) with deterministic snapshot receipts.
+  - Turn the remaining tool surfaces into Tool CDs, parallel to workflow CDs, so each tool declares its request/response schema, receipts, retry policy, evidence packaging, and visibility contract in data while Rust remains the player/validator.
   - Add cross-lane contract tests proving every tool invocation path returns an execution receipt on success, timeout, policy block, and internal failure.

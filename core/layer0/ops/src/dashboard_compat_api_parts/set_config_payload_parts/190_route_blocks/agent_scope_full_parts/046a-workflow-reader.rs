@@ -692,6 +692,162 @@ mod workflow_reader_tests {
     }
 
     #[test]
+    fn workflow_reader_web_search_request_contract_omits_reserved_source_field() {
+        let selected = selected_turn_workflow("");
+        let web_search = selected
+            .pointer("/tool_menu_interface_contract/tool_menu_by_family/web_research")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("key").and_then(Value::as_str) == Some("web_search")
+                })
+            })
+            .expect("web_search tool");
+
+        assert_eq!(
+            web_search
+                .pointer("/request_format/source")
+                .and_then(Value::as_str),
+            None
+        );
+        assert_eq!(
+            web_search
+                .pointer("/request_example/source")
+                .and_then(Value::as_str),
+            None
+        );
+        assert_eq!(
+            web_search
+                .pointer("/request_format/query")
+                .and_then(Value::as_str),
+            Some("<search criteria>")
+        );
+    }
+
+    #[test]
+    fn workflow_reader_web_research_menu_exposes_batch_query_pack_contract() {
+        let selected = selected_turn_workflow("");
+        let batch_query = selected
+            .pointer("/tool_menu_interface_contract/tool_menu_by_family/web_research")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("key").and_then(Value::as_str) == Some("batch_query")
+                })
+            })
+            .expect("batch_query tool");
+
+        assert_eq!(
+            batch_query
+                .pointer("/request_format/source")
+                .and_then(Value::as_str),
+            Some("web")
+        );
+        assert_eq!(
+            batch_query
+                .pointer("/request_format/query")
+                .and_then(Value::as_str),
+            Some("<overall research question>")
+        );
+        assert!(
+            batch_query
+                .pointer("/request_format/queries")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len() >= 2)
+                .unwrap_or(false),
+            "{batch_query}"
+        );
+        assert!(
+            batch_query
+                .pointer("/request_example/queries")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len() >= 4)
+                .unwrap_or(false),
+            "{batch_query}"
+        );
+    }
+
+    #[test]
+    fn workflow_reader_gate_instruction_forces_named_product_research_into_web_research() {
+        let selected = selected_turn_workflow("");
+        let gate_instruction = selected
+            .pointer("/tool_menu_interface_contract/llm_gate_instruction")
+            .and_then(Value::as_str)
+            .expect("gate instruction");
+
+        assert!(
+            gate_instruction.contains("Research Microsoft Semantic Kernel for enterprise agent orchestration."),
+            "{gate_instruction}"
+        );
+        assert!(
+            gate_instruction.contains("Research Firecrawl, Tavily, and Exa as data tools for AI research agents."),
+            "{gate_instruction}"
+        );
+        assert!(
+            gate_instruction.contains("Research Mastra for TypeScript agent workflows."),
+            "{gate_instruction}"
+        );
+        assert!(
+            gate_instruction.contains("After the web tool returns low-signal results for Infring, synthesize a useful answer anyway."),
+            "{gate_instruction}"
+        );
+        assert!(
+            gate_instruction.contains("Do NOT choose `respond_directly` for named external product/library/framework research just because you can produce a plausible answer from memory"),
+            "{gate_instruction}"
+        );
+        assert!(gate_instruction.contains("web_research"), "{gate_instruction}");
+        assert!(gate_instruction.contains("respond_directly"), "{gate_instruction}");
+    }
+
+    #[test]
+    fn workflow_reader_payload_instruction_requires_batch_query_top_level_query() {
+        let selected = selected_turn_workflow("");
+        let payload_instruction = selected
+            .pointer("/tool_menu_interface_contract/llm_tool_payload_instruction")
+            .and_then(Value::as_str)
+            .expect("payload instruction");
+
+        assert!(
+            payload_instruction.contains("top-level `query` field is mandatory"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("contains only `queries` and `aperture` is invalid"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("Invalid `batch_query` example"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("Benchmark example"),
+            "{payload_instruction}"
+        );
+    }
+
+    #[test]
+    fn workflow_reader_tool_selection_prefers_web_search_for_single_library_research() {
+        let selected = selected_turn_workflow("");
+        let selection_instruction = selected
+            .pointer("/tool_menu_interface_contract/llm_tool_selection_instruction")
+            .and_then(Value::as_str)
+            .expect("tool selection instruction");
+
+        assert!(
+            selection_instruction.contains("single-product/library research centered on one named tool"),
+            "{selection_instruction}"
+        );
+        assert!(
+            selection_instruction.contains("Research Mastra for TypeScript agent workflows and whether it competes with LangGraph."),
+            "{selection_instruction}"
+        );
+        assert!(
+            selection_instruction.contains("{\"tool\": \"web_search\"}"),
+            "{selection_instruction}"
+        );
+    }
+
+    #[test]
     fn workflow_reader_rejects_specs_missing_json_authority_contract() {
         let raw_spec = json!({
             "name": "missing_authority_contract_v1",

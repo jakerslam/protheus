@@ -15,11 +15,22 @@ fn direct_tool_synthesis_model_route(agent_row: &Value) -> (String, String) {
             .unwrap_or("auto"),
         240,
     );
+    let runtime_model = clean_text(
+        agent_row
+            .get("runtime_model")
+            .or_else(|| agent_row.get("resolved_model"))
+            .or_else(|| agent_row.get("current_model"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        240,
+    );
     if provider.is_empty()
         || provider.eq_ignore_ascii_case("auto")
         || model.is_empty()
         || model.eq_ignore_ascii_case("auto")
     {
+        ("auto".to_string(), "auto".to_string())
+    } else if !runtime_model.is_empty() && !runtime_model.eq_ignore_ascii_case(&model) {
         ("auto".to_string(), "auto".to_string())
     } else {
         (provider, model)
@@ -31,7 +42,21 @@ mod direct_tool_synthesis_model_route_tests {
     use super::*;
 
     #[test]
-    fn direct_tool_synthesis_preserves_explicit_agent_model_selection() {
+    fn direct_tool_synthesis_uses_selected_model_when_runtime_matches() {
+        let row = json!({
+            "model_provider": "openai",
+            "model_name": "gpt-5",
+            "runtime_model": "gpt-5"
+        });
+
+        let (provider, model) = direct_tool_synthesis_model_route(&row);
+
+        assert_eq!(provider, "openai");
+        assert_eq!(model, "gpt-5");
+    }
+
+    #[test]
+    fn direct_tool_synthesis_falls_back_to_auto_when_runtime_diverges() {
         let row = json!({
             "model_provider": "openai",
             "model_name": "gpt-5",
@@ -40,8 +65,8 @@ mod direct_tool_synthesis_model_route_tests {
 
         let (provider, model) = direct_tool_synthesis_model_route(&row);
 
-        assert_eq!(provider, "openai");
-        assert_eq!(model, "gpt-5");
+        assert_eq!(provider, "auto");
+        assert_eq!(model, "auto");
     }
 
     #[test]
@@ -209,19 +234,14 @@ fn handle_agent_scope_message_route(
             }
             response_text = strip_internal_cache_control_markup(&response_text);
             let tool_card_status = tool_card_status_from_payload(&tool_payload);
-            let tool_card = json!({
-                "id": format!("tool-direct-{}", normalize_tool_name(&tool_name)),
-                "name": normalize_tool_name(&tool_name),
-                "input": trim_text(&tool_input.to_string(), 4000),
-                "result": trim_text(&summarize_tool_payload(&tool_name, &tool_payload), 24_000),
-                "is_error": !ok,
-                "blocked": tool_card_status == "blocked" || tool_card_status == "policy_denied",
-                "status": tool_card_status,
-                "tool_attempt_receipt": tool_payload
-                    .pointer("/tool_pipeline/tool_attempt_receipt")
-                    .cloned()
-                    .unwrap_or(Value::Null)
-            });
+            let tool_card = response_tool_card(
+                format!("tool-direct-{}", normalize_tool_name(&tool_name)),
+                &tool_name,
+                &tool_input,
+                &tool_payload,
+                !ok,
+                &tool_card_status,
+            );
             let response_tools = vec![tool_card.clone()];
             let (finalized_response, tool_completion, finalization_seed) =
                 enforce_user_facing_finalization_contract(

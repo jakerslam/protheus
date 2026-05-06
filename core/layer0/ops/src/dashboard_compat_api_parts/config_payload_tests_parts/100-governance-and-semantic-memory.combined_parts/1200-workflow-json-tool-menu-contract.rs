@@ -201,9 +201,14 @@ fn workflow_json_tool_menu_contract_declares_private_no_cancel_and_loopback() {
 }
 
 #[test]
-fn workflow_json_tool_menu_contract_all_gates_are_menu_or_text_input() {
+fn workflow_json_tool_menu_contract_all_gates_use_declared_shapes() {
     for (file_name, workflow) in workflow_json_tool_menu_specs() {
-        let gates = workflow_json_contract(file_name, &workflow)
+        let contract = workflow_json_contract(file_name, &workflow);
+        let allowed_shapes = contract
+            .get("gate_shapes_allowed")
+            .and_then(serde_json::Value::as_array)
+            .unwrap_or_else(|| panic!("{file_name} missing gate_shapes_allowed"));
+        let gates = contract
             .get("gates")
             .and_then(serde_json::Value::as_object)
             .unwrap_or_else(|| panic!("{file_name} missing gates"));
@@ -213,7 +218,9 @@ fn workflow_json_tool_menu_contract_all_gates_are_menu_or_text_input() {
                 .and_then(serde_json::Value::as_str)
                 .unwrap_or("");
             assert!(
-                matches!(input_kind, "multiple_choice" | "text_input"),
+                allowed_shapes
+                    .iter()
+                    .any(|shape| shape.as_str() == Some(input_kind)),
                 "{file_name} {gate_id} uses invalid input_kind {input_kind}"
             );
         }
@@ -252,6 +259,23 @@ fn workflow_json_tool_menu_contract_declares_final_output_channel_separation() {
                     .any(|value| value.as_str() == Some(excluded)),
                 "{file_name} missing chat exclusion {excluded}"
             );
+        }
+        if file_name == "simple_conversation_v1.workflow.json" {
+            let chat_requirement = final_output_contract
+                .get("chat_requirement")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_else(|| panic!("{file_name} missing chat_requirement"));
+            for required_phrase in [
+                "exact requested name",
+                "omit a requested entity",
+                "low signal or missing",
+                "The main tradeoff is",
+            ] {
+                assert!(
+                    chat_requirement.contains(required_phrase),
+                    "{file_name} final output contract missing {required_phrase}"
+                );
+            }
         }
     }
 }

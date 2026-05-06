@@ -191,6 +191,197 @@ fn normalize_inline_tool_execution_input(
     normalized_input
 }
 
+fn tool_result_hidden_artifact_value(payload: &Value, key: &str) -> Option<Value> {
+    let value = payload
+        .get(key)
+        .or_else(|| payload.pointer(&format!("/tool_pipeline/raw_payload/{key}")))?;
+    match key {
+        "search_results" | "provider_results" => value.as_array().and_then(|rows| {
+            let projected = rows
+                .iter()
+                .filter_map(project_hidden_tool_result_row)
+                .take(6)
+                .collect::<Vec<_>>();
+            (!projected.is_empty()).then(|| Value::Array(projected))
+        }),
+        "evidence_refs" => value.as_array().map(|rows| {
+            Value::Array(rows.iter().take(6).cloned().collect::<Vec<_>>())
+        }),
+        "tool_result_quality" => value.is_object().then(|| value.clone()),
+        _ => None,
+    }
+}
+
+fn project_hidden_tool_result_row(value: &Value) -> Option<Value> {
+    match value {
+        Value::String(raw) => {
+            let snippet = trim_text(raw.trim(), 1_200);
+            (!snippet.is_empty()).then(|| Value::String(snippet))
+        }
+        Value::Object(map) => {
+            let mut out = serde_json::Map::new();
+            for key in [
+                "source_kind",
+                "title",
+                "locator",
+                "snippet",
+                "summary",
+                "content_preview",
+                "score",
+                "timestamp",
+                "permissions",
+                "status_code",
+                "query",
+                "stage",
+                "provider",
+                "status",
+                "error",
+                "links",
+            ] {
+                let Some(value) = map.get(key) else { continue };
+                match value {
+                    Value::String(raw) => {
+                        let cleaned = trim_text(raw.trim(), if key == "locator" { 2_200 } else { 1_200 });
+                        if !cleaned.is_empty() {
+                            out.insert(key.to_string(), Value::String(cleaned));
+                        }
+                    }
+                    Value::Number(_) => {
+                        out.insert(key.to_string(), value.clone());
+                    }
+                    Value::Bool(_) => {
+                        out.insert(key.to_string(), value.clone());
+                    }
+                    Value::Array(rows) if key == "links" => {
+                        let links = rows
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .map(|raw| trim_text(raw.trim(), 2_200))
+                            .filter(|raw| !raw.is_empty())
+                            .take(4)
+                            .map(Value::String)
+                            .collect::<Vec<_>>();
+                        if !links.is_empty() {
+                            out.insert(key.to_string(), Value::Array(links));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            (!out.is_empty()).then(|| Value::Object(out))
+        }
+        _ => None,
+    }
+}
+
+fn carry_hidden_tool_result_artifacts(card: &mut Value, payload: &Value) {
+    let Some(obj) = card.as_object_mut() else { return };
+    for key in [
+        "search_results",
+        "provider_results",
+        "evidence_refs",
+        "tool_result_quality",
+    ] {
+        if let Some(value) = tool_result_hidden_artifact_value(payload, key) {
+            obj.insert(key.to_string(), value);
+        }
+    }
+}
+
+fn response_tool_card(
+    id: String,
+    tool_name: &str,
+    input: &Value,
+    payload: &Value,
+    is_error: bool,
+    status: &str,
+) -> Value {
+    let mut card = json!({
+        "id": id,
+        "name": normalize_tool_name(tool_name),
+        "input": trim_text(&input.to_string(), 4000),
+        "result": trim_text(&summarize_tool_payload(tool_name, payload), 24_000),
+        "is_error": is_error,
+        "blocked": status == "blocked" || status == "policy_denied",
+        "status": status,
+        "tool_attempt_receipt": payload
+            .pointer("/tool_pipeline/tool_attempt_receipt")
+            .cloned()
+            .unwrap_or(Value::Null)
+    });
+    carry_hidden_tool_result_artifacts(&mut card, payload);
+    card
+}
+
+#[cfg(test)]
+mod response_tool_card_tests {
+    use super::*;
+
+    #[test]
+    fn response_tool_card_carries_hidden_search_results_from_tool_pipeline() {
+        let payload = json!({
+            "tool_pipeline": {
+                "tool_attempt_receipt": {"status": "ok"},
+                "raw_payload": {
+                    "search_results": [
+                        {
+                            "title": "LangGraph docs",
+                            "locator": "https://docs.langchain.com/langgraph",
+                            "snippet": "LangGraph documentation covers durable execution, checkpoints, and human-in-the-loop review for reliable agents.",
+                            "score": 0.91
+                        }
+                    ],
+                    "provider_results": [
+                        {
+                            "query": "Compare LangGraph vs CrewAI",
+                            "stage": "primary",
+                            "provider": "direct_http",
+                            "summary": "Web search tooling is degraded (provider readiness mismatch). Retry after credentials or provider runtime are repaired.",
+                            "error": "web_search_tool_surface_degraded",
+                            "links": [
+                                "https://docs.langchain.com/langgraph"
+                            ],
+                            "ok": false
+                        }
+                    ],
+                    "evidence_refs": [
+                        {"title": "LangGraph docs", "locator": "https://docs.langchain.com/langgraph", "score": 0.91}
+                    ],
+                    "tool_result_quality": {"version": "v1", "flags": ["insufficient_evidence"]}
+                }
+            }
+        });
+
+        let card = response_tool_card(
+            "tool-direct-batch_query".to_string(),
+            "batch_query",
+            &json!({"query": "Compare LangGraph vs CrewAI"}),
+            &payload,
+            false,
+            "no_results",
+        );
+
+        assert_eq!(
+            card.pointer("/search_results/0/title").and_then(Value::as_str),
+            Some("LangGraph docs")
+        );
+        assert_eq!(
+            card.pointer("/evidence_refs/0/locator").and_then(Value::as_str),
+            Some("https://docs.langchain.com/langgraph")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/provider")
+                .and_then(Value::as_str),
+            Some("direct_http")
+        );
+        assert_eq!(
+            card.pointer("/tool_result_quality/version")
+                .and_then(Value::as_str),
+            Some("v1")
+        );
+    }
+}
+
 fn latent_tool_candidate_completion_cards(
     root: &Path,
     snapshot: &Value,

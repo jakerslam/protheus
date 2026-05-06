@@ -6,9 +6,10 @@ fn collect_candidates_from_stage_payload(
     payload: &Value,
     benchmark_intent: bool,
     fetched_links: &mut HashSet<String>,
-) -> (Vec<Candidate>, Vec<String>) {
+) -> (Vec<Candidate>, Vec<String>, Option<Value>) {
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
+    let provider_result = hidden_provider_result_artifact(stage, query, payload);
     let rendered_rows = candidates_from_rendered_search_payload(
         query,
         payload,
@@ -88,17 +89,104 @@ fn collect_candidates_from_stage_payload(
             }
         }
     }
-    (candidates, issues)
+    (candidates, issues, provider_result)
 }
 
-fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Candidate>, String> {
+fn hidden_provider_result_artifact(stage: &str, query: &str, payload: &Value) -> Option<Value> {
+    let query_text = clean_text(query, 600);
+    let stage_name = clean_text(stage, 80);
+    let provider = clean_text(
+        payload
+            .get("provider")
+            .or_else(|| payload.get("source"))
+            .and_then(Value::as_str)
+            .unwrap_or(stage),
+        80,
+    );
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        1_200,
+    );
+    let content_preview = trim_words(
+        &clean_text(
+            payload.get("content").and_then(Value::as_str).unwrap_or(""),
+            1_600,
+        ),
+        48,
+    );
+    let locator = clean_text(
+        payload.get("requested_url").and_then(Value::as_str).unwrap_or(""),
+        2_200,
+    );
+    let error = clean_text(payload.get("error").and_then(Value::as_str).unwrap_or(""), 240);
+    let links = payload_links_for_fallback(query, payload, 3);
+    if summary.is_empty()
+        && content_preview.is_empty()
+        && locator.is_empty()
+        && error.is_empty()
+        && links.is_empty()
+    {
+        return None;
+    }
+    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let status = clean_text(
+        payload
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or(if ok { "ok" } else { "error" }),
+        32,
+    );
+    let mut out = serde_json::Map::new();
+    if !query_text.is_empty() {
+        out.insert("query".to_string(), Value::String(query_text));
+    }
+    if !stage_name.is_empty() {
+        out.insert("stage".to_string(), Value::String(stage_name));
+    }
+    if !provider.is_empty() {
+        out.insert("provider".to_string(), Value::String(provider));
+    }
+    out.insert("ok".to_string(), Value::Bool(ok));
+    if !status.is_empty() {
+        out.insert("status".to_string(), Value::String(status));
+    }
+    if !summary.is_empty() {
+        out.insert("summary".to_string(), Value::String(summary));
+    }
+    if !content_preview.is_empty() && content_preview != out.get("summary").and_then(Value::as_str).unwrap_or("") {
+        out.insert(
+            "content_preview".to_string(),
+            Value::String(content_preview),
+        );
+    }
+    if !locator.is_empty() {
+        out.insert("locator".to_string(), Value::String(locator));
+    }
+    if !error.is_empty() {
+        out.insert("error".to_string(), Value::String(error));
+    }
+    if !links.is_empty() {
+        out.insert(
+            "links".to_string(),
+            Value::Array(links.into_iter().map(Value::String).collect::<Vec<_>>()),
+        );
+    }
+    Some(Value::Object(out))
+}
+
+fn retrieve_web_candidates_for_query(
+    root: &Path,
+    query: &str,
+) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
     let benchmark_intent = is_benchmark_or_comparison_intent(query);
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
+    let mut provider_results = Vec::<Value>::new();
     let mut fetched_links = HashSet::<String>::new();
 
     let primary_payload = stage_search_payload(root, None, query, None);
-    let (primary_candidates, primary_issues) = collect_candidates_from_stage_payload(
+    let (primary_candidates, primary_issues, primary_provider_result) =
+        collect_candidates_from_stage_payload(
         root,
         "primary",
         query,
@@ -106,6 +194,9 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
         benchmark_intent,
         &mut fetched_links,
     );
+    if let Some(value) = primary_provider_result {
+        provider_results.push(value);
+    }
     candidates.extend(primary_candidates);
     issues.extend(primary_issues);
 
@@ -114,12 +205,13 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
             .iter()
             .any(|issue| skip_duckduckgo_fallback_for_error(issue))
     {
-        return Err(issues.join("|"));
+        return (Vec::new(), issues, provider_results);
     }
 
     if candidates.is_empty() {
         let bing_payload = stage_search_payload(root, Some("bing_rss"), query, Some("bing"));
-        let (bing_candidates, bing_issues) = collect_candidates_from_stage_payload(
+        let (bing_candidates, bing_issues, bing_provider_result) =
+            collect_candidates_from_stage_payload(
             root,
             "bing_rss",
             query,
@@ -127,6 +219,9 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
             benchmark_intent,
             &mut fetched_links,
         );
+        if let Some(value) = bing_provider_result {
+            provider_results.push(value);
+        }
         candidates.extend(bing_candidates);
         issues.extend(bing_issues);
     }
@@ -141,6 +236,11 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
             } else {
                 stage_fetch_payload(root, "duckduckgo_instant", &fallback_url)
             };
+        if let Some(value) =
+            hidden_provider_result_artifact("duckduckgo_instant", query, &fallback_payload)
+        {
+            provider_results.push(value);
+        }
         match candidate_from_duckduckgo_instant_payload(query, &fallback_url, &fallback_payload) {
             Ok(candidate) => {
                 if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
@@ -155,10 +255,9 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
 
     if candidates.is_empty() {
         if issues.is_empty() {
-            Err("no_usable_summary".to_string())
-        } else {
-            Err(issues.join("|"))
+            issues.push("no_usable_summary".to_string());
         }
+        (Vec::new(), issues, provider_results)
     } else {
         let mut dedup = HashSet::<String>::new();
         let mut unique = Vec::<Candidate>::new();
@@ -173,6 +272,6 @@ fn retrieve_web_candidates_for_query(root: &Path, query: &str) -> Result<Vec<Can
                 unique.push(candidate);
             }
         }
-        Ok(unique)
+        (unique, issues, provider_results)
     }
 }

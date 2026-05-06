@@ -91,8 +91,8 @@ fn retrieve_web_candidates_for_query_with_timeout(
     root: &Path,
     query: &str,
     timeout: Duration,
-) -> Result<Vec<Candidate>, String> {
-    let (tx, rx) = std::sync::mpsc::channel::<Result<Vec<Candidate>, String>>();
+) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
+    let (tx, rx) = std::sync::mpsc::channel::<(Vec<Candidate>, Vec<String>, Vec<Value>)>();
     let root_buf = root.to_path_buf();
     let query_buf = query.to_string();
     let spawned = thread::Builder::new()
@@ -102,16 +102,24 @@ fn retrieve_web_candidates_for_query_with_timeout(
             let _ = tx.send(out);
         });
     if spawned.is_err() {
-        return Err("query_worker_spawn_failed".to_string());
+        return (
+            Vec::new(),
+            vec!["query_worker_spawn_failed".to_string()],
+            Vec::new(),
+        );
     }
     match rx.recv_timeout(timeout) {
         Ok(out) => out,
-        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-            Err(format!("query_timeout_ms_{}", timeout.as_millis()))
-        }
-        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-            Err("query_worker_disconnected".to_string())
-        }
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (
+            Vec::new(),
+            vec![format!("query_timeout_ms_{}", timeout.as_millis())],
+            Vec::new(),
+        ),
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => (
+            Vec::new(),
+            vec!["query_worker_disconnected".to_string()],
+            Vec::new(),
+        ),
     }
 }
 
