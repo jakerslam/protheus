@@ -5,5 +5,8 @@ include!("tool_broker_parts/025-execution-receipts-and-payload-validation.rs");
 include!("tool_broker_parts/030-impl-block-012.rs");
 include!("tool_broker_parts/035-envelope-and-ledger-methods.rs");
 include!("tool_broker_parts/040-dedupe-freshness-window-ms-to-default-ledger-path.rs");
-include!("tool_broker_parts/050-mod-tests.rs");
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../validation/tests/rust/layer2_tooling/tool_broker/050-mod-tests.rs"
+));
 include!("tool_broker_parts/060-receipt-validator-tests.rs");

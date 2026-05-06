@@ -454,4 +454,5 @@ pub fn status_payload(
 }
 
 #[cfg(test)]
+#[path = "../../../../validation/tests/rust/swarm_router/tests.rs"]
 mod tests;
