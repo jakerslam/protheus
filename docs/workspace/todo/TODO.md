@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-05T23:30:07.065Z
+Updated: 2026-05-06T00:45:01.131Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -13,10 +13,10 @@ Updated: 2026-05-05T23:30:07.065Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 30
+- active_items: 35
 - red: 8
-- yellow: 13
-- white: 9
+- yellow: 19
+- white: 8
 
 ## Red Section (Do Immediately)
 - `SHELL-CLEANUP` — Finish the Shell source-of-truth cleanup
@@ -116,6 +116,36 @@ Updated: 2026-05-05T23:30:07.065Z
   deadline: `2026-05-19`
   source_family: `Rust Dead-Code Hygiene Wave`
   summary: Work through unused import warnings in Kernel and runtime crates in small scoped commits, preserving behavior and validating each touched crate with cargo check or cargo test.
+- `HYGIENE-COMBINED-DEAD-DELETE` — Delete dead combined artifacts in safe batches
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: Delete only artifacts classified as dead_artifact or unreferenced, in narrow rollback-sized commits with cargo check or targeted tests for the owning crate.
+- `HYGIENE-COMBINED-DECOMPOSE-LIVE` — Decompose live combined artifact debt
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: For live split_debt artifacts, replace generic 000-combined.rs and .combined_parts names with logical module names over time, prioritizing non-shell, non-orchestration Kernel/ops areas with targeted validation.
+- `HYGIENE-COMBINED-GUARD` — Guard against new combined artifacts
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: Add a validation guard or policy row that blocks new 000-combined.rs and .combined_parts artifacts unless they declare an explicit generated-source or compatibility exception with owner and expiry.
+- `HYGIENE-COMBINED-INVENTORY` — Inventory combined Rust artifacts
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: Generate a manifest of every tracked 000-combined.rs and .combined_parts artifact with path, crate, line count, include/module parent, warning count, and likely owner before deleting or renaming anything.
+- `HYGIENE-COMBINED-REFERENCE-MAP` — Map combined artifact references
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: For each combined artifact, map whether it is included by live Rust modules, tests only, generated tooling, docs only, or unreferenced so cleanup can be behavior-preserving.
+- `WF-UTILITY` — Build the workflow utility spine
+  owner: `unassigned`
+  deadline: `2026-05-20`
+  source_family: `Workflow Utility Spine After Shell Purge`
+  summary: Build the workflow utility spine so the system is useful for real work after Shell de-authority.
 - `ARCH-TOOLING-NEXT` — Hold important architecture and tooling deltas behind current closure work
   owner: `unassigned`
   deadline: `after_red_section`
@@ -128,11 +158,6 @@ Updated: 2026-05-05T23:30:07.065Z
   summary: Queue the next SRS stream after the red intake set so the active SRS flow stays coherent instead of fragmenting into too many parallel themes.
 
 ## White Section (Do At Leisure)
-- `WF-UTILITY` — Build the workflow utility spine
-  owner: `unassigned`
-  deadline: `2026-05-20`
-  source_family: `Workflow Utility Spine After Shell Purge`
-  summary: Build the workflow utility spine so the system is useful for real work after Shell de-authority.
 - `TRACE-IMPL` — Implement end-to-end unified trace_id propagation
   owner: `unassigned`
   deadline: `2026-05-23`
