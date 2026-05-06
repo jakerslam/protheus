@@ -134,8 +134,28 @@
       "name": "message_detail",
       "route_kind": "detail_fetch",
       "id_field": "message_id",
+      "endpoint_patterns": [
+        "/api/agents/:agent_id/details/message/:message_id"
+      ],
       "capability_scope": "shell.message.detail.read",
       "bounded_response": true,
+      "max_response_bytes": 65536,
+      "max_string_chars": 12000,
+      "max_array_items": 20,
+      "allowed_response_fields": [
+        "ok",
+        "agent_id",
+        "detail_kind",
+        "detail_id",
+        "capability_scope",
+        "size_bound",
+        "window_bound",
+        "detail_projection",
+        "receipt_ref",
+        "correlation_id",
+        "audit_receipt",
+        "nexus_checkpoint"
+      ],
       "audit_receipt": true,
       "nexus_checkpoint": true
     },
@@ -143,8 +163,28 @@
       "name": "tool_result_detail",
       "route_kind": "detail_fetch",
       "id_field": "tool_result_id",
+      "endpoint_patterns": [
+        "/api/agents/:agent_id/details/tool-result/:tool_result_id"
+      ],
       "capability_scope": "shell.tool.detail.read",
       "bounded_response": true,
+      "max_response_bytes": 65536,
+      "max_string_chars": 12000,
+      "max_array_items": 20,
+      "allowed_response_fields": [
+        "ok",
+        "agent_id",
+        "detail_kind",
+        "detail_id",
+        "capability_scope",
+        "size_bound",
+        "window_bound",
+        "detail_projection",
+        "receipt_ref",
+        "correlation_id",
+        "audit_receipt",
+        "nexus_checkpoint"
+      ],
       "audit_receipt": true,
       "nexus_checkpoint": true
     },
@@ -152,8 +192,28 @@
       "name": "artifact_detail",
       "route_kind": "detail_fetch",
       "id_field": "artifact_id",
+      "endpoint_patterns": [
+        "/api/agents/:agent_id/details/artifact/:artifact_id"
+      ],
       "capability_scope": "shell.artifact.detail.read",
       "bounded_response": true,
+      "max_response_bytes": 65536,
+      "max_string_chars": 12000,
+      "max_array_items": 20,
+      "allowed_response_fields": [
+        "ok",
+        "agent_id",
+        "detail_kind",
+        "detail_id",
+        "capability_scope",
+        "size_bound",
+        "window_bound",
+        "detail_projection",
+        "receipt_ref",
+        "correlation_id",
+        "audit_receipt",
+        "nexus_checkpoint"
+      ],
       "audit_receipt": true,
       "nexus_checkpoint": true
     },
@@ -161,8 +221,28 @@
       "name": "trace_detail",
       "route_kind": "detail_fetch",
       "id_field": "trace_id",
+      "endpoint_patterns": [
+        "/api/agents/:agent_id/details/trace/:trace_id"
+      ],
       "capability_scope": "shell.trace.detail.read",
       "bounded_response": true,
+      "max_response_bytes": 65536,
+      "max_string_chars": 12000,
+      "max_array_items": 20,
+      "allowed_response_fields": [
+        "ok",
+        "agent_id",
+        "detail_kind",
+        "detail_id",
+        "capability_scope",
+        "size_bound",
+        "window_bound",
+        "detail_projection",
+        "receipt_ref",
+        "correlation_id",
+        "audit_receipt",
+        "nexus_checkpoint"
+      ],
       "audit_receipt": true,
       "nexus_checkpoint": true
     },
@@ -170,8 +250,28 @@
       "name": "workflow_detail",
       "route_kind": "detail_fetch",
       "id_field": "workflow_id",
+      "endpoint_patterns": [
+        "/api/agents/:agent_id/details/workflow/:workflow_id"
+      ],
       "capability_scope": "shell.workflow.detail.read",
       "bounded_response": true,
+      "max_response_bytes": 65536,
+      "max_string_chars": 12000,
+      "max_array_items": 20,
+      "allowed_response_fields": [
+        "ok",
+        "agent_id",
+        "detail_kind",
+        "detail_id",
+        "capability_scope",
+        "size_bound",
+        "window_bound",
+        "detail_projection",
+        "receipt_ref",
+        "correlation_id",
+        "audit_receipt",
+        "nexus_checkpoint"
+      ],
       "audit_receipt": true,
       "nexus_checkpoint": true
     }
