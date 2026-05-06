@@ -226,6 +226,43 @@ fn normalized_workflow_option_tokens(option: &Value) -> Vec<String> {
         .collect()
 }
 
+fn workflow_selection_token_variants(token: &str) -> Vec<String> {
+    let normalized = normalized_workflow_token(token);
+    if normalized.is_empty() {
+        return Vec::new();
+    }
+    let mut variants = vec![normalized.clone()];
+    if let Some(first) = normalized.split_whitespace().next() {
+        if first.chars().all(|ch| ch.is_ascii_digit()) {
+            let first = first.to_string();
+            if !variants.iter().any(|candidate| candidate == &first) {
+                variants.push(first);
+            }
+        }
+    }
+    for separator in [" = ", " : "] {
+        if let Some((left, right)) = normalized.split_once(separator) {
+            for part in [left, right] {
+                let candidate = normalized_workflow_token(part);
+                if !candidate.is_empty() && !variants.iter().any(|existing| existing == &candidate)
+                {
+                    variants.push(candidate);
+                }
+            }
+        }
+    }
+    if let Some(stripped) = normalized
+        .strip_prefix(|ch: char| ch.is_ascii_digit() || ch == '=' || ch == ':' || ch == '-')
+        .map(str::trim)
+    {
+        let candidate = normalized_workflow_token(stripped);
+        if !candidate.is_empty() && !variants.iter().any(|existing| existing == &candidate) {
+            variants.push(candidate);
+        }
+    }
+    variants
+}
+
 fn workflow_gate_option_labels(contract: &Value, has_tools: Option<bool>) -> Vec<String> {
     let first_gate_id = workflow_first_gate_id(contract);
     workflow_gate_options(contract, &first_gate_id)
@@ -464,7 +501,8 @@ fn workflow_category_selection(
     let token = workflow_structured_gate_token(contract, response)
         .map(|row| normalized_workflow_token(&row))
         .unwrap_or_else(|| normalized_workflow_token(response));
-    if token.is_empty() {
+    let token_variants = workflow_selection_token_variants(&token);
+    if token_variants.is_empty() {
         return None;
     }
     let first_gate_id = workflow_first_gate_id(contract);
@@ -486,7 +524,7 @@ fn workflow_category_selection(
             let label = workflow_option_label(&option);
             normalized_workflow_option_tokens(&option)
                 .into_iter()
-                .any(|candidate| token == candidate)
+                .any(|candidate| token_variants.iter().any(|token| token == &candidate))
                 .then_some((key, label))
         })
 }
@@ -522,8 +560,8 @@ fn workflow_category_token_matches_any_declared_option(
 }
 
 fn workflow_family_key_for_selection(contract: &Value, family: &str) -> String {
-    let selected = normalized_workflow_token(family);
-    if selected.is_empty() {
+    let selected_variants = workflow_selection_token_variants(family);
+    if selected_variants.is_empty() {
         return String::new();
     }
     contract
@@ -532,7 +570,10 @@ fn workflow_family_key_for_selection(contract: &Value, family: &str) -> String {
         .and_then(|families| {
             families.iter().find_map(|row| {
                 let tokens = normalized_workflow_option_tokens(row);
-                if tokens.into_iter().any(|token| token == selected) {
+                if tokens
+                    .into_iter()
+                    .any(|token| selected_variants.iter().any(|selected| selected == &token))
+                {
                     Some(workflow_option_key(row))
                 } else {
                     None
@@ -543,8 +584,8 @@ fn workflow_family_key_for_selection(contract: &Value, family: &str) -> String {
 }
 
 fn workflow_tool_key_for_selection(contract: &Value, family: &str, tool_label: &str) -> String {
-    let selected = normalized_workflow_token(tool_label);
-    if selected.is_empty() {
+    let selected_variants = workflow_selection_token_variants(tool_label);
+    if selected_variants.is_empty() {
         return String::new();
     }
     let selected_family = workflow_family_key_for_selection(contract, family);
@@ -570,7 +611,7 @@ fn workflow_tool_key_for_selection(contract: &Value, family: &str, tool_label: &
             let key = workflow_option_key(tool);
             normalized_workflow_option_tokens(tool)
                 .into_iter()
-                .any(|candidate| selected == candidate)
+                .any(|candidate| selected_variants.iter().any(|selected| selected == &candidate))
                 .then_some(key)
         })
         .unwrap_or_default()
