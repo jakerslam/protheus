@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-05T23:30:07.065Z",
+  "updated_at": "2026-05-06T00:45:01.131Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -133,7 +133,7 @@
     {
       "id": "WF-UTILITY",
       "title": "Build the workflow utility spine",
-      "section": "white",
+      "section": "yellow",
       "owner": "unassigned",
       "deadline": "2026-05-20",
       "source_family": "Workflow Utility Spine After Shell Purge",
@@ -282,6 +282,51 @@
       "deadline": "2026-05-19",
       "source_family": "Rust Dead-Code Hygiene Wave",
       "summary": "Add or extend a validation report that tracks Rust unused/dead-code warning counts by crate so the surface trends down instead of silently growing."
+    },
+    {
+      "id": "HYGIENE-COMBINED-INVENTORY",
+      "title": "Inventory combined Rust artifacts",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-20",
+      "source_family": "Combined Rust Artifact Burn-Down",
+      "summary": "Generate a manifest of every tracked 000-combined.rs and .combined_parts artifact with path, crate, line count, include/module parent, warning count, and likely owner before deleting or renaming anything."
+    },
+    {
+      "id": "HYGIENE-COMBINED-REFERENCE-MAP",
+      "title": "Map combined artifact references",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-20",
+      "source_family": "Combined Rust Artifact Burn-Down",
+      "summary": "For each combined artifact, map whether it is included by live Rust modules, tests only, generated tooling, docs only, or unreferenced so cleanup can be behavior-preserving."
+    },
+    {
+      "id": "HYGIENE-COMBINED-DEAD-DELETE",
+      "title": "Delete dead combined artifacts in safe batches",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-20",
+      "source_family": "Combined Rust Artifact Burn-Down",
+      "summary": "Delete only artifacts classified as dead_artifact or unreferenced, in narrow rollback-sized commits with cargo check or targeted tests for the owning crate."
+    },
+    {
+      "id": "HYGIENE-COMBINED-DECOMPOSE-LIVE",
+      "title": "Decompose live combined artifact debt",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-20",
+      "source_family": "Combined Rust Artifact Burn-Down",
+      "summary": "For live split_debt artifacts, replace generic 000-combined.rs and .combined_parts names with logical module names over time, prioritizing non-shell, non-orchestration Kernel/ops areas with targeted validation."
+    },
+    {
+      "id": "HYGIENE-COMBINED-GUARD",
+      "title": "Guard against new combined artifacts",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-20",
+      "source_family": "Combined Rust Artifact Burn-Down",
+      "summary": "Add a validation guard or policy row that blocks new 000-combined.rs and .combined_parts artifacts unless they declare an explicit generated-source or compatibility exception with owner and expiry."
     }
   ]
 }
