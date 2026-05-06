@@ -1,0 +1,201 @@
+fn strip_no_tool_gate_prefix_from_visible_response(response: &str) -> String {
+    let cleaned = clean_text(response, 8_000);
+    if cleaned.is_empty() {
+        return cleaned;
+    }
+    if response_is_no_tool_category_gate_submission(&cleaned)
+        || response_is_tool_bearing_category_gate_submission(&cleaned)
+    {
+        return String::new();
+    }
+    cleaned
+}
+
+fn tool_payload_shape_looks_raw(response_payload: &Value) -> bool {
+    match response_payload {
+        Value::Object(map) => {
+            let visible_fields = [
+                "answer",
+                "final_answer",
+                "visible_response",
+                "final_response",
+                "message",
+                "text",
+                "response",
+                "content",
+                "output",
+            ];
+            let has_visible = map
+                .keys()
+                .any(|key| visible_fields.iter().any(|visible| key == visible));
+            let toolish_fields = [
+                "tool",
+                "tool_name",
+                "name",
+                "query",
+                "input",
+                "arguments",
+                "args",
+                "payload",
+                "params",
+                "parameters",
+                "request_payload",
+                "result",
+                "status",
+                "error",
+                "blocked",
+                "is_error",
+                "source",
+                "findings",
+                "results",
+                "tool_attempt_receipt",
+                "tool_call",
+                "tool_call_id",
+                "tool_receipt",
+            ];
+            let toolish_count = toolish_fields
+                .iter()
+                .filter(|field| map.contains_key(**field))
+                .count();
+            if map.contains_key("tool_attempt_receipt") {
+                return true;
+            }
+            if let Some(tool_value) = map.get("tool").and_then(Value::as_str) {
+                if !tool_value.trim().is_empty()
+                    && (map.contains_key("input")
+                        || map.contains_key("arguments")
+                        || map.contains_key("query")
+                        || map.contains_key("result")
+                        || map.contains_key("request_payload"))
+                {
+                    return true;
+                }
+            }
+            if map.contains_key("tool_call")
+                && (map.contains_key("tool")
+                    || map.contains_key("tool_name")
+                    || map.contains_key("name"))
+            {
+                return true;
+            }
+            if map.contains_key("tool_call_id")
+                && (map.contains_key("status") || map.contains_key("result"))
+            {
+                return true;
+            }
+            if map.contains_key("name")
+                && (map.contains_key("result")
+                    || map.contains_key("status")
+                    || map.contains_key("request_payload")
+                    || map.contains_key("query")
+                    || map.contains_key("input"))
+            {
+                return true;
+            }
+            if map.contains_key("query") && map.contains_key("source") && !has_visible {
+                return true;
+            }
+            if map.contains_key("findings")
+                && (map.contains_key("sources")
+                    || map.contains_key("results")
+                    || map.contains_key("tool"))
+                && !has_visible
+            {
+                return true;
+            }
+            (toolish_count >= 2 && !has_visible) || (toolish_count >= 3)
+        }
+        Value::Array(rows) => rows.iter().any(|entry| tool_payload_shape_looks_raw(entry)),
+        _ => false,
+    }
+}
+
+fn sanitize_workflow_visible_response_text(response_text: &str) -> String {
+    let cleaned = sanitize_workflow_final_response_candidate(&strip_internal_cache_control_markup(
+        &strip_internal_context_metadata_prefix(response_text),
+    ));
+    if response_looks_like_raw_tool_payload_dump(&cleaned) {
+        String::new()
+    } else {
+        cleaned
+    }
+}
+
+fn workflow_final_visible_response_text(response_text: &str) -> String {
+    let sanitized = sanitize_workflow_visible_response_text(response_text);
+    if let Some(unwrapped) = normalize_response_field_json_wrapper(&sanitized) {
+        return clean_chat_text(unwrapped.as_str(), 32_000);
+    }
+    sanitized
+}
+
+fn response_looks_like_raw_tool_payload_dump(response_text: &str) -> bool {
+    let cleaned = clean_text(response_text, 2_000);
+    let lowered = cleaned.to_ascii_lowercase();
+    lowered.starts_with("<?xml")
+        || lowered.starts_with("<!doctype")
+        || lowered.starts_with("<html")
+        || lowered.contains("<custommetadata")
+        || lowered.contains("xmlns=")
+        || lowered.contains("<function=")
+        || lowered.contains("<tool")
+        || lowered.contains("</tool>")
+        || parse_json_payload_dump(&cleaned)
+            .is_some_and(|payload| tool_payload_shape_looks_raw(&payload))
+        || looks_like_tool_payload_json_literal(&cleaned)
+}
+
+fn looks_like_tool_payload_json_literal(response_text: &str) -> bool {
+    let compact = response_text
+        .chars()
+        .filter(|ch| !ch.is_whitespace())
+        .collect::<String>();
+    if compact.is_empty() {
+        return false;
+    }
+    if !(compact.starts_with('{') || compact.starts_with('[')) {
+        return false;
+    }
+    let compact_lower = compact.to_ascii_lowercase();
+    let raw_signals = [
+        "\"tool\"",
+        "\"tool_name\"",
+        "\"name\"",
+        "\"query\"",
+        "\"input\"",
+        "\"arguments\"",
+        "\"args\"",
+        "\"params\"",
+        "\"parameters\"",
+        "\"result\"",
+        "\"status\"",
+        "\"error\"",
+        "\"tool_attempt_receipt\"",
+        "\"receipt\"",
+        "\"toolcall\"",
+        "\"request_payload\"",
+        "\"findings\"",
+        "\"sources\"",
+        "\"results\"",
+        "\"blocked\"",
+        "\"is_error\"",
+        "\"tool_call\"",
+        "\"tool_call_id\"",
+    ];
+    let signal_hits = raw_signals
+        .iter()
+        .filter(|signal| compact_lower.contains(*signal))
+        .count();
+    signal_hits >= 3 || {
+        let has_tool_token =
+            compact_lower.contains("\"tool\"") || compact_lower.contains("\"tool_name\"");
+        let has_name_token =
+            compact_lower.contains("\"name\"") || compact_lower.contains("\"tool_name\"");
+        let has_payload_token = compact_lower.contains("\"request_payload\"")
+            || compact_lower.contains("\"input\"")
+            || compact_lower.contains("\"query\"")
+            || compact_lower.contains("\"arguments\"")
+            || compact_lower.contains("\"args\"");
+        has_tool_token && has_name_token && has_payload_token
+    }
+}

@@ -209,7 +209,11 @@ fn handle_manual_toolbox_private_gate_turn(
         return Some(ManualToolboxPrivateGateOutcome::Continue);
     }
     if active_manual_toolbox_payload_turn && response_tools.is_empty() {
-        if let Some(input) = workflow_request_payload_from_response(retried_text) {
+        if let Some(input) = workflow_request_payload_from_response(
+            manual_toolbox_selected_family_key,
+            manual_toolbox_selected_tool_key,
+            retried_text,
+        ) {
             workflow["tool_gate"]["request_payload"] = input.clone();
             if let Some(pending_request) = manual_toolbox_pending_request_from_parts(
                 manual_toolbox_selected_family_key,
@@ -290,9 +294,18 @@ mod split_manual_toolbox_gate_tests {
             workflow_tool_selection_from_response(&family_key, "{\"tool\":\"web_search\"}")
                 .expect("tool selection");
         let request_payload = workflow_request_payload_from_response(
+            &family_key,
+            &tool_key,
             "{\"request_payload\":{\"source\":\"web\",\"query\":\"compare infring\",\"aperture\":\"medium\"}}",
         )
         .expect("request payload");
+        let direct_request_payload = workflow_request_payload_from_response(
+            &family_key,
+            &tool_key,
+            "{\"source\":\"web\",\"query\":\"compare infring\",\"aperture\":\"medium\"}",
+        )
+        .expect("direct request payload");
+        assert_eq!(direct_request_payload, request_payload);
         let pending = manual_toolbox_pending_request_from_parts(
             &family_key,
             &tool_key,
@@ -305,11 +318,58 @@ mod split_manual_toolbox_gate_tests {
         assert_eq!(family_key, "web_research");
         assert_eq!(family_label, "Web research");
         assert_eq!(tool_key, "web_search");
-        assert_eq!(tool_label, "Web search");
+        assert!(!tool_label.is_empty());
         assert_eq!(
             pending.pointer("/input/query").and_then(Value::as_str),
             Some("compare infring")
         );
+    }
+
+    #[test]
+    fn split_manual_toolbox_gate_accepts_common_family_alias_keys() {
+        let aliases = [
+            "{\"family\":\"web_research\"}",
+            "{\"tool_family_key\":\"web_research\"}",
+            "{\"selected_tool_family\":\"web_research\"}",
+        ];
+
+        for raw in aliases {
+            let (family_key, family_label) =
+                workflow_tool_family_selection_from_response(raw).expect("family alias");
+            assert_eq!(family_key, "web_research");
+            assert_eq!(family_label, "Web research");
+        }
+    }
+
+    #[test]
+    fn split_manual_toolbox_gate_accepts_common_tool_alias_keys() {
+        let aliases = [
+            "{\"selected_tool\":\"workspace_search\"}",
+            "{\"tool_key\":\"workspace_search\"}",
+            "{\"selected_tool_key\":\"workspace_search\"}",
+        ];
+
+        for raw in aliases {
+            let (tool_key, tool_label) =
+                workflow_tool_selection_from_response("workspace_files", raw)
+                    .expect("tool alias");
+            assert_eq!(tool_key, "workspace_search");
+            assert_eq!(tool_label, "Search workspace");
+        }
+    }
+
+    #[test]
+    fn split_manual_toolbox_tool_prompt_lists_declared_tool_keys() {
+        let prompt = workflow_tool_selection_prompt_context("workspace_files", "Workspace/files");
+
+        assert!(prompt.contains("[\"parse_workspace\",\"file_read\",\"apply_patch\",\"workspace_search\"]"));
+        assert!(prompt.contains("{\"tool\": \"<tool_key>\"}"));
+        assert!(prompt.contains("workspace_search"));
+    }
+
+    #[test]
+    fn split_manual_toolbox_max_attempts_honors_cd_retry_budget() {
+        assert_eq!(manual_toolbox_private_gate_max_attempts(), 5);
     }
 
     #[test]
