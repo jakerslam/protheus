@@ -143,17 +143,17 @@ pub fn handle(
 
 #[cfg(test)]
 mod tests {
-    include!("../config_payload_tests_parts/010-init-git-repo.rs");
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/010-init-git-repo.rs"));
     include!("../config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.rs");
-    include!("../config_payload_tests_parts/030-memory-kv-http-routes-round-trip-and-feed-context.rs");
-    include!("../config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.rs");
-    include!("../config_payload_tests_parts/050-compact-session-keyframes.rs");
-    include!("../config_payload_tests_parts/060-context-telemetry-and-auto-compact.rs");
-    include!("../config_payload_tests_parts/070-cron-command-routing.rs");
-    include!("../config_payload_tests_parts/080-conversation-search-includes-archived.rs");
-    include!("../config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs");
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/030-memory-kv-http-routes-round-trip-and-feed-context.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/050-compact-session-keyframes.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/060-context-telemetry-and-auto-compact.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/070-cron-command-routing.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/080-conversation-search-includes-archived.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/090-latent-tool-discovery-and-rollback.rs"));
     include!("../config_payload_tests_parts/100-governance-and-semantic-memory.rs");
-    include!("../config_payload_tests_parts/110-agent-capability-gauntlet.rs");
-    include!("../config_payload_tests_parts/120-receipts-lineage-route.rs");
-    include!("../config_payload_tests_parts/130-shell-socket-routes.rs");
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/110-agent-capability-gauntlet.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/120-receipts-lineage-route.rs"));
+    include!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/130-shell-socket-routes.rs"));
 }
