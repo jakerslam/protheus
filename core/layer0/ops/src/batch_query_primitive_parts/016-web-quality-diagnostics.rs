@@ -246,6 +246,11 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
         if lowered.contains("query_timeout") {
             flags.push("provider_timeout".to_string());
         }
+        if lowered.contains("tool_surface_degraded")
+            || lowered.contains("provider readiness mismatch")
+        {
+            flags.push("provider_degraded".to_string());
+        }
         if lowered.contains("no_usable_summary") || lowered.contains("fixture_missing") {
             flags.push("low_signal".to_string());
         }
@@ -368,6 +373,8 @@ fn web_tool_quality_report(
     flags.dedup();
     let retry_reason = if flags.iter().any(|flag| flag == "anti_bot_filtered") {
         "anti_bot_filtered"
+    } else if flags.iter().any(|flag| flag == "provider_degraded") {
+        "provider_degraded"
     } else if flags.iter().any(|flag| flag == "insufficient_evidence") {
         "insufficient_evidence"
     } else if flags

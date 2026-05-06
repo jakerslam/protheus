@@ -1,0 +1,438 @@
+use super::eval_research_golden_utils::*;
+#[path = "eval_research_gate_post_tool.rs"]
+mod eval_research_gate_post_tool;
+use eval_research_gate_post_tool::{
+    agent_evidence_context_paths, agent_received_evidence_context, evidence_extracted,
+    evidence_paths, packaged_tool_result_paths, packaged_tool_result_present,
+    raw_provider_result_paths, raw_provider_result_present,
+    synthesis_uses_evidence_or_low_evidence_fallback,
+};
+use serde_json::{json, Value};
+use std::collections::BTreeMap;
+
+pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Value {
+    let required_fields = string_array_at(case, &["expected_gate_path", "gate_4_required_fields"]);
+    let pending_request = pending_tool_request(payload);
+    let candidate = pending_request
+        .or_else(|| latent_tool_candidate(payload))
+        .or_else(|| response_workflow_candidate(payload));
+    let candidate_payload = candidate.and_then(candidate_input_object);
+    let candidate_fields = candidate_payload
+        .and_then(Value::as_object)
+        .map(|input| {
+            input
+                .keys()
+                .map(|key| normalize_for_compare(key))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let serialized = payload.to_string().to_ascii_lowercase();
+    let final_response_present = !assistant_text(payload).trim().is_empty();
+    let case_allows_existing_tool_state = case_allows_existing_tool_state_without_new_candidate(case);
+    let synthesis_only_without_new_candidate =
+        case_allows_existing_tool_state && candidate.is_none();
+    let template_signaled = required_fields.iter().all(|field| {
+        let field = normalize_for_compare(field);
+        candidate_fields.iter().any(|key| key == &field)
+            || serialized.contains(&format!("\"{field}\""))
+    });
+    let candidate_present = candidate.is_some();
+    let candidate_payload_present = candidate_payload.map(Value::is_object).unwrap_or(false);
+    let schema_fields_present = !required_fields.is_empty()
+        && required_fields.iter().all(|field| {
+            let field = normalize_for_compare(field);
+            candidate_fields.iter().any(|key| key == &field)
+        });
+    let pending_promoted = pending_request
+        .and_then(|request| request.get("status").and_then(Value::as_str))
+        .map(|status| matches!(status, "pending_confirmation" | "executed" | "allowed"))
+        .unwrap_or(false);
+    let tool_attempted = has_tool_execution(payload);
+    let raw_provider_result = raw_provider_result_present(payload);
+    let packaged_tool_result = packaged_tool_result_present(payload);
+    let evidence_extracted = evidence_extracted(payload);
+    let agent_received_evidence_context = agent_received_evidence_context(payload);
+    let synthesis_ok = synthesis_uses_evidence_or_low_evidence_fallback(
+        case,
+        payload,
+        packaged_tool_result,
+        evidence_extracted,
+    );
+    let structured_terminal_present = final_response_present
+        || pending_promoted
+        || tool_attempted
+        || response_finalization_outcome(payload)
+            .map(|outcome| outcome.contains("structured_failure"))
+            .unwrap_or(false);
+
+    let checkpoints = vec![
+        checkpoint(
+            "4a_request_template_signaled",
+            template_signaled || synthesis_only_without_new_candidate,
+            template_signaled || synthesis_only_without_new_candidate,
+            if template_signaled {
+                "required request fields are visible in request-state artifacts"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh request template is required"
+            } else {
+                "required request fields are absent from request-state artifacts"
+            },
+            vec!["expected_gate_path.gate_4_required_fields"],
+        ),
+        checkpoint(
+            "4b_tool_request_candidate_present",
+            candidate_present || synthesis_only_without_new_candidate,
+            candidate_present || synthesis_only_without_new_candidate,
+            if candidate_present {
+                "a request candidate exists before broker admission"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh request candidate is required"
+            } else {
+                "no pending request, latent candidate, or workflow request candidate exists"
+            },
+            candidate_paths(payload),
+        ),
+        checkpoint(
+            "4c_candidate_payload_object",
+            candidate_present || synthesis_only_without_new_candidate,
+            candidate_payload_present || synthesis_only_without_new_candidate,
+            if candidate_payload_present {
+                "candidate contains an object payload/input"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh candidate payload is required"
+            } else if candidate_present {
+                "candidate exists but does not contain an object payload/input"
+            } else {
+                "no candidate exists to parse"
+            },
+            vec!["input", "request_payload", "payload"],
+        ),
+        checkpoint(
+            "4d_candidate_schema_fields_present",
+            candidate_payload_present || synthesis_only_without_new_candidate,
+            schema_fields_present || synthesis_only_without_new_candidate,
+            if schema_fields_present {
+                "candidate payload includes all declared Gate 4 fields"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh Gate 4 payload fields are required"
+            } else if required_fields.is_empty() {
+                "case declares no Gate 4 required fields"
+            } else {
+                "candidate payload is missing one or more declared Gate 4 fields"
+            },
+            required_fields.clone(),
+        ),
+        checkpoint(
+            "4e_pending_request_promoted",
+            candidate_payload_present || synthesis_only_without_new_candidate,
+            pending_promoted || synthesis_only_without_new_candidate,
+            if pending_promoted {
+                "candidate was promoted to a pending/admitted tool request"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no new pending request promotion is required"
+            } else if candidate_payload_present {
+                "candidate payload exists but was not promoted to pending_tool_request"
+            } else {
+                "promotion cannot happen without a payload candidate"
+            },
+            pending_request_paths(payload),
+        ),
+        checkpoint(
+            "5a_tool_execution_recorded",
+            pending_promoted || tool_attempted,
+            tool_attempted,
+            if tool_attempted {
+                "tool execution evidence is present"
+            } else if pending_promoted {
+                "tool request is pending but no execution evidence is present yet"
+            } else {
+                "tool execution cannot be expected before request promotion"
+            },
+            vec![
+                "tools",
+                "response_finalization.tool_completion.tool_attempts",
+            ],
+        ),
+        checkpoint(
+            "5b_raw_provider_result_present",
+            tool_attempted,
+            raw_provider_result,
+            if raw_provider_result {
+                "raw provider/tool result contains substantive rows or snippets"
+            } else if tool_attempted {
+                "tool executed but no substantive raw provider rows/snippets were found"
+            } else {
+                "raw provider result cannot be inspected before execution"
+            },
+            raw_provider_result_paths(payload),
+        ),
+        checkpoint(
+            "5c_packaged_tool_result_present",
+            raw_provider_result || tool_attempted,
+            packaged_tool_result,
+            if packaged_tool_result {
+                "raw/provider output was normalized into a substantive packaged tool result"
+            } else if raw_provider_result {
+                "raw/provider output exists but no substantive packaged tool result was found"
+            } else if tool_attempted {
+                "packaging cannot be trusted because raw/provider output is absent or low-signal"
+            } else {
+                "packaged tool result cannot be inspected before execution"
+            },
+            packaged_tool_result_paths(payload),
+        ),
+        checkpoint(
+            "5d_evidence_refs_extracted",
+            packaged_tool_result,
+            evidence_extracted,
+            if evidence_extracted {
+                "packaged tool result was converted into evidence artifacts or refs"
+            } else if packaged_tool_result {
+                "packaged tool result exists but no evidence artifact/ref was found"
+            } else {
+                "evidence extraction cannot happen without a packaged tool result"
+            },
+            evidence_paths(payload),
+        ),
+        checkpoint(
+            "5e_agent_received_evidence_context",
+            evidence_extracted,
+            agent_received_evidence_context,
+            if agent_received_evidence_context {
+                "final synthesis turn shows evidence context was available to the agent"
+            } else if evidence_extracted {
+                "evidence exists but no agent-visible evidence context marker was found"
+            } else {
+                "agent evidence context cannot be checked before evidence extraction"
+            },
+            agent_evidence_context_paths(payload),
+        ),
+        checkpoint(
+            "6a_synthesis_uses_evidence_or_low_evidence_fallback",
+            final_response_present,
+            synthesis_ok,
+            if synthesis_ok {
+                "final response uses evidence or gives a substantive low-evidence fallback"
+            } else if final_response_present {
+                "final response does not satisfy evidence-backed or substantive low-evidence synthesis"
+            } else {
+                "synthesis cannot be checked without a final response"
+            },
+            vec![
+                "response",
+                "response_workflow.final_llm_response",
+                "response_finalization.tool_completion",
+            ],
+        ),
+        checkpoint(
+            "terminal_artifact_present",
+            true,
+            structured_terminal_present,
+            if structured_terminal_present {
+                "turn ended with final response, pending request, tool evidence, or structured failure"
+            } else {
+                "turn has no allowed terminal artifact"
+            },
+            vec![
+                "response",
+                "pending_tool_request",
+                "tools",
+                "response_finalization",
+            ],
+        ),
+    ];
+    let first_failed_checkpoint = checkpoints
+        .iter()
+        .find(|row| row.get("status").and_then(Value::as_str) == Some("fail"))
+        .and_then(|row| row.get("checkpoint").and_then(Value::as_str))
+        .unwrap_or("")
+        .to_string();
+    json!({
+        "first_failed_checkpoint": if first_failed_checkpoint.is_empty() {
+            Value::Null
+        } else {
+            Value::String(first_failed_checkpoint.clone())
+        },
+        "inferred_failure_boundary": failure_boundary(&first_failed_checkpoint),
+        "required_gate_4_fields": required_fields,
+        "candidate_payload_fields": candidate_fields,
+        "final_llm_status": payload
+            .pointer("/response_workflow/final_llm_response/status")
+            .and_then(Value::as_str),
+        "finalization_outcome": response_finalization_outcome(payload),
+        "post_tool_pipeline": {
+            "raw_provider_result_present": raw_provider_result,
+            "raw_provider_result_paths": raw_provider_result_paths(payload),
+            "packaged_tool_result_present": packaged_tool_result,
+            "packaged_tool_result_paths": packaged_tool_result_paths(payload),
+            "evidence_extracted": evidence_extracted,
+            "evidence_paths": evidence_paths(payload),
+            "agent_received_evidence_context": agent_received_evidence_context,
+            "agent_evidence_context_paths": agent_evidence_context_paths(payload)
+        },
+        "checkpoints": checkpoints
+    })
+}
+
+pub(super) fn gate_transition_rate_rows(
+    total_counts: &BTreeMap<String, u64>,
+    pass_counts: &BTreeMap<String, u64>,
+) -> Vec<Value> {
+    total_counts
+        .iter()
+        .map(|(checkpoint, total)| {
+            let passed = *pass_counts.get(checkpoint).unwrap_or(&0);
+            json!({
+                "checkpoint": checkpoint,
+                "passed": passed,
+                "total": total,
+                "pass_rate": ratio(passed, *total)
+            })
+        })
+        .collect()
+}
+
+fn checkpoint(
+    name: &str,
+    artifact_present: bool,
+    passed: bool,
+    reason: &str,
+    artifact_refs: Vec<impl Into<String>>,
+) -> Value {
+    json!({
+        "checkpoint": name,
+        "status": if passed { "pass" } else { "fail" },
+        "artifact_present": artifact_present,
+        "reason": reason,
+        "artifact_refs": artifact_refs
+            .into_iter()
+            .map(Into::into)
+            .collect::<Vec<String>>()
+    })
+}
+
+fn case_allows_existing_tool_state_without_new_candidate(case: &Value) -> bool {
+    let gate_1 = normalize_for_compare(&str_at(case, &["expected_gate_path", "gate_1"], ""));
+    let post_tool = normalize_for_compare(&str_at(case, &["expected_gate_path", "post_tool"], ""));
+    gate_1.contains("pending_tool_result") || post_tool.starts_with("must_synthesize_from")
+}
+
+pub(super) fn failure_boundary(first_failed_checkpoint: &str) -> &'static str {
+    match first_failed_checkpoint {
+        "" => "no_failure_detected",
+        "4a_request_template_signaled" => "gate_4_template_not_visible",
+        "4b_tool_request_candidate_present" => "gate_4_candidate_not_emitted",
+        "4c_candidate_payload_object" => "gate_4_candidate_parse_failed",
+        "4d_candidate_schema_fields_present" => "gate_4_schema_mismatch",
+        "4e_pending_request_promoted" => "request_candidate_not_promoted",
+        "5a_tool_execution_recorded" => "pending_request_not_executed",
+        "5b_raw_provider_result_present" => "raw_provider_result_absent_or_low_signal",
+        "5c_packaged_tool_result_present" => "tool_result_packaging_missing_or_low_signal",
+        "5d_evidence_refs_extracted" => "packaged_result_not_extracted_to_evidence",
+        "5e_agent_received_evidence_context" => "evidence_context_not_reaching_agent",
+        "6a_synthesis_uses_evidence_or_low_evidence_fallback" => "post_tool_synthesis_not_useful",
+        "terminal_artifact_present" => "empty_terminal_projection",
+        _ => "unknown_gate_transition_failure",
+    }
+}
+
+fn pending_tool_request(payload: &Value) -> Option<&Value> {
+    payload
+        .get("pending_tool_request")
+        .or_else(|| payload.pointer("/response_workflow/pending_tool_request"))
+        .or_else(|| payload.pointer("/response_workflow/manual_toolbox_pending_tool_request"))
+        .or_else(|| payload.pointer("/response_finalization/pending_tool_request"))
+}
+
+fn latent_tool_candidate(payload: &Value) -> Option<&Value> {
+    payload
+        .get("latent_tool_candidates")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.iter().find(|row| row.is_object()))
+}
+
+fn response_workflow_candidate(payload: &Value) -> Option<&Value> {
+    payload
+        .pointer("/response_workflow/tool_request_candidate")
+        .or_else(|| payload.pointer("/response_workflow/gate_4_tool_request_candidate"))
+        .or_else(|| payload.pointer("/response_workflow/request_payload_candidate"))
+}
+
+fn candidate_input_object(candidate: &Value) -> Option<&Value> {
+    candidate
+        .get("input")
+        .or_else(|| candidate.get("request_payload"))
+        .or_else(|| candidate.get("payload"))
+}
+
+fn has_tool_execution(payload: &Value) -> bool {
+    payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+        || payload
+            .pointer("/response_finalization/tool_completion/tool_attempts")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false)
+}
+
+fn response_finalization_outcome(payload: &Value) -> Option<String> {
+    payload
+        .pointer("/response_finalization/outcome")
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 600))
+}
+
+fn pending_request_paths(payload: &Value) -> Vec<String> {
+    [
+        ("pending_tool_request", payload.get("pending_tool_request")),
+        (
+            "response_workflow.pending_tool_request",
+            payload.pointer("/response_workflow/pending_tool_request"),
+        ),
+        (
+            "response_workflow.manual_toolbox_pending_tool_request",
+            payload.pointer("/response_workflow/manual_toolbox_pending_tool_request"),
+        ),
+        (
+            "response_finalization.pending_tool_request",
+            payload.pointer("/response_finalization/pending_tool_request"),
+        ),
+    ]
+    .iter()
+    .filter_map(|(path, value)| value.is_some().then(|| (*path).to_string()))
+    .collect()
+}
+
+fn candidate_paths(payload: &Value) -> Vec<String> {
+    let mut paths = pending_request_paths(payload);
+    if payload
+        .get("latent_tool_candidates")
+        .and_then(Value::as_array)
+        .map(|rows| !rows.is_empty())
+        .unwrap_or(false)
+    {
+        paths.push("latent_tool_candidates".to_string());
+    }
+    for (path, value) in [
+        (
+            "response_workflow.tool_request_candidate",
+            payload.pointer("/response_workflow/tool_request_candidate"),
+        ),
+        (
+            "response_workflow.gate_4_tool_request_candidate",
+            payload.pointer("/response_workflow/gate_4_tool_request_candidate"),
+        ),
+        (
+            "response_workflow.request_payload_candidate",
+            payload.pointer("/response_workflow/request_payload_candidate"),
+        ),
+    ] {
+        if value.is_some() {
+            paths.push(path.to_string());
+        }
+    }
+    paths
+}

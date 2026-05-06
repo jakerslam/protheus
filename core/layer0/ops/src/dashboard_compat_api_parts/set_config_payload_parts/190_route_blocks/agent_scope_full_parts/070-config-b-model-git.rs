@@ -69,11 +69,35 @@ fn handle_agent_scope_model_mode_git_routes(
                 payload: json!({"ok": false, "error": "model_required"}),
             });
         }
+        let current_row = agent_row_by_id(root, snapshot, agent_id);
         let (default_provider, default_model) = extract_app_settings(root, snapshot);
+        let existing_provider = current_row
+            .as_ref()
+            .and_then(|row| {
+                row.get("model_provider")
+                    .or_else(|| row.get("provider"))
+                    .and_then(Value::as_str)
+            })
+            .map(|value| clean_text(value, 80))
+            .filter(|value| !value.is_empty() && !value.eq_ignore_ascii_case("auto"));
+        let existing_model = current_row
+            .as_ref()
+            .and_then(|row| {
+                row.get("model_name")
+                    .or_else(|| row.get("runtime_model"))
+                    .or_else(|| row.get("model"))
+                    .and_then(Value::as_str)
+            })
+            .map(|value| clean_text(value, 240))
+            .filter(|value| !value.is_empty() && !value.eq_ignore_ascii_case("auto"));
+        let fallback_provider = existing_provider
+            .as_deref()
+            .unwrap_or(default_provider.as_str());
+        let fallback_model = existing_model.as_deref().unwrap_or(default_model.as_str());
         let (provider, model) = if requested.eq_ignore_ascii_case("auto") {
             ("auto".to_string(), "auto".to_string())
         } else {
-            split_model_ref(&requested, &default_provider, &default_model)
+            split_model_ref(&requested, fallback_provider, fallback_model)
         };
         let _ = update_profile_patch(
             root,

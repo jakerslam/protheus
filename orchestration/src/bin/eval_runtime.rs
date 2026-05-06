@@ -54,6 +54,8 @@ mod eval_metamorphic_guard;
 mod eval_multiturn_simulation;
 #[path = "../eval_production_workflow_guard.rs"]
 mod eval_production_workflow_guard;
+#[path = "../eval_research_golden.rs"]
+mod eval_research_golden;
 #[path = "../eval_rsi_promotion_guard.rs"]
 mod eval_rsi_promotion_guard;
 #[path = "../eval_synthetic_user_chat_harness.rs"]
@@ -1055,7 +1057,7 @@ fn run_judge_human_agreement(args: &[String]) -> i32 {
 
 fn usage() {
     eprintln!(
-        "usage: cargo run --manifest-path orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|authority-calibration|feedback-router|agent-feedback|agent-self-diagnosis|issue-authority|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|synthetic-user-chat-harness|misty-live-health-gate|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
+        "usage: cargo run --manifest-path orchestration/Cargo.toml --bin eval_runtime -- <reviewer-feedback|quality-gate|judge-human-agreement|authority-calibration|feedback-router|agent-feedback|agent-self-diagnosis|issue-authority|grader-hacking-guard|trace-localization-guard|trajectory-scoring-guard|multiturn-simulation-guard|synthetic-user-chat-harness|research-golden|misty-live-health-gate|contamination-guard|action-economy-guard|production-workflow-guard|learning-loop-ingest|learning-loop-issues|learning-loop-review|learning-loop-policy|learning-loop-version|learning-loop-rsi-handoff|metamorphic-guard|rsi-promotion-ladder|issue-drafts|replay|fix-verification|issue-lifecycle|rsi-escalation|phase-trace-persist|adversarial-routing|workflow-selection|runtime-ownership> [--strict=0|1] [args...]"
     );
 }
 
@@ -1083,6 +1085,7 @@ fn main() -> ExitCode {
         "synthetic-user-chat-harness" => {
             eval_synthetic_user_chat_harness::run_synthetic_user_chat_harness(tail)
         }
+        "research-golden" => eval_research_golden::run_research_golden(tail),
         "misty-live-health-gate" => {
             eval_synthetic_user_chat_harness::run_misty_live_health_gate(tail)
         }

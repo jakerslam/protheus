@@ -45,6 +45,11 @@ mod web_quality_diagnostics_tests {
         })
     }
 
+    fn run_request_with_fixture(fixture: Value, request: &Value) -> Value {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        with_fixture(fixture, || api_batch_query(tmp.path(), request))
+    }
+
     fn quality_flags(out: &Value) -> Vec<String> {
         out.pointer("/tool_result_quality/flags")
             .and_then(Value::as_array)
@@ -55,6 +60,13 @@ mod web_quality_diagnostics_tests {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default()
+    }
+
+    fn summary_lowered(out: &Value) -> String {
+        out.get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase()
     }
 
     fn candidate(locator: &str, snippet: &str) -> Candidate {
@@ -224,6 +236,45 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn degraded_provider_issue_survives_when_one_candidate_is_retained() {
+        let query = "CrewAI automation workforce training";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": false,
+                    "error": "web_search_tool_surface_degraded",
+                    "summary": "Web search tooling is degraded (provider readiness mismatch). Retry after credentials or provider runtime are repaired."
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": true,
+                    "summary": "AI and Automation Impact on Workforce Training | .Training - crewai.io",
+                    "content": "AI and Automation Impact on Workforce Training | .Training - crewai.io — https://www.crewai.io/lander — AI and automation are revolutionizing workforce training by reshaping job roles, necessitating reskilling, and enhancing learning experiences.",
+                    "requested_url": "https://www.crewai.io/lander",
+                    "status_code": 200
+                }
+            }),
+            query,
+        );
+        assert!(
+            quality_flags(&out)
+                .iter()
+                .any(|flag| flag == "provider_degraded"),
+            "{out:#}"
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/retry/reason")
+                .and_then(Value::as_str),
+            Some("provider_degraded")
+        );
+        assert!(
+            out.pointer("/provider_results/0/summary")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("provider readiness mismatch")
+        );
+    }
+
+    #[test]
     fn successful_web_result_exports_synthesis_quality_bundle() {
         let query = "current AI agent frameworks May 2026";
         let out = run_query_with_fixture(
@@ -388,6 +439,91 @@ mod web_quality_diagnostics_tests {
         assert_eq!(
             report.pointer("/retry/reason").and_then(Value::as_str),
             Some("comparison_evidence_insufficient")
+        );
+    }
+
+    #[test]
+    fn comparison_guard_keeps_hidden_search_results_when_only_one_side_retrieves() {
+        let out = run_request_with_fixture(
+            json!({
+                "LangGraph official docs reliability deployment": {
+                    "ok": true,
+                    "summary": "LangGraph documentation covers durable execution, checkpoints, deployment controls, and human-in-the-loop review for reliable agents.",
+                    "requested_url": "https://docs.langchain.com/langgraph",
+                    "status_code": 200
+                },
+                "CrewAI official docs reliability deployment": {
+                    "ok": false,
+                    "error": "query_result_mismatch"
+                }
+            }),
+            &json!({
+                "source":"web",
+                "query":"Compare LangGraph vs CrewAI on reliability and deployment",
+                "queries":[
+                    "LangGraph official docs reliability deployment",
+                    "CrewAI official docs reliability deployment"
+                ],
+                "aperture":"medium"
+            }),
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert!(summary_lowered(&out).contains("retrieval-quality miss"));
+        assert_eq!(
+            out.pointer("/search_results/0/title").and_then(Value::as_str),
+            Some("Web result from docs.langchain.com")
+        );
+        assert!(
+            out.pointer("/search_results/0/snippet")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase()
+                .contains("langgraph")
+        );
+    }
+
+    #[test]
+    fn comparison_guard_keeps_ranked_preview_when_official_docs_are_too_generic_for_evidence() {
+        let out = run_request_with_fixture(
+            json!({
+                "LangGraph official docs reliability observability human-in-the-loop deployment": {
+                    "ok": true,
+                    "summary": "LangGraph: Agent Orchestration Framework for Reliable AI Agents - LangChain",
+                    "requested_url": "https://www.langchain.com/langgraph",
+                    "status_code": 200
+                },
+                "CrewAI official docs reliability observability human-in-the-loop deployment": {
+                    "ok": false,
+                    "error": "query_result_mismatch"
+                }
+            }),
+            &json!({
+                "source":"web",
+                "query":"Compare LangGraph vs CrewAI on reliability, observability, human-in-the-loop, and deployment.",
+                "queries":[
+                    "LangGraph official docs reliability observability human-in-the-loop deployment",
+                    "CrewAI official docs reliability observability human-in-the-loop deployment"
+                ],
+                "aperture":"medium"
+            }),
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.pointer("/tool_result_quality/evidence_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            out.pointer("/search_results/0/locator").and_then(Value::as_str),
+            Some("https://www.langchain.com/langgraph")
+        );
+        assert!(
+            out.pointer("/tool_result_quality/flags")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .any(|flag| flag == "comparison_evidence_insufficient")
         );
     }
 }

@@ -120,6 +120,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .cloned()
             .map(Value::Array)
             .unwrap_or_else(|| json!([]));
+        let search_results = cached.get("search_results").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
+        let provider_results = cached
+            .get("provider_results")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
         let rewrite_set = cached
             .get("rewrite_set")
             .and_then(Value::as_array)
@@ -245,6 +252,10 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "tool_result_quality": tool_result_quality,
             "cache_status": "hit"
         });
+        if search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = search_results; }
+        if provider_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
+            out["provider_results"] = provider_results;
+        }
         if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
         if let Some(meta) = nexus_connection {
             out["nexus_connection"] = meta;
@@ -258,17 +269,22 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let parallel_allowed = source == "web" && query_plan.rewrite_applied && queries.len() > 1;
     let mut candidates = Vec::<Candidate>::new();
     let mut partial_failures = Vec::<String>::new();
+    let mut provider_results = Vec::<Value>::new();
     if parallel_allowed {
         let limit = parallel_window;
         let mut offset = 0usize;
         while offset < queries.len() {
             let end = (offset + limit).min(queries.len());
             let expected = end.saturating_sub(offset);
-            let (tx, rx) =
-                std::sync::mpsc::channel::<(usize, String, Result<Vec<Candidate>, String>)>();
-            let mut chunk_rows = std::iter::repeat_with(|| None)
-                .take(expected)
-                .collect::<Vec<Option<(String, Result<Vec<Candidate>, String>)>>>();
+            let (tx, rx) = std::sync::mpsc::channel::<(
+                usize,
+                String,
+                (Vec<Candidate>, Vec<String>, Vec<Value>),
+            )>();
+            let mut chunk_rows =
+                std::iter::repeat_with(|| None)
+                    .take(expected)
+                    .collect::<Vec<Option<(String, (Vec<Candidate>, Vec<String>, Vec<Value>))>>>();
             for (local_idx, q) in queries[offset..end].iter().enumerate() {
                 let tx_clone = tx.clone();
                 let query_item = q.clone();
@@ -280,8 +296,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                         let _ = tx_clone.send((local_idx, query_item, out));
                     });
                 if spawned.is_err() {
-                    chunk_rows[local_idx] =
-                        Some((q.clone(), Err("query_worker_spawn_failed".to_string())));
+                    chunk_rows[local_idx] = Some((
+                        q.clone(),
+                        (
+                            Vec::new(),
+                            vec!["query_worker_spawn_failed".to_string()],
+                            Vec::new(),
+                        ),
+                    ));
                 }
             }
             drop(tx);
@@ -301,17 +323,33 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             for local_idx in 0..expected {
                 let fallback_query = clean_text(&queries[offset + local_idx], 120);
                 match chunk_rows[local_idx].take() {
-                    Some((q, out)) => match out {
-                        Ok(mut rows) => {
-                            if rows.is_empty() {
-                                partial_failures
-                                    .push(format!("{}:no_usable_summary", clean_text(&q, 120)));
+                    Some((q, (mut rows, issues, artifacts))) => {
+                        provider_results.extend(artifacts);
+                        let transport_only_issue = rows.is_empty()
+                            && issues.iter().all(|issue| {
+                                issue.starts_with("query_timeout_ms_")
+                                    || issue == "query_worker_spawn_failed"
+                                    || issue == "query_worker_disconnected"
+                            });
+                        if rows.is_empty() && issues.is_empty() {
+                            partial_failures
+                                .push(format!("{}:no_usable_summary", clean_text(&q, 120)));
+                        } else {
+                            if rows.is_empty() && !transport_only_issue {
+                                partial_failures.push(format!(
+                                    "{}:no_usable_summary",
+                                    clean_text(&q, 120)
+                                ));
                             } else {
                                 candidates.append(&mut rows);
                             }
+                            partial_failures.extend(
+                                issues
+                                    .into_iter()
+                                    .map(|issue| format!("{}:{issue}", clean_text(&q, 120))),
+                            );
                         }
-                        Err(err) => partial_failures.push(format!("{}:{err}", clean_text(&q, 120))),
-                    },
+                    }
                     None => partial_failures.push(format!(
                         "{}:query_timeout_ms_{}",
                         fallback_query,
@@ -323,15 +361,28 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     } else {
         for q in &queries {
-            match retrieve_web_candidates_for_query_with_timeout(root, q, query_timeout) {
-                Ok(mut rows) => {
-                    if rows.is_empty() {
-                        partial_failures.push(format!("{}:no_usable_summary", clean_text(q, 120)));
-                    } else {
-                        candidates.append(&mut rows);
-                    }
+            let (mut rows, issues, artifacts) =
+                retrieve_web_candidates_for_query_with_timeout(root, q, query_timeout);
+            provider_results.extend(artifacts);
+            let transport_only_issue = rows.is_empty()
+                && issues.iter().all(|issue| {
+                    issue.starts_with("query_timeout_ms_")
+                        || issue == "query_worker_spawn_failed"
+                        || issue == "query_worker_disconnected"
+                });
+            if rows.is_empty() && issues.is_empty() {
+                partial_failures.push(format!("{}:no_usable_summary", clean_text(q, 120)));
+            } else {
+                if rows.is_empty() && !transport_only_issue {
+                    partial_failures.push(format!("{}:no_usable_summary", clean_text(q, 120)));
+                } else {
+                    candidates.append(&mut rows);
                 }
-                Err(err) => partial_failures.push(format!("{}:{err}", clean_text(q, 120))),
+                partial_failures.extend(
+                    issues
+                        .into_iter()
+                        .map(|issue| format!("{}:{issue}", clean_text(q, 120))),
+                );
             }
         }
     }
@@ -361,6 +412,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         .map(|row| (row.clone(), rerank_score(&rerank_query, row)))
         .collect::<Vec<_>>();
     let ranked = select_diverse_ranked_candidates(ranked, budget.max_evidence);
+    let retained_ranked = ranked
+        .iter()
+        .filter(|(row, score)| candidate_retention_preview_eligible(&rerank_query, row, *score))
+        .cloned()
+        .collect::<Vec<_>>();
 
     let min_synthesis_score = minimum_synthesis_score(benchmark_intent);
     let mut actionable_ranked = ranked
@@ -386,20 +442,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     } else {
         Vec::new()
     };
-    let mut comparison_guard_summary = None::<String>;
-    if comparison_entities.len() >= 2 {
-        let coverage_ok = comparison_entities.iter().all(|entity| {
-            actionable_ranked
-                .iter()
-                .any(|(row, _)| candidate_mentions_entity(row, entity))
-        });
-        if !coverage_ok {
-            actionable_ranked.clear();
-            comparison_guard_summary = Some(format!(
-                "Search did not produce enough source coverage to compare {} in this turn. This is a retrieval-quality miss, not proof the systems are equivalent. Retry with named competitors or one specific source URL per side.",
-                comparison_entities.join(" vs ")
-            ));
-        }
+    let (comparison_guard_search_results, comparison_guard_summary) =
+        comparison_guard_failure_artifacts(
+            &query,
+            &comparison_entities,
+            &actionable_ranked,
+            &retained_ranked,
+            budget.max_evidence,
+        );
+    if comparison_guard_summary.is_some() {
+        actionable_ranked.clear();
     }
 
     let evidence_refs = actionable_ranked
@@ -619,6 +671,10 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "tool_result_quality": tool_result_quality.clone(),
         "cache_status": "miss"
     });
+    if comparison_guard_search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = comparison_guard_search_results.clone(); }
+    if !provider_results.is_empty() {
+        out["provider_results"] = Value::Array(provider_results.clone());
+    }
     store_cached_response(
         root,
         &cache_key_primary,
@@ -626,6 +682,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "status": status,
             "summary": summary,
             "evidence_refs": evidence_refs,
+            "search_results": comparison_guard_search_results,
+            "provider_results": provider_results,
             "rewrite_set": rewrite_set,
             "query_plan": queries,
             "query_plan_source": query_plan.query_plan_source,

@@ -393,19 +393,14 @@ fn execute_inline_tool_calls(
                 "source": "inline_tool_call"
             }));
         }
-        cards.push(json!({
-            "id": format!("tool-{}-{}", normalize_tool_name(&name), idx),
-            "name": normalize_tool_name(&name),
-            "input": trim_text(&input_for_call.to_string(), 4000),
-            "result": trim_text(&result_text, 24_000),
-            "is_error": !ok,
-            "blocked": card_status == "blocked" || card_status == "policy_denied",
-            "status": card_status,
-            "tool_attempt_receipt": payload
-                .pointer("/tool_pipeline/tool_attempt_receipt")
-                .cloned()
-                .unwrap_or(Value::Null)
-        }));
+        cards.push(response_tool_card(
+            format!("tool-{}-{}", normalize_tool_name(&name), idx),
+            &name,
+            &input_for_call,
+            &payload,
+            !ok,
+            &card_status,
+        ));
         if ok && !result_text.trim().is_empty() {
             if !response_looks_like_tool_ack_without_findings(&result_text) {
                 fallback_lines.push(result_text);

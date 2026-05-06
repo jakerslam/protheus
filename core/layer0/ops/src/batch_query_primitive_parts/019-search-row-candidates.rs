@@ -95,3 +95,70 @@ fn candidates_from_rendered_search_payload(
     }
     out
 }
+
+fn retained_search_results_preview(rows: &[(Candidate, f64)], limit: usize) -> Value {
+    Value::Array(
+        rows.iter()
+            .take(limit.max(1))
+            .map(|(row, score)| {
+                json!({
+                    "source_kind": row.source_kind,
+                    "title": clean_text(&row.title, 240),
+                    "locator": clean_text(&row.locator, 2_200),
+                    "snippet": trim_words(&clean_text(&row.snippet, 1_200), 48),
+                    "score": (*score * 100.0).round() / 100.0,
+                    "timestamp": row.timestamp,
+                    "permissions": row.permissions,
+                    "status_code": row.status_code
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn candidate_retention_preview_eligible(query: &str, candidate: &Candidate, score: f64) -> bool {
+    let snippet = clean_text(&candidate.snippet, 1_200);
+    let domain = candidate_domain_hint(candidate);
+    let trusted_source = source_trust_adjustment(candidate) >= 0.15;
+    let overlap = query_overlap_terms(query, candidate);
+    let trusted_overlap_preview = trusted_source && overlap >= 1;
+    (score > 0.0 || trusted_overlap_preview)
+        && !snippet.is_empty()
+        && !looks_like_ack_only(&snippet)
+        && !looks_like_low_signal_search_summary(&snippet)
+        && !looks_like_source_only_snippet(&snippet)
+        && !is_search_engine_domain(&domain)
+        && !looks_like_portal_noise_candidate(candidate)
+}
+
+fn comparison_guard_failure_artifacts(
+    _query: &str,
+    comparison_entities: &[String],
+    actionable_ranked: &[(Candidate, f64)],
+    retained_ranked: &[(Candidate, f64)],
+    max_results: usize,
+) -> (Value, Option<String>) {
+    if comparison_entities.len() < 2 {
+        return (json!([]), None);
+    }
+    let coverage_ok = comparison_entities.iter().all(|entity| {
+        actionable_ranked
+            .iter()
+            .any(|(row, _)| candidate_mentions_entity(row, entity))
+    });
+    if coverage_ok {
+        return (json!([]), None);
+    }
+    let preview_rows = if actionable_ranked.is_empty() {
+        retained_ranked
+    } else {
+        actionable_ranked
+    };
+    (
+        retained_search_results_preview(preview_rows, max_results),
+        Some(format!(
+            "Search did not produce enough source coverage to compare {} in this turn. This is a retrieval-quality miss, not proof the systems are equivalent. Retry with named competitors or one specific source URL per side.",
+            comparison_entities.join(" vs ")
+        )),
+    )
+}

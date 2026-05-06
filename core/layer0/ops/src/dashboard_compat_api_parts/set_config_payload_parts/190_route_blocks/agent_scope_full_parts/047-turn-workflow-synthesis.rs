@@ -2031,7 +2031,7 @@ mod workflow_fallback_tests {
     #[test]
     fn manual_toolbox_selection_parses_pending_web_request() {
         let pending = manual_toolbox_pending_request_from_response(
-            "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring\",\"aperture\":\"medium\"}.",
+            "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"query\":\"compare infring\",\"aperture\":\"medium\"}.",
             "Compare this platform to a current external tool category.",
         )
         .expect("pending request");
@@ -2082,7 +2082,7 @@ mod workflow_fallback_tests {
     #[test]
     fn manual_toolbox_selection_parses_json_tool_request() {
         let pending = manual_toolbox_pending_request_from_response(
-            "{\"tool_family\": \"Web research\", \"tool\": \"web_search\", \"request_payload\": {\"query\": \"compare infring to top agentic frameworks\", \"source\":\"web\"}, \"selection_source\": \"unit_test\"}",
+            "{\"tool_family\": \"Web research\", \"tool\": \"web_search\", \"request_payload\": {\"query\": \"compare infring to top agentic frameworks\", \"aperture\":\"medium\"}, \"selection_source\": \"unit_test\"}",
             "Compare infring to top agentic frameworks.",
         )
         .expect("pending request");
@@ -2096,8 +2096,8 @@ mod workflow_fallback_tests {
             Some("web_search")
         );
         assert_eq!(
-            pending.pointer("/input/source").and_then(Value::as_str),
-            Some("web")
+            pending.pointer("/input/aperture").and_then(Value::as_str),
+            Some("medium")
         );
         assert_eq!(
             pending.get("source").and_then(Value::as_str),
@@ -2340,7 +2340,7 @@ mod workflow_fallback_tests {
         );
         record_manual_toolbox_pending_request(
             &mut workflow,
-            "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"source\":\"web\",\"query\":\"compare infring to agent frameworks\",\"aperture\":\"medium\"}.",
+            "Category: Web research. Tool family: Web research. Tool: web_search. Request payload: {\"query\":\"compare infring to agent frameworks\",\"aperture\":\"medium\"}.",
             "Use web search for the exact comparison topic supplied by the user.",
         );
 
@@ -2759,7 +2759,13 @@ mod workflow_fallback_tests {
         );
         assert_eq!(
             workflow_final_visible_response_text(
-                r#"{"tool_family":"web_research","tool":"web_search","request_payload":{"query":"compare frameworks","source":"web"}}"#
+                r#"{"tool_family":"web_research","tool":"web_search","request_payload":{"query":"compare frameworks","aperture":"medium"}}"#
+            ),
+            ""
+        );
+        assert_eq!(
+            workflow_final_visible_response_text(
+                r#"{"tool_family":"web_research","tool":"batch_query","request_payload":{"source":"web","query":"Compare LangGraph vs CrewAI on reliability and deployment.","queries":["LangGraph official docs reliability deployment","CrewAI official docs reliability deployment"],"aperture":"medium"}}"#
             ),
             ""
         );
