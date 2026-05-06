@@ -95,4 +95,5 @@ pub(crate) fn now_ms() -> u64 {
 #[cfg(test)]
 mod context_topology_heap_tests;
 #[cfg(test)]
+#[path = "../../../../validation/tests/rust/layer2_memory/tests.rs"]
 mod tests;
