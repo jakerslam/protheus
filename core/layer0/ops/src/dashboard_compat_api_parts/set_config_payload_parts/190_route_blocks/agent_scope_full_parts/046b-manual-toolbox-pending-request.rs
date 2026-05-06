@@ -100,6 +100,16 @@ fn workflow_tool_selection_prompt_context(family_key: &str, family_label: &str) 
         .cloned()
         .unwrap_or_else(|| json!([]));
     let tools_json = serde_json::to_string(&tools).unwrap_or_else(|_| "[]".to_string());
+    let allowed_tool_keys_json = tools
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .map(workflow_option_key)
+                .filter(|key| !key.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .map(|keys| serde_json::to_string(&keys).unwrap_or_else(|_| "[]".to_string()))
+        .unwrap_or_else(|| "[]".to_string());
     contract
         .get("llm_tool_selection_instruction")
         .and_then(Value::as_str)
@@ -108,6 +118,7 @@ fn workflow_tool_selection_prompt_context(family_key: &str, family_label: &str) 
                 &template
                     .replace("{selected_family_key}", &family_key)
                     .replace("{selected_family_label}", &family_label)
+                    .replace("{selected_tool_keys_json}", &allowed_tool_keys_json)
                     .replace("{selected_tool_menu_json}", &tools_json),
                 4_000,
             )
@@ -162,11 +173,39 @@ fn workflow_tool_payload_prompt_context(
         .unwrap_or_default()
 }
 
+fn manual_toolbox_private_gate_max_attempts() -> u64 {
+    let contract = default_workflow_tool_menu_contract();
+    let base_gate_count = contract
+        .get("gate_order")
+        .and_then(Value::as_array)
+        .and_then(|gates| {
+            gates
+                .iter()
+                .position(|gate| gate.as_str() == Some("gate_4_request_payload_input"))
+                .map(|idx| idx as u64 + 1)
+        })
+        .unwrap_or(4);
+    let retry_limit = contract
+        .get("private_gate_retry_limit")
+        .or_else(|| contract.get("workflow_retry_limit"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+        .min(4);
+    base_gate_count.saturating_add(retry_limit).clamp(4, 8)
+}
+
 fn workflow_tool_family_selection_from_response(response: &str) -> Option<(String, String)> {
     let contract = default_workflow_tool_menu_contract();
     let token = workflow_structured_gate_submission(response)
         .and_then(|request| {
             workflow_tool_request_string_field(&request, &contract, "tool_family")
+                .or_else(|| workflow_tool_request_string_field(&request, &contract, "family"))
+                .or_else(|| {
+                    workflow_tool_request_string_field(&request, &contract, "tool_family_key")
+                })
+                .or_else(|| {
+                    workflow_tool_request_string_field(&request, &contract, "selected_tool_family")
+                })
                 .or_else(|| workflow_tool_request_string_field(&request, &contract, "category"))
                 .or_else(|| workflow_tool_request_string_field(&request, &contract, "gate"))
         })
@@ -192,7 +231,14 @@ fn workflow_tool_selection_from_response(
 ) -> Option<(String, String)> {
     let contract = default_workflow_tool_menu_contract();
     let token = workflow_structured_gate_submission(response)
-        .and_then(|request| workflow_tool_request_string_field(&request, &contract, "tool"))
+        .and_then(|request| {
+            workflow_tool_request_string_field(&request, &contract, "tool")
+                .or_else(|| workflow_tool_request_string_field(&request, &contract, "selected_tool"))
+                .or_else(|| workflow_tool_request_string_field(&request, &contract, "tool_key"))
+                .or_else(|| {
+                    workflow_tool_request_string_field(&request, &contract, "selected_tool_key")
+                })
+        })
         .unwrap_or_else(|| clean_text(response, 240));
     let tool_key = workflow_tool_key_for_selection(&contract, family_key, &token);
     if tool_key.is_empty() {
@@ -211,17 +257,102 @@ fn workflow_tool_selection_from_response(
         })
 }
 
-fn workflow_request_payload_from_response(response: &str) -> Option<Value> {
+fn workflow_selected_tool_request_format_keys(family_key: &str, tool_key: &str) -> Vec<String> {
+    default_workflow_tool_menu_contract()
+        .get("tool_menu_by_family")
+        .and_then(Value::as_object)
+        .and_then(|families| families.get(family_key))
+        .and_then(Value::as_array)
+        .and_then(|tools| {
+            tools.iter()
+                .find(|tool| workflow_option_key(tool) == tool_key)
+                .cloned()
+        })
+        .and_then(|tool| tool.get("request_format").cloned())
+        .and_then(|format| format.as_object().cloned())
+        .map(|format| {
+            format
+                .keys()
+                .map(|key| normalized_workflow_token(key))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn workflow_payload_object_matches_selected_tool(
+    value: &Value,
+    family_key: &str,
+    tool_key: &str,
+) -> bool {
+    let Some(payload) = value.as_object() else {
+        return false;
+    };
+    let expected_keys = workflow_selected_tool_request_format_keys(family_key, tool_key);
+    if expected_keys.is_empty() {
+        return false;
+    }
+    let reserved_keys = [
+        "gate",
+        "tool",
+        "tool_name",
+        "selected_tool",
+        "selected_tool_name",
+        "selected_tool_key",
+        "tool_family",
+        "selected_tool_family",
+        "category",
+        "final_answer",
+        "message",
+        "response",
+        "content",
+        "visible_response",
+    ]
+    .into_iter()
+    .map(normalized_workflow_token)
+    .collect::<Vec<_>>();
+    let payload_keys = payload
+        .keys()
+        .map(|key| normalized_workflow_token(key))
+        .collect::<Vec<_>>();
+    !payload_keys
+        .iter()
+        .any(|key| reserved_keys.iter().any(|reserved| reserved == key))
+        && expected_keys
+            .iter()
+            .any(|expected| payload_keys.iter().any(|key| key == expected))
+}
+
+fn workflow_request_payload_from_json_response(
+    request: &Value,
+    family_key: &str,
+    tool_key: &str,
+) -> Option<Value> {
+    workflow_tool_request_object_field(
+        request,
+        &default_workflow_tool_menu_contract(),
+        "request_payload",
+    )
+    .and_then(|value| workflow_tool_request_payload_from_json_value(&value))
+    .or_else(|| {
+        workflow_payload_object_matches_selected_tool(request, family_key, tool_key)
+            .then(|| request.clone())
+    })
+}
+
+fn workflow_request_payload_from_response(
+    family_key: &str,
+    tool_key: &str,
+    response: &str,
+) -> Option<Value> {
     workflow_structured_gate_submission(response)
         .and_then(|request| {
-            workflow_tool_request_object_field(
-                &request,
-                &default_workflow_tool_menu_contract(),
-                "request_payload",
-            )
-            .and_then(|value| workflow_tool_request_payload_from_json_value(&value))
+            workflow_request_payload_from_json_response(&request, family_key, tool_key)
         })
-        .or_else(|| manual_toolbox_payload_json(response))
+        .or_else(|| {
+            manual_toolbox_payload_json(response).and_then(|request| {
+                workflow_request_payload_from_json_response(&request, family_key, tool_key)
+            })
+        })
         .filter(Value::is_object)
 }
 

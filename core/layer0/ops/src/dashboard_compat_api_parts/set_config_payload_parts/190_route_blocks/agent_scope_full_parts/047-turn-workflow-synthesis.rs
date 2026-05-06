@@ -2138,7 +2138,11 @@ fn run_turn_workflow_final_response(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
-    let max_attempts: u64 = if manual_toolbox_gate_turn { 4 } else { 1 };
+    let max_attempts: u64 = if manual_toolbox_gate_turn {
+        manual_toolbox_private_gate_max_attempts()
+    } else {
+        1
+    };
     let mut manual_toolbox_no_selected = false;
     let mut manual_toolbox_selected_category_key = String::new();
     let mut manual_toolbox_selected_category_label = String::new();
@@ -2278,13 +2282,34 @@ fn run_turn_workflow_final_response(
         } else {
             system_prompt.clone()
         };
+        let gate_context_user_prompt = clean_text(
+            &format!(
+                "Context-only user message. Do not answer it directly. Use it only to produce the artifact required for the current workflow gate:\n{message}"
+            ),
+            8_000,
+        );
+        let gate_retry_guidance = if active_manual_toolbox_private_gate_turn
+            && attempt > 1
+            && !last_invalid_excerpt.is_empty()
+        {
+            clean_text(
+                &format!(
+                    "Context-only user message. Do not answer it directly. Use it only to produce the artifact required for the current workflow gate:\n{message}\n\nPrevious gate submission was rejected:\n{last_invalid_excerpt}\n\nReturn only the required artifact in the exact JSON format for the current gate. Do not write any prose."
+                ),
+                8_000,
+            )
+        } else {
+            String::new()
+        };
         let attempt_user_prompt = if active_manual_toolbox_category_turn {
             user_prompt.clone()
+        } else if !gate_retry_guidance.is_empty() {
+            gate_retry_guidance
         } else if active_manual_toolbox_family_turn
             || active_manual_toolbox_tool_turn
             || active_manual_toolbox_payload_turn
         {
-            clean_text(&format!("User message:\n{message}"), 8_000)
+            gate_context_user_prompt
         } else if manual_toolbox_no_selected {
             clean_text(&format!("User message:\n{message}"), 8_000)
         } else if compact_tool_retry {
@@ -4259,6 +4284,22 @@ mod workflow_fallback_tests {
         assert!(response_is_tool_bearing_category_gate_submission(
             r#""workflow_gate": 3}"#
         ));
+    }
+
+    #[test]
+    fn structured_gate_submission_accepts_combined_option_and_label_token() {
+        let response = r#"{"gate":"4 = Workspace/files"}"#;
+
+        assert!(response_is_tool_bearing_category_gate_submission(response));
+        let (category_key, category_label) = workflow_category_selection(
+            &default_workflow_tool_menu_contract(),
+            response,
+            Some(true),
+        )
+        .expect("combined category token");
+
+        assert_eq!(category_key, "workspace_files");
+        assert_eq!(category_label, "Workspace/files");
     }
 
     #[test]
