@@ -33,8 +33,8 @@ $InstallDir = if ($InstallDir) {
 $InstallDirExplicit = $PSBoundParameters.ContainsKey("InstallDir")
 $legacyInstallDir = Join-Path $HOME ".infring\bin"
 $canonicalInstallDir = Join-Path $HOME ".infring\bin"
-$normalizedInstallDir = if ($InstallDir) { $InstallDir.TrimEnd("\", "/").ToLower() } else { "" }
-$normalizedLegacyInstallDir = $legacyInstallDir.TrimEnd("\", "/").ToLower()
+$normalizedInstallDir = if ($InstallDir) { $InstallDir.TrimEnd([char[]]@('\', '/')).ToLower() } else { "" }
+$normalizedLegacyInstallDir = $legacyInstallDir.TrimEnd([char[]]@('\', '/')).ToLower()
 if (
   (-not $InstallDirExplicit) -and
   $InstallDir -and
@@ -620,8 +620,8 @@ function Normalize-WindowsPathEntry([string]$value) {
     return ""
   }
   $trimmed = $value.Trim().Trim('"')
-  if ($trimmed.EndsWith("\")) {
-    $trimmed = $trimmed.TrimEnd('\')
+  if ($trimmed.EndsWith('\')) {
+    $trimmed = $trimmed.TrimEnd([char[]]@('\'))
   }
   return $trimmed.ToLowerInvariant()
 }
@@ -693,7 +693,9 @@ function Invoke-SourceFallbackCleanup {
 
   if ($HostIsWindows) {
     try {
-      Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", "rmdir /s /q `"$cleanupRoot`"") -WindowStyle Hidden | Out-Null
+      $safeCleanupRoot = $cleanupRoot.Replace('"', '')
+      $cleanupCommand = 'rmdir /s /q "' + $safeCleanupRoot + '"'
+      Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", $cleanupCommand) -WindowStyle Hidden | Out-Null
       Write-Host "[infring install] scheduled background cleanup of source fallback temp dir: $cleanupRoot"
       return
     } catch {
@@ -2079,7 +2081,7 @@ function Install-Binary($Version, $Triple, $Stem, $OutPath) {
     } else {
       Write-Host "[infring install] preflight note: no reachable Windows prebuilt and MSVC tools missing; attempting best-effort source fallback"
     }
-    Write-Host "[infring install] recommended fix: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override \"--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools\""
+    Write-Host '[infring install] recommended fix: winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools"'
   }
 
   $script:LastBinaryInstallFailureReason = ""
