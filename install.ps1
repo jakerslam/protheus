@@ -33,8 +33,8 @@ $InstallDir = if ($InstallDir) {
 $InstallDirExplicit = $PSBoundParameters.ContainsKey("InstallDir")
 $legacyInstallDir = Join-Path $HOME ".infring\bin"
 $canonicalInstallDir = Join-Path $HOME ".infring\bin"
-$normalizedInstallDir = if ($InstallDir) { $InstallDir.TrimEnd([char[]]@('\', '/')).ToLower() } else { "" }
-$normalizedLegacyInstallDir = $legacyInstallDir.TrimEnd([char[]]@('\', '/')).ToLower()
+$normalizedInstallDir = if ($InstallDir) { $InstallDir.TrimEnd([char]92, [char]47).ToLower() } else { "" }
+$normalizedLegacyInstallDir = $legacyInstallDir.TrimEnd([char]92, [char]47).ToLower()
 if (
   (-not $InstallDirExplicit) -and
   $InstallDir -and
@@ -181,7 +181,7 @@ function Write-InstallCompletionCard {
   Write-Host ""
   Write-Host "Setting up InfRing..."
   Write-Host ""
-  Write-Host "✔ InfRing successfully installed!" -ForegroundColor Green
+  Write-Host "SUCCESS: InfRing successfully installed!" -ForegroundColor Green
   Write-Host ""
   Write-Host -NoNewline "  Version: "
   Write-Host "$Version." -ForegroundColor DarkYellow
@@ -191,7 +191,7 @@ function Write-InstallCompletionCard {
   Write-Host -NoNewline "infring --help" -ForegroundColor DarkYellow
   Write-Host " to get started."
   Write-Host ""
-  Write-Host "✅ Installation complete!"
+  Write-Host "Installation complete!"
 }
 
 function Test-InstallSummarySuccessContract {
@@ -620,8 +620,8 @@ function Normalize-WindowsPathEntry([string]$value) {
     return ""
   }
   $trimmed = $value.Trim().Trim('"')
-  if ($trimmed.EndsWith('\')) {
-    $trimmed = $trimmed.TrimEnd([char[]]@('\'))
+  if ($trimmed.EndsWith([string][char]92)) {
+    $trimmed = $trimmed.TrimEnd([char]92)
   }
   return $trimmed.ToLowerInvariant()
 }
@@ -693,8 +693,12 @@ function Invoke-SourceFallbackCleanup {
 
   if ($HostIsWindows) {
     try {
-      $safeCleanupRoot = $cleanupRoot.Replace('"', '')
-      $cleanupCommand = 'rmdir /s /q "' + $safeCleanupRoot + '"'
+      $doubleQuote = [string][char]34
+      $safeCleanupRoot = [string]$cleanupRoot
+      if ($safeCleanupRoot.IndexOf([char]34) -ge 0) {
+        $safeCleanupRoot = $safeCleanupRoot.Replace($doubleQuote, "")
+      }
+      $cleanupCommand = [string]::Concat("rmdir /s /q ", $doubleQuote, $safeCleanupRoot, $doubleQuote)
       Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", $cleanupCommand) -WindowStyle Hidden | Out-Null
       Write-Host "[infring install] scheduled background cleanup of source fallback temp dir: $cleanupRoot"
       return
@@ -1357,9 +1361,10 @@ function Download-Asset($Version, $Asset, $OutPath) {
       $line = ([string]$raw).Trim()
       if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
+      $bsdPattern = "^SHA256\\s+\\(([^)]+)\\)\\s*=\\s*([a-fA-F0-9]{64})$"
       $bsd = [System.Text.RegularExpressions.Regex]::Match(
         $line,
-        '^SHA256\s+\(([^)]+)\)\s*=\s*([a-fA-F0-9]{64})$',
+        $bsdPattern,
         [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
       )
       if ($bsd.Success) {

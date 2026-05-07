@@ -141,6 +141,7 @@ function run(argv: string[]): number {
     source,
     String.raw`--override \"--quiet`,
   );
+  const powershellNonAsciiGlyphCount = countOccurrences(source, /[^\x00-\x7F]/g);
 
   checks.push({
     id: 'windows_install_script_no_merge_conflict_markers',
@@ -329,8 +330,8 @@ function run(argv: string[]): number {
   checks.push({
     id: 'windows_install_script_cleanup_rmdir_command_is_prebuilt',
     ok:
-      source.includes('$safeCleanupRoot = $cleanupRoot.Replace')
-      && source.includes("$cleanupCommand = 'rmdir /s /q")
+      source.includes('$doubleQuote = [string][char]34')
+      && source.includes('$cleanupCommand = [string]::Concat("rmdir /s /q ", $doubleQuote, $safeCleanupRoot, $doubleQuote)')
       && source.includes('Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", $cleanupCommand)'),
     detail:
       'install.ps1 must prebuild the cmd cleanup command before Start-Process so Windows PowerShell does not parse nested backtick quotes',
@@ -341,6 +342,48 @@ function run(argv: string[]): number {
     ok: parserUnsafeEscapedQuoteHelpTextCount === 0,
     detail:
       `install.ps1 help text must not use backslash-escaped quotes inside double-quoted PowerShell strings (count=${parserUnsafeEscapedQuoteHelpTextCount})`,
+  });
+
+  checks.push({
+    id: 'windows_install_script_windows_path_trim_uses_char_literals',
+    ok:
+      source.includes('TrimEnd([char]92, [char]47)')
+      && source.includes("EndsWith([string][char]92)")
+      && source.includes('TrimEnd([char]92)'),
+    detail:
+      'install.ps1 must use numeric char literals for Windows path trimming rather than quote-sensitive slash strings',
+  });
+
+  checks.push({
+    id: 'windows_install_script_cleanup_command_uses_char34_contract',
+    ok:
+      source.includes('$doubleQuote = [string][char]34')
+      && source.includes('$safeCleanupRoot.IndexOf([char]34) -ge 0')
+      && source.includes('$cleanupCommand = [string]::Concat("rmdir /s /q ", $doubleQuote, $safeCleanupRoot, $doubleQuote)'),
+    detail:
+      'install.ps1 must build the Windows cleanup command from char-code quote primitives rather than nested quote literals',
+  });
+
+  checks.push({
+    id: 'windows_install_script_manifest_regex_uses_named_pattern_variable',
+    ok:
+      source.includes('$bsdPattern = "^SHA256\\\\s+\\\\(([^)]+)\\\\)\\\\s*=\\\\s*([a-fA-F0-9]{64})$"')
+      && source.includes('$bsd = [System.Text.RegularExpressions.Regex]::Match(')
+      && source.includes('$bsdPattern,'),
+    detail:
+      'install.ps1 must keep the SHA256 manifest regex in a dedicated pattern variable for Windows PowerShell parser stability',
+  });
+
+  checks.push({
+    id: 'windows_install_script_powershell_ascii_only_completion_card',
+    ok:
+      powershellNonAsciiGlyphCount === 0
+      && source.includes('SUCCESS: InfRing successfully installed!')
+      && source.includes('Installation complete!')
+      && !source.includes('✔ InfRing successfully installed!')
+      && !source.includes('✅ Installation complete!'),
+    detail:
+      `install.ps1 must keep the PowerShell completion card ASCII-only for Windows PowerShell encoding compatibility (non_ascii_count=${powershellNonAsciiGlyphCount})`,
   });
 
   checks.push({
@@ -461,8 +504,8 @@ function run(argv: string[]): number {
     id: 'installer_success_completion_card_contract',
     ok:
       source.includes('function Write-InstallCompletionCard')
-      && source.includes('✔ InfRing successfully installed!')
-      && source.includes('✅ Installation complete!')
+      && source.includes('SUCCESS: InfRing successfully installed!')
+      && source.includes('Installation complete!')
       && source.includes('-ForegroundColor Green')
       && source.includes('-ForegroundColor DarkYellow')
       && sourceSh.includes('emit_install_completion_card')
