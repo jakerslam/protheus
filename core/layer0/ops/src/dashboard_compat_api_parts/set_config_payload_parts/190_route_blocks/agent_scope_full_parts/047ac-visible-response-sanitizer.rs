@@ -111,13 +111,77 @@ fn tool_payload_shape_looks_raw(response_payload: &Value) -> bool {
 }
 
 fn sanitize_workflow_visible_response_text(response_text: &str) -> String {
-    let cleaned = sanitize_workflow_final_response_candidate(&strip_internal_cache_control_markup(
-        &strip_internal_context_metadata_prefix(response_text),
-    ));
+    let cleaned = strip_trailing_research_follow_up_offer(
+        &sanitize_workflow_final_response_candidate(&strip_internal_cache_control_markup(
+            &strip_internal_context_metadata_prefix(response_text),
+        )),
+    );
     if response_looks_like_raw_tool_payload_dump(&cleaned) {
         String::new()
     } else {
         cleaned
+    }
+}
+
+fn strip_trailing_research_follow_up_offer(response_text: &str) -> String {
+    let cleaned = clean_chat_text(response_text, 32_000);
+    if cleaned.is_empty() || cleaned.split_whitespace().count() < 40 {
+        return cleaned;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    let looks_like_substantive_research_answer = lowered.contains("tradeoff")
+        || lowered.contains("evidence")
+        || lowered.contains("source-backed")
+        || lowered.contains("receipt-backed")
+        || lowered.contains("production")
+        || lowered.contains("benchmark");
+    if !looks_like_substantive_research_answer {
+        return cleaned;
+    }
+
+    let trailing_offer_markers = [
+        "\nif you want",
+        "\nif you'd like",
+        "\nif you would like",
+        "\nwould you prefer",
+        "\nwould you like",
+        "\nis there a specific",
+        "\nwhich angle matters more",
+        "\nwhich framework pair",
+        "\nwhat task domain",
+        "\ni can narrow",
+        "\ni can retry",
+        "\ni can rerun",
+        " if you want",
+        " if you'd like",
+        " if you would like",
+        " would you prefer",
+        " would you like",
+        " is there a specific",
+        " which angle matters more",
+        " which framework pair",
+        " what task domain",
+    ];
+    let offer_start = trailing_offer_markers
+        .iter()
+        .filter_map(|marker| lowered.rfind(marker))
+        .filter(|idx| *idx >= cleaned.len() / 2)
+        .min();
+    let Some(offer_start) = offer_start else {
+        return cleaned;
+    };
+
+    let trimmed = cleaned[..offer_start].trim();
+    if trimmed.split_whitespace().count() < 35 {
+        return cleaned;
+    }
+    if matches!(
+        trimmed.chars().last(),
+        Some('.') | Some('!') | Some('?') | Some(':')
+    ) {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed}.")
     }
 }
 
@@ -140,9 +204,33 @@ fn response_looks_like_raw_tool_payload_dump(response_text: &str) -> bool {
         || lowered.contains("<function=")
         || lowered.contains("<tool")
         || lowered.contains("</tool>")
+        || response_contains_provider_completion_dump(&cleaned)
         || parse_json_payload_dump(&cleaned)
             .is_some_and(|payload| tool_payload_shape_looks_raw(&payload))
         || looks_like_tool_payload_json_literal(&cleaned)
+}
+
+fn response_contains_provider_completion_dump(response_text: &str) -> bool {
+    let lowered = clean_text(response_text, 4_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let markers = [
+        "\"finish_reason\"",
+        "\"prompt_tokens\"",
+        "\"completion_tokens\"",
+        "\"total_tokens\"",
+        "\"logprob\"",
+        "\"usage\":{",
+        "\"prediction\"",
+        "\"refusal\"",
+        "i am kimi, an ai assistant created by moonshot ai",
+    ];
+    markers
+        .iter()
+        .filter(|marker| lowered.contains(**marker))
+        .count()
+        >= 3
 }
 
 fn looks_like_tool_payload_json_literal(response_text: &str) -> bool {
@@ -197,5 +285,38 @@ fn looks_like_tool_payload_json_literal(response_text: &str) -> bool {
             || compact_lower.contains("\"arguments\"")
             || compact_lower.contains("\"args\"");
         has_tool_token && has_name_token && has_payload_token
+    }
+}
+
+#[cfg(test)]
+mod visible_response_sanitizer_tests {
+    use super::*;
+
+    #[test]
+    fn sanitizer_strips_trailing_research_follow_up_offer_from_substantive_answer() {
+        let response = "The main tradeoff is between benchmark performance and production maintainability for open-source coding agents. The evidence is still partial, but Aider looks strongest for real repositories while OpenHands appears more exploratory for broader agent loops. My recommendation is to start with Aider for real repository work and treat OpenHands as a secondary evaluation track. If you want, I can narrow this to SWE-bench-style evidence next.";
+        let cleaned = sanitize_workflow_visible_response_text(response);
+        assert!(cleaned.contains("My recommendation is to start with Aider"));
+        assert!(!cleaned.to_ascii_lowercase().contains("if you want, i can narrow"));
+    }
+
+    #[test]
+    fn sanitizer_keeps_plain_short_follow_up_question_when_no_substantive_answer_exists() {
+        let response = "Would you prefer a narrower query?";
+        assert_eq!(
+            sanitize_workflow_visible_response_text(response),
+            "Would you prefer a narrower query?"
+        );
+    }
+
+    #[test]
+    fn sanitizer_strips_trailing_research_follow_up_question_from_substantive_answer() {
+        let response = "I wasn't able to run the benchmark search successfully. The main tradeoff in agent frameworks is between ease of orchestration and deep tool integration. CrewAI is easier to compose for role-based workflows, while LangGraph offers more control for stateful tool loops. For a practical evaluation plan, compare task success rate, latency, observability, and integration depth on one real workflow. Is there a specific framework pair or task domain you're trying to evaluate?";
+        let cleaned = sanitize_workflow_visible_response_text(response);
+        assert!(cleaned.contains("For a practical evaluation plan"));
+        assert!(!cleaned
+            .to_ascii_lowercase()
+            .contains("is there a specific framework pair"));
+        assert!(cleaned.ends_with('.'));
     }
 }
