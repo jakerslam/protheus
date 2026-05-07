@@ -119,6 +119,62 @@ fn agent_model_update_to_auto_does_not_materialize_routed_model() {
 }
 
 #[test]
+fn agent_model_update_preserves_existing_provider_for_unqualified_model_names() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    save_app_settings(root.path(), "openai", "gpt-5");
+    let created = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Provider Preserve","role":"analyst","provider":"ollama","model":"qwen:4b"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create agent");
+    assert_eq!(created.status, 200);
+    let agent_id = clean_text(
+        created
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+
+    let updated = handle(
+        root.path(),
+        "PUT",
+        &format!("/api/agents/{agent_id}/model"),
+        br#"{"model":"kimi-k2.6:cloud"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("update model");
+    assert_eq!(updated.status, 200);
+    assert_eq!(updated.payload.get("provider").and_then(Value::as_str), Some("ollama"));
+    assert_eq!(
+        updated.payload.get("model").and_then(Value::as_str),
+        Some("kimi-k2.6:cloud")
+    );
+
+    let after = handle(
+        root.path(),
+        "GET",
+        &format!("/api/agents/{agent_id}"),
+        &[],
+        &agent_create_ok_snapshot(),
+    )
+    .expect("agent after unqualified model update");
+    assert_eq!(
+        after.payload.get("model_provider").and_then(Value::as_str),
+        Some("ollama")
+    );
+    assert_eq!(
+        after.payload.get("model_name").and_then(Value::as_str),
+        Some("kimi-k2.6:cloud")
+    );
+}
+
+#[test]
 fn agents_sidebar_compact_view_skips_heavy_profile_fields() {
     let root = agent_create_temp_root();
     init_git_repo(root.path());

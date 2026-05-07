@@ -9,3 +9,19 @@
         fs::write(path, serde_json::to_string_pretty(payload).expect("chat script json"))
             .expect("write chat script");
     }
+
+    fn write_chat_settings(root: &Path, provider: &str, model: &str) {
+        let path = chat_ui_settings_path(root);
+        let parent = path.parent().expect("chat settings parent");
+        fs::create_dir_all(parent).expect("mkdir chat settings");
+        fs::write(
+            path,
+            serde_json::to_string_pretty(&json!({
+                "provider": provider,
+                "model": model,
+                "updated_at": crate::now_iso()
+            }))
+            .expect("chat settings json"),
+        )
+        .expect("write chat settings");
+    }

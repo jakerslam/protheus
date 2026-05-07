@@ -595,7 +595,7 @@ fn build_snapshot(root: &Path, flags: &Flags) -> Value {
         "skills": skills_payload,
         "ui_controller": ui_controller_payload,
         "agents": {
-            "session_summaries": dashboard_agent_state::session_summaries(root, 200),
+            "session_summaries": dashboard_agent_state::session_summaries(root, 40),
             "contract_enforcement": contract_enforcement
         },
         "agent_lifecycle": {

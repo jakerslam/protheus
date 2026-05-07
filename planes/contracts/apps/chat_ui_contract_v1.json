@@ -9,13 +9,21 @@
     "switch-provider"
   ],
   "providers": [
+    "auto",
     "openai",
+    "google",
+    "gemini",
+    "groq",
+    "deepseek",
+    "openrouter",
+    "xai",
+    "ollama",
+    "claude-code",
     "frontier_provider",
-    "grok",
     "bedrock",
     "minimax"
   ],
-  "default_provider": "openai",
-  "default_model": "gpt-5",
+  "default_provider": "auto",
+  "default_model": "auto",
   "deterministic_model_call_receipts_required": true
 }

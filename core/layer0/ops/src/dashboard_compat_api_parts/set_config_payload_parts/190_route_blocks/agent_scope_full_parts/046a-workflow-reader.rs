@@ -639,6 +639,62 @@ mod workflow_reader_tests {
             "{}",
             selected
         );
+        let chat_requirement = selected
+            .pointer("/final_output_contract/chat_requirement")
+            .and_then(Value::as_str)
+            .expect("chat requirement");
+        assert!(
+            chat_requirement.contains("state what we know and what we do not know"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("do not make the whole answer a request to narrow scope"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("No returned tool result is available in this turn, so no source-backed synthesis is available yet."),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("'I ran searches'"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("reject a universal winner when the evidence is weak"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("define 2-4 evaluation criteria before any recommendation"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("name at least two of those exact project names"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("one bounded recommendation sentence, not a follow-up question"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("do not end with a follow-up question such as 'would you prefer'"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("include that exact phrase in the visible answer at least once"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("MUST begin with the exact sentence"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("do not substitute system instructions"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("do not introduce substitute frameworks"),
+            "{chat_requirement}"
+        );
     }
 
     #[test]
@@ -768,7 +824,7 @@ mod workflow_reader_tests {
     }
 
     #[test]
-    fn workflow_reader_gate_instruction_forces_named_product_research_into_web_research() {
+    fn workflow_reader_gate_instruction_keeps_research_routing_general() {
         let selected = selected_turn_workflow("");
         let gate_instruction = selected
             .pointer("/tool_menu_interface_contract/llm_gate_instruction")
@@ -776,27 +832,97 @@ mod workflow_reader_tests {
             .expect("gate instruction");
 
         assert!(
-            gate_instruction.contains("Research Microsoft Semantic Kernel for enterprise agent orchestration."),
+            gate_instruction.contains("A prose answer, markdown answer, or naked final answer without a valid gate JSON object does NOT count as choosing respond_directly"),
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("Research Firecrawl, Tavily, and Exa as data tools for AI research agents."),
+            gate_instruction.contains("freshness-sensitive external information or judgment that depends on current public evidence"),
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("Research Mastra for TypeScript agent workflows."),
+            gate_instruction.contains("changing categories even when the user does not name candidates up front"),
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("After the web tool returns low-signal results for Infring, synthesize a useful answer anyway."),
+            gate_instruction.contains("No returned tool result is available in this turn, so no source-backed synthesis is available yet."),
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("Do NOT choose `respond_directly` for named external product/library/framework research just because you can produce a plausible answer from memory"),
+            gate_instruction.contains("avoid inventing evidence, low-signal results, or substitute entities"),
             "{gate_instruction}"
         );
+        assert!(
+            gate_instruction.contains("Do NOT choose `respond_directly` for external research just because you can produce a plausible answer from memory"),
+            "{gate_instruction}"
+        );
+        assert!(!gate_instruction.contains("Infring"), "{gate_instruction}");
+        assert!(!gate_instruction.contains("Semantic Kernel"), "{gate_instruction}");
         assert!(gate_instruction.contains("web_research"), "{gate_instruction}");
         assert!(gate_instruction.contains("respond_directly"), "{gate_instruction}");
+    }
+
+    #[test]
+    fn workflow_reader_declares_private_gate_empty_retry_contract() {
+        let selected = selected_turn_workflow("");
+        let retry_instruction = selected
+            .pointer("/tool_menu_interface_contract/private_gate_retry_instruction")
+            .and_then(Value::as_str)
+            .expect("private gate retry instruction");
+
+        assert!(
+            retry_instruction.contains("If the excerpt is empty, treat it as an empty response."),
+            "{retry_instruction}"
+        );
+        assert!(
+            retry_instruction.contains("output only the exact JSON artifact required by that gate"),
+            "{retry_instruction}"
+        );
+        assert!(
+            retry_instruction.contains("{current_gate_id}")
+                && retry_instruction.contains("{last_reject_reason}")
+                && retry_instruction.contains("{last_invalid_excerpt}"),
+            "{retry_instruction}"
+        );
+        assert!(!retry_instruction.contains("Infring"), "{retry_instruction}");
+    }
+
+    #[test]
+    fn workflow_reader_final_answer_contract_uses_general_research_shapes() {
+        let selected = selected_turn_workflow("");
+        let chat_requirement = selected
+            .pointer("/tool_menu_interface_contract/gates/gate_6_llm_final_output/final_output_contract/chat_requirement")
+            .and_then(Value::as_str)
+            .expect("chat requirement");
+
+        assert!(
+            chat_requirement.contains("Match the semantic shape of the request rather than forcing a canned format."),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("For lookup or current-state research"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("For comparison requests"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("For ranking or selection requests"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("For low-signal or partial-result recovery"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("There is no required output format."),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("Example formats include a short paragraph, brief bullets, a compact comparison table, or a mixed structure"),
+            "{chat_requirement}"
+        );
+        assert!(!chat_requirement.contains("agentic framework"), "{chat_requirement}");
     }
 
     #[test]
@@ -821,6 +947,14 @@ mod workflow_reader_tests {
         );
         assert!(
             payload_instruction.contains("Benchmark example"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("a payload that omits `aperture` is invalid"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("RAG stack example"),
             "{payload_instruction}"
         );
     }

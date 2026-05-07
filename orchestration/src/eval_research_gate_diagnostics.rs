@@ -139,10 +139,12 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         ),
         checkpoint(
             "5a_tool_execution_recorded",
-            pending_promoted || tool_attempted,
-            tool_attempted,
+            pending_promoted || tool_attempted || synthesis_only_without_new_candidate,
+            tool_attempted || synthesis_only_without_new_candidate,
             if tool_attempted {
                 "tool execution evidence is present"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh tool execution evidence is required"
             } else if pending_promoted {
                 "tool request is pending but no execution evidence is present yet"
             } else {
@@ -155,10 +157,12 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         ),
         checkpoint(
             "5b_raw_provider_result_present",
-            tool_attempted,
-            raw_provider_result,
+            tool_attempted || synthesis_only_without_new_candidate,
+            raw_provider_result || synthesis_only_without_new_candidate,
             if raw_provider_result {
                 "raw provider/tool result contains substantive rows or snippets"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh raw provider artifact is required"
             } else if tool_attempted {
                 "tool executed but no substantive raw provider rows/snippets were found"
             } else {
@@ -168,10 +172,12 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         ),
         checkpoint(
             "5c_packaged_tool_result_present",
-            raw_provider_result || tool_attempted,
-            packaged_tool_result,
+            raw_provider_result || tool_attempted || synthesis_only_without_new_candidate,
+            packaged_tool_result || synthesis_only_without_new_candidate,
             if packaged_tool_result {
                 "raw/provider output was normalized into a substantive packaged tool result"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh packaged tool artifact is required"
             } else if raw_provider_result {
                 "raw/provider output exists but no substantive packaged tool result was found"
             } else if tool_attempted {
@@ -183,10 +189,12 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         ),
         checkpoint(
             "5d_evidence_refs_extracted",
-            packaged_tool_result,
-            evidence_extracted,
+            packaged_tool_result || synthesis_only_without_new_candidate,
+            evidence_extracted || synthesis_only_without_new_candidate,
             if evidence_extracted {
                 "packaged tool result was converted into evidence artifacts or refs"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh evidence extraction artifact is required"
             } else if packaged_tool_result {
                 "packaged tool result exists but no evidence artifact/ref was found"
             } else {
@@ -196,10 +204,12 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         ),
         checkpoint(
             "5e_agent_received_evidence_context",
-            evidence_extracted,
-            agent_received_evidence_context,
+            evidence_extracted || synthesis_only_without_new_candidate,
+            agent_received_evidence_context || synthesis_only_without_new_candidate,
             if agent_received_evidence_context {
                 "final synthesis turn shows evidence context was available to the agent"
+            } else if synthesis_only_without_new_candidate {
+                "case expects synthesis from existing or pending tool state, so no fresh agent evidence-context marker is required"
             } else if evidence_extracted {
                 "evidence exists but no agent-visible evidence context marker was found"
             } else {

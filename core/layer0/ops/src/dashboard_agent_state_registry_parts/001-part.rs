@@ -234,32 +234,10 @@ fn parse_ts(value: &str) -> Option<DateTime<Utc>> {
 }
 
 fn session_last_activity_ts(root: &Path, agent_id: &str) -> Option<DateTime<Utc>> {
-    let state = read_json_file(&session_path(root, agent_id))?;
-    let sessions = state.get("sessions").and_then(Value::as_array)?;
-    let mut latest = None::<DateTime<Utc>>;
-
-    for session in sessions {
-        if let Some(updated) = session
-            .get("updated_at")
-            .and_then(Value::as_str)
-            .and_then(parse_ts)
-        {
-            latest = Some(latest.map(|ts| ts.max(updated)).unwrap_or(updated));
-        }
-        let messages = session
-            .get("messages")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        for row in messages {
-            for field in ["ts", "updated_at", "created_at"] {
-                if let Some(ts) = row.get(field).and_then(Value::as_str).and_then(parse_ts) {
-                    latest = Some(latest.map(|seen| seen.max(ts)).unwrap_or(ts));
-                }
-            }
-        }
-    }
-    latest
+    fs::metadata(session_path(root, agent_id))
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .map(DateTime::<Utc>::from)
 }
 
 pub fn archived_agent_ids(root: &Path) -> HashSet<String> {

@@ -46,6 +46,8 @@ Required execution behavior:
 - Authorized modification scope includes `core/`, `orchestration/`, `shell/`, `client/`, `apps/`, `adapters/`, `tests/`, and `docs/`.
 - You may add crates/packages, change schemas, and remove/replace placeholder flows when needed.
 - Enforce Rust-kernel authority and thin-shell boundaries on every implementation.
+- Avoid hardcoding application-specific behaviors unless the user explicitly requested a one-off behavior. Prefer OS-style general primitives and declarative contracts over narrow product logic.
+- Do not assume specific user prompt phrasings, benchmark prompts, or canned request shapes as runtime authority. If behavior depends on prompt interpretation, that behavior must live in a declared workflow/tool contract or a general-purpose primitive rather than Rust phrase matching.
 - Terminology transition rule:
   - Canonical authority term is `Kernel`; repository path `core/**` is implementation/path compatibility and `Core` is not a second owner.
   - Canonical coordination term is `Orchestration Control Plane`; repository path `orchestration/**` is implementation/path compatibility and `Tower` is rejected as an active architecture term.

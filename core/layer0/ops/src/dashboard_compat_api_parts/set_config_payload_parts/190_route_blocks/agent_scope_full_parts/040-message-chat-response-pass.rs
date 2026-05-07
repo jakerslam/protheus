@@ -194,6 +194,8 @@ fn handle_message_chat_response_pass(
             Some(finalize_message_finalization_and_payload(
                 root,
                 agent_id,
+                snapshot,
+                row,
                 message,
                 &result,
                 response_text,

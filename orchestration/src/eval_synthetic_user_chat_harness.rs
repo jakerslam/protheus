@@ -3,8 +3,11 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::time::Instant;
 
+#[path = "eval_agent_work_success.rs"]
+mod eval_agent_work_success;
 #[path = "eval_synthetic_user_chat_harness_utils.rs"]
 mod eval_synthetic_user_chat_harness_utils;
+use eval_agent_work_success::*;
 use eval_synthetic_user_chat_harness_utils::*;
 
 const DEFAULT_CASES_PATH: &str = "validation/evals/fixtures/synthetic_user_chat_harness_cases.json";
@@ -226,9 +229,12 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
 
     let failure_count = failure_events.len() as u64;
     let pass_rate = ratio(passed_turns, total_turns);
+    let agent_work_success = agent_work_success_report(&rows, &thresholds);
+    let agent_work_success_ok = bool_at(&agent_work_success, &["overall", "ok"], true);
     let ok = cases.len() as u64 >= min_cases
         && pass_rate >= min_pass_rate
         && failure_count <= max_failures
+        && agent_work_success_ok
         && setup_failures.is_empty();
     let report = json!({
         "type": "synthetic_user_chat_harness",
@@ -260,7 +266,8 @@ pub fn run_synthetic_user_chat_harness(args: &[String]) -> i32 {
                 ),
                 "max_response_tokens": u64_at(&thresholds, &["simple_direct_max_response_tokens"], 0),
                 "max_stage_count": u64_at(&thresholds, &["simple_direct_max_stage_count"], 0)
-            }
+            },
+            "agent_work_success": agent_work_success
         },
         "setup_failures": setup_failures,
         "live_monitor_freshness": live_monitor_freshness,
@@ -1093,24 +1100,6 @@ fn default_forbidden_phrases() -> Vec<String> {
     .iter()
     .map(|value| value.to_string())
     .collect()
-}
-
-fn markdown_report(report: &Value) -> String {
-    format!(
-        "# Synthetic User Chat Harness\n\n- generated_at: {}\n- ok: {}\n- mode: {}\n- cases: {}\n- total_turns: {}\n- pass_rate: {:.3}\n- failure_count: {}\n- route_stage_deltas: {}\n",
-        str_opt(report, &["generated_at"]).unwrap_or(""),
-        bool_at(report, &["ok"], false),
-        str_opt(report, &["mode"]).unwrap_or("unknown"),
-        u64_at(report, &["summary", "cases"], 0),
-        u64_at(report, &["summary", "total_turns"], 0),
-        f64_at(report, &["summary", "pass_rate"], 0.0),
-        u64_at(report, &["summary", "failure_count"], 0),
-        report
-            .get("route_stage_deltas")
-            .and_then(Value::as_array)
-            .map(|rows| rows.len())
-            .unwrap_or(0),
-    )
 }
 
 #[cfg(test)]

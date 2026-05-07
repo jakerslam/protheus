@@ -34,7 +34,7 @@ fn usage() {
         "  infring-ops app-plane replay --app=<chat-starter|chat-ui> [--session-id=<id>] [--turn=<n>] [--strict=1|0]"
     );
     println!(
-        "  infring-ops app-plane switch-provider --app=chat-ui --provider=<openai|frontier_provider|grok|bedrock|minimax> [--model=<id>] [--strict=1|0]"
+        "  infring-ops app-plane switch-provider --app=chat-ui --provider=<auto|openai|frontier_provider|google|gemini|groq|deepseek|openrouter|xai|ollama|claude-code|bedrock|minimax> [--model=<id>] [--strict=1|0]"
     );
     println!(
         "  infring-ops app-plane build --app=code-engineer --goal=<text> [--risk=<low|medium|high>] [--approved=1|0] [--strict=1|0]"

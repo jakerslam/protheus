@@ -110,11 +110,11 @@ mod continuity_tests {
             .pointer("/active_agents/rows/0/objective")
             .and_then(Value::as_str)
             .unwrap_or("")
-            .contains("investigate pending deployment"));
+            .contains("messages in active session"));
         assert_eq!(
             out.pointer("/active_agents/rows/0/completion_percent")
                 .and_then(Value::as_i64),
-            Some(20)
+            Some(100)
         );
     }
 

@@ -14,6 +14,105 @@
     }
 
     #[test]
+    fn direct_run_chat_ui_uses_explicit_selected_model_without_rerouting() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_settings(root.path(), "ollama", "qwen2.5:3b");
+        write_chat_script(
+            root.path(),
+            &json!({
+                "queue": [
+                    {
+                        "response": "Hey there.",
+                        "tools": []
+                    }
+                ]
+            }),
+        );
+        let payload = run_chat_ui(
+            root.path(),
+            &crate::parse_args(&[
+                "run".to_string(),
+                "--app=chat-ui".to_string(),
+                "--session-id=explicit-selected-model".to_string(),
+                "--message=hey".to_string(),
+                "--strict=1".to_string(),
+            ]),
+            true,
+            "run",
+        );
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(payload.get("provider").and_then(Value::as_str), Some("ollama"));
+        assert_eq!(payload.get("model").and_then(Value::as_str), Some("qwen2.5:3b"));
+        assert_eq!(
+            payload.get("runtime_model").and_then(Value::as_str),
+            Some("qwen2.5:3b")
+        );
+        assert_eq!(
+            payload.pointer("/turn/provider").and_then(Value::as_str),
+            Some("ollama")
+        );
+        assert_eq!(
+            payload.pointer("/turn/model").and_then(Value::as_str),
+            Some("qwen2.5:3b")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/capability_discovery/selected_provider")
+                .and_then(Value::as_str),
+            Some("ollama")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/capability_discovery/selected_model")
+                .and_then(Value::as_str),
+            Some("qwen2.5:3b")
+        );
+    }
+
+    #[test]
+    fn chat_ui_switch_provider_preserves_backdoor_without_fabricated_model_names() {
+        let root = tempfile::tempdir().expect("tempdir");
+        write_chat_settings(root.path(), "ollama", "qwen2.5:3b");
+
+        let same_provider = run_chat_ui(
+            root.path(),
+            &crate::parse_args(&[
+                "switch-provider".to_string(),
+                "--app=chat-ui".to_string(),
+                "--provider=ollama".to_string(),
+                "--strict=1".to_string(),
+            ]),
+            true,
+            "switch-provider",
+        );
+        assert_eq!(
+            same_provider.get("provider").and_then(Value::as_str),
+            Some("ollama")
+        );
+        assert_eq!(
+            same_provider.get("model").and_then(Value::as_str),
+            Some("qwen2.5:3b")
+        );
+
+        let new_provider = run_chat_ui(
+            root.path(),
+            &crate::parse_args(&[
+                "switch-provider".to_string(),
+                "--app=chat-ui".to_string(),
+                "--provider=openai".to_string(),
+                "--strict=1".to_string(),
+            ]),
+            true,
+            "switch-provider",
+        );
+        assert_eq!(
+            new_provider.get("provider").and_then(Value::as_str),
+            Some("openai")
+        );
+        assert_eq!(new_provider.get("model").and_then(Value::as_str), Some("auto"));
+    }
+
+    #[test]
     fn direct_run_chat_ui_rewrites_route_classifier_ghost_copy() {
         let root = tempfile::tempdir().expect("tempdir");
         write_chat_script(

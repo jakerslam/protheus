@@ -1,3 +1,10 @@
+fn chat_ui_selected_model_is_explicit(provider: &str, model: &str) -> bool {
+    !provider.is_empty()
+        && !model.is_empty()
+        && !provider.eq_ignore_ascii_case("auto")
+        && !model.eq_ignore_ascii_case("auto")
+}
+
 fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &str) -> Value {
     let contract = load_json_or(
         root,
@@ -5,9 +12,9 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
         json!({
             "version": "v1",
             "kind": "chat_ui_contract",
-            "providers": ["openai", "frontier_provider", "google", "gemini", "groq", "deepseek", "openrouter", "xai", "ollama", "claude-code"],
-            "default_provider": "openai",
-            "default_model": "gpt-5"
+            "providers": ["auto", "openai", "frontier_provider", "google", "gemini", "groq", "deepseek", "openrouter", "xai", "ollama", "claude-code", "bedrock", "minimax"],
+            "default_provider": "auto",
+            "default_model": "auto"
         }),
     );
     let providers = contract
@@ -21,12 +28,12 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     let default_provider = contract
         .get("default_provider")
         .and_then(Value::as_str)
-        .unwrap_or("openai")
+        .unwrap_or("auto")
         .to_string();
     let default_model = contract
         .get("default_model")
         .and_then(Value::as_str)
-        .unwrap_or("gpt-5")
+        .unwrap_or("auto")
         .to_string();
 
     let mut settings = read_json(&chat_ui_settings_path(root)).unwrap_or_else(|| {
@@ -57,13 +64,28 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
     }
 
     if action == "switch-provider" {
+        let current_provider = clean(
+            settings
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or(default_provider.as_str()),
+            60,
+        )
+        .to_ascii_lowercase();
+        let current_model = clean(
+            settings
+                .get("model")
+                .and_then(Value::as_str)
+                .unwrap_or(default_model.as_str()),
+            120,
+        );
         let provider = clean(
             parsed
                 .flags
                 .get("provider")
                 .cloned()
                 .or_else(|| parsed.positional.get(2).cloned())
-                .unwrap_or_else(|| default_provider.clone()),
+                .unwrap_or_else(|| current_provider.clone()),
             60,
         )
         .to_ascii_lowercase();
@@ -81,7 +103,15 @@ fn run_chat_ui(root: &Path, parsed: &crate::ParsedArgs, strict: bool, action: &s
                 .flags
                 .get("model")
                 .cloned()
-                .unwrap_or_else(|| format!("{}-default", provider)),
+                .unwrap_or_else(|| {
+                    if provider.eq_ignore_ascii_case("auto") {
+                        "auto".to_string()
+                    } else if provider == current_provider && !current_model.is_empty() {
+                        current_model.clone()
+                    } else {
+                        "auto".to_string()
+                    }
+                }),
             120,
         );
         settings["provider"] = Value::String(provider.clone());

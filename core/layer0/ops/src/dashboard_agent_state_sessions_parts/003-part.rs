@@ -1,4 +1,5 @@
 pub fn session_summaries(root: &Path, limit: usize) -> Value {
+    const SESSION_SUMMARY_PARSE_SOFT_CAP_BYTES: u64 = 512 * 1024;
     let profiles = read_json_file(
         &root.join("client/runtime/local/state/ui/infring_dashboard/agent_profiles.json"),
     )
@@ -54,8 +55,7 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
             }
         }
     }
-
-    let mut candidates = Vec::<(std::time::SystemTime, std::path::PathBuf, String)>::new();
+    let mut candidates = Vec::<(std::time::SystemTime, std::path::PathBuf, String, u64)>::new();
     let dir = sessions_dir(root);
     if let Ok(read_dir) = fs::read_dir(&dir) {
         for entry in read_dir.flatten() {
@@ -76,18 +76,31 @@ pub fn session_summaries(root: &Path, limit: usize) -> Value {
             {
                 continue;
             }
-            let modified = entry
-                .metadata()
-                .and_then(|meta| meta.modified())
+            let meta = entry.metadata().ok();
+            let modified = meta
+                .as_ref()
+                .and_then(|row| row.modified().ok())
                 .unwrap_or(std::time::UNIX_EPOCH);
-            candidates.push((modified, path, file_agent_id));
+            candidates.push((modified, path, file_agent_id, meta.map(|row| row.len()).unwrap_or(0)));
         }
     }
-    candidates.sort_by_key(|(modified, _, _)| std::cmp::Reverse(*modified));
+    candidates.sort_by_key(|(modified, _, _, _)| std::cmp::Reverse(*modified));
     candidates.truncate(limit.clamp(1, 500).saturating_mul(2));
-
     let mut rows = Vec::<Value>::new();
-    for (_, path, file_agent_id) in candidates {
+    for (_, path, file_agent_id, bytes) in candidates {
+        if bytes > SESSION_SUMMARY_PARSE_SOFT_CAP_BYTES {
+            if file_agent_id.is_empty() { continue; }
+            let updated_at = clean_text(
+                profiles
+                    .get(&file_agent_id)
+                    .and_then(|row| row.get("updated_at").and_then(Value::as_str))
+                    .or_else(|| contracts.get(&file_agent_id).and_then(|row| row.get("updated_at").and_then(Value::as_str)))
+                    .unwrap_or(""),
+                80,
+            );
+            rows.push(json!({"agent_id": file_agent_id, "active_session_id": "default", "message_count": 0, "updated_at": updated_at}));
+            continue;
+        }
         if let Some(state) = read_json_file(&path) {
                 let mut agent_id = clean_text(
                     state.get("agent_id").and_then(Value::as_str).unwrap_or(""),
@@ -471,5 +484,17 @@ mod tests {
 
         assert!(ids.iter().any(|id| id == "agent-known"));
         assert!(!ids.iter().any(|id| id == "agent-zombie"));
+    }
+    #[test]
+    fn session_summaries_use_metadata_fallback_for_oversized_files() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let _ = crate::dashboard_agent_state::upsert_profile(root.path(), "agent-big", &json!({"name": "Big", "role": "operator", "state": "Running"}));
+        let dir = root.path().join("client/runtime/local/state/ui/infring_dashboard/agent_sessions");
+        let _ = fs::create_dir_all(&dir);
+        let _ = fs::write(dir.join("agent-big.json"), "x".repeat(600_000));
+        let rows = session_summaries(root.path(), 10).get("rows").and_then(Value::as_array).cloned().unwrap_or_default();
+        let row = rows.iter().find(|row| row.get("agent_id").and_then(Value::as_str) == Some("agent-big")).cloned().unwrap_or_else(|| json!({}));
+        assert_eq!(row.get("message_count").and_then(Value::as_u64), Some(0));
+        assert!(!clean_text(row.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80).is_empty());
     }
 }

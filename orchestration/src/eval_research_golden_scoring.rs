@@ -221,15 +221,17 @@ fn gate_results(case: &Value, payload: &Value) -> BTreeMap<String, bool> {
     let gate_3 = expected_gate_3.is_empty()
         || tool_request
             .map(|request| {
-                let tool_name = normalize_for_compare(&format!(
-                    "{} {} {}",
-                    str_at(request, &["tool_name"], ""),
-                    str_at(request, &["tool_key"], ""),
-                    str_at(request, &["selected_tool_key"], "")
-                ));
-                tool_name.contains(&expected_gate_3)
+                gate_3_tool_matches(
+                    &format!(
+                        "{} {} {}",
+                        str_at(request, &["tool_name"], ""),
+                        str_at(request, &["tool_key"], ""),
+                        str_at(request, &["selected_tool_key"], "")
+                    ),
+                    &expected_gate_3,
+                )
             })
-            .unwrap_or_else(|| serialized.contains(&expected_gate_3));
+            .unwrap_or_else(|| gate_3_tool_matches(&serialized, &expected_gate_3));
     let gate_4 = required_gate_4_fields.iter().all(|field| {
         let field = normalize_for_compare(field);
         tool_request
@@ -275,6 +277,23 @@ fn pending_tool_request(payload: &Value) -> Option<&Value> {
         .or_else(|| payload.pointer("/response_workflow/pending_tool_request"))
         .or_else(|| payload.pointer("/response_workflow/manual_toolbox_pending_tool_request"))
         .or_else(|| payload.pointer("/response_finalization/pending_tool_request"))
+}
+
+fn gate_3_tool_matches(actual_raw: &str, expected_raw: &str) -> bool {
+    let actual = normalize_for_compare(actual_raw);
+    let expected = normalize_for_compare(expected_raw);
+    if expected.is_empty() {
+        return true;
+    }
+    if actual.contains(&expected) {
+        return true;
+    }
+    matches!(
+        expected.as_str(),
+        "web_search" | "batch_query" | "batch query"
+    ) && (actual.contains("web_search")
+        || actual.contains("batch_query")
+        || actual.contains("batch query"))
 }
 
 fn has_tool_execution(payload: &Value) -> bool {

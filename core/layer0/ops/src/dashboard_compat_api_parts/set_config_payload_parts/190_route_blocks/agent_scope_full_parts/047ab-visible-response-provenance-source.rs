@@ -11,6 +11,7 @@ fn visible_response_source_for_turn(
     if visible_response_repaired
         || outcome.contains("repaired_with_initial_draft")
         || outcome.contains("workflow_no_runtime_fallback")
+        || outcome.contains("runtime_pending_tool_confirmation_fallback")
     {
         return "llm_draft";
     }
@@ -242,5 +243,16 @@ mod visible_response_provenance_source_tests {
                 .and_then(Value::as_bool),
             Some(false)
         );
+    }
+
+    #[test]
+    fn provenance_marks_pending_tool_confirmation_fallback_as_llm_draft() {
+        let source = visible_response_source_for_turn(
+            "I can research that on the web. Say `confirm` and I'll run the search.",
+            true,
+            false,
+            "workflow:synthesized|runtime_pending_tool_confirmation_fallback",
+        );
+        assert_eq!(source, "llm_draft");
     }
 }

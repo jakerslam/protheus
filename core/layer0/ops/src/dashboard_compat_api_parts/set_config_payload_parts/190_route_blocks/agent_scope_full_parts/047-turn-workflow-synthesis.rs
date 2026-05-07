@@ -527,6 +527,12 @@ fn workflow_workspace_tool_request_inference(
 }
 
 fn direct_llm_response_from_initial_draft(draft_response: &str) -> Option<String> {
+    if let Some(structured_final_answer) = workflow_structured_gate_final_answer(draft_response) {
+        let cleaned = sanitize_workflow_visible_response_text(&structured_final_answer);
+        if !cleaned.is_empty() {
+            return Some(cleaned);
+        }
+    }
     let cleaned = sanitize_workflow_visible_response_text(draft_response);
     if cleaned.is_empty()
         || response_is_manual_toolbox_gate_choice(&cleaned)
@@ -844,25 +850,40 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
         return String::new();
     }
 
-    let mut response_parts = Vec::<String>::new();
-    if !failure_reason.is_empty() {
-        response_parts.push(format!(
-            "I couldn't turn this tool output into a complete final answer: {failure_reason}"
-        ));
-    }
-    if !findings.is_empty() {
-        response_parts.push(format!("Tool findings from this turn:\n{findings}"));
-    }
-    if !user_topic.is_empty() {
-        response_parts.push(format!(
-            "I can keep going, but I need a tighter query or a target scope for {user_topic}."
-        ));
+    let evidence_detail = if !findings.is_empty() {
+        format!(
+            "Available recorded evidence: {}.",
+            first_sentence(&findings, 220).trim_end_matches('.')
+        )
+    } else if !failure_reason.is_empty() {
+        format!(
+            "Recorded tool limitation: {}.",
+            first_sentence(&failure_reason, 220).trim_end_matches('.')
+        )
     } else {
-        response_parts.push(
-            "I can keep going, but I need a tighter query or a target scope to finish this response."
-                .to_string(),
-        );
-    }
+        "The recorded tool state did not contain enough evidence for a source-backed conclusion."
+            .to_string()
+    };
+
+    let uncertainty = if user_topic.is_empty() {
+        "The current turn does not yet support a complete answer to the requested question."
+            .to_string()
+    } else {
+        format!(
+            "The current turn does not yet support a complete answer to: {}.",
+            user_topic
+        )
+    };
+
+    let mut response_parts = Vec::<String>::new();
+    response_parts.push(
+        "The recorded tool evidence is limited, so no complete source-backed conclusion is available yet."
+            .to_string(),
+    );
+    response_parts.push(evidence_detail);
+    response_parts.push(format!(
+        "{uncertainty} A bounded next action is to rerun with a narrower query, inspect one primary source family, or compare the specific entities and criteria the user asked about."
+    ));
     clean_text(&response_parts.join("\n\n"), 3_000)
 }
 
@@ -1193,6 +1214,9 @@ fn run_turn_workflow_final_response(
         draft_response,
         message,
     );
+    let missing_turn_tool_context_prompt =
+        workflow_missing_turn_tool_context_prompt(message, response_tools);
+    let missing_turn_tool_context_recovery = !missing_turn_tool_context_prompt.is_empty();
     if response_tools.is_empty()
         && (response_is_manual_toolbox_gate_choice(draft_response)
             || response_is_visible_workflow_gate_choice(draft_response)
@@ -1216,7 +1240,8 @@ fn run_turn_workflow_final_response(
     let required = workflow
         .pointer("/final_llm_response/required")
         .and_then(Value::as_bool)
-        .unwrap_or(false);
+        .unwrap_or(false)
+        || missing_turn_tool_context_recovery;
     if !required {
         preserve_direct_llm_response_without_fallback(&mut workflow, draft_response);
         workflow["final_llm_response"]["attempted"] = Value::Bool(false);
@@ -1250,6 +1275,12 @@ fn run_turn_workflow_final_response(
     }
     let tool_rows_json = serde_json::to_string(&tool_rows_for_llm_recovery(response_tools, 6))
         .unwrap_or_else(|_| "[]".to_string());
+    let tool_state_summary = workflow_tool_state_prompt_context(response_tools);
+    let missing_turn_tool_context_block = if missing_turn_tool_context_prompt.is_empty() {
+        String::new()
+    } else {
+        format!("\n\n{missing_turn_tool_context_prompt}")
+    };
     let template_label = workflow_response_template_label(message);
     let detail_style = "workflow_cd_default";
     let final_answer_instruction = workflow_final_answer_prompt_context();
@@ -1289,7 +1320,9 @@ fn run_turn_workflow_final_response(
             format!("{direct_gate_system_prompt} {project_boundary_prompt}")
         };
         let direct_gate_system_prompt = format!("{temporal_context} {direct_gate_system_prompt}");
-        let direct_gate_user_prompt = format!("User message:\n{message}");
+        let direct_gate_user_prompt = format!(
+            "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}"
+        );
         (
             clean_text(&direct_gate_system_prompt, 2_000),
             clean_text(&direct_gate_user_prompt, 6_000),
@@ -1306,11 +1339,16 @@ fn run_turn_workflow_final_response(
                 12_000,
             ),
             if response_tools.is_empty() {
-                clean_text(&format!("User message:\n{message}"), 20_000)
+                clean_text(
+                    &format!(
+                        "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}"
+                    ),
+                    20_000,
+                )
             } else {
                 clean_text(
                     &format!(
-                        "User message:\n{message}\n\nRecorded tool outcomes:\n{tool_rows_json}"
+                        "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}\n\nRecorded tool outcomes:\n{tool_rows_json}"
                     ),
                     20_000,
                 )
@@ -1344,6 +1382,8 @@ fn run_turn_workflow_final_response(
         .join("\n");
     let max_attempts: u64 = if manual_toolbox_gate_turn {
         manual_toolbox_private_gate_max_attempts()
+    } else if missing_turn_tool_context_recovery {
+        2
     } else {
         1
     };
@@ -1424,16 +1464,15 @@ fn run_turn_workflow_final_response(
     // final_llm_response.attempt_count only reflects synthesis retries, not gate steps.
     let mut synthesis_attempt_count: u64 = 0;
     for attempt in 1..=max_attempts {
+        let current_manual_toolbox_gate_id = manual_toolbox_active_gate_id(
+            &manual_toolbox_selected_category_key,
+            &manual_toolbox_selected_family_key,
+            &manual_toolbox_selected_tool_key,
+        );
         if manual_toolbox_gate_turn {
             workflow["gate_trace"]["attempt_count"] = json!(attempt);
-            workflow["gate_trace"]["current_step"] = Value::String(
-                manual_toolbox_active_gate_id(
-                    &manual_toolbox_selected_category_key,
-                    &manual_toolbox_selected_family_key,
-                    &manual_toolbox_selected_tool_key,
-                )
-                .to_string(),
-            );
+            workflow["gate_trace"]["current_step"] =
+                Value::String(current_manual_toolbox_gate_id.to_string());
         } else {
             workflow["gate_trace"]["final_synthesis_attempt_count"] = json!(attempt);
         }
@@ -1494,13 +1533,13 @@ fn run_turn_workflow_final_response(
         );
         let gate_retry_guidance = if active_manual_toolbox_private_gate_turn
             && attempt > 1
-            && !last_invalid_excerpt.is_empty()
+            && (!last_invalid_excerpt.is_empty() || !last_reject_reason.is_empty())
         {
-            clean_text(
-                &format!(
-                    "Context-only user message. Do not answer it directly. Use it only to produce the artifact required for the current workflow gate:\n{message}\n\nPrevious gate submission was rejected:\n{last_invalid_excerpt}\n\nReturn only the required artifact in the exact JSON format for the current gate. Do not write any prose."
-                ),
-                8_000,
+            workflow_private_gate_retry_prompt_context(
+                current_manual_toolbox_gate_id,
+                message,
+                &last_reject_reason,
+                &last_invalid_excerpt,
             )
         } else {
             String::new()
@@ -1515,10 +1554,17 @@ fn run_turn_workflow_final_response(
         {
             gate_context_user_prompt
         } else if manual_toolbox_no_selected {
-            clean_text(&format!("User message:\n{message}"), 8_000)
+            clean_text(
+                &format!(
+                    "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}"
+                ),
+                8_000,
+            )
         } else if compact_tool_retry {
             clean_text(
-                &format!("User message:\n{message}\n\nRecorded tool outcomes:\n{tool_rows_json}"),
+                &format!(
+                    "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}\n\nRecorded tool outcomes:\n{tool_rows_json}"
+                ),
                 8_000,
             )
         } else if attempt > 1 {
@@ -1535,7 +1581,8 @@ fn run_turn_workflow_final_response(
             "attempt": attempt,
             "provider": attempt_provider,
             "model": attempt_model,
-            "recovery_attempt": false
+            "recovery_attempt": false,
+            "tool_state_summary": tool_state_summary.clone()
         });
         match crate::dashboard_provider_runtime::invoke_chat(
             root,
@@ -1651,6 +1698,10 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                         response_tools,
                     );
+                let missing_turn_tool_context_reply = missing_turn_tool_context_recovery
+                    && !workflow_missing_turn_tool_context_response_contract_satisfied(
+                        &retried_text,
+                    );
                 let raw_tool_payload_dump =
                     response_looks_like_raw_tool_payload_dump(&retried_text);
                 let prompt_analysis_leak =
@@ -1702,6 +1753,11 @@ fn run_turn_workflow_final_response(
                         "unsupported_tool_success_claim_reject",
                     ),
                     (
+                        missing_turn_tool_context_reply,
+                        "missing_turn_tool_context_reply",
+                        "direct_answer_reject",
+                    ),
+                    (
                         raw_tool_payload_dump,
                         "raw_tool_payload_dump",
                         "contamination_reject",
@@ -1738,6 +1794,7 @@ fn run_turn_workflow_final_response(
                     if attempt < max_attempts {
                         continue;
                     }
+                    break;
                 }
                 let response_provider = clean_text(
                     retried
@@ -2725,6 +2782,16 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn direct_response_preservation_extracts_structured_gate_final_answer() {
+        assert_eq!(
+            direct_llm_response_from_initial_draft(
+                r#"{"gate":"2","final_answer":"Synthesized tradeoffs."}"#
+            ),
+            Some("Synthesized tradeoffs.".to_string())
+        );
+    }
+
+    #[test]
     fn response_repeat_detector_catches_near_duplicate_formatting_variants() {
         let latest = "I'm not hard-locked. The previous fallback repeated, so I'm switching to a plain direct response path and avoiding extra tool calls unless you explicitly request one.";
         let response = "Im not hard locked - the previous fallback repeated so im switching to a plain direct response path and avoiding extra tool calls unless you explicitly request one";
@@ -3015,7 +3082,7 @@ mod workflow_fallback_tests {
     }
 
     #[test]
-    fn final_empty_response_diagnostic_uses_tool_evidence_fallback_when_findings_exist() {
+    fn final_empty_response_diagnostic_uses_generic_tool_evidence_fallback_when_findings_exist() {
         let mut workflow = json!({
             "response": "",
             "quality_telemetry": {},
@@ -3034,7 +3101,7 @@ mod workflow_fallback_tests {
 
         apply_final_empty_response_diagnostic(
             &mut workflow,
-            "Compare infring to top agentic frameworks",
+            "Compare two documentation tools for a small team.",
             "",
             &tools,
         );
@@ -3043,7 +3110,14 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(!response.trim().is_empty());
-        assert!(response.contains("Tool findings from this turn"));
+        assert!(response.contains("recorded tool evidence is limited"));
+        assert!(response.contains("Available recorded evidence"));
+        assert!(!response.contains("What we know:"));
+        assert!(response.contains("no complete source-backed conclusion"));
+        assert!(response.contains("bounded next action"));
+        assert!(!response.contains("Tool findings from this turn"));
+        assert!(!response.contains("agentic framework"));
+        assert!(!response.contains("benchmark"));
         assert_eq!(
             workflow
                 .pointer("/final_llm_response/used")
@@ -3438,6 +3512,9 @@ mod workflow_fallback_tests {
         ));
         assert!(response_looks_like_raw_tool_payload_dump(
             "<tool>web_search</tool><query>foo</query>"
+        ));
+        assert!(response_looks_like_raw_tool_payload_dump(
+            "{\"choices\":[{\"finish_reason\":\"length\",\"index\":0}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":30,\"total_tokens\":41},\"refusal\":\"I am Kimi, an AI assistant created by Moonshot AI.\"}"
         ));
         assert!(!response_looks_like_raw_tool_payload_dump(
             "OpenHands is an AI agent platform for software development."

@@ -5,8 +5,9 @@
   "compatibility_mirror": true,
   "routing": {
     "default_slot": "master",
-    "default_anchor_model": "ollama/kimi-k2.6:cloud",
+    "default_anchor_model": "ollama/qwen2.5:3b",
     "spawn_model_allowlist": [
+      "ollama/qwen2.5:3b",
       "ollama/kimi-k2.6:cloud",
       "ollama/qwen3:4b",
       "ollama/gemma3:4b",
@@ -21,6 +22,11 @@
       "ollama/smallthinker": {
         "tiers": [1],
         "roles": ["chat", "planning", "general", "reflex"],
+        "class": "cheap_local"
+      },
+      "ollama/qwen2.5:3b": {
+        "tiers": [1, 2],
+        "roles": ["chat", "planning", "general", "reflex", "logic"],
         "class": "cheap_local"
       },
       "ollama/qwen3:4b": {
@@ -60,6 +66,10 @@
         "suppression_minutes": 45
       },
       "models": {
+        "ollama/qwen2.5:3b": {
+          "timeout_ms": 12000,
+          "max_latency_ms": 10000
+        },
         "ollama/qwen3:4b": {
           "timeout_ms": 16000,
           "max_latency_ms": 15000
@@ -86,6 +96,11 @@
       ],
       "local_model_requirements": {
         "ollama/smallthinker": {
+          "min_hardware_class": "tiny",
+          "min_ram_gb": 4,
+          "min_cpu_threads": 2
+        },
+        "ollama/qwen2.5:3b": {
           "min_hardware_class": "tiny",
           "min_ram_gb": 4,
           "min_cpu_threads": 2
@@ -167,7 +182,7 @@
         "(^|\\s)(~\\/|\\.\\.?\\/|\\/users\\/|[a-z]:\\\\)"
       ],
       "slot": "grunt",
-      "prefer_model": "ollama/kimi-k2.6:cloud",
+      "prefer_model": "ollama/qwen2.5:3b",
       "fallback_slot": "fallback",
       "skip_outcome_scan": true
     },
@@ -177,7 +192,7 @@
         "force_complexity": "low",
         "force_role": "reflex",
         "prefer_slot": "grunt",
-        "prefer_model": "ollama/kimi-k2.6:cloud",
+        "prefer_model": "ollama/qwen2.5:3b",
         "fallback_slot": "fallback",
         "disable_fast_path": true,
         "max_tokens_est": 420
@@ -245,37 +260,37 @@
       {
         "when": { "risk": "high", "complexity": "high" },
         "use_slot": "master",
-        "prefer_model": "ollama/kimi-k2.6:cloud",
+        "prefer_model": "ollama/qwen2.5:3b",
         "fallback_slot": "master"
       },
       {
         "when": { "risk": "high", "complexity": ["low", "medium"] },
         "use_slot": "master",
-        "prefer_model": "ollama/kimi-k2.6:cloud",
+        "prefer_model": "ollama/qwen2.5:3b",
         "fallback_slot": "master"
       },
       {
         "when": { "risk": "medium", "complexity": "high" },
         "use_slot": "agent",
-        "prefer_model": "ollama/kimi-k2.6:cloud",
+        "prefer_model": "ollama/qwen2.5:3b",
         "fallback_slot": "master"
       },
       {
         "when": { "risk": "medium", "complexity": ["low", "medium"] },
         "use_slot": "coder",
-        "prefer_model": "ollama/kimi-k2.6:cloud",
+        "prefer_model": "ollama/qwen2.5:3b",
         "fallback_slot": "agent"
       },
       {
         "when": { "risk": "low", "complexity": ["low", "medium"] },
         "use_slot": "grunt",
-        "prefer_model": "ollama/kimi-k2.6:cloud",
+        "prefer_model": "ollama/qwen2.5:3b",
         "fallback_slot": "fallback"
       },
       {
         "when": { "risk": "low", "complexity": "high" },
         "use_slot": "agent",
-        "prefer_model": "ollama/kimi-k2.6:cloud",
+        "prefer_model": "ollama/qwen2.5:3b",
         "fallback_slot": "master"
       }
     ],
@@ -340,7 +355,7 @@
       "enabled": true,
       "require_second_opinion_for_risk": "high",
       "second_opinion_slot": "master",
-      "second_opinion_prefer_model": "ollama/kimi-k2.6:cloud",
+      "second_opinion_prefer_model": "ollama/qwen2.5:3b",
       "what_counts_as_second_opinion": [
         "A brief written approval that the planned changes obey Governance v1.0 and do not widen permissions.",
         "If disagreement: escalate to deepseek-v3:1:671b-cloud for tie-break."

@@ -3,28 +3,28 @@
   "slots": {
     "master": {
       "tier": 1,
-      "model": "kimi-k2.6:cloud",
-      "fallbacks": ["deepseek-v3:1:671b-cloud", "gpt-oss:120b", "glm-4.6-cloud"]
+      "model": "qwen2.5:3b",
+      "fallbacks": ["qwen3:4b", "gemma3:4b", "phi"]
     },
     "agent": {
       "tier": 2,
-      "model": "kimi-k2.6:cloud",
-      "fallbacks": ["qwen3-v1:235b-cloud", "minmax-m2-cloud"]
+      "model": "qwen2.5:3b",
+      "fallbacks": ["qwen3:4b", "gemma3:4b", "phi"]
     },
     "grunt": {
       "tier": 3,
-      "model": "kimi-k2.6:cloud",
-      "fallbacks": ["gemma3:4b", "phi", "gemma3:1b"]
+      "model": "qwen2.5:3b",
+      "fallbacks": ["qwen3:4b", "gemma3:4b", "phi"]
     },
     "coder": {
       "tier": 2,
-      "model": "kimi-k2.6:cloud",
-      "fallbacks": ["qwen3-v1:235b-cloud"]
+      "model": "qwen2.5:3b",
+      "fallbacks": ["qwen3:4b", "gemma3:4b", "phi"]
     },
     "fallback": {
       "tier": 3,
-      "model": "kimi-k2.6:cloud",
-      "fallbacks": ["qwen3:4b", "phi"]
+      "model": "qwen2.5:3b",
+      "fallbacks": ["qwen3:4b", "gemma3:4b", "phi"]
     }
   },
   "model_pool": {
@@ -40,7 +40,7 @@
       "minmax-m2-cloud",
       "glm-4.6-cloud"
     ],
-    "local": ["gemma3:4b", "gemma3:1b", "qwen3:4b", "phi"]
+    "local": ["gemma3:4b", "gemma3:1b", "qwen3:4b", "qwen2.5:3b", "smallthinker", "phi"]
   },
   "caps": {
     "tier_1": {

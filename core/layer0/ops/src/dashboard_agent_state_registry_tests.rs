@@ -1,6 +1,22 @@
 use super::*;
 use chrono::{Duration, Utc};
 use std::fs;
+use std::process::Command;
+
+fn set_file_modified_at(path: &Path, ts: DateTime<Utc>) {
+    let stamp = ts.with_timezone(&chrono::Local).format("%Y%m%d%H%M.%S").to_string();
+    let output = Command::new("touch")
+        .arg("-t")
+        .arg(stamp)
+        .arg(path)
+        .output()
+        .expect("spawn touch");
+    assert!(
+        output.status.success(),
+        "touch failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
 
 #[test]
 fn expired_contracts_terminate() {
@@ -212,6 +228,7 @@ fn idle_contracts_terminate_even_when_expiry_auto_terminate_is_disabled() {
         .expect("json"),
     )
     .expect("write session");
+    set_file_modified_at(&session, Utc::now() - Duration::hours(2));
 
     let out = enforce_expired_contracts(root.path());
     let terminated = out

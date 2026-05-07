@@ -194,6 +194,39 @@ fn manual_toolbox_private_gate_max_attempts() -> u64 {
     base_gate_count.saturating_add(retry_limit).clamp(4, 8)
 }
 
+fn workflow_private_gate_retry_prompt_context(
+    current_gate_id: &str,
+    message: &str,
+    last_reject_reason: &str,
+    last_invalid_excerpt: &str,
+) -> String {
+    let contract = default_workflow_tool_menu_contract();
+    let fallback = "INTERNAL RETRY — output is never shown to the user. The previous response for `{current_gate_id}` was rejected with reason `{last_reject_reason}`. Previous excerpt: {last_invalid_excerpt}. If the excerpt is empty, treat it as an empty response. Re-read the current gate system instruction and output only the exact JSON artifact required by that gate. Do not answer the user directly, do not write prose, and do not include markdown.";
+    let template = contract
+        .get("private_gate_retry_instruction")
+        .and_then(Value::as_str)
+        .unwrap_or(fallback);
+    let excerpt = if last_invalid_excerpt.trim().is_empty() {
+        "(empty response)"
+    } else {
+        last_invalid_excerpt
+    };
+    clean_text(
+        &format!(
+            "{}\n\nContext-only user message. Do not answer it directly. Use it only to produce the artifact required for the current workflow gate:\n{}",
+            template
+                .replace("{current_gate_id}", &clean_text(current_gate_id, 120))
+                .replace(
+                    "{last_reject_reason}",
+                    &clean_text(last_reject_reason, 160)
+                )
+                .replace("{last_invalid_excerpt}", &clean_text(excerpt, 320)),
+            message
+        ),
+        8_000,
+    )
+}
+
 fn workflow_tool_family_selection_from_response(response: &str) -> Option<(String, String)> {
     let contract = default_workflow_tool_menu_contract();
     let token = workflow_structured_gate_submission(response)

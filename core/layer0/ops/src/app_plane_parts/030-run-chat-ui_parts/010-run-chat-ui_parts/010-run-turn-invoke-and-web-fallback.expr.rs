@@ -21,27 +21,29 @@
         }
         let mut selected_provider = provider.clone();
         let mut selected_model = model.clone();
-        let (resolved_provider, resolved_model, _) =
-            crate::dashboard_model_catalog::resolve_model_selection(
-                root,
-                &json!({
-                    "app": {
-                        "settings": {
-                            "provider": settings.get("provider").cloned().unwrap_or_else(|| json!(provider.clone())),
-                            "model": settings.get("model").cloned().unwrap_or_else(|| json!(model.clone()))
+        if !chat_ui_selected_model_is_explicit(&selected_provider, &selected_model) {
+            let (resolved_provider, resolved_model, _) =
+                crate::dashboard_model_catalog::resolve_model_selection(
+                    root,
+                    &json!({
+                        "app": {
+                            "settings": {
+                                "provider": settings.get("provider").cloned().unwrap_or_else(|| json!(provider.clone())),
+                                "model": settings.get("model").cloned().unwrap_or_else(|| json!(model.clone()))
+                            }
                         }
-                    }
-                }),
-                &selected_provider,
-                &selected_model,
-                &json!({
-                    "task_type": "general",
-                    "message": message,
-                    "token_count": ((message.len() as i64) / 4).max(1)
-                }),
-            );
-        selected_provider = resolved_provider;
-        selected_model = resolved_model;
+                    }),
+                    &selected_provider,
+                    &selected_model,
+                    &json!({
+                        "task_type": "general",
+                        "message": message,
+                        "token_count": ((message.len() as i64) / 4).max(1)
+                    }),
+                );
+            selected_provider = resolved_provider;
+            selected_model = resolved_model;
+        }
         let base_system_prompt = clean(parsed.flags.get("system").cloned().unwrap_or_else(|| "You are the selected Infring agent. Respond to the user's message.".to_string()), 12_000);
         let tool_gate = chat_ui_turn_tool_decision_tree(&message);
         let gate_decision_authority_mode = clean(

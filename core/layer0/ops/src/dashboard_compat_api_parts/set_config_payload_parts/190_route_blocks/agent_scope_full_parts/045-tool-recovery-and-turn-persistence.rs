@@ -24,6 +24,223 @@ fn tool_rows_for_llm_recovery(response_tools: &[Value], limit: usize) -> Value {
     Value::Array(rows)
 }
 
+fn tool_hidden_array_len(tool: &Value, key: &str) -> usize {
+    tool.get(key)
+        .and_then(Value::as_array)
+        .map(|rows| rows.len())
+        .or_else(|| {
+            tool.pointer(&format!("/tool_pipeline/raw_payload/{key}"))
+                .and_then(Value::as_array)
+                .map(|rows| rows.len())
+        })
+        .unwrap_or(0)
+}
+
+fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
+    let limited = response_tools.iter().take(6).collect::<Vec<_>>();
+    let tool_count = limited.len();
+    let tool_names = limited
+        .iter()
+        .map(|tool| normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool")))
+        .filter(|name| !name.is_empty())
+        .collect::<Vec<_>>();
+    let search_result_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "search_results")).sum::<usize>();
+    let provider_result_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "provider_results")).sum::<usize>();
+    let evidence_ref_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "evidence_refs")).sum::<usize>();
+    let tool_statuses = limited
+        .iter()
+        .filter_map(|tool| tool.get("status").and_then(Value::as_str))
+        .map(|status| clean_text(status, 80))
+        .filter(|status| !status.is_empty())
+        .collect::<Vec<_>>();
+    let tool_error_count = limited
+        .iter()
+        .filter(|tool| {
+            let status = tool.get("status").and_then(Value::as_str).unwrap_or("");
+            tool.get("is_error").and_then(Value::as_bool).unwrap_or(false)
+                || matches!(status, "error" | "failed" | "timeout" | "blocked")
+        })
+        .count();
+    let low_signal_count = limited
+        .iter()
+        .filter(|tool| {
+            let status = tool.get("status").and_then(Value::as_str).unwrap_or("");
+            tool.get("low_signal").and_then(Value::as_bool).unwrap_or(false)
+                || matches!(status, "low_signal" | "no_results")
+        })
+        .count();
+    let recorded_evidence_available =
+        search_result_count > 0 || provider_result_count > 0 || evidence_ref_count > 0;
+    let tool_result_quality = if tool_count == 0 {
+        "none"
+    } else if recorded_evidence_available && low_signal_count == 0 && tool_error_count == 0 {
+        "evidence_available"
+    } else if recorded_evidence_available {
+        "partial_or_low_signal_evidence"
+    } else if low_signal_count > 0 {
+        "low_signal"
+    } else if tool_error_count > 0 {
+        "error"
+    } else {
+        "no_evidence"
+    };
+    let summary = json!({
+        "recorded_tool_outcome_count": tool_count,
+        "recorded_tool_names": tool_names,
+        "recorded_tool_statuses": tool_statuses,
+        "recorded_tool_error_count": tool_error_count,
+        "recorded_low_signal_count": low_signal_count,
+        "recorded_tool_result_quality": tool_result_quality,
+        "recorded_search_results": search_result_count,
+        "recorded_provider_results": provider_result_count,
+        "recorded_evidence_refs": evidence_ref_count,
+        "recorded_tool_result_available": tool_count > 0,
+        "recorded_evidence_available": recorded_evidence_available
+    });
+    let summary_json =
+        serde_json::to_string(&summary).unwrap_or_else(|_| "{\"recorded_tool_outcome_count\":0}".to_string());
+    clean_text(
+        &format!(
+            "Recorded tool/evidence state for this turn:\n{summary_json}\n\nOnly use tool or evidence details that are explicitly present in this recorded state and the recorded tool outcomes below. Treat `recorded_tool_result_quality` as the tool boundary signal: `low_signal`, `error`, or `no_evidence` means the workflow ran but evidence may be insufficient. If evidence counts are zero, do not claim returned snippets, evidence refs, or source-backed findings for this turn."
+        ),
+        2_000,
+    )
+}
+
+fn workflow_missing_turn_tool_context_prompt(message: &str, response_tools: &[Value]) -> String {
+    if !response_tools.is_empty() {
+        return String::new();
+    }
+    let lowered = clean_text(message, 800).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return String::new();
+    }
+    let references_absent_tool_state = lowered.contains("tool result")
+        || lowered.contains("tool results")
+        || lowered.contains("search result")
+        || lowered.contains("search results")
+        || lowered.contains("source snippet")
+        || lowered.contains("source snippets")
+        || lowered.contains("evidence ref")
+        || lowered.contains("evidence refs")
+        || lowered.contains("returned result")
+        || lowered.contains("returned results")
+        || lowered.contains("returned snippets");
+    let asks_to_use_referenced_state = lowered.contains("synthesize")
+        || lowered.contains("summary")
+        || lowered.contains("summarize")
+        || lowered.contains("compare")
+        || lowered.contains("comparison")
+        || lowered.contains("cite")
+        || lowered.contains("evidence")
+        || lowered.contains("what we know")
+        || lowered.contains("what we do not know");
+    let post_tool_shape = references_absent_tool_state && asks_to_use_referenced_state;
+    if !post_tool_shape {
+        return String::new();
+    }
+    clean_text(
+        "No returned tool result is available in this turn, so no source-backed synthesis is available yet. Begin the answer with that exact sentence. Then answer briefly using only the available limits, current uncertainty, and one bounded next search step. Any clear format is acceptable. Example formats include a short paragraph, brief bullets, or a compact mixed structure, but none is required. Do not claim returned snippets, evidence refs, low-signal results, or source-backed findings for this turn.",
+        800,
+    )
+}
+
+fn workflow_missing_turn_tool_context_fallback(message: &str, response_tools: &[Value]) -> String {
+    if workflow_missing_turn_tool_context_prompt(message, response_tools).is_empty() {
+        return String::new();
+    }
+    let request_summary = first_sentence(&clean_text(message, 1_200), 180);
+    let limits = if request_summary.is_empty() {
+        "The only grounded detail available is that this request expects a post-tool synthesis step, but no returned tool result, snippets, or evidence refs are present in this turn.".to_string()
+    } else {
+        format!(
+            "The only grounded detail available is the user's requested synthesis shape: {}. No returned tool result, snippets, or evidence refs are present in this turn.",
+            request_summary
+        )
+    };
+    clean_text(
+        &format!(
+            "No returned tool result is available in this turn, so no source-backed synthesis is available yet. {limits} That means the current source material the missing tool result would have supported is unavailable, so no source-backed conclusion is available yet. The next useful move is to rerun one focused source-evidence query before making a conclusion. The next best search query is `narrowed query for the requested topic with one named entity, one source family, and one time window`."
+        ),
+        2_400,
+    )
+}
+
+fn workflow_pending_tool_confirmation_fallback(
+    pending_request: &Value,
+    response_tools: &[Value],
+) -> String {
+    if !response_tools.is_empty()
+        || pending_request.get("status").and_then(Value::as_str) != Some("pending_confirmation")
+    {
+        return String::new();
+    }
+    let family = clean_text(
+        pending_request
+            .get("selected_tool_family")
+            .or_else(|| pending_request.get("tool_family"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    )
+    .replace(['_', '-'], " ")
+    .to_ascii_lowercase();
+    let tool_name = normalize_tool_name(
+        pending_request
+            .get("tool_name")
+            .or_else(|| pending_request.get("tool"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    );
+    let fallback = if family.contains("web")
+        || matches!(tool_name.as_str(), "web_search" | "batch_query" | "web_fetch")
+    {
+        "The permission policy requires your confirmation before I run that web research step. Say `confirm` and I'll run the search, then synthesize what comes back."
+    } else if family.contains("workspace")
+        || matches!(
+            tool_name.as_str(),
+            "workspace_search" | "file_read" | "parse_workspace" | "apply_patch"
+        )
+    {
+        "The permission policy requires your confirmation before I inspect the workspace for that. Say `confirm` and I'll run the relevant workspace step first."
+    } else if family.contains("browser") || tool_name.contains("browser") {
+        "The permission policy requires your confirmation before I inspect that in the browser. Say `confirm` and I'll run the browser step first."
+    } else if family.contains("shell")
+        || tool_name.contains("command")
+        || tool_name.contains("exec")
+        || tool_name.contains("terminal")
+    {
+        "The permission policy requires your confirmation before I run that terminal action. Say `confirm` and I'll execute it."
+    } else {
+        "The permission policy requires your confirmation before I continue that action. Say `confirm` and I'll continue."
+    };
+    clean_text(fallback, 320)
+}
+
+fn workflow_missing_turn_tool_context_response_contract_satisfied(response_text: &str) -> bool {
+    let normalized = clean_text(response_text, 3_200).to_ascii_lowercase();
+    if !normalized.starts_with(
+        "no returned tool result is available in this turn, so no source-backed synthesis is available yet.",
+    ) {
+        return false;
+    }
+    let has_limits = normalized.contains("only grounded detail")
+        || normalized.contains("available detail")
+        || normalized.contains("no returned tool result");
+    let has_uncertainty = normalized.contains("do not know")
+        || normalized.contains("is unavailable")
+        || normalized.contains("no source-backed conclusion");
+    let has_next_query = normalized.contains("next best search query")
+        || normalized.contains("next useful action")
+        || normalized.contains("next query")
+        || normalized.contains("search query");
+    let has_source_signal = normalized.contains("source") || normalized.contains("evidence");
+    let has_recommendation = normalized.contains("next useful move")
+        || normalized.contains("i recommend")
+        || normalized.contains("recommend");
+    has_limits && has_uncertainty && has_next_query && has_source_signal && has_recommendation
+}
+
 fn ensure_tool_turn_response_text(response_text: &str, response_tools: &[Value]) -> String {
     let cleaned = clean_chat_text(response_text, 32_000);
     if !cleaned.is_empty() || response_tools.is_empty() {
@@ -108,13 +325,7 @@ mod tool_turn_response_text_tests {
     fn tool_turn_response_text_withholds_non_llm_failure_fallback_copy() {
         let response = ensure_tool_turn_response_text(
             "",
-            &[json!({
-                "name": "batch_query",
-                "status": "failed",
-                "is_error": true,
-                "blocked": false,
-                "result": "query_result_mismatch"
-            })],
+            &[json!({"name":"batch_query","status":"failed","is_error":true,"blocked":false,"result":"query_result_mismatch"})],
         );
         assert!(response.trim().is_empty(), "{response}");
     }
@@ -123,14 +334,232 @@ mod tool_turn_response_text_tests {
     fn tool_turn_response_text_withholds_non_llm_findings_fallback_copy() {
         let response = ensure_tool_turn_response_text(
             "",
-            &[json!({
-                "name": "batch_query",
-                "status": "ok",
-                "is_error": false,
-                "blocked": false,
-                "result": "Key findings: OpenHands is an open-source AI software development agent platform."
-            })],
+            &[json!({"name":"batch_query","status":"ok","is_error":false,"blocked":false,"result":"Key findings: OpenHands is an open-source AI software development agent platform."})],
         );
         assert!(response.trim().is_empty(), "{response}");
+    }
+
+    #[test]
+    fn workflow_tool_state_prompt_context_exposes_boundary_quality() {
+        let summary = workflow_tool_state_prompt_context(&[]);
+        for needle in [
+            "\"recorded_tool_outcome_count\":0",
+            "\"recorded_tool_result_available\":false",
+            "\"recorded_evidence_available\":false",
+            "\"recorded_tool_result_quality\":\"none\"",
+        ] {
+            assert!(summary.contains(needle), "{summary}");
+        }
+        let summary = workflow_tool_state_prompt_context(&[json!({
+            "name": "web_search",
+            "status": "no_results",
+            "provider_results": [{"provider": "direct_http"}],
+            "evidence_refs": [{"source": "provider_result"}],
+            "tool_pipeline": {
+                "raw_payload": {
+                    "search_results": [{"title": "Example result"}]
+                }
+            }
+        })]);
+        for needle in [
+            "\"recorded_tool_outcome_count\":1",
+            "\"recorded_tool_names\":[\"web_search\"]",
+            "\"recorded_low_signal_count\":1",
+            "\"recorded_search_results\":1",
+            "\"recorded_provider_results\":1",
+            "\"recorded_evidence_refs\":1",
+            "\"recorded_tool_result_quality\":\"partial_or_low_signal_evidence\"",
+            "\"recorded_evidence_available\":true",
+            "tool boundary signal",
+        ] {
+            assert!(summary.contains(needle), "{summary}");
+        }
+    }
+
+    #[test]
+    fn workflow_missing_turn_tool_context_prompt_activates_for_post_tool_synthesis_without_state() {
+        let prompt = workflow_missing_turn_tool_context_prompt(
+            "Use the returned source snippets to synthesize the tradeoffs and cite evidence refs.",
+            &[],
+        );
+        assert!(
+            prompt.starts_with(
+                "No returned tool result is available in this turn, so no source-backed synthesis is available yet."
+            ),
+            "{prompt}"
+        );
+    }
+
+    #[test]
+    fn workflow_missing_turn_tool_context_fallback_is_general_and_shape_aware() {
+        let response = workflow_missing_turn_tool_context_fallback(
+            "Use the returned search results to synthesize a useful answer anyway. Tell me what we know, what we do not know, and the next best search query.",
+            &[],
+        );
+        assert!(response.starts_with("No returned tool result is available in this turn, so no source-backed synthesis is available yet."), "{response}");
+        for needle in ["only grounded detail", "next useful move", "next best search query"] {
+            assert!(response.contains(needle), "{response}");
+        }
+        assert!(!response.contains("Infring") && !response.contains("agent frameworks"), "{response}");
+        assert!(
+            workflow_missing_turn_tool_context_response_contract_satisfied(&response),
+            "{response}"
+        );
+        let response = workflow_missing_turn_tool_context_fallback(
+            "Use the returned source snippets to synthesize the tradeoffs and cite evidence refs without dumping the raw payload.",
+            &[],
+        );
+        for needle in ["tradeoff", "evidence refs", "source-backed", "next useful move"] {
+            assert!(response.contains(needle), "{response}");
+        }
+        assert!(!response.contains("agent frameworks"), "{response}");
+        assert!(
+            workflow_missing_turn_tool_context_response_contract_satisfied(&response),
+            "{response}"
+        );
+    }
+
+    #[test]
+    fn workflow_pending_tool_confirmation_fallback_covers_web_research_and_execution() {
+        let response = workflow_pending_tool_confirmation_fallback(
+            &json!({
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "tool_name": "batch_query"
+            }),
+            &[],
+        );
+        assert!(response.contains("permission"), "{response}");
+        assert!(response.contains("research"), "{response}");
+        assert!(response.contains("confirm"), "{response}");
+        assert!(response.contains("synthesize"), "{response}");
+        let response = workflow_pending_tool_confirmation_fallback(
+            &json!({
+                "status": "pending_confirmation",
+                "selected_tool_family": "web_research",
+                "tool_name": "batch_query"
+            }),
+            &[json!({"name": "batch_query", "status": "ok"})],
+        );
+        assert!(response.is_empty(), "{response}");
+    }
+
+    #[test]
+    fn workflow_auto_executes_permitted_web_request_without_confirmation() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let script_path = scripted_tool_harness_path(root.path());
+        std::fs::create_dir_all(script_path.parent().expect("script parent")).expect("mkdir");
+        write_json(
+            &script_path,
+            &json!({
+                "queue": [
+                    {
+                        "tool": "web_search",
+                        "payload": {
+                            "ok": true,
+                            "status": "ok",
+                            "summary": "Recent evidence suggests Playwright remains the strongest default for browser automation testing.",
+                            "links": ["https://example.com/playwright"]
+                        }
+                    }
+                ]
+            }),
+        );
+        let gate_payload = "{\"tool_family\":\"web_research\",\"tool\":\"web_search\",\"request_payload\":{\"query\":\"compare browser automation tools for testing agents\",\"aperture\":\"medium\"}}";
+        let response = finalize_message_finalization_and_payload(
+            root.path(),
+            "agent-test",
+            &json!({}),
+            &json!({
+                "model_provider": "ollama",
+                "model_name": "kimi-k2.6:cloud",
+                "runtime_model": "kimi-k2.6:cloud"
+            }),
+            "Compare browser automation tools for testing agents.",
+            &json!({
+                "provider": "ollama",
+                "model": "kimi-k2.6:cloud",
+                "runtime_model": "kimi-k2.6:cloud",
+                "response": gate_payload,
+                "context_window": 262144
+            }),
+            gate_payload.to_string(),
+            Vec::new(),
+            "model_direct_answer".to_string(),
+            Vec::new(),
+            json!({}),
+            json!({}),
+            Vec::new(),
+            Vec::new(),
+            "ollama".to_string(),
+            "kimi-k2.6:cloud".to_string(),
+            "ollama".to_string(),
+            "kimi-k2.6:cloud".to_string(),
+            None,
+            String::new(),
+            json!({}),
+            262144,
+            0,
+            0.0,
+            "low".to_string(),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            false,
+            false,
+            false,
+            0,
+            false,
+            json!({}),
+            json!([]),
+            json!([]),
+            false,
+        );
+
+        assert_eq!(
+            response
+                .payload
+                .pointer("/tools/0/name")
+                .and_then(Value::as_str),
+            Some("web_search")
+        );
+        assert_eq!(
+            response
+                .payload
+                .pointer("/pending_tool_request/status")
+                .and_then(Value::as_str),
+            Some("executed")
+        );
+        assert!(
+            !response
+                .payload
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim()
+                .is_empty(),
+            "auto-executed tool turns should still surface a user-facing response"
+        );
+        assert!(
+            !response
+                .payload
+                .get("response")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("Say `confirm`")
+        );
+
+        let script = read_json(&script_path).expect("script file");
+        assert_eq!(
+            script
+                .get("calls")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
     }
 }

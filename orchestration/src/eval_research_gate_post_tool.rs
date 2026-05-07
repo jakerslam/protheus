@@ -18,7 +18,7 @@ pub(super) fn raw_provider_result_present(payload: &Value) -> bool {
 }
 
 pub(super) fn packaged_tool_result_present(payload: &Value) -> bool {
-    if !has_tool_execution(payload) || tool_result_low_signal(payload) {
+    if !has_tool_execution(payload) {
         return false;
     }
     if bool_pointer_any(
@@ -62,7 +62,7 @@ pub(super) fn agent_received_evidence_context(payload: &Value) -> bool {
 }
 
 pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
-    case: &Value,
+    _case: &Value,
     payload: &Value,
     packaged_tool_result: bool,
     evidence_extracted: bool,
@@ -75,12 +75,29 @@ pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
     if evidence_extracted || packaged_tool_result {
         return response_has_source_signal(&normalized)
             && response_has_research_shape(&normalized)
+            && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
     if tool_result_low_signal(payload) {
         return response_has_low_evidence_signal(&normalized)
             && response_has_research_shape(&normalized)
-            && required_entity_coverage(case, &normalized) >= 0.75
+            && required_entity_coverage(_case, &normalized) >= 0.75
+            && !response_uses_internal_runtime_context_as_evidence(&normalized)
+            && !response_requests_more_scope_without_substance(&normalized);
+    }
+    if !has_tool_execution(payload)
+        && response_matches_explicit_missing_tool_context_contract(&normalized)
+    {
+        return true;
+    }
+    if !has_tool_execution(payload) && response_acknowledges_missing_tool_context(&normalized) {
+        let has_bounded_missing_context_fallback = response_has_missing_tool_context_shape(&normalized)
+            || response_has_research_shape(&normalized)
+            || response_has_low_evidence_signal(&normalized)
+            || normalized.contains("what i know")
+            || normalized.contains("what we know");
+        return has_bounded_missing_context_fallback
+            && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
     false
@@ -101,7 +118,7 @@ pub(super) fn raw_provider_result_paths(payload: &Value) -> Vec<String> {
             "raw_result_ref",
             "raw_result_refs",
         ],
-        value_has_substantive_result,
+        value_has_raw_provider_artifact,
     )
 }
 
@@ -125,7 +142,7 @@ pub(super) fn packaged_tool_result_paths(payload: &Value) -> Vec<String> {
 }
 
 pub(super) fn evidence_paths(payload: &Value) -> Vec<String> {
-    [
+    let mut paths = [
         "evidence",
         "evidence_bundle",
         "evidence_refs",
@@ -151,7 +168,17 @@ pub(super) fn evidence_paths(payload: &Value) -> Vec<String> {
             .unwrap_or(false)
             .then(|| (*path).to_string())
     })
-    .collect()
+    .collect::<Vec<_>>();
+    for path in post_tool_paths(
+        payload,
+        &["evidence", "evidence_bundle", "evidence_refs", "sources", "citations", "findings"],
+        value_has_content,
+    ) {
+        if !paths.iter().any(|existing| existing == &path) {
+            paths.push(path);
+        }
+    }
+    paths
 }
 
 pub(super) fn agent_evidence_context_paths(payload: &Value) -> Vec<String> {
@@ -205,10 +232,6 @@ fn tool_rows(payload: &Value) -> Vec<&Value> {
 }
 
 fn tool_row_has_raw_provider_result(row: &Value) -> bool {
-    let status = normalize_for_compare(&str_at(row, &["status"], ""));
-    if row_status_is_failure_or_empty(&status) {
-        return false;
-    }
     [
         "raw",
         "raw_result",
@@ -224,16 +247,12 @@ fn tool_row_has_raw_provider_result(row: &Value) -> bool {
     .iter()
     .any(|key| {
         row.get(*key)
-            .map(value_has_substantive_result)
+            .map(value_has_raw_provider_artifact)
             .unwrap_or(false)
     })
 }
 
 fn tool_row_has_packaged_result(row: &Value) -> bool {
-    let status = normalize_for_compare(&str_at(row, &["status"], ""));
-    if row_status_is_failure_or_empty(&status) {
-        return false;
-    }
     for key in [
         "sources",
         "citations",
@@ -252,6 +271,9 @@ fn tool_row_has_packaged_result(row: &Value) -> bool {
 }
 
 fn tool_result_low_signal(payload: &Value) -> bool {
+    if !has_tool_execution(payload) {
+        return false;
+    }
     let finalization =
         normalize_for_compare(&response_finalization_outcome(payload).unwrap_or_default());
     if finalization.contains("low_signal")
@@ -389,6 +411,68 @@ fn response_requests_more_scope_without_substance(normalized: &str) -> bool {
     .any(|needle| normalized.contains(*needle))
 }
 
+fn response_acknowledges_missing_tool_context(normalized: &str) -> bool {
+    [
+        "no live web data",
+        "no returned tool result",
+        "tool result is not present in this turn",
+        "tool result is not available in this turn",
+        "no retrieved snippets",
+        "no retrieved results",
+        "i havent actually executed any web search",
+        "i do not have the tool result",
+        "i don't have the tool result",
+        "no recorded tool outcome",
+        "would require live research",
+        "requires live research",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
+fn response_has_missing_tool_context_shape(normalized: &str) -> bool {
+    let has_knowns = normalized.contains("what i know")
+        || normalized.contains("what we know")
+        || normalized.contains("from my current context");
+    let has_unknowns = normalized.contains("what i do not know")
+        || normalized.contains("what we do not know")
+        || normalized.contains("would require live research")
+        || normalized.contains("requires live research");
+    let has_next_step = normalized.contains("next best")
+        || normalized.contains("next useful action")
+        || normalized.contains("next step")
+        || normalized.contains("next query")
+        || normalized.contains("follow up query")
+        || normalized.contains("follow-up query")
+        || normalized.contains("search query");
+    normalized.split_whitespace().count() >= 35 && has_knowns && (has_unknowns || has_next_step)
+}
+
+fn response_matches_explicit_missing_tool_context_contract(normalized: &str) -> bool {
+    normalized.starts_with(
+        "no returned tool result is available in this turn so no receipt backed synthesis is available yet",
+    ) && normalized.contains("what we know")
+        && normalized.contains("what we do not know")
+        && (normalized.contains("source") || normalized.contains("evidence"))
+        && normalized.contains("recommend")
+        && normalized.contains("next best search query")
+}
+
+fn response_uses_internal_runtime_context_as_evidence(normalized: &str) -> bool {
+    [
+        "identity context",
+        "system instruction",
+        "system instructions",
+        "agent name",
+        "hosting this conversation",
+        "evident from system",
+        "workspace metadata",
+        "platform identity",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
 fn required_entity_coverage(case: &Value, normalized_response: &str) -> f64 {
     let entities = string_array_at(case, &["required_entities"]);
     if entities.is_empty() {
@@ -400,6 +484,7 @@ fn required_entity_coverage(case: &Value, normalized_response: &str) -> f64 {
         .count() as u64;
     ratio(covered, entities.len() as u64)
 }
+
 
 fn post_tool_paths(payload: &Value, keys: &[&str], predicate: fn(&Value) -> bool) -> Vec<String> {
     let mut paths = Vec::new();
@@ -443,6 +528,31 @@ fn value_has_substantive_result(value: &Value) -> bool {
         }
         Value::Array(rows) => !rows.is_empty() && rows.iter().any(value_has_substantive_result),
         Value::Object(map) => !map.is_empty() && map.values().any(value_has_substantive_result),
+        other => value_has_content(other),
+    }
+}
+
+fn value_has_raw_provider_artifact(value: &Value) -> bool {
+    match value {
+        Value::String(raw) => !raw.trim().is_empty(),
+        Value::Array(rows) => !rows.is_empty() && rows.iter().any(value_has_raw_provider_artifact),
+        Value::Object(map) => {
+            [
+                "provider",
+                "query",
+                "summary",
+                "error",
+                "links",
+                "locator",
+                "snippet",
+                "title",
+                "provider_raw_count",
+                "provider_filtered_count",
+            ]
+            .iter()
+            .any(|key| map.get(*key).map(value_has_content).unwrap_or(false))
+                || map.values().any(value_has_raw_provider_artifact)
+        }
         other => value_has_content(other),
     }
 }

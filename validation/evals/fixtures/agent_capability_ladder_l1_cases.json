@@ -17,14 +17,24 @@
     ]
   },
   "thresholds": {
-    "min_cases": 6,
+    "min_cases": 7,
     "min_pass_rate": 1.0,
     "max_failures": 0,
     "simple_direct_max_latency_ms": 5000,
     "simple_direct_live_max_latency_ms": 30000,
     "simple_direct_max_response_tokens": 80,
     "simple_direct_max_stage_count": 4,
-    "pending_tool_stuck_max_latency_ms": 30000
+    "pending_tool_stuck_max_latency_ms": 30000,
+    "agent_work_success": {
+      "min_domain_success_rate": 1.0,
+      "required_domains": [
+        "agentic_work",
+        "coding",
+        "conversation",
+        "planning",
+        "research"
+      ]
+    }
   },
   "defaults": {
     "agent_id": "synthetic-capability-l1-agent"
@@ -144,6 +154,64 @@
               "Selects web_search rather than exposing backend primitive names",
               "Provides a concrete query payload",
               "Does not claim search results before the tool runs"
+            ],
+            "pass_threshold": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "planning_l1_current_context",
+      "turns": [
+        {
+          "turn_id": "planning_001",
+          "capability": {
+            "domain": "planning",
+            "level": 1
+          },
+          "user_message": "Plan the next safe step to debug the workflow without running tools.",
+          "mock_response": {
+            "response": "The next safe step is to inspect the latest failing gate evidence, choose one bottleneck, and run a focused live batch before changing code.",
+            "response_workflow": {
+              "selected_workflow": {
+                "id": "tool_menu_v1",
+                "gate_contract": "tool_menu_interface_v1"
+              },
+              "tool_gate": {
+                "should_call_tools": false
+              },
+              "stage_statuses": [
+                {
+                  "stage": "gate_1_need_tool_access_menu",
+                  "status": "answered_no"
+                },
+                {
+                  "stage": "gate_6_llm_final_output",
+                  "status": "synthesized"
+                }
+              ]
+            },
+            "tools": [],
+            "live_eval_monitor": {
+              "chat_injection_allowed": false
+            }
+          },
+          "expect": {
+            "required_substrings": [
+              "failing gate",
+              "bottleneck",
+              "focused live batch"
+            ],
+            "require_workflow_visibility": true,
+            "require_live_eval_monitor": true,
+            "forbid_gate_choice_leakage": true,
+            "simple_direct_conversation": true
+          },
+          "grader": {
+            "rubric": [
+              "Plans from current context without pretending to run tools",
+              "Names one bottleneck-oriented next step",
+              "Uses live evidence as the next verification step"
             ],
             "pass_threshold": 1.0
           }

@@ -65,84 +65,34 @@ fn session_pending_rows(root: &Path, snapshot: &Value, max_rows: usize) -> Vec<V
     rows
 }
 
-fn agent_continuity_markers(root: &Path, snapshot: &Value, max_rows: usize) -> Vec<Value> {
-    let roster = build_agent_roster(root, snapshot, false);
-    let mut rows = Vec::<Value>::new();
-    for profile in roster {
-        let agent_id = clean_agent_id(
-            profile
-                .get("agent_id")
-                .or_else(|| profile.get("id"))
-                .and_then(Value::as_str)
-                .unwrap_or(""),
-        );
-        if agent_id.is_empty() {
-            continue;
-        }
-        let state = load_session_state(root, &agent_id);
-        let messages = session_messages(&state);
-        let mut latest_user_text = String::new();
-        let mut latest_user_ts = String::new();
-        let mut latest_agent_ts = String::new();
-        for row in messages.iter().rev() {
-            let role = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
-                .to_ascii_lowercase();
-            if role == "user" && latest_user_text.is_empty() {
-                latest_user_text = clean_text(&message_text(row), 180);
-                latest_user_ts = message_timestamp_iso(row);
-            }
-            if (role == "assistant" || role == "agent") && latest_agent_ts.is_empty() {
-                latest_agent_ts = message_timestamp_iso(row);
-            }
-            if !latest_user_text.is_empty() && !latest_agent_ts.is_empty() {
-                break;
-            }
-        }
-        let objective = if latest_user_text.is_empty() {
-            "No active objective.".to_string()
-        } else {
-            latest_user_text.clone()
-        };
-        let completion_percent = if latest_user_text.is_empty() {
-            100
-        } else if !latest_agent_ts.is_empty()
-            && !latest_user_ts.is_empty()
-            && latest_agent_ts >= latest_user_ts
-        {
-            100
-        } else if !latest_agent_ts.is_empty() {
-            60
-        } else {
-            20
-        };
-        rows.push(json!({
-            "agent_id": agent_id,
-            "name": clean_text(profile.get("name").and_then(Value::as_str).unwrap_or("Agent"), 120),
-            "state": clean_text(profile.get("state").and_then(Value::as_str).unwrap_or("Idle"), 40),
-            "objective": objective,
-            "completion_percent": completion_percent,
-            "updated_at": clean_text(profile.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80)
-        }));
-    }
-    rows.sort_by(|a, b| {
-        clean_text(
-            b.get("updated_at").and_then(Value::as_str).unwrap_or(""),
-            80,
-        )
-        .cmp(&clean_text(
-            a.get("updated_at").and_then(Value::as_str).unwrap_or(""),
-            80,
-        ))
-    });
-    rows.truncate(max_rows.clamp(1, 24));
-    rows
+fn agent_continuity_markers_from_session_rows(session_rows: &[Value], max_rows: usize) -> Vec<Value> {
+    session_rows
+        .iter()
+        .take(max_rows.clamp(1, 24))
+        .map(|row| {
+            let agent_id = clean_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+            let message_count = row
+                .get("message_count")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                .max(0);
+            json!({
+                "agent_id": agent_id,
+                "name": agent_id,
+                "state": "active",
+                "objective": format!("{message_count} messages in active session."),
+                "completion_percent": 100,
+                "updated_at": clean_text(row.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80)
+            })
+        })
+        .collect::<Vec<_>>()
 }
 
 fn continuity_pending_payload(root: &Path, snapshot: &Value) -> Value {
     let tasks = task_runtime_summary(root);
     let workers = worker_runtime_summary(root);
     let sessions = session_pending_rows(root, snapshot, 24);
-    let continuity_agents = agent_continuity_markers(root, snapshot, 12);
+    let continuity_agents = agent_continuity_markers_from_session_rows(&sessions, 12);
     let stale_sessions = sessions
         .iter()
         .filter(|row| {

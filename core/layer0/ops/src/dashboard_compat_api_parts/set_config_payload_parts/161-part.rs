@@ -194,22 +194,258 @@ fn normalize_inline_tool_execution_input(
 fn tool_result_hidden_artifact_value(payload: &Value, key: &str) -> Option<Value> {
     let value = payload
         .get(key)
-        .or_else(|| payload.pointer(&format!("/tool_pipeline/raw_payload/{key}")))?;
+        .or_else(|| payload.pointer(&format!("/tool_pipeline/raw_payload/{key}")));
     match key {
-        "search_results" | "provider_results" => value.as_array().and_then(|rows| {
-            let projected = rows
-                .iter()
-                .filter_map(project_hidden_tool_result_row)
-                .take(6)
-                .collect::<Vec<_>>();
-            (!projected.is_empty()).then(|| Value::Array(projected))
-        }),
-        "evidence_refs" => value.as_array().map(|rows| {
-            Value::Array(rows.iter().take(6).cloned().collect::<Vec<_>>())
-        }),
-        "tool_result_quality" => value.is_object().then(|| value.clone()),
+        "search_results" | "provider_results" => value
+            .and_then(|value| {
+                value.as_array().and_then(|rows| {
+                    let projected = rows
+                        .iter()
+                        .filter_map(project_hidden_tool_result_row)
+                        .take(6)
+                        .collect::<Vec<_>>();
+                    (!projected.is_empty()).then(|| Value::Array(projected))
+                })
+            })
+            .or_else(|| derive_hidden_tool_result_artifact(payload, key)),
+        "evidence_refs" => value
+            .and_then(|value| {
+                value.as_array().and_then(|rows| {
+                    let projected = rows.iter().take(6).cloned().collect::<Vec<_>>();
+                    (!projected.is_empty()).then(|| Value::Array(projected))
+                })
+            })
+            .or_else(|| derive_hidden_tool_result_artifact(payload, key)),
+        "tool_result_quality" => value.and_then(|value| value.is_object().then(|| value.clone())),
         _ => None,
     }
+}
+
+fn derive_hidden_tool_result_artifact(payload: &Value, key: &str) -> Option<Value> {
+    match key {
+        "search_results" => derive_hidden_search_results_from_web_payload(payload),
+        "provider_results" => derive_hidden_provider_results_from_web_payload(payload),
+        "evidence_refs" => derive_hidden_evidence_refs_from_web_payload(payload),
+        _ => None,
+    }
+}
+
+fn derive_hidden_search_results_from_web_payload(payload: &Value) -> Option<Value> {
+    let links = payload
+        .get("links")
+        .or_else(|| payload.pointer("/tool_pipeline/raw_payload/links"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let snippet = trim_text(
+        payload
+            .get("content")
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/content"))
+            .and_then(Value::as_str)
+            .filter(|raw| !raw.trim().is_empty())
+            .or_else(|| {
+                payload
+                    .get("summary")
+                    .or_else(|| payload.pointer("/tool_pipeline/raw_payload/summary"))
+                    .and_then(Value::as_str)
+            })
+            .unwrap_or(""),
+        1_200,
+    );
+    let provider = trim_text(
+        payload
+            .get("provider")
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/provider"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let projected = links
+        .iter()
+        .filter_map(Value::as_str)
+        .map(|raw| trim_text(raw.trim(), 2_200))
+        .filter(|raw| !raw.is_empty())
+        .take(6)
+        .map(|locator| {
+            let mut row = serde_json::Map::new();
+            row.insert("locator".to_string(), Value::String(locator));
+            if !snippet.is_empty() {
+                row.insert("snippet".to_string(), Value::String(snippet.clone()));
+            }
+            if !provider.is_empty() {
+                row.insert("provider".to_string(), Value::String(provider.clone()));
+            }
+            Value::Object(row)
+        })
+        .collect::<Vec<_>>();
+    if !projected.is_empty() {
+        return Some(Value::Array(projected));
+    }
+    for pointer in [
+        "/tool_result_quality/candidate_quality",
+        "/tool_pipeline/raw_payload/tool_result_quality/candidate_quality",
+        "/evidence_refs",
+        "/tool_pipeline/raw_payload/evidence_refs",
+    ] {
+        let Some(rows) = payload.pointer(pointer).and_then(Value::as_array) else {
+            continue;
+        };
+        let projected = rows
+            .iter()
+            .filter_map(project_hidden_tool_result_row)
+            .take(6)
+            .collect::<Vec<_>>();
+        if !projected.is_empty() {
+            return Some(Value::Array(projected));
+        }
+    }
+    None
+}
+
+fn derive_hidden_provider_results_from_web_payload(payload: &Value) -> Option<Value> {
+    let provider = trim_text(
+        payload
+            .get("provider")
+            .or_else(|| payload.get("source"))
+            .or_else(|| payload.pointer("/input/source"))
+            .or_else(|| payload.pointer("/tool_pipeline/input/source"))
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/provider"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    );
+    let summary = trim_text(
+        payload
+            .get("summary")
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/summary"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        1_200,
+    );
+    let error = trim_text(
+        payload
+            .get("error")
+            .or_else(|| payload.get("transport_error"))
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/transport_error"))
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/error"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        240,
+    );
+    let status = trim_text(
+        payload
+            .get("status")
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/status"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        80,
+    );
+    let query = trim_text(
+        payload
+            .get("query")
+            .or_else(|| payload.pointer("/input/query"))
+            .or_else(|| payload.pointer("/tool_pipeline/input/query"))
+            .or_else(|| payload.pointer("/tool_pipeline/raw_payload/query"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        600,
+    );
+    let links = payload
+        .get("links")
+        .or_else(|| payload.pointer("/tool_pipeline/raw_payload/links"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|value| value.as_str().map(|raw| trim_text(raw.trim(), 2_200)))
+        .filter(|raw| !raw.is_empty())
+        .take(4)
+        .map(Value::String)
+        .collect::<Vec<_>>();
+    let raw_count = payload
+        .get("provider_raw_count")
+        .or_else(|| payload.pointer("/tool_pipeline/raw_payload/provider_raw_count"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let filtered_count = payload
+        .get("provider_filtered_count")
+        .or_else(|| payload.pointer("/tool_pipeline/raw_payload/provider_filtered_count"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let failure_detail = payload
+        .get("partial_failure_details")
+        .or_else(|| payload.pointer("/tool_pipeline/raw_payload/partial_failure_details"))
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(|raw| trim_text(raw.trim(), 240))
+        .find(|raw| !raw.is_empty());
+    if provider.is_empty()
+        && summary.is_empty()
+        && error.is_empty()
+        && status.is_empty()
+        && query.is_empty()
+        && links.is_empty()
+        && raw_count == 0
+        && filtered_count == 0
+        && failure_detail.is_none()
+    {
+        return None;
+    }
+    let mut row = serde_json::Map::new();
+    if !provider.is_empty() {
+        row.insert("provider".to_string(), Value::String(provider));
+    }
+    if !summary.is_empty() {
+        row.insert("summary".to_string(), Value::String(summary));
+    }
+    if !error.is_empty() {
+        row.insert("error".to_string(), Value::String(error));
+    }
+    if !status.is_empty() {
+        row.insert("status".to_string(), Value::String(status));
+    }
+    if let Some(detail) = failure_detail {
+        row.insert("failure_detail".to_string(), Value::String(detail));
+    }
+    if !query.is_empty() {
+        row.insert("query".to_string(), Value::String(query));
+    }
+    if !links.is_empty() {
+        row.insert("links".to_string(), Value::Array(links));
+    }
+    if raw_count > 0 {
+        row.insert("provider_raw_count".to_string(), json!(raw_count));
+    }
+    if filtered_count > 0 {
+        row.insert("provider_filtered_count".to_string(), json!(filtered_count));
+    }
+    (!row.is_empty()).then(|| Value::Array(vec![Value::Object(row)]))
+}
+
+fn derive_hidden_evidence_refs_from_web_payload(payload: &Value) -> Option<Value> {
+    for pointer in [
+        "/tool_result_quality/candidate_quality",
+        "/tool_pipeline/raw_payload/tool_result_quality/candidate_quality",
+        "/search_results",
+        "/tool_pipeline/raw_payload/search_results",
+        "/provider_results",
+        "/tool_pipeline/raw_payload/provider_results",
+    ] {
+        let Some(rows) = payload.pointer(pointer).and_then(Value::as_array) else {
+            continue;
+        };
+        let projected = rows
+            .iter()
+            .filter_map(project_hidden_tool_result_row)
+            .take(6)
+            .collect::<Vec<_>>();
+        if !projected.is_empty() {
+            return Some(Value::Array(projected));
+        }
+    }
+    None
 }
 
 fn project_hidden_tool_result_row(value: &Value) -> Option<Value> {
@@ -225,6 +461,7 @@ fn project_hidden_tool_result_row(value: &Value) -> Option<Value> {
                 "title",
                 "locator",
                 "snippet",
+                "snippet_preview",
                 "summary",
                 "content_preview",
                 "score",
@@ -378,6 +615,191 @@ mod response_tool_card_tests {
             card.pointer("/tool_result_quality/version")
                 .and_then(Value::as_str),
             Some("v1")
+        );
+    }
+
+    #[test]
+    fn response_tool_card_derives_hidden_search_results_from_web_search_payload() {
+        let payload = json!({
+            "provider": "bing_rss",
+            "summary": "Mastra search returned limited but real source material.",
+            "content": "Mastra docs describe a TypeScript agent framework with workflow primitives and deployment options.",
+            "links": [
+                "https://mastra.ai/docs/overview",
+                "https://github.com/mastra-ai/mastra"
+            ],
+            "provider_raw_count": 8,
+            "provider_filtered_count": 2,
+            "tool_pipeline": {
+                "input": {
+                    "query": "Research Mastra for TypeScript agent workflows"
+                }
+            }
+        });
+
+        let card = response_tool_card(
+            "tool-direct-web_search".to_string(),
+            "web_search",
+            &json!({"query": "Research Mastra for TypeScript agent workflows"}),
+            &payload,
+            false,
+            "ok",
+        );
+
+        assert_eq!(
+            card.pointer("/search_results/0/locator").and_then(Value::as_str),
+            Some("https://mastra.ai/docs/overview")
+        );
+        assert_eq!(
+            card.pointer("/search_results/0/provider").and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/provider")
+                .and_then(Value::as_str),
+            Some("bing_rss")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/query").and_then(Value::as_str),
+            Some("Research Mastra for TypeScript agent workflows")
+        );
+
+        let quality_only = response_tool_card(
+            "tool-direct-web_search".to_string(),
+            "web_search",
+            &json!({"query": "Research Mastra for TypeScript agent workflows"}),
+            &json!({
+                "tool_result_quality": {
+                    "candidate_quality": [
+                        {
+                            "title": "Mastra docs",
+                            "locator": "https://mastra.ai/",
+                            "snippet_preview": "Mastra is a TypeScript AI agent framework.",
+                            "score": 0.52
+                        }
+                    ]
+                }
+            }),
+            false,
+            "ok",
+        );
+        assert_eq!(
+            quality_only.pointer("/search_results/0/locator").and_then(Value::as_str),
+            Some("https://mastra.ai/")
+        );
+        assert_eq!(
+            quality_only.pointer("/evidence_refs/0/locator").and_then(Value::as_str),
+            Some("https://mastra.ai/")
+        );
+    }
+
+    #[test]
+    fn response_tool_card_derives_hidden_evidence_refs_from_provider_results() {
+        let payload = json!({
+            "tool_pipeline": {
+                "raw_payload": {
+                    "provider_results": [
+                        {
+                            "provider": "direct_http",
+                            "stage": "duckduckgo_instant",
+                            "query": "Find recent benchmarks comparing agent frameworks",
+                            "locator": "https://api.duckduckgo.com/?q=agent%20framework%20benchmark",
+                            "summary": "Search provider returned only low-signal instant-answer material.",
+                            "status": "ok"
+                        }
+                    ]
+                }
+            }
+        });
+
+        let card = response_tool_card(
+            "tool-direct-batch_query".to_string(),
+            "batch_query",
+            &json!({"query": "Find recent benchmarks comparing agent frameworks"}),
+            &payload,
+            false,
+            "no_results",
+        );
+
+        assert_eq!(
+            card.pointer("/provider_results/0/provider")
+                .and_then(Value::as_str),
+            Some("direct_http")
+        );
+        assert_eq!(
+            card.pointer("/evidence_refs/0/locator").and_then(Value::as_str),
+            Some("https://api.duckduckgo.com/?q=agent%20framework%20benchmark")
+        );
+    }
+
+    #[test]
+    fn response_tool_card_derives_hidden_evidence_refs_when_explicit_array_is_empty() {
+        let payload = json!({
+            "evidence_refs": [],
+            "provider_results": [
+                {
+                    "provider": "direct_http",
+                    "stage": "duckduckgo_instant",
+                    "query": "Find recent benchmarks comparing agent frameworks",
+                    "locator": "https://api.duckduckgo.com/?q=agent%20framework%20benchmark",
+                    "summary": "Search provider returned only low-signal instant-answer material.",
+                    "status": "ok"
+                }
+            ]
+        });
+
+        let card = response_tool_card(
+            "tool-direct-batch_query".to_string(),
+            "batch_query",
+            &json!({"query": "Find recent benchmarks comparing agent frameworks"}),
+            &payload,
+            false,
+            "no_results",
+        );
+
+        assert_eq!(
+            card.pointer("/evidence_refs/0/locator").and_then(Value::as_str),
+            Some("https://api.duckduckgo.com/?q=agent%20framework%20benchmark")
+        );
+    }
+
+    #[test]
+    fn response_tool_card_derives_hidden_provider_results_from_batch_query_failure_shape() {
+        let payload = json!({
+            "status": "error",
+            "partial_failure_details": [
+                "primary:search_failed"
+            ],
+            "input": {
+                "source": "web",
+                "query": "Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems."
+            }
+        });
+
+        let card = response_tool_card(
+            "tool-direct-batch_query".to_string(),
+            "batch_query",
+            &json!({"query": "Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems."}),
+            &payload,
+            false,
+            "error",
+        );
+
+        assert_eq!(
+            card.pointer("/provider_results/0/query").and_then(Value::as_str),
+            Some("Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems.")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/provider").and_then(Value::as_str),
+            Some("web")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/status").and_then(Value::as_str),
+            Some("error")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/failure_detail").and_then(Value::as_str),
+            Some("primary:search_failed")
         );
     }
 }

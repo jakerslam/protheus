@@ -598,11 +598,7 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
     let steps = tool_completion_live_steps(response_tools);
     let tool_attempts = response_tools
         .iter()
-        .filter_map(|row| {
-            row.get("tool_attempt_receipt")
-                .cloned()
-                .or_else(|| row.pointer("/tool_attempt/attempt").cloned())
-        })
+        .filter_map(enrich_tool_attempt_receipt_from_row)
         .take(16)
         .collect::<Vec<_>>();
     let live_tool_status = steps
@@ -616,6 +612,27 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
     enriched["tool_attempts"] = Value::Array(tool_attempts);
     enriched["live_status_source"] = json!("tool_completion_receipt_v1");
     enriched
+}
+
+fn enrich_tool_attempt_receipt_from_row(row: &Value) -> Option<Value> {
+    let mut receipt = row
+        .get("tool_attempt_receipt")
+        .cloned()
+        .or_else(|| row.pointer("/tool_attempt/attempt").cloned())?;
+    let Some(obj) = receipt.as_object_mut() else {
+        return Some(receipt);
+    };
+    for key in [
+        "search_results",
+        "provider_results",
+        "evidence_refs",
+        "tool_result_quality",
+    ] {
+        if let Some(value) = row.get(key).cloned() {
+            obj.insert(key.to_string(), value);
+        }
+    }
+    Some(receipt)
 }
 
 #[cfg(test)]
@@ -716,6 +733,48 @@ mod tool_completion_live_status_tests {
                 .and_then(Value::as_array)
                 .map(|rows| rows.len()),
             Some(1)
+        );
+    }
+
+    #[test]
+    fn carries_hidden_search_artifacts_into_tool_completion_attempts() {
+        let enriched = enrich_tool_completion_receipt(
+            json!({"completion_state":"reported_findings"}),
+            &[json!({
+                "name": "web_search",
+                "input": "{\"query\":\"mastra langgraph comparison\"}",
+                "result": "low signal",
+                "is_error": false,
+                "search_results": [
+                    {
+                        "locator": "https://mastra.ai/docs/overview",
+                        "snippet": "Mastra docs overview"
+                    }
+                ],
+                "provider_results": [
+                    {
+                        "provider": "bing_rss",
+                        "summary": "One relevant Mastra result was retained."
+                    }
+                ],
+                "tool_attempt_receipt": {
+                    "tool_name": "web_search",
+                    "status": "ok",
+                    "outcome": "ok"
+                }
+            })],
+        );
+        assert_eq!(
+            enriched
+                .pointer("/tool_attempts/0/search_results/0/locator")
+                .and_then(Value::as_str),
+            Some("https://mastra.ai/docs/overview")
+        );
+        assert_eq!(
+            enriched
+                .pointer("/tool_attempts/0/provider_results/0/provider")
+                .and_then(Value::as_str),
+            Some("bing_rss")
         );
     }
 }

@@ -211,9 +211,15 @@
         var autoLabel = resolved ? ('Auto: ' + resolved) : 'Auto';
         return autoLabel.length > 24 ? autoLabel.substring(0, 22) + '\u2026' : autoLabel;
       }
+      if (runtime && selected && runtime.toLowerCase() !== selected.toLowerCase()) {
+        var runtimeLabel = this.truncateModelLabel(runtime);
+        if (runtimeLabel) {
+          return runtimeLabel.length > 24 ? runtimeLabel.substring(0, 22) + '\u2026' : runtimeLabel;
+        }
+      }
       var active = this.resolveActiveSwitcherModel ? this.resolveActiveSwitcherModel(this._modelCache || []) : null;
       var activeId = String((active && active.id) || '').trim();
-      var candidates = [selected, runtime, modelOverride, storeSelected, storeRuntime, storeOverride, suggestionRef, activeId];
+      var candidates = [runtime, selected, modelOverride, storeRuntime, storeSelected, storeOverride, suggestionRef, activeId];
       for (var ci = 0; ci < candidates.length; ci += 1) {
         var compactCandidate = this.truncateModelLabel(candidates[ci]);
         if (!compactCandidate) continue;

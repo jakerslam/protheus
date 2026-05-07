@@ -312,6 +312,66 @@ fn research_golden_identifies_unpromoted_request_candidate() {
 }
 
 #[test]
+fn research_golden_accepts_batch_query_as_web_search_gate_alias() {
+    let root = temp_path("research_golden_batch_query_alias");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Current source-backed evidence suggests Infring and LangGraph optimize for different tradeoffs. LangGraph is stronger for mature graph orchestration and durable state, while Infring is stronger when the team wants editable workflow gates and evidence review. My recommendation is LangGraph for a conventional production app and Infring when workflow inspection is the main differentiator. Caveat: public Infring evidence is still limited.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "batch_query",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "source": "web",
+                            "query": "Compare Infring and LangGraph using current docs and release evidence.",
+                            "queries": [
+                                "Infring docs workflow gates",
+                                "LangGraph docs durable state"
+                            ],
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "batch_query",
+                        "status": "ok",
+                        "provider_results": [{
+                            "title": "LangGraph docs",
+                            "snippet": "LangGraph documents durable execution and graph orchestration."
+                        }],
+                        "result": "Source evidence from current docs: LangGraph documents durable graph orchestration; Infring evidence is centered on workflow gates and evidence review."
+                    }],
+                    "response_workflow": {
+                        "evidence_refs": ["evidence:langgraph-docs", "evidence:infring-docs"],
+                        "final_llm_response": {
+                            "status": "synthesized",
+                            "evidence_refs_used": ["evidence:langgraph-docs", "evidence:infring-docs"]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, true));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report.pointer("/cases/0/gates/gate_3_tool_key"),
+        Some(&Value::Bool(true))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint"),
+        Some(&Value::Null)
+    );
+}
+
+#[test]
 fn research_golden_sanitizes_backend_key_errors() {
     let root = temp_path("research_golden_backend_error");
     let cases = root.join("cases.json");

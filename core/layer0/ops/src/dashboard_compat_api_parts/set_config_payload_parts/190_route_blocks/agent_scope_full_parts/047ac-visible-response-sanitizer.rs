@@ -132,6 +132,7 @@ fn strip_trailing_research_follow_up_offer(response_text: &str) -> String {
     let looks_like_substantive_research_answer = lowered.contains("tradeoff")
         || lowered.contains("evidence")
         || lowered.contains("source-backed")
+        || lowered.contains("current evidence")
         || lowered.contains("receipt-backed")
         || lowered.contains("production")
         || lowered.contains("benchmark");

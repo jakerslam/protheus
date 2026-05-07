@@ -27,13 +27,11 @@ fn handle_manual_toolbox_private_gate_turn(
     last_invalid_excerpt: &mut String,
     last_reject_reason: &mut String,
 ) -> Option<ManualToolboxPrivateGateOutcome> {
-    let structured_final_answer = workflow_structured_gate_final_answer(retried_text);
     if active_manual_toolbox_category_turn
         && response_tools.is_empty()
-        && (response_is_exact_no_tool_gate_submission(retried_text)
-            || (structured_final_answer.is_some()
-                && !response_is_tool_bearing_category_gate_submission(retried_text)))
+        && response_is_exact_no_tool_gate_submission(retried_text)
     {
+        let structured_final_answer = workflow_structured_gate_final_answer(retried_text);
         if let Some(final_answer) = structured_final_answer {
             let response_provider = clean_text(
                 retried
@@ -370,6 +368,26 @@ mod split_manual_toolbox_gate_tests {
     #[test]
     fn split_manual_toolbox_max_attempts_honors_cd_retry_budget() {
         assert_eq!(manual_toolbox_private_gate_max_attempts(), 5);
+    }
+
+    #[test]
+    fn split_manual_toolbox_retry_prompt_handles_empty_gate_output_from_cd() {
+        let prompt = workflow_private_gate_retry_prompt_context(
+            "gate_1_work_category_menu",
+            "Research current options and recommend a path.",
+            "tool_category_without_selection_diagnostic_only",
+            "",
+        );
+
+        assert!(prompt.contains("INTERNAL RETRY"), "{prompt}");
+        assert!(prompt.contains("gate_1_work_category_menu"), "{prompt}");
+        assert!(
+            prompt.contains("tool_category_without_selection_diagnostic_only"),
+            "{prompt}"
+        );
+        assert!(prompt.contains("(empty response)"), "{prompt}");
+        assert!(prompt.contains("exact JSON artifact"), "{prompt}");
+        assert!(!prompt.contains("Infring"), "{prompt}");
     }
 
     #[test]

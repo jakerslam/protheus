@@ -1230,11 +1230,26 @@ fn response_is_tool_bearing_category_gate_submission(response: &str) -> bool {
 }
 
 fn response_is_manual_toolbox_gate_choice(response: &str) -> bool {
+    let contract = default_workflow_tool_menu_contract();
+    if let Some(request) = workflow_structured_gate_submission(response) {
+        let has_family = workflow_tool_request_string_field(&request, &contract, "tool_family")
+            .or_else(|| workflow_tool_request_string_field(&request, &contract, "family"))
+            .is_some();
+        let has_tool = workflow_tool_request_string_field(&request, &contract, "tool")
+            .or_else(|| workflow_tool_request_string_field(&request, &contract, "tool_key"))
+            .is_some();
+        let has_payload = workflow_tool_request_object_field(&request, &contract, "request_payload")
+            .and_then(|value| workflow_tool_request_payload_from_json_value(&value))
+            .map(|payload| payload.is_object())
+            .unwrap_or(false);
+        if has_family && has_tool && has_payload {
+            return true;
+        }
+    }
     let lowered = clean_text(response, 2_000).to_ascii_lowercase();
     if lowered.is_empty() {
         return false;
     }
-    let contract = default_workflow_tool_menu_contract();
     let labels = workflow_tool_request_all_field_labels(&contract)
         .into_iter()
         .map(|label| label.to_ascii_lowercase())
@@ -1614,8 +1629,8 @@ mod workflow_control_tests {
         let prompt = workflow_final_answer_prompt_context();
         assert!(prompt.contains("tradeoff"));
         assert!(prompt.contains("regression test"));
-        assert!(prompt.contains("receipt-backed"));
-        assert!(prompt.contains("narrow the query"));
+        assert!(prompt.contains("source-backed"));
+        assert!(prompt.contains("bounded next step"));
     }
 
     #[test]
@@ -1627,7 +1642,7 @@ mod workflow_control_tests {
             "No, I can answer directly."
         ));
         assert!(!response_is_exact_no_tool_gate_submission(
-            "No. I would use web search later."
+            r#"{"final_answer":"I can answer this from memory."}"#
         ));
     }
 
@@ -1652,5 +1667,12 @@ mod workflow_control_tests {
             canonical_manual_toolbox_tool_name("Web research", "I would choose a menu item"),
             ""
         );
+    }
+
+    #[test]
+    fn structured_manual_toolbox_gate_submission_counts_as_gate_choice() {
+        assert!(response_is_manual_toolbox_gate_choice(
+            r#"{"tool_family":"web_research","tool":"batch_query","request_payload":{"query":"best agentic framework","queries":["best agentic framework independent comparison"],"aperture":"medium"}}"#
+        ));
     }
 }

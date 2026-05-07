@@ -407,6 +407,7 @@ fn session_summary_map(root: &Path, snapshot: &Value) -> HashMap<String, Value> 
         }
         out.insert(agent_id, row);
     }
+    if !out.is_empty() { return out; }
     let state_rows = crate::dashboard_agent_state::session_summaries(root, 500)
         .get("rows")
         .and_then(Value::as_array)
@@ -442,4 +443,44 @@ fn first_string(value: Option<&Value>, key: &str) -> String {
             .unwrap_or(""),
         240,
     )
+}
+
+#[cfg(test)]
+mod session_summary_map_tests {
+    use super::*;
+
+    #[test]
+    fn session_summary_map_prefers_snapshot_rows_without_disk_refresh() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let sessions_dir = root.path().join("client/runtime/local/state/ui/infring_dashboard/agent_sessions");
+        let _ = fs::create_dir_all(&sessions_dir);
+        let _ = fs::write(
+            sessions_dir.join("agent-a.json"),
+            r#"{"agent_id":"agent-a","active_session_id":"default","sessions":[{"session_id":"default","updated_at":"2026-05-07T00:00:00Z","messages":[{"text":"disk"}]}]}"#,
+        );
+        let snapshot = json!({
+            "agents": {
+                "session_summaries": {
+                    "rows": [
+                        {"agent_id":"agent-a","updated_at":"2026-05-07T12:00:00Z","message_count":7}
+                    ]
+                }
+            }
+        });
+        let rows = session_summary_map(root.path(), &snapshot);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows.get("agent-a").and_then(|row| row.get("updated_at")).and_then(Value::as_str), Some("2026-05-07T12:00:00Z"));
+    }
+    #[test]
+    fn session_summary_map_falls_back_to_state_rows_when_snapshot_missing() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let sessions_dir = root.path().join("client/runtime/local/state/ui/infring_dashboard/agent_sessions");
+        let _ = fs::create_dir_all(&sessions_dir);
+        let _ = fs::write(
+            sessions_dir.join("agent-b.json"),
+            r#"{"agent_id":"agent-b","active_session_id":"default","sessions":[{"session_id":"default","updated_at":"2026-05-07T08:30:00Z","messages":[{"text":"hello"},{"text":"world"}]}]}"#,
+        );
+        let rows = session_summary_map(root.path(), &json!({}));
+        assert_eq!(rows.get("agent-b").and_then(|row| row.get("message_count")).and_then(Value::as_u64), Some(2));
+    }
 }

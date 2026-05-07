@@ -86,6 +86,93 @@ fn synthetic_user_harness_preserves_normal_user_message_contract() {
 }
 
 #[test]
+fn synthetic_user_harness_reports_agent_work_success_by_domain() {
+    let root = temp_path("synthetic_user_harness_work_success");
+    let cases = write_case_file(
+        &root,
+        &json!({
+            "thresholds": {
+                "min_cases": 1,
+                "min_pass_rate": 0.0,
+                "max_failures": 99,
+                "agent_work_success": {
+                    "min_domain_success_rate": 1.0,
+                    "required_domains": ["coding", "planning", "research"]
+                }
+            },
+            "cases": [
+                {
+                    "id": "research_ok",
+                    "turns": [{
+                        "turn_id": "r1",
+                        "capability": {"domain": "research", "level": 1},
+                        "user_message": "compare with evidence",
+                        "mock_response": {
+                            "response": "The evidence supports a concise comparison.",
+                            "response_workflow": {"stage_statuses": [{"stage": "gate_6_llm_final_output"}]},
+                            "live_eval_monitor": {"chat_injection_allowed": false}
+                        },
+                        "expect": {"required_substrings": ["evidence"]}
+                    }]
+                },
+                {
+                    "id": "coding_bad",
+                    "turns": [{
+                        "turn_id": "c1",
+                        "capability": {"domain": "coding", "level": 1},
+                        "user_message": "name the patch",
+                        "mock_response": {
+                            "response": "I need to inspect the repo first.",
+                            "response_workflow": {"stage_statuses": [{"stage": "gate_4_request_payload_input"}]},
+                            "live_eval_monitor": {"chat_injection_allowed": false}
+                        },
+                        "expect": {"required_substrings": ["patch"]}
+                    }]
+                }
+            ]
+        }),
+    );
+    let code = run_synthetic_user_chat_harness(&harness_args(&root, &cases, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    let domains = report
+        .pointer("/summary/agent_work_success/by_domain")
+        .and_then(Value::as_array)
+        .expect("domain work success rows");
+    let domain_row = |name: &str| {
+        domains
+            .iter()
+            .find(|row| row.get("domain").and_then(Value::as_str) == Some(name))
+            .unwrap_or_else(|| panic!("missing domain row {name}: {domains:?}"))
+    };
+    assert_eq!(
+        domain_row("research").get("ok").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        domain_row("coding").get("ok").and_then(Value::as_bool),
+        Some(false)
+    );
+    assert_eq!(
+        domain_row("planning")
+            .get("total_turns")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        report
+            .pointer("/summary/agent_work_success/overall/ok")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    let markdown = fs::read_to_string(root.join("report.md")).expect("markdown report");
+    assert!(
+        markdown.contains("Agent Work Success By Category"),
+        "{markdown}"
+    );
+}
+
+#[test]
 fn synthetic_user_harness_enforces_simple_direct_budgets() {
     let root = temp_path("synthetic_user_harness_budget");
     let cases = write_case_file(

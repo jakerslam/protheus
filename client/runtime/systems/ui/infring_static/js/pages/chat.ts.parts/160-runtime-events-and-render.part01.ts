@@ -220,7 +220,7 @@
     toolSummaryModelLabel: function(summary) {
       var row = summary && typeof summary === 'object' ? summary : {};
       var provider = String(row.provider || row.model_provider || '').trim();
-      var model = String(row.model || row.model_name || row.runtime_model || row.selected_model || '').trim();
+      var model = String(row.model || row.runtime_model || row.model_name || row.selected_model || '').trim();
       if (!provider && !model) return '';
       if (!provider) return model;
       if (!model) return provider;
