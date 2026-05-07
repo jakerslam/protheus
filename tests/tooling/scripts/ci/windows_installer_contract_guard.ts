@@ -42,6 +42,10 @@ function countOccurrences(source: string, pattern: RegExp): number {
   return Array.isArray(matches) ? matches.length : 0;
 }
 
+function countLiteral(source: string, literal: string): number {
+  return literal.length === 0 ? 0 : source.split(literal).length - 1;
+}
+
 function extractUnique(source: string, pattern: RegExp, captureIndex = 1): string[] {
   const values = new Set<string>();
   let match: RegExpExecArray | null = null;
@@ -120,6 +124,22 @@ function run(argv: string[]): number {
   const tempPathJoinPathCount = countOccurrences(
     source,
     /Join-Path\s+\(\[System\.IO\.Path\]::GetTempPath\(\)\)/g,
+  );
+  const parserUnsafeTrimEndBackslashStringCount = countLiteral(
+    source,
+    String.raw`.TrimEnd("\", "/")`,
+  );
+  const parserUnsafeEndsWithBackslashStringCount = countLiteral(
+    source,
+    String.raw`.EndsWith("\")`,
+  );
+  const parserUnsafeInterpolatedRmdirCommandCount = countLiteral(
+    source,
+    'rmdir /s /q `"$cleanupRoot`"',
+  );
+  const parserUnsafeEscapedQuoteHelpTextCount = countLiteral(
+    source,
+    String.raw`--override \"--quiet`,
   );
 
   checks.push({
@@ -286,6 +306,44 @@ function run(argv: string[]): number {
   });
 
   checks.push({
+    id: 'windows_install_script_no_parser_unsafe_trimend_backslash_string',
+    ok: parserUnsafeTrimEndBackslashStringCount === 0,
+    detail:
+      `install.ps1 must not pass bare backslash double-quoted strings into TrimEnd on Windows PowerShell (count=${parserUnsafeTrimEndBackslashStringCount})`,
+  });
+
+  checks.push({
+    id: 'windows_install_script_no_parser_unsafe_endswith_backslash_string',
+    ok: parserUnsafeEndsWithBackslashStringCount === 0,
+    detail:
+      `install.ps1 must not pass bare backslash double-quoted strings into EndsWith on Windows PowerShell (count=${parserUnsafeEndsWithBackslashStringCount})`,
+  });
+
+  checks.push({
+    id: 'windows_install_script_no_parser_unsafe_interpolated_rmdir_backtick_quotes',
+    ok: parserUnsafeInterpolatedRmdirCommandCount === 0,
+    detail:
+      `install.ps1 must not inline cleanupRoot inside backtick-quoted cmd rmdir strings (count=${parserUnsafeInterpolatedRmdirCommandCount})`,
+  });
+
+  checks.push({
+    id: 'windows_install_script_cleanup_rmdir_command_is_prebuilt',
+    ok:
+      source.includes('$safeCleanupRoot = $cleanupRoot.Replace')
+      && source.includes("$cleanupCommand = 'rmdir /s /q")
+      && source.includes('Start-Process -FilePath "cmd.exe" -ArgumentList @("/d", "/c", $cleanupCommand)'),
+    detail:
+      'install.ps1 must prebuild the cmd cleanup command before Start-Process so Windows PowerShell does not parse nested backtick quotes',
+  });
+
+  checks.push({
+    id: 'windows_install_script_no_parser_unsafe_escaped_quote_help_text',
+    ok: parserUnsafeEscapedQuoteHelpTextCount === 0,
+    detail:
+      `install.ps1 help text must not use backslash-escaped quotes inside double-quoted PowerShell strings (count=${parserUnsafeEscapedQuoteHelpTextCount})`,
+  });
+
+  checks.push({
     id: 'windows_install_script_temp_path_joinpath_contract_present',
     ok: tempPathJoinPathCount >= 1,
     detail: `installer must retain Join-Path temp-path construction for parser-safe temp edge cases (count=${tempPathJoinPathCount})`,
@@ -441,6 +499,10 @@ function run(argv: string[]): number {
         parserUnsafeJoinPathRegexCount === 0
         && parserUnsafeWindowsEscapeMatchCount === 0
         && parserUnsafeVariableInterpolatedJoinPathRegexCount === 0
+        && parserUnsafeTrimEndBackslashStringCount === 0
+        && parserUnsafeEndsWithBackslashStringCount === 0
+        && parserUnsafeInterpolatedRmdirCommandCount === 0
+        && parserUnsafeEscapedQuoteHelpTextCount === 0
         && source.includes("if ($content.Contains('Join-Path\\\\s+\\\\$PSScriptRoot') -or $content.Contains('Join-Path\\\\s+\\\\'))"),
       cross_shell_release_tag_contract_pass:
         sourceSh.includes('workspace_runtime_refresh_required:')
@@ -472,6 +534,10 @@ function run(argv: string[]): number {
       parser_unsafe_windows_escape_match_count: parserUnsafeWindowsEscapeMatchCount,
       parser_unsafe_variable_interpolated_join_path_regex_count:
         parserUnsafeVariableInterpolatedJoinPathRegexCount,
+      parser_unsafe_trimend_backslash_string_count: parserUnsafeTrimEndBackslashStringCount,
+      parser_unsafe_endswith_backslash_string_count: parserUnsafeEndsWithBackslashStringCount,
+      parser_unsafe_interpolated_rmdir_command_count: parserUnsafeInterpolatedRmdirCommandCount,
+      parser_unsafe_escaped_quote_help_text_count: parserUnsafeEscapedQuoteHelpTextCount,
       temp_path_joinpath_count: tempPathJoinPathCount,
       single_quoted_escape_token_guard_present: source.includes(
         "if ($content.Contains('Join-Path\\\\s+\\\\$PSScriptRoot') -or $content.Contains('Join-Path\\\\s+\\\\'))",
