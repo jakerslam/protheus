@@ -43,6 +43,32 @@ pub fn workflow_runtime_contract_ok(reports: &[WorkflowReplayReport]) -> bool {
     .iter()
     .all(|id| fixture_ids.contains(id))
         && reports.iter().all(|row| row.ok)
+        && reports.iter().all(workflow_runtime_terminal_outcome_ok)
+}
+
+pub fn workflow_runtime_terminal_outcome_ok(report: &WorkflowReplayReport) -> bool {
+    let final_answer_present = report
+        .events
+        .iter()
+        .any(|event| event.stream == "final_answer" && event.event_kind == "llm_final_output");
+    let structured_failure_present = report
+        .events
+        .iter()
+        .any(|event| event.stream == "workflow_state" && event.event_kind == "structured_failure");
+    let user_abort_present = report.terminal_state == "aborted"
+        && report
+            .events
+            .iter()
+            .any(|event| event.stream == "workflow_state" && event.event_kind == "user_abort");
+    let needs_input_present = matches!(report.terminal_state.as_str(), "needs_input" | "blocked")
+        && report.events.iter().any(|event| {
+            event.stream == "eval_trace"
+                && matches!(
+                    event.event_kind.as_str(),
+                    "gate_input_rejected" | "tool_request_rejected"
+                )
+        });
+    final_answer_present || structured_failure_present || user_abort_present || needs_input_present
 }
 
 pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayReport {
@@ -120,9 +146,6 @@ pub fn run_workflow_replay(fixture: &WorkflowReplayFixture) -> WorkflowReplayRep
             break;
         }
         state.apply_input(input);
-    }
-    if state.terminal_state.is_none() {
-        state.terminal_state = Some("completed".to_string());
     }
     state.finish()
 }
@@ -246,6 +269,10 @@ struct RuntimeState {
     current_family: Option<String>,
     current_tool: Option<String>,
     terminal_state: Option<String>,
+    tool_path_started: bool,
+    tool_observation_seen: bool,
+    final_answer_emitted: bool,
+    structured_failure_emitted: bool,
     model_turns_seen: u64,
     tool_calls_seen: u64,
     estimated_tokens_seen: u64,
@@ -268,6 +295,10 @@ impl RuntimeState {
             current_family: None,
             current_tool: None,
             terminal_state: None,
+            tool_path_started: false,
+            tool_observation_seen: false,
+            final_answer_emitted: false,
+            structured_failure_emitted: false,
             model_turns_seen: 0,
             tool_calls_seen: 0,
             estimated_tokens_seen: token_estimate(fixture.user_input),
@@ -284,7 +315,12 @@ impl RuntimeState {
             WorkflowInput::FinalAnswer(text) => {
                 self.model_turns_seen += 1;
                 self.estimated_tokens_seen += token_estimate(text);
-                let final_answer_stage = self.graph.interaction_gate_contract.final_answer_stage.clone();
+                self.final_answer_emitted = true;
+                let final_answer_stage = self
+                    .graph
+                    .interaction_gate_contract
+                    .final_answer_stage
+                    .clone();
                 self.event(
                     "final_answer",
                     "llm_final_output",
@@ -378,6 +414,7 @@ impl RuntimeState {
             .unwrap_or_else(|| format!("{family}_tool"));
         match adapt_tool_request(&family, &tool, &payload) {
             Ok(request) => {
+                self.tool_path_started = true;
                 self.tool_calls_seen += 1;
                 let tool_request_payload_stage = self
                     .graph
@@ -413,6 +450,8 @@ impl RuntimeState {
     }
 
     fn apply_tool_observation(&mut self, ok: bool, summary: &str) {
+        self.tool_path_started = true;
+        self.tool_observation_seen = true;
         let event_kind = if ok {
             "tool_observation"
         } else {
@@ -430,7 +469,23 @@ impl RuntimeState {
             json!({"ok": ok, "summary": summary}),
             false,
         );
-        if !ok {
+        if ok {
+            let final_answer_stage = self
+                .graph
+                .interaction_gate_contract
+                .final_answer_stage
+                .clone();
+            self.event(
+                "workflow_state",
+                "pending_final_synthesis",
+                &final_answer_stage,
+                json!({
+                    "required_terminal_outcome": "final_answer_or_structured_failure",
+                    "source": "tool_observation"
+                }),
+                false,
+            );
+        } else {
             let recovery_stage = self.graph.interaction_gate_contract.recovery_stage.clone();
             self.event(
                 "workflow_state",
@@ -440,6 +495,74 @@ impl RuntimeState {
                 false,
             );
         }
+    }
+
+    fn ensure_terminal_outcome(&mut self) {
+        if self.final_answer_emitted || self.structured_failure_emitted {
+            return;
+        }
+        match self.terminal_state.as_deref() {
+            None => self.emit_structured_failure(
+                if self.tool_observation_seen {
+                    "missing_final_answer_after_tool_observation"
+                } else if self.tool_path_started {
+                    "missing_terminal_outcome_after_tool_request"
+                } else {
+                    "missing_terminal_outcome"
+                },
+                if self.tool_observation_seen {
+                    "workflow observed tool output but never produced synthesized final output"
+                } else if self.tool_path_started {
+                    "workflow ended after starting a tool path without final synthesis or a structured terminal failure"
+                } else {
+                    "workflow ended without a final answer, clarification request, abort, or structured failure"
+                },
+            ),
+            Some("completed") => self.emit_structured_failure(
+                if self.tool_observation_seen {
+                    "missing_final_answer_after_tool_observation"
+                } else if self.tool_path_started {
+                    "missing_final_answer_after_tool_request"
+                } else {
+                    "completed_without_final_answer"
+                },
+                if self.tool_observation_seen {
+                    "workflow observed tool output but never produced synthesized final output"
+                } else if self.tool_path_started {
+                    "workflow completed after requesting a tool without producing synthesized final output"
+                } else {
+                    "workflow marked itself completed without producing final output"
+                },
+            ),
+            _ => {}
+        }
+    }
+
+    fn emit_structured_failure(&mut self, code: &str, detail: &str) {
+        if self.structured_failure_emitted {
+            return;
+        }
+        let final_answer_stage = self
+            .graph
+            .interaction_gate_contract
+            .final_answer_stage
+            .clone();
+        self.event(
+            "workflow_state",
+            "structured_failure",
+            &final_answer_stage,
+            json!({
+                "code": code,
+                "detail": detail,
+                "tool_path_started": self.tool_path_started,
+                "tool_observation_seen": self.tool_observation_seen,
+                "final_answer_required": true
+            }),
+            false,
+        );
+        self.failures.push(code.to_string());
+        self.terminal_state = Some("failed".to_string());
+        self.structured_failure_emitted = true;
     }
 
     fn event(
@@ -488,7 +611,8 @@ impl RuntimeState {
         }
     }
 
-    fn finish(self) -> WorkflowReplayReport {
+    fn finish(mut self) -> WorkflowReplayReport {
+        self.ensure_terminal_outcome();
         let budget = self.budget_snapshot();
         let inspector = inspector_artifact(&self.graph, &self.graph_hash, &self.events);
         let terminal_state = self

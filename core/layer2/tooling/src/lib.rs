@@ -23,6 +23,7 @@ pub use evidence_store::{
     EvidenceInvalidationRecord, EvidenceLedgerEvent, EvidenceRecord, EvidenceStore,
     InvalidationRelationType,
 };
+pub use request_validation::repair_and_validate_args;
 pub use schemas::{
     published_schema_contract_v1, Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard,
     NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus, WorkerBudgetUsed,

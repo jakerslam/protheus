@@ -103,10 +103,7 @@ fn route_hint_from_workspace_query(query: &str) -> &'static str {
     "workspace_general"
 }
 
-pub(crate) fn repair_and_validate_args(
-    tool_name: &str,
-    args: &Value,
-) -> Result<Value, BrokerError> {
+pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, BrokerError> {
     let mut map = args
         .as_object()
         .cloned()
@@ -144,30 +141,40 @@ pub(crate) fn repair_and_validate_args(
     set_if_missing(&mut map, "objective", "prompt");
     set_if_missing(&mut map, "agent_id", "target_agent_id");
     set_if_missing(&mut map, "agent_id", "session_id");
-    map.remove("q");
-    map.remove("file_path");
-    map.remove("workspace_path");
-    map.remove("repo_path");
-    map.remove("repository_path");
-    map.remove("sources");
-    map.remove("files");
-    map.remove("file");
-    map.remove("cwd");
-    map.remove("working_directory");
-    map.remove("uri");
-    map.remove("original_url");
-    map.remove("repository_url");
-    map.remove("repo_url");
-    map.remove("cmd");
-    map.remove("shell_command");
-    map.remove("powershell");
-    map.remove("command_line");
-    map.remove("prompt");
-    map.remove("target_agent_id");
+    for alias in [
+        "q", "file_path", "workspace_path", "repo_path", "repository_path", "sources", "files",
+        "file", "cwd", "working_directory", "uri", "original_url", "repository_url", "repo_url",
+        "cmd", "shell_command", "powershell", "command_line", "prompt", "target_agent_id",
+    ] {
+        map.remove(alias);
+    }
     let repaired = canonicalize_value(&Value::Object(map.clone()));
     let mut repaired_map = repaired.as_object().cloned().unwrap_or_default();
     match tool_name {
         "web_search" | "batch_query" => {
+            if repaired_map
+                .get("query")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
+            {
+                if let Some(query) = normalized_string_array(repaired_map.get("queries"), 6, 1200)
+                    .into_iter()
+                    .find(|query| !query.is_empty())
+                {
+                    repaired_map.insert("query".to_string(), Value::String(query));
+                }
+            }
+            if repaired_map
+                .get("aperture")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
+            {
+                repaired_map.insert("aperture".to_string(), json!("medium"));
+            }
             let query = repaired_map
                 .get("query")
                 .and_then(Value::as_str)
@@ -358,11 +365,7 @@ pub(crate) fn repair_and_validate_args(
                 return Err(BrokerError::InvalidArgs("agent_id_required".to_string()));
             }
         }
-        _ => {
-            return Err(BrokerError::InvalidArgs(
-                "unsupported_tool_name".to_string(),
-            ));
-        }
+        _ => return Err(BrokerError::InvalidArgs("unsupported_tool_name".to_string())),
     }
     Ok(Value::Object(repaired_map))
 }
@@ -375,6 +378,11 @@ mod tests {
     fn validation_accepts_governed_tooling_surface_contracts() {
         let folder = repair_and_validate_args("folder_export", &json!({"path":"notes"}))
             .expect("folder_export");
+        let batch = repair_and_validate_args(
+            "batch_query",
+            &json!({"queries":["langgraph observability", "langsmith tracing"]}),
+        )
+        .expect("batch_query");
         let terminal = repair_and_validate_args("terminal_exec", &json!({"cmd":"ls -la"}))
             .expect("terminal_exec");
         let workspace = repair_and_validate_args(
@@ -392,22 +400,12 @@ mod tests {
         .expect("manage_agent");
 
         assert_eq!(folder.get("path").and_then(Value::as_str), Some("notes"));
-        assert_eq!(
-            terminal.get("command").and_then(Value::as_str),
-            Some("ls -la")
-        );
-        assert_eq!(
-            workspace.get("query").and_then(Value::as_str),
-            Some("inspect the workspace tree")
-        );
-        assert_eq!(
-            spawn.get("objective").and_then(Value::as_str),
-            Some("parallelize tool audit")
-        );
-        assert_eq!(
-            manage.get("agent_id").and_then(Value::as_str),
-            Some("agent-7")
-        );
+        assert_eq!(batch.get("query").and_then(Value::as_str), Some("langgraph observability"));
+        assert_eq!(batch.get("aperture").and_then(Value::as_str), Some("medium"));
+        assert_eq!(terminal.get("command").and_then(Value::as_str), Some("ls -la"));
+        assert_eq!(workspace.get("query").and_then(Value::as_str), Some("inspect the workspace tree"));
+        assert_eq!(spawn.get("objective").and_then(Value::as_str), Some("parallelize tool audit"));
+        assert_eq!(manage.get("agent_id").and_then(Value::as_str), Some("agent-7"));
     }
 
     #[test]
@@ -433,10 +431,7 @@ mod tests {
             &json!({"workspace_path":"core/layer2/tooling", "pattern":"tool_route"}),
         )
         .expect("workspace_analyze");
-        assert_eq!(
-            normalized.get("query").and_then(Value::as_str),
-            Some("search `tool_route` in `core/layer2/tooling`")
-        );
+        assert_eq!(normalized.get("query").and_then(Value::as_str), Some("search `tool_route` in `core/layer2/tooling`"));
     }
 
     #[test]
@@ -446,21 +441,9 @@ mod tests {
             &json!({"mentions":["tool_broker", "request_validation"]}),
         )
         .expect("workspace_analyze");
-        assert_eq!(
-            normalized.get("query").and_then(Value::as_str),
-            Some("synthesize context from tool_broker, request_validation")
-        );
-        assert_eq!(
-            normalized
-                .get("context_mentions")
-                .and_then(Value::as_array)
-                .map(|rows| rows.len()),
-            Some(2)
-        );
-        assert_eq!(
-            normalized.get("route_hint").and_then(Value::as_str),
-            Some("workspace_general")
-        );
+        assert_eq!(normalized.get("query").and_then(Value::as_str), Some("synthesize context from tool_broker, request_validation"));
+        assert_eq!(normalized.get("context_mentions").and_then(Value::as_array).map(|rows| rows.len()), Some(2));
+        assert_eq!(normalized.get("route_hint").and_then(Value::as_str), Some("workspace_general"));
     }
 
     #[test]
@@ -470,13 +453,7 @@ mod tests {
             &json!({"paths":"docs/a.md, docs/b.md\ndocs/c.md"}),
         )
         .expect("file_read_many");
-        assert_eq!(
-            normalized
-                .get("paths")
-                .and_then(Value::as_array)
-                .map(|rows| rows.len()),
-            Some(3)
-        );
+        assert_eq!(normalized.get("paths").and_then(Value::as_array).map(|rows| rows.len()), Some(3));
     }
 
     #[test]
@@ -486,13 +463,7 @@ mod tests {
             &json!({"powershell":"Get-ChildItem -Force"}),
         )
         .expect("workspace_analyze");
-        assert_eq!(
-            normalized.get("query").and_then(Value::as_str),
-            Some("analyze command behavior `Get-ChildItem -Force`")
-        );
-        assert_eq!(
-            normalized.get("route_hint").and_then(Value::as_str),
-            Some("terminal_exec")
-        );
+        assert_eq!(normalized.get("query").and_then(Value::as_str), Some("analyze command behavior `Get-ChildItem -Force`"));
+        assert_eq!(normalized.get("route_hint").and_then(Value::as_str), Some("terminal_exec"));
     }
 }

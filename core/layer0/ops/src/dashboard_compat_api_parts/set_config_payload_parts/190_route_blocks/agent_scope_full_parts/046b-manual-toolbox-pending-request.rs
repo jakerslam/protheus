@@ -34,13 +34,24 @@ fn record_manual_toolbox_pending_request(workflow: &mut Value, response_text: &s
     record_manual_toolbox_pending_request_value(workflow, pending_request);
 }
 
-fn record_manual_toolbox_pending_request_value(workflow: &mut Value, pending_request: Value) {
+fn record_manual_toolbox_pending_request_value(workflow: &mut Value, mut pending_request: Value) {
     if workflow
         .get("manual_toolbox_pending_tool_request")
         .filter(|value| value.is_object())
         .is_some()
     {
         return;
+    }
+    if let Some((tool_name, input)) = pending_request
+        .get("tool_name")
+        .and_then(Value::as_str)
+        .zip(pending_request.get("input").cloned())
+    {
+        if let Ok(repaired_input) =
+            crate::infring_tooling_core_v1_bridge::repair_and_validate_args(tool_name, &input)
+        {
+            pending_request["input"] = repaired_input;
+        }
     }
     workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
     workflow["response"] = Value::String(String::new());

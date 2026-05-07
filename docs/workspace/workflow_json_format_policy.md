@@ -244,6 +244,12 @@ No-injection invariant:
 4. `visible_chat_policy` must remain `llm_final_only_no_system_injection`.
 5. `gate_6_llm_final_output.final_output_contract` must declare the visible chat source and the internal streams excluded from chat.
 
+Tool-completion invariant:
+
+1. A workflow that emits a tool request or records a tool observation must not silently terminate as `completed` without an LLM-authored final answer.
+2. If the runtime reaches the end of a tool-bearing path without synthesized final output, it must fail closed with a telemetry-only `structured_failure` terminal artifact.
+3. Rust may enforce this invariant generically as part of deterministic workflow execution; it must not satisfy it by injecting visible fallback chat text.
+
 Canonical stage vocabulary:
 
 1. `gate_1_work_category_menu`

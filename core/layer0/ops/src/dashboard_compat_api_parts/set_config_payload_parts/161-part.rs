@@ -533,6 +533,25 @@ fn response_tool_card(
     is_error: bool,
     status: &str,
 ) -> Value {
+    let mut artifact_payload = payload.clone();
+    if let Some(obj) = artifact_payload.as_object_mut() {
+        for (key, value) in [("query", input.get("query").or_else(|| input.get("q"))), ("source", input.get("source"))] {
+            if obj.get(key).and_then(Value::as_str).map(str::trim).unwrap_or("").is_empty() {
+                if let Some(value) = value.cloned() {
+                    obj.insert(key.to_string(), value);
+                }
+            }
+        }
+        if obj.get("status").and_then(Value::as_str).map(str::trim).unwrap_or("").is_empty() {
+            obj.insert("status".to_string(), json!(status));
+        }
+    }
+    let tool_attempt_receipt = payload
+        .pointer("/tool_pipeline/tool_attempt_receipt")
+        .cloned()
+        .or_else(|| payload.get("tool_attempt_receipt").cloned())
+        .or_else(|| payload.pointer("/tool_attempt/attempt").cloned())
+        .unwrap_or(Value::Null);
     let mut card = json!({
         "id": id,
         "name": normalize_tool_name(tool_name),
@@ -541,12 +560,9 @@ fn response_tool_card(
         "is_error": is_error,
         "blocked": status == "blocked" || status == "policy_denied",
         "status": status,
-        "tool_attempt_receipt": payload
-            .pointer("/tool_pipeline/tool_attempt_receipt")
-            .cloned()
-            .unwrap_or(Value::Null)
+        "tool_attempt_receipt": tool_attempt_receipt
     });
-    carry_hidden_tool_result_artifacts(&mut card, payload);
+    carry_hidden_tool_result_artifacts(&mut card, &artifact_payload);
     card
 }
 
@@ -766,41 +782,24 @@ mod response_tool_card_tests {
     #[test]
     fn response_tool_card_derives_hidden_provider_results_from_batch_query_failure_shape() {
         let payload = json!({
-            "status": "error",
             "partial_failure_details": [
                 "primary:search_failed"
-            ],
-            "input": {
-                "source": "web",
-                "query": "Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems."
-            }
+            ]
         });
 
         let card = response_tool_card(
             "tool-direct-batch_query".to_string(),
             "batch_query",
-            &json!({"query": "Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems."}),
+            &json!({"source":"web","query":"Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems."}),
             &payload,
             false,
             "error",
         );
 
-        assert_eq!(
-            card.pointer("/provider_results/0/query").and_then(Value::as_str),
-            Some("Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems.")
-        );
-        assert_eq!(
-            card.pointer("/provider_results/0/provider").and_then(Value::as_str),
-            Some("web")
-        );
-        assert_eq!(
-            card.pointer("/provider_results/0/status").and_then(Value::as_str),
-            Some("error")
-        );
-        assert_eq!(
-            card.pointer("/provider_results/0/failure_detail").and_then(Value::as_str),
-            Some("primary:search_failed")
-        );
+        assert_eq!(card.pointer("/provider_results/0/query").and_then(Value::as_str), Some("Summarize recent changes in LangGraph, CrewAI, and AutoGen and assess their impact on production agent systems."));
+        assert_eq!(card.pointer("/provider_results/0/provider").and_then(Value::as_str), Some("web"));
+        assert_eq!(card.pointer("/provider_results/0/status").and_then(Value::as_str), Some("error"));
+        assert_eq!(card.pointer("/provider_results/0/failure_detail").and_then(Value::as_str), Some("primary:search_failed"));
     }
 }
 

@@ -1,6 +1,6 @@
 use super::workflow_runtime::{
     adapt_tool_request, run_registered_replay_fixtures, run_workflow_replay,
-    workflow_runtime_contract_ok,
+    workflow_runtime_contract_ok, workflow_runtime_terminal_outcome_ok,
 };
 use super::workflow_runtime_fixtures::{WorkflowInput, WorkflowReplayFixture};
 
@@ -108,4 +108,122 @@ fn unregistered_workflow_ids_fail_closed_instead_of_using_private_stage_graphs()
     assert!(report.events.iter().any(|event| {
         event.stream == "eval_trace" && event.event_kind == "workflow_selection_rejected"
     }));
+}
+
+#[test]
+fn successful_tool_observation_marks_pending_final_synthesis_before_final_answer() {
+    let report = run_workflow_replay(&WorkflowReplayFixture {
+        id: "pending_final_synthesis",
+        workflow_id: "research_synthesize_verify",
+        user_input: "Search the web and synthesize the result.",
+        inputs: vec![
+            WorkflowInput::GateText {
+                stage: "gate_1_need_tool_access_menu",
+                text: "Yes",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_2_tool_family_menu",
+                text: "2",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_3_tool_menu",
+                text: "web_search",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_4_request_payload_input",
+                text: "current agent framework comparison",
+            },
+            WorkflowInput::ToolObservation {
+                ok: true,
+                summary: "web results returned",
+            },
+            WorkflowInput::FinalAnswer("Synthesized web findings."),
+        ],
+    });
+
+    assert!(report.ok, "{report:#?}");
+    assert!(report.events.iter().any(|event| {
+        event.stream == "workflow_state" && event.event_kind == "pending_final_synthesis"
+    }));
+    assert!(workflow_runtime_terminal_outcome_ok(&report));
+}
+
+#[test]
+fn tool_observation_without_final_answer_emits_structured_failure_and_fails_closed() {
+    let report = run_workflow_replay(&WorkflowReplayFixture {
+        id: "tool_observation_without_final_answer",
+        workflow_id: "research_synthesize_verify",
+        user_input: "Search the web and summarize the result.",
+        inputs: vec![
+            WorkflowInput::GateText {
+                stage: "gate_1_need_tool_access_menu",
+                text: "Yes",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_2_tool_family_menu",
+                text: "2",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_3_tool_menu",
+                text: "web_search",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_4_request_payload_input",
+                text: "recent agent framework updates",
+            },
+            WorkflowInput::ToolObservation {
+                ok: true,
+                summary: "web results returned",
+            },
+        ],
+    });
+
+    assert!(!report.ok, "{report:#?}");
+    assert_eq!(report.terminal_state, "failed");
+    assert!(report
+        .failures
+        .iter()
+        .any(|reason| reason == "missing_final_answer_after_tool_observation"));
+    assert!(report.events.iter().any(|event| {
+        event.stream == "workflow_state" && event.event_kind == "structured_failure"
+    }));
+    assert!(workflow_runtime_terminal_outcome_ok(&report));
+}
+
+#[test]
+fn tool_request_without_observation_emits_structured_failure_instead_of_silent_completion() {
+    let report = run_workflow_replay(&WorkflowReplayFixture {
+        id: "tool_request_without_observation",
+        workflow_id: "research_synthesize_verify",
+        user_input: "Search the web and summarize the result.",
+        inputs: vec![
+            WorkflowInput::GateText {
+                stage: "gate_1_need_tool_access_menu",
+                text: "Yes",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_2_tool_family_menu",
+                text: "2",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_3_tool_menu",
+                text: "web_search",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_4_request_payload_input",
+                text: "recent agent framework updates",
+            },
+        ],
+    });
+
+    assert!(!report.ok, "{report:#?}");
+    assert_eq!(report.terminal_state, "failed");
+    assert!(report
+        .failures
+        .iter()
+        .any(|reason| reason == "missing_terminal_outcome_after_tool_request"));
+    assert!(report.events.iter().any(|event| {
+        event.stream == "workflow_state" && event.event_kind == "structured_failure"
+    }));
+    assert!(workflow_runtime_terminal_outcome_ok(&report));
 }

@@ -6,7 +6,10 @@ use super::workflow_contracts::{
     REQUIRED_TOOL_FAMILIES, WORKFLOW_CONTRACT_SCHEMA_VERSION,
     WORKFLOW_SOURCE_OF_TRUTH_SCHEMA_VERSION,
 };
-use super::workflow_runtime::{run_registered_replay_fixtures, workflow_runtime_contract_ok};
+use super::workflow_runtime::{
+    run_registered_replay_fixtures, workflow_runtime_contract_ok,
+    workflow_runtime_terminal_outcome_ok,
+};
 use super::workflow_runtime_types::WorkflowReplayReport;
 use serde_json::{json, Value};
 use std::fs;
@@ -186,6 +189,7 @@ fn runtime_inspector_ok(report: &WorkflowReplayReport) -> bool {
         .all(|stream| report.inspector.trace_streams.contains_key(*stream))
         && !report.inspector.system_chat_injection_allowed
         && report.inspector.visible_chat_source == "final_answer_stream_only"
+        && workflow_runtime_terminal_outcome_ok(report)
         && report
             .events
             .iter()
