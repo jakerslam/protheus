@@ -265,12 +265,16 @@ fn direct_tool_intent_does_not_auto_route_openclaw_probe() {
 }
 
 #[test]
-fn latent_tool_candidates_normalize_try_to_web_search_query() {
+fn latent_tool_candidates_preserve_explicit_live_web_research_turns() {
     let candidates = latent_tool_candidates_for_message(
         "try to web search \"top AI agent frameworks\"",
         &[],
     );
-    assert!(candidates.is_empty(), "{candidates:?}");
+    assert_eq!(candidates.len(), 1, "{candidates:?}");
+    assert_eq!(
+        candidates[0].get("tool").and_then(Value::as_str),
+        Some("batch_query")
+    );
 }
 
 #[test]
@@ -281,6 +285,39 @@ fn latent_tool_candidates_surface_chat_operator_hints_without_direct_routing() {
     let explicit_candidates =
         latent_tool_candidates_for_message("tool::fetch:::https://example.com", &[]);
     assert!(explicit_candidates.is_empty(), "{explicit_candidates:?}");
+}
+
+#[test]
+fn latent_tool_candidates_preserve_general_live_web_research_turns() {
+    let candidates = latent_tool_candidates_for_message(
+        "Research the strongest open-source coding agents right now and explain which are useful for real repositories versus demos.",
+        &[],
+    );
+    assert_eq!(candidates.len(), 1, "{candidates:?}");
+    let candidate = &candidates[0];
+    assert_eq!(
+        candidate.get("tool").and_then(Value::as_str),
+        Some("batch_query")
+    );
+    assert_eq!(
+        candidate
+            .get("selected_tool_family")
+            .and_then(Value::as_str),
+        Some("web_research")
+    );
+    assert_eq!(
+        candidate.pointer("/input/source").and_then(Value::as_str),
+        Some("web")
+    );
+    assert_eq!(
+        candidate.pointer("/input/aperture").and_then(Value::as_str),
+        Some("medium")
+    );
+    let query = candidate
+        .pointer("/input/query")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(query.to_ascii_lowercase().contains("open-source coding agents"));
 }
 
 #[test]

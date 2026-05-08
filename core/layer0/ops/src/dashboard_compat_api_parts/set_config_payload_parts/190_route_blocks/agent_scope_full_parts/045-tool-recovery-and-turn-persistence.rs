@@ -115,6 +115,12 @@ fn workflow_missing_turn_tool_context_prompt(message: &str, response_tools: &[Va
     if lowered.is_empty() {
         return String::new();
     }
+    let generic_tool_turn_reference = lowered.contains("tool")
+        && (lowered.contains(" return")
+            || lowered.contains(" returns")
+            || lowered.contains(" returned")
+            || lowered.contains(" came back")
+            || lowered.contains(" comes back"));
     let references_absent_tool_state = lowered.contains("tool result")
         || lowered.contains("tool results")
         || lowered.contains("search result")
@@ -125,7 +131,8 @@ fn workflow_missing_turn_tool_context_prompt(message: &str, response_tools: &[Va
         || lowered.contains("evidence refs")
         || lowered.contains("returned result")
         || lowered.contains("returned results")
-        || lowered.contains("returned snippets");
+        || lowered.contains("returned snippets")
+        || generic_tool_turn_reference;
     let asks_to_use_referenced_state = lowered.contains("synthesize")
         || lowered.contains("summary")
         || lowered.contains("summarize")
@@ -150,17 +157,18 @@ fn workflow_missing_turn_tool_context_fallback(message: &str, response_tools: &[
         return String::new();
     }
     let request_summary = first_sentence(&clean_text(message, 1_200), 180);
-    let limits = if request_summary.is_empty() {
-        "The only grounded detail available is that this request expects a post-tool synthesis step, but no returned tool result, snippets, or evidence refs are present in this turn.".to_string()
+    let knowns = if request_summary.is_empty() {
+        "What we know is that this request expects a post-tool synthesis step, but no returned tool result, snippets, or evidence refs are present in this turn.".to_string()
     } else {
         format!(
-            "The only grounded detail available is the user's requested synthesis shape: {}. No returned tool result, snippets, or evidence refs are present in this turn.",
+            "What we know is only the user's requested synthesis shape: {}. No returned tool result, snippets, or evidence refs are present in this turn.",
             request_summary
         )
     };
+    let unknowns = "What we do not know is which source-backed findings, low-signal results, tradeoffs, or evidence refs the missing tool result would have supported, so no source-backed conclusion is justified yet.";
     clean_text(
         &format!(
-            "No returned tool result is available in this turn, so no source-backed synthesis is available yet. {limits} That means the current source material the missing tool result would have supported is unavailable, so no source-backed conclusion is available yet. The next useful move is to rerun one focused source-evidence query before making a conclusion. The next best search query is `narrowed query for the requested topic with one named entity, one source family, and one time window`."
+            "No returned tool result is available in this turn, so no source-backed synthesis is available yet. {knowns} {unknowns} My recommendation is to rerun one focused source-evidence query before making a conclusion. The next best search query is `focused query for the requested topic with one named entity, one source family, and one time window`."
         ),
         2_400,
     )
@@ -224,10 +232,12 @@ fn workflow_missing_turn_tool_context_response_contract_satisfied(response_text:
     ) {
         return false;
     }
-    let has_limits = normalized.contains("only grounded detail")
+    let has_limits = normalized.contains("what we know")
+        || normalized.contains("only grounded detail")
         || normalized.contains("available detail")
         || normalized.contains("no returned tool result");
-    let has_uncertainty = normalized.contains("do not know")
+    let has_uncertainty = normalized.contains("what we do not know")
+        || normalized.contains("do not know")
         || normalized.contains("is unavailable")
         || normalized.contains("no source-backed conclusion");
     let has_next_query = normalized.contains("next best search query")
@@ -239,6 +249,21 @@ fn workflow_missing_turn_tool_context_response_contract_satisfied(response_text:
         || normalized.contains("i recommend")
         || normalized.contains("recommend");
     has_limits && has_uncertainty && has_next_query && has_source_signal && has_recommendation
+}
+
+fn workflow_missing_turn_tool_context_repaired_response(
+    message: &str,
+    response_tools: &[Value],
+    response_text: &str,
+) -> String {
+    let cleaned = clean_chat_text(response_text, 32_000);
+    if workflow_missing_turn_tool_context_prompt(message, response_tools).is_empty() {
+        return cleaned;
+    }
+    if workflow_missing_turn_tool_context_response_contract_satisfied(&cleaned) {
+        return cleaned;
+    }
+    workflow_missing_turn_tool_context_fallback(message, response_tools)
 }
 
 fn ensure_tool_turn_response_text(response_text: &str, response_tools: &[Value]) -> String {
@@ -397,7 +422,12 @@ mod tool_turn_response_text_tests {
             &[],
         );
         assert!(response.starts_with("No returned tool result is available in this turn, so no source-backed synthesis is available yet."), "{response}");
-        for needle in ["only grounded detail", "next useful move", "next best search query"] {
+        for needle in [
+            "What we know",
+            "What we do not know",
+            "My recommendation",
+            "next best search query",
+        ] {
             assert!(response.contains(needle), "{response}");
         }
         assert!(!response.contains("Infring") && !response.contains("agent frameworks"), "{response}");
@@ -409,13 +439,36 @@ mod tool_turn_response_text_tests {
             "Use the returned source snippets to synthesize the tradeoffs and cite evidence refs without dumping the raw payload.",
             &[],
         );
-        for needle in ["tradeoff", "evidence refs", "source-backed", "next useful move"] {
+        for needle in [
+            "tradeoff",
+            "evidence refs",
+            "source-backed",
+            "What we know",
+            "My recommendation",
+        ] {
             assert!(response.contains(needle), "{response}");
         }
         assert!(!response.contains("agent frameworks"), "{response}");
         assert!(
             workflow_missing_turn_tool_context_response_contract_satisfied(&response),
             "{response}"
+        );
+    }
+
+    #[test]
+    fn workflow_missing_turn_tool_context_repaired_response_replaces_telemetry_dump() {
+        let repaired = workflow_missing_turn_tool_context_repaired_response(
+            "After the web tool returns low-signal results for Infring, synthesize a useful answer anyway. Tell me what we know, what we do not know, and the next best search query.",
+            &[],
+            "Based on the recorded state for this turn, here is what we actually have: recorded_evidence_available is false and recorded_tool_result_quality is none.",
+        );
+        assert!(repaired.starts_with("No returned tool result is available in this turn, so no source-backed synthesis is available yet."), "{repaired}");
+        assert!(repaired.contains("What we know"), "{repaired}");
+        assert!(repaired.contains("What we do not know"), "{repaired}");
+        assert!(repaired.contains("next best search query"), "{repaired}");
+        assert!(
+            workflow_missing_turn_tool_context_response_contract_satisfied(&repaired),
+            "{repaired}"
         );
     }
 

@@ -72,19 +72,6 @@ pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
     if normalized.is_empty() {
         return false;
     }
-    if evidence_extracted || packaged_tool_result {
-        return response_has_source_signal(&normalized)
-            && response_has_research_shape(&normalized)
-            && !response_uses_internal_runtime_context_as_evidence(&normalized)
-            && !response_requests_more_scope_without_substance(&normalized);
-    }
-    if tool_result_low_signal(payload) {
-        return response_has_low_evidence_signal(&normalized)
-            && response_has_research_shape(&normalized)
-            && required_entity_coverage(_case, &normalized) >= 0.75
-            && !response_uses_internal_runtime_context_as_evidence(&normalized)
-            && !response_requests_more_scope_without_substance(&normalized);
-    }
     if !has_tool_execution(payload)
         && response_matches_explicit_missing_tool_context_contract(&normalized)
     {
@@ -97,6 +84,19 @@ pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
             || normalized.contains("what i know")
             || normalized.contains("what we know");
         return has_bounded_missing_context_fallback
+            && !response_uses_internal_runtime_context_as_evidence(&normalized)
+            && !response_requests_more_scope_without_substance(&normalized);
+    }
+    if evidence_extracted || packaged_tool_result {
+        return response_has_source_signal(&normalized)
+            && response_has_research_shape(&normalized)
+            && !response_uses_internal_runtime_context_as_evidence(&normalized)
+            && !response_requests_more_scope_without_substance(&normalized);
+    }
+    if tool_result_low_signal(payload) {
+        return response_has_low_evidence_signal(&normalized)
+            && response_has_research_shape(&normalized)
+            && required_entity_coverage(_case, &normalized) >= 0.75
             && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
@@ -399,7 +399,6 @@ fn response_has_research_shape(normalized: &str) -> bool {
 fn response_requests_more_scope_without_substance(normalized: &str) -> bool {
     [
         "narrow the query",
-        "narrowed query",
         "pick 2",
         "pick two",
         "which specific",

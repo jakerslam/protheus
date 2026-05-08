@@ -1640,12 +1640,16 @@ fn direct_tool_intent_does_not_auto_route_openclaw_probe() {
 }
 
 #[test]
-fn latent_tool_candidates_normalize_try_to_web_search_query() {
+fn latent_tool_candidates_preserve_explicit_live_web_research_turns() {
     let candidates = latent_tool_candidates_for_message(
         "try to web search \"top AI agent frameworks\"",
         &[],
     );
-    assert!(candidates.is_empty(), "{candidates:?}");
+    assert_eq!(candidates.len(), 1, "{candidates:?}");
+    assert_eq!(
+        candidates[0].get("tool").and_then(Value::as_str),
+        Some("batch_query")
+    );
 }
 
 #[test]

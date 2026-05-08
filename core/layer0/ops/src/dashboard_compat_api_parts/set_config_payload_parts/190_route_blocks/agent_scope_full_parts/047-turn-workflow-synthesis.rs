@@ -1638,6 +1638,17 @@ fn run_turn_workflow_final_response(
                         retried_text = abstract_runtime_mechanics_terms(&retried_text);
                     }
                 }
+                let repaired_missing_turn_tool_context = missing_turn_tool_context_recovery
+                    && !workflow_missing_turn_tool_context_response_contract_satisfied(
+                        &retried_text,
+                    );
+                if repaired_missing_turn_tool_context {
+                    retried_text = workflow_missing_turn_tool_context_repaired_response(
+                        message,
+                        response_tools,
+                        &retried_text,
+                    );
+                }
                 if let Some(gate_outcome) = handle_manual_toolbox_private_gate_turn(
                     &mut workflow,
                     message,
@@ -1843,6 +1854,12 @@ fn run_turn_workflow_final_response(
                 );
                 workflow["final_llm_response"]["used"] = Value::Bool(true);
                 workflow["final_llm_response"]["status"] = Value::String("synthesized".to_string());
+                if repaired_missing_turn_tool_context {
+                    workflow["final_llm_response"]["runtime_visible_fallback_source"] =
+                        json!("missing_turn_tool_context_repair");
+                    workflow["final_llm_response"]["repaired_missing_turn_tool_context"] =
+                        Value::Bool(true);
+                }
                 workflow["final_llm_response"]["provider"] =
                     Value::String(response_provider.clone());
                 workflow["final_llm_response"]["model"] = Value::String(response_model.clone());
