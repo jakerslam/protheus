@@ -10,6 +10,10 @@ pub struct ToolCapabilityContractSurface {
     pub cost_tier: String,
     pub requires_network: bool,
     pub request_fingerprint_dedupe: bool,
+    pub fingerprint_identity_fields: Vec<String>,
+    pub fingerprint_include_request_options_default: bool,
+    pub fingerprint_include_headers_default: bool,
+    pub fingerprint_keep_url_fragments_default: bool,
     pub per_domain_concurrency_default: usize,
     pub request_delay_ms_default: u64,
     pub blocked_response_retry_allowed: bool,
@@ -52,6 +56,19 @@ pub fn capability_contract_surface(contract: &ToolCdContract) -> ToolCapabilityC
         cost_tier: contract.retrieval.cost_tier.clone(),
         requires_network: contract.retrieval.requires_network,
         request_fingerprint_dedupe: contract.execution_policy.request_fingerprint_dedupe,
+        fingerprint_identity_fields: contract
+            .execution_policy
+            .fingerprint_identity_fields
+            .clone(),
+        fingerprint_include_request_options_default: contract
+            .execution_policy
+            .fingerprint_include_request_options_default,
+        fingerprint_include_headers_default: contract
+            .execution_policy
+            .fingerprint_include_headers_default,
+        fingerprint_keep_url_fragments_default: contract
+            .execution_policy
+            .fingerprint_keep_url_fragments_default,
         per_domain_concurrency_default: contract.execution_policy.per_domain_concurrency_default,
         request_delay_ms_default: contract.execution_policy.request_delay_ms_default,
         blocked_response_retry_allowed: contract.execution_policy.blocked_response_retry_allowed,

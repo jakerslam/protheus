@@ -47,6 +47,10 @@ pub struct ToolRetrievalContract {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolExecutionPolicyContract {
     pub request_fingerprint_dedupe: bool,
+    pub fingerprint_identity_fields: Vec<String>,
+    pub fingerprint_include_request_options_default: bool,
+    pub fingerprint_include_headers_default: bool,
+    pub fingerprint_keep_url_fragments_default: bool,
     pub per_domain_concurrency_default: usize,
     pub request_delay_ms_default: u64,
     pub blocked_response_retry_allowed: bool,
@@ -254,6 +258,15 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     if contract.retrieval.max_bulk_items == 0 {
         return Err(format!("max_bulk_items_required:{tool_id}"));
     }
+    if contract.execution_policy.request_fingerprint_dedupe
+        && contract
+            .execution_policy
+            .fingerprint_identity_fields
+            .iter()
+            .all(|field| normalized_key(field).is_empty())
+    {
+        return Err(format!("fingerprint_identity_fields_required:{tool_id}"));
+    }
     if contract.execution_policy.blocked_response_retry_allowed
         && contract.execution_policy.max_blocked_retries_default == 0
     {
@@ -410,6 +423,30 @@ mod tests {
         assert!(contract.safety.sanitization.hidden_content_removed);
         assert!(!contract.visibility.raw_payload_chat_visible);
         assert!(contract.execution_policy.request_fingerprint_dedupe);
+        assert_eq!(
+            contract.execution_policy.fingerprint_identity_fields,
+            vec![
+                "session_scope".to_string(),
+                "http_method".to_string(),
+                "request_body".to_string(),
+                "canonical_url".to_string()
+            ]
+        );
+        assert!(
+            !contract
+                .execution_policy
+                .fingerprint_include_request_options_default
+        );
+        assert!(
+            !contract
+                .execution_policy
+                .fingerprint_include_headers_default
+        );
+        assert!(
+            !contract
+                .execution_policy
+                .fingerprint_keep_url_fragments_default
+        );
         assert_eq!(contract.operations, vec!["search".to_string()]);
         assert!(contract.optional_args.contains(&"aperture".to_string()));
         assert!(contract.optional_args.contains(&"source_scope".to_string()));
@@ -454,6 +491,26 @@ mod tests {
         assert!(fetch.optional_args.contains(&"source_scope".to_string()));
         assert!(fetch.execution_policy.blocked_response_retry_allowed);
         assert_eq!(fetch.execution_policy.max_blocked_retries_default, 2);
+        assert_eq!(
+            fetch.execution_policy.fingerprint_identity_fields,
+            vec![
+                "session_scope".to_string(),
+                "http_method".to_string(),
+                "request_body".to_string(),
+                "canonical_url".to_string()
+            ]
+        );
+        assert!(
+            !fetch
+                .execution_policy
+                .fingerprint_include_request_options_default
+        );
+        assert!(!fetch.execution_policy.fingerprint_include_headers_default);
+        assert!(
+            !fetch
+                .execution_policy
+                .fingerprint_keep_url_fragments_default
+        );
         assert!(fetch.lifecycle.implicit_session_on_invoke);
         assert_eq!(
             fetch.resource_policy.blocked_domains_source,

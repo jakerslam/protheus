@@ -18,6 +18,15 @@
       },
       "execution_policy": {
         "request_fingerprint_dedupe": true,
+        "fingerprint_identity_fields": [
+          "session_scope",
+          "http_method",
+          "request_body",
+          "canonical_url"
+        ],
+        "fingerprint_include_request_options_default": false,
+        "fingerprint_include_headers_default": false,
+        "fingerprint_keep_url_fragments_default": false,
         "per_domain_concurrency_default": 0,
         "request_delay_ms_default": 0,
         "blocked_response_retry_allowed": false,
@@ -169,6 +178,15 @@
       },
       "execution_policy": {
         "request_fingerprint_dedupe": true,
+        "fingerprint_identity_fields": [
+          "session_scope",
+          "http_method",
+          "request_body",
+          "canonical_url"
+        ],
+        "fingerprint_include_request_options_default": false,
+        "fingerprint_include_headers_default": false,
+        "fingerprint_keep_url_fragments_default": false,
         "per_domain_concurrency_default": 2,
         "request_delay_ms_default": 0,
         "blocked_response_retry_allowed": true,
@@ -332,6 +350,15 @@
       },
       "execution_policy": {
         "request_fingerprint_dedupe": true,
+        "fingerprint_identity_fields": [
+          "session_scope",
+          "http_method",
+          "request_body",
+          "canonical_url"
+        ],
+        "fingerprint_include_request_options_default": false,
+        "fingerprint_include_headers_default": false,
+        "fingerprint_keep_url_fragments_default": false,
         "per_domain_concurrency_default": 1,
         "request_delay_ms_default": 0,
         "blocked_response_retry_allowed": true,

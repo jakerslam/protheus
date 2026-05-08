@@ -123,6 +123,18 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert!(!web_search_surface.dynamic_page_allowed);
     assert_eq!(web_search_surface.selector_hint_fallback_mode, "whole_page");
     assert!(!web_search_surface.include_artifact_refs);
+    assert_eq!(
+        web_search_surface.fingerprint_identity_fields,
+        vec![
+            "session_scope".to_string(),
+            "http_method".to_string(),
+            "request_body".to_string(),
+            "canonical_url".to_string()
+        ]
+    );
+    assert!(!web_search_surface.fingerprint_include_request_options_default);
+    assert!(!web_search_surface.fingerprint_include_headers_default);
+    assert!(!web_search_surface.fingerprint_keep_url_fragments_default);
     assert_eq!(web_search_surface.per_domain_concurrency_default, 0);
     assert!(!web_search_surface.blocked_response_retry_allowed);
     assert_eq!(web_search_surface.blocked_domains_source, "none");
@@ -146,6 +158,15 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     );
     assert!(batch_query_surface.supports_bulk);
     assert_eq!(batch_query_surface.max_bulk_items, 6);
+    assert_eq!(
+        batch_query_surface.fingerprint_identity_fields,
+        vec![
+            "session_scope".to_string(),
+            "http_method".to_string(),
+            "request_body".to_string(),
+            "canonical_url".to_string()
+        ]
+    );
     assert_eq!(batch_query_surface.per_domain_concurrency_default, 2);
     assert!(batch_query_surface.blocked_response_retry_allowed);
     assert_eq!(batch_query_surface.max_blocked_retries_default, 2);
@@ -169,6 +190,18 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert!(web_fetch_surface
         .optional_args
         .contains(&"source_scope".to_string()));
+    assert_eq!(
+        web_fetch_surface.fingerprint_identity_fields,
+        vec![
+            "session_scope".to_string(),
+            "http_method".to_string(),
+            "request_body".to_string(),
+            "canonical_url".to_string()
+        ]
+    );
+    assert!(!web_fetch_surface.fingerprint_include_request_options_default);
+    assert!(!web_fetch_surface.fingerprint_include_headers_default);
+    assert!(!web_fetch_surface.fingerprint_keep_url_fragments_default);
     assert_eq!(web_fetch_surface.per_domain_concurrency_default, 1);
     assert!(web_fetch_surface.blocked_response_retry_allowed);
     assert_eq!(web_fetch_surface.max_blocked_retries_default, 2);
