@@ -144,6 +144,23 @@ fn dream_runs_system_cleanup_when_due() {
         .unwrap()
         .iter()
         .any(|job| job["id"] == "spine_sleep_cleanup" && job["ran"] == true));
+    assert_eq!(
+        artifact["dream_anti_entropy_budget"]["type"],
+        "kernel_sentinel_dream_anti_entropy_budget"
+    );
+    assert_eq!(
+        artifact["dream_anti_entropy_budget"]["criteria"]
+            ["maintenance_becomes_automatic_not_heroic"],
+        true
+    );
+    assert_eq!(
+        artifact["dream_anti_entropy_budget"]["questions"]["what_grew"]["observed"],
+        true
+    );
+    assert_eq!(
+        artifact["dream_anti_entropy_budget"]["questions"]["what_duplicated"]["observed"],
+        true
+    );
 }
 
 #[test]
@@ -210,6 +227,26 @@ fn dream_runs_memory_compression_when_due() {
         .unwrap()
         .iter()
         .any(|job| job["id"] == "memory_sqlite_compress" && job["ran"] == true));
+    assert_eq!(
+        artifact["dream_anti_entropy_budget"]["questions"]
+            ["what_was_safely_compressed_deleted_archived_or_promoted"]["memory_rows_removed"],
+        1
+    );
+    assert_eq!(
+        artifact["dream_anti_entropy_budget"]["questions"]["what_became_harder_to_reason_about"]
+            ["observed"],
+        true
+    );
+    assert_eq!(
+        artifact["dream_anti_entropy_budget"]["issue_candidates"]["candidate_count"],
+        2
+    );
+    assert!(
+        artifact["dream_anti_entropy_budget"]["questions"]["what_grew"]["growth"]["files_scanned"]
+            .as_u64()
+            .unwrap_or(0)
+            >= 1
+    );
 }
 
 #[test]

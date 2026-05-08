@@ -2,6 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -22,6 +23,8 @@ const DEFAULT_HEARTBEAT_INTERVAL_SECONDS: usize = 300;
 const DEFAULT_DREAM_INTERVAL_SECONDS: usize = 86_400;
 const DEFAULT_STALE_WINDOW_SECONDS: usize = 5400;
 const DEFAULT_DREAM_MEMORY_DB: &str = "core/local/state/memory/runtime_memory.sqlite";
+const DREAM_GROWTH_SCAN_MAX_FILES: usize = 5_000;
+const DREAM_REASONABILITY_LARGE_FILE_LOC: usize = 1_200;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SchedulerMode {
@@ -362,6 +365,410 @@ fn build_dream_maintenance_manifest(
     })
 }
 
+fn dream_scan_allowed(path: &Path) -> bool {
+    let rel = path.to_string_lossy();
+    !(rel.contains("/.git/")
+        || rel.contains("/target/")
+        || rel.contains("/node_modules/")
+        || rel.contains("/dist/")
+        || rel.contains("/build/")
+        || rel.contains("/core/local/")
+        || rel.contains("/local/state/"))
+}
+
+fn dream_source_file(path: &Path) -> bool {
+    matches!(
+        path.extension().and_then(|value| value.to_str()),
+        Some("rs" | "ts" | "js" | "json" | "md" | "toml" | "yaml" | "yml")
+    )
+}
+
+fn collect_dream_files(path: &Path, out: &mut Vec<PathBuf>) {
+    if out.len() >= DREAM_GROWTH_SCAN_MAX_FILES || !dream_scan_allowed(path) || !path.exists() {
+        return;
+    }
+    if path.is_file() {
+        if dream_source_file(path) {
+            out.push(path.to_path_buf());
+        }
+        return;
+    }
+    let Ok(entries) = fs::read_dir(path) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if out.len() >= DREAM_GROWTH_SCAN_MAX_FILES {
+            break;
+        }
+        collect_dream_files(&entry.path(), out);
+    }
+}
+
+fn effective_loc(body: &str) -> usize {
+    body.lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            !trimmed.is_empty()
+                && !trimmed.starts_with("//")
+                && !trimmed.starts_with('#')
+                && !trimmed.starts_with("/*")
+                && !trimmed.starts_with('*')
+        })
+        .count()
+}
+
+fn path_domain(root: &Path, path: &Path) -> String {
+    let rel = path.strip_prefix(root).unwrap_or(path).to_string_lossy();
+    rel.split('/').next().unwrap_or("unknown").to_string()
+}
+
+fn build_growth_telemetry(root: &Path) -> Value {
+    let mut files = Vec::new();
+    collect_dream_files(root, &mut files);
+    let truncated = files.len() >= DREAM_GROWTH_SCAN_MAX_FILES;
+    let mut total_effective_loc = 0usize;
+    let mut domain_effective_loc = BTreeMap::<String, usize>::new();
+    let mut largest = Vec::<Value>::new();
+    for path in files.iter() {
+        let Ok(body) = fs::read_to_string(path) else {
+            continue;
+        };
+        let loc = effective_loc(&body);
+        total_effective_loc = total_effective_loc.saturating_add(loc);
+        let domain = path_domain(root, path);
+        *domain_effective_loc.entry(domain).or_insert(0) += loc;
+        if loc >= DREAM_REASONABILITY_LARGE_FILE_LOC {
+            largest.push(json!({
+                "path": path.strip_prefix(root).unwrap_or(path).display().to_string(),
+                "effective_loc": loc
+            }));
+        }
+    }
+    largest.sort_by(|a, b| {
+        b["effective_loc"]
+            .as_u64()
+            .unwrap_or(0)
+            .cmp(&a["effective_loc"].as_u64().unwrap_or(0))
+    });
+    largest.truncate(10);
+    json!({
+        "files_scanned": files.len(),
+        "truncated": truncated,
+        "effective_loc": total_effective_loc,
+        "domain_effective_loc": domain_effective_loc,
+        "large_files": largest,
+        "reasonability": {
+            "large_file_threshold_effective_loc": DREAM_REASONABILITY_LARGE_FILE_LOC,
+            "large_file_count": largest.len(),
+            "status": if largest.is_empty() { "bounded" } else { "attention_needed" }
+        }
+    })
+}
+
+fn build_representation_collapse_telemetry(root: &Path) -> Value {
+    let concepts = [
+        "message", "session", "tool", "trace", "workflow", "memory", "receipt", "task",
+    ];
+    let roles = [
+        (
+            "source",
+            ["source", "store", "state", "canonical"].as_slice(),
+        ),
+        (
+            "projection",
+            ["projection", "view", "summary", "preview"].as_slice(),
+        ),
+        ("cache", ["cache", "cached", "memo"].as_slice()),
+        ("detail", ["detail", "payload", "raw"].as_slice()),
+    ];
+    let mut files = Vec::new();
+    collect_dream_files(root, &mut files);
+    let mut rows = Vec::new();
+    for concept in concepts {
+        let mut role_counts = BTreeMap::<String, usize>::new();
+        let mut sample_paths = Vec::<String>::new();
+        for path in files.iter() {
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .to_lowercase();
+            if !rel.contains(concept) {
+                continue;
+            }
+            if sample_paths.len() < 6 {
+                sample_paths.push(rel.clone());
+            }
+            for (role, needles) in roles.iter() {
+                if needles.iter().any(|needle| rel.contains(needle)) {
+                    *role_counts.entry((*role).to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        let active_role_count = role_counts.values().filter(|count| **count > 0).count();
+        let risk = active_role_count > 3 || role_counts.get("source").copied().unwrap_or(0) > 8;
+        rows.push(json!({
+            "concept": concept,
+            "role_counts": role_counts,
+            "active_role_count": active_role_count,
+            "risk": risk,
+            "sample_paths": sample_paths
+        }));
+    }
+    let risk_count = rows
+        .iter()
+        .filter(|row| row["risk"].as_bool().unwrap_or(false))
+        .count();
+    json!({
+        "type": "dream_representation_collapse_telemetry",
+        "concepts": rows,
+        "risk_count": risk_count,
+        "status": if risk_count == 0 { "bounded" } else { "attention_needed" }
+    })
+}
+
+fn build_domain_drift_telemetry(root: &Path) -> Value {
+    let mut files = Vec::new();
+    collect_dream_files(root, &mut files);
+    let rules = [
+        ("shell_mentions_kernel", "client/", "kernel"),
+        ("shell_mentions_orchestration", "client/", "orchestration"),
+        (
+            "kernel_mentions_shell",
+            "core/layer0/",
+            "client/runtime/systems/ui",
+        ),
+        (
+            "validation_mentions_runtime_mutation",
+            "validation/",
+            "mutate",
+        ),
+        (
+            "observability_mentions_runtime_mutation",
+            "observability/",
+            "mutate",
+        ),
+    ];
+    let mut rows = Vec::new();
+    for (id, prefix, needle) in rules {
+        let mut count = 0usize;
+        let mut samples = Vec::<String>::new();
+        for path in files.iter() {
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .to_lowercase();
+            if rel.starts_with(prefix) && rel.contains(needle) {
+                count += 1;
+                if samples.len() < 5 {
+                    samples.push(rel);
+                }
+            }
+        }
+        if count > 0 {
+            rows.push(json!({
+                "id": id,
+                "count": count,
+                "samples": samples,
+                "severity": if count > 10 { "medium" } else { "low" }
+            }));
+        }
+    }
+    json!({
+        "type": "dream_domain_drift_telemetry",
+        "signal_count": rows.len(),
+        "signals": rows,
+        "status": if rows.is_empty() { "bounded" } else { "review" }
+    })
+}
+
+fn build_anti_entropy_issue_candidates(maintenance_manifest: Option<&Value>) -> Value {
+    let mut candidates = Vec::new();
+    if let Some(jobs) = maintenance_manifest
+        .and_then(|value| value.get("jobs"))
+        .and_then(Value::as_array)
+    {
+        for job in jobs {
+            let enabled = job.get("enabled").and_then(Value::as_bool).unwrap_or(false);
+            if enabled {
+                continue;
+            }
+            let id = job.get("id").and_then(Value::as_str).unwrap_or("unknown");
+            let reason = job
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("not_ready");
+            candidates.push(json!({
+                "type": "kernel_sentinel_anti_entropy_issue_candidate",
+                "status": "candidate",
+                "fingerprint": format!("anti_entropy_blocked_job:{id}:{reason}"),
+                "dedupe_key": format!("anti_entropy_blocked_job:{id}"),
+                "title": format!("Dream maintenance job is blocked: {id}"),
+                "owner": "core/layer0/kernel_sentinel",
+                "severity": "medium",
+                "evidence": ["dream_maintenance_manifest"],
+                "root_cause_hypothesis": reason,
+                "next_action": "add a safe adapter or explicit policy gate before enabling this maintenance job",
+                "promotion_policy": {
+                    "requires_recurring_dreams": 3,
+                    "current_observation_count": 1,
+                    "safe_to_auto_file_issue": true,
+                    "safe_to_auto_apply_patch": false
+                }
+            }));
+        }
+    }
+    json!({
+        "type": "kernel_sentinel_anti_entropy_issue_candidates",
+        "candidate_count": candidates.len(),
+        "candidates": candidates
+    })
+}
+
+fn safe_i64_at(value: Option<&Value>, key: &str) -> i64 {
+    value
+        .and_then(|row| row.get(key))
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+}
+
+fn safe_u64_at(value: Option<&Value>, key: &str) -> u64 {
+    value
+        .and_then(|row| row.get(key))
+        .and_then(Value::as_u64)
+        .unwrap_or(0)
+}
+
+fn build_dream_anti_entropy_budget(
+    root: &Path,
+    due: bool,
+    system_cleanup: Option<&Value>,
+    memory_compress: Option<&Value>,
+    maintenance_manifest: Option<&Value>,
+) -> Value {
+    let growth = build_growth_telemetry(root);
+    let representation = build_representation_collapse_telemetry(root);
+    let domain_drift = build_domain_drift_telemetry(root);
+    let issue_candidates = build_anti_entropy_issue_candidates(maintenance_manifest);
+    let cleanup_payload = system_cleanup.and_then(|value| value.get("payload"));
+    let target_removed = cleanup_payload
+        .and_then(|value| value.pointer("/removed/target_path"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let archive_paths_removed = cleanup_payload
+        .and_then(|value| value.pointer("/removed/archive_paths"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let detached_worktrees_removed = cleanup_payload
+        .and_then(|value| value.pointer("/removed/detached_worktrees"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let pressure_paths_removed = cleanup_payload
+        .and_then(|value| value.pointer("/removed/pressure_paths"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let pressure_bytes_removed = cleanup_payload
+        .and_then(|value| value.pointer("/removed/pressure_bytes"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let memory_rows_removed = safe_u64_at(memory_compress, "rows_removed");
+    let memory_rows_before = safe_i64_at(memory_compress, "rows_before");
+    let memory_rows_after = safe_i64_at(memory_compress, "rows_after");
+    let disabled_jobs = maintenance_manifest
+        .and_then(|value| value.get("jobs"))
+        .and_then(Value::as_array)
+        .map(|jobs| {
+            jobs.iter()
+                .filter(|job| !job.get("enabled").and_then(Value::as_bool).unwrap_or(false))
+                .map(|job| {
+                    json!({
+                        "id": job.get("id").and_then(Value::as_str).unwrap_or("unknown"),
+                        "reason": job.get("reason").and_then(Value::as_str).unwrap_or("not_ready")
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let safe_reductions = memory_rows_removed
+        .saturating_add(archive_paths_removed)
+        .saturating_add(detached_worktrees_removed)
+        .saturating_add(pressure_paths_removed)
+        .saturating_add(u64::from(target_removed));
+    json!({
+        "type": "kernel_sentinel_dream_anti_entropy_budget",
+        "schema_version": 1,
+        "cadence": "dream",
+        "due": due,
+        "purpose": "reduce_system_entropy_as_capability_and_loc_grow",
+        "criteria": {
+            "entropy_grows_slower_than_capability": true,
+            "maintenance_becomes_automatic_not_heroic": true,
+            "state_and_authority_remain_locatable": true,
+            "decay_detected_before_operator_notices": true,
+            "large_subsystems_remain_refactorable": true
+        },
+        "questions": {
+            "what_grew": {
+                "observed": true,
+                "summary": "dream captured bounded LOC and domain growth telemetry",
+                "growth": growth
+            },
+            "what_decayed": {
+                "observed": system_cleanup.is_some() || memory_compress.is_some(),
+                "summary": if system_cleanup.is_some() || memory_compress.is_some() {
+                    "dream observed stale artifacts or memory retention candidates"
+                } else {
+                    "no decay scan ran"
+                }
+            },
+            "what_duplicated": {
+                "observed": true,
+                "summary": "dream captured representation-collapse risk telemetry",
+                "representation_collapse": representation
+            },
+            "what_became_stale": {
+                "observed": system_cleanup.is_some(),
+                "target_removed": target_removed,
+                "archive_paths_removed": archive_paths_removed,
+                "detached_worktrees_removed": detached_worktrees_removed
+            },
+            "what_became_harder_to_reason_about": {
+                "observed": !disabled_jobs.is_empty() || domain_drift["signal_count"].as_u64().unwrap_or(0) > 0,
+                "summary": if disabled_jobs.is_empty() {
+                    "no blocked maintenance jobs in manifest"
+                } else {
+                    "manifest exposes maintenance surfaces that need safe adapters before automation"
+                },
+                "blocked_maintenance_jobs": disabled_jobs,
+                "domain_drift": domain_drift
+            },
+            "what_was_safely_compressed_deleted_archived_or_promoted": {
+                "safe_reduction_count": safe_reductions,
+                "memory_rows_before": memory_rows_before,
+                "memory_rows_after": memory_rows_after,
+                "memory_rows_removed": memory_rows_removed,
+                "pressure_paths_removed": pressure_paths_removed,
+                "pressure_bytes_removed": pressure_bytes_removed
+            }
+        },
+        "issue_candidates": issue_candidates,
+        "operator_read": {
+            "summary": if due {
+                "dream ran anti-entropy maintenance and emitted bounded receipts"
+            } else {
+                "dream was not due; anti-entropy maintenance skipped"
+            },
+            "next_upgrade": [
+                "wire safe heap-retention sweep through route-context adapter",
+                "wire runtime_cleanup_autonomous through manifest adapter",
+                "persist dream anti-entropy history so candidates can prove recurrence across multiple dreams",
+                "add capability-vs-entropy delta scoring"
+            ]
+        }
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_scheduler_artifact(
     root: &Path,
@@ -380,6 +787,7 @@ fn build_scheduler_artifact(
     dream_system_cleanup: Option<Value>,
     dream_memory_compress: Option<Value>,
     dream_maintenance_manifest: Option<Value>,
+    dream_anti_entropy_budget: Option<Value>,
 ) -> Value {
     let dir = state_dir_from_args(root, args);
     let mode_state_path = state_path(&dir, mode);
@@ -465,6 +873,9 @@ fn build_scheduler_artifact(
     }
     if let Some(manifest) = dream_maintenance_manifest {
         artifact["dream_maintenance_manifest"] = manifest;
+    }
+    if let Some(budget) = dream_anti_entropy_budget {
+        artifact["dream_anti_entropy_budget"] = budget;
     }
     artifact["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&artifact));
     artifact
@@ -777,6 +1188,27 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
         eprintln!("kernel_sentinel_schedule_state_write_failed: {err}");
         return 1;
     }
+    let dream_maintenance_manifest = if matches!(mode, SchedulerMode::Dream) {
+        Some(build_dream_maintenance_manifest(
+            due,
+            auto_exit,
+            dream_system_cleanup.as_ref(),
+            dream_memory_compress.as_ref(),
+        ))
+    } else {
+        None
+    };
+    let dream_anti_entropy_budget = if matches!(mode, SchedulerMode::Dream) {
+        Some(build_dream_anti_entropy_budget(
+            root,
+            due,
+            dream_system_cleanup.as_ref(),
+            dream_memory_compress.as_ref(),
+            dream_maintenance_manifest.as_ref(),
+        ))
+    } else {
+        None
+    };
     let artifact = build_scheduler_artifact(
         root,
         &effective,
@@ -793,16 +1225,8 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
         dream_gate,
         dream_system_cleanup.clone(),
         dream_memory_compress.clone(),
-        if matches!(mode, SchedulerMode::Dream) {
-            Some(build_dream_maintenance_manifest(
-                due,
-                auto_exit,
-                dream_system_cleanup.as_ref(),
-                dream_memory_compress.as_ref(),
-            ))
-        } else {
-            None
-        },
+        dream_maintenance_manifest,
+        dream_anti_entropy_budget,
     );
     let artifact_path = artifact_path(root, &effective, mode);
     if let Err(err) = write_json(&artifact_path, &artifact) {
