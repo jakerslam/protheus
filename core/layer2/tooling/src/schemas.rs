@@ -22,6 +22,24 @@ pub struct ConfidenceVector {
     pub freshness: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EvidenceArtifactRef {
+    pub artifact_kind: String,
+    pub artifact_ref: String,
+    #[serde(default)]
+    pub mime_type: Option<String>,
+    #[serde(default)]
+    pub source_url: Option<String>,
+    #[serde(default)]
+    pub capture_mode: Option<String>,
+    #[serde(default)]
+    pub capture_status: Option<String>,
+    #[serde(default)]
+    pub width_px: Option<u32>,
+    #[serde(default)]
+    pub height_px: Option<u32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct NormalizedToolResult {
     pub result_id: String,
@@ -55,6 +73,8 @@ pub struct EvidenceCard {
     pub source_location: String,
     pub excerpt: String,
     pub summary: String,
+    #[serde(default)]
+    pub artifact_refs: Vec<EvidenceArtifactRef>,
     pub confidence_vector: ConfidenceVector,
     pub dedupe_hash: String,
     pub lineage: Vec<String>,
@@ -153,6 +173,7 @@ pub const EVIDENCE_CARD_FIELDS: &[&str] = &[
     "source_location",
     "excerpt",
     "summary",
+    "artifact_refs",
     "confidence_vector",
     "dedupe_hash",
     "lineage",
@@ -266,7 +287,7 @@ pub fn published_tool_alias_contract_v1() -> Vec<Value> {
 
 pub fn published_schema_contract_v1() -> Value {
     json!({
-        "version": "tooling_schema_v8",
+        "version": "tooling_schema_v9",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
         "tool_attempt_receipt": TOOL_ATTEMPT_RECEIPT_FIELDS,
         "tool_capability_probe": TOOL_CAPABILITY_PROBE_FIELDS,

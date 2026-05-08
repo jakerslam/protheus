@@ -172,3 +172,64 @@ fn extractor_carries_quality_reasons_into_lineage() {
         .iter()
         .any(|row| row.starts_with("quality_reasons:") && row.contains("content_threshold_met")));
 }
+
+#[test]
+fn extractor_turns_image_content_blocks_into_artifact_refs() {
+    let extractor = EvidenceExtractor;
+    let raw = serde_json::json!([
+        {
+            "type":"image",
+            "mimeType":"image/png",
+            "data":"iVBORw0KGgoAAAANSUhEUgAAAAUA",
+            "full_page":true,
+            "width":1200,
+            "height":2400
+        },
+        {
+            "type":"text",
+            "text":"https://example.com/research/page"
+        }
+    ]);
+    let cards = extractor.extract(&sample_result(), &raw);
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].source_ref, "https://example.com/research/page");
+    assert!(cards[0].excerpt.is_empty());
+    assert!(cards[0].summary.contains("screenshot artifact"));
+    assert_eq!(cards[0].artifact_refs.len(), 1);
+    let artifact = &cards[0].artifact_refs[0];
+    assert_eq!(artifact.artifact_kind, "screenshot");
+    assert_eq!(artifact.mime_type.as_deref(), Some("image/png"));
+    assert_eq!(
+        artifact.source_url.as_deref(),
+        Some("https://example.com/research/page")
+    );
+    assert_eq!(artifact.capture_mode.as_deref(), Some("full_page"));
+    assert_eq!(artifact.width_px, Some(1200));
+    assert_eq!(artifact.height_px, Some(2400));
+    assert!(artifact.artifact_ref.starts_with("raw://r1#payload[0]"));
+}
+
+#[test]
+fn extractor_preserves_object_shaped_screenshot_refs_without_raw_dumping() {
+    let extractor = EvidenceExtractor;
+    let raw = serde_json::json!({
+        "results": [{
+            "source_url":"https://example.com/dashboard",
+            "screenshot_url":"https://cdn.example.com/captures/shot.png",
+            "capture_status":"ok"
+        }]
+    });
+    let cards = extractor.extract(&sample_result(), &raw);
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].source_ref, "https://example.com/dashboard");
+    assert!(cards[0].excerpt.is_empty());
+    assert!(cards[0].summary.contains("screenshot artifact"));
+    assert_eq!(cards[0].artifact_refs.len(), 1);
+    let artifact = &cards[0].artifact_refs[0];
+    assert_eq!(artifact.artifact_kind, "screenshot");
+    assert_eq!(
+        artifact.artifact_ref,
+        "https://cdn.example.com/captures/shot.png"
+    );
+    assert_eq!(artifact.capture_status.as_deref(), Some("ok"));
+}

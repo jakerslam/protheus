@@ -60,7 +60,9 @@
         "include_status": true,
         "include_fetch_mode": true,
         "include_extraction_type": true,
-        "include_quality_flags": true
+        "include_quality_flags": true,
+        "include_artifact_refs": false,
+        "allowed_artifact_kinds": []
       },
       "quality_classification": {
         "classifier": "tool_result_quality_v1",
@@ -183,7 +185,9 @@
         "include_status": true,
         "include_fetch_mode": true,
         "include_extraction_type": true,
-        "include_quality_flags": true
+        "include_quality_flags": true,
+        "include_artifact_refs": false,
+        "allowed_artifact_kinds": []
       },
       "quality_classification": {
         "classifier": "tool_result_quality_v1",
@@ -306,7 +310,9 @@
         "include_status": true,
         "include_fetch_mode": true,
         "include_extraction_type": true,
-        "include_quality_flags": true
+        "include_quality_flags": true,
+        "include_artifact_refs": true,
+        "allowed_artifact_kinds": ["screenshot", "image"]
       },
       "quality_classification": {
         "classifier": "tool_result_quality_v1",

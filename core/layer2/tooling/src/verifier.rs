@@ -2635,6 +2635,7 @@ mod tests {
             source_location: "payload".to_string(),
             excerpt: text.to_string(),
             summary: text.to_string(),
+            artifact_refs: vec![],
             confidence_vector: ConfidenceVector {
                 relevance: reliability,
                 reliability,

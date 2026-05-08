@@ -1,5 +1,10 @@
+use crate::evidence_extractor_artifacts::{
+    collect_text_fragments, pick_artifact_refs, pick_source_ref, summarize_artifact_refs,
+};
 use crate::evidence_sanitizer::sanitize_text_for_evidence;
-use crate::schemas::{ConfidenceVector, EvidenceCard, NormalizedToolResult, NormalizedToolStatus};
+use crate::schemas::{
+    ConfidenceVector, EvidenceArtifactRef, EvidenceCard, NormalizedToolResult, NormalizedToolStatus,
+};
 use crate::{deterministic_hash, now_ms};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -35,11 +40,7 @@ impl EvidenceExtractor {
         let mut seen = HashSet::<String>::new();
         cards
             .into_iter()
-            .filter(|card| {
-                !card.excerpt.is_empty()
-                    && !card.summary.is_empty()
-                    && seen.insert(card.dedupe_hash.clone())
-            })
+            .filter(|card| !card.summary.is_empty() && seen.insert(card.dedupe_hash.clone()))
             .collect::<Vec<_>>()
     }
 
@@ -51,12 +52,13 @@ impl EvidenceExtractor {
     ) -> Option<EvidenceCard> {
         let source_ref = pick_source_ref(source, result);
         let source_location = pick_source_location(source, idx);
+        let artifact_refs = pick_artifact_refs(source, result, &source_ref, &source_location);
         let excerpt = pick_excerpt(source);
-        let summary = pick_summary(source, &excerpt);
+        let summary = pick_summary(source, &excerpt, &artifact_refs, &source_ref);
         if looks_like_interface_chrome(&excerpt) && looks_like_interface_chrome(&summary) {
             return None;
         }
-        if excerpt.is_empty() && summary.is_empty() {
+        if excerpt.is_empty() && summary.is_empty() && artifact_refs.is_empty() {
             return None;
         }
         let confidence_vector = pick_confidence(source);
@@ -64,7 +66,8 @@ impl EvidenceExtractor {
             "result_id": result.result_id,
             "source_ref": source_ref,
             "excerpt": excerpt,
-            "summary": summary
+            "summary": summary,
+            "artifact_refs": artifact_refs,
         }));
         let extracted_at = now_ms();
         let evidence_content_id = deterministic_hash(&serde_json::json!({
@@ -107,6 +110,7 @@ impl EvidenceExtractor {
             source_location,
             excerpt,
             summary,
+            artifact_refs,
             confidence_vector,
             dedupe_hash,
             lineage,
@@ -221,32 +225,6 @@ fn first_string<'a>(source: &'a Value, keys: &[&str]) -> Option<&'a str> {
     None
 }
 
-fn pick_source_ref(source: &Value, result: &NormalizedToolResult) -> String {
-    clean_text(
-        first_string(
-            source,
-            &[
-                "source_ref",
-                "original_url",
-                "originalUrl",
-                "repository_url",
-                "repo_url",
-                "url",
-                "source",
-                "repository",
-                "file_path",
-                "workspace_path",
-                "repo_path",
-                "repo",
-                "file",
-                "path",
-            ],
-        )
-        .unwrap_or(result.raw_ref.as_str()),
-        2000,
-    )
-}
-
 fn pick_source_location(source: &Value, idx: Option<usize>) -> String {
     let default_location = idx
         .map(|v| format!("results[{v}]"))
@@ -279,10 +257,22 @@ fn pick_excerpt(source: &Value) -> String {
     if let Some(text) = source.as_str() {
         return clean_text(text, 1200);
     }
-    clean_text(&source.to_string(), 1200)
+    if let Some(rows) = source.as_array() {
+        let mut fragments = Vec::<String>::new();
+        for row in rows {
+            collect_text_fragments(row, &mut fragments);
+        }
+        return clean_text(&fragments.join(" "), 1200);
+    }
+    String::new()
 }
 
-fn pick_summary(source: &Value, excerpt: &str) -> String {
+fn pick_summary(
+    source: &Value,
+    excerpt: &str,
+    artifact_refs: &[EvidenceArtifactRef],
+    source_ref: &str,
+) -> String {
     let summary = source
         .get("summary")
         .and_then(Value::as_str)
@@ -347,6 +337,15 @@ fn pick_summary(source: &Value, excerpt: &str) -> String {
             return clean_text(&format!("{}: {excerpt}", facets.join(", ")), 300);
         }
         return clean_text(&facets.join(", "), 300);
+    }
+    if !artifact_refs.is_empty() {
+        let artifact_summary = summarize_artifact_refs(artifact_refs, source_ref);
+        if !artifact_summary.is_empty() {
+            if !excerpt.is_empty() {
+                return clean_text(&format!("{artifact_summary}: {excerpt}"), 300);
+            }
+            return artifact_summary;
+        }
     }
     clean_text(excerpt, 300)
 }

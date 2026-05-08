@@ -12,7 +12,7 @@ fn schema_contract_publishes_frozen_field_sets() {
     let contract = published_schema_contract_v1();
     assert_eq!(
         contract.get("version").and_then(Value::as_str),
-        Some("tooling_schema_v8")
+        Some("tooling_schema_v9")
     );
     assert_eq!(
         contract
@@ -50,6 +50,7 @@ fn evidence_card_schema_includes_trace_and_task_ids() {
         source_location: "payload".to_string(),
         excerpt: "x".to_string(),
         summary: "y".to_string(),
+        artifact_refs: vec![],
         confidence_vector: ConfidenceVector {
             relevance: 0.5,
             reliability: 0.6,
@@ -66,6 +67,7 @@ fn evidence_card_schema_includes_trace_and_task_ids() {
         .unwrap_or_default();
     assert!(keys.contains(&"trace_id".to_string()));
     assert!(keys.contains(&"task_id".to_string()));
+    assert!(keys.contains(&"artifact_refs".to_string()));
     assert_eq!(keys.len(), EVIDENCE_CARD_FIELDS.len());
 }
 
@@ -120,6 +122,8 @@ fn tool_capability_probe_schema_includes_status_and_required_args() {
                 selector_hint_allowed: true,
                 main_content_only_default: true,
                 max_chars: 12_000,
+                include_artifact_refs: false,
+                allowed_artifact_kinds: vec![],
                 readiness_supported_fields: vec!["timeout_ms".to_string()],
                 default_timeout_ms: 30_000,
                 dynamic_page_allowed: false,
@@ -228,6 +232,8 @@ fn capability_schema_serializes_tool_cd_metadata_without_changing_probe_contract
                 selector_hint_allowed: true,
                 main_content_only_default: true,
                 max_chars: 12_000,
+                include_artifact_refs: false,
+                allowed_artifact_kinds: vec![],
                 readiness_supported_fields: vec!["timeout_ms".to_string()],
                 default_timeout_ms: 30_000,
                 dynamic_page_allowed: false,

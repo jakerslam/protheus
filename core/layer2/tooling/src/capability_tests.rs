@@ -112,6 +112,7 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert_eq!(web_search_surface.cost_tier, "low");
     assert_eq!(web_search_surface.default_timeout_ms, 30_000);
     assert!(!web_search_surface.dynamic_page_allowed);
+    assert!(!web_search_surface.include_artifact_refs);
     assert_eq!(web_search_surface.session_state_scope, "stateless");
     assert_eq!(web_search_surface.session_pooling_mode, "none");
     let batch_query = catalog
@@ -134,6 +135,10 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
         .contract_surface
         .as_ref()
         .expect("web_fetch contract surface");
+    assert!(web_fetch_surface.include_artifact_refs);
+    assert!(web_fetch_surface
+        .allowed_artifact_kinds
+        .contains(&"screenshot".to_string()));
     assert!(web_fetch_surface.dynamic_page_allowed);
     assert!(web_fetch_surface.disable_resources_allowed);
     assert!(web_fetch_surface.block_ads_allowed);

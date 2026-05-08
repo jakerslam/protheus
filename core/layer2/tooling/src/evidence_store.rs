@@ -288,6 +288,7 @@ mod tests {
             source_location: "results[0]".to_string(),
             excerpt: "excerpt".to_string(),
             summary: "summary".to_string(),
+            artifact_refs: vec![],
             confidence_vector: ConfidenceVector {
                 relevance: 0.8,
                 reliability: 0.8,

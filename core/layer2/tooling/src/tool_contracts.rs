@@ -99,6 +99,10 @@ pub struct ToolEvidencePackagingContract {
     pub include_fetch_mode: bool,
     pub include_extraction_type: bool,
     pub include_quality_flags: bool,
+    #[serde(default)]
+    pub include_artifact_refs: bool,
+    #[serde(default)]
+    pub allowed_artifact_kinds: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -255,6 +259,14 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     {
         return Err(format!("evidence_packaging_incomplete:{tool_id}"));
     }
+    if contract.evidence_packaging.include_artifact_refs
+        && contract
+            .evidence_packaging
+            .allowed_artifact_kinds
+            .is_empty()
+    {
+        return Err(format!("artifact_kinds_required:{tool_id}"));
+    }
     if normalized_key(&contract.quality_classification.classifier).is_empty()
         || contract.quality_classification.status_fields.is_empty()
         || contract.quality_classification.content_fields.is_empty()
@@ -306,6 +318,7 @@ mod tests {
             .blocked_text_fragments
             .iter()
             .any(|row| row == "captcha"));
+        assert!(!contract.evidence_packaging.include_artifact_refs);
         assert!(contract.quality_lanes.contains(&"low_signal".to_string()));
         assert!(contract
             .quality_lanes
@@ -313,6 +326,12 @@ mod tests {
         assert_eq!(contract.session_policy.state_scope, "stateless");
         assert_eq!(contract.session_policy.pooling_mode, "none");
         assert_eq!(contract.session_policy.max_parallel_items_default, 1);
+        let fetch = tool_cd_contract_for("web_fetch").expect("web_fetch contract");
+        assert!(fetch.evidence_packaging.include_artifact_refs);
+        assert!(fetch
+            .evidence_packaging
+            .allowed_artifact_kinds
+            .contains(&"screenshot".to_string()));
     }
 
     #[test]

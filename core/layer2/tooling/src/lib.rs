@@ -9,6 +9,7 @@ pub mod capability_contract_surface;
 mod capability_tests;
 pub mod client_adapter;
 pub mod evidence_extractor;
+mod evidence_extractor_artifacts;
 #[cfg(test)]
 mod evidence_extractor_tests;
 pub mod evidence_quality;
@@ -45,11 +46,11 @@ pub use evidence_store::{
 };
 pub use request_validation::repair_and_validate_args;
 pub use schemas::{
-    published_schema_contract_v1, Claim, ClaimBundle, ClaimStatus, ConfidenceVector, EvidenceCard,
-    NormalizedToolMetrics, NormalizedToolResult, NormalizedToolStatus, WorkerBudgetUsed,
-    WorkerOutput, WorkerTaskStatus, CLAIM_BUNDLE_FIELDS, CLAIM_FIELDS, EVIDENCE_CARD_FIELDS,
-    NORMALIZED_TOOL_RESULT_FIELDS, TOOL_ATTEMPT_RECEIPT_FIELDS, TOOL_CAPABILITY_PROBE_FIELDS,
-    WORKER_OUTPUT_FIELDS,
+    published_schema_contract_v1, Claim, ClaimBundle, ClaimStatus, ConfidenceVector,
+    EvidenceArtifactRef, EvidenceCard, NormalizedToolMetrics, NormalizedToolResult,
+    NormalizedToolStatus, WorkerBudgetUsed, WorkerOutput, WorkerTaskStatus, CLAIM_BUNDLE_FIELDS,
+    CLAIM_FIELDS, EVIDENCE_CARD_FIELDS, NORMALIZED_TOOL_RESULT_FIELDS, TOOL_ATTEMPT_RECEIPT_FIELDS,
+    TOOL_CAPABILITY_PROBE_FIELDS, WORKER_OUTPUT_FIELDS,
 };
 pub use tool_broker::{
     BrokerCaller, BrokerError, ToolAttemptEnvelope, ToolAttemptReceipt, ToolAttemptStatus,
