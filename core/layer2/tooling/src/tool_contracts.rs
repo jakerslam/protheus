@@ -75,6 +75,9 @@ pub struct ToolResourcePolicyContract {
     pub disable_resources_allowed: bool,
     pub block_ads_allowed: bool,
     pub blocked_domains_allowed: bool,
+    pub blocked_domains_source: String,
+    #[serde(default)]
+    pub ad_block_profile_default: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -140,6 +143,8 @@ pub struct ToolQualityClassificationContract {
     pub retryable_status_codes: Vec<u16>,
     #[serde(default)]
     pub blocked_error_fragments: Vec<String>,
+    #[serde(default)]
+    pub proxy_error_fragments: Vec<String>,
     #[serde(default)]
     pub blocked_text_fragments: Vec<String>,
     #[serde(default)]
@@ -278,6 +283,20 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     if normalized_key(&contract.session_policy.state_scope).is_empty() {
         return Err(format!("session_state_scope_required:{tool_id}"));
     }
+    if normalized_key(&contract.resource_policy.blocked_domains_source).is_empty() {
+        return Err(format!("blocked_domains_source_required:{tool_id}"));
+    }
+    if contract.resource_policy.block_ads_allowed
+        && contract
+            .resource_policy
+            .ad_block_profile_default
+            .as_deref()
+            .map(normalized_key)
+            .unwrap_or_default()
+            .is_empty()
+    {
+        return Err(format!("ad_block_profile_required:{tool_id}"));
+    }
     if normalized_key(&contract.session_policy.pooling_mode).is_empty() {
         return Err(format!("session_pooling_mode_required:{tool_id}"));
     }
@@ -394,10 +413,16 @@ mod tests {
         assert_eq!(contract.operations, vec!["search".to_string()]);
         assert!(contract.optional_args.contains(&"aperture".to_string()));
         assert!(contract.optional_args.contains(&"source_scope".to_string()));
+        assert_eq!(contract.resource_policy.blocked_domains_source, "none");
         assert!(contract
             .quality_classification
             .blocked_status_codes
             .contains(&403));
+        assert!(contract
+            .quality_classification
+            .proxy_error_fragments
+            .iter()
+            .any(|row| row == "net::err_proxy"));
         assert!(contract
             .quality_classification
             .retryable_status_codes
@@ -430,6 +455,14 @@ mod tests {
         assert!(fetch.execution_policy.blocked_response_retry_allowed);
         assert_eq!(fetch.execution_policy.max_blocked_retries_default, 2);
         assert!(fetch.lifecycle.implicit_session_on_invoke);
+        assert_eq!(
+            fetch.resource_policy.blocked_domains_source,
+            "profile_or_custom"
+        );
+        assert_eq!(
+            fetch.resource_policy.ad_block_profile_default.as_deref(),
+            Some("built_in_ad_domains")
+        );
         assert_eq!(
             fetch.lifecycle.session_handle_arg.as_deref(),
             Some("session_id")

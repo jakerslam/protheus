@@ -39,7 +39,8 @@
       "resource_policy": {
         "disable_resources_allowed": false,
         "block_ads_allowed": false,
-        "blocked_domains_allowed": false
+        "blocked_domains_allowed": false,
+        "blocked_domains_source": "none"
       },
       "session_policy": {
         "state_scope": "stateless",
@@ -92,6 +93,15 @@
           "access denied",
           "captcha",
           "missing_credentials"
+        ],
+        "proxy_error_fragments": [
+          "net::err_proxy",
+          "net::err_tunnel",
+          "connection refused",
+          "connection reset",
+          "connection timed out",
+          "failed to connect",
+          "could not resolve proxy"
         ],
         "blocked_text_fragments": [
           "captcha",
@@ -180,7 +190,8 @@
       "resource_policy": {
         "disable_resources_allowed": false,
         "block_ads_allowed": false,
-        "blocked_domains_allowed": false
+        "blocked_domains_allowed": false,
+        "blocked_domains_source": "none"
       },
       "session_policy": {
         "state_scope": "stateless",
@@ -233,6 +244,15 @@
           "access denied",
           "captcha",
           "missing_credentials"
+        ],
+        "proxy_error_fragments": [
+          "net::err_proxy",
+          "net::err_tunnel",
+          "connection refused",
+          "connection reset",
+          "connection timed out",
+          "failed to connect",
+          "could not resolve proxy"
         ],
         "blocked_text_fragments": [
           "captcha",
@@ -333,7 +353,9 @@
       "resource_policy": {
         "disable_resources_allowed": true,
         "block_ads_allowed": true,
-        "blocked_domains_allowed": true
+        "blocked_domains_allowed": true,
+        "blocked_domains_source": "profile_or_custom",
+        "ad_block_profile_default": "built_in_ad_domains"
       },
       "session_policy": {
         "state_scope": "session_context",
@@ -386,6 +408,15 @@
           "access denied",
           "captcha",
           "missing_credentials"
+        ],
+        "proxy_error_fragments": [
+          "net::err_proxy",
+          "net::err_tunnel",
+          "connection refused",
+          "connection reset",
+          "connection timed out",
+          "failed to connect",
+          "could not resolve proxy"
         ],
         "blocked_text_fragments": [
           "captcha",

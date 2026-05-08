@@ -125,6 +125,8 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert!(!web_search_surface.include_artifact_refs);
     assert_eq!(web_search_surface.per_domain_concurrency_default, 0);
     assert!(!web_search_surface.blocked_response_retry_allowed);
+    assert_eq!(web_search_surface.blocked_domains_source, "none");
+    assert_eq!(web_search_surface.ad_block_profile_default, None);
     assert_eq!(web_search_surface.session_state_scope, "stateless");
     assert_eq!(web_search_surface.session_pooling_mode, "none");
     assert!(!web_search_surface.implicit_session_on_invoke);
@@ -175,6 +177,14 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert!(web_fetch_surface.disable_resources_allowed);
     assert!(web_fetch_surface.block_ads_allowed);
     assert!(web_fetch_surface.blocked_domains_allowed);
+    assert_eq!(
+        web_fetch_surface.blocked_domains_source,
+        "profile_or_custom"
+    );
+    assert_eq!(
+        web_fetch_surface.ad_block_profile_default.as_deref(),
+        Some("built_in_ad_domains")
+    );
     assert_eq!(web_fetch_surface.session_state_scope, "session_context");
     assert!(web_fetch_surface.session_reuse_allowed);
     assert_eq!(web_fetch_surface.session_pooling_mode, "serial_reuse");

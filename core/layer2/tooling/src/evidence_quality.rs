@@ -79,6 +79,20 @@ pub fn classify_tool_result_quality(
             "missing_credentials".to_string(),
         ]
     });
+    let proxy_error_fragments = quality_fragments(&contract, |row| {
+        row.quality_classification.proxy_error_fragments.clone()
+    })
+    .unwrap_or_else(|| {
+        vec![
+            "net::err_proxy".to_string(),
+            "net::err_tunnel".to_string(),
+            "connection refused".to_string(),
+            "connection reset".to_string(),
+            "connection timed out".to_string(),
+            "failed to connect".to_string(),
+            "could not resolve proxy".to_string(),
+        ]
+    });
     let blocked_text_fragments = quality_fragments(&contract, |row| {
         row.quality_classification.blocked_text_fragments.clone()
     })
@@ -152,14 +166,18 @@ pub fn classify_tool_result_quality(
         .copied()
         .any(|code| retryable_status_codes.contains(&code));
     let blocked_by_error = contains_any_strings(&lowered_errors, &blocked_error_fragments);
+    let proxy_error = contains_any_strings(&lowered_errors, &proxy_error_fragments);
     let blocked_by_text = contains_any_strings(&lowered_text, &blocked_text_fragments);
-    if blocked_by_status || blocked_by_error || blocked_by_text {
+    if blocked_by_status || blocked_by_error || proxy_error || blocked_by_text {
         lanes.insert("blocked".to_string());
         if blocked_by_status {
             reasons.insert("blocked_status".to_string());
         }
         if blocked_by_error {
             reasons.insert("blocked_error".to_string());
+        }
+        if proxy_error {
+            reasons.insert("proxy_transport_error".to_string());
         }
         if blocked_by_text {
             reasons.insert("blocked_text".to_string());
@@ -390,5 +408,21 @@ mod tests {
         assert!(quality
             .reasons
             .contains(&"escalation_candidate".to_string()));
+    }
+
+    #[test]
+    fn classifier_marks_proxy_transport_failures_as_blocked_quality() {
+        let quality = classify_tool_result_quality(
+            "web_fetch",
+            &json!({
+                "status": 502,
+                "content": ["temporary fetch failure"]
+            }),
+            &["NET::ERR_PROXY_CONNECTION_FAILED: connection refused".to_string()],
+        );
+        assert!(quality.lanes.contains(&"blocked".to_string()));
+        assert!(quality
+            .reasons
+            .contains(&"proxy_transport_error".to_string()));
     }
 }
