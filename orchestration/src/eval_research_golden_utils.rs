@@ -1,10 +1,21 @@
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
+use std::env;
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::thread::sleep;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+const DASHBOARD_STATE_ROOT_ENV: &str = "INFRING_TOOLING_DASHBOARD_STATE_ROOT";
+const AGENT_SESSIONS_SUBDIR: &str = "agent_sessions";
+
+#[derive(Clone, Debug, Default)]
+struct SessionSnapshot {
+    total_messages: usize,
+    assistant_messages: usize,
+}
 
 pub(super) fn load_responses_by_case(path: &str) -> BTreeMap<String, Value> {
     let input = read_json(path);
@@ -126,10 +137,37 @@ pub(super) fn post_agent_message(
     timeout_seconds: u64,
 ) -> Value {
     let path = format!("/api/agents/{agent_id}/message");
+    let timeout_recovery = dashboard_state_root().map(|root| {
+        (
+            root.clone(),
+            session_snapshot_from_state_root(&root, agent_id),
+        )
+    });
     let response = post_json(base_url, &path, request, timeout_seconds);
     if is_retryable_curl_timeout(&response) {
-        let retry_timeout_seconds = timeout_seconds.saturating_add(15).min(120);
-        return post_json(base_url, &path, request, retry_timeout_seconds);
+        if let Some((dashboard_state_root, baseline_snapshot)) = timeout_recovery.as_ref() {
+            if let Some(recovered) = recover_timed_out_response_from_state(
+                dashboard_state_root,
+                agent_id,
+                baseline_snapshot,
+                timeout_seconds,
+            ) {
+                return recovered;
+            }
+        }
+        let mut timed_out = response;
+        if let Some(object) = timed_out.as_object_mut() {
+            object.insert("timeout_recovery_attempted".to_string(), Value::Bool(true));
+            object.insert(
+                "timeout_recovery_source".to_string(),
+                Value::String("agent_session_state".to_string()),
+            );
+            object.insert(
+                "timeout_recovery_ready".to_string(),
+                Value::Bool(timeout_recovery.is_some()),
+            );
+        }
+        return timed_out;
     }
     response
 }
@@ -145,6 +183,230 @@ fn is_retryable_curl_timeout(payload: &Value) -> bool {
             .and_then(Value::as_str)
             .map(|stderr| stderr.to_ascii_lowercase().contains("timed out"))
             .unwrap_or(false)
+}
+
+fn dashboard_state_root() -> Option<PathBuf> {
+    if let Ok(raw) = env::var(DASHBOARD_STATE_ROOT_ENV) {
+        let candidate = PathBuf::from(raw.trim());
+        if !candidate.as_os_str().is_empty() && candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    let candidate = repo_root().join("client/runtime/local/state/ui/infring_dashboard");
+    candidate.exists().then_some(candidate)
+}
+
+fn repo_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")))
+        .to_path_buf()
+}
+
+fn agent_sessions_dir(dashboard_state_root: &Path) -> PathBuf {
+    if dashboard_state_root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name == AGENT_SESSIONS_SUBDIR)
+        .unwrap_or(false)
+    {
+        return dashboard_state_root.to_path_buf();
+    }
+    dashboard_state_root.join(AGENT_SESSIONS_SUBDIR)
+}
+
+fn session_path_from_state_root(dashboard_state_root: &Path, agent_id: &str) -> PathBuf {
+    agent_sessions_dir(dashboard_state_root).join(format!("{}.json", normalize_agent_id(agent_id)))
+}
+
+fn session_messages_from_state_root(dashboard_state_root: &Path, agent_id: &str) -> Vec<Value> {
+    let state = read_json_path(&session_path_from_state_root(dashboard_state_root, agent_id));
+    let active_id = clean_text(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+        120,
+    );
+    let sessions = state
+        .get("sessions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let row = sessions
+        .iter()
+        .find(|session| {
+            clean_text(
+                session
+                    .get("session_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                120,
+            ) == active_id
+        })
+        .or_else(|| sessions.first());
+    row.and_then(|session| session.get("messages"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn session_snapshot_from_state_root(
+    dashboard_state_root: &Path,
+    agent_id: &str,
+) -> SessionSnapshot {
+    let messages = session_messages_from_state_root(dashboard_state_root, agent_id);
+    let assistant_messages = messages
+        .iter()
+        .filter(|row| message_role(row).eq_ignore_ascii_case("assistant"))
+        .count();
+    SessionSnapshot {
+        total_messages: messages.len(),
+        assistant_messages,
+    }
+}
+
+fn recover_timed_out_response_from_state(
+    dashboard_state_root: &Path,
+    agent_id: &str,
+    baseline_snapshot: &SessionSnapshot,
+    timeout_seconds: u64,
+) -> Option<Value> {
+    // Live research turns can keep running after the HTTP client gives up, so
+    // give the persisted session state a wider window than the request budget.
+    let recovery_budget_seconds = timeout_seconds
+        .saturating_mul(2)
+        .saturating_add(60)
+        .clamp(30, 300);
+    let deadline = Instant::now() + Duration::from_secs(recovery_budget_seconds);
+    loop {
+        if let Some(recovered) = recovered_payload_from_state(
+            dashboard_state_root,
+            agent_id,
+            baseline_snapshot,
+        ) {
+            return Some(recovered);
+        }
+        if Instant::now() >= deadline {
+            return None;
+        }
+        sleep(Duration::from_millis(1500));
+    }
+}
+
+fn recovered_payload_from_state(
+    dashboard_state_root: &Path,
+    agent_id: &str,
+    baseline_snapshot: &SessionSnapshot,
+) -> Option<Value> {
+    let messages = session_messages_from_state_root(dashboard_state_root, agent_id);
+    if messages.len() <= baseline_snapshot.total_messages {
+        return None;
+    }
+    let assistant_rows_seen = messages
+        .iter()
+        .filter(|row| message_role(row).eq_ignore_ascii_case("assistant"))
+        .count();
+    if assistant_rows_seen <= baseline_snapshot.assistant_messages {
+        return None;
+    }
+    let assistant_row = messages
+        .iter()
+        .enumerate()
+        .rev()
+        .find(|(idx, row)| {
+            *idx >= baseline_snapshot.total_messages
+                && message_role(row).eq_ignore_ascii_case("assistant")
+                && !clean_text(
+                    row.get("text")
+                        .or_else(|| row.get("content"))
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    64_000,
+                )
+                .is_empty()
+        })
+        .map(|(_, row)| row.clone())?;
+    assistant_row_to_payload(&assistant_row)
+}
+
+fn assistant_row_to_payload(row: &Value) -> Option<Value> {
+    let response_text = row
+        .get("text")
+        .or_else(|| row.get("content"))
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 64_000))
+        .filter(|raw| !raw.is_empty())?;
+    let mut payload = json!({
+        "ok": true,
+        "response": response_text,
+        "text": response_text,
+        "message": response_text,
+        "recovered_from_timeout": true,
+        "recovery_source": "agent_session_state"
+    });
+    if let Some(object) = row.as_object() {
+        for key in [
+            "tools",
+            "response_workflow",
+            "response_finalization",
+            "process_summary",
+            "workflow_visibility",
+            "turn_transaction",
+            "terminal_transcript",
+            "agent_health_snapshot",
+            "live_eval_monitor",
+            "dashboard_health_indicator",
+        ] {
+            if let Some(value) = object.get(key) {
+                payload[key] = value.clone();
+            }
+        }
+    }
+    if let Some(pending_request) = row
+        .pointer("/response_workflow/pending_tool_request")
+        .or_else(|| row.pointer("/response_workflow/manual_toolbox_pending_tool_request"))
+        .or_else(|| row.pointer("/response_finalization/pending_tool_request"))
+        .cloned()
+    {
+        payload["pending_tool_request"] = pending_request;
+    }
+    if let Some(provider) = row
+        .pointer("/response_workflow/final_llm_response/provider")
+        .and_then(Value::as_str)
+    {
+        payload["provider"] = Value::String(clean_text(provider, 160));
+    }
+    if let Some(model) = row
+        .pointer("/response_workflow/final_llm_response/model")
+        .and_then(Value::as_str)
+    {
+        payload["model"] = Value::String(clean_text(model, 240));
+    }
+    if let Some(runtime_model) = row
+        .pointer("/response_workflow/final_llm_response/runtime_model")
+        .and_then(Value::as_str)
+    {
+        payload["runtime_model"] = Value::String(clean_text(runtime_model, 240));
+    }
+    Some(payload)
+}
+
+fn read_json_path(path: &Path) -> Value {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+        .unwrap_or_else(|| json!({}))
+}
+
+fn message_role(row: &Value) -> String {
+    let raw = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
+        .to_ascii_lowercase();
+    if raw.is_empty() {
+        "assistant".to_string()
+    } else {
+        raw
+    }
 }
 
 fn curl_json(
@@ -380,6 +642,18 @@ pub(super) fn print_json_line(value: &Value) {
 #[cfg(test)]
 mod eval_research_golden_utils_tests {
     use super::*;
+    use std::path::PathBuf;
+
+    fn temp_path(name: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "eval-research-golden-utils-{}-{}",
+            name,
+            now_iso_like()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).expect("temp root");
+        root
+    }
 
     #[test]
     fn retryable_curl_timeout_matches_timeout_stderr() {
@@ -399,5 +673,97 @@ mod eval_research_golden_utils_tests {
             "stderr": "curl: (7) Failed to connect to 127.0.0.1 port 4173"
         });
         assert!(!is_retryable_curl_timeout(&payload));
+    }
+
+    #[test]
+    fn assistant_row_to_payload_recovers_workflow_metadata() {
+        let row = json!({
+            "role": "assistant",
+            "text": "Recovered answer",
+            "tools": [{"name": "web_search", "status": "ok"}],
+            "response_workflow": {
+                "final_llm_response": {
+                    "status": "synthesized",
+                    "provider": "ollama",
+                    "model": "kimi-k2.6:cloud",
+                    "runtime_model": "kimi-k2.6:cloud"
+                },
+                "pending_tool_request": {"status": "pending_confirmation", "tool_name": "web_search"}
+            },
+            "response_finalization": {
+                "outcome": "workflow_authored+workflow:synthesized"
+            },
+            "process_summary": {"contract": "turn_process_summary_v1"},
+            "workflow_visibility": {"current_stage_status": "synthesized"}
+        });
+        let payload = assistant_row_to_payload(&row).expect("payload");
+        assert_eq!(
+            payload.get("response").and_then(Value::as_str),
+            Some("Recovered answer")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_workflow/final_llm_response/status")
+                .and_then(Value::as_str),
+            Some("synthesized")
+        );
+        assert_eq!(
+            payload.get("runtime_model").and_then(Value::as_str),
+            Some("kimi-k2.6:cloud")
+        );
+        assert_eq!(
+            payload
+                .pointer("/pending_tool_request/tool_name")
+                .and_then(Value::as_str),
+            Some("web_search")
+        );
+        assert_eq!(
+            payload.get("recovered_from_timeout").and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn recovered_payload_uses_first_new_assistant_turn_after_baseline() {
+        let root = temp_path("session-recovery");
+        let sessions_dir = root.join(AGENT_SESSIONS_SUBDIR);
+        fs::create_dir_all(&sessions_dir).expect("sessions dir");
+        let agent_id = "agent-recovery";
+        let session = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "label": "Session",
+                "created_at": "2026-05-08T00:00:00Z",
+                "updated_at": "2026-05-08T00:00:00Z",
+                "messages": [
+                    {"role": "user", "text": "old question"},
+                    {"role": "assistant", "text": "old answer", "response_workflow": {"final_llm_response": {"status": "synthesized"}}},
+                    {"role": "user", "text": "new question"},
+                    {"role": "assistant", "text": "new answer", "response_workflow": {"final_llm_response": {"status": "synthesized", "model": "kimi-k2.6:cloud"}}}
+                ]
+            }],
+            "memory_kv": {}
+        });
+        fs::write(
+            sessions_dir.join(format!("{}.json", agent_id)),
+            format!("{}\n", serde_json::to_string_pretty(&session).expect("json")),
+        )
+        .expect("session write");
+        let baseline = SessionSnapshot {
+            total_messages: 2,
+            assistant_messages: 1,
+        };
+        let payload =
+            recovered_payload_from_state(&root, agent_id, &baseline).expect("recovered");
+        assert_eq!(
+            payload.get("response").and_then(Value::as_str),
+            Some("new answer")
+        );
+        assert_eq!(
+            payload.get("model").and_then(Value::as_str),
+            Some("kimi-k2.6:cloud")
+        );
     }
 }
