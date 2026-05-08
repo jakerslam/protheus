@@ -4,12 +4,19 @@
 
 pub mod backend_registry;
 pub mod capability;
+#[cfg(test)]
+mod capability_tests;
 pub mod client_adapter;
 pub mod evidence_extractor;
 pub mod evidence_store;
 mod request_validation;
+#[cfg(test)]
+mod request_validation_tests;
 pub mod schemas;
+#[cfg(test)]
+mod schemas_tests;
 pub mod tool_broker;
+pub mod tool_contracts;
 pub mod verifier;
 
 pub use backend_registry::{live_backend_registry, ToolBackendClass, ToolBackendHealth};
@@ -35,6 +42,12 @@ pub use tool_broker::{
     BrokerCaller, BrokerError, ToolAttemptEnvelope, ToolAttemptReceipt, ToolAttemptStatus,
     ToolBroker, ToolBrokerExecution, ToolCallRequest, ToolExecutionReceipt,
     ToolExecutionReceiptStatus, ToolSubstrateHealthReport,
+};
+pub use tool_contracts::{
+    published_tool_cd_catalog_v1, tool_cd_contract_for, tool_cd_contract_index_v1,
+    validate_tool_cd_catalog, ToolCdCatalog, ToolCdContract, ToolEvidencePackagingContract,
+    ToolExtractionContract, ToolReadinessContract, ToolResourcePolicyContract,
+    ToolRetrievalContract, ToolSafetyContract, ToolSessionPolicyContract, ToolVisibilityContract,
 };
 pub use verifier::StructuredVerifier;
 

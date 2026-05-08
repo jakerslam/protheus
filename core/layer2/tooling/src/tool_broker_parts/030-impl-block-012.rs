@@ -321,6 +321,18 @@ impl ToolBroker {
         if !model_surface_hint.is_empty() {
             lineage.push(format!("model_surface:{model_surface_hint}"));
         }
+        if let Some(contract) = crate::tool_contracts::tool_cd_contract_for(&tool_name) {
+            lineage.push(format!("tool_cd:{}", contract.tool_id));
+            lineage.push(format!("retrieval_mode:{}", contract.retrieval.mode));
+            lineage.push(format!(
+                "quality_lanes:{}",
+                contract.quality_lanes.join(",")
+            ));
+            lineage.push(format!(
+                "extraction_default:{}",
+                contract.extraction.default_type
+            ));
+        }
         lineage.push(format!("broker_event:{event_id}"));
         let normalized_result = NormalizedToolResult {
             result_id,

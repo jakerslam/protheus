@@ -200,6 +200,12 @@ fn tool_payload_evidence_count(payload: &Value) -> usize {
                 "files",
                 "evidence",
                 "matches",
+                "search_results",
+                "provider_results",
+                "hits",
+                "links",
+                "sources",
+                "evidence_refs",
             ] {
                 if let Some(Value::Array(rows)) = map.get(key) {
                     return rows.len();

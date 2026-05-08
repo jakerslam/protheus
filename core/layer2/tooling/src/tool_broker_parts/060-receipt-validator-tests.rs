@@ -36,6 +36,42 @@ mod receipt_validator_tests {
     }
 
     #[test]
+    fn web_tool_cd_metadata_reaches_normalized_result_lineage() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-tool-cd".to_string(),
+                    task_id: "task-tool-cd".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"contract metadata"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Client,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"search_results":[{"summary":"usable evidence"}]})),
+            )
+            .expect("execution");
+        assert!(out
+            .normalized_result
+            .lineage
+            .contains(&"tool_cd:web_search".to_string()));
+        assert!(out
+            .normalized_result
+            .lineage
+            .contains(&"retrieval_mode:search".to_string()));
+        assert!(out
+            .normalized_result
+            .lineage
+            .iter()
+            .any(|row| row.starts_with("quality_lanes:") && row.contains("low_signal")));
+        assert_eq!(out.execution_receipt.evidence_count, 1);
+    }
+
+    #[test]
     fn unknown_tool_returns_tool_not_found_receipt() {
         let mut broker = ToolBroker::default();
         let envelope = broker.execute_and_envelope(

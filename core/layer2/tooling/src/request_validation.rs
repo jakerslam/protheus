@@ -103,6 +103,13 @@ fn route_hint_from_workspace_query(query: &str) -> &'static str {
     "workspace_general"
 }
 
+fn route_hint_from_workspace_shape(query: &str, command: &str) -> &'static str {
+    if !command.trim().is_empty() {
+        return "terminal_exec";
+    }
+    route_hint_from_workspace_query(query)
+}
+
 pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, BrokerError> {
     let mut map = args
         .as_object()
@@ -110,11 +117,13 @@ pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, 
         .ok_or_else(|| BrokerError::InvalidArgs("args_must_be_object".to_string()))?;
     set_if_missing(&mut map, "query", "q");
     set_if_missing(&mut map, "query", "task");
-    set_if_missing(&mut map, "query", "path");
-    set_if_missing(&mut map, "query", "pattern");
-    set_if_missing(&mut map, "query", "needle");
-    set_if_missing(&mut map, "query", "search");
-    set_if_missing(&mut map, "query", "text");
+    if tool_name != "workspace_analyze" {
+        set_if_missing(&mut map, "query", "path");
+        set_if_missing(&mut map, "query", "pattern");
+        set_if_missing(&mut map, "query", "needle");
+        set_if_missing(&mut map, "query", "search");
+        set_if_missing(&mut map, "query", "text");
+    }
     set_if_missing(&mut map, "query", "workspace_query");
     set_if_missing(&mut map, "query", "workspace_context");
     set_if_missing(&mut map, "query", "context");
@@ -142,9 +151,26 @@ pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, 
     set_if_missing(&mut map, "agent_id", "target_agent_id");
     set_if_missing(&mut map, "agent_id", "session_id");
     for alias in [
-        "q", "file_path", "workspace_path", "repo_path", "repository_path", "sources", "files",
-        "file", "cwd", "working_directory", "uri", "original_url", "repository_url", "repo_url",
-        "cmd", "shell_command", "powershell", "command_line", "prompt", "target_agent_id",
+        "q",
+        "file_path",
+        "workspace_path",
+        "repo_path",
+        "repository_path",
+        "sources",
+        "files",
+        "file",
+        "cwd",
+        "working_directory",
+        "uri",
+        "original_url",
+        "repository_url",
+        "repo_url",
+        "cmd",
+        "shell_command",
+        "powershell",
+        "command_line",
+        "prompt",
+        "target_agent_id",
     ] {
         map.remove(alias);
     }
@@ -278,14 +304,19 @@ pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, 
             if !path_rows.is_empty() {
                 repaired_map.insert("paths".to_string(), json!(path_rows.clone()));
             }
+            let pattern_hint = repaired_map
+                .get("pattern")
+                .or_else(|| repaired_map.get("needle"))
+                .or_else(|| repaired_map.get("text"))
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 400))
+                .unwrap_or_default();
+            let command_hint = repaired_map
+                .get("command")
+                .and_then(Value::as_str)
+                .map(|v| clean_text(v, 600))
+                .unwrap_or_default();
             if query.is_empty() {
-                let pattern = repaired_map
-                    .get("pattern")
-                    .or_else(|| repaired_map.get("needle"))
-                    .or_else(|| repaired_map.get("text"))
-                    .and_then(Value::as_str)
-                    .map(|v| clean_text(v, 400))
-                    .unwrap_or_default();
                 let path = repaired_map
                     .get("path")
                     .and_then(Value::as_str)
@@ -296,31 +327,26 @@ pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, 
                 } else {
                     path.clone()
                 };
-                let command = repaired_map
-                    .get("command")
-                    .and_then(Value::as_str)
-                    .map(|v| clean_text(v, 600))
-                    .unwrap_or_default();
                 let url = repaired_map
                     .get("url")
                     .and_then(Value::as_str)
                     .map(|v| clean_text(v, 1200))
                     .unwrap_or_default();
                 query = match (
-                    pattern.is_empty(),
+                    pattern_hint.is_empty(),
                     path_scope.is_empty(),
                     context_mentions.is_empty(),
                 ) {
-                    (false, false, _) => format!("search `{pattern}` in `{path_scope}`"),
-                    (false, true, _) => pattern,
+                    (false, false, _) => format!("search `{pattern_hint}` in `{path_scope}`"),
+                    (false, true, _) => pattern_hint.clone(),
                     (true, false, _) => format!("inspect `{path_scope}`"),
                     (true, true, false) => {
                         format!("synthesize context from {}", context_mentions.join(", "))
                     }
                     (true, true, true) => String::new(),
                 };
-                if query.is_empty() && !command.is_empty() {
-                    query = format!("analyze command behavior `{command}`");
+                if query.is_empty() && !command_hint.is_empty() {
+                    query = format!("analyze command behavior `{command_hint}`");
                 }
                 if query.is_empty() && !url.is_empty() {
                     query = format!("inspect repository source `{url}`");
@@ -334,7 +360,7 @@ pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, 
             }
             repaired_map.insert(
                 "route_hint".to_string(),
-                Value::String(route_hint_from_workspace_query(&query).to_string()),
+                Value::String(route_hint_from_workspace_shape(&query, &command_hint).to_string()),
             );
         }
         "spawn_subagents" => {
@@ -365,105 +391,11 @@ pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, 
                 return Err(BrokerError::InvalidArgs("agent_id_required".to_string()));
             }
         }
-        _ => return Err(BrokerError::InvalidArgs("unsupported_tool_name".to_string())),
+        _ => {
+            return Err(BrokerError::InvalidArgs(
+                "unsupported_tool_name".to_string(),
+            ))
+        }
     }
     Ok(Value::Object(repaired_map))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validation_accepts_governed_tooling_surface_contracts() {
-        let folder = repair_and_validate_args("folder_export", &json!({"path":"notes"}))
-            .expect("folder_export");
-        let batch = repair_and_validate_args(
-            "batch_query",
-            &json!({"queries":["langgraph observability", "langsmith tracing"]}),
-        )
-        .expect("batch_query");
-        let terminal = repair_and_validate_args("terminal_exec", &json!({"cmd":"ls -la"}))
-            .expect("terminal_exec");
-        let workspace = repair_and_validate_args(
-            "workspace_analyze",
-            &json!({"query":"inspect the workspace tree"}),
-        )
-        .expect("workspace_analyze");
-        let spawn =
-            repair_and_validate_args("spawn_subagents", &json!({"task":"parallelize tool audit"}))
-                .expect("spawn_subagents");
-        let manage = repair_and_validate_args(
-            "manage_agent",
-            &json!({"action":"message","session_id":"agent-7"}),
-        )
-        .expect("manage_agent");
-
-        assert_eq!(folder.get("path").and_then(Value::as_str), Some("notes"));
-        assert_eq!(batch.get("query").and_then(Value::as_str), Some("langgraph observability"));
-        assert_eq!(batch.get("aperture").and_then(Value::as_str), Some("medium"));
-        assert_eq!(terminal.get("command").and_then(Value::as_str), Some("ls -la"));
-        assert_eq!(workspace.get("query").and_then(Value::as_str), Some("inspect the workspace tree"));
-        assert_eq!(spawn.get("objective").and_then(Value::as_str), Some("parallelize tool audit"));
-        assert_eq!(manage.get("agent_id").and_then(Value::as_str), Some("agent-7"));
-    }
-
-    #[test]
-    fn file_read_many_normalizes_single_path_into_paths_array() {
-        let normalized =
-            repair_and_validate_args("file_read_many", &json!({"path":"docs/plan.md"}))
-                .expect("file_read_many");
-        assert_eq!(normalized.get("path"), None);
-        assert_eq!(
-            normalized
-                .get("paths")
-                .and_then(Value::as_array)
-                .and_then(|rows| rows.first())
-                .and_then(Value::as_str),
-            Some("docs/plan.md")
-        );
-    }
-
-    #[test]
-    fn workspace_analyze_synthesizes_query_from_workspace_pattern_aliases() {
-        let normalized = repair_and_validate_args(
-            "workspace_analyze",
-            &json!({"workspace_path":"core/layer2/tooling", "pattern":"tool_route"}),
-        )
-        .expect("workspace_analyze");
-        assert_eq!(normalized.get("query").and_then(Value::as_str), Some("search `tool_route` in `core/layer2/tooling`"));
-    }
-
-    #[test]
-    fn workspace_analyze_synthesizes_query_from_context_mentions() {
-        let normalized = repair_and_validate_args(
-            "workspace_analyze",
-            &json!({"mentions":["tool_broker", "request_validation"]}),
-        )
-        .expect("workspace_analyze");
-        assert_eq!(normalized.get("query").and_then(Value::as_str), Some("synthesize context from tool_broker, request_validation"));
-        assert_eq!(normalized.get("context_mentions").and_then(Value::as_array).map(|rows| rows.len()), Some(2));
-        assert_eq!(normalized.get("route_hint").and_then(Value::as_str), Some("workspace_general"));
-    }
-
-    #[test]
-    fn file_read_many_parses_delimited_paths_string() {
-        let normalized = repair_and_validate_args(
-            "file_read_many",
-            &json!({"paths":"docs/a.md, docs/b.md\ndocs/c.md"}),
-        )
-        .expect("file_read_many");
-        assert_eq!(normalized.get("paths").and_then(Value::as_array).map(|rows| rows.len()), Some(3));
-    }
-
-    #[test]
-    fn workspace_analyze_uses_command_alias_when_query_missing() {
-        let normalized = repair_and_validate_args(
-            "workspace_analyze",
-            &json!({"powershell":"Get-ChildItem -Force"}),
-        )
-        .expect("workspace_analyze");
-        assert_eq!(normalized.get("query").and_then(Value::as_str), Some("analyze command behavior `Get-ChildItem -Force`"));
-        assert_eq!(normalized.get("route_hint").and_then(Value::as_str), Some("terminal_exec"));
-    }
 }

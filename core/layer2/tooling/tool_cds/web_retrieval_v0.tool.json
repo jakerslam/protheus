@@ -1,0 +1,198 @@
+{
+  "version": "tool_cd_web_retrieval_v0",
+  "source": "scrapling_pattern_assimilation_v0",
+  "contracts": [
+    {
+      "tool_id": "web_search",
+      "capability_family": "web_retrieval",
+      "required_args": ["query"],
+      "aliases": ["web_lookup", "browse_web"],
+      "retrieval": {
+        "mode": "search",
+        "supports_bulk": false,
+        "max_bulk_items": 1,
+        "cost_tier": "low",
+        "requires_network": true
+      },
+      "extraction": {
+        "default_type": "markdown",
+        "allowed_types": ["markdown", "html", "text"],
+        "selector_hint_allowed": true,
+        "main_content_only_default": true,
+        "max_chars": 12000
+      },
+      "readiness": {
+        "supported_fields": ["timeout_ms"],
+        "default_timeout_ms": 30000,
+        "dynamic_page_allowed": false
+      },
+      "resource_policy": {
+        "disable_resources_allowed": false,
+        "block_ads_allowed": false,
+        "blocked_domains_allowed": false
+      },
+      "session_policy": {
+        "reuse_allowed": false,
+        "max_pages_default": 1,
+        "close_on_complete_default": true
+      },
+      "safety": {
+        "ssrf_guard_required": true,
+        "redirect_policy": "bounded",
+        "prompt_injection_sanitizer_required": true,
+        "raw_payload_chat_visible": false
+      },
+      "evidence_packaging": {
+        "include_content_excerpt": true,
+        "include_source_url": true,
+        "include_status": true,
+        "include_fetch_mode": true,
+        "include_extraction_type": true,
+        "include_quality_flags": true
+      },
+      "quality_lanes": [
+        "usable",
+        "partial",
+        "low_signal",
+        "irrelevant_or_off_topic",
+        "blocked",
+        "needs_js",
+        "needs_dynamic",
+        "absent"
+      ],
+      "visibility": {
+        "raw_payload_chat_visible": false,
+        "tool_trace_chat_visible": false,
+        "final_answer_requires_synthesis": true
+      }
+    },
+    {
+      "tool_id": "batch_query",
+      "capability_family": "web_retrieval",
+      "required_args": ["query"],
+      "aliases": ["web_research"],
+      "retrieval": {
+        "mode": "search_pack",
+        "supports_bulk": true,
+        "max_bulk_items": 6,
+        "cost_tier": "medium",
+        "requires_network": true
+      },
+      "extraction": {
+        "default_type": "markdown",
+        "allowed_types": ["markdown", "html", "text"],
+        "selector_hint_allowed": true,
+        "main_content_only_default": true,
+        "max_chars": 24000
+      },
+      "readiness": {
+        "supported_fields": ["timeout_ms"],
+        "default_timeout_ms": 45000,
+        "dynamic_page_allowed": false
+      },
+      "resource_policy": {
+        "disable_resources_allowed": false,
+        "block_ads_allowed": false,
+        "blocked_domains_allowed": false
+      },
+      "session_policy": {
+        "reuse_allowed": false,
+        "max_pages_default": 1,
+        "close_on_complete_default": true
+      },
+      "safety": {
+        "ssrf_guard_required": true,
+        "redirect_policy": "bounded",
+        "prompt_injection_sanitizer_required": true,
+        "raw_payload_chat_visible": false
+      },
+      "evidence_packaging": {
+        "include_content_excerpt": true,
+        "include_source_url": true,
+        "include_status": true,
+        "include_fetch_mode": true,
+        "include_extraction_type": true,
+        "include_quality_flags": true
+      },
+      "quality_lanes": [
+        "usable",
+        "partial",
+        "low_signal",
+        "irrelevant_or_off_topic",
+        "blocked",
+        "needs_js",
+        "needs_dynamic",
+        "absent"
+      ],
+      "visibility": {
+        "raw_payload_chat_visible": false,
+        "tool_trace_chat_visible": false,
+        "final_answer_requires_synthesis": true
+      }
+    },
+    {
+      "tool_id": "web_fetch",
+      "capability_family": "web_retrieval",
+      "required_args": ["url"],
+      "aliases": ["web_read", "read_url"],
+      "retrieval": {
+        "mode": "fetch",
+        "supports_bulk": false,
+        "max_bulk_items": 1,
+        "cost_tier": "low",
+        "requires_network": true
+      },
+      "extraction": {
+        "default_type": "markdown",
+        "allowed_types": ["markdown", "html", "text"],
+        "selector_hint_allowed": true,
+        "main_content_only_default": true,
+        "max_chars": 12000
+      },
+      "readiness": {
+        "supported_fields": ["timeout_ms", "wait_selector", "network_idle"],
+        "default_timeout_ms": 30000,
+        "dynamic_page_allowed": true
+      },
+      "resource_policy": {
+        "disable_resources_allowed": true,
+        "block_ads_allowed": true,
+        "blocked_domains_allowed": true
+      },
+      "session_policy": {
+        "reuse_allowed": true,
+        "max_pages_default": 1,
+        "close_on_complete_default": true
+      },
+      "safety": {
+        "ssrf_guard_required": true,
+        "redirect_policy": "bounded",
+        "prompt_injection_sanitizer_required": true,
+        "raw_payload_chat_visible": false
+      },
+      "evidence_packaging": {
+        "include_content_excerpt": true,
+        "include_source_url": true,
+        "include_status": true,
+        "include_fetch_mode": true,
+        "include_extraction_type": true,
+        "include_quality_flags": true
+      },
+      "quality_lanes": [
+        "usable",
+        "partial",
+        "low_signal",
+        "irrelevant_or_off_topic",
+        "blocked",
+        "needs_js",
+        "needs_dynamic",
+        "absent"
+      ],
+      "visibility": {
+        "raw_payload_chat_visible": false,
+        "tool_trace_chat_visible": false,
+        "final_answer_requires_synthesis": true
+      }
+    }
+  ]
+}

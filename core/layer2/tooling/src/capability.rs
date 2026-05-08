@@ -1,5 +1,6 @@
 // Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 use crate::backend_registry::{live_backend_registry, live_backend_status_for, ToolBackendClass};
+use crate::tool_contracts::tool_cd_contract_for;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -44,6 +45,12 @@ pub enum ToolCapabilityDomain {
 pub struct ToolCapability {
     pub tool_name: String,
     pub domain: ToolCapabilityDomain,
+    #[serde(default)]
+    pub capability_family: Option<String>,
+    #[serde(default)]
+    pub retrieval_mode: Option<String>,
+    #[serde(default)]
+    pub quality_lanes: Vec<String>,
     pub required_args: Vec<String>,
     pub allowed_callers: Vec<BrokerCaller>,
     pub backend: String,
@@ -227,9 +234,20 @@ pub fn all_capabilities_for_callers(
             BrokerCaller::Worker => 1,
             BrokerCaller::System => 2,
         });
+        let tool_cd = tool_cd_contract_for(&tool_name);
         out.push(ToolCapability {
             tool_name,
             domain: spec.domain,
+            capability_family: tool_cd
+                .as_ref()
+                .map(|contract| contract.capability_family.clone()),
+            retrieval_mode: tool_cd
+                .as_ref()
+                .map(|contract| contract.retrieval.mode.clone()),
+            quality_lanes: tool_cd
+                .as_ref()
+                .map(|contract| contract.quality_lanes.clone())
+                .unwrap_or_default(),
             required_args: spec.required_args,
             allowed_callers: callers,
             backend: spec.backend,
@@ -420,104 +438,4 @@ pub fn required_args_for(tool_name: &str) -> Vec<String> {
         .get(tool_name)
         .map(|spec| spec.required_args.clone())
         .unwrap_or_default()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::{HashMap, HashSet};
-
-    #[test]
-    fn workspace_analyze_contract_is_query_driven() {
-        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
-        allowed.insert(
-            BrokerCaller::Client,
-            ["workspace_analyze"]
-                .iter()
-                .map(|row| row.to_string())
-                .collect::<HashSet<_>>(),
-        );
-        let probe = capability_probe_for(&allowed, BrokerCaller::Client, "workspace_analyze");
-        assert!(probe.available);
-        assert_eq!(probe.required_args, vec!["query".to_string()]);
-        assert_eq!(probe.reason_code, ToolReasonCode::Ok);
-    }
-
-    #[test]
-    fn probe_includes_live_backend_health_fields() {
-        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
-        allowed.insert(
-            BrokerCaller::Client,
-            ["web_search"]
-                .iter()
-                .map(|row| row.to_string())
-                .collect::<HashSet<_>>(),
-        );
-        let probe = capability_probe_for(&allowed, BrokerCaller::Client, "web_search");
-        assert_eq!(probe.backend, "retrieval_plane");
-        assert_eq!(probe.backend_class, ToolBackendClass::RetrievalPlane);
-        assert!(!probe.backend_reason.is_empty());
-    }
-
-    #[test]
-    fn grouped_catalog_clusters_tools_by_domain() {
-        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
-        allowed.insert(
-            BrokerCaller::Client,
-            [
-                "web_search",
-                "web_fetch",
-                "file_read",
-                "workspace_analyze",
-                "spawn_subagents",
-                "terminal_exec",
-            ]
-            .iter()
-            .map(|row| row.to_string())
-            .collect::<HashSet<_>>(),
-        );
-        let grouped = grouped_capabilities_for_callers(&allowed);
-        assert!(grouped.iter().any(|row| {
-            row.domain == ToolCapabilityDomain::Web
-                && row.tools.iter().any(|tool| tool.tool_name == "web_search")
-        }));
-        assert!(grouped.iter().any(|row| {
-            row.domain == ToolCapabilityDomain::File
-                && row.tools.iter().any(|tool| tool.tool_name == "file_read")
-        }));
-        assert!(grouped.iter().any(|row| {
-            row.domain == ToolCapabilityDomain::Agent
-                && row
-                    .tools
-                    .iter()
-                    .any(|tool| tool.tool_name == "spawn_subagents")
-        }));
-        assert!(grouped.iter().any(|row| {
-            row.domain == ToolCapabilityDomain::Terminal
-                && row
-                    .tools
-                    .iter()
-                    .any(|tool| tool.tool_name == "terminal_exec")
-        }));
-    }
-
-    #[test]
-    fn capability_probe_normalizes_extended_tool_aliases() {
-        let mut allowed = HashMap::<BrokerCaller, HashSet<String>>::new();
-        allowed.insert(
-            BrokerCaller::Client,
-            ["workspace_analyze", "terminal_exec", "file_read_many"]
-                .iter()
-                .map(|row| row.to_string())
-                .collect::<HashSet<_>>(),
-        );
-        let local_context_probe =
-            capability_probe_for(&allowed, BrokerCaller::Client, "local_context");
-        let shell_exec_probe = capability_probe_for(&allowed, BrokerCaller::Client, "shell_exec");
-        let read_many_probe =
-            capability_probe_for(&allowed, BrokerCaller::Client, "workspace_read_many");
-        assert_eq!(local_context_probe.tool_name, "workspace_analyze");
-        assert_eq!(shell_exec_probe.tool_name, "terminal_exec");
-        assert_eq!(read_many_probe.tool_name, "file_read_many");
-    }
 }
