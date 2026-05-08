@@ -432,7 +432,7 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let command = args.first().map(String::as_str).unwrap_or("help");
     if command == "help" || command == "--help" || command == "-h" {
-        println!("infring-ops kernel-sentinel <run|status|report|auto|collect|schedule|heartbeat|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--collector-artifact=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=maintenance|release|heartbeat] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>] [--max-runtime-ms=<n>] [--final-report-finding-limit=<n>] [--final-report-byte-budget=<n>]");
+        println!("infring-ops kernel-sentinel <run|status|report|auto|collect|tick|schedule|heartbeat|dream|help> [--strict=1|0] [--state-dir=<path>|--state-root=<path>] [--findings-path=<path>] [--evidence-dir=<path>] [--collector-artifact=<path>] [--require-evidence=1] [--issue-threshold=<n>] [--suggestion-threshold=<n>] [--automation-threshold=<n>] [--boot-self-check=1] [--watch-refresh=1] [--waivers-path=<path>] [--cadence=tick|heartbeat|dream|maintenance|release] [--auto-artifact=<path>] [--schedule-artifact=<path>] [--interval-seconds=<n>] [--heartbeat-interval-seconds=<n>] [--dream-idle-seconds=<n>] [--dream-max-without-seconds=<n>] [--stale-window-seconds=<n>] [--max-stale-minutes=<n>] [--max-runtime-ms=<n>] [--final-report-finding-limit=<n>] [--final-report-byte-budget=<n>]");
         println!(
             "{}",
             serde_json::to_string_pretty(&kernel_sentinel_contract()).unwrap()
@@ -446,11 +446,17 @@ pub fn run(root: &Path, args: &[String]) -> i32 {
     if command == "collect" {
         return collector::run_collect(root, &rest);
     }
+    if command == "tick" {
+        return scheduler::run_tick(root, &rest);
+    }
     if command == "schedule" {
         return scheduler::run_schedule(root, &rest);
     }
     if command == "heartbeat" {
         return scheduler::run_heartbeat(root, &rest);
+    }
+    if command == "dream" {
+        return scheduler::run_dream(root, &rest);
     }
     report_output::run_report_command(root, command, &rest)
 }

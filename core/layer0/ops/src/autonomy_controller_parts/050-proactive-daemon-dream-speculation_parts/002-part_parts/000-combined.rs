@@ -210,6 +210,7 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                     }
                     let mut executed = vec![];
                     let mut deferred = vec![];
+                    let mut sentinel_tick = Value::Null;
                     let mut blocking_used_ms = 0u64;
                     let mut sent_in_window = state
                         .pointer("/proactive/sent_in_window")
@@ -433,43 +434,34 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                                         continue;
                                     }
                                     Err(_) => {
-                                        let isolation = record_isolation_event(
-                                            &mut state,
-                                            intent,
-                                            "tool_surface_failed",
-                                            now_ms,
-                                        );
-                                        let recovery = record_recovery_strategy(
-                                            &mut state,
-                                            intent,
-                                            "tool_surface_failed",
-                                            now_ms,
-                                        );
-                                        deferred.push(
-                                            json!({
-                                                "intent": intent,
-                                                "reason":"tool_surface_failed",
-                                                "failure_isolation": isolation,
-                                                "recovery": recovery
-                                            }),
-                                        );
+                                        let isolation = record_isolation_event(&mut state, intent, "tool_surface_failed", now_ms);
+                                        let recovery = record_recovery_strategy(&mut state, intent, "tool_surface_failed", now_ms);
+                                        deferred.push(json!({"intent": intent, "reason":"tool_surface_failed", "failure_isolation": isolation, "recovery": recovery}));
                                         continue;
                                     }
                                 }
                             }
                             sent_in_window = sent_in_window.saturating_add(1);
                             blocking_used_ms = blocking_used_ms.saturating_add(estimate_ms);
-                            let mut execution = json!({
-                                "intent": intent,
-                                "estimated_blocking_ms": estimate_ms
-                            });
+                            let mut execution = json!({"intent": intent, "estimated_blocking_ms": estimate_ms});
                             if task == "compact_hand_memory" {
-                                execution["pressure_ratio"] =
-                                    json!(PROACTIVE_DAEMON_REACTIVE_COMPACTION_PRESSURE_RATIO);
+                                execution["pressure_ratio"] = json!(PROACTIVE_DAEMON_REACTIVE_COMPACTION_PRESSURE_RATIO);
                             }
                             executed.push(execution);
                             mark_recovery_success(&mut state, task);
                         }
+                    }
+                    if auto {
+                        let artifact_path = state_root(root).join("kernel_sentinel").join("kernel_sentinel_tick_from_daemon_current.json");
+                        let cadence_args = vec![
+                            "tick".to_string(), "--strict=0".to_string(), "--quiet-success=1".to_string(),
+                            format!("--schedule-artifact={}", artifact_path.display()),
+                            format!("--dream-idle-seconds={}", (dream_idle_ms / 1000).max(1)),
+                            format!("--dream-max-without-seconds={}", (dream_max_without_ms / 1000).max(1))
+                        ];
+                        let exit = crate::kernel_sentinel::run(root, &cadence_args);
+                        sentinel_tick = read_json(&artifact_path).unwrap_or_else(|| json!({"type":"kernel_sentinel_tick_run","ok":exit == 0,"missing_artifact":true,"exit_code":exit}));
+                        state["sentinel"] = json!({"last_tick_at_ms": now_ms, "last_tick_exit_code": exit, "last_tick_ok": exit == 0, "last_tick_artifact_path": artifact_path.display().to_string(), "last_tick_mode": sentinel_tick.get("mode").cloned().unwrap_or(Value::Null), "last_tick_cascade_target": sentinel_tick.pointer("/cascade/target").cloned().unwrap_or(Value::Null), "last_tick_cascade_invoked": sentinel_tick.pointer("/cascade/invoked").and_then(Value::as_bool).unwrap_or(false)});
                     }
                     state["last_intents"] = Value::Array(intents.clone());
                     state["last_executed_intents"] = Value::Array(executed.clone());
@@ -481,13 +473,8 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                     state["last_cycle_at"] = json!(now_iso());
                     state["heartbeat"]["last_tick_ms"] = json!(now_ms);
                     let jitter_offset = deterministic_jitter_ms(cycles, jitter_ms);
-                    state["heartbeat"]["next_tick_after_ms"] =
-                        json!(now_ms.saturating_add(tick_ms).saturating_add(jitter_offset));
-                    state["last_decision"] = if auto {
-                        json!("cycle_executed_auto")
-                    } else {
-                        json!("cycle_executed_intent_only")
-                    };
+                    state["heartbeat"]["next_tick_after_ms"] = json!(now_ms.saturating_add(tick_ms).saturating_add(jitter_offset));
+                    state["last_decision"] = if auto { json!("cycle_executed_auto") } else { json!("cycle_executed_intent_only") };
                     state["last_blocking_budget_used_ms"] = json!(blocking_used_ms);
                     cycle_log_row = json!({
                         "type": "proactive_daemon_tick",
@@ -504,6 +491,7 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                         "max_proactive": max_messages,
                         "policy_tier": policy_tier,
                         "tool_surfaces": enabled_tool_surfaces,
+                        "kernel_sentinel_tick": sentinel_tick,
                         "pattern_log": state.get("pattern_log").cloned().unwrap_or(Value::Null),
                         "failure_isolation": state.get("failure_isolation").cloned().unwrap_or(Value::Null),
                         "recovery_matrix": state.get("recovery_matrix").cloned().unwrap_or(Value::Null),

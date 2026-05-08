@@ -8,19 +8,75 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::cli_args::{bool_flag, option_path, option_usize, state_dir_from_args};
 use super::{auto_run, write_json};
+mod cadence_support;
+use cadence_support::build_dream_gate;
 
 const DEFAULT_SCHEDULE_ARTIFACT: &str =
     "core/local/artifacts/kernel_sentinel_schedule_current.json";
+const DEFAULT_TICK_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_tick_current.json";
 const DEFAULT_HEARTBEAT_ARTIFACT: &str =
     "core/local/artifacts/kernel_sentinel_heartbeat_current.json";
-const DEFAULT_SCHEDULE_INTERVAL_SECONDS: usize = 900;
-const DEFAULT_HEARTBEAT_INTERVAL_SECONDS: usize = 1800;
+const DEFAULT_DREAM_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_dream_current.json";
+const DEFAULT_TICK_INTERVAL_SECONDS: usize = 10;
+const DEFAULT_HEARTBEAT_INTERVAL_SECONDS: usize = 300;
+const DEFAULT_DREAM_INTERVAL_SECONDS: usize = 86_400;
 const DEFAULT_STALE_WINDOW_SECONDS: usize = 5400;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SchedulerMode {
-    Schedule,
+    Tick,
     Heartbeat,
+    Dream,
+}
+
+impl SchedulerMode {
+    fn mode_name(self) -> &'static str {
+        match self {
+            SchedulerMode::Tick => "tick",
+            SchedulerMode::Heartbeat => "heartbeat",
+            SchedulerMode::Dream => "dream",
+        }
+    }
+
+    fn artifact_type(self) -> &'static str {
+        match self {
+            SchedulerMode::Tick => "kernel_sentinel_tick_run",
+            SchedulerMode::Heartbeat => "kernel_sentinel_heartbeat_run",
+            SchedulerMode::Dream => "kernel_sentinel_dream_run",
+        }
+    }
+
+    fn default_cadence(self) -> &'static str {
+        match self {
+            SchedulerMode::Tick => "tick",
+            SchedulerMode::Heartbeat => "heartbeat",
+            SchedulerMode::Dream => "dream",
+        }
+    }
+
+    fn default_artifact(self) -> &'static str {
+        match self {
+            SchedulerMode::Tick => DEFAULT_TICK_ARTIFACT,
+            SchedulerMode::Heartbeat => DEFAULT_HEARTBEAT_ARTIFACT,
+            SchedulerMode::Dream => DEFAULT_DREAM_ARTIFACT,
+        }
+    }
+
+    fn default_interval(self) -> usize {
+        match self {
+            SchedulerMode::Tick => DEFAULT_TICK_INTERVAL_SECONDS,
+            SchedulerMode::Heartbeat => DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+            SchedulerMode::Dream => DEFAULT_DREAM_INTERVAL_SECONDS,
+        }
+    }
+
+    fn cascade_target(self) -> Option<Self> {
+        match self {
+            SchedulerMode::Tick => Some(SchedulerMode::Heartbeat),
+            SchedulerMode::Heartbeat => Some(SchedulerMode::Dream),
+            SchedulerMode::Dream => None,
+        }
+    }
 }
 
 fn has_option(args: &[String], name: &str) -> bool {
@@ -36,6 +92,23 @@ fn option_string(args: &[String], name: &str, fallback: &str) -> String {
         .unwrap_or_else(|| fallback.to_string())
 }
 
+fn option_bool_default(args: &[String], name: &str, default: bool) -> bool {
+    if has_option(args, name) {
+        bool_flag(args, name)
+    } else {
+        default
+    }
+}
+
+fn option_string_if_present(args: &[String], name: &str) -> Option<String> {
+    let value = option_string(args, name, "");
+    if value.trim().is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
 fn now_epoch_seconds() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -49,14 +122,10 @@ fn legacy_state_path(dir: &Path) -> PathBuf {
 
 fn state_path(dir: &Path, mode: SchedulerMode) -> PathBuf {
     match mode {
-        SchedulerMode::Schedule => dir.join("kernel_sentinel_schedule_state.json"),
+        SchedulerMode::Tick => dir.join("kernel_sentinel_tick_state.json"),
         SchedulerMode::Heartbeat => dir.join("kernel_sentinel_heartbeat_state.json"),
+        SchedulerMode::Dream => legacy_state_path(dir),
     }
-}
-
-fn read_last_success(path: &Path) -> Option<u64> {
-    let value: Value = serde_json::from_str(&fs::read_to_string(path).ok()?).ok()?;
-    value["last_success_epoch_secs"].as_u64()
 }
 
 fn read_scheduler_state(path: &Path) -> Option<Value> {
@@ -68,44 +137,25 @@ fn read_mode_state(dir: &Path, mode: SchedulerMode) -> Option<(Value, bool)> {
     if let Some(value) = read_scheduler_state(&mode_path) {
         return Some((value, false));
     }
-    let legacy_path = legacy_state_path(dir);
-    if mode_path != legacy_path {
-        read_scheduler_state(&legacy_path).map(|value| (value, true))
-    } else {
-        None
+    if matches!(mode, SchedulerMode::Heartbeat) {
+        let legacy_path = legacy_state_path(dir);
+        return read_scheduler_state(&legacy_path).map(|value| (value, true));
     }
+    None
 }
 
 fn read_last_success_for_mode(dir: &Path, mode: SchedulerMode) -> Option<u64> {
     read_mode_state(dir, mode).and_then(|(value, _)| value["last_success_epoch_secs"].as_u64())
 }
 
-fn default_interval(mode: SchedulerMode) -> usize {
-    match mode {
-        SchedulerMode::Schedule => DEFAULT_SCHEDULE_INTERVAL_SECONDS,
-        SchedulerMode::Heartbeat => DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
-    }
-}
-
-fn default_artifact(root: &Path, mode: SchedulerMode) -> PathBuf {
-    match mode {
-        SchedulerMode::Schedule => root.join(DEFAULT_SCHEDULE_ARTIFACT),
-        SchedulerMode::Heartbeat => root.join(DEFAULT_HEARTBEAT_ARTIFACT),
-    }
-}
-
-fn schedule_artifact_path(root: &Path, args: &[String], mode: SchedulerMode) -> PathBuf {
-    option_path(args, "--schedule-artifact", default_artifact(root, mode))
+fn artifact_path(root: &Path, args: &[String], mode: SchedulerMode) -> PathBuf {
+    option_path(args, "--schedule-artifact", root.join(mode.default_artifact()))
 }
 
 fn scheduler_args(args: &[String], mode: SchedulerMode) -> Vec<String> {
     let mut out = args.to_vec();
     if !has_option(&out, "--cadence") {
-        let cadence = match mode {
-            SchedulerMode::Schedule => "maintenance",
-            SchedulerMode::Heartbeat => "heartbeat",
-        };
-        out.push(format!("--cadence={cadence}"));
+        out.push(format!("--cadence={}", mode.default_cadence()));
     }
     if !has_option(&out, "--quiet-success") {
         out.push("--quiet-success=1".to_string());
@@ -113,6 +163,32 @@ fn scheduler_args(args: &[String], mode: SchedulerMode) -> Vec<String> {
     out
 }
 
+fn subordinate_args(args: &[String]) -> Vec<String> {
+    args.iter()
+        .filter(|arg| {
+            arg.as_str() != "--force"
+                && !arg.starts_with("--force=")
+                && arg.as_str() != "--interval-seconds"
+                && !arg.starts_with("--interval-seconds=")
+                && arg.as_str() != "--schedule-artifact"
+                && !arg.starts_with("--schedule-artifact=")
+                && arg.as_str() != "--cadence"
+                && !arg.starts_with("--cadence=")
+                && arg.as_str() != "--command-alias"
+                && !arg.starts_with("--command-alias=")
+        })
+        .cloned()
+        .collect()
+}
+
+fn is_due(now: u64, last_success: Option<u64>, interval_seconds: usize, force: bool) -> bool {
+    force
+        || last_success
+            .map(|last| now.saturating_sub(last) >= interval_seconds as u64)
+            .unwrap_or(true)
+}
+
+#[allow(clippy::too_many_arguments)]
 fn build_scheduler_artifact(
     root: &Path,
     args: &[String],
@@ -121,40 +197,45 @@ fn build_scheduler_artifact(
     last_success_before: Option<u64>,
     last_success_after: Option<u64>,
     due: bool,
-    auto_exit: Option<i32>,
+    recorded_exit: Option<i32>,
     stale: bool,
+    cascade_due: Option<bool>,
+    cascade_invoked: bool,
+    cascade_exit: Option<i32>,
+    dream_gate: Option<Value>,
 ) -> Value {
     let dir = state_dir_from_args(root, args);
     let mode_state_path = state_path(&dir, mode);
-    let interval_seconds = option_usize(args, "--interval-seconds", default_interval(mode));
+    let interval_seconds = option_usize(args, "--interval-seconds", mode.default_interval());
     let stale_window_seconds =
         option_usize(args, "--stale-window-seconds", DEFAULT_STALE_WINDOW_SECONDS);
-    let cadence = option_string(
-        args,
-        "--cadence",
-        match mode {
-            SchedulerMode::Schedule => "maintenance",
-            SchedulerMode::Heartbeat => "heartbeat",
-        },
-    );
-    let auto_run_invoked = auto_exit.is_some();
+    let command_mode = option_string_if_present(args, "--command-alias")
+        .unwrap_or_else(|| mode.mode_name().to_string());
+    let cadence = option_string(args, "--cadence", &command_mode);
+    let auto_run_invoked = matches!(mode, SchedulerMode::Dream) && due;
     let next_due_epoch_secs = last_success_after
         .map(|last| last.saturating_add(interval_seconds as u64))
         .unwrap_or(now);
     let stale_age_seconds = last_success_after.map(|last| now.saturating_sub(last));
-    let exit_code = auto_exit.unwrap_or(0);
+    let exit_code = recorded_exit.unwrap_or(0);
+    let cascade_target = mode.cascade_target().map(|next| next.mode_name().to_string());
     let mut artifact = json!({
         "ok": !stale && exit_code == 0,
-        "type": match mode {
-            SchedulerMode::Schedule => "kernel_sentinel_schedule_run",
-            SchedulerMode::Heartbeat => "kernel_sentinel_heartbeat_run",
+        "type": if command_mode == "schedule" {
+            "kernel_sentinel_schedule_run"
+        } else {
+            mode.artifact_type()
         },
         "canonical_name": super::KERNEL_SENTINEL_NAME,
         "module_id": super::KERNEL_SENTINEL_MODULE_ID,
         "generated_at": crate::now_iso(),
         "automatic": true,
         "scheduler": true,
-        "heartbeat": mode == SchedulerMode::Heartbeat,
+        "mode": command_mode,
+        "coordinator_mode": mode.mode_name(),
+        "tick": matches!(mode, SchedulerMode::Tick),
+        "heartbeat": matches!(mode, SchedulerMode::Heartbeat),
+        "dream": matches!(mode, SchedulerMode::Dream),
         "cadence": cadence,
         "interval_seconds": interval_seconds,
         "stale_window_seconds": stale_window_seconds,
@@ -166,7 +247,6 @@ fn build_scheduler_artifact(
         "due": due,
         "skipped": !due,
         "auto_run_invoked": auto_run_invoked,
-        "auto_exit_code": auto_exit,
         "scheduler_exit_code": exit_code,
         "state_dir": dir,
         "schedule_state_path": mode_state_path,
@@ -179,9 +259,24 @@ fn build_scheduler_artifact(
         "self_study_contract": {
             "automatic_self_understanding": true,
             "human_manual_invocation_required": false,
-            "stale_sentinel_blocks_when_strict": true
+            "stale_sentinel_blocks_when_strict": true,
+            "heavy_maintenance_requires_dream": true
+        },
+        "cascade": {
+            "target": cascade_target,
+            "due": cascade_due,
+            "invoked": cascade_invoked,
+            "exit_code": cascade_exit
+        },
+        "maintenance_window": {
+            "heavy_maintenance_window": "dream",
+            "heavy_maintenance_allowed": matches!(mode, SchedulerMode::Dream),
+            "dream_gate_checked": dream_gate.is_some()
         }
     });
+    if let Some(gate) = dream_gate {
+        artifact["dream_gate"] = gate;
+    }
     artifact["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&artifact));
     artifact
 }
@@ -192,18 +287,19 @@ fn persist_schedule_state(
     args: &[String],
     now: u64,
     last_success: Option<u64>,
-    auto_exit: Option<i32>,
+    recorded_exit: Option<i32>,
     stale: bool,
 ) -> Result<(), String> {
-    let cadence = option_string(args, "--cadence", "maintenance");
+    let cadence = option_string(args, "--cadence", mode.default_cadence());
     let state = json!({
         "type": "kernel_sentinel_schedule_state",
         "canonical_name": super::KERNEL_SENTINEL_NAME,
         "generated_at": crate::now_iso(),
         "cadence": cadence,
+        "mode": mode.mode_name(),
         "last_attempt_epoch_secs": now,
         "last_success_epoch_secs": last_success,
-        "last_exit_code": auto_exit,
+        "last_exit_code": recorded_exit,
         "stale": stale
     });
     write_json(&state_path(dir, mode), &state)
@@ -219,17 +315,10 @@ fn build_mode_health(root: &Path, args: &[String], mode: SchedulerMode) -> Value
         .unwrap_or(false);
     let state = state_with_legacy.map(|(value, _)| value);
     let now = now_epoch_seconds();
-    let interval_seconds = option_usize(args, "--interval-seconds", default_interval(mode));
+    let interval_seconds = option_usize(args, "--interval-seconds", mode.default_interval());
     let stale_window_seconds =
         option_usize(args, "--stale-window-seconds", DEFAULT_STALE_WINDOW_SECONDS);
-    let cadence = option_string(
-        args,
-        "--cadence",
-        match mode {
-            SchedulerMode::Schedule => "maintenance",
-            SchedulerMode::Heartbeat => "heartbeat",
-        },
-    );
+    let cadence = option_string(args, "--cadence", mode.default_cadence());
     let last_attempt_epoch_secs = state
         .as_ref()
         .and_then(|value| value["last_attempt_epoch_secs"].as_u64());
@@ -246,18 +335,21 @@ fn build_mode_health(root: &Path, args: &[String], mode: SchedulerMode) -> Value
         .map(|last| now.saturating_sub(last) >= interval_seconds as u64)
         .unwrap_or(true);
     let configured = state.is_some();
-    let stale = if !configured {
-        true
-    } else {
-        stale_age_seconds
+    let stale = configured
+        && stale_age_seconds
             .map(|age| age > stale_window_seconds as u64)
-            .unwrap_or(false)
-    };
-    let fresh = configured && !stale && last_success_epoch_secs.is_some();
+            .unwrap_or(false);
+    let fresh = configured
+        && !stale
+        && last_success_epoch_secs.is_some()
+        && last_exit_code.unwrap_or(0) == 0;
+    let degraded = configured && !stale && last_exit_code.unwrap_or(0) != 0;
     let lifecycle_status = if !configured {
         "unconfigured"
     } else if stale {
         "stale"
+    } else if degraded {
+        "degraded"
     } else if last_success_epoch_secs.is_some() {
         "fresh"
     } else if last_attempt_epoch_secs.is_some() {
@@ -265,15 +357,13 @@ fn build_mode_health(root: &Path, args: &[String], mode: SchedulerMode) -> Value
     } else {
         "configured"
     };
-    json!({
-        "mode": match mode {
-            SchedulerMode::Schedule => "schedule",
-            SchedulerMode::Heartbeat => "heartbeat",
-        },
+    let mut summary = json!({
+        "mode": mode.mode_name(),
         "cadence": cadence,
         "configured": configured,
         "fresh": fresh,
         "stale": stale,
+        "degraded": degraded,
         "due": due,
         "status": lifecycle_status,
         "lifecycle_status": lifecycle_status,
@@ -287,28 +377,44 @@ fn build_mode_health(root: &Path, args: &[String], mode: SchedulerMode) -> Value
         "state_path": path,
         "legacy_fallback_used": legacy_fallback_used,
         "legacy_state_path": legacy_state_path(&dir)
-    })
+    });
+    if matches!(mode, SchedulerMode::Dream) {
+        summary["dream_gate"] = build_dream_gate(root, args, now, last_success_epoch_secs);
+    }
+    summary
 }
 
 pub fn build_scheduler_health_summary(root: &Path, args: &[String]) -> Value {
-    let schedule = build_mode_health(root, args, SchedulerMode::Schedule);
+    let tick = build_mode_health(root, args, SchedulerMode::Tick);
     let heartbeat = build_mode_health(root, args, SchedulerMode::Heartbeat);
-    let fresh = schedule["fresh"].as_bool().unwrap_or(false)
-        && heartbeat["fresh"].as_bool().unwrap_or(false);
-    let stale =
-        schedule["stale"].as_bool().unwrap_or(true) || heartbeat["stale"].as_bool().unwrap_or(true);
-    let configured = schedule["configured"].as_bool().unwrap_or(false)
-        || heartbeat["configured"].as_bool().unwrap_or(false);
-    let running =
-        schedule["lifecycle_status"] == "running" || heartbeat["lifecycle_status"] == "running";
+    let dream = build_mode_health(root, args, SchedulerMode::Dream);
+    let modes = [&tick, &heartbeat, &dream];
+    let configured = modes
+        .iter()
+        .any(|mode| mode["configured"].as_bool().unwrap_or(false));
+    let stale = modes
+        .iter()
+        .any(|mode| mode["stale"].as_bool().unwrap_or(false));
+    let degraded = modes
+        .iter()
+        .any(|mode| mode["degraded"].as_bool().unwrap_or(false));
+    let running = modes
+        .iter()
+        .any(|mode| mode["lifecycle_status"] == "running");
+    let fresh = configured
+        && modes.iter().all(|mode| {
+            !mode["configured"].as_bool().unwrap_or(false) || mode["fresh"].as_bool().unwrap_or(false)
+        });
     let lifecycle_status = if !configured {
         "unconfigured"
     } else if stale {
         "stale"
-    } else if fresh {
-        "fresh"
+    } else if degraded {
+        "degraded"
     } else if running {
         "running"
+    } else if fresh {
+        "fresh"
     } else {
         "configured"
     };
@@ -316,12 +422,20 @@ pub fn build_scheduler_health_summary(root: &Path, args: &[String]) -> Value {
         "configured": configured,
         "fresh": fresh,
         "stale": stale,
+        "degraded": degraded,
         "running": running,
         "status": lifecycle_status,
         "lifecycle_status": lifecycle_status,
+        "dream_maintenance_only": true,
         "shared_state_path": false,
-        "schedule": schedule,
-        "heartbeat": heartbeat
+        "tick": tick,
+        "heartbeat": heartbeat,
+        "dream": dream,
+        "cadence_hierarchy": {
+            "tick": "light_watchdog",
+            "heartbeat": "supervisory_health",
+            "dream": "heavy_maintenance_and_self_study"
+        }
     })
 }
 
@@ -330,7 +444,7 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
     let now = now_epoch_seconds();
     let dir = state_dir_from_args(root, &effective);
     let previous_success = read_last_success_for_mode(&dir, mode);
-    let interval_seconds = option_usize(&effective, "--interval-seconds", default_interval(mode));
+    let interval_seconds = option_usize(&effective, "--interval-seconds", mode.default_interval());
     let stale_window_seconds = option_usize(
         &effective,
         "--stale-window-seconds",
@@ -338,30 +452,91 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
     );
     let force = bool_flag(&effective, "--force");
     let strict = bool_flag(&effective, "--strict");
-    let due = force
-        || previous_success
-            .map(|last| now.saturating_sub(last) >= interval_seconds as u64)
-            .unwrap_or(true);
-    let auto_exit = if due {
+    let due_by_interval = is_due(now, previous_success, interval_seconds, force);
+    let mut dream_gate = None;
+    let due = match mode {
+        SchedulerMode::Dream => {
+            let gate = build_dream_gate(root, &effective, now, previous_success);
+            let gate_due = gate["due"].as_bool().unwrap_or(false);
+            dream_gate = Some(gate);
+            force || gate_due
+        }
+        _ => due_by_interval,
+    };
+
+    let mut cascade_due = None;
+    let mut cascade_invoked = false;
+    let mut cascade_exit = None;
+    if due {
+        match mode {
+            SchedulerMode::Tick => {
+                let heartbeat_previous = read_last_success_for_mode(&dir, SchedulerMode::Heartbeat);
+                let heartbeat_interval = option_usize(
+                    &effective,
+                    "--heartbeat-interval-seconds",
+                    SchedulerMode::Heartbeat.default_interval(),
+                );
+                let heartbeat_due = is_due(now, heartbeat_previous, heartbeat_interval, false);
+                cascade_due = Some(heartbeat_due);
+                if heartbeat_due && option_bool_default(&effective, "--cascade-heartbeat", true) {
+                    cascade_invoked = true;
+                    let mut nested = subordinate_args(&effective);
+                    nested.push(format!("--interval-seconds={heartbeat_interval}"));
+                    cascade_exit = Some(run_scheduler(root, &nested, SchedulerMode::Heartbeat));
+                }
+            }
+            SchedulerMode::Heartbeat => {
+                let dream_previous = read_last_success_for_mode(&dir, SchedulerMode::Dream);
+                let gate = build_dream_gate(root, &effective, now, dream_previous);
+                let dream_due = gate["due"].as_bool().unwrap_or(false);
+                cascade_due = Some(dream_due);
+                dream_gate = Some(gate);
+                if dream_due && option_bool_default(&effective, "--cascade-dream", true) {
+                    cascade_invoked = true;
+                    let nested = subordinate_args(&effective);
+                    cascade_exit = Some(run_scheduler(root, &nested, SchedulerMode::Dream));
+                }
+            }
+            SchedulerMode::Dream => {}
+        }
+    }
+
+    let auto_exit = if matches!(mode, SchedulerMode::Dream) && due {
         Some(auto_run::run_auto(root, &effective))
     } else {
         None
     };
-    let last_success_after = if auto_exit == Some(0) {
-        Some(now)
+    let recorded_exit = if due {
+        Some(auto_exit.or(cascade_exit).unwrap_or(0))
     } else {
-        previous_success
+        None
+    };
+    let last_success_after = match mode {
+        SchedulerMode::Dream => {
+            if due && recorded_exit == Some(0) {
+                Some(now)
+            } else {
+                previous_success
+            }
+        }
+        _ => {
+            if due {
+                Some(now)
+            } else {
+                previous_success
+            }
+        }
     };
     let stale = last_success_after
         .map(|last| now.saturating_sub(last) > stale_window_seconds as u64)
-        .unwrap_or(true);
+        .unwrap_or(false);
     if let Err(err) = persist_schedule_state(
         &dir,
         mode,
         &effective,
         now,
         last_success_after,
-        auto_exit,
+        recorded_exit,
         stale,
     ) {
         eprintln!("kernel_sentinel_schedule_state_write_failed: {err}");
@@ -375,16 +550,20 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
         previous_success,
         last_success_after,
         due,
-        auto_exit,
+        recorded_exit,
         stale,
+        cascade_due,
+        cascade_invoked,
+        cascade_exit,
+        dream_gate,
     );
-    let artifact_path = schedule_artifact_path(root, &effective, mode);
+    let artifact_path = artifact_path(root, &effective, mode);
     if let Err(err) = write_json(&artifact_path, &artifact) {
         eprintln!("kernel_sentinel_schedule_artifact_write_failed: {err}");
         return 1;
     }
-    let exit = if auto_exit.unwrap_or(0) != 0 {
-        auto_exit.unwrap_or(1)
+    let exit = if recorded_exit.unwrap_or(0) != 0 {
+        recorded_exit.unwrap_or(1)
     } else if strict && stale {
         2
     } else {
@@ -400,263 +579,31 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
     exit
 }
 
+pub fn run_tick(root: &Path, args: &[String]) -> i32 {
+    run_scheduler(root, args, SchedulerMode::Tick)
+}
+
 pub fn run_schedule(root: &Path, args: &[String]) -> i32 {
-    run_scheduler(root, args, SchedulerMode::Schedule)
+    let mut aliased = args.to_vec();
+    if !has_option(&aliased, "--command-alias") {
+        aliased.push("--command-alias=schedule".to_string());
+    }
+    if !has_option(&aliased, "--schedule-artifact") {
+        aliased.push(format!(
+            "--schedule-artifact={}",
+            root.join(DEFAULT_SCHEDULE_ARTIFACT).display()
+        ));
+    }
+    run_scheduler(root, &aliased, SchedulerMode::Tick)
 }
 
 pub fn run_heartbeat(root: &Path, args: &[String]) -> i32 {
     run_scheduler(root, args, SchedulerMode::Heartbeat)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn unique_root(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!(
-            "kernel-sentinel-scheduler-{name}-{}",
-            crate::deterministic_receipt_hash(&json!({
-                "test": name,
-                "nonce": SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            }))
-        ))
-    }
-
-    #[test]
-    fn schedule_invokes_auto_when_due_and_records_success() {
-        let root = unique_root("due");
-        let out = root.join("schedule.json");
-        let auto = root.join("auto.json");
-        let args = vec![
-            "--strict=0".to_string(),
-            "--force=1".to_string(),
-            "--cadence=maintenance".to_string(),
-            format!("--schedule-artifact={}", out.display()),
-            format!("--auto-artifact={}", auto.display()),
-        ];
-        let exit = run_schedule(&root, &args);
-        assert_eq!(exit, 0);
-        let artifact: Value = serde_json::from_str(&fs::read_to_string(out).unwrap()).unwrap();
-        let state_dir = state_dir_from_args(&root, &args);
-        let state_path = state_path(&state_dir, SchedulerMode::Schedule);
-        let state: Value = serde_json::from_str(&fs::read_to_string(&state_path).unwrap()).unwrap();
-        assert_eq!(artifact["type"], "kernel_sentinel_schedule_run");
-        assert_eq!(artifact["auto_run_invoked"], true);
-        assert_eq!(artifact["cadence"], "maintenance");
-        assert_eq!(artifact["stale"], false);
-        assert_eq!(
-            artifact["schedule_state_path"],
-            state_path.display().to_string()
-        );
-        assert_eq!(state["cadence"], "maintenance");
-        assert_eq!(state["last_attempt_epoch_secs"], artifact["now_epoch_secs"]);
-        assert_eq!(
-            state["last_success_epoch_secs"],
-            artifact["last_success_epoch_secs"]
-        );
-        assert_eq!(state["stale"], false);
-        assert!(auto.exists());
-    }
-
-    #[test]
-    fn heartbeat_invokes_auto_when_due_and_records_fresh_state() {
-        let root = unique_root("heartbeat-due");
-        let out = root.join("heartbeat.json");
-        let auto = root.join("heartbeat-auto.json");
-        let args = vec![
-            "--strict=0".to_string(),
-            "--force=1".to_string(),
-            "--cadence=heartbeat".to_string(),
-            format!("--schedule-artifact={}", out.display()),
-            format!("--auto-artifact={}", auto.display()),
-        ];
-        let exit = run_heartbeat(&root, &args);
-        assert_eq!(exit, 0);
-        let artifact: Value = serde_json::from_str(&fs::read_to_string(out).unwrap()).unwrap();
-        let state_dir = state_dir_from_args(&root, &args);
-        let state_path = state_path(&state_dir, SchedulerMode::Heartbeat);
-        let state: Value = serde_json::from_str(&fs::read_to_string(&state_path).unwrap()).unwrap();
-        assert_eq!(artifact["type"], "kernel_sentinel_heartbeat_run");
-        assert_eq!(artifact["heartbeat"], true);
-        assert_eq!(artifact["auto_run_invoked"], true);
-        assert_eq!(artifact["cadence"], "heartbeat");
-        assert_eq!(
-            artifact["schedule_state_path"],
-            state_path.display().to_string()
-        );
-        assert_eq!(state["cadence"], "heartbeat");
-        assert_eq!(state["last_attempt_epoch_secs"], artifact["now_epoch_secs"]);
-        assert_eq!(
-            state["last_success_epoch_secs"],
-            artifact["last_success_epoch_secs"]
-        );
-        assert_eq!(state["stale"], false);
-        assert!(auto.exists());
-    }
-
-    #[test]
-    fn strict_schedule_fails_when_previous_success_is_stale() {
-        let root = unique_root("stale");
-        let state_dir = root.join("local/state/kernel_sentinel");
-        fs::create_dir_all(&state_dir).unwrap();
-        write_json(
-            &state_path(&state_dir, SchedulerMode::Schedule),
-            &json!({
-                "type": "kernel_sentinel_schedule_state",
-                "last_success_epoch_secs": 1
-            }),
-        )
-        .unwrap();
-        let out = root.join("stale.json");
-        let args = vec![
-            "--strict=1".to_string(),
-            "--interval-seconds=99999999999".to_string(),
-            "--stale-window-seconds=1".to_string(),
-            format!("--schedule-artifact={}", out.display()),
-        ];
-        let exit = run_schedule(&root, &args);
-        assert_eq!(exit, 2);
-        let artifact: Value = serde_json::from_str(&fs::read_to_string(out).unwrap()).unwrap();
-        assert_eq!(artifact["stale"], true);
-        assert_eq!(
-            artifact["stale_escalation"]["reason"],
-            "kernel_sentinel_auto_run_stale"
-        );
-        assert_eq!(artifact["auto_run_invoked"], false);
-    }
-
-    #[test]
-    fn health_summary_reports_unconfigured_when_no_state_exists() {
-        let root = unique_root("health-unconfigured");
-        let summary = build_scheduler_health_summary(&root, &[]);
-        assert_eq!(summary["configured"], false);
-        assert_eq!(summary["lifecycle_status"], "unconfigured");
-        assert_eq!(summary["schedule"]["lifecycle_status"], "unconfigured");
-        assert_eq!(summary["heartbeat"]["lifecycle_status"], "unconfigured");
-    }
-
-    #[test]
-    fn health_summary_reports_stale_when_last_success_exceeds_window() {
-        let root = unique_root("health-stale");
-        let state_dir = root.join("local/state/kernel_sentinel");
-        fs::create_dir_all(&state_dir).unwrap();
-        write_json(
-            &state_path(&state_dir, SchedulerMode::Schedule),
-            &json!({
-                "type": "kernel_sentinel_schedule_state",
-                "last_attempt_epoch_secs": 2,
-                "last_success_epoch_secs": 1,
-                "last_exit_code": 0
-            }),
-        )
-        .unwrap();
-        let args = vec!["--stale-window-seconds=1".to_string()];
-        let summary = build_scheduler_health_summary(&root, &args);
-        assert_eq!(summary["configured"], true);
-        assert_eq!(summary["stale"], true);
-        assert_eq!(summary["lifecycle_status"], "stale");
-        assert_eq!(summary["schedule"]["lifecycle_status"], "stale");
-    }
-
-    #[test]
-    fn health_summary_tracks_schedule_and_heartbeat_independently() {
-        let root = unique_root("health-independent");
-        let state_dir = root.join("local/state/kernel_sentinel");
-        fs::create_dir_all(&state_dir).unwrap();
-        let now = now_epoch_seconds();
-        write_json(
-            &state_path(&state_dir, SchedulerMode::Schedule),
-            &json!({
-                "type": "kernel_sentinel_schedule_state",
-                "last_attempt_epoch_secs": now,
-                "last_success_epoch_secs": now,
-                "last_exit_code": 0
-            }),
-        )
-        .unwrap();
-        write_json(
-            &state_path(&state_dir, SchedulerMode::Heartbeat),
-            &json!({
-                "type": "kernel_sentinel_schedule_state",
-                "last_attempt_epoch_secs": 2,
-                "last_success_epoch_secs": 1,
-                "last_exit_code": 0
-            }),
-        )
-        .unwrap();
-        let args = vec!["--stale-window-seconds=1".to_string()];
-        let summary = build_scheduler_health_summary(&root, &args);
-        assert_eq!(summary["shared_state_path"], false);
-        assert_eq!(summary["schedule"]["lifecycle_status"], "fresh");
-        assert_eq!(summary["heartbeat"]["lifecycle_status"], "stale");
-        assert_eq!(summary["lifecycle_status"], "stale");
-    }
-
-    #[test]
-    fn health_summary_uses_legacy_fallback_when_mode_state_missing() {
-        let root = unique_root("health-legacy");
-        let state_dir = root.join("local/state/kernel_sentinel");
-        fs::create_dir_all(&state_dir).unwrap();
-        write_json(
-            &legacy_state_path(&state_dir),
-            &json!({
-                "type": "kernel_sentinel_schedule_state",
-                "last_attempt_epoch_secs": 5,
-                "last_success_epoch_secs": 5,
-                "last_exit_code": 0
-            }),
-        )
-        .unwrap();
-        let summary = build_scheduler_health_summary(&root, &[]);
-        assert_eq!(summary["schedule"]["legacy_fallback_used"], false);
-        assert_eq!(summary["heartbeat"]["legacy_fallback_used"], true);
-        assert_eq!(
-            summary["heartbeat"]["legacy_state_path"],
-            legacy_state_path(&state_dir).display().to_string()
-        );
-    }
-
-    #[test]
-    fn health_summary_reports_running_without_success_yet() {
-        let root = unique_root("health-running");
-        let state_dir = root.join("local/state/kernel_sentinel");
-        fs::create_dir_all(&state_dir).unwrap();
-        write_json(
-            &state_path(&state_dir, SchedulerMode::Schedule),
-            &json!({
-                "type": "kernel_sentinel_schedule_state",
-                "last_attempt_epoch_secs": now_epoch_seconds(),
-                "last_success_epoch_secs": null,
-                "last_exit_code": null
-            }),
-        )
-        .unwrap();
-        let summary = build_scheduler_health_summary(&root, &[]);
-        assert_eq!(summary["schedule"]["lifecycle_status"], "running");
-        assert_eq!(summary["lifecycle_status"], "running");
-        assert_eq!(summary["running"], true);
-    }
-
-    #[test]
-    fn health_summary_reports_configured_without_attempt_history() {
-        let root = unique_root("health-configured");
-        let state_dir = root.join("local/state/kernel_sentinel");
-        fs::create_dir_all(&state_dir).unwrap();
-        write_json(
-            &state_path(&state_dir, SchedulerMode::Schedule),
-            &json!({
-                "type": "kernel_sentinel_schedule_state",
-                "last_attempt_epoch_secs": null,
-                "last_success_epoch_secs": null,
-                "last_exit_code": null
-            }),
-        )
-        .unwrap();
-        let summary = build_scheduler_health_summary(&root, &[]);
-        assert_eq!(summary["schedule"]["lifecycle_status"], "configured");
-        assert_eq!(summary["lifecycle_status"], "configured");
-    }
+pub fn run_dream(root: &Path, args: &[String]) -> i32 {
+    run_scheduler(root, args, SchedulerMode::Dream)
 }
+
+#[cfg(test)]
+mod tests;

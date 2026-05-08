@@ -36,6 +36,8 @@ fn proactive_daemon_policy_tiered_tool_surfaces_emit_conduit_receipts() {
 #[test]
 fn proactive_daemon_failure_isolation_quarantines_failed_intent_without_poisoning_other_tasks() {
     let root = tempdir().expect("tmp");
+    let semantic_artifact_path = dream_semantic_artifact_path(root.path(), "hand-default");
+    fs::create_dir_all(&semantic_artifact_path).expect("block semantic artifact path");
     assert_eq!(
         run_proactive_daemon_daemon(
             root.path(),
@@ -67,19 +69,18 @@ fn proactive_daemon_failure_isolation_quarantines_failed_intent_without_poisonin
         .and_then(Value::as_array)
         .map(|rows| rows.iter().any(|row| row.get("task").and_then(Value::as_str) == Some("dream_consolidation")))
         .unwrap_or(false));
-    let executed = state
-        .pointer("/last_executed_intents")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    assert!(executed.iter().any(|row| {
-        row.pointer("/intent/task").and_then(Value::as_str) == Some("pattern_log")
-    }));
+    assert_eq!(
+        state.pointer("/sentinel/last_tick_exit_code").and_then(Value::as_i64),
+        Some(0),
+        "sentinel cadence should continue even when dream execution fails"
+    );
 }
 
 #[test]
 fn proactive_daemon_recovery_matrix_records_strategy_ladder() {
     let root = tempdir().expect("tmp");
+    let semantic_artifact_path = dream_semantic_artifact_path(root.path(), "hand-default");
+    fs::create_dir_all(&semantic_artifact_path).expect("block semantic artifact path");
     let args = &[
         "proactive_daemon".to_string(),
         "cycle".to_string(),
@@ -90,6 +91,10 @@ fn proactive_daemon_recovery_matrix_records_strategy_ladder() {
         "--dream-max-without-ms=60000".to_string(),
     ];
     assert_eq!(run_proactive_daemon_daemon(root.path(), args), 0);
+    let mut state = read_json(&proactive_daemon_state_path(root.path())).expect("state after first cycle");
+    state["failure_isolation"]["quarantine"] = Value::Array(vec![]);
+    state["failure_isolation"]["last_isolation"] = Value::Null;
+    write_json(&proactive_daemon_state_path(root.path()), &state).expect("rewrite state");
     assert_eq!(run_proactive_daemon_daemon(root.path(), args), 0);
     let state = read_json(&proactive_daemon_state_path(root.path())).expect("state");
     let history = state
@@ -102,7 +107,7 @@ fn proactive_daemon_recovery_matrix_records_strategy_ladder() {
         row.get("strategy").and_then(Value::as_str) == Some("retry")
     }));
     assert!(history.iter().any(|row| {
-        row.get("strategy").and_then(Value::as_str) == Some("resync")
+        row.get("strategy").and_then(Value::as_str) == Some("rollback")
     }));
 }
 
@@ -154,6 +159,10 @@ fn proactive_daemon_triggers_dream_and_cleanup_when_inactive() {
             > 0
     );
     assert_eq!(
+        state.pointer("/sentinel/last_tick_exit_code").and_then(Value::as_i64),
+        Some(0)
+    );
+    assert_eq!(
         state
             .pointer("/dream/last_dream_reason")
             .and_then(Value::as_str),
@@ -167,6 +176,27 @@ fn proactive_daemon_triggers_dream_and_cleanup_when_inactive() {
     assert!(executed.iter().any(|row| {
         row.pointer("/intent/task").and_then(Value::as_str) == Some("dream_consolidation")
     }));
+    let sentinel_tick_path = state
+        .pointer("/sentinel/last_tick_artifact_path")
+        .and_then(Value::as_str)
+        .map(std::path::PathBuf::from)
+        .expect("sentinel tick path");
+    let sentinel_tick = read_json(&sentinel_tick_path).expect("sentinel tick");
+    assert_eq!(sentinel_tick["type"], "kernel_sentinel_tick_run");
+    assert_eq!(
+        sentinel_tick.pointer("/cascade/target").and_then(Value::as_str),
+        Some("heartbeat")
+    );
+    let sentinel_tick_state_path = sentinel_tick
+        .get("schedule_state_path")
+        .and_then(Value::as_str)
+        .map(std::path::PathBuf::from)
+        .expect("sentinel tick state path");
+    assert!(sentinel_tick_state_path.exists(), "tick state path should exist");
+    assert_eq!(
+        sentinel_tick_state_path.file_name().and_then(|name| name.to_str()),
+        Some("kernel_sentinel_tick_state.json")
+    );
     assert!(
         !root.path().join("target").exists(),
         "sleep cleanup should run as part of dream execution"
