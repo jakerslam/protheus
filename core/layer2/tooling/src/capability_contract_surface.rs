@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolCapabilityContractSurface {
+    pub operations: Vec<String>,
+    pub optional_args: Vec<String>,
     pub supports_bulk: bool,
     pub max_bulk_items: usize,
     pub cost_tier: String,
@@ -15,6 +17,7 @@ pub struct ToolCapabilityContractSurface {
     pub default_extraction_type: String,
     pub allowed_extraction_types: Vec<String>,
     pub selector_hint_allowed: bool,
+    pub selector_hint_fallback_mode: String,
     pub main_content_only_default: bool,
     pub max_chars: usize,
     pub include_artifact_refs: bool,
@@ -32,10 +35,16 @@ pub struct ToolCapabilityContractSurface {
     pub session_max_parallel_items_default: usize,
     pub session_request_overrides_allowed: bool,
     pub session_close_on_complete_default: bool,
+    pub implicit_session_on_invoke: bool,
+    pub explicit_session_close_supported: bool,
+    pub explicit_session_list_supported: bool,
+    pub session_handle_arg: Option<String>,
 }
 
 pub fn capability_contract_surface(contract: &ToolCdContract) -> ToolCapabilityContractSurface {
     ToolCapabilityContractSurface {
+        operations: contract.operations.clone(),
+        optional_args: contract.optional_args.clone(),
         supports_bulk: contract.retrieval.supports_bulk,
         max_bulk_items: contract.retrieval.max_bulk_items,
         cost_tier: contract.retrieval.cost_tier.clone(),
@@ -48,6 +57,7 @@ pub fn capability_contract_surface(contract: &ToolCdContract) -> ToolCapabilityC
         default_extraction_type: contract.extraction.default_type.clone(),
         allowed_extraction_types: contract.extraction.allowed_types.clone(),
         selector_hint_allowed: contract.extraction.selector_hint_allowed,
+        selector_hint_fallback_mode: contract.extraction.selector_hint_fallback_mode.clone(),
         main_content_only_default: contract.extraction.main_content_only_default,
         max_chars: contract.extraction.max_chars,
         include_artifact_refs: contract.evidence_packaging.include_artifact_refs,
@@ -65,5 +75,9 @@ pub fn capability_contract_surface(contract: &ToolCdContract) -> ToolCapabilityC
         session_max_parallel_items_default: contract.session_policy.max_parallel_items_default,
         session_request_overrides_allowed: contract.session_policy.request_overrides_allowed,
         session_close_on_complete_default: contract.session_policy.close_on_complete_default,
+        implicit_session_on_invoke: contract.lifecycle.implicit_session_on_invoke,
+        explicit_session_close_supported: contract.lifecycle.explicit_close_supported,
+        explicit_session_list_supported: contract.lifecycle.explicit_list_supported,
+        session_handle_arg: contract.lifecycle.session_handle_arg.clone(),
     }
 }

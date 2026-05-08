@@ -287,7 +287,7 @@ pub fn published_tool_alias_contract_v1() -> Vec<Value> {
 
 pub fn published_schema_contract_v1() -> Value {
     json!({
-        "version": "tooling_schema_v9",
+        "version": "tooling_schema_v10",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
         "tool_attempt_receipt": TOOL_ATTEMPT_RECEIPT_FIELDS,
         "tool_capability_probe": TOOL_CAPABILITY_PROBE_FIELDS,

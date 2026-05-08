@@ -7,6 +7,8 @@
       "capability_family": "web_retrieval",
       "required_args": ["query"],
       "aliases": ["web_lookup", "browse_web"],
+      "optional_args": ["aperture", "timeout_ms"],
+      "operations": ["search"],
       "retrieval": {
         "mode": "search",
         "supports_bulk": false,
@@ -25,6 +27,7 @@
         "default_type": "markdown",
         "allowed_types": ["markdown", "html", "text"],
         "selector_hint_allowed": true,
+        "selector_hint_fallback_mode": "whole_page",
         "main_content_only_default": true,
         "max_chars": 12000
       },
@@ -46,6 +49,12 @@
         "max_parallel_items_default": 1,
         "request_overrides_allowed": false,
         "close_on_complete_default": true
+      },
+      "lifecycle": {
+        "implicit_session_on_invoke": false,
+        "explicit_close_supported": false,
+        "explicit_list_supported": false,
+        "session_handle_arg": null
       },
       "safety": {
         "ssrf_guard_required": true,
@@ -139,6 +148,8 @@
       "capability_family": "web_retrieval",
       "required_args": ["query"],
       "aliases": ["web_research"],
+      "optional_args": ["aperture", "timeout_ms"],
+      "operations": ["search_pack"],
       "retrieval": {
         "mode": "search_pack",
         "supports_bulk": true,
@@ -157,6 +168,7 @@
         "default_type": "markdown",
         "allowed_types": ["markdown", "html", "text"],
         "selector_hint_allowed": true,
+        "selector_hint_fallback_mode": "whole_page",
         "main_content_only_default": true,
         "max_chars": 24000
       },
@@ -178,6 +190,12 @@
         "max_parallel_items_default": 6,
         "request_overrides_allowed": false,
         "close_on_complete_default": true
+      },
+      "lifecycle": {
+        "implicit_session_on_invoke": false,
+        "explicit_close_supported": false,
+        "explicit_list_supported": false,
+        "session_handle_arg": null
       },
       "safety": {
         "ssrf_guard_required": true,
@@ -271,6 +289,19 @@
       "capability_family": "web_retrieval",
       "required_args": ["url"],
       "aliases": ["web_read", "read_url"],
+      "optional_args": [
+        "timeout_ms",
+        "selector_hint",
+        "main_content_only",
+        "wait_selector",
+        "network_idle",
+        "disable_resources",
+        "block_ads",
+        "blocked_domains",
+        "session_id",
+        "close_on_complete"
+      ],
+      "operations": ["fetch"],
       "retrieval": {
         "mode": "fetch",
         "supports_bulk": false,
@@ -289,6 +320,7 @@
         "default_type": "markdown",
         "allowed_types": ["markdown", "html", "text"],
         "selector_hint_allowed": true,
+        "selector_hint_fallback_mode": "whole_page",
         "main_content_only_default": true,
         "max_chars": 12000
       },
@@ -310,6 +342,12 @@
         "max_parallel_items_default": 1,
         "request_overrides_allowed": true,
         "close_on_complete_default": true
+      },
+      "lifecycle": {
+        "implicit_session_on_invoke": true,
+        "explicit_close_supported": false,
+        "explicit_list_supported": false,
+        "session_handle_arg": "session_id"
       },
       "safety": {
         "ssrf_guard_required": true,

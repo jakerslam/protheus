@@ -17,12 +17,17 @@ pub struct ToolCdContract {
     pub required_args: Vec<String>,
     #[serde(default)]
     pub aliases: Vec<String>,
+    #[serde(default)]
+    pub optional_args: Vec<String>,
+    #[serde(default)]
+    pub operations: Vec<String>,
     pub retrieval: ToolRetrievalContract,
     pub execution_policy: ToolExecutionPolicyContract,
     pub extraction: ToolExtractionContract,
     pub readiness: ToolReadinessContract,
     pub resource_policy: ToolResourcePolicyContract,
     pub session_policy: ToolSessionPolicyContract,
+    pub lifecycle: ToolLifecycleContract,
     pub safety: ToolSafetyContract,
     pub evidence_packaging: ToolEvidencePackagingContract,
     pub quality_classification: ToolQualityClassificationContract,
@@ -53,6 +58,7 @@ pub struct ToolExtractionContract {
     pub default_type: String,
     pub allowed_types: Vec<String>,
     pub selector_hint_allowed: bool,
+    pub selector_hint_fallback_mode: String,
     pub main_content_only_default: bool,
     pub max_chars: usize,
 }
@@ -80,6 +86,15 @@ pub struct ToolSessionPolicyContract {
     pub max_parallel_items_default: usize,
     pub request_overrides_allowed: bool,
     pub close_on_complete_default: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolLifecycleContract {
+    pub implicit_session_on_invoke: bool,
+    pub explicit_close_supported: bool,
+    pub explicit_list_supported: bool,
+    #[serde(default)]
+    pub session_handle_arg: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -201,6 +216,33 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     if contract.required_args.is_empty() {
         return Err(format!("required_args_required:{tool_id}"));
     }
+    if contract.operations.is_empty() {
+        return Err(format!("operations_required:{tool_id}"));
+    }
+    let mut seen_arg_names = BTreeSet::<String>::new();
+    for arg in &contract.required_args {
+        let normalized = normalized_key(arg);
+        if normalized.is_empty() {
+            return Err(format!("required_arg_name_required:{tool_id}"));
+        }
+        if !seen_arg_names.insert(normalized) {
+            return Err(format!("duplicate_arg_name:{tool_id}"));
+        }
+    }
+    for arg in &contract.optional_args {
+        let normalized = normalized_key(arg);
+        if normalized.is_empty() {
+            return Err(format!("optional_arg_name_required:{tool_id}"));
+        }
+        if !seen_arg_names.insert(normalized) {
+            return Err(format!("duplicate_arg_name:{tool_id}"));
+        }
+    }
+    for operation in &contract.operations {
+        if normalized_key(operation).is_empty() {
+            return Err(format!("operation_name_required:{tool_id}"));
+        }
+    }
     if normalized_key(&contract.retrieval.mode).is_empty() {
         return Err(format!("retrieval_mode_required:{tool_id}"));
     }
@@ -225,6 +267,11 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     {
         return Err(format!("extraction_default_must_be_allowed:{tool_id}"));
     }
+    if contract.extraction.selector_hint_allowed
+        && normalized_key(&contract.extraction.selector_hint_fallback_mode).is_empty()
+    {
+        return Err(format!("selector_hint_fallback_required:{tool_id}"));
+    }
     if contract.readiness.default_timeout_ms == 0 {
         return Err(format!("readiness_timeout_required:{tool_id}"));
     }
@@ -236,6 +283,20 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     }
     if contract.session_policy.max_parallel_items_default == 0 {
         return Err(format!("session_parallel_items_required:{tool_id}"));
+    }
+    let has_session_handle_arg = contract
+        .lifecycle
+        .session_handle_arg
+        .as_ref()
+        .map(|value| !normalized_key(value).is_empty())
+        .unwrap_or(false);
+    if contract.session_policy.reuse_allowed && !has_session_handle_arg {
+        return Err(format!("session_handle_arg_required:{tool_id}"));
+    }
+    if (contract.lifecycle.explicit_close_supported || contract.lifecycle.explicit_list_supported)
+        && !has_session_handle_arg
+    {
+        return Err(format!("session_handle_arg_required:{tool_id}"));
     }
     if !contract.safety.ssrf_guard_required {
         return Err(format!("ssrf_guard_required:{tool_id}"));
@@ -322,10 +383,16 @@ mod tests {
             .allowed_types
             .contains(&"markdown".to_string()));
         assert!(contract.extraction.selector_hint_allowed);
+        assert_eq!(
+            contract.extraction.selector_hint_fallback_mode,
+            "whole_page"
+        );
         assert!(contract.safety.ssrf_guard_required);
         assert!(contract.safety.sanitization.hidden_content_removed);
         assert!(!contract.visibility.raw_payload_chat_visible);
         assert!(contract.execution_policy.request_fingerprint_dedupe);
+        assert_eq!(contract.operations, vec!["search".to_string()]);
+        assert!(contract.optional_args.contains(&"aperture".to_string()));
         assert!(contract
             .quality_classification
             .blocked_status_codes
@@ -348,15 +415,25 @@ mod tests {
         assert_eq!(contract.session_policy.pooling_mode, "none");
         assert_eq!(contract.session_policy.max_parallel_items_default, 1);
         assert!(!contract.execution_policy.blocked_response_retry_allowed);
+        assert!(!contract.lifecycle.implicit_session_on_invoke);
+        assert_eq!(contract.lifecycle.session_handle_arg, None);
         let fetch = tool_cd_contract_for("web_fetch").expect("web_fetch contract");
         assert!(fetch.evidence_packaging.include_artifact_refs);
         assert!(fetch
             .evidence_packaging
             .allowed_artifact_kinds
             .contains(&"screenshot".to_string()));
+        assert_eq!(fetch.operations, vec!["fetch".to_string()]);
+        assert!(fetch.optional_args.contains(&"selector_hint".to_string()));
         assert!(fetch.execution_policy.blocked_response_retry_allowed);
         assert_eq!(fetch.execution_policy.max_blocked_retries_default, 2);
+        assert!(fetch.lifecycle.implicit_session_on_invoke);
+        assert_eq!(
+            fetch.lifecycle.session_handle_arg.as_deref(),
+            Some("session_id")
+        );
         let batch = tool_cd_contract_for("batch_query").expect("batch_query contract");
+        assert_eq!(batch.operations, vec!["search_pack".to_string()]);
         assert_eq!(batch.execution_policy.per_domain_concurrency_default, 2);
     }
 

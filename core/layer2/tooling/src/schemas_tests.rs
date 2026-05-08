@@ -12,7 +12,7 @@ fn schema_contract_publishes_frozen_field_sets() {
     let contract = published_schema_contract_v1();
     assert_eq!(
         contract.get("version").and_then(Value::as_str),
-        Some("tooling_schema_v9")
+        Some("tooling_schema_v10")
     );
     assert_eq!(
         contract
@@ -113,6 +113,8 @@ fn tool_capability_probe_schema_includes_status_and_required_args() {
         required_args: vec!["query".to_string()],
         contract_surface: Some(
             crate::capability_contract_surface::ToolCapabilityContractSurface {
+                operations: vec!["search".to_string()],
+                optional_args: vec!["aperture".to_string(), "timeout_ms".to_string()],
                 supports_bulk: false,
                 max_bulk_items: 1,
                 cost_tier: "low".to_string(),
@@ -125,6 +127,7 @@ fn tool_capability_probe_schema_includes_status_and_required_args() {
                 default_extraction_type: "markdown".to_string(),
                 allowed_extraction_types: vec!["markdown".to_string()],
                 selector_hint_allowed: true,
+                selector_hint_fallback_mode: "whole_page".to_string(),
                 main_content_only_default: true,
                 max_chars: 12_000,
                 include_artifact_refs: false,
@@ -142,6 +145,10 @@ fn tool_capability_probe_schema_includes_status_and_required_args() {
                 session_max_parallel_items_default: 1,
                 session_request_overrides_allowed: false,
                 session_close_on_complete_default: true,
+                implicit_session_on_invoke: false,
+                explicit_session_close_supported: false,
+                explicit_session_list_supported: false,
+                session_handle_arg: None,
             },
         ),
         backend: "retrieval_plane".to_string(),
@@ -228,6 +235,8 @@ fn capability_schema_serializes_tool_cd_metadata_without_changing_probe_contract
         quality_lanes: vec!["usable".to_string(), "low_signal".to_string()],
         contract_surface: Some(
             crate::capability_contract_surface::ToolCapabilityContractSurface {
+                operations: vec!["search".to_string()],
+                optional_args: vec!["aperture".to_string(), "timeout_ms".to_string()],
                 supports_bulk: false,
                 max_bulk_items: 1,
                 cost_tier: "low".to_string(),
@@ -240,6 +249,7 @@ fn capability_schema_serializes_tool_cd_metadata_without_changing_probe_contract
                 default_extraction_type: "markdown".to_string(),
                 allowed_extraction_types: vec!["markdown".to_string(), "html".to_string()],
                 selector_hint_allowed: true,
+                selector_hint_fallback_mode: "whole_page".to_string(),
                 main_content_only_default: true,
                 max_chars: 12_000,
                 include_artifact_refs: false,
@@ -257,6 +267,10 @@ fn capability_schema_serializes_tool_cd_metadata_without_changing_probe_contract
                 session_max_parallel_items_default: 1,
                 session_request_overrides_allowed: false,
                 session_close_on_complete_default: true,
+                implicit_session_on_invoke: false,
+                explicit_session_close_supported: false,
+                explicit_session_list_supported: false,
+                session_handle_arg: None,
             },
         ),
         required_args: vec!["query".to_string()],
