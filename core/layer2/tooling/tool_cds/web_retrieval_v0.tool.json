@@ -32,14 +32,26 @@
         "blocked_domains_allowed": false
       },
       "session_policy": {
+        "state_scope": "stateless",
         "reuse_allowed": false,
+        "pooling_mode": "none",
         "max_pages_default": 1,
+        "max_parallel_items_default": 1,
+        "request_overrides_allowed": false,
         "close_on_complete_default": true
       },
       "safety": {
         "ssrf_guard_required": true,
         "redirect_policy": "bounded",
         "prompt_injection_sanitizer_required": true,
+        "sanitization": {
+          "hidden_content_removed": true,
+          "template_content_removed": true,
+          "html_comments_removed": true,
+          "zero_width_chars_removed": true,
+          "script_style_noise_removed": true,
+          "raw_payload_quarantined": true
+        },
         "raw_payload_chat_visible": false
       },
       "evidence_packaging": {
@@ -49,6 +61,53 @@
         "include_fetch_mode": true,
         "include_extraction_type": true,
         "include_quality_flags": true
+      },
+      "quality_classification": {
+        "classifier": "tool_result_quality_v1",
+        "status_fields": ["status", "status_code", "http_status"],
+        "content_fields": ["content", "text", "summary", "body", "markdown", "excerpt"],
+        "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
+        "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
+        "blocked_error_fragments": [
+          "anti_bot_challenge",
+          "policy_denied",
+          "access denied",
+          "captcha",
+          "missing_credentials"
+        ],
+        "blocked_text_fragments": [
+          "captcha",
+          "unusual traffic",
+          "access denied",
+          "are you a human",
+          "confirm this search was made by a human",
+          "login required",
+          "sign in to continue"
+        ],
+        "needs_dynamic_text_fragments": [
+          "enable javascript",
+          "requires javascript",
+          "turn on javascript",
+          "javascript is disabled"
+        ],
+        "low_signal_text_fragments": [
+          "no results",
+          "nothing found",
+          "no relevant",
+          "empty result",
+          "returned low-signal",
+          "limited information"
+        ],
+        "irrelevant_text_fragments": [
+          "irrelevant",
+          "off topic",
+          "unrelated result",
+          "not related"
+        ],
+        "proxy_metadata_fields": ["proxy", "proxy_url", "proxy_used", "proxy_rotator"],
+        "min_partial_content_chars": 80,
+        "min_usable_content_chars": 240,
+        "emit_on_normalized_result": true
       },
       "quality_lanes": [
         "usable",
@@ -96,14 +155,26 @@
         "blocked_domains_allowed": false
       },
       "session_policy": {
+        "state_scope": "stateless",
         "reuse_allowed": false,
+        "pooling_mode": "batch_fanout",
         "max_pages_default": 1,
+        "max_parallel_items_default": 6,
+        "request_overrides_allowed": false,
         "close_on_complete_default": true
       },
       "safety": {
         "ssrf_guard_required": true,
         "redirect_policy": "bounded",
         "prompt_injection_sanitizer_required": true,
+        "sanitization": {
+          "hidden_content_removed": true,
+          "template_content_removed": true,
+          "html_comments_removed": true,
+          "zero_width_chars_removed": true,
+          "script_style_noise_removed": true,
+          "raw_payload_quarantined": true
+        },
         "raw_payload_chat_visible": false
       },
       "evidence_packaging": {
@@ -113,6 +184,53 @@
         "include_fetch_mode": true,
         "include_extraction_type": true,
         "include_quality_flags": true
+      },
+      "quality_classification": {
+        "classifier": "tool_result_quality_v1",
+        "status_fields": ["status", "status_code", "http_status"],
+        "content_fields": ["content", "text", "summary", "body", "markdown", "excerpt"],
+        "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
+        "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
+        "blocked_error_fragments": [
+          "anti_bot_challenge",
+          "policy_denied",
+          "access denied",
+          "captcha",
+          "missing_credentials"
+        ],
+        "blocked_text_fragments": [
+          "captcha",
+          "unusual traffic",
+          "access denied",
+          "are you a human",
+          "confirm this search was made by a human",
+          "login required",
+          "sign in to continue"
+        ],
+        "needs_dynamic_text_fragments": [
+          "enable javascript",
+          "requires javascript",
+          "turn on javascript",
+          "javascript is disabled"
+        ],
+        "low_signal_text_fragments": [
+          "no results",
+          "nothing found",
+          "no relevant",
+          "empty result",
+          "returned low-signal",
+          "limited information"
+        ],
+        "irrelevant_text_fragments": [
+          "irrelevant",
+          "off topic",
+          "unrelated result",
+          "not related"
+        ],
+        "proxy_metadata_fields": ["proxy", "proxy_url", "proxy_used", "proxy_rotator"],
+        "min_partial_content_chars": 80,
+        "min_usable_content_chars": 240,
+        "emit_on_normalized_result": true
       },
       "quality_lanes": [
         "usable",
@@ -160,14 +278,26 @@
         "blocked_domains_allowed": true
       },
       "session_policy": {
+        "state_scope": "session_context",
         "reuse_allowed": true,
+        "pooling_mode": "serial_reuse",
         "max_pages_default": 1,
+        "max_parallel_items_default": 1,
+        "request_overrides_allowed": true,
         "close_on_complete_default": true
       },
       "safety": {
         "ssrf_guard_required": true,
         "redirect_policy": "bounded",
         "prompt_injection_sanitizer_required": true,
+        "sanitization": {
+          "hidden_content_removed": true,
+          "template_content_removed": true,
+          "html_comments_removed": true,
+          "zero_width_chars_removed": true,
+          "script_style_noise_removed": true,
+          "raw_payload_quarantined": true
+        },
         "raw_payload_chat_visible": false
       },
       "evidence_packaging": {
@@ -177,6 +307,53 @@
         "include_fetch_mode": true,
         "include_extraction_type": true,
         "include_quality_flags": true
+      },
+      "quality_classification": {
+        "classifier": "tool_result_quality_v1",
+        "status_fields": ["status", "status_code", "http_status"],
+        "content_fields": ["content", "text", "summary", "body", "markdown", "excerpt"],
+        "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
+        "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
+        "blocked_error_fragments": [
+          "anti_bot_challenge",
+          "policy_denied",
+          "access denied",
+          "captcha",
+          "missing_credentials"
+        ],
+        "blocked_text_fragments": [
+          "captcha",
+          "unusual traffic",
+          "access denied",
+          "are you a human",
+          "confirm this search was made by a human",
+          "login required",
+          "sign in to continue"
+        ],
+        "needs_dynamic_text_fragments": [
+          "enable javascript",
+          "requires javascript",
+          "turn on javascript",
+          "javascript is disabled"
+        ],
+        "low_signal_text_fragments": [
+          "no results",
+          "nothing found",
+          "no relevant",
+          "empty result",
+          "returned low-signal",
+          "limited information"
+        ],
+        "irrelevant_text_fragments": [
+          "irrelevant",
+          "off topic",
+          "unrelated result",
+          "not related"
+        ],
+        "proxy_metadata_fields": ["proxy", "proxy_url", "proxy_used", "proxy_rotator"],
+        "min_partial_content_chars": 80,
+        "min_usable_content_chars": 240,
+        "emit_on_normalized_result": true
       },
       "quality_lanes": [
         "usable",

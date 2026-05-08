@@ -68,7 +68,59 @@ mod receipt_validator_tests {
             .lineage
             .iter()
             .any(|row| row.starts_with("quality_lanes:") && row.contains("low_signal")));
+        assert!(out
+            .normalized_result
+            .quality_lanes
+            .contains(&"low_signal".to_string()));
+        assert!(out
+            .normalized_result
+            .quality_reasons
+            .contains(&"content_below_partial_threshold".to_string()));
+        assert!(out
+            .normalized_result
+            .safety_flags
+            .contains(&"sanitizer_applied".to_string()));
         assert_eq!(out.execution_receipt.evidence_count, 1);
+    }
+
+    #[test]
+    fn web_tool_result_quality_lanes_distinguish_blocked_and_low_signal() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-quality".to_string(),
+                    task_id: "task-quality".to_string(),
+                    tool_name: "web_fetch".to_string(),
+                    args: json!({"url":"https://example.com"}),
+                    lineage: vec![],
+                    caller: BrokerCaller::Client,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| Ok(json!({"status":403,"content":["Forbidden page body"]})),
+            )
+            .expect("execution");
+        assert!(out
+            .normalized_result
+            .quality_lanes
+            .contains(&"blocked".to_string()));
+        assert!(out
+            .normalized_result
+            .quality_reasons
+            .contains(&"blocked_status".to_string()));
+        assert!(out
+            .normalized_result
+            .lineage
+            .iter()
+            .any(|row| row == "result_quality:blocked,low_signal"));
+        assert!(out
+            .normalized_result
+            .lineage
+            .iter()
+            .any(|row| row.starts_with("quality_reasons:") && row.contains("retryable_status")));
     }
 
     #[test]
@@ -138,6 +190,14 @@ mod receipt_validator_tests {
             out.execution_receipt.error_code.as_deref(),
             Some("anti_bot_challenge")
         );
+        assert!(out
+            .normalized_result
+            .quality_lanes
+            .contains(&"blocked".to_string()));
+        assert!(out
+            .normalized_result
+            .quality_reasons
+            .contains(&"blocked_error".to_string()));
         assert_eq!(out.execution_receipt.evidence_count, 0);
     }
 

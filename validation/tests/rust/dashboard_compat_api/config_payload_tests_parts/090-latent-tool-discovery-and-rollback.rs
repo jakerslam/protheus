@@ -113,6 +113,42 @@ fn tool_capabilities_surface_reports_default_read_tools() {
             .map(|value| value == "file")
             .unwrap_or(false)
     }));
+    let tools = payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let web_search = tools
+        .iter()
+        .find(|row| {
+            row.get("tool")
+                .and_then(Value::as_str)
+                .map(|value| value == "web_search")
+                .unwrap_or(false)
+        })
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(
+        web_search.get("capability_family").and_then(Value::as_str),
+        Some("web_retrieval")
+    );
+    assert_eq!(
+        web_search.get("retrieval_mode").and_then(Value::as_str),
+        Some("search")
+    );
+    assert!(web_search
+        .get("quality_lanes")
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().any(|row| row.as_str() == Some("low_signal")))
+        .unwrap_or(false));
+    assert_eq!(
+        web_search
+            .get("contract_surface")
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("default_timeout_ms"))
+            .and_then(Value::as_u64),
+        Some(30_000)
+    );
 }
 
 #[test]

@@ -190,47 +190,9 @@ fn file_payload_error(text: &str) -> bool {
 }
 
 fn tool_payload_evidence_count(payload: &Value) -> usize {
-    match payload {
-        Value::Array(rows) => rows.iter().map(tool_payload_evidence_count).sum(),
-        Value::Object(map) => {
-            for key in [
-                "results",
-                "items",
-                "documents",
-                "files",
-                "evidence",
-                "matches",
-                "search_results",
-                "provider_results",
-                "hits",
-                "links",
-                "sources",
-                "evidence_refs",
-            ] {
-                if let Some(Value::Array(rows)) = map.get(key) {
-                    return rows.len();
-                }
-            }
-            ["content", "text", "summary", "body", "markdown"]
-                .iter()
-                .filter_map(|key| map.get(*key).and_then(Value::as_str))
-                .filter(|row| !row.trim().is_empty())
-                .count()
-        }
-        Value::String(row) => usize::from(!row.trim().is_empty()),
-        _ => 0,
-    }
+    crate::evidence_quality::tool_payload_evidence_count(payload)
 }
 
 fn payload_text(payload: &Value) -> String {
-    match payload {
-        Value::String(row) => row.clone(),
-        Value::Array(rows) => rows.iter().map(payload_text).collect::<Vec<_>>().join("\n"),
-        Value::Object(map) => map
-            .values()
-            .map(payload_text)
-            .collect::<Vec<_>>()
-            .join("\n"),
-        _ => String::new(),
-    }
+    crate::evidence_quality::payload_text(payload)
 }

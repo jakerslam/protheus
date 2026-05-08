@@ -1,4 +1,5 @@
 include!("190_route_blocks/late_a.rs");
+include!("190_route_blocks/tool_capabilities_status.rs");
 include!("190_route_blocks/late_b.rs");
 include!("190_route_blocks/late_c.rs");
 

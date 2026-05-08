@@ -1,3 +1,4 @@
+use crate::evidence_sanitizer::sanitize_text_for_evidence;
 use crate::schemas::{ConfidenceVector, EvidenceCard, NormalizedToolResult, NormalizedToolStatus};
 use crate::{deterministic_hash, now_ms};
 use serde_json::Value;
@@ -82,6 +83,19 @@ impl EvidenceExtractor {
             "source_location": source_location
         }));
         let evidence_id = evidence_content_id.clone();
+        let mut lineage = result.lineage.clone();
+        if !result.quality_lanes.is_empty() {
+            lineage.push(format!("result_quality:{}", result.quality_lanes.join(",")));
+        }
+        if !result.quality_reasons.is_empty() {
+            lineage.push(format!(
+                "quality_reasons:{}",
+                result.quality_reasons.join(",")
+            ));
+        }
+        if !result.safety_flags.is_empty() {
+            lineage.push(format!("safety_flags:{}", result.safety_flags.join(",")));
+        }
         Some(EvidenceCard {
             evidence_id,
             evidence_content_id,
@@ -95,7 +109,7 @@ impl EvidenceExtractor {
             summary,
             confidence_vector,
             dedupe_hash,
-            lineage: result.lineage.clone(),
+            lineage,
             timestamp: extracted_at,
         })
     }
@@ -130,31 +144,7 @@ fn collect_array_cards(
 }
 
 fn clean_text(raw: &str, max_len: usize) -> String {
-    strip_markup_noise(raw)
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .trim()
-        .chars()
-        .take(max_len)
-        .collect::<String>()
-}
-
-fn strip_markup_noise(raw: &str) -> String {
-    let mut out = String::with_capacity(raw.len());
-    let mut in_tag = false;
-    for ch in raw.chars() {
-        match ch {
-            '<' => in_tag = true,
-            '>' => {
-                in_tag = false;
-                out.push(' ');
-            }
-            _ if !in_tag => out.push(ch),
-            _ => {}
-        }
-    }
-    out
+    sanitize_text_for_evidence(raw, max_len).text
 }
 
 fn looks_like_interface_chrome(text: &str) -> bool {
@@ -383,150 +373,5 @@ fn pick_confidence(source: &Value) -> ConfidenceVector {
             .get("freshness")
             .and_then(Value::as_f64)
             .unwrap_or(fallback.freshness),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::schemas::{NormalizedToolMetrics, NormalizedToolStatus};
-
-    fn sample_result() -> NormalizedToolResult {
-        NormalizedToolResult {
-            result_id: "r1".to_string(),
-            result_content_id: "r1".to_string(),
-            result_event_id: "evt-r1".to_string(),
-            trace_id: "t1".to_string(),
-            task_id: "task".to_string(),
-            tool_name: "web_search".to_string(),
-            status: NormalizedToolStatus::Ok,
-            normalized_args: serde_json::json!({"query":"test"}),
-            dedupe_hash: "d1".to_string(),
-            lineage: vec!["l1".to_string()],
-            timestamp: 1,
-            metrics: NormalizedToolMetrics {
-                duration_ms: 1,
-                output_bytes: 1,
-            },
-            raw_ref: "raw://r1".to_string(),
-            errors: vec![],
-        }
-    }
-
-    #[test]
-    fn extracts_and_dedupes_evidence_cards() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "results": [
-                {"url":"https://a","summary":"A","excerpt":"alpha"},
-                {"url":"https://a","summary":"A","excerpt":"alpha"}
-            ]
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert_eq!(cards.len(), 1);
-        assert_eq!(cards[0].derived_from_result_id, "r1");
-        assert_eq!(cards[0].trace_id, "t1");
-        assert_eq!(cards[0].task_id, "task");
-    }
-
-    #[test]
-    fn extractor_prefers_original_url_and_strips_markup_from_excerpt() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "results": [{
-                "originalUrl":"https://example.com/video",
-                "excerpt":"<div>hello <b>world</b></div>",
-                "summary":"<p>summary text</p>"
-            }]
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert_eq!(cards.len(), 1);
-        assert_eq!(cards[0].source_ref, "https://example.com/video");
-        assert_eq!(cards[0].excerpt, "hello world");
-        assert_eq!(cards[0].summary, "summary text");
-    }
-
-    #[test]
-    fn extractor_ignores_tool_trace_scaffold_noise() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "message":"Tool trace complete1 done · 1 blocked"
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert!(cards.is_empty());
-    }
-
-    #[test]
-    fn extractor_reads_workspace_items_array() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "items": [
-                {"workspace_path":"core/layer2/tooling/src/request_validation.rs", "excerpt":"query synthesis logic"}
-            ]
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert_eq!(cards.len(), 1);
-        assert_eq!(
-            cards[0].source_ref,
-            "core/layer2/tooling/src/request_validation.rs"
-        );
-    }
-
-    #[test]
-    fn extractor_reads_nested_data_search_results_array() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "data": {
-                "search_results": [
-                    {"source_ref":"workspace://notes", "excerpt":"synthesis candidate"}
-                ]
-            }
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert_eq!(cards.len(), 1);
-        assert_eq!(cards[0].source_ref, "workspace://notes");
-    }
-
-    #[test]
-    fn extractor_does_not_drop_normal_result_summary_text() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "results": [{"summary":"result throughput improved by 20%","source_ref":"https://example.com"}]
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert_eq!(cards.len(), 1);
-    }
-
-    #[test]
-    fn extractor_reads_hits_array_payloads() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "hits": [
-                {"repository":"https://example.com/repo.git", "message":"hit", "excerpt":"tool route evidence"}
-            ]
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert_eq!(cards.len(), 1);
-        assert_eq!(cards[0].source_ref, "https://example.com/repo.git");
-    }
-
-    #[test]
-    fn extractor_builds_summary_from_provider_language_and_platform_facets() {
-        let extractor = EvidenceExtractor;
-        let raw = serde_json::json!({
-            "results":[
-                {
-                    "provider":{"name":"openai"},
-                    "language":"rust",
-                    "platform":"windows",
-                    "excerpt":"route fallback was blocked"
-                }
-            ]
-        });
-        let cards = extractor.extract(&sample_result(), &raw);
-        assert_eq!(cards.len(), 1);
-        assert!(cards[0].summary.contains("provider=openai"));
-        assert!(cards[0].summary.contains("language=rust"));
-        assert!(cards[0].summary.contains("platform=windows"));
     }
 }

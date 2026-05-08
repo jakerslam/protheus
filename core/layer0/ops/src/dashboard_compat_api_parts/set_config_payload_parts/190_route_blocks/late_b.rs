@@ -70,33 +70,36 @@ fn web_tooling_operator_summary_payload(root: &Path) -> Value {
             .unwrap_or(""),
         120,
     );
-    let unresolved_taxonomy_count =
-        taxonomy.get("empty_final").and_then(Value::as_i64).unwrap_or(0).max(0)
-            + taxonomy
-                .get("deferred_final")
-                .and_then(Value::as_i64)
-                .unwrap_or(0)
-                .max(0)
-            + taxonomy
-                .get("placeholder_final")
-                .and_then(Value::as_i64)
-                .unwrap_or(0)
-                .max(0)
-            + taxonomy
-                .get("off_topic_final")
-                .and_then(Value::as_i64)
-                .unwrap_or(0)
-                .max(0)
-            + taxonomy
-                .get("meta_status_tool_leak")
-                .and_then(Value::as_i64)
-                .unwrap_or(0)
-                .max(0)
-            + taxonomy
-                .get("web_missing_tool_attempt")
-                .and_then(Value::as_i64)
-                .unwrap_or(0)
-                .max(0);
+    let unresolved_taxonomy_count = taxonomy
+        .get("empty_final")
+        .and_then(Value::as_i64)
+        .unwrap_or(0)
+        .max(0)
+        + taxonomy
+            .get("deferred_final")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .max(0)
+        + taxonomy
+            .get("placeholder_final")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .max(0)
+        + taxonomy
+            .get("off_topic_final")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .max(0)
+        + taxonomy
+            .get("meta_status_tool_leak")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .max(0)
+        + taxonomy
+            .get("web_missing_tool_attempt")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .max(0);
     let runtime_ok = runtime_status
         .get("ok")
         .and_then(Value::as_bool)
@@ -142,17 +145,32 @@ fn toml_multiline_escape(value: &str) -> String {
 }
 
 fn dashboard_template_manifest_toml(template: &Value) -> String {
-    let name = clean_text(template.get("name").and_then(Value::as_str).unwrap_or("Agent"), 120);
+    let name = clean_text(
+        template
+            .get("name")
+            .and_then(Value::as_str)
+            .unwrap_or("Agent"),
+        120,
+    );
     let role = clean_text(
-        template.get("role").and_then(Value::as_str).unwrap_or("assistant"),
+        template
+            .get("role")
+            .and_then(Value::as_str)
+            .unwrap_or("assistant"),
         80,
     );
     let provider = clean_text(
-        template.get("provider").and_then(Value::as_str).unwrap_or("auto"),
+        template
+            .get("provider")
+            .and_then(Value::as_str)
+            .unwrap_or("auto"),
         80,
     );
     let model = clean_text(
-        template.get("model").and_then(Value::as_str).unwrap_or("auto"),
+        template
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or("auto"),
         160,
     );
     let prompt = clean_text(
@@ -450,38 +468,7 @@ fn handle_global_status_get_routes(
                 "alerts": snapshot.pointer("/health/alerts").cloned().unwrap_or_else(|| json!({})),
                 "runtime_sync": runtime
             }),
-            "/api/capabilities/status" => {
-                let policy = tool_governance_policy(root);
-                let broker = crate::infring_tooling_core_v1_bridge::ToolBroker::default();
-                let catalog = broker.capability_catalog();
-                let grouped_catalog = broker.grouped_capability_catalog();
-                json!({
-                    "ok": true,
-                    "type": "tool_capability_tiers",
-                    "policy": policy,
-                    "catalog_contract": "domain_grouped_tool_catalog_v1",
-                    "catalog_default_workflow": "complex_prompt_chain_v1",
-                    "catalog_domains": grouped_catalog,
-                    "tools": catalog.iter().map(|row| {
-                        let tier = match row.status {
-                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Available => {
-                                if row.read_only { "green" } else { "yellow" }
-                            }
-                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Degraded => "yellow",
-                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Blocked => "red",
-                            crate::infring_tooling_core_v1_bridge::ToolCapabilityStatus::Unavailable => "gray",
-                        };
-                        json!({
-                            "tool": row.tool_name,
-                            "tier": tier,
-                            "domain": row.domain,
-                            "backend": row.backend,
-                            "read_only": row.read_only,
-                            "discoverable": row.discoverable
-                        })
-                    }).collect::<Vec<_>>()
-                })
-            }
+            "/api/capabilities/status" => capabilities_status_payload(root),
             "/api/tools" => json!({
                 "ok": true,
                 "tools": [

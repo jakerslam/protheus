@@ -24,6 +24,7 @@ pub struct ToolCdContract {
     pub session_policy: ToolSessionPolicyContract,
     pub safety: ToolSafetyContract,
     pub evidence_packaging: ToolEvidencePackagingContract,
+    pub quality_classification: ToolQualityClassificationContract,
     pub quality_lanes: Vec<String>,
     pub visibility: ToolVisibilityContract,
 }
@@ -62,8 +63,12 @@ pub struct ToolResourcePolicyContract {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolSessionPolicyContract {
+    pub state_scope: String,
     pub reuse_allowed: bool,
+    pub pooling_mode: String,
     pub max_pages_default: usize,
+    pub max_parallel_items_default: usize,
+    pub request_overrides_allowed: bool,
     pub close_on_complete_default: bool,
 }
 
@@ -72,7 +77,18 @@ pub struct ToolSafetyContract {
     pub ssrf_guard_required: bool,
     pub redirect_policy: String,
     pub prompt_injection_sanitizer_required: bool,
+    pub sanitization: ToolSanitizationContract,
     pub raw_payload_chat_visible: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolSanitizationContract {
+    pub hidden_content_removed: bool,
+    pub template_content_removed: bool,
+    pub html_comments_removed: bool,
+    pub zero_width_chars_removed: bool,
+    pub script_style_noise_removed: bool,
+    pub raw_payload_quarantined: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -83,6 +99,31 @@ pub struct ToolEvidencePackagingContract {
     pub include_fetch_mode: bool,
     pub include_extraction_type: bool,
     pub include_quality_flags: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolQualityClassificationContract {
+    pub classifier: String,
+    pub status_fields: Vec<String>,
+    pub content_fields: Vec<String>,
+    pub blocked_status_codes: Vec<u16>,
+    #[serde(default)]
+    pub retryable_status_codes: Vec<u16>,
+    #[serde(default)]
+    pub blocked_error_fragments: Vec<String>,
+    #[serde(default)]
+    pub blocked_text_fragments: Vec<String>,
+    #[serde(default)]
+    pub needs_dynamic_text_fragments: Vec<String>,
+    #[serde(default)]
+    pub low_signal_text_fragments: Vec<String>,
+    #[serde(default)]
+    pub irrelevant_text_fragments: Vec<String>,
+    #[serde(default)]
+    pub proxy_metadata_fields: Vec<String>,
+    pub min_partial_content_chars: usize,
+    pub min_usable_content_chars: usize,
+    pub emit_on_normalized_result: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -163,11 +204,30 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     if contract.readiness.default_timeout_ms == 0 {
         return Err(format!("readiness_timeout_required:{tool_id}"));
     }
+    if normalized_key(&contract.session_policy.state_scope).is_empty() {
+        return Err(format!("session_state_scope_required:{tool_id}"));
+    }
+    if normalized_key(&contract.session_policy.pooling_mode).is_empty() {
+        return Err(format!("session_pooling_mode_required:{tool_id}"));
+    }
+    if contract.session_policy.max_parallel_items_default == 0 {
+        return Err(format!("session_parallel_items_required:{tool_id}"));
+    }
     if !contract.safety.ssrf_guard_required {
         return Err(format!("ssrf_guard_required:{tool_id}"));
     }
     if contract.safety.raw_payload_chat_visible || contract.visibility.raw_payload_chat_visible {
         return Err(format!("raw_payload_must_not_be_chat_visible:{tool_id}"));
+    }
+    if !contract.safety.prompt_injection_sanitizer_required
+        || !contract.safety.sanitization.hidden_content_removed
+        || !contract.safety.sanitization.template_content_removed
+        || !contract.safety.sanitization.html_comments_removed
+        || !contract.safety.sanitization.zero_width_chars_removed
+        || !contract.safety.sanitization.script_style_noise_removed
+        || !contract.safety.sanitization.raw_payload_quarantined
+    {
+        return Err(format!("sanitization_contract_incomplete:{tool_id}"));
     }
     if contract.visibility.tool_trace_chat_visible {
         return Err(format!("tool_trace_must_not_be_chat_visible:{tool_id}"));
@@ -195,6 +255,20 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     {
         return Err(format!("evidence_packaging_incomplete:{tool_id}"));
     }
+    if normalized_key(&contract.quality_classification.classifier).is_empty()
+        || contract.quality_classification.status_fields.is_empty()
+        || contract.quality_classification.content_fields.is_empty()
+        || contract
+            .quality_classification
+            .blocked_status_codes
+            .is_empty()
+        || contract.quality_classification.min_partial_content_chars == 0
+        || contract.quality_classification.min_usable_content_chars
+            < contract.quality_classification.min_partial_content_chars
+        || !contract.quality_classification.emit_on_normalized_result
+    {
+        return Err(format!("quality_classification_incomplete:{tool_id}"));
+    }
     Ok(())
 }
 
@@ -217,11 +291,28 @@ mod tests {
             .contains(&"markdown".to_string()));
         assert!(contract.extraction.selector_hint_allowed);
         assert!(contract.safety.ssrf_guard_required);
+        assert!(contract.safety.sanitization.hidden_content_removed);
         assert!(!contract.visibility.raw_payload_chat_visible);
+        assert!(contract
+            .quality_classification
+            .blocked_status_codes
+            .contains(&403));
+        assert!(contract
+            .quality_classification
+            .retryable_status_codes
+            .contains(&429));
+        assert!(contract
+            .quality_classification
+            .blocked_text_fragments
+            .iter()
+            .any(|row| row == "captcha"));
         assert!(contract.quality_lanes.contains(&"low_signal".to_string()));
         assert!(contract
             .quality_lanes
             .contains(&"needs_dynamic".to_string()));
+        assert_eq!(contract.session_policy.state_scope, "stateless");
+        assert_eq!(contract.session_policy.pooling_mode, "none");
+        assert_eq!(contract.session_policy.max_parallel_items_default, 1);
     }
 
     #[test]

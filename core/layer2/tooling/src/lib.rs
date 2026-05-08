@@ -4,10 +4,15 @@
 
 pub mod backend_registry;
 pub mod capability;
+pub mod capability_contract_surface;
 #[cfg(test)]
 mod capability_tests;
 pub mod client_adapter;
 pub mod evidence_extractor;
+#[cfg(test)]
+mod evidence_extractor_tests;
+pub mod evidence_quality;
+pub mod evidence_sanitizer;
 pub mod evidence_store;
 mod request_validation;
 #[cfg(test)]
@@ -24,8 +29,16 @@ pub use capability::{
     ToolCapability, ToolCapabilityCatalogGroup, ToolCapabilityDomain, ToolCapabilityProbe,
     ToolCapabilityStatus, ToolReasonCode,
 };
+pub use capability_contract_surface::ToolCapabilityContractSurface;
 pub use client_adapter::{ClientAdapterRequest, ClientDelegationResult, ThinClientDelegator};
 pub use evidence_extractor::EvidenceExtractor;
+pub use evidence_quality::{
+    classify_tool_result_quality, payload_text, tool_payload_evidence_count,
+};
+pub use evidence_sanitizer::{
+    safety_flags_from_report, sanitize_text_for_evidence, EvidenceSanitizationReport,
+    SanitizedEvidenceText,
+};
 pub use evidence_store::{
     EvidenceInvalidationRecord, EvidenceLedgerEvent, EvidenceRecord, EvidenceStore,
     InvalidationRelationType,
@@ -46,8 +59,9 @@ pub use tool_broker::{
 pub use tool_contracts::{
     published_tool_cd_catalog_v1, tool_cd_contract_for, tool_cd_contract_index_v1,
     validate_tool_cd_catalog, ToolCdCatalog, ToolCdContract, ToolEvidencePackagingContract,
-    ToolExtractionContract, ToolReadinessContract, ToolResourcePolicyContract,
-    ToolRetrievalContract, ToolSafetyContract, ToolSessionPolicyContract, ToolVisibilityContract,
+    ToolExtractionContract, ToolQualityClassificationContract, ToolReadinessContract,
+    ToolResourcePolicyContract, ToolRetrievalContract, ToolSafetyContract,
+    ToolSanitizationContract, ToolSessionPolicyContract, ToolVisibilityContract,
 };
 pub use verifier::StructuredVerifier;
 

@@ -36,6 +36,9 @@ fn probe_includes_live_backend_health_fields() {
     assert_eq!(probe.backend, "retrieval_plane");
     assert_eq!(probe.backend_class, ToolBackendClass::RetrievalPlane);
     assert!(!probe.backend_reason.is_empty());
+    let contract_surface = probe.contract_surface.expect("contract surface");
+    assert_eq!(contract_surface.default_extraction_type, "markdown");
+    assert_eq!(contract_surface.default_timeout_ms, 30_000);
 }
 
 #[test]
@@ -101,11 +104,45 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     );
     assert_eq!(web_search.retrieval_mode.as_deref(), Some("search"));
     assert!(web_search.quality_lanes.contains(&"low_signal".to_string()));
+    let web_search_surface = web_search
+        .contract_surface
+        .as_ref()
+        .expect("web_search contract surface");
+    assert_eq!(web_search_surface.default_extraction_type, "markdown");
+    assert_eq!(web_search_surface.cost_tier, "low");
+    assert_eq!(web_search_surface.default_timeout_ms, 30_000);
+    assert!(!web_search_surface.dynamic_page_allowed);
+    assert_eq!(web_search_surface.session_state_scope, "stateless");
+    assert_eq!(web_search_surface.session_pooling_mode, "none");
     let batch_query = catalog
         .iter()
         .find(|row| row.tool_name == "batch_query")
         .expect("batch_query capability");
     assert_eq!(batch_query.retrieval_mode.as_deref(), Some("search_pack"));
+    let batch_query_surface = batch_query
+        .contract_surface
+        .as_ref()
+        .expect("batch_query contract surface");
+    assert!(batch_query_surface.supports_bulk);
+    assert_eq!(batch_query_surface.max_bulk_items, 6);
+    assert_eq!(batch_query_surface.session_max_parallel_items_default, 6);
+    let web_fetch = catalog
+        .iter()
+        .find(|row| row.tool_name == "web_fetch")
+        .expect("web_fetch capability");
+    let web_fetch_surface = web_fetch
+        .contract_surface
+        .as_ref()
+        .expect("web_fetch contract surface");
+    assert!(web_fetch_surface.dynamic_page_allowed);
+    assert!(web_fetch_surface.disable_resources_allowed);
+    assert!(web_fetch_surface.block_ads_allowed);
+    assert!(web_fetch_surface.blocked_domains_allowed);
+    assert_eq!(web_fetch_surface.session_state_scope, "session_context");
+    assert!(web_fetch_surface.session_reuse_allowed);
+    assert_eq!(web_fetch_surface.session_pooling_mode, "serial_reuse");
+    assert_eq!(web_fetch_surface.session_max_pages_default, 1);
+    assert!(web_fetch_surface.session_request_overrides_allowed);
 }
 
 #[test]

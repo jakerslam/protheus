@@ -219,6 +219,8 @@ impl ToolBroker {
                 vec![clean_text(&err, 500)],
             ),
         };
+        let result_quality =
+            crate::evidence_quality::classify_tool_result_quality(&tool_name, &raw_payload, &errors);
         let (attempt_status, reason_code) = match status {
             NormalizedToolStatus::Ok => (ToolAttemptStatus::Ok, ToolReasonCode::Ok),
             NormalizedToolStatus::Blocked => {
@@ -260,6 +262,9 @@ impl ToolBroker {
             "status": status_tag,
             "raw_payload": raw_payload,
             "errors": errors,
+            "quality_lanes": &result_quality.lanes,
+            "quality_reasons": &result_quality.reasons,
+            "safety_flags": &result_quality.safety_flags,
             "policy_revision": policy_revision,
             "tool_version": tool_version
         }));
@@ -333,6 +338,21 @@ impl ToolBroker {
                 contract.extraction.default_type
             ));
         }
+        if !result_quality.lanes.is_empty() {
+            lineage.push(format!("result_quality:{}", result_quality.lanes.join(",")));
+        }
+        if !result_quality.reasons.is_empty() {
+            lineage.push(format!(
+                "quality_reasons:{}",
+                result_quality.reasons.join(",")
+            ));
+        }
+        if !result_quality.safety_flags.is_empty() {
+            lineage.push(format!(
+                "safety_flags:{}",
+                result_quality.safety_flags.join(",")
+            ));
+        }
         lineage.push(format!("broker_event:{event_id}"));
         let normalized_result = NormalizedToolResult {
             result_id,
@@ -349,6 +369,9 @@ impl ToolBroker {
             metrics,
             raw_ref,
             errors,
+            quality_lanes: result_quality.lanes.clone(),
+            quality_reasons: result_quality.reasons.clone(),
+            safety_flags: result_quality.safety_flags.clone(),
         };
         let ledger_event = ToolExecutionLedgerEvent {
             event_id,
@@ -378,7 +401,7 @@ impl ToolBroker {
             started_at: started,
             ended_at,
             data_ref: Some(normalized_result.raw_ref.clone()),
-            evidence_count: tool_payload_evidence_count(&raw_payload),
+            evidence_count: result_quality.evidence_count,
             error_code: error_code_for_attempt(&attempt_receipt),
         });
         self.execution_receipts.push(execution_receipt.clone());

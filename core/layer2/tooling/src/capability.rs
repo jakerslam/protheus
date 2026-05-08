@@ -1,5 +1,8 @@
 // Layer ownership: core/layer2/tooling (authoritative canonical tool/evidence substrate).
 use crate::backend_registry::{live_backend_registry, live_backend_status_for, ToolBackendClass};
+use crate::capability_contract_surface::{
+    capability_contract_surface, ToolCapabilityContractSurface,
+};
 use crate::tool_contracts::tool_cd_contract_for;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -51,6 +54,8 @@ pub struct ToolCapability {
     pub retrieval_mode: Option<String>,
     #[serde(default)]
     pub quality_lanes: Vec<String>,
+    #[serde(default)]
+    pub contract_surface: Option<ToolCapabilityContractSurface>,
     pub required_args: Vec<String>,
     pub allowed_callers: Vec<BrokerCaller>,
     pub backend: String,
@@ -80,6 +85,8 @@ pub struct ToolCapabilityProbe {
     pub reason_code: ToolReasonCode,
     pub reason: String,
     pub required_args: Vec<String>,
+    #[serde(default)]
+    pub contract_surface: Option<ToolCapabilityContractSurface>,
     pub backend: String,
     pub backend_class: ToolBackendClass,
     pub backend_status: ToolCapabilityStatus,
@@ -248,6 +255,7 @@ pub fn all_capabilities_for_callers(
                 .as_ref()
                 .map(|contract| contract.quality_lanes.clone())
                 .unwrap_or_default(),
+            contract_surface: tool_cd.as_ref().map(capability_contract_surface),
             required_args: spec.required_args,
             allowed_callers: callers,
             backend: spec.backend,
@@ -329,6 +337,7 @@ pub fn capability_probe_for(
             reason_code: ToolReasonCode::UnknownTool,
             reason: "unknown_tool".to_string(),
             required_args: Vec::new(),
+            contract_surface: None,
             backend: "unknown".to_string(),
             backend_class: ToolBackendClass::Unknown,
             backend_status: ToolCapabilityStatus::Unavailable,
@@ -394,6 +403,7 @@ pub fn capability_probe_for(
     if matches!(reason_code, ToolReasonCode::Ok) && requested != canonical {
         reason = format!("ok_alias:{requested}->{canonical}");
     }
+    let tool_cd = tool_cd_contract_for(&canonical);
     ToolCapabilityProbe {
         tool_name: canonical,
         caller,
@@ -403,6 +413,7 @@ pub fn capability_probe_for(
         reason_code,
         reason,
         required_args: spec.required_args,
+        contract_surface: tool_cd.as_ref().map(capability_contract_surface),
         backend: spec.backend,
         backend_class: backend_health.backend_class,
         backend_status: backend_health.status,

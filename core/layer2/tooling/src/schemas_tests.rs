@@ -12,7 +12,7 @@ fn schema_contract_publishes_frozen_field_sets() {
     let contract = published_schema_contract_v1();
     assert_eq!(
         contract.get("version").and_then(Value::as_str),
-        Some("tooling_schema_v5")
+        Some("tooling_schema_v8")
     );
     assert_eq!(
         contract
@@ -109,6 +109,32 @@ fn tool_capability_probe_schema_includes_status_and_required_args() {
         reason_code: crate::capability::ToolReasonCode::Ok,
         reason: "ok".to_string(),
         required_args: vec!["query".to_string()],
+        contract_surface: Some(
+            crate::capability_contract_surface::ToolCapabilityContractSurface {
+                supports_bulk: false,
+                max_bulk_items: 1,
+                cost_tier: "low".to_string(),
+                requires_network: true,
+                default_extraction_type: "markdown".to_string(),
+                allowed_extraction_types: vec!["markdown".to_string()],
+                selector_hint_allowed: true,
+                main_content_only_default: true,
+                max_chars: 12_000,
+                readiness_supported_fields: vec!["timeout_ms".to_string()],
+                default_timeout_ms: 30_000,
+                dynamic_page_allowed: false,
+                disable_resources_allowed: false,
+                block_ads_allowed: false,
+                blocked_domains_allowed: false,
+                session_state_scope: "stateless".to_string(),
+                session_reuse_allowed: false,
+                session_pooling_mode: "none".to_string(),
+                session_max_pages_default: 1,
+                session_max_parallel_items_default: 1,
+                session_request_overrides_allowed: false,
+                session_close_on_complete_default: true,
+            },
+        ),
         backend: "retrieval_plane".to_string(),
         backend_class: crate::backend_registry::ToolBackendClass::RetrievalPlane,
         backend_status: crate::capability::ToolCapabilityStatus::Available,
@@ -126,6 +152,7 @@ fn tool_capability_probe_schema_includes_status_and_required_args() {
         .unwrap_or_default();
     assert!(keys.contains(&"status".to_string()));
     assert!(keys.contains(&"required_args".to_string()));
+    assert!(keys.contains(&"contract_surface".to_string()));
     assert!(keys.contains(&"backend_class".to_string()));
     assert_eq!(keys.len(), TOOL_CAPABILITY_PROBE_FIELDS.len());
 }
@@ -190,6 +217,32 @@ fn capability_schema_serializes_tool_cd_metadata_without_changing_probe_contract
         capability_family: Some("web_retrieval".to_string()),
         retrieval_mode: Some("search".to_string()),
         quality_lanes: vec!["usable".to_string(), "low_signal".to_string()],
+        contract_surface: Some(
+            crate::capability_contract_surface::ToolCapabilityContractSurface {
+                supports_bulk: false,
+                max_bulk_items: 1,
+                cost_tier: "low".to_string(),
+                requires_network: true,
+                default_extraction_type: "markdown".to_string(),
+                allowed_extraction_types: vec!["markdown".to_string(), "html".to_string()],
+                selector_hint_allowed: true,
+                main_content_only_default: true,
+                max_chars: 12_000,
+                readiness_supported_fields: vec!["timeout_ms".to_string()],
+                default_timeout_ms: 30_000,
+                dynamic_page_allowed: false,
+                disable_resources_allowed: false,
+                block_ads_allowed: false,
+                blocked_domains_allowed: false,
+                session_state_scope: "stateless".to_string(),
+                session_reuse_allowed: false,
+                session_pooling_mode: "none".to_string(),
+                session_max_pages_default: 1,
+                session_max_parallel_items_default: 1,
+                session_request_overrides_allowed: false,
+                session_close_on_complete_default: true,
+            },
+        ),
         required_args: vec!["query".to_string()],
         allowed_callers: vec![crate::tool_broker::BrokerCaller::Client],
         backend: "retrieval_plane".to_string(),
@@ -210,6 +263,48 @@ fn capability_schema_serializes_tool_cd_metadata_without_changing_probe_contract
     assert_eq!(
         value
             .get("quality_lanes")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(2)
+    );
+    assert_eq!(
+        value
+            .get("contract_surface")
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("default_timeout_ms"))
+            .and_then(Value::as_u64),
+        Some(30_000)
+    );
+}
+
+#[test]
+fn normalized_tool_result_schema_serializes_quality_reasons() {
+    let value = serde_json::to_value(crate::schemas::NormalizedToolResult {
+        result_id: "r1".to_string(),
+        result_content_id: "rc1".to_string(),
+        result_event_id: "re1".to_string(),
+        trace_id: "trace-1".to_string(),
+        task_id: "task-1".to_string(),
+        tool_name: "web_fetch".to_string(),
+        status: crate::schemas::NormalizedToolStatus::Ok,
+        normalized_args: json!({"url":"https://example.com"}),
+        dedupe_hash: "d1".to_string(),
+        lineage: vec!["l1".to_string()],
+        timestamp: 1,
+        metrics: crate::schemas::NormalizedToolMetrics {
+            duration_ms: 12,
+            output_bytes: 34,
+        },
+        raw_ref: "raw://r1".to_string(),
+        errors: vec![],
+        quality_lanes: vec!["blocked".to_string()],
+        quality_reasons: vec!["blocked_status".to_string(), "retryable_status".to_string()],
+        safety_flags: vec!["sanitizer_applied".to_string()],
+    })
+    .expect("serialize");
+    assert_eq!(
+        value
+            .get("quality_reasons")
             .and_then(Value::as_array)
             .map(|rows| rows.len()),
         Some(2)

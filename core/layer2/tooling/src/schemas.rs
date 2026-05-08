@@ -38,6 +38,9 @@ pub struct NormalizedToolResult {
     pub metrics: NormalizedToolMetrics,
     pub raw_ref: String,
     pub errors: Vec<String>,
+    pub quality_lanes: Vec<String>,
+    pub quality_reasons: Vec<String>,
+    pub safety_flags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -134,6 +137,9 @@ pub const NORMALIZED_TOOL_RESULT_FIELDS: &[&str] = &[
     "metrics",
     "raw_ref",
     "errors",
+    "quality_lanes",
+    "quality_reasons",
+    "safety_flags",
 ];
 
 pub const EVIDENCE_CARD_FIELDS: &[&str] = &[
@@ -212,6 +218,7 @@ pub const TOOL_CAPABILITY_PROBE_FIELDS: &[&str] = &[
     "reason_code",
     "reason",
     "required_args",
+    "contract_surface",
     "backend",
     "backend_class",
     "backend_status",
@@ -259,7 +266,7 @@ pub fn published_tool_alias_contract_v1() -> Vec<Value> {
 
 pub fn published_schema_contract_v1() -> Value {
     json!({
-        "version": "tooling_schema_v5",
+        "version": "tooling_schema_v8",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
         "tool_attempt_receipt": TOOL_ATTEMPT_RECEIPT_FIELDS,
         "tool_capability_probe": TOOL_CAPABILITY_PROBE_FIELDS,
