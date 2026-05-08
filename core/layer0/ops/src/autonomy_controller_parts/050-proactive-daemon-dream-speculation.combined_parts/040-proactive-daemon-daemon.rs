@@ -69,13 +69,13 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
             {
-                let next_tick_after = state
-                    .pointer("/heartbeat/next_tick_after_ms")
+                let next_heartbeat_after = state
+                    .pointer("/heartbeat/next_heartbeat_after_ms")
                     .and_then(Value::as_u64)
                     .unwrap_or(0);
-                if !force_cycle && next_tick_after > now_ms {
-                    state["last_decision"] = json!("tick_deferred");
-                    state["tick_deferred_reason"] = json!("heartbeat_not_due");
+                if !force_cycle && next_heartbeat_after > now_ms {
+                    state["last_decision"] = json!("heartbeat_deferred");
+                    state["heartbeat_deferred_reason"] = json!("heartbeat_not_due");
                 } else {
                     let swarm = read_json(&root.join("local/state/ops/swarm_runtime/latest.json"))
                         .unwrap_or_else(|| json!({}));
@@ -267,9 +267,9 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                     let cycles = state.get("cycles").and_then(Value::as_u64).unwrap_or(0) + 1;
                     state["cycles"] = json!(cycles);
                     state["last_cycle_at"] = json!(now_iso());
-                    state["heartbeat"]["last_tick_ms"] = json!(now_ms);
+                    state["heartbeat"]["last_heartbeat_at_ms"] = json!(now_ms);
                     let jitter_offset = deterministic_jitter_ms(cycles, jitter_ms);
-                    state["heartbeat"]["next_tick_after_ms"] =
+                    state["heartbeat"]["next_heartbeat_after_ms"] =
                         json!(now_ms.saturating_add(tick_ms).saturating_add(jitter_offset));
                     state["last_decision"] = if auto {
                         json!("cycle_executed_auto")
@@ -278,7 +278,7 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                     };
                     state["last_blocking_budget_used_ms"] = json!(blocking_used_ms);
                     cycle_log_row = json!({
-                        "type": "proactive_daemon_tick",
+                        "type": "proactive_daemon_heartbeat",
                         "ts": now_iso(),
                         "action": action,
                         "auto": auto,

@@ -201,8 +201,14 @@ fn rsi_readiness(
     trend_delta: &Value,
 ) -> Value {
     let mut missing = Vec::new();
-    let evidence_record_count =
-        usize_at(report, &["evidence_ingestion", "normalized_record_count"]);
+    let evidence_record_count = {
+        let count = usize_at(report, &["evidence_ingestion", "normalized_record_count"]);
+        if count > 0 {
+            count
+        } else {
+            usize_at(report, &["operator_summary", "evidence_record_count"])
+        }
+    };
     let missing_required_source_count = usize_at(
         report,
         &[
@@ -211,6 +217,11 @@ fn rsi_readiness(
             "missing_required_source_count",
         ],
     );
+    let missing_required_source_count = if missing_required_source_count > 0 {
+        missing_required_source_count
+    } else {
+        usize_at(report, &["operator_summary", "missing_required_source_count"])
+    };
     let present_required_source_count = usize_at(
         report,
         &[
@@ -219,6 +230,11 @@ fn rsi_readiness(
             "present_required_source_count",
         ],
     );
+    let present_required_source_count = if present_required_source_count > 0 {
+        present_required_source_count
+    } else {
+        usize_at(report, &["operator_summary", "present_required_source_count"])
+    };
     let missing_optional_source_count = usize_at(
         report,
         &[
@@ -227,13 +243,29 @@ fn rsi_readiness(
             "missing_optional_source_count",
         ],
     );
+    let missing_optional_source_count = if missing_optional_source_count > 0 {
+        missing_optional_source_count
+    } else {
+        usize_at(report, &["operator_summary", "missing_optional_source_count"])
+    };
     let evidence_observation_state = string_at(
         report,
         &["evidence_ingestion", "observation_state"],
         "unknown",
     );
+    let evidence_observation_state = if evidence_observation_state == "unknown" {
+        string_at(report, &["operator_summary", "observation_state"], "unknown")
+    } else {
+        evidence_observation_state
+    };
     let deterministic_evidence_record_count = report
         .get("evidence_ingestion")
+        .and_then(|ingestion| ingestion.get("deterministic_record_count"))
+        .and_then(Value::as_u64)
+        .map(|count| count as usize)
+        .or_else(|| {
+            report
+                .get("evidence_ingestion")
         .and_then(|ingestion| ingestion.get("normalized_records"))
         .and_then(Value::as_array)
         .map(|rows| {
@@ -247,6 +279,7 @@ fn rsi_readiness(
                     )
                 })
                 .count()
+        })
         })
         .unwrap_or(0);
     let evidence_ready = evidence_record_count > 0;

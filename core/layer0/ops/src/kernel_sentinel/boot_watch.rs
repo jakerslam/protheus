@@ -66,6 +66,11 @@ fn required_freshness_rows(dir: &Path, now: u64, stale_window_seconds: u64) -> V
     .map(|(name, required)| {
         let path = dir.join(name);
         let age_seconds = artifact_age_seconds(&path, now);
+        let modified_epoch_seconds = fs::metadata(&path)
+            .ok()
+            .and_then(|metadata| metadata.modified().ok())
+            .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+            .map(|duration| duration.as_secs());
         let exists = path.exists();
         let stale = age_seconds
             .map(|age| age > stale_window_seconds)
@@ -75,6 +80,7 @@ fn required_freshness_rows(dir: &Path, now: u64, stale_window_seconds: u64) -> V
             "required": required,
             "path": path,
             "exists": exists,
+            "modified_epoch_seconds": modified_epoch_seconds,
             "age_seconds": age_seconds,
             "stale": stale,
         })
@@ -184,8 +190,7 @@ pub fn build_boot_watch_report(
     )
 }
 
-pub fn write_watch_metadata(dir: &Path, report: &Value, args: &[String]) -> Result<(), String> {
-    fs::create_dir_all(dir).map_err(|err| err.to_string())?;
+pub fn build_live_watch_metadata(dir: &Path, report: &Value, args: &[String]) -> Value {
     let now = unix_now();
     let stale_window_seconds = option_usize(args, "--stale-window-seconds", 5_400) as u64;
     let artifact_freshness = required_freshness_rows(dir, now, stale_window_seconds);
@@ -207,10 +212,13 @@ pub fn write_watch_metadata(dir: &Path, report: &Value, args: &[String]) -> Resu
         .filter_map(|row| row["age_seconds"].as_u64())
         .max()
         .unwrap_or(0);
-    let payload = json!({
+    json!({
         "ok": missing_required_artifact_count == 0 && stale_required_artifact_count == 0,
         "type": "kernel_sentinel_watch_freshness",
         "generated_at_epoch_seconds": now,
+        "observation_epoch_seconds": now,
+        "freshness_truth_mode": "live_snapshot",
+        "current_truth_requires_live_refresh": true,
         "freshness_age_seconds": freshness_age_seconds,
         "shell_required": false,
         "boot_watch_ok": report["boot_watch"]["ok"],
@@ -221,7 +229,12 @@ pub fn write_watch_metadata(dir: &Path, report: &Value, args: &[String]) -> Resu
         "missing_required_artifact_count": missing_required_artifact_count,
         "stale_required_artifact_count": stale_required_artifact_count,
         "artifact_freshness": artifact_freshness
-    });
+    })
+}
+
+pub fn write_watch_metadata(dir: &Path, report: &Value, args: &[String]) -> Result<(), String> {
+    fs::create_dir_all(dir).map_err(|err| err.to_string())?;
+    let payload = build_live_watch_metadata(dir, report, args);
     let body = serde_json::to_string_pretty(&payload).map_err(|err| err.to_string())?;
     fs::write(dir.join("watch_freshness.json"), format!("{body}\n")).map_err(|err| err.to_string())
 }
@@ -268,5 +281,7 @@ mod tests {
         let raw = fs::read_to_string(dir.join("watch_freshness.json")).unwrap();
         assert!(raw.contains("\"shell_required\": false"));
         assert!(raw.contains("\"missing_required_artifact_count\": 0"));
+        assert!(raw.contains("\"freshness_truth_mode\": \"live_snapshot\""));
+        assert!(raw.contains("\"modified_epoch_seconds\":"));
     }
 }

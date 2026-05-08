@@ -70,7 +70,7 @@ fn proactive_daemon_failure_isolation_quarantines_failed_intent_without_poisonin
         .map(|rows| rows.iter().any(|row| row.get("task").and_then(Value::as_str) == Some("dream_consolidation")))
         .unwrap_or(false));
     assert_eq!(
-        state.pointer("/sentinel/last_tick_exit_code").and_then(Value::as_i64),
+        state.pointer("/sentinel/last_heartbeat_exit_code").and_then(Value::as_i64),
         Some(0),
         "sentinel cadence should continue even when dream execution fails"
     );
@@ -159,7 +159,7 @@ fn proactive_daemon_triggers_dream_and_cleanup_when_inactive() {
             > 0
     );
     assert_eq!(
-        state.pointer("/sentinel/last_tick_exit_code").and_then(Value::as_i64),
+        state.pointer("/sentinel/last_heartbeat_exit_code").and_then(Value::as_i64),
         Some(0)
     );
     assert_eq!(
@@ -176,26 +176,26 @@ fn proactive_daemon_triggers_dream_and_cleanup_when_inactive() {
     assert!(executed.iter().any(|row| {
         row.pointer("/intent/task").and_then(Value::as_str) == Some("dream_consolidation")
     }));
-    let sentinel_tick_path = state
-        .pointer("/sentinel/last_tick_artifact_path")
+    let sentinel_heartbeat_path = state
+        .pointer("/sentinel/last_heartbeat_artifact_path")
         .and_then(Value::as_str)
         .map(std::path::PathBuf::from)
-        .expect("sentinel tick path");
-    let sentinel_tick = read_json(&sentinel_tick_path).expect("sentinel tick");
-    assert_eq!(sentinel_tick["type"], "kernel_sentinel_tick_run");
+        .expect("sentinel heartbeat path");
+    let sentinel_heartbeat = read_json(&sentinel_heartbeat_path).expect("sentinel heartbeat");
+    assert_eq!(sentinel_heartbeat["type"], "kernel_sentinel_heartbeat_run");
     assert_eq!(
-        sentinel_tick.pointer("/cascade/target").and_then(Value::as_str),
-        Some("heartbeat")
+        sentinel_heartbeat.pointer("/cascade/target").and_then(Value::as_str),
+        Some("dream")
     );
-    let sentinel_tick_state_path = sentinel_tick
+    let sentinel_heartbeat_state_path = sentinel_heartbeat
         .get("schedule_state_path")
         .and_then(Value::as_str)
         .map(std::path::PathBuf::from)
-        .expect("sentinel tick state path");
-    assert!(sentinel_tick_state_path.exists(), "tick state path should exist");
+        .expect("sentinel heartbeat state path");
+    assert!(sentinel_heartbeat_state_path.exists(), "heartbeat state path should exist");
     assert_eq!(
-        sentinel_tick_state_path.file_name().and_then(|name| name.to_str()),
-        Some("kernel_sentinel_tick_state.json")
+        sentinel_heartbeat_state_path.file_name().and_then(|name| name.to_str()),
+        Some("kernel_sentinel_heartbeat_state.json")
     );
     assert!(
         !root.path().join("target").exists(),

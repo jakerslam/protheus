@@ -21,8 +21,8 @@ use super::system_understanding_worksheet::{
     build_system_understanding_worksheet, render_system_understanding_worksheet_markdown,
 };
 use super::{
-    boot_watch, build_report, issue_synthesis, maintenance_synthesis, report_output, self_study,
-    waivers, write_json,
+    boot_watch, build_report, collector, issue_synthesis, maintenance_synthesis, report_output,
+    self_study, waivers, write_json,
 };
 
 const DEFAULT_AUTO_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_auto_run_current.json";
@@ -355,6 +355,7 @@ pub fn build_auto_run_artifact(
         "report_path": report_path,
         "verdict_path": verdict_path,
         "output_artifacts": [
+            "kernel_sentinel_collector_current.json",
             "kernel_sentinel_report_current.json",
             "architectural_incident_report_current.json",
             "kernel_sentinel_diagnostic_run_current.json",
@@ -423,6 +424,10 @@ fn run_auto_inner(root: &Path, effective: &[String]) -> i32 {
     if has_option(effective, "--stall-guard-test-sleep-ms") {
         let sleep_ms = option_usize(effective, "--stall-guard-test-sleep-ms", 25);
         thread::sleep(Duration::from_millis(sleep_ms as u64));
+    }
+    if let Err(err) = collector::collect_and_persist(root, effective) {
+        eprintln!("kernel_sentinel_auto_collect_failed: {err}");
+        return 1;
     }
     let (report, verdict, exit) = build_report(root, effective);
     let dir = state_dir_from_args(root, effective);

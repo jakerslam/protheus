@@ -88,13 +88,13 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
             {
-                let next_tick_after = state
-                    .pointer("/heartbeat/next_tick_after_ms")
+                let next_heartbeat_after = state
+                    .pointer("/heartbeat/next_heartbeat_after_ms")
                     .and_then(Value::as_u64)
                     .unwrap_or(0);
-                if !force_cycle && next_tick_after > now_ms {
-                    state["last_decision"] = json!("tick_deferred");
-                    state["tick_deferred_reason"] = json!("heartbeat_not_due");
+                if !force_cycle && next_heartbeat_after > now_ms {
+                    state["last_decision"] = json!("heartbeat_deferred");
+                    state["heartbeat_deferred_reason"] = json!("heartbeat_not_due");
                 } else {
                     let swarm = read_json(&root.join("local/state/ops/swarm_runtime/latest.json"))
                         .unwrap_or_else(|| json!({}));
@@ -452,16 +452,27 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                         }
                     }
                     if auto {
-                        let artifact_path = state_root(root).join("kernel_sentinel").join("kernel_sentinel_tick_from_daemon_current.json");
+                        let artifact_path = state_root(root).join("kernel_sentinel").join("kernel_sentinel_heartbeat_from_daemon_current.json");
                         let cadence_args = vec![
-                            "tick".to_string(), "--strict=0".to_string(), "--quiet-success=1".to_string(),
+                            "heartbeat".to_string(),
+                            "--strict=0".to_string(),
+                            "--quiet-success=1".to_string(),
                             format!("--schedule-artifact={}", artifact_path.display()),
                             format!("--dream-idle-seconds={}", (dream_idle_ms / 1000).max(1)),
                             format!("--dream-max-without-seconds={}", (dream_max_without_ms / 1000).max(1))
                         ];
                         let exit = crate::kernel_sentinel::run(root, &cadence_args);
-                        sentinel_tick = read_json(&artifact_path).unwrap_or_else(|| json!({"type":"kernel_sentinel_tick_run","ok":exit == 0,"missing_artifact":true,"exit_code":exit}));
-                        state["sentinel"] = json!({"last_tick_at_ms": now_ms, "last_tick_exit_code": exit, "last_tick_ok": exit == 0, "last_tick_artifact_path": artifact_path.display().to_string(), "last_tick_mode": sentinel_tick.get("mode").cloned().unwrap_or(Value::Null), "last_tick_cascade_target": sentinel_tick.pointer("/cascade/target").cloned().unwrap_or(Value::Null), "last_tick_cascade_invoked": sentinel_tick.pointer("/cascade/invoked").and_then(Value::as_bool).unwrap_or(false)});
+                        sentinel_tick = read_json(&artifact_path).unwrap_or_else(|| json!({"type":"kernel_sentinel_heartbeat_run","ok":exit == 0,"missing_artifact":true,"exit_code":exit}));
+                        state["sentinel"] = json!({
+                            "last_heartbeat_at_ms": now_ms,
+                            "last_heartbeat_exit_code": exit,
+                            "last_heartbeat_ok": exit == 0,
+                            "last_heartbeat_artifact_path": artifact_path.display().to_string(),
+                            "last_heartbeat_mode": sentinel_tick.get("mode").cloned().unwrap_or(Value::Null),
+                            "last_heartbeat_cascade_target": sentinel_tick.pointer("/cascade/target").cloned().unwrap_or(Value::Null),
+                            "last_heartbeat_cascade_invoked": sentinel_tick.pointer("/cascade/invoked").and_then(Value::as_bool).unwrap_or(false),
+                            "last_cadence_kind": "heartbeat"
+                        });
                     }
                     state["last_intents"] = Value::Array(intents.clone());
                     state["last_executed_intents"] = Value::Array(executed.clone());
@@ -471,13 +482,13 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                     let cycles = state.get("cycles").and_then(Value::as_u64).unwrap_or(0) + 1;
                     state["cycles"] = json!(cycles);
                     state["last_cycle_at"] = json!(now_iso());
-                    state["heartbeat"]["last_tick_ms"] = json!(now_ms);
+                    state["heartbeat"]["last_heartbeat_at_ms"] = json!(now_ms);
                     let jitter_offset = deterministic_jitter_ms(cycles, jitter_ms);
-                    state["heartbeat"]["next_tick_after_ms"] = json!(now_ms.saturating_add(tick_ms).saturating_add(jitter_offset));
+                    state["heartbeat"]["next_heartbeat_after_ms"] = json!(now_ms.saturating_add(tick_ms).saturating_add(jitter_offset));
                     state["last_decision"] = if auto { json!("cycle_executed_auto") } else { json!("cycle_executed_intent_only") };
                     state["last_blocking_budget_used_ms"] = json!(blocking_used_ms);
                     cycle_log_row = json!({
-                        "type": "proactive_daemon_tick",
+                        "type": "proactive_daemon_heartbeat",
                         "ts": now_iso(),
                         "action": action,
                         "auto": auto,
@@ -491,7 +502,7 @@ fn run_proactive_daemon_daemon(root: &Path, argv: &[String]) -> i32 {
                         "max_proactive": max_messages,
                         "policy_tier": policy_tier,
                         "tool_surfaces": enabled_tool_surfaces,
-                        "kernel_sentinel_tick": sentinel_tick,
+                        "kernel_sentinel_heartbeat": sentinel_tick,
                         "pattern_log": state.get("pattern_log").cloned().unwrap_or(Value::Null),
                         "failure_isolation": state.get("failure_isolation").cloned().unwrap_or(Value::Null),
                         "recovery_matrix": state.get("recovery_matrix").cloned().unwrap_or(Value::Null),

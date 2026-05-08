@@ -16,6 +16,8 @@ mod repair;
 const DEFAULT_COLLECTOR_ARTIFACT: &str =
     "core/local/artifacts/kernel_sentinel_collector_current.json";
 const DEFAULT_MAX_FILES_PER_PRODUCER: usize = 200;
+const DEFAULT_STREAM_BYTE_BUDGET: usize = 8 * 1024 * 1024;
+const DEFAULT_KERNEL_RECEIPTS_BYTE_BUDGET: usize = 32 * 1024 * 1024;
 
 struct ProducerSpec {
     id: &'static str,
@@ -476,6 +478,57 @@ fn write_jsonl(path: &Path, rows: &[Value]) -> Result<(), String> {
     Ok(())
 }
 
+fn stream_byte_budget(args: &[String], stream: &str) -> usize {
+    let generic_budget = option_usize(args, "--stream-byte-budget", DEFAULT_STREAM_BYTE_BUDGET);
+    match stream {
+        "kernel_receipts.jsonl" => option_usize(
+            args,
+            "--kernel-receipts-byte-budget",
+            DEFAULT_KERNEL_RECEIPTS_BYTE_BUDGET,
+        ),
+        _ => generic_budget,
+    }
+}
+
+fn apply_stream_byte_budget(stream: &str, rows: &[Value], args: &[String]) -> (Vec<Value>, Value) {
+    let budget_bytes = stream_byte_budget(args, stream);
+    let row_bodies = rows
+        .iter()
+        .map(|row| serde_json::to_string(row).map(|body| (row.clone(), body)))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| err.to_string())
+        .unwrap_or_default();
+    let estimated_bytes_before = row_bodies
+        .iter()
+        .map(|(_, body)| body.len() + 1)
+        .sum::<usize>();
+    let mut retained = Vec::new();
+    let mut retained_bytes = 0usize;
+    for (row, body) in row_bodies.into_iter().rev() {
+        let line_bytes = body.len() + 1;
+        if !retained.is_empty() && retained_bytes.saturating_add(line_bytes) > budget_bytes {
+            break;
+        }
+        retained_bytes = retained_bytes.saturating_add(line_bytes);
+        retained.push(row);
+    }
+    retained.reverse();
+    let dropped_record_count = rows.len().saturating_sub(retained.len());
+    (
+        retained,
+        json!({
+            "budget_bytes": budget_bytes,
+            "estimated_bytes_before": estimated_bytes_before,
+            "estimated_bytes_after": retained_bytes,
+            "input_record_count": rows.len(),
+            "retained_record_count": rows.len().saturating_sub(dropped_record_count),
+            "dropped_record_count": dropped_record_count,
+            "compacted": dropped_record_count > 0,
+            "retention_policy": "tail_records_within_byte_budget"
+        }),
+    )
+}
+
 fn producer_required_for_observation(spec: &ProducerSpec) -> bool {
     spec.authority_class != "presentation_telemetry_only"
 }
@@ -551,14 +604,20 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
     let malformed_deterministic_guard_ok =
         malformed_deterministic_record_count <= max_malformed_deterministic_records;
     let mut output_streams = Vec::new();
+    let mut compacted_stream_count = 0usize;
     for (stream, rows) in &by_stream {
         let path = evidence_dir.join(stream);
-        write_jsonl(&path, rows)?;
-        total_written += rows.len();
+        let (retained_rows, compaction) = apply_stream_byte_budget(stream, rows, args);
+        if compaction["compacted"].as_bool().unwrap_or(false) {
+            compacted_stream_count += 1;
+        }
+        write_jsonl(&path, &retained_rows)?;
+        total_written += retained_rows.len();
         output_streams.push(json!({
             "stream": stream,
             "path": path,
-            "record_count": rows.len()
+            "record_count": retained_rows.len(),
+            "compaction": compaction
         }));
     }
     let mut report = json!({
@@ -569,6 +628,7 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
         "max_files_per_producer": max_files,
         "records_read": total_read,
         "records_written": total_written,
+        "compacted_stream_count": compacted_stream_count,
         "malformed_record_count": total_malformed,
         "malformed_deterministic_record_count": malformed_deterministic_record_count,
         "malformed_deterministic_threshold": max_malformed_deterministic_records,
@@ -598,29 +658,35 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
     Ok(report)
 }
 
-pub fn run_collect(root: &Path, args: &[String]) -> i32 {
+pub fn collect_and_persist(root: &Path, args: &[String]) -> Result<Value, String> {
     let artifact_path = option_path(
         args,
         "--collector-artifact",
         root.join(DEFAULT_COLLECTOR_ARTIFACT),
     );
-    let report = match build_collector_report(root, args) {
+    let report = build_collector_report(root, args)?;
+    write_json(&artifact_path, &report)?;
+    Ok(report)
+}
+
+pub fn run_collect(root: &Path, args: &[String]) -> i32 {
+    let report = match collect_and_persist(root, args) {
         Ok(report) => report,
         Err(err) => {
             eprintln!("kernel_sentinel_collector_failed: {err}");
             return 1;
         }
     };
-    if let Err(err) = write_json(&artifact_path, &report) {
-        eprintln!("kernel_sentinel_collector_artifact_write_failed: {err}");
-        return 1;
-    }
     println!(
         "{}",
         serde_json::to_string_pretty(&report)
             .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
     );
-    0
+    if report["ok"].as_bool().unwrap_or(false) {
+        0
+    } else {
+        2
+    }
 }
 
 #[cfg(test)]

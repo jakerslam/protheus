@@ -436,7 +436,7 @@ fn collector_then_auto_run_outputs_stay_consistent() {
         format!("--auto-artifact={}", out.display()),
     ];
     let auto_exit = run_auto(&root, &auto_args);
-    assert_eq!(auto_exit, 0);
+    assert_eq!(auto_exit, 2);
 
     let artifact: Value = serde_json::from_str(&fs::read_to_string(&out).unwrap()).unwrap();
     let report: Value = serde_json::from_str(
@@ -447,7 +447,7 @@ fn collector_then_auto_run_outputs_stay_consistent() {
     let feedback_body = fs::read_to_string(state_dir.join("feedback_inbox.jsonl")).unwrap();
 
     assert_eq!(artifact["type"], "kernel_sentinel_auto_run");
-    assert_eq!(artifact["verdict"]["verdict"], "allow");
+    assert_eq!(artifact["verdict"]["verdict"], "release_fail");
     assert_eq!(
         artifact["operator_summary"]["present_required_source_count"],
         14

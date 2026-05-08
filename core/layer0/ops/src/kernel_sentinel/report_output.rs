@@ -2,6 +2,7 @@
 // Layer ownership: core/layer0/ops (authoritative)
 
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -10,6 +11,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use super::cli_args::{bool_flag, option_usize, state_dir_from_args};
+use super::{boot_watch, scheduler};
 use super::report_summary::build_health_report;
 
 const DEFAULT_REPORT_RUNTIME_MS: usize = 120_000;
@@ -103,7 +105,7 @@ pub(super) fn run_report_command(root: &Path, command: &str, args: &[String]) ->
     let quarantine = quarantine_oversized_default_report(&dir, args);
     let write_full_internal_report = should_write_full_internal_report(args);
     if command == "report" && !write_full_internal_report {
-        if let Some(bundle) = stream_report_bundle(&dir, args, quarantine.clone()) {
+        if let Some(bundle) = stream_report_bundle(root, &dir, args, quarantine.clone()) {
             return write_stream_bundle_and_print(&dir, &bundle, args);
         }
     }
@@ -258,6 +260,7 @@ fn quarantine_oversized_default_report(dir: &Path, args: &[String]) -> Option<Va
 }
 
 fn stream_report_bundle(
+    root: &Path,
     dir: &Path,
     args: &[String],
     quarantine: Option<Value>,
@@ -319,6 +322,11 @@ fn stream_report_bundle(
         "artifact_kind": "stream_compacted_final_report",
         "generated_at": crate::now_iso(),
         "top_findings": top_findings,
+        "quality_gate": {
+            "pass": critical_count == 0,
+            "status": verdict_label,
+            "source": "stream_compacted"
+        },
         "root_cause_clustering": {
             "type": "kernel_sentinel_stream_root_cause_cluster_summary",
             "cluster_count": root_cause_clusters.len(),
@@ -338,7 +346,9 @@ fn stream_report_bundle(
         super::report_stream_budget::enforce_stream_final_report_budget(final_report, byte_budget, dir);
     final_report["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&final_report));
     let report = synthetic_stream_report(
+        root,
         dir,
+        args,
         &issues,
         &suggestions,
         &verdict,
@@ -358,7 +368,9 @@ fn stream_report_bundle(
 }
 
 fn synthetic_stream_report(
+    root: &Path,
     dir: &Path,
+    args: &[String],
     issues: &[Value],
     suggestions: &[Value],
     verdict: &Value,
@@ -368,6 +380,65 @@ fn synthetic_stream_report(
     let issue_count = issues.len();
     let suggestion_count = suggestions.len();
     let critical_open_count = verdict["critical_open_count"].as_u64().unwrap_or(0);
+    let watch = boot_watch::build_live_watch_metadata(
+        dir,
+        &json!({"boot_watch": {"ok": true, "failure_count": 0}, "verdict": verdict}),
+        args,
+    );
+    let scheduler_health = scheduler::build_scheduler_health_summary(root, args);
+    let freshness_rows = watch["artifact_freshness"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let present_required_source_count = freshness_rows
+        .iter()
+        .filter(|row| row["required"].as_bool().unwrap_or(false) && row["exists"].as_bool().unwrap_or(false))
+        .count();
+    let missing_required_source_count = freshness_rows
+        .iter()
+        .filter(|row| row["required"].as_bool().unwrap_or(false) && !row["exists"].as_bool().unwrap_or(false))
+        .count();
+    let present_optional_source_count = freshness_rows
+        .iter()
+        .filter(|row| !row["required"].as_bool().unwrap_or(false) && row["exists"].as_bool().unwrap_or(false))
+        .count();
+    let missing_optional_source_count = freshness_rows
+        .iter()
+        .filter(|row| !row["required"].as_bool().unwrap_or(false) && !row["exists"].as_bool().unwrap_or(false))
+        .count();
+    let max_evidence_age_seconds = freshness_rows
+        .iter()
+        .filter_map(|row| row["age_seconds"].as_u64())
+        .max()
+        .unwrap_or(0);
+    let stale_evidence = watch["stale_required_artifact_count"].as_u64().unwrap_or(0) > 0
+        || watch["missing_required_artifact_count"].as_u64().unwrap_or(0) > 0;
+    let scheduler_status = scheduler_health["lifecycle_status"]
+        .as_str()
+        .unwrap_or("unconfigured");
+    let mut status_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut severity_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut category_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for row in issues {
+        let status = row
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("open")
+            .to_string();
+        *status_counts.entry(status).or_insert(0) += 1;
+        let severity = row
+            .get("severity")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_string();
+        *severity_counts.entry(severity).or_insert(0) += 1;
+        let category = row
+            .get("category")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown")
+            .to_string();
+        *category_counts.entry(category).or_insert(0) += 1;
+    }
     let stream_findings = issues
         .iter()
         .map(stream_issue_as_finding)
@@ -386,30 +457,44 @@ fn synthetic_stream_report(
             "source": "issues_and_suggestions_streams",
             "raw_evidence_embedded": false,
             "data_starved": false,
-            "partial_evidence": false,
+            "partial_evidence": missing_optional_source_count > 0 || stale_evidence,
             "malformed_evidence": false,
-            "stale_evidence": false,
-            "missing_required_source_count": 0,
-            "missing_optional_source_count": 0,
-            "present_required_source_count": 1,
-            "present_optional_source_count": 0,
-            "present_source_count": 1,
-            "missing_source_count": 0,
+            "stale_evidence": stale_evidence,
+            "missing_required_source_count": missing_required_source_count,
+            "missing_optional_source_count": missing_optional_source_count,
+            "present_required_source_count": present_required_source_count,
+            "present_optional_source_count": present_optional_source_count,
+            "present_source_count": present_required_source_count + present_optional_source_count,
+            "missing_source_count": missing_required_source_count + missing_optional_source_count,
             "evidence_record_count": issue_count + suggestion_count,
             "freshness_observed_record_count": issue_count + suggestion_count,
-            "stale_record_count": 0,
-            "max_evidence_age_seconds": 0,
-            "stale_evidence_seconds": 0,
-            "scheduler_status": "stream_compacted",
-            "scheduler_running": false,
-            "scheduler_stale": false,
-            "observation_state": "stream_compacted"
+            "status_counts": status_counts,
+            "severity_counts": severity_counts,
+            "category_counts": category_counts,
+            "stale_record_count": watch["stale_required_artifact_count"].clone(),
+            "max_evidence_age_seconds": max_evidence_age_seconds,
+            "stale_evidence_seconds": if stale_evidence { max_evidence_age_seconds } else { 0 },
+            "scheduler_status": scheduler_status,
+            "scheduler_running": scheduler_health["running"].clone(),
+            "scheduler_stale": scheduler_health["stale"].clone(),
+            "observation_state": if stale_evidence { "stale" } else { scheduler_status }
         },
         "report_budget": final_report["report_budget"].clone(),
         "final_report": final_report.clone(),
         "verdict": verdict.clone(),
         "release_gate": {
             "pass": critical_open_count == 0
+        },
+        "evidence_ingestion": {
+            "normalized_record_count": issue_count + suggestion_count,
+            "deterministic_record_count": 0,
+            "observation_state": if stale_evidence { "stale" } else { scheduler_status },
+            "coverage": {
+                "present_required_source_count": present_required_source_count,
+                "missing_required_source_count": missing_required_source_count,
+                "present_optional_source_count": present_optional_source_count,
+                "missing_optional_source_count": missing_optional_source_count
+            }
         },
         "issue_synthesis": {
             "issue_draft_count": issue_count,
@@ -1178,7 +1263,7 @@ mod tests {
         .unwrap();
 
         let args = vec!["--strict=1".to_string()];
-        let bundle = stream_report_bundle(&dir, &args, None).expect("stream bundle");
+        let bundle = stream_report_bundle(&dir, &dir, &args, None).expect("stream bundle");
         let exit = write_stream_bundle_and_print(&dir, &bundle, &args);
         assert_eq!(exit, 2);
 

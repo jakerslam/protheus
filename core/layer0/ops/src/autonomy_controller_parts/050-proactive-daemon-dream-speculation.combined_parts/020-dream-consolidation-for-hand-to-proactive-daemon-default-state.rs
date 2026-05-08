@@ -187,8 +187,8 @@ fn proactive_daemon_default_state() -> Value {
         "heartbeat": {
             "tick_ms": 5000u64,
             "jitter_ms": 400u64,
-            "last_tick_ms": 0u64,
-            "next_tick_after_ms": 0u64
+            "last_heartbeat_at_ms": 0u64,
+            "next_heartbeat_after_ms": 0u64
         },
         "proactive": {
             "window_sec": 900u64,

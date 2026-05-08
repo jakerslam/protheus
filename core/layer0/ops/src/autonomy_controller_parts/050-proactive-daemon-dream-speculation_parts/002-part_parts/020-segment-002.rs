@@ -14,13 +14,13 @@
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
             {
-                let next_tick_after = state
-                    .pointer("/heartbeat/next_tick_after_ms")
+                let next_heartbeat_after = state
+                    .pointer("/heartbeat/next_heartbeat_after_ms")
                     .and_then(Value::as_u64)
                     .unwrap_or(0);
-                if !force_cycle && next_tick_after > now_ms {
-                    state["last_decision"] = json!("tick_deferred");
-                    state["tick_deferred_reason"] = json!("heartbeat_not_due");
+                if !force_cycle && next_heartbeat_after > now_ms {
+                    state["last_decision"] = json!("heartbeat_deferred");
+                    state["heartbeat_deferred_reason"] = json!("heartbeat_not_due");
                 } else {
                     let swarm = read_json(&root.join("local/state/ops/swarm_runtime/latest.json"))
                         .unwrap_or_else(|| json!({}));
