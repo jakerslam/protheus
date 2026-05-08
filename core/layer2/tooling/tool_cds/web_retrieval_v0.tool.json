@@ -14,6 +14,13 @@
         "cost_tier": "low",
         "requires_network": true
       },
+      "execution_policy": {
+        "request_fingerprint_dedupe": true,
+        "per_domain_concurrency_default": 0,
+        "request_delay_ms_default": 0,
+        "blocked_response_retry_allowed": false,
+        "max_blocked_retries_default": 0
+      },
       "extraction": {
         "default_type": "markdown",
         "allowed_types": ["markdown", "html", "text"],
@@ -139,6 +146,13 @@
         "cost_tier": "medium",
         "requires_network": true
       },
+      "execution_policy": {
+        "request_fingerprint_dedupe": true,
+        "per_domain_concurrency_default": 2,
+        "request_delay_ms_default": 0,
+        "blocked_response_retry_allowed": true,
+        "max_blocked_retries_default": 2
+      },
       "extraction": {
         "default_type": "markdown",
         "allowed_types": ["markdown", "html", "text"],
@@ -263,6 +277,13 @@
         "max_bulk_items": 1,
         "cost_tier": "low",
         "requires_network": true
+      },
+      "execution_policy": {
+        "request_fingerprint_dedupe": true,
+        "per_domain_concurrency_default": 1,
+        "request_delay_ms_default": 0,
+        "blocked_response_retry_allowed": true,
+        "max_blocked_retries_default": 2
       },
       "extraction": {
         "default_type": "markdown",

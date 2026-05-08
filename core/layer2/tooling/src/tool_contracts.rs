@@ -18,6 +18,7 @@ pub struct ToolCdContract {
     #[serde(default)]
     pub aliases: Vec<String>,
     pub retrieval: ToolRetrievalContract,
+    pub execution_policy: ToolExecutionPolicyContract,
     pub extraction: ToolExtractionContract,
     pub readiness: ToolReadinessContract,
     pub resource_policy: ToolResourcePolicyContract,
@@ -36,6 +37,15 @@ pub struct ToolRetrievalContract {
     pub max_bulk_items: usize,
     pub cost_tier: String,
     pub requires_network: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolExecutionPolicyContract {
+    pub request_fingerprint_dedupe: bool,
+    pub per_domain_concurrency_default: usize,
+    pub request_delay_ms_default: u64,
+    pub blocked_response_retry_allowed: bool,
+    pub max_blocked_retries_default: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -197,6 +207,16 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     if contract.retrieval.max_bulk_items == 0 {
         return Err(format!("max_bulk_items_required:{tool_id}"));
     }
+    if contract.execution_policy.blocked_response_retry_allowed
+        && contract.execution_policy.max_blocked_retries_default == 0
+    {
+        return Err(format!("blocked_retry_budget_required:{tool_id}"));
+    }
+    if !contract.execution_policy.blocked_response_retry_allowed
+        && contract.execution_policy.max_blocked_retries_default != 0
+    {
+        return Err(format!("blocked_retry_budget_must_be_zero:{tool_id}"));
+    }
     if contract.extraction.allowed_types.is_empty()
         || !contract
             .extraction
@@ -305,6 +325,7 @@ mod tests {
         assert!(contract.safety.ssrf_guard_required);
         assert!(contract.safety.sanitization.hidden_content_removed);
         assert!(!contract.visibility.raw_payload_chat_visible);
+        assert!(contract.execution_policy.request_fingerprint_dedupe);
         assert!(contract
             .quality_classification
             .blocked_status_codes
@@ -326,12 +347,17 @@ mod tests {
         assert_eq!(contract.session_policy.state_scope, "stateless");
         assert_eq!(contract.session_policy.pooling_mode, "none");
         assert_eq!(contract.session_policy.max_parallel_items_default, 1);
+        assert!(!contract.execution_policy.blocked_response_retry_allowed);
         let fetch = tool_cd_contract_for("web_fetch").expect("web_fetch contract");
         assert!(fetch.evidence_packaging.include_artifact_refs);
         assert!(fetch
             .evidence_packaging
             .allowed_artifact_kinds
             .contains(&"screenshot".to_string()));
+        assert!(fetch.execution_policy.blocked_response_retry_allowed);
+        assert_eq!(fetch.execution_policy.max_blocked_retries_default, 2);
+        let batch = tool_cd_contract_for("batch_query").expect("batch_query contract");
+        assert_eq!(batch.execution_policy.per_domain_concurrency_default, 2);
     }
 
     #[test]

@@ -39,6 +39,7 @@ fn probe_includes_live_backend_health_fields() {
     let contract_surface = probe.contract_surface.expect("contract surface");
     assert_eq!(contract_surface.default_extraction_type, "markdown");
     assert_eq!(contract_surface.default_timeout_ms, 30_000);
+    assert!(contract_surface.request_fingerprint_dedupe);
 }
 
 #[test]
@@ -113,6 +114,8 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert_eq!(web_search_surface.default_timeout_ms, 30_000);
     assert!(!web_search_surface.dynamic_page_allowed);
     assert!(!web_search_surface.include_artifact_refs);
+    assert_eq!(web_search_surface.per_domain_concurrency_default, 0);
+    assert!(!web_search_surface.blocked_response_retry_allowed);
     assert_eq!(web_search_surface.session_state_scope, "stateless");
     assert_eq!(web_search_surface.session_pooling_mode, "none");
     let batch_query = catalog
@@ -126,6 +129,9 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
         .expect("batch_query contract surface");
     assert!(batch_query_surface.supports_bulk);
     assert_eq!(batch_query_surface.max_bulk_items, 6);
+    assert_eq!(batch_query_surface.per_domain_concurrency_default, 2);
+    assert!(batch_query_surface.blocked_response_retry_allowed);
+    assert_eq!(batch_query_surface.max_blocked_retries_default, 2);
     assert_eq!(batch_query_surface.session_max_parallel_items_default, 6);
     let web_fetch = catalog
         .iter()
@@ -139,6 +145,9 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert!(web_fetch_surface
         .allowed_artifact_kinds
         .contains(&"screenshot".to_string()));
+    assert_eq!(web_fetch_surface.per_domain_concurrency_default, 1);
+    assert!(web_fetch_surface.blocked_response_retry_allowed);
+    assert_eq!(web_fetch_surface.max_blocked_retries_default, 2);
     assert!(web_fetch_surface.dynamic_page_allowed);
     assert!(web_fetch_surface.disable_resources_allowed);
     assert!(web_fetch_surface.block_ads_allowed);
