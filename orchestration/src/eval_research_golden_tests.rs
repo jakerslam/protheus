@@ -372,6 +372,72 @@ fn research_golden_accepts_batch_query_as_web_search_gate_alias() {
 }
 
 #[test]
+fn research_golden_allows_gate_3_for_post_tool_synthesis_without_fresh_candidate() {
+    let root = temp_path("research_golden_post_tool_gate_3");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(
+        &cases,
+        &json!({
+            "reliability_thresholds": {
+                "min_cases_for_reliability_claim": 1,
+                "workflow_gate_pass_min": 0.95,
+                "research_success_min": 0.85,
+                "max_empty_responses": 0,
+                "max_raw_tool_leaks": 0,
+                "max_tool_choice_as_final_response": 0,
+                "max_unsupported_factual_claims": 0
+            },
+            "scoring_contract": {
+                "pass_score": 85,
+                "excellent_score": 95
+            },
+            "cases": [{
+                "id": "research_gold_post_tool_gate_3",
+                "category": "post_tool_synthesis",
+                "prompt": "After the web tool returns several source snippets, synthesize the tradeoffs.",
+                "expected_gate_path": {
+                    "gate_1": "tool_required_or_pending_tool_result",
+                    "gate_2": "web_research",
+                    "gate_3": "web_search",
+                    "gate_4_required_fields": ["query", "aperture"],
+                    "post_tool": "must_synthesize_from_evidence_refs"
+                },
+                "required_entities": []
+            }]
+        }),
+    );
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_post_tool_gate_3",
+                "response_payload": {
+                    "response": "No source-backed conclusion is available in this replay because the prior web turn is not attached here. What we can say is bounded: the intended workflow is a web research synthesis, the missing evidence should have been multiple source snippets, and the right next step is to replay the post-tool state rather than improvise unsupported claims. Until that evidence is restored, any framework tradeoff summary should be treated as provisional.",
+                    "response_workflow": {
+                        "final_llm_response": {
+                            "status": "synthesized"
+                        },
+                        "workflow_hint": "post tool web research fetch replay"
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report.pointer("/cases/0/gates/gate_2_tool_family"),
+        Some(&Value::Bool(true))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/gates/gate_3_tool_key"),
+        Some(&Value::Bool(true))
+    );
+}
+
+#[test]
 fn research_golden_sanitizes_backend_key_errors() {
     let root = temp_path("research_golden_backend_error");
     let cases = root.join("cases.json");

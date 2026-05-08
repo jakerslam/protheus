@@ -197,6 +197,8 @@ fn gate_results(case: &Value, payload: &Value) -> BTreeMap<String, bool> {
     let mut gates = BTreeMap::new();
     let serialized = payload.to_string().to_ascii_lowercase();
     let tool_request = pending_tool_request(payload);
+    let synthesis_only_without_new_candidate =
+        case_allows_existing_tool_state_without_new_candidate(case);
     let expected_gate_2 =
         normalize_for_compare(&str_at(case, &["expected_gate_path", "gate_2"], ""));
     let expected_gate_3 =
@@ -231,7 +233,8 @@ fn gate_results(case: &Value, payload: &Value) -> BTreeMap<String, bool> {
                     &expected_gate_3,
                 )
             })
-            .unwrap_or_else(|| gate_3_tool_matches(&serialized, &expected_gate_3));
+            .unwrap_or_else(|| gate_3_tool_matches(&serialized, &expected_gate_3))
+        || (synthesis_only_without_new_candidate && gate_2);
     let gate_4 = required_gate_4_fields.iter().all(|field| {
         let field = normalize_for_compare(field);
         tool_request
@@ -277,6 +280,12 @@ fn pending_tool_request(payload: &Value) -> Option<&Value> {
         .or_else(|| payload.pointer("/response_workflow/pending_tool_request"))
         .or_else(|| payload.pointer("/response_workflow/manual_toolbox_pending_tool_request"))
         .or_else(|| payload.pointer("/response_finalization/pending_tool_request"))
+}
+
+fn case_allows_existing_tool_state_without_new_candidate(case: &Value) -> bool {
+    let gate_1 = normalize_for_compare(&str_at(case, &["expected_gate_path", "gate_1"], ""));
+    let post_tool = normalize_for_compare(&str_at(case, &["expected_gate_path", "post_tool"], ""));
+    gate_1.contains("pending_tool_result") || post_tool.starts_with("must_synthesize_from")
 }
 
 fn gate_3_tool_matches(actual_raw: &str, expected_raw: &str) -> bool {
