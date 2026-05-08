@@ -841,6 +841,10 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
     } else {
         first_sentence(&cleaned_message, 120)
     };
+    let lowered_message = cleaned_message.to_ascii_lowercase();
+    let request_is_comparative = ["compare", "comparison", "versus", " vs ", "tradeoff", "rank"]
+        .iter()
+        .any(|marker| lowered_message.contains(marker));
     let failure_reason = clean_text(
         &response_tools_failure_reason_for_user(response_tools, 4),
         1_200,
@@ -850,10 +854,27 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
         return String::new();
     }
 
+    let findings_summary = findings
+        .lines()
+        .flat_map(|line| {
+            line.split('|')
+                .map(|chunk| clean_text(chunk.trim_start_matches("- ").trim(), 180))
+                .collect::<Vec<_>>()
+        })
+        .filter(|chunk| !chunk.is_empty())
+        .filter(|chunk| !chunk.eq_ignore_ascii_case("Here's what I found:"))
+        .take(4)
+        .collect::<Vec<_>>()
+        .join("; ");
     let evidence_detail = if !findings.is_empty() {
+        let summary = if findings_summary.is_empty() {
+            first_sentence(&findings, 320)
+        } else {
+            findings_summary
+        };
         format!(
-            "Available recorded evidence: {}.",
-            first_sentence(&findings, 220).trim_end_matches('.')
+            "Recorded evidence so far: {}.",
+            summary.trim_end_matches('.')
         )
     } else if !failure_reason.is_empty() {
         format!(
@@ -865,7 +886,10 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
             .to_string()
     };
 
-    let uncertainty = if user_topic.is_empty() {
+    let uncertainty = if request_is_comparative {
+        "This is enough for a partial comparison, but not enough balanced support across every item in the request to justify a final ranking or winner."
+            .to_string()
+    } else if user_topic.is_empty() {
         "The current turn does not yet support a complete answer to the requested question."
             .to_string()
     } else {
@@ -877,13 +901,19 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
 
     let mut response_parts = Vec::<String>::new();
     response_parts.push(
-        "The recorded tool evidence is limited, so no complete source-backed conclusion is available yet."
+        "The recorded evidence is partial rather than decisive, so a stronger source-backed conclusion would overstate what we have."
             .to_string(),
     );
     response_parts.push(evidence_detail);
-    response_parts.push(format!(
-        "{uncertainty} A bounded next action is to rerun with a narrower query, inspect one primary source family, or compare the specific entities and criteria the user asked about."
-    ));
+    response_parts.push(uncertainty);
+    response_parts.push(
+        "The current tradeoff is breadth versus confidence: we can stay narrow and source-backed on the covered evidence, or broaden retrieval before making a stronger claim."
+            .to_string(),
+    );
+    response_parts.push(
+        "My recommendation is to treat this as a partial answer, keep any conclusions bounded to the covered evidence, and only make a stronger comparison after adding primary-source coverage for the missing sides."
+            .to_string(),
+    );
     clean_text(&response_parts.join("\n\n"), 3_000)
 }
 
@@ -3180,6 +3210,39 @@ mod workflow_fallback_tests {
                 .and_then(Value::as_str),
             Some("synthesized")
         );
+    }
+
+    #[test]
+    fn tool_evidence_fallback_produces_partial_comparison_guidance() {
+        let response = fallback_final_response_from_tool_evidence(
+            "Compare LangGraph, CrewAI, AutoGen, and OpenHands for agentic research workflows.",
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "is_error": false,
+                "result": "Key findings: AutoGen - Microsoft Research: AutoGen is an open-source framework for building AI agents.",
+                "evidence_refs": [
+                    {
+                        "title": "LangGraph overview",
+                        "snippet": "LangGraph focuses on long-running stateful agent workflows."
+                    },
+                    {
+                        "title": "CrewAI docs",
+                        "snippet": "CrewAI emphasizes role-based multi-agent orchestration."
+                    },
+                    {
+                        "title": "OpenHands docs",
+                        "snippet": "OpenHands is oriented toward software-development task execution."
+                    }
+                ]
+            })],
+        );
+        assert!(response.contains("partial comparison"));
+        assert!(response.contains("tradeoff"));
+        assert!(response.contains("recommend"));
+        assert!(response.contains("LangGraph"));
+        assert!(response.contains("CrewAI"));
+        assert!(response.contains("OpenHands"));
     }
 
     #[test]

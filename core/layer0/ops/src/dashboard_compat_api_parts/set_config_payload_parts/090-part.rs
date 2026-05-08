@@ -286,6 +286,87 @@ fn response_tool_summary_text_is_rejected(text: &str) -> bool {
         || looks_like_search_engine_chrome_summary(&lowered)
 }
 
+fn push_response_tool_summary_snippet(
+    snippets: &mut Vec<String>,
+    seen: &mut HashSet<String>,
+    raw: &str,
+    max_len: usize,
+) {
+    let cleaned = clean_text(raw, max_len.max(1));
+    if cleaned.is_empty() {
+        return;
+    }
+    let key = cleaned.to_ascii_lowercase();
+    if seen.insert(key) {
+        snippets.push(cleaned);
+    }
+}
+
+fn collect_response_tool_evidence_snippets(
+    value: &Value,
+    snippets: &mut Vec<String>,
+    seen: &mut HashSet<String>,
+    limit: usize,
+    depth: usize,
+) {
+    if snippets.len() >= limit || depth > 2 {
+        return;
+    }
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                if snippets.len() >= limit {
+                    break;
+                }
+                collect_response_tool_evidence_snippets(row, snippets, seen, limit, depth + 1);
+            }
+        }
+        Value::Object(obj) => {
+            if let Some(line) = compact_web_finding_line(value) {
+                push_response_tool_summary_snippet(snippets, seen, &line, 160);
+            }
+            for key in [
+                "evidence_refs",
+                "search_results",
+                "provider_results",
+                "results",
+                "items",
+                "sources",
+                "snippets",
+            ] {
+                let Some(nested) = obj.get(key) else {
+                    continue;
+                };
+                if snippets.len() >= limit {
+                    break;
+                }
+                collect_response_tool_evidence_snippets(nested, snippets, seen, limit, depth + 1);
+            }
+        }
+        Value::String(raw) => {
+            let line = first_sentence(&clean_text(raw, 200), 160);
+            push_response_tool_summary_snippet(snippets, seen, &line, 160);
+        }
+        _ => {}
+    }
+}
+
+fn response_tool_evidence_snippets_for_user(tool: &Value, max_items: usize) -> Vec<String> {
+    let limit = max_items.clamp(1, 6);
+    let mut snippets = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for key in ["evidence_refs", "search_results", "provider_results"] {
+        let Some(value) = tool.get(key) else {
+            continue;
+        };
+        collect_response_tool_evidence_snippets(value, &mut snippets, &mut seen, limit, 0);
+        if snippets.len() >= limit {
+            break;
+        }
+    }
+    snippets
+}
+
 fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -> String {
     let limit = max_items.clamp(1, 8);
     let mut lines = Vec::<String>::new();
@@ -315,25 +396,39 @@ fn response_tools_summary_for_user(response_tools: &[Value], max_items: usize) -
             tool.get("result").and_then(Value::as_str).unwrap_or(""),
             2_000,
         );
-        if raw_result.is_empty() {
+        let mut snippets = Vec::<String>::new();
+        let mut snippet_seen = HashSet::<String>::new();
+        if !raw_result.is_empty() && !response_tool_summary_text_is_rejected(&raw_result) {
+            let user_result =
+                rewrite_tool_result_for_user_summary(&name, &raw_result).unwrap_or(raw_result);
+            if !response_tool_summary_text_is_rejected(&user_result) {
+                let snippet = if user_result.starts_with("Key findings:") {
+                    trim_text(&strip_redundant_key_findings_prefix(&user_result), 220)
+                } else if let Some(rest) = user_result.strip_prefix("Web findings:") {
+                    trim_text(rest.trim(), 220)
+                } else {
+                    first_sentence(&user_result, 220)
+                };
+                push_response_tool_summary_snippet(
+                    &mut snippets,
+                    &mut snippet_seen,
+                    &snippet,
+                    220,
+                );
+            }
+        }
+        for evidence_snippet in response_tool_evidence_snippets_for_user(tool, 4) {
+            push_response_tool_summary_snippet(
+                &mut snippets,
+                &mut snippet_seen,
+                &evidence_snippet,
+                160,
+            );
+        }
+        if snippets.is_empty() {
             continue;
         }
-        if response_tool_summary_text_is_rejected(&raw_result) {
-            continue;
-        }
-        let user_result =
-            rewrite_tool_result_for_user_summary(&name, &raw_result).unwrap_or(raw_result);
-        if response_tool_summary_text_is_rejected(&user_result) {
-            continue;
-        }
-        let snippet = if user_result.starts_with("Key findings:") {
-            trim_text(&strip_redundant_key_findings_prefix(&user_result), 220)
-        } else {
-            first_sentence(&user_result, 220)
-        };
-        if snippet.is_empty() {
-            continue;
-        }
+        let snippet = trim_text(&snippets.join(" | "), 520);
         let pretty_name = name.replace('_', " ");
         let line = format!("- {}: {}", clean_text(&pretty_name, 60), snippet);
         let key = line.to_ascii_lowercase();
@@ -601,6 +696,13 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
         .filter_map(enrich_tool_attempt_receipt_from_row)
         .take(16)
         .collect::<Vec<_>>();
+    let evidence_refs_used = tool_attempts
+        .iter()
+        .filter_map(|row| row.get("evidence_refs").and_then(Value::as_array))
+        .flatten()
+        .take(8)
+        .cloned()
+        .collect::<Vec<_>>();
     let live_tool_status = steps
         .first()
         .and_then(|row| row.get("status"))
@@ -610,6 +712,9 @@ fn enrich_tool_completion_receipt(tool_completion: Value, response_tools: &[Valu
     enriched["live_tool_status"] = json!(clean_text(&live_tool_status, 180));
     enriched["live_tool_steps"] = Value::Array(steps);
     enriched["tool_attempts"] = Value::Array(tool_attempts);
+    if !evidence_refs_used.is_empty() {
+        enriched["evidence_refs_used"] = Value::Array(evidence_refs_used);
+    }
     enriched["live_status_source"] = json!("tool_completion_receipt_v1");
     enriched
 }
@@ -618,7 +723,9 @@ fn enrich_tool_attempt_receipt_from_row(row: &Value) -> Option<Value> {
     let mut receipt = row
         .get("tool_attempt_receipt")
         .cloned()
-        .or_else(|| row.pointer("/tool_attempt/attempt").cloned())?;
+        .or_else(|| row.pointer("/tool_attempt/attempt").cloned())
+        .filter(|value| !value.is_null())
+        .unwrap_or_else(|| synthetic_tool_attempt_receipt_from_row(row));
     let Some(obj) = receipt.as_object_mut() else {
         return Some(receipt);
     };
@@ -632,7 +739,43 @@ fn enrich_tool_attempt_receipt_from_row(row: &Value) -> Option<Value> {
             obj.insert(key.to_string(), value);
         }
     }
+    if obj.get("evidence_refs").is_none() {
+        for key in ["search_results", "provider_results"] {
+            let Some(rows) = row.get(key).and_then(Value::as_array) else {
+                continue;
+            };
+            let projected = rows.iter().take(6).cloned().collect::<Vec<_>>();
+            if !projected.is_empty() {
+                obj.insert("evidence_refs".to_string(), Value::Array(projected));
+                break;
+            }
+        }
+    }
     Some(receipt)
+}
+
+fn synthetic_tool_attempt_receipt_from_row(row: &Value) -> Value {
+    let tool_name = normalize_tool_name(row.get("name").and_then(Value::as_str).unwrap_or("tool"));
+    let is_error = row.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+    let status = clean_text(
+        row.get("status")
+            .and_then(Value::as_str)
+            .unwrap_or(if is_error { "error" } else { "ok" }),
+        80,
+    );
+    let result_excerpt = first_sentence(
+        &clean_text(row.get("result").and_then(Value::as_str).unwrap_or(""), 2_000),
+        260,
+    );
+    json!({
+        "tool_name": if tool_name.is_empty() { "tool" } else { tool_name.as_str() },
+        "status": if status.is_empty() { if is_error { "error" } else { "ok" } } else { status.as_str() },
+        "outcome": if is_error { "error" } else { "ok" },
+        "is_error": is_error,
+        "reason": result_excerpt,
+        "backend": "tool_card",
+        "synthetic": true
+    })
 }
 
 #[cfg(test)]
@@ -776,5 +919,85 @@ mod tool_completion_live_status_tests {
                 .and_then(Value::as_str),
             Some("bing_rss")
         );
+    }
+
+    #[test]
+    fn synthesizes_tool_attempt_receipt_for_receiptless_error_rows() {
+        let enriched = enrich_tool_completion_receipt(
+            json!({"completion_state":"reported_reason"}),
+            &[json!({
+                "name": "batch_query",
+                "input": "{\"query\":\"compare agent frameworks\"}",
+                "result": "",
+                "status": "error",
+                "is_error": true,
+                "provider_results": [
+                    {
+                        "provider": "web",
+                        "query": "compare agent frameworks",
+                        "status": "error",
+                        "error": "tool_execution_failed"
+                    }
+                ]
+            })],
+        );
+        assert_eq!(
+            enriched
+                .pointer("/tool_attempts/0/tool_name")
+                .and_then(Value::as_str),
+            Some("batch_query")
+        );
+        assert_eq!(
+            enriched
+                .pointer("/tool_attempts/0/synthetic")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            enriched
+                .pointer("/tool_attempts/0/provider_results/0/provider")
+                .and_then(Value::as_str),
+            Some("web")
+        );
+        assert_eq!(
+            enriched
+                .pointer("/evidence_refs_used/0/provider")
+                .and_then(Value::as_str),
+            Some("web")
+        );
+    }
+
+    #[test]
+    fn response_tools_summary_uses_retained_evidence_rows_when_result_is_thin() {
+        let summary = response_tools_summary_for_user(
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "is_error": false,
+                "result": "Key findings: AutoGen - Microsoft Research: AutoGen is an open-source programming framework for building AI agents.",
+                "evidence_refs": [
+                    {
+                        "title": "LangGraph overview",
+                        "snippet": "LangGraph focuses on long-running, stateful agent workflows.",
+                        "url": "https://langchain-ai.github.io/langgraph/"
+                    },
+                    {
+                        "title": "CrewAI docs",
+                        "snippet": "CrewAI emphasizes role-based multi-agent crews and orchestration.",
+                        "url": "https://docs.crewai.com/"
+                    },
+                    {
+                        "title": "OpenHands docs",
+                        "snippet": "OpenHands is oriented toward software-development task execution.",
+                        "url": "https://docs.all-hands.dev/"
+                    }
+                ]
+            })],
+            4,
+        );
+        assert!(summary.contains("AutoGen"));
+        assert!(summary.contains("LangGraph"));
+        assert!(summary.contains("CrewAI"));
+        assert!(summary.contains("OpenHands"));
     }
 }
