@@ -3,13 +3,25 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolCapabilityContractSurface {
+    pub operations: Vec<String>,
+    pub optional_args: Vec<String>,
     pub supports_bulk: bool,
     pub max_bulk_items: usize,
     pub cost_tier: String,
     pub requires_network: bool,
+    pub request_fingerprint_dedupe: bool,
+    pub fingerprint_identity_fields: Vec<String>,
+    pub fingerprint_include_request_options_default: bool,
+    pub fingerprint_include_headers_default: bool,
+    pub fingerprint_keep_url_fragments_default: bool,
+    pub per_domain_concurrency_default: usize,
+    pub request_delay_ms_default: u64,
+    pub blocked_response_retry_allowed: bool,
+    pub max_blocked_retries_default: usize,
     pub default_extraction_type: String,
     pub allowed_extraction_types: Vec<String>,
     pub selector_hint_allowed: bool,
+    pub selector_hint_fallback_mode: String,
     pub main_content_only_default: bool,
     pub max_chars: usize,
     pub include_artifact_refs: bool,
@@ -20,6 +32,8 @@ pub struct ToolCapabilityContractSurface {
     pub disable_resources_allowed: bool,
     pub block_ads_allowed: bool,
     pub blocked_domains_allowed: bool,
+    pub blocked_domains_source: String,
+    pub ad_block_profile_default: Option<String>,
     pub session_state_scope: String,
     pub session_reuse_allowed: bool,
     pub session_pooling_mode: String,
@@ -27,17 +41,42 @@ pub struct ToolCapabilityContractSurface {
     pub session_max_parallel_items_default: usize,
     pub session_request_overrides_allowed: bool,
     pub session_close_on_complete_default: bool,
+    pub implicit_session_on_invoke: bool,
+    pub explicit_session_close_supported: bool,
+    pub explicit_session_list_supported: bool,
+    pub session_handle_arg: Option<String>,
 }
 
 pub fn capability_contract_surface(contract: &ToolCdContract) -> ToolCapabilityContractSurface {
     ToolCapabilityContractSurface {
+        operations: contract.operations.clone(),
+        optional_args: contract.optional_args.clone(),
         supports_bulk: contract.retrieval.supports_bulk,
         max_bulk_items: contract.retrieval.max_bulk_items,
         cost_tier: contract.retrieval.cost_tier.clone(),
         requires_network: contract.retrieval.requires_network,
+        request_fingerprint_dedupe: contract.execution_policy.request_fingerprint_dedupe,
+        fingerprint_identity_fields: contract
+            .execution_policy
+            .fingerprint_identity_fields
+            .clone(),
+        fingerprint_include_request_options_default: contract
+            .execution_policy
+            .fingerprint_include_request_options_default,
+        fingerprint_include_headers_default: contract
+            .execution_policy
+            .fingerprint_include_headers_default,
+        fingerprint_keep_url_fragments_default: contract
+            .execution_policy
+            .fingerprint_keep_url_fragments_default,
+        per_domain_concurrency_default: contract.execution_policy.per_domain_concurrency_default,
+        request_delay_ms_default: contract.execution_policy.request_delay_ms_default,
+        blocked_response_retry_allowed: contract.execution_policy.blocked_response_retry_allowed,
+        max_blocked_retries_default: contract.execution_policy.max_blocked_retries_default,
         default_extraction_type: contract.extraction.default_type.clone(),
         allowed_extraction_types: contract.extraction.allowed_types.clone(),
         selector_hint_allowed: contract.extraction.selector_hint_allowed,
+        selector_hint_fallback_mode: contract.extraction.selector_hint_fallback_mode.clone(),
         main_content_only_default: contract.extraction.main_content_only_default,
         max_chars: contract.extraction.max_chars,
         include_artifact_refs: contract.evidence_packaging.include_artifact_refs,
@@ -48,6 +87,8 @@ pub fn capability_contract_surface(contract: &ToolCdContract) -> ToolCapabilityC
         disable_resources_allowed: contract.resource_policy.disable_resources_allowed,
         block_ads_allowed: contract.resource_policy.block_ads_allowed,
         blocked_domains_allowed: contract.resource_policy.blocked_domains_allowed,
+        blocked_domains_source: contract.resource_policy.blocked_domains_source.clone(),
+        ad_block_profile_default: contract.resource_policy.ad_block_profile_default.clone(),
         session_state_scope: contract.session_policy.state_scope.clone(),
         session_reuse_allowed: contract.session_policy.reuse_allowed,
         session_pooling_mode: contract.session_policy.pooling_mode.clone(),
@@ -55,5 +96,9 @@ pub fn capability_contract_surface(contract: &ToolCdContract) -> ToolCapabilityC
         session_max_parallel_items_default: contract.session_policy.max_parallel_items_default,
         session_request_overrides_allowed: contract.session_policy.request_overrides_allowed,
         session_close_on_complete_default: contract.session_policy.close_on_complete_default,
+        implicit_session_on_invoke: contract.lifecycle.implicit_session_on_invoke,
+        explicit_session_close_supported: contract.lifecycle.explicit_close_supported,
+        explicit_session_list_supported: contract.lifecycle.explicit_list_supported,
+        session_handle_arg: contract.lifecycle.session_handle_arg.clone(),
     }
 }

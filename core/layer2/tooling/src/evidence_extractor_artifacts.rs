@@ -116,6 +116,37 @@ pub(crate) fn pick_source_ref(source: &Value, result: &NormalizedToolResult) -> 
     )
 }
 
+pub(crate) fn pick_source_scope(
+    source: &Value,
+    result: &NormalizedToolResult,
+    source_ref: &str,
+) -> String {
+    if let Some(scope) = result
+        .normalized_args
+        .get("source_scope")
+        .and_then(Value::as_str)
+        .map(|value| clean_text(value, 200))
+        .filter(|value| !value.is_empty())
+    {
+        return scope;
+    }
+    if let Some(scope) = first_string(
+        source,
+        &[
+            "source_scope",
+            "sourceScope",
+            "adaptive_domain",
+            "adaptiveDomain",
+        ],
+    )
+    .map(|value| clean_text(value, 200))
+    .filter(|value| !value.is_empty())
+    {
+        return scope;
+    }
+    derive_source_scope(source_ref)
+}
+
 fn build_artifact_ref(
     source: &Value,
     result: &NormalizedToolResult,
@@ -342,4 +373,84 @@ fn looks_like_url(raw: &str) -> bool {
         || normalized.starts_with("file://")
         || normalized.starts_with("workspace://")
         || normalized.starts_with("raw://")
+}
+
+fn derive_source_scope(source_ref: &str) -> String {
+    let normalized = source_ref.trim();
+    if normalized.is_empty() {
+        return "unspecified".to_string();
+    }
+    if let Some(nested) = archive_nested_url(normalized) {
+        if let Some(host) = host_from_url(nested) {
+            return host;
+        }
+    }
+    if let Some(scope) = workspace_scope(normalized) {
+        return scope;
+    }
+    if normalized.starts_with("file://") {
+        return "file".to_string();
+    }
+    if normalized.starts_with("raw://") {
+        return "raw".to_string();
+    }
+    if let Some(host) = host_from_url(normalized) {
+        return host;
+    }
+    if let Some(segment) = normalized
+        .split('/')
+        .find(|segment| !segment.trim().is_empty())
+        .map(|segment| clean_text(segment, 120))
+        .filter(|segment| !segment.is_empty())
+    {
+        return format!("path:{segment}");
+    }
+    clean_text(normalized, 120)
+}
+
+fn archive_nested_url(raw: &str) -> Option<&str> {
+    let marker = "/web/";
+    let index = raw.find(marker)?;
+    let tail = raw.get(index + marker.len()..)?;
+    let nested_start = tail.find("http://").or_else(|| tail.find("https://"))?;
+    tail.get(nested_start..)
+}
+
+fn host_from_url(raw: &str) -> Option<String> {
+    let (_, remainder) = raw.split_once("://")?;
+    let host_port = remainder
+        .split('/')
+        .next()
+        .unwrap_or_default()
+        .split('@')
+        .next_back()
+        .unwrap_or_default();
+    let host = host_port
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .trim_matches('.');
+    if host.is_empty() {
+        return None;
+    }
+    Some(
+        host.strip_prefix("www.")
+            .unwrap_or(host)
+            .to_ascii_lowercase(),
+    )
+}
+
+fn workspace_scope(raw: &str) -> Option<String> {
+    let normalized = raw.trim();
+    let remainder = normalized.strip_prefix("workspace://")?;
+    let scope = remainder
+        .split('/')
+        .find(|segment| !segment.trim().is_empty())
+        .unwrap_or_default()
+        .trim();
+    if scope.is_empty() {
+        return Some("workspace".to_string());
+    }
+    Some(format!("workspace:{scope}"))
 }

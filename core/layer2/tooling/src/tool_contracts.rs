@@ -17,11 +17,17 @@ pub struct ToolCdContract {
     pub required_args: Vec<String>,
     #[serde(default)]
     pub aliases: Vec<String>,
+    #[serde(default)]
+    pub optional_args: Vec<String>,
+    #[serde(default)]
+    pub operations: Vec<String>,
     pub retrieval: ToolRetrievalContract,
+    pub execution_policy: ToolExecutionPolicyContract,
     pub extraction: ToolExtractionContract,
     pub readiness: ToolReadinessContract,
     pub resource_policy: ToolResourcePolicyContract,
     pub session_policy: ToolSessionPolicyContract,
+    pub lifecycle: ToolLifecycleContract,
     pub safety: ToolSafetyContract,
     pub evidence_packaging: ToolEvidencePackagingContract,
     pub quality_classification: ToolQualityClassificationContract,
@@ -39,10 +45,24 @@ pub struct ToolRetrievalContract {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolExecutionPolicyContract {
+    pub request_fingerprint_dedupe: bool,
+    pub fingerprint_identity_fields: Vec<String>,
+    pub fingerprint_include_request_options_default: bool,
+    pub fingerprint_include_headers_default: bool,
+    pub fingerprint_keep_url_fragments_default: bool,
+    pub per_domain_concurrency_default: usize,
+    pub request_delay_ms_default: u64,
+    pub blocked_response_retry_allowed: bool,
+    pub max_blocked_retries_default: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolExtractionContract {
     pub default_type: String,
     pub allowed_types: Vec<String>,
     pub selector_hint_allowed: bool,
+    pub selector_hint_fallback_mode: String,
     pub main_content_only_default: bool,
     pub max_chars: usize,
 }
@@ -59,6 +79,9 @@ pub struct ToolResourcePolicyContract {
     pub disable_resources_allowed: bool,
     pub block_ads_allowed: bool,
     pub blocked_domains_allowed: bool,
+    pub blocked_domains_source: String,
+    #[serde(default)]
+    pub ad_block_profile_default: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -70,6 +93,15 @@ pub struct ToolSessionPolicyContract {
     pub max_parallel_items_default: usize,
     pub request_overrides_allowed: bool,
     pub close_on_complete_default: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolLifecycleContract {
+    pub implicit_session_on_invoke: bool,
+    pub explicit_close_supported: bool,
+    pub explicit_list_supported: bool,
+    #[serde(default)]
+    pub session_handle_arg: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -115,6 +147,8 @@ pub struct ToolQualityClassificationContract {
     pub retryable_status_codes: Vec<u16>,
     #[serde(default)]
     pub blocked_error_fragments: Vec<String>,
+    #[serde(default)]
+    pub proxy_error_fragments: Vec<String>,
     #[serde(default)]
     pub blocked_text_fragments: Vec<String>,
     #[serde(default)]
@@ -191,11 +225,57 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     if contract.required_args.is_empty() {
         return Err(format!("required_args_required:{tool_id}"));
     }
+    if contract.operations.is_empty() {
+        return Err(format!("operations_required:{tool_id}"));
+    }
+    let mut seen_arg_names = BTreeSet::<String>::new();
+    for arg in &contract.required_args {
+        let normalized = normalized_key(arg);
+        if normalized.is_empty() {
+            return Err(format!("required_arg_name_required:{tool_id}"));
+        }
+        if !seen_arg_names.insert(normalized) {
+            return Err(format!("duplicate_arg_name:{tool_id}"));
+        }
+    }
+    for arg in &contract.optional_args {
+        let normalized = normalized_key(arg);
+        if normalized.is_empty() {
+            return Err(format!("optional_arg_name_required:{tool_id}"));
+        }
+        if !seen_arg_names.insert(normalized) {
+            return Err(format!("duplicate_arg_name:{tool_id}"));
+        }
+    }
+    for operation in &contract.operations {
+        if normalized_key(operation).is_empty() {
+            return Err(format!("operation_name_required:{tool_id}"));
+        }
+    }
     if normalized_key(&contract.retrieval.mode).is_empty() {
         return Err(format!("retrieval_mode_required:{tool_id}"));
     }
     if contract.retrieval.max_bulk_items == 0 {
         return Err(format!("max_bulk_items_required:{tool_id}"));
+    }
+    if contract.execution_policy.request_fingerprint_dedupe
+        && contract
+            .execution_policy
+            .fingerprint_identity_fields
+            .iter()
+            .all(|field| normalized_key(field).is_empty())
+    {
+        return Err(format!("fingerprint_identity_fields_required:{tool_id}"));
+    }
+    if contract.execution_policy.blocked_response_retry_allowed
+        && contract.execution_policy.max_blocked_retries_default == 0
+    {
+        return Err(format!("blocked_retry_budget_required:{tool_id}"));
+    }
+    if !contract.execution_policy.blocked_response_retry_allowed
+        && contract.execution_policy.max_blocked_retries_default != 0
+    {
+        return Err(format!("blocked_retry_budget_must_be_zero:{tool_id}"));
     }
     if contract.extraction.allowed_types.is_empty()
         || !contract
@@ -205,17 +285,50 @@ fn validate_contract(contract: &ToolCdContract) -> Result<(), String> {
     {
         return Err(format!("extraction_default_must_be_allowed:{tool_id}"));
     }
+    if contract.extraction.selector_hint_allowed
+        && normalized_key(&contract.extraction.selector_hint_fallback_mode).is_empty()
+    {
+        return Err(format!("selector_hint_fallback_required:{tool_id}"));
+    }
     if contract.readiness.default_timeout_ms == 0 {
         return Err(format!("readiness_timeout_required:{tool_id}"));
     }
     if normalized_key(&contract.session_policy.state_scope).is_empty() {
         return Err(format!("session_state_scope_required:{tool_id}"));
     }
+    if normalized_key(&contract.resource_policy.blocked_domains_source).is_empty() {
+        return Err(format!("blocked_domains_source_required:{tool_id}"));
+    }
+    if contract.resource_policy.block_ads_allowed
+        && contract
+            .resource_policy
+            .ad_block_profile_default
+            .as_deref()
+            .map(normalized_key)
+            .unwrap_or_default()
+            .is_empty()
+    {
+        return Err(format!("ad_block_profile_required:{tool_id}"));
+    }
     if normalized_key(&contract.session_policy.pooling_mode).is_empty() {
         return Err(format!("session_pooling_mode_required:{tool_id}"));
     }
     if contract.session_policy.max_parallel_items_default == 0 {
         return Err(format!("session_parallel_items_required:{tool_id}"));
+    }
+    let has_session_handle_arg = contract
+        .lifecycle
+        .session_handle_arg
+        .as_ref()
+        .map(|value| !normalized_key(value).is_empty())
+        .unwrap_or(false);
+    if contract.session_policy.reuse_allowed && !has_session_handle_arg {
+        return Err(format!("session_handle_arg_required:{tool_id}"));
+    }
+    if (contract.lifecycle.explicit_close_supported || contract.lifecycle.explicit_list_supported)
+        && !has_session_handle_arg
+    {
+        return Err(format!("session_handle_arg_required:{tool_id}"));
     }
     if !contract.safety.ssrf_guard_required {
         return Err(format!("ssrf_guard_required:{tool_id}"));
@@ -302,13 +415,51 @@ mod tests {
             .allowed_types
             .contains(&"markdown".to_string()));
         assert!(contract.extraction.selector_hint_allowed);
+        assert_eq!(
+            contract.extraction.selector_hint_fallback_mode,
+            "whole_page"
+        );
         assert!(contract.safety.ssrf_guard_required);
         assert!(contract.safety.sanitization.hidden_content_removed);
         assert!(!contract.visibility.raw_payload_chat_visible);
+        assert!(contract.execution_policy.request_fingerprint_dedupe);
+        assert_eq!(
+            contract.execution_policy.fingerprint_identity_fields,
+            vec![
+                "session_scope".to_string(),
+                "http_method".to_string(),
+                "request_body".to_string(),
+                "canonical_url".to_string()
+            ]
+        );
+        assert!(
+            !contract
+                .execution_policy
+                .fingerprint_include_request_options_default
+        );
+        assert!(
+            !contract
+                .execution_policy
+                .fingerprint_include_headers_default
+        );
+        assert!(
+            !contract
+                .execution_policy
+                .fingerprint_keep_url_fragments_default
+        );
+        assert_eq!(contract.operations, vec!["search".to_string()]);
+        assert!(contract.optional_args.contains(&"aperture".to_string()));
+        assert!(contract.optional_args.contains(&"source_scope".to_string()));
+        assert_eq!(contract.resource_policy.blocked_domains_source, "none");
         assert!(contract
             .quality_classification
             .blocked_status_codes
             .contains(&403));
+        assert!(contract
+            .quality_classification
+            .proxy_error_fragments
+            .iter()
+            .any(|row| row == "net::err_proxy"));
         assert!(contract
             .quality_classification
             .retryable_status_codes
@@ -326,12 +477,56 @@ mod tests {
         assert_eq!(contract.session_policy.state_scope, "stateless");
         assert_eq!(contract.session_policy.pooling_mode, "none");
         assert_eq!(contract.session_policy.max_parallel_items_default, 1);
+        assert!(!contract.execution_policy.blocked_response_retry_allowed);
+        assert!(!contract.lifecycle.implicit_session_on_invoke);
+        assert_eq!(contract.lifecycle.session_handle_arg, None);
         let fetch = tool_cd_contract_for("web_fetch").expect("web_fetch contract");
         assert!(fetch.evidence_packaging.include_artifact_refs);
         assert!(fetch
             .evidence_packaging
             .allowed_artifact_kinds
             .contains(&"screenshot".to_string()));
+        assert_eq!(fetch.operations, vec!["fetch".to_string()]);
+        assert!(fetch.optional_args.contains(&"selector_hint".to_string()));
+        assert!(fetch.optional_args.contains(&"source_scope".to_string()));
+        assert!(fetch.execution_policy.blocked_response_retry_allowed);
+        assert_eq!(fetch.execution_policy.max_blocked_retries_default, 2);
+        assert_eq!(
+            fetch.execution_policy.fingerprint_identity_fields,
+            vec![
+                "session_scope".to_string(),
+                "http_method".to_string(),
+                "request_body".to_string(),
+                "canonical_url".to_string()
+            ]
+        );
+        assert!(
+            !fetch
+                .execution_policy
+                .fingerprint_include_request_options_default
+        );
+        assert!(!fetch.execution_policy.fingerprint_include_headers_default);
+        assert!(
+            !fetch
+                .execution_policy
+                .fingerprint_keep_url_fragments_default
+        );
+        assert!(fetch.lifecycle.implicit_session_on_invoke);
+        assert_eq!(
+            fetch.resource_policy.blocked_domains_source,
+            "profile_or_custom"
+        );
+        assert_eq!(
+            fetch.resource_policy.ad_block_profile_default.as_deref(),
+            Some("built_in_ad_domains")
+        );
+        assert_eq!(
+            fetch.lifecycle.session_handle_arg.as_deref(),
+            Some("session_id")
+        );
+        let batch = tool_cd_contract_for("batch_query").expect("batch_query contract");
+        assert_eq!(batch.operations, vec!["search_pack".to_string()]);
+        assert_eq!(batch.execution_policy.per_domain_concurrency_default, 2);
     }
 
     #[test]
