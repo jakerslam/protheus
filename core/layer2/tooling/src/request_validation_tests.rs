@@ -137,3 +137,35 @@ fn workspace_analyze_uses_command_alias_when_query_missing() {
         Some("terminal_exec")
     );
 }
+
+#[test]
+fn batch_query_unwraps_nested_payload_shape() {
+    let normalized = repair_and_validate_args(
+        "batch_query",
+        &json!({
+            "payload": {
+                "context": "Research the current MCP ecosystem.",
+                "queries": ["Model Context Protocol official docs", "MCP GitHub issues"],
+                "source": "web_search"
+            },
+            "selected_tool": "batch_query",
+            "tool": "LangGraph"
+        }),
+    )
+    .expect("batch_query nested payload");
+    assert_eq!(
+        normalized.get("query").and_then(Value::as_str),
+        Some("Research the current MCP ecosystem.")
+    );
+    assert_eq!(
+        normalized.get("aperture").and_then(Value::as_str),
+        Some("medium")
+    );
+    assert_eq!(
+        normalized
+            .get("queries")
+            .and_then(Value::as_array)
+            .map(|rows| rows.len()),
+        Some(2)
+    );
+}

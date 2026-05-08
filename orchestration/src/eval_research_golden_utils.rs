@@ -110,14 +110,69 @@ fn set_live_agent_model(
     if model_ref.is_empty() {
         return true;
     }
+    let resolved_model_ref =
+        resolve_live_agent_model_ref(base_url, &model_ref, timeout_seconds);
     let response = curl_json(
         "PUT",
         base_url,
         &format!("/api/agents/{agent_id}/model"),
-        &json!({ "model": model_ref }),
+        &json!({ "model": resolved_model_ref }),
         timeout_seconds,
     );
     response.get("ok").and_then(Value::as_bool).unwrap_or(false)
+}
+
+fn resolve_live_agent_model_ref(base_url: &str, model_ref: &str, timeout_seconds: u64) -> String {
+    let cleaned = clean_text(model_ref, 240);
+    if cleaned.is_empty() || cleaned.contains('/') {
+        return cleaned;
+    }
+    let catalog = curl_json("GET", base_url, "/api/models", &json!({}), timeout_seconds);
+    resolve_live_agent_model_ref_from_catalog(&cleaned, &catalog)
+}
+
+fn resolve_live_agent_model_ref_from_catalog(model_ref: &str, catalog: &Value) -> String {
+    let cleaned = clean_text(model_ref, 240);
+    if cleaned.is_empty() || cleaned.contains('/') {
+        return cleaned;
+    }
+    let Some(models) = catalog.get("models").and_then(Value::as_array) else {
+        return cleaned;
+    };
+
+    let mut exact_available_non_auto = None::<String>;
+    let mut exact_non_auto = None::<String>;
+    for row in models {
+        let provider = clean_text(
+            row.get("provider")
+                .or_else(|| row.get("runtime_provider"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            120,
+        );
+        let model = clean_text(
+            row.get("model")
+                .or_else(|| row.get("runtime_model"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        );
+        let matches_requested = model == cleaned
+            || clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 300) == cleaned;
+        if !matches_requested || provider.is_empty() || provider.eq_ignore_ascii_case("auto") {
+            continue;
+        }
+        let resolved = format!("{provider}/{model}");
+        if row.get("available").and_then(Value::as_bool).unwrap_or(false) {
+            exact_available_non_auto = Some(resolved);
+            break;
+        }
+        if exact_non_auto.is_none() {
+            exact_non_auto = Some(resolved);
+        }
+    }
+
+    exact_available_non_auto.or(exact_non_auto).unwrap_or(cleaned)
 }
 
 pub(super) fn delete_live_agent(base_url: &str, agent_id: &str, timeout_seconds: u64) -> Value {
@@ -764,6 +819,40 @@ mod eval_research_golden_utils_tests {
         assert_eq!(
             payload.get("model").and_then(Value::as_str),
             Some("kimi-k2.6:cloud")
+        );
+    }
+
+    #[test]
+    fn resolve_live_agent_model_ref_prefers_available_non_auto_provider_match() {
+        let catalog = json!({
+            "models": [
+                {
+                    "id": "auto/kimi-k2.6:cloud",
+                    "provider": "auto",
+                    "model": "kimi-k2.6:cloud",
+                    "available": false
+                },
+                {
+                    "id": "ollama/kimi-k2.6:cloud",
+                    "provider": "ollama",
+                    "model": "kimi-k2.6:cloud",
+                    "available": true
+                }
+            ]
+        });
+        let resolved =
+            resolve_live_agent_model_ref_from_catalog("kimi-k2.6:cloud", &catalog);
+        assert_eq!(resolved, "ollama/kimi-k2.6:cloud");
+    }
+
+    #[test]
+    fn resolve_live_agent_model_ref_keeps_explicit_provider_ref() {
+        assert_eq!(
+            resolve_live_agent_model_ref_from_catalog(
+                "ollama/kimi-k2.6:cloud",
+                &json!({"models": []})
+            ),
+            "ollama/kimi-k2.6:cloud"
         );
     }
 }

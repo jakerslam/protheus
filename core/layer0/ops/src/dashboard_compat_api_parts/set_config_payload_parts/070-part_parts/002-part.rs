@@ -7,7 +7,6 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
         || message_is_affirmative_confirmation(&cleaned)
         || message_is_negative_confirmation(&cleaned)
         || message_is_tooling_status_check(&cleaned)
-        || natural_web_search_query_from_message(&cleaned).is_some()
     {
         return Vec::new();
     }
