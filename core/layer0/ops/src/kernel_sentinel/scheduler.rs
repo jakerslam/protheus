@@ -21,6 +21,7 @@ const DEFAULT_TICK_INTERVAL_SECONDS: usize = 10;
 const DEFAULT_HEARTBEAT_INTERVAL_SECONDS: usize = 300;
 const DEFAULT_DREAM_INTERVAL_SECONDS: usize = 86_400;
 const DEFAULT_STALE_WINDOW_SECONDS: usize = 5400;
+const DEFAULT_DREAM_MEMORY_DB: &str = "core/local/state/memory/runtime_memory.sqlite";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SchedulerMode {
@@ -149,7 +150,11 @@ fn read_last_success_for_mode(dir: &Path, mode: SchedulerMode) -> Option<u64> {
 }
 
 fn artifact_path(root: &Path, args: &[String], mode: SchedulerMode) -> PathBuf {
-    option_path(args, "--schedule-artifact", root.join(mode.default_artifact()))
+    option_path(
+        args,
+        "--schedule-artifact",
+        root.join(mode.default_artifact()),
+    )
 }
 
 fn scheduler_args(args: &[String], mode: SchedulerMode) -> Vec<String> {
@@ -188,6 +193,175 @@ fn is_due(now: u64, last_success: Option<u64>, interval_seconds: usize, force: b
             .unwrap_or(true)
 }
 
+fn dream_memory_db_path(root: &Path, args: &[String]) -> PathBuf {
+    option_path(
+        args,
+        "--dream-memory-db-path",
+        root.join(DEFAULT_DREAM_MEMORY_DB),
+    )
+}
+
+fn execute_dream_memory_compress(root: &Path, args: &[String], now: u64) -> Value {
+    let db_path = dream_memory_db_path(root, args);
+    let aggressive = option_bool_default(args, "--dream-memory-aggressive", false);
+    let cutoff_days = if aggressive { 7u64 } else { 30u64 };
+    let threshold = if aggressive { 0.55f64 } else { 0.25f64 };
+    if !db_path.exists() {
+        return json!({
+            "id": "memory_sqlite_compress",
+            "enabled": true,
+            "ok": true,
+            "skipped": true,
+            "reason": "memory_db_missing",
+            "db_path": db_path
+        });
+    }
+    let cutoff_ts = now.saturating_sub(cutoff_days.saturating_mul(24 * 60 * 60)) as i64;
+    let started_at = std::time::Instant::now();
+    match rusqlite::Connection::open(&db_path) {
+        Ok(conn) => {
+            let before = conn
+                .query_row("SELECT COUNT(1) FROM memories", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap_or(0)
+                .max(0);
+            let removed = conn
+                .execute(
+                    "DELETE FROM memories WHERE updated_at < ?1 AND retention_score < ?2",
+                    rusqlite::params![cutoff_ts, threshold],
+                )
+                .map(|value| value as u64);
+            let vacuum = conn.execute_batch("VACUUM;");
+            let rows_removed = removed.as_ref().copied().unwrap_or(0);
+            let error = removed
+                .as_ref()
+                .err()
+                .map(|err| err.to_string())
+                .or_else(|| vacuum.as_ref().err().map(|err| err.to_string()));
+            let after = conn
+                .query_row("SELECT COUNT(1) FROM memories", [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap_or(0)
+                .max(0);
+            let ok = removed.is_ok() && vacuum.is_ok();
+            json!({
+                "id": "memory_sqlite_compress",
+                "enabled": true,
+                "ok": ok,
+                "skipped": false,
+                "exit_code": if ok { 0 } else { 1 },
+                "aggressive": aggressive,
+                "cutoff_days": cutoff_days,
+                "retention_threshold": threshold,
+                "db_path": db_path,
+                "rows_before": before,
+                "rows_after": after,
+                "rows_removed": rows_removed,
+                "vacuum_ok": vacuum.is_ok(),
+                "error": error,
+                "elapsed_ms": started_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+            })
+        }
+        Err(err) => json!({
+            "id": "memory_sqlite_compress",
+            "enabled": true,
+            "ok": false,
+            "skipped": false,
+            "exit_code": 1,
+            "db_path": db_path,
+            "error": format!("sqlite_open_failed:{err}"),
+            "elapsed_ms": started_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+        }),
+    }
+}
+
+fn dream_job_result(id: &str, enabled: bool, ran: bool, result: Option<&Value>) -> Value {
+    json!({
+        "id": id,
+        "cadence": "dream",
+        "enabled": enabled,
+        "ran": ran,
+        "ok": result
+            .and_then(|value| value.get("ok"))
+            .and_then(Value::as_bool),
+        "exit_code": result
+            .and_then(|value| value.get("exit_code"))
+            .and_then(Value::as_i64),
+        "receipt_required": true,
+        "receipt_present": result.is_some(),
+        "receipt_ref": result
+            .and_then(|value| value.get("id"))
+            .and_then(Value::as_str)
+            .unwrap_or(id)
+    })
+}
+
+fn build_dream_maintenance_manifest(
+    due: bool,
+    auto_exit: Option<i32>,
+    system_cleanup: Option<&Value>,
+    memory_compress: Option<&Value>,
+) -> Value {
+    let system_cleanup_enabled = true;
+    let memory_enabled = true;
+    json!({
+        "type": "kernel_sentinel_dream_maintenance_manifest",
+        "schema_version": 1,
+        "cadence": "dream",
+        "heavy_maintenance_window": "dream",
+        "bounded": true,
+        "jobs": [
+            {
+                "id": "kernel_sentinel_auto_run",
+                "cadence": "dream",
+                "enabled": true,
+                "ran": due && auto_exit.is_some(),
+                "ok": auto_exit.map(|exit| exit == 0),
+                "exit_code": auto_exit,
+                "receipt_required": true,
+                "receipt_present": due && auto_exit.is_some(),
+                "receipt_ref": "kernel_sentinel_auto_run_current.json"
+            },
+            dream_job_result("spine_sleep_cleanup", system_cleanup_enabled, system_cleanup.is_some(), system_cleanup),
+            dream_job_result("memory_sqlite_compress", memory_enabled, memory_compress.is_some(), memory_compress),
+            {
+                "id": "observability_evidence_compaction",
+                "cadence": "dream",
+                "enabled": true,
+                "ran": due && auto_exit.is_some(),
+                "ok": auto_exit.map(|exit| exit == 0),
+                "exit_code": auto_exit,
+                "receipt_required": true,
+                "receipt_present": due && auto_exit.is_some(),
+                "receipt_ref": "kernel_sentinel_collector_current.json",
+                "owned_by": "kernel_sentinel_auto_run"
+            },
+            {
+                "id": "memory_heap_retention_sweep",
+                "cadence": "dream",
+                "enabled": false,
+                "ran": false,
+                "ok": null,
+                "receipt_required": true,
+                "receipt_present": false,
+                "reason": "requires_heap_route_context_before_safe_auto_purge"
+            },
+            {
+                "id": "runtime_cleanup_autonomous",
+                "cadence": "dream",
+                "enabled": false,
+                "ran": false,
+                "ok": null,
+                "receipt_required": true,
+                "receipt_present": false,
+                "reason": "requires_contract_to_manifest_adapter_before_auto_mutation"
+            }
+        ]
+    })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_scheduler_artifact(
     root: &Path,
@@ -203,6 +377,9 @@ fn build_scheduler_artifact(
     cascade_invoked: bool,
     cascade_exit: Option<i32>,
     dream_gate: Option<Value>,
+    dream_system_cleanup: Option<Value>,
+    dream_memory_compress: Option<Value>,
+    dream_maintenance_manifest: Option<Value>,
 ) -> Value {
     let dir = state_dir_from_args(root, args);
     let mode_state_path = state_path(&dir, mode);
@@ -218,7 +395,9 @@ fn build_scheduler_artifact(
         .unwrap_or(now);
     let stale_age_seconds = last_success_after.map(|last| now.saturating_sub(last));
     let exit_code = recorded_exit.unwrap_or(0);
-    let cascade_target = mode.cascade_target().map(|next| next.mode_name().to_string());
+    let cascade_target = mode
+        .cascade_target()
+        .map(|next| next.mode_name().to_string());
     let mut artifact = json!({
         "ok": !stale && exit_code == 0,
         "type": if command_mode == "schedule" {
@@ -271,11 +450,21 @@ fn build_scheduler_artifact(
         "maintenance_window": {
             "heavy_maintenance_window": "dream",
             "heavy_maintenance_allowed": matches!(mode, SchedulerMode::Dream),
-            "dream_gate_checked": dream_gate.is_some()
+            "dream_gate_checked": dream_gate.is_some(),
+            "system_cleanup_runs_in_dream": true
         }
     });
     if let Some(gate) = dream_gate {
         artifact["dream_gate"] = gate;
+    }
+    if let Some(cleanup) = dream_system_cleanup {
+        artifact["dream_system_cleanup"] = cleanup;
+    }
+    if let Some(compress) = dream_memory_compress {
+        artifact["dream_memory_compress"] = compress;
+    }
+    if let Some(manifest) = dream_maintenance_manifest {
+        artifact["dream_maintenance_manifest"] = manifest;
     }
     artifact["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&artifact));
     artifact
@@ -403,7 +592,8 @@ pub fn build_scheduler_health_summary(root: &Path, args: &[String]) -> Value {
         .any(|mode| mode["lifecycle_status"] == "running");
     let fresh = configured
         && modes.iter().all(|mode| {
-            !mode["configured"].as_bool().unwrap_or(false) || mode["fresh"].as_bool().unwrap_or(false)
+            !mode["configured"].as_bool().unwrap_or(false)
+                || mode["fresh"].as_bool().unwrap_or(false)
         });
     let lifecycle_status = if !configured {
         "unconfigured"
@@ -467,6 +657,8 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
     let mut cascade_due = None;
     let mut cascade_invoked = false;
     let mut cascade_exit = None;
+    let mut dream_system_cleanup = None;
+    let mut dream_memory_compress = None;
     if due {
         match mode {
             SchedulerMode::Tick => {
@@ -501,13 +693,56 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
         }
     }
 
+    if matches!(mode, SchedulerMode::Dream)
+        && due
+        && option_bool_default(&effective, "--dream-system-cleanup", true)
+    {
+        let (cleanup_exit, cleanup_payload) =
+            crate::spine::execute_sleep_cleanup(root, true, false, "kernel_sentinel_dream");
+        dream_system_cleanup = Some(json!({
+            "enabled": true,
+            "exit_code": cleanup_exit,
+            "ok": cleanup_exit == 0
+                && cleanup_payload
+                    .get("ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+            "origin": "kernel_sentinel_dream",
+            "payload": cleanup_payload
+        }));
+    }
+
+    if matches!(mode, SchedulerMode::Dream)
+        && due
+        && option_bool_default(&effective, "--dream-memory-compress", true)
+    {
+        dream_memory_compress = Some(execute_dream_memory_compress(root, &effective, now));
+    }
+
     let auto_exit = if matches!(mode, SchedulerMode::Dream) && due {
         Some(auto_run::run_auto(root, &effective))
     } else {
         None
     };
     let recorded_exit = if due {
-        Some(auto_exit.or(cascade_exit).unwrap_or(0))
+        let primary_exit = auto_exit.or(cascade_exit).unwrap_or(0);
+        let cleanup_exit = dream_system_cleanup
+            .as_ref()
+            .and_then(|cleanup| cleanup["exit_code"].as_i64())
+            .map(|value| value as i32)
+            .unwrap_or(0);
+        let memory_exit = dream_memory_compress
+            .as_ref()
+            .and_then(|compress| compress["exit_code"].as_i64())
+            .map(|value| value as i32)
+            .unwrap_or(0);
+        Some(if primary_exit == 0 && cleanup_exit != 0 {
+            cleanup_exit
+        } else if primary_exit == 0 && memory_exit != 0 {
+            memory_exit
+        } else {
+            primary_exit
+        })
     } else {
         None
     };
@@ -556,6 +791,18 @@ fn run_scheduler(root: &Path, raw_args: &[String], mode: SchedulerMode) -> i32 {
         cascade_invoked,
         cascade_exit,
         dream_gate,
+        dream_system_cleanup.clone(),
+        dream_memory_compress.clone(),
+        if matches!(mode, SchedulerMode::Dream) {
+            Some(build_dream_maintenance_manifest(
+                due,
+                auto_exit,
+                dream_system_cleanup.as_ref(),
+                dream_memory_compress.as_ref(),
+            ))
+        } else {
+            None
+        },
     );
     let artifact_path = artifact_path(root, &effective, mode);
     if let Err(err) = write_json(&artifact_path, &artifact) {

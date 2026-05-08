@@ -93,7 +93,123 @@ fn dream_skips_auto_when_activity_is_recent_and_prior_dream_is_fresh() {
     assert_eq!(artifact["due"], false);
     assert_eq!(artifact["auto_run_invoked"], false);
     assert_eq!(artifact["dream_gate"]["due"], false);
+    assert!(artifact.get("dream_system_cleanup").is_none());
     assert!(!auto.exists());
+}
+
+#[test]
+fn dream_runs_system_cleanup_when_due() {
+    let root = unique_root("dream-system-cleanup");
+    let stale_target = root.join("target/debug/stale.bin");
+    fs::create_dir_all(stale_target.parent().unwrap()).unwrap();
+    fs::write(&stale_target, "stale").unwrap();
+    std::env::set_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES", "0");
+    std::env::set_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS", "0");
+
+    let out = root.join("dream-cleanup.json");
+    let auto = root.join("dream-cleanup-auto.json");
+    let args = vec![
+        "--strict=0".to_string(),
+        "--force=1".to_string(),
+        "--dream-system-cleanup=1".to_string(),
+        "--max-runtime-ms=60000".to_string(),
+        format!("--schedule-artifact={}", out.display()),
+        format!("--auto-artifact={}", auto.display()),
+    ];
+    let exit = run_dream(&root, &args);
+
+    std::env::remove_var("SPINE_SLEEP_CLEANUP_MIN_INTERVAL_MINUTES");
+    std::env::remove_var("SPINE_SLEEP_CLEANUP_TARGET_MAX_AGE_HOURS");
+
+    assert_eq!(exit, 0);
+    let artifact: Value = serde_json::from_str(&fs::read_to_string(out).unwrap()).unwrap();
+    assert_eq!(artifact["type"], "kernel_sentinel_dream_run");
+    assert_eq!(artifact["due"], true);
+    assert_eq!(
+        artifact["dream_system_cleanup"]["origin"],
+        "kernel_sentinel_dream"
+    );
+    assert_eq!(artifact["dream_system_cleanup"]["exit_code"], 0);
+    assert_eq!(artifact["dream_system_cleanup"]["ok"], true);
+    assert!(
+        !root.join("target").exists(),
+        "dream system cleanup should prune stale build output"
+    );
+    assert_eq!(
+        artifact["dream_maintenance_manifest"]["type"],
+        "kernel_sentinel_dream_maintenance_manifest"
+    );
+    assert!(artifact["dream_maintenance_manifest"]["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|job| job["id"] == "spine_sleep_cleanup" && job["ran"] == true));
+}
+
+#[test]
+fn dream_runs_memory_compression_when_due() {
+    let root = unique_root("dream-memory-compress");
+    let db_path = root.join("core/local/state/memory/runtime_memory.sqlite");
+    fs::create_dir_all(db_path.parent().unwrap()).unwrap();
+    {
+        let conn = rusqlite::Connection::open(&db_path).unwrap();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE memories (
+              id TEXT PRIMARY KEY,
+              content TEXT NOT NULL,
+              tags_json TEXT NOT NULL DEFAULT '[]',
+              updated_at INTEGER NOT NULL,
+              repetitions INTEGER NOT NULL DEFAULT 1,
+              retention_score REAL NOT NULL DEFAULT 1.0
+            );
+            CREATE TABLE memory_cache (
+              key TEXT PRIMARY KEY,
+              payload TEXT NOT NULL,
+              updated_at INTEGER NOT NULL
+            );
+            "#,
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO memories (id, content, tags_json, updated_at, repetitions, retention_score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params!["stale", "old low retention", "[]", 1i64, 1i64, 0.01f64],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO memories (id, content, tags_json, updated_at, repetitions, retention_score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params!["kept", "fresh high retention", "[]", now_epoch_seconds() as i64, 1i64, 1.0f64],
+        )
+        .unwrap();
+    }
+
+    let out = root.join("dream-memory.json");
+    let auto = root.join("dream-memory-auto.json");
+    let args = vec![
+        "--strict=0".to_string(),
+        "--force=1".to_string(),
+        "--dream-system-cleanup=0".to_string(),
+        "--dream-memory-compress=1".to_string(),
+        "--max-runtime-ms=60000".to_string(),
+        format!("--schedule-artifact={}", out.display()),
+        format!("--auto-artifact={}", auto.display()),
+    ];
+    let exit = run_dream(&root, &args);
+
+    assert_eq!(exit, 0);
+    let artifact: Value = serde_json::from_str(&fs::read_to_string(out).unwrap()).unwrap();
+    assert_eq!(artifact["type"], "kernel_sentinel_dream_run");
+    assert_eq!(
+        artifact["dream_memory_compress"]["id"],
+        "memory_sqlite_compress"
+    );
+    assert_eq!(artifact["dream_memory_compress"]["ok"], true);
+    assert_eq!(artifact["dream_memory_compress"]["rows_removed"], 1);
+    assert!(artifact["dream_maintenance_manifest"]["jobs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|job| job["id"] == "memory_sqlite_compress" && job["ran"] == true));
 }
 
 #[test]
