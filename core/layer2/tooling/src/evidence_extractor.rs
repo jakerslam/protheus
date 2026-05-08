@@ -1,5 +1,6 @@
 use crate::evidence_extractor_artifacts::{
-    collect_text_fragments, pick_artifact_refs, pick_source_ref, summarize_artifact_refs,
+    collect_text_fragments, pick_artifact_refs, pick_source_ref, pick_source_scope,
+    summarize_artifact_refs,
 };
 use crate::evidence_sanitizer::sanitize_text_for_evidence;
 use crate::schemas::{
@@ -51,6 +52,7 @@ impl EvidenceExtractor {
         idx: Option<usize>,
     ) -> Option<EvidenceCard> {
         let source_ref = pick_source_ref(source, result);
+        let source_scope = pick_source_scope(source, result, &source_ref);
         let source_location = pick_source_location(source, idx);
         let artifact_refs = pick_artifact_refs(source, result, &source_ref, &source_location);
         let excerpt = pick_excerpt(source);
@@ -65,6 +67,7 @@ impl EvidenceExtractor {
         let dedupe_hash = deterministic_hash(&serde_json::json!({
             "result_id": result.result_id,
             "source_ref": source_ref,
+            "source_scope": source_scope,
             "excerpt": excerpt,
             "summary": summary,
             "artifact_refs": artifact_refs,
@@ -74,6 +77,7 @@ impl EvidenceExtractor {
             "kind": "evidence_card_content",
             "derived_from_result_id": result.result_id,
             "source_ref": source_ref,
+            "source_scope": source_scope,
             "source_location": source_location,
             "dedupe_hash": dedupe_hash,
         }));
@@ -107,6 +111,7 @@ impl EvidenceExtractor {
             task_id: result.task_id.clone(),
             derived_from_result_id: result.result_id.clone(),
             source_ref,
+            source_scope,
             source_location,
             excerpt,
             summary,

@@ -2632,6 +2632,7 @@ mod tests {
             task_id: "task-1".to_string(),
             derived_from_result_id: "r1".to_string(),
             source_ref: "https://example.com".to_string(),
+            source_scope: "example.com".to_string(),
             source_location: "payload".to_string(),
             excerpt: text.to_string(),
             summary: text.to_string(),
@@ -2700,10 +2701,12 @@ mod tests {
         let mixed = [
             EvidenceCard {
                 source_ref: "https://example.com".to_string(),
+                source_scope: "example.com".to_string(),
                 ..card("e1", "web source claim", 0.9)
             },
             EvidenceCard {
                 source_ref: "core/layer2/tooling/src/verifier.rs".to_string(),
+                source_scope: "path:core".to_string(),
                 ..card("e2", "workspace source claim", 0.9)
             },
         ];

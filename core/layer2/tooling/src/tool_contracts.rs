@@ -393,6 +393,7 @@ mod tests {
         assert!(contract.execution_policy.request_fingerprint_dedupe);
         assert_eq!(contract.operations, vec!["search".to_string()]);
         assert!(contract.optional_args.contains(&"aperture".to_string()));
+        assert!(contract.optional_args.contains(&"source_scope".to_string()));
         assert!(contract
             .quality_classification
             .blocked_status_codes
@@ -425,6 +426,7 @@ mod tests {
             .contains(&"screenshot".to_string()));
         assert_eq!(fetch.operations, vec!["fetch".to_string()]);
         assert!(fetch.optional_args.contains(&"selector_hint".to_string()));
+        assert!(fetch.optional_args.contains(&"source_scope".to_string()));
         assert!(fetch.execution_policy.blocked_response_retry_allowed);
         assert_eq!(fetch.execution_policy.max_blocked_retries_default, 2);
         assert!(fetch.lifecycle.implicit_session_on_invoke);

@@ -7,7 +7,7 @@
       "capability_family": "web_retrieval",
       "required_args": ["query"],
       "aliases": ["web_lookup", "browse_web"],
-      "optional_args": ["aperture", "timeout_ms"],
+      "optional_args": ["aperture", "timeout_ms", "source_scope"],
       "operations": ["search"],
       "retrieval": {
         "mode": "search",
@@ -148,7 +148,7 @@
       "capability_family": "web_retrieval",
       "required_args": ["query"],
       "aliases": ["web_research"],
-      "optional_args": ["aperture", "timeout_ms"],
+      "optional_args": ["aperture", "timeout_ms", "source_scope"],
       "operations": ["search_pack"],
       "retrieval": {
         "mode": "search_pack",
@@ -298,6 +298,7 @@
         "disable_resources",
         "block_ads",
         "blocked_domains",
+        "source_scope",
         "session_id",
         "close_on_complete"
       ],

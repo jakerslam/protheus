@@ -114,6 +114,9 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert!(web_search_surface
         .optional_args
         .contains(&"aperture".to_string()));
+    assert!(web_search_surface
+        .optional_args
+        .contains(&"source_scope".to_string()));
     assert_eq!(web_search_surface.default_extraction_type, "markdown");
     assert_eq!(web_search_surface.cost_tier, "low");
     assert_eq!(web_search_surface.default_timeout_ms, 30_000);
@@ -161,6 +164,9 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert!(web_fetch_surface
         .optional_args
         .contains(&"selector_hint".to_string()));
+    assert!(web_fetch_surface
+        .optional_args
+        .contains(&"source_scope".to_string()));
     assert_eq!(web_fetch_surface.per_domain_concurrency_default, 1);
     assert!(web_fetch_surface.blocked_response_retry_allowed);
     assert_eq!(web_fetch_surface.max_blocked_retries_default, 2);

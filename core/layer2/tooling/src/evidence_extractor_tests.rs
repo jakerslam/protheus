@@ -40,6 +40,7 @@ fn extracts_and_dedupes_evidence_cards() {
     assert_eq!(cards[0].derived_from_result_id, "r1");
     assert_eq!(cards[0].trace_id, "t1");
     assert_eq!(cards[0].task_id, "task");
+    assert_eq!(cards[0].source_scope, "a");
 }
 
 #[test]
@@ -55,6 +56,7 @@ fn extractor_prefers_original_url_and_strips_markup_from_excerpt() {
     let cards = extractor.extract(&sample_result(), &raw);
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].source_ref, "https://example.com/video");
+    assert_eq!(cards[0].source_scope, "example.com");
     assert_eq!(cards[0].excerpt, "hello world");
     assert_eq!(cards[0].summary, "summary text");
 }
@@ -114,6 +116,7 @@ fn extractor_reads_nested_data_search_results_array() {
     let cards = extractor.extract(&sample_result(), &raw);
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].source_ref, "workspace://notes");
+    assert_eq!(cards[0].source_scope, "workspace:notes");
 }
 
 #[test]
@@ -137,6 +140,7 @@ fn extractor_reads_hits_array_payloads() {
     let cards = extractor.extract(&sample_result(), &raw);
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].source_ref, "https://example.com/repo.git");
+    assert_eq!(cards[0].source_scope, "example.com");
 }
 
 #[test]
@@ -193,6 +197,7 @@ fn extractor_turns_image_content_blocks_into_artifact_refs() {
     let cards = extractor.extract(&sample_result(), &raw);
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].source_ref, "https://example.com/research/page");
+    assert_eq!(cards[0].source_scope, "example.com");
     assert!(cards[0].excerpt.is_empty());
     assert!(cards[0].summary.contains("screenshot artifact"));
     assert_eq!(cards[0].artifact_refs.len(), 1);
@@ -222,6 +227,7 @@ fn extractor_preserves_object_shaped_screenshot_refs_without_raw_dumping() {
     let cards = extractor.extract(&sample_result(), &raw);
     assert_eq!(cards.len(), 1);
     assert_eq!(cards[0].source_ref, "https://example.com/dashboard");
+    assert_eq!(cards[0].source_scope, "example.com");
     assert!(cards[0].excerpt.is_empty());
     assert!(cards[0].summary.contains("screenshot artifact"));
     assert_eq!(cards[0].artifact_refs.len(), 1);
@@ -232,4 +238,39 @@ fn extractor_preserves_object_shaped_screenshot_refs_without_raw_dumping() {
         "https://cdn.example.com/captures/shot.png"
     );
     assert_eq!(artifact.capture_status.as_deref(), Some("ok"));
+}
+
+#[test]
+fn extractor_derives_scope_from_archived_target_url() {
+    let extractor = EvidenceExtractor;
+    let raw = serde_json::json!({
+        "results": [{
+            "originalUrl":"https://web.archive.org/web/20100102003420/https://stackoverflow.com/questions",
+            "summary":"archived result",
+            "excerpt":"historic evidence"
+        }]
+    });
+    let cards = extractor.extract(&sample_result(), &raw);
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].source_scope, "stackoverflow.com");
+}
+
+#[test]
+fn extractor_respects_explicit_source_scope_override() {
+    let extractor = EvidenceExtractor;
+    let mut result = sample_result();
+    result.normalized_args = serde_json::json!({
+        "query":"test",
+        "source_scope":"stack-overflow"
+    });
+    let raw = serde_json::json!({
+        "results": [{
+            "originalUrl":"https://web.archive.org/web/20100102003420/https://stackoverflow.com/questions",
+            "summary":"archived result",
+            "excerpt":"historic evidence"
+        }]
+    });
+    let cards = extractor.extract(&result, &raw);
+    assert_eq!(cards.len(), 1);
+    assert_eq!(cards[0].source_scope, "stack-overflow");
 }

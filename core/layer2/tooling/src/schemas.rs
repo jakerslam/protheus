@@ -70,6 +70,7 @@ pub struct EvidenceCard {
     pub task_id: String,
     pub derived_from_result_id: String,
     pub source_ref: String,
+    pub source_scope: String,
     pub source_location: String,
     pub excerpt: String,
     pub summary: String,
@@ -170,6 +171,7 @@ pub const EVIDENCE_CARD_FIELDS: &[&str] = &[
     "task_id",
     "derived_from_result_id",
     "source_ref",
+    "source_scope",
     "source_location",
     "excerpt",
     "summary",
@@ -287,7 +289,7 @@ pub fn published_tool_alias_contract_v1() -> Vec<Value> {
 
 pub fn published_schema_contract_v1() -> Value {
     json!({
-        "version": "tooling_schema_v10",
+        "version": "tooling_schema_v11",
         "normalized_tool_result": NORMALIZED_TOOL_RESULT_FIELDS,
         "tool_attempt_receipt": TOOL_ATTEMPT_RECEIPT_FIELDS,
         "tool_capability_probe": TOOL_CAPABILITY_PROBE_FIELDS,

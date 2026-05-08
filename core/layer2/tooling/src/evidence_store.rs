@@ -285,6 +285,7 @@ mod tests {
             task_id: "task-1".to_string(),
             derived_from_result_id: "r1".to_string(),
             source_ref: "https://example.com".to_string(),
+            source_scope: "example.com".to_string(),
             source_location: "results[0]".to_string(),
             excerpt: "excerpt".to_string(),
             summary: "summary".to_string(),

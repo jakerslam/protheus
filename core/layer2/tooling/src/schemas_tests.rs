@@ -12,7 +12,7 @@ fn schema_contract_publishes_frozen_field_sets() {
     let contract = published_schema_contract_v1();
     assert_eq!(
         contract.get("version").and_then(Value::as_str),
-        Some("tooling_schema_v10")
+        Some("tooling_schema_v11")
     );
     assert_eq!(
         contract
@@ -47,6 +47,7 @@ fn evidence_card_schema_includes_trace_and_task_ids() {
         task_id: "task-1".to_string(),
         derived_from_result_id: "r1".to_string(),
         source_ref: "https://example.com".to_string(),
+        source_scope: "example.com".to_string(),
         source_location: "payload".to_string(),
         excerpt: "x".to_string(),
         summary: "y".to_string(),
@@ -114,7 +115,11 @@ fn tool_capability_probe_schema_includes_status_and_required_args() {
         contract_surface: Some(
             crate::capability_contract_surface::ToolCapabilityContractSurface {
                 operations: vec!["search".to_string()],
-                optional_args: vec!["aperture".to_string(), "timeout_ms".to_string()],
+                optional_args: vec![
+                    "aperture".to_string(),
+                    "timeout_ms".to_string(),
+                    "source_scope".to_string(),
+                ],
                 supports_bulk: false,
                 max_bulk_items: 1,
                 cost_tier: "low".to_string(),
@@ -236,7 +241,11 @@ fn capability_schema_serializes_tool_cd_metadata_without_changing_probe_contract
         contract_surface: Some(
             crate::capability_contract_surface::ToolCapabilityContractSurface {
                 operations: vec!["search".to_string()],
-                optional_args: vec!["aperture".to_string(), "timeout_ms".to_string()],
+                optional_args: vec![
+                    "aperture".to_string(),
+                    "timeout_ms".to_string(),
+                    "source_scope".to_string(),
+                ],
                 supports_bulk: false,
                 max_bulk_items: 1,
                 cost_tier: "low".to_string(),
