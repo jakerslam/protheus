@@ -6,6 +6,19 @@ Canonical contract:
 
 - `sentinel_resident_observer_contract.json`
 - `internal_agent_scope_policy.json`
+- `usability_reliability_simplicity_enforcement_policy.json`
+
+## Repo-wide doctrine enforcement
+
+Kernel Sentinel enforces the repo-wide [Usability, Reliability, Simplicity Doctrine](/Users/jay/.openclaw/workspace/docs/workspace/REAL_WORK_FIRST.md) as live system-health pressure.
+
+Sentinel should flag recurring evidence that the system is:
+
+- not becoming more useful for concrete user or agent work
+- unreliable on install, gateway, request, release, TODO, or Sentinel feedback paths
+- becoming harder to reason about through duplicate truth, vague ownership, compatibility tails, or subsystem sprawl
+
+Sentinel may draft findings and TODO/issue candidates from those violations, but it must not auto-apply patches.
 
 ## Internal-agent scope split
 

@@ -89,6 +89,22 @@ pub fn kernel_sentinel_contract() -> Value {
             "policy_ref": "docs/workspace/system_understanding_dossier_policy.md",
             "implementation_without_dossier_is_disallowed_when_confidence_thresholds_are_unmet": true
         },
+        "system_doctrine_role": {
+            "role": "repo_wide_usability_reliability_simplicity_enforcement",
+            "policy_ref": "docs/workspace/REAL_WORK_FIRST.md",
+            "observability_policy_ref": "observability/sentinel/usability_reliability_simplicity_enforcement_policy.json",
+            "laws": ["usability", "reliability", "simplicity"],
+            "sentinel_may_open_findings": true,
+            "sentinel_may_draft_todos": true,
+            "sentinel_may_auto_apply_patches": false,
+            "promotion_requires": [
+                "evidence_refs",
+                "owner_guess",
+                "root_cause_hypothesis",
+                "concrete_next_action",
+                "falsification_probe"
+            ]
+        },
         "diagnostic_execution_role": {
             "role": "kernel_owned_bounded_diagnostic_probe_authority",
             "policy_ref": "docs/workspace/kernel_sentinel_diagnostic_execution_policy.md",

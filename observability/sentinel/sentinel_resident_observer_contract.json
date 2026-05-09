@@ -10,12 +10,15 @@
   "evidence_source_map": "observability/traces/sentinel_trace_source_map.json",
   "freshness_policy": "observability/freshness/evidence_freshness_policy.json",
   "runtime_finding_schema": "observability/runtime_findings/runtime_finding.schema.json",
+  "doctrine_policy": "observability/sentinel/usability_reliability_simplicity_enforcement_policy.json",
+  "repo_wide_doctrine_ref": "docs/workspace/REAL_WORK_FIRST.md",
   "allowed_roles": [
     "evidence_normalization",
     "source_freshness_reporting",
     "coverage_reporting",
     "finding_synthesis",
     "architectural_incident_synthesis",
+    "usability_reliability_simplicity_violation_detection",
     "issue_candidate_evidence_preparation",
     "self_study_output_projection"
   ],
@@ -26,5 +29,24 @@
     "shell_readiness_inference",
     "direct_code_mutation"
   ],
-  "recursive_input_rule": "Sentinel self-study outputs may inform Governance and operator review, but they are not primary evidence streams for Sentinel ingestion."
+  "recursive_input_rule": "Sentinel self-study outputs may inform Governance and operator review, but they are not primary evidence streams for Sentinel ingestion.",
+  "doctrine_enforcement": {
+    "status": "required",
+    "laws": ["usability", "reliability", "simplicity"],
+    "required_violation_fields": [
+      "violated_law",
+      "evidence_refs",
+      "owner_guess",
+      "root_cause_hypothesis",
+      "concrete_next_action",
+      "falsification_probe",
+      "suggested_todo_or_issue"
+    ],
+    "authority_limits": {
+      "safe_to_open_finding": true,
+      "safe_to_draft_todo": true,
+      "safe_to_file_issue_without_review": false,
+      "safe_to_auto_apply_patch": false
+    }
+  }
 }

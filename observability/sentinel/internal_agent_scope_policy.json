@@ -10,6 +10,7 @@
   },
   "shared_rules": [
     "All internal-agent findings must carry evidence refs, source artifact, trace_id when available, owner guess, recurrence or criticality, falsification probe, and human-review promotion state.",
+    "All promoted internal-agent recommendations must satisfy the repo-wide usability, reliability, and simplicity doctrine, or explicitly remain parked as exploratory evidence.",
     "Internal agents may share evidence streams, but they must not silently upgrade another agent family's authority class.",
     "A response-level symptom must be classified by producer authority before promotion: response quality belongs to Eval; response finalization/runtime absence can belong to Sentinel when backed by deterministic runtime evidence.",
     "No internal agent may auto-apply patches from these findings; issue/TODO promotion remains draft-first until explicitly approved."
@@ -23,6 +24,7 @@
         "What is structurally failing while the system runs?",
         "Which evidence streams show recurring or critical runtime/Kernel truth failures?",
         "Which problem hypotheses are supported enough to become reviewable issue drafts?",
+        "Is the system violating usability, reliability, or simplicity in a way that damages real work?",
         "Is the system becoming safer, less noisy, and more self-understanding over time?"
       ],
       "looks_at": [
@@ -33,6 +35,7 @@
         "gateway health, quarantine, recovery, and isolation",
         "boundedness, queue pressure, stale surfaces, and recovery time",
         "release proof completeness",
+        "usability, reliability, and simplicity doctrine violations backed by evidence",
         "eval recurrence as advisory context, not direct Kernel truth"
       ],
       "does_not_own": [

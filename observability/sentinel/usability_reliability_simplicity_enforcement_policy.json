@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "policy_id": "sentinel_usability_reliability_simplicity_enforcement.v1",
+  "status": "active",
+  "owner": "assurance.observability.sentinel",
+  "doctrine_ref": "docs/workspace/REAL_WORK_FIRST.md",
+  "purpose": "Make Kernel Sentinel enforce the repo-wide usability, reliability, and simplicity doctrine as live system-health pressure instead of treating it as advisory prose.",
+  "laws": [
+    {
+      "id": "usability",
+      "question": "Does this change, subsystem, finding, or TODO help a user or agent complete concrete work?",
+      "sentinel_violation_signals": [
+        "capability_surface_growth_without_real_work_loop",
+        "findings_that_do_not_become_patchable_tasks",
+        "workflow_or_agent_machinery_without_operator_value",
+        "assimilation_output_without_integrated_capability_or_workflow"
+      ]
+    },
+    {
+      "id": "reliability",
+      "question": "Does the useful path keep working and fail with bounded actionable diagnostics?",
+      "sentinel_violation_signals": [
+        "hang_without_timeout_or_heartbeat",
+        "startup_or_install_failure_without_recovery_action",
+        "gateway_or_release_path_regression",
+        "sentinel_or_eval_output_without_quality_filter",
+        "unvalidated_real_work_path"
+      ]
+    },
+    {
+      "id": "simplicity",
+      "question": "Does this make the system easier to reason about, or does it add entropy?",
+      "sentinel_violation_signals": [
+        "duplicate_source_of_truth_representation",
+        "compatibility_tail_without_expiry",
+        "large_file_or_subsystem_with_mixed_ownership",
+        "policy_wording_removed_but_behavior_shape_survives",
+        "new_subsystem_without_simpler_alternative_recorded"
+      ]
+    }
+  ],
+  "required_finding_fields": [
+    "violated_law",
+    "evidence_refs",
+    "owner_guess",
+    "root_cause_hypothesis",
+    "concrete_next_action",
+    "falsification_probe",
+    "suggested_todo_or_issue"
+  ],
+  "promotion_rules": [
+    "A doctrine violation may be promoted only when backed by live evidence, recurring issue evidence, or explicit operator observation.",
+    "A doctrine violation must identify the smallest real-work path it damages.",
+    "Simplicity findings must name the duplicate representation, ownership ambiguity, or compatibility tail they reduce.",
+    "Usability findings must identify the missing user-facing or agent-facing workflow.",
+    "Reliability findings must include a bounded validation or recovery probe."
+  ],
+  "authority_limits": {
+    "safe_to_open_finding": true,
+    "safe_to_draft_todo": true,
+    "safe_to_file_issue_without_review": false,
+    "safe_to_auto_apply_patch": false
+  }
+}

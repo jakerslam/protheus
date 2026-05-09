@@ -2,6 +2,8 @@
 
 This directory holds the internal work board for the repo.
 
+Use [REAL_WORK_FIRST.md](/Users/jay/.openclaw/workspace/docs/workspace/REAL_WORK_FIRST.md) as the hard intake filter for new active work. Items should improve usability, reliability, or simplicity. In TODO metadata, `work_gate: real_work` is the practical work-board name for the usability law.
+
 ## Purpose
 
 The files here are for operator and agent coordination. They track what we want to change, not what the system considers true.
@@ -41,6 +43,10 @@ Active backlog families in the live board should declare:
   The current human or agent expected to move the item next.
 - `deadline`
   A normalized due marker such as an exact date, `none`, `external`, or a dependency-shaped value like `after_red_section`.
+- `work_gate`
+  Optional filter value: `real_work`, `reliability`, or `simplification`. `real_work` maps to the repo-wide `usability` law.
+- `real_work_score`
+  Optional priority score from `1` to `5`.
 
 Allowed owner values can evolve, but the starting set is:
 

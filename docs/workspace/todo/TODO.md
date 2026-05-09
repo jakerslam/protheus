@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-06T02:45:51.226Z
+Updated: 2026-05-09T19:01:19.935Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -9,13 +9,14 @@ Updated: 2026-05-06T02:45:51.226Z
 - Archive history is rendered from [todo_archive_registry.json](/Users/jay/.openclaw/workspace/docs/workspace/todo/todo_archive_registry.json) and the preserved legacy appendix at [TODO_ARCHIVE_LEGACY.md](/Users/jay/.openclaw/workspace/docs/workspace/todo/TODO_ARCHIVE_LEGACY.md).
 - Run manual commands through `npm run -s ops:todo:board -- <command>` so JSON and Markdown stay in sync.
 - Every active item must declare `owner` and `deadline`.
+- Active items should declare `work_gate` as `real_work`, `reliability`, or `simplification` when possible; `real_work` is the practical TODO gate for the usability law.
 - Allowed deadline values: exact date like `2026-05-07`, `none`, `external`, or dependency-shaped values like `after_red_section`.
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 34
-- red: 7
-- yellow: 19
+- active_items: 40
+- red: 10
+- yellow: 22
 - white: 8
 
 ## Red Section (Do Immediately)
@@ -54,6 +55,27 @@ Updated: 2026-05-06T02:45:51.226Z
   deadline: `2026-05-10`
   source_family: `Shell Alpine Purge Wave`
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
+- `RWF-CODEQL-WORKFLOW` — Make CodeQL remediation the first canonical real-work workflow
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Real Work First`
+  work_gate: `real_work`
+  real_work_score: `5`
+  summary: Define the reusable alert-to-patch loop: ingest CodeQL alert, locate file and rule, patch narrowly, run targeted validation, commit with a conventional prefix, and record the closure pattern.
+- `RWF-RELIABILITY-FLOOR` — Define the minimum reliable real-work paths
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Real Work First`
+  work_gate: `reliability`
+  real_work_score: `5`
+  summary: Keep install and repair, gateway lifecycle, request-to-response execution, alert remediation, Sentinel finding promotion, TODO lifecycle, and commit/release hygiene as the reliability floor.
+- `RWF-SENTINEL-FINDING-SHAPE` — Make Sentinel findings issue-ready before promotion
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Real Work First`
+  work_gate: `reliability`
+  real_work_score: `5`
+  summary: Require promoted Sentinel findings to include evidence, recurrence or freshness, owner guess, root-cause hypothesis, proposed fix class, targeted validation suggestion, and TODO or issue wording.
 
 ## Yellow Section (Do Soon)
 - `SHELL-EXTRACT-CACHE` — Replace Shell conversation cache and search with projections
@@ -86,6 +108,27 @@ Updated: 2026-05-06T02:45:51.226Z
   deadline: `2026-05-17`
   source_family: `Digital DNA Foundation Graduation Audit`
   summary: Yellow flag: Digital DNA has real Kernel metakernel code and tests, but SRS/TODO still mark V6-FOUNDATION-DNA-001/002 queued and it is not proven as the unavoidable base substrate for every instance, mutation, critical action, receipt, and Sentinel integrity check.
+- `RWF-NO-NEW-SUBSYSTEM` — Require new subsystems to prove real-work value first
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Real Work First`
+  work_gate: `simplification`
+  real_work_score: `4`
+  summary: Before adding a new subsystem, require a concrete user-facing or agent-facing workflow it improves, the reliability risk it reduces, and the simpler alternative considered.
+- `RWF-SACRED-WORKFLOW` — Make the sacred workflow explicit and reusable
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Real Work First`
+  work_gate: `real_work`
+  real_work_score: `4`
+  summary: Document and wire the common loop from request, issue, alert, or Sentinel finding through evidence inspection, ownership, patch, targeted validation, explanation, and TODO or issue update.
+- `RWF-SIMPLIFICATION-FILTER` — Add a simplification filter to TODO intake
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Real Work First`
+  work_gate: `simplification`
+  real_work_score: `4`
+  summary: Reject or park active items that do not improve real work, reliability, or simplification; prefer deletion and compression over new subsystems unless the sacred workflow benefits.
 - `HYGIENE-RUST-COMBINED-SPLIT-DEBT` — Classify combined Rust split artifacts
   owner: `codex`
   deadline: `2026-05-19`
@@ -198,3 +241,4 @@ Updated: 2026-05-06T02:45:51.226Z
 - When an item in this file is completed, remove it from this live board and append it to [TODO_ARCHIVE.md](/Users/jay/.openclaw/workspace/docs/workspace/todo/TODO_ARCHIVE.md) through the scripted flow.
 - Do not let completed rows accumulate here again.
 - Treat Markdown as a rendered operator surface, not the canonical mutation target.
+
