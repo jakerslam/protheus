@@ -59,13 +59,12 @@ curl -fsSL https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.s
 
 ### Windows (PowerShell)
 Canonical install command (single-line):
-`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue`
+`$tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue`
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 $tmp = Join-Path $env:TEMP "infring-install.ps1"
 irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop
-& $tmp -Repair -Full
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full
 Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 Get-Command infring -ErrorAction SilentlyContinue
 infring gateway
@@ -77,15 +76,17 @@ Optional offline/cached reinstall (PowerShell):
 
 ```powershell
 # Hydrate local cache once for this version.
+$env:INFRING_VERSION = "v0.3.12"
 $env:INFRING_INSTALL_ASSET_CACHE = "1"
-& $tmp -Repair -Full -ReleaseVersion v0.3.12
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full
 
 # Repeat install without network.
 $env:INFRING_INSTALL_OFFLINE = "1"
-& $tmp -Repair -Full -Offline -ReleaseVersion v0.3.12
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full -Offline
 
 # Optional cleanup.
 Remove-Item Env:INFRING_INSTALL_OFFLINE -ErrorAction SilentlyContinue
+Remove-Item Env:INFRING_VERSION -ErrorAction SilentlyContinue
 ```
 
 If script execution is still restricted in your environment, use a no-file fallback:

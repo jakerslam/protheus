@@ -21,7 +21,7 @@ $DefaultApi = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest
 $DefaultReleasesApi = "https://api.github.com/repos/$RepoOwner/$RepoName/releases?per_page=30"
 $DefaultLatestUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest"
 $DefaultBase = "https://github.com/$RepoOwner/$RepoName/releases/download"
-$ReadmeWindowsInstallCommand = 'Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; $tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; & $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue'
+$ReadmeWindowsInstallCommand = '$tmp = Join-Path $env:TEMP "infring-install.ps1"; irm https://raw.githubusercontent.com/protheuslabs/InfRing/main/install.ps1 -OutFile $tmp -ErrorAction Stop; powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full; Remove-Item $tmp -Force -ErrorAction SilentlyContinue'
 
 $InstallDir = if ($InstallDir) {
   $InstallDir
@@ -336,32 +336,17 @@ echo [infring bootstrap] run: install.ps1 -Repair -Full
 exit /b 0
 '@
 
-    $psTemplate = @'
-param([Parameter(ValueFromRemainingArguments=$true)][string[]]$CommandArgs)
-$target = Join-Path $PSScriptRoot "__TARGET__"
-if (Test-Path $target) {
-  & $target @CommandArgs
-  exit $LASTEXITCODE
-}
-Write-Warning "[infring shim] bootstrap wrapper missing: $target"
-Write-Host "[infring bootstrap] runtime binaries are not installed on this machine yet."
-Write-Host "[infring bootstrap] run: install.ps1 -Repair -Full"
-exit 0
-'@
-
     try {
       $wrapperMap = @(
-        @{ cmd = "infring.cmd"; ps1 = "infring.ps1" },
-        @{ cmd = "infringctl.cmd"; ps1 = "infringctl.ps1" },
-        @{ cmd = "infringd.cmd"; ps1 = "infringd.ps1" }
+        @{ cmd = "infring.cmd" },
+        @{ cmd = "infringctl.cmd" },
+        @{ cmd = "infringd.cmd" }
       )
       foreach ($item in $wrapperMap) {
         $cmdPath = Join-Path $InstallRoot ([string]$item.cmd)
-        $ps1Path = Join-Path $InstallRoot ([string]$item.ps1)
         Set-Content -Path $cmdPath -Value $cmdTemplate -Encoding ASCII
-        $psContent = $psTemplate.Replace("__TARGET__", [string]$item.cmd)
-        Set-Content -Path $ps1Path -Value $psContent -Encoding UTF8
       }
+      Remove-StaleWindowsCommandShims -ShimInstallDir $InstallRoot
       return $true
     } catch {
       return $false
@@ -728,16 +713,13 @@ function Remove-StaleWindowsCommandShims {
   $shimTargets = @(
     "infring.ps1",
     "infringctl.ps1",
-    "infringd.ps1",
-    "infring.ps1",
-    "infringctl.ps1",
     "infringd.ps1"
   )
   foreach ($shimTarget in $shimTargets) {
     $shimPath = Join-Path $ShimInstallDir $shimTarget
     if (Test-Path $shimPath) {
       Remove-Item -Force $shimPath
-      Write-Host "[infring install] repair removed stale shim: $shimPath"
+      Write-Host "[infring install] removed PowerShell command shim so restricted hosts resolve .cmd first: $shimPath"
     }
   }
 }
@@ -2856,55 +2838,64 @@ function Ensure-RepairBootstrapWrapperFloor {
   $cmdTemplate = @'
 @echo off
 setlocal
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0__PS1__" %*
+set "_BOOTSTRAP_ACTION=%~n0"
+set "_OPS=%~dp0infring-ops.exe"
+set "_DAEMON=%~dp0infringd.exe"
+set "_CONDUIT=%~dp0conduit_daemon.exe"
+
+if /I "%_BOOTSTRAP_ACTION%"=="infring" (
+  if exist "%_OPS%" (
+    "%_OPS%" infringctl %*
+    exit /b %ERRORLEVEL%
+  )
+  goto :bootstrap
+)
+
+if /I "%_BOOTSTRAP_ACTION%"=="infringctl" (
+  if exist "%_OPS%" (
+    "%_OPS%" infringctl %*
+    exit /b %ERRORLEVEL%
+  )
+  goto :bootstrap
+)
+
+if /I "%_BOOTSTRAP_ACTION%"=="infringd" (
+  if exist "%_DAEMON%" (
+    "%_DAEMON%" %*
+    exit /b %ERRORLEVEL%
+  )
+  if exist "%_CONDUIT%" (
+    "%_CONDUIT%" %*
+    exit /b %ERRORLEVEL%
+  )
+  if exist "%_OPS%" (
+    "%_OPS%" spine %*
+    exit /b %ERRORLEVEL%
+  )
+  goto :bootstrap
+)
+
+:bootstrap
+echo [infring bootstrap] runtime binaries are not installed on this machine yet.
+echo [infring bootstrap] rerun with execution-policy bypass:
+echo [infring bootstrap] powershell.exe -NoProfile -ExecutionPolicy Bypass -File install.ps1 -Repair -Full
 exit /b %ERRORLEVEL%
 '@
-  $psTemplate = @'
-param([Parameter(ValueFromRemainingArguments=$true)][string[]]$CommandArgs)
-$target = Join-Path $PSScriptRoot "__TARGET__"
-if (Test-Path $target) {
-  & $target @CommandArgs
-  exit $LASTEXITCODE
-}
-Write-Warning "[infring shim] bootstrap wrapper missing: $target"
-Write-Host "[infring bootstrap] runtime binaries are not installed on this machine yet."
-Write-Host "[infring bootstrap] run: install.ps1 -Repair -Full"
-exit 0
-'@
-  $wrapperPairs = @(
-    @{ cmd = "infring.cmd"; ps1 = "infring.ps1" },
-    @{ cmd = "infringctl.cmd"; ps1 = "infringctl.ps1" },
-    @{ cmd = "infringd.cmd"; ps1 = "infringd.ps1" }
+  $wrapperNames = @(
+    "infring.cmd",
+    "infringctl.cmd",
+    "infringd.cmd"
   )
 
-  foreach ($pair in $wrapperPairs) {
-    $cmdPath = Join-Path $InstallDir ([string]$pair.cmd)
-    $ps1Path = Join-Path $InstallDir ([string]$pair.ps1)
-    $rewritePs1 = $false
-    if (Test-Path $ps1Path) {
-      $rewritePs1 = [bool](Test-RepairArtifactBroken -InstallPath $ps1Path -ArtifactName ([string]$pair.ps1))
-    }
-    if ((-not (Test-Path $ps1Path)) -or $rewritePs1) {
-      try {
-        $psContent = $psTemplate.Replace("__TARGET__", [string]$pair.cmd)
-        Set-Content -LiteralPath $ps1Path -Value $psContent -Encoding UTF8 -Force
-        if ($rewritePs1) {
-          Write-Host "[infring install] repair rewrote broken PowerShell wrapper: $ps1Path"
-        } else {
-          Write-Host "[infring install] repair bootstrapped PowerShell wrapper: $ps1Path"
-        }
-      } catch {
-        Write-Host "[infring install] repair warning: failed to bootstrap PowerShell wrapper: $ps1Path"
-      }
-    }
+  foreach ($wrapperName in $wrapperNames) {
+    $cmdPath = Join-Path $InstallDir ([string]$wrapperName)
     $rewriteCmd = $false
     if (Test-Path $cmdPath) {
-      $rewriteCmd = [bool](Test-RepairArtifactBroken -InstallPath $cmdPath -ArtifactName ([string]$pair.cmd))
+      $rewriteCmd = [bool](Test-RepairArtifactBroken -InstallPath $cmdPath -ArtifactName ([string]$wrapperName))
     }
     if ((-not (Test-Path $cmdPath)) -or $rewriteCmd) {
       try {
-        $cmdContent = $cmdTemplate.Replace("__PS1__", [string]$pair.ps1)
-        Set-Content -LiteralPath $cmdPath -Value $cmdContent -Encoding ASCII -Force
+        Set-Content -LiteralPath $cmdPath -Value $cmdTemplate -Encoding ASCII -Force
         if ($rewriteCmd) {
           Write-Host "[infring install] repair rewrote broken command wrapper: $cmdPath"
         } else {
@@ -2915,6 +2906,7 @@ exit 0
       }
     }
   }
+  Remove-StaleWindowsCommandShims -ShimInstallDir $InstallDir
 }
 
 function Invoke-RepairInstallDir {
@@ -2958,8 +2950,7 @@ function Invoke-RepairInstallDir {
   }
   Ensure-RepairBootstrapWrapperFloor -InstallDir $InstallDir
   $requiredWrappers = @(
-    "infring.cmd", "infringctl.cmd", "infringd.cmd",
-    "infring.ps1", "infringctl.ps1", "infringd.ps1"
+    "infring.cmd", "infringctl.cmd", "infringd.cmd"
   )
   $missingWrappers = @($requiredWrappers | Where-Object {
       -not (Test-Path (Join-Path $InstallDir $_))
@@ -4051,9 +4042,7 @@ $infringPs1 = Join-Path $InstallDir "infring.ps1"
 $infringctlPs1 = Join-Path $InstallDir "infringctl.ps1"
 $infringdPs1 = Join-Path $InstallDir "infringd.ps1"
 
-Write-PowerShellShim -Path $infringPs1 -TargetCmd "infring.cmd"
-Write-PowerShellShim -Path $infringctlPs1 -TargetCmd "infringctl.cmd"
-Write-PowerShellShim -Path $infringdPs1 -TargetCmd "infringd.cmd"
+Remove-StaleWindowsCommandShims -ShimInstallDir $InstallDir
 Ensure-RepairBootstrapWrapperFloor -InstallDir $InstallDir
 
 if ($InstallPure) {
