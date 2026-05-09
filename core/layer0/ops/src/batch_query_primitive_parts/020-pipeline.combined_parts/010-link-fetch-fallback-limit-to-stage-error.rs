@@ -1,4 +1,4 @@
-const LINK_FETCH_FALLBACK_LIMIT: usize = 2;
+const LINK_FETCH_FALLBACK_LIMIT: usize = 3;
 const INTERNAL_ROUTE_HINT: &str =
     "This looks like an internal command mapping request, not a web search query. Use local route diagnostics instead of web retrieval.";
 

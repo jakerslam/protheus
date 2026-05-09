@@ -421,6 +421,8 @@ fn web_tool_quality_report(
                 "split broad requests into entity-specific or aspect-specific searches",
                 "target primary, official, source-backed, or directly citable pages when possible",
                 "use partial snippets, failure reasons, and off-topic signals to remove weak terms",
+                "for current or recent research, prefer current/recent source-class searches such as changelog, release notes, repository, publication, announcement, security advisory, or methodology over broad stale year ranges",
+                "for one named entity, keep the exact entity name in every retry query and vary source class or decision aspect rather than replacing it with loose synonyms",
                 "prefer another agent-submitted query pack before asking the user to narrow"
             ],
             "next_action": if retry_reason == "none" {

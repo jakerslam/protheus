@@ -343,6 +343,17 @@ mod web_quality_diagnostics_tests {
                 .unwrap_or(false),
             "{out:#}"
         );
+        let hints = out
+            .pointer("/tool_result_quality/retry/query_strategy_hints")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|row| row.as_str().map(|value| value.to_ascii_lowercase()))
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(hints.contains("stale year ranges"), "{hints}");
+        assert!(hints.contains("exact entity name"), "{hints}");
         assert_eq!(
             out.pointer("/tool_result_quality/freshness/current_intent")
                 .and_then(Value::as_bool),
