@@ -1377,6 +1377,12 @@ fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -
         }
     }
 
+    if let Some(pending_request) =
+        manual_toolbox_pending_request_from_tool_invocation_markup(response, message)
+    {
+        return Some(pending_request);
+    }
+
     if !response_is_manual_toolbox_gate_choice(response) {
         return None;
     }

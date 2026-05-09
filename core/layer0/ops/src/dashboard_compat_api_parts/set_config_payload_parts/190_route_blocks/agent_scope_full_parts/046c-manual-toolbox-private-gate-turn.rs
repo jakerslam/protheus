@@ -27,6 +27,20 @@ fn handle_manual_toolbox_private_gate_turn(
     last_invalid_excerpt: &mut String,
     last_reject_reason: &mut String,
 ) -> Option<ManualToolboxPrivateGateOutcome> {
+    if response_tools.is_empty() {
+        if let Some(pending_request) =
+            manual_toolbox_pending_request_from_tool_invocation_markup(retried_text, message)
+        {
+            record_manual_toolbox_pending_request_value(workflow, pending_request);
+            mark_workflow_pending_gate_without_final_synthesis(
+                workflow,
+                "skipped_pending_tool_confirmation",
+                "manual_toolbox_gate_submission",
+                attempt,
+            );
+            return Some(ManualToolboxPrivateGateOutcome::Finalize);
+        }
+    }
     if active_manual_toolbox_category_turn
         && response_tools.is_empty()
         && response_is_exact_no_tool_gate_submission(retried_text)

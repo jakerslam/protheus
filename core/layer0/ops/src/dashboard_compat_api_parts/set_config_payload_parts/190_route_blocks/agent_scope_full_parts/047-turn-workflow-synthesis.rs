@@ -1321,6 +1321,7 @@ fn run_turn_workflow_final_response(
     if response_tools.is_empty()
         && (response_is_manual_toolbox_gate_choice(draft_response)
             || response_is_visible_workflow_gate_choice(draft_response)
+            || response_has_declared_tool_invocation_markup(draft_response, message)
             || response_has_gate_choice_prefix_leakage(draft_response))
     {
         record_manual_toolbox_pending_request(&mut workflow, draft_response, message);
@@ -2279,6 +2280,82 @@ mod workflow_fallback_tests {
             Some("unit_test")
         );
     }
+
+    #[test]
+    fn manual_toolbox_repairs_declared_tool_markup_to_pending_request() {
+        let pending = manual_toolbox_pending_request_from_response(
+            "I'll research it. <tool>web_search</tool><query>agentic framework landscape 2026</query>",
+            "Compare current agentic frameworks.",
+        )
+        .expect("markup should be repaired into a private pending request");
+
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("web_search")
+        );
+        assert_eq!(
+            pending.pointer("/input/query").and_then(Value::as_str),
+            Some("agentic framework landscape 2026")
+        );
+        assert_eq!(
+            pending.pointer("/input/aperture").and_then(Value::as_str),
+            Some("medium")
+        );
+        assert_eq!(
+            pending.get("source").and_then(Value::as_str),
+            Some("tool_invocation_markup_repair")
+        );
+        assert_eq!(
+            pending
+                .get("chat_injection_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn manual_toolbox_repairs_repeated_query_markup_to_declared_query_pack() {
+        let pending = manual_toolbox_pending_request_from_response(
+            "<tool>web_search</tool><query>LangGraph official docs reliability deployment</query><tool>web_search</tool><query>CrewAI official docs reliability deployment</query>",
+            "Compare LangGraph vs CrewAI on reliability and deployment.",
+        )
+        .expect("repeated query markup should use the declared query-pack tool");
+
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("batch_query")
+        );
+        assert_eq!(
+            pending.pointer("/input/source").and_then(Value::as_str),
+            Some("web")
+        );
+        assert_eq!(
+            pending.pointer("/input/query").and_then(Value::as_str),
+            Some("Compare LangGraph vs CrewAI on reliability and deployment.")
+        );
+        assert_eq!(
+            pending
+                .pointer("/input/queries")
+                .and_then(Value::as_array)
+                .map(Vec::len),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn manual_toolbox_markup_repair_rejects_unknown_or_ambiguous_tools() {
+        assert!(manual_toolbox_pending_request_from_response(
+            "<tool>unknown_search</tool><query>agentic framework landscape</query>",
+            "Compare current agentic frameworks.",
+        )
+        .is_none());
+        assert!(manual_toolbox_pending_request_from_response(
+            "I would use web search to compare the options.",
+            "Compare current agentic frameworks.",
+        )
+        .is_none());
+    }
+
     #[test]
     fn workflow_gate_stability_rows_score_direct_llm_response_as_final() {
         let workflow = json!({

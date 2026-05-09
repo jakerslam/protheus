@@ -29,6 +29,18 @@
       "chat_injection_allowed": false,
       "execution_mode": "respect_declared_tool_execution_policy"
     },
+    "tool_invocation_markup_repair_contract": {
+      "version": "tool_invocation_markup_repair_v1",
+      "enabled": true,
+      "purpose": "If a private routing turn emits XML-like tool invocation markup instead of the declared JSON artifact, Orchestration may treat it as a private alignment artifact only when it names exactly one declared tool and supplies enough declared request fields to build the normal pending-tool request. This is protocol repair, not domain-specific tool selection.",
+      "scope": "private_gate_alignment_only",
+      "accepted_tool_name_tags": [
+        "tool"
+      ],
+      "chat_injection_allowed": false,
+      "ambiguity_policy": "do_not_promote_when_zero_or_multiple_declared_tools_match",
+      "multi_query_policy": "may_use_declared_same_family_query_pack_tool_when_repeated_query_tags_are_present"
+    },
     "terminal_invariant_contract": {
       "version": "terminal_invariant_v1",
       "enabled": true,
@@ -42,7 +54,7 @@
       "structured_failure_chat_policy": "telemetry_only_no_system_chat_injection",
       "chat_injection_allowed": false
     },
-    "private_gate_retry_instruction": "INTERNAL RETRY — output is never shown to the user. The previous response for `{current_gate_id}` was rejected with reason `{last_reject_reason}`. Previous excerpt: {last_invalid_excerpt}. If the excerpt is empty, treat it as an empty response. Re-read the current gate system instruction and output only the exact JSON artifact required by that gate. Do not answer the user directly, do not write prose, and do not include markdown.",
+    "private_gate_retry_instruction": "INTERNAL RETRY — output is never shown to the user. The previous response for `{current_gate_id}` was rejected with reason `{last_reject_reason}`. Previous excerpt: {last_invalid_excerpt}. If the excerpt is empty, treat it as an empty response. Re-read the current gate system instruction and output only the exact JSON artifact required by that gate. Do not answer the user directly, do not write prose, do not include markdown, and do not use XML/tool markup such as `<tool>`, `<query>`, or `<function=...>`.",
     "llm_gate_instruction": "INTERNAL GATE — output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. A natural-language answer at this gate is invalid even if it is helpful, accurate, or well formatted. No-tool values — {no_tool_categories} — skip tools and go straight to synthesis. Tool values — {tool_bearing_categories} — open the tool menu. IMPORTANT: when you choose a no-tool gate value (respond_directly or equivalent), the JSON object itself is the submission artifact and it MUST also include a \"final_answer\" field with the actual natural-language reply the user should see. A prose answer, markdown answer, or naked final answer without a valid gate JSON object does NOT count as choosing respond_directly and will be rejected. Choose a no-tool gate only for direct conversation, planning from current context, or explicit post-tool synthesis prompts that already refer to a returned tool result, existing snippets, evidence refs, or low-signal findings present in the current turn context. Choose `web_research` whenever the user asks for external research, source-backed information, freshness-sensitive information, or judgment that depends on public evidence, including current-state questions, comparisons, evaluations, rankings, recommendations, strengths or weaknesses, maturity, benchmarks, ecosystem status, or changing categories even when the user does not name candidates up front. Do NOT choose `respond_directly` for external research just because you can produce a plausible answer from memory. If the prompt references prior tool results but none are present, the only acceptable direct answer is to begin with 'No returned tool result is available in this turn, so no source-backed synthesis is available yet.' and avoid inventing evidence, low-signal results, or substitute entities from system, workspace, or generic prior knowledge. Example direct reply artifact: {\"gate\": \"respond_directly\", \"final_answer\": \"Hey! What can I help you with?\"}. Example tool-routed artifact: {\"gate\": \"web_research\"}. Do NOT write any other text outside the JSON object.",
     "gate_shapes_allowed": [
       "multiple_choice",
