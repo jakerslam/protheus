@@ -1122,7 +1122,7 @@ mod workflow_reader_tests {
     }
 
     #[test]
-    fn workflow_reader_tool_selection_uses_query_pack_for_evaluative_library_research() {
+    fn workflow_reader_tool_selection_hardens_machine_control_contract() {
         let selected = selected_turn_workflow("");
         let selection_instruction = selected
             .pointer("/tool_menu_interface_contract/llm_tool_selection_instruction")
@@ -1130,28 +1130,33 @@ mod workflow_reader_tests {
             .expect("tool selection instruction");
 
         assert!(
-            selection_instruction.contains("names multiple entities"),
+            selection_instruction.contains("single JSON object with exactly one key named `tool`"),
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("asks where a product or library fits"),
+            selection_instruction.contains("XML/tool markup"),
+            "{selection_instruction}"
+        );
+        assert!(
+            selection_instruction.contains("multiple evidence slices or query reformulation"),
+            "{selection_instruction}"
+        );
+        assert!(
+            selection_instruction.contains("source-backed fit assessment"),
             "{selection_instruction}"
         );
         assert!(
             selection_instruction
-                .contains("several independent evidence slices where one broad search is unlikely"),
+                .contains("If uncertain between `batch_query` and `web_search`, choose `batch_query`"),
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("does not require the user to name candidates up front"),
+            selection_instruction.contains("{\"tool\":\"batch_query\"}"),
             "{selection_instruction}"
         );
+        assert!(!selection_instruction.contains("Infring"), "{selection_instruction}");
         assert!(
-            selection_instruction.contains("Research a named framework's strengths, weak points, and fit versus an adjacent framework."),
-            "{selection_instruction}"
-        );
-        assert!(
-            selection_instruction.contains("{\"tool\": \"batch_query\"}"),
+            !selection_instruction.contains("Research a named framework"),
             "{selection_instruction}"
         );
     }
