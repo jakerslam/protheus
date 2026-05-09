@@ -363,6 +363,18 @@ fn research_golden_splits_weak_synthesis_after_evidence_extraction() {
             .and_then(Value::as_str),
         Some("post_tool_synthesis_not_useful")
     );
+    assert_eq!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_hardness")
+            .and_then(Value::as_str),
+        Some("soft")
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_class")
+            .and_then(Value::as_str),
+        Some("evidence_entity_coverage_gap")
+    );
 }
 
 #[test]

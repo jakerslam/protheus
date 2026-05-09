@@ -555,7 +555,10 @@ pub fn workflow_registry_contract_ok() -> bool {
         return false;
     }
     let source_entries = workflow_source_entries();
-    let known_paths: HashSet<&str> = source_entries.iter().map(|(path, _)| path.as_str()).collect();
+    let known_paths: HashSet<&str> = source_entries
+        .iter()
+        .map(|(path, _)| path.as_str())
+        .collect();
     let mut ids = HashSet::new();
     let mut paths = HashSet::new();
     let mut official_count = 0usize;
@@ -743,7 +746,9 @@ fn validate_interaction_gate_contract(
                     errors.push(format!("post_tool_gate_missing_values:{stage}"));
                 }
             }
-            _ => errors.push(format!("unknown_interaction_gate_parser_kind:{parser_kind}")),
+            _ => errors.push(format!(
+                "unknown_interaction_gate_parser_kind:{parser_kind}"
+            )),
         }
     }
     for required in [

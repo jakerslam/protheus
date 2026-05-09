@@ -28,7 +28,8 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         .unwrap_or_default();
     let serialized = payload.to_string().to_ascii_lowercase();
     let final_response_present = !assistant_text(payload).trim().is_empty();
-    let case_allows_existing_tool_state = case_allows_existing_tool_state_without_new_candidate(case);
+    let case_allows_existing_tool_state =
+        case_allows_existing_tool_state_without_new_candidate(case);
     let synthesis_only_without_new_candidate =
         case_allows_existing_tool_state && candidate.is_none();
     let template_signaled = required_fields.iter().all(|field| {
@@ -58,6 +59,16 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         packaged_tool_result,
         evidence_extracted,
     );
+    let synthesis_failure_class = synthesis_failure_class(
+        case,
+        payload,
+        packaged_tool_result,
+        evidence_extracted,
+        agent_received_evidence_context,
+        synthesis_ok,
+    );
+    let synthesis_failure_hardness =
+        synthesis_failure_hardness(&synthesis_failure_class, &first_failure_stage_hint(payload));
     let structured_terminal_present = final_response_present
         || pending_promoted
         || tool_attempted
@@ -270,6 +281,8 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
             .pointer("/response_workflow/final_llm_response/status")
             .and_then(Value::as_str),
         "finalization_outcome": response_finalization_outcome(payload),
+        "synthesis_failure_class": synthesis_failure_class,
+        "synthesis_failure_hardness": synthesis_failure_hardness,
         "post_tool_pipeline": {
             "raw_provider_result_present": raw_provider_result,
             "raw_provider_result_paths": raw_provider_result_paths(payload),
@@ -282,6 +295,302 @@ pub(super) fn gate_transition_diagnostics(case: &Value, payload: &Value) -> Valu
         },
         "checkpoints": checkpoints
     })
+}
+
+fn synthesis_failure_class(
+    case: &Value,
+    payload: &Value,
+    packaged_tool_result: bool,
+    evidence_extracted: bool,
+    agent_received_evidence_context: bool,
+    synthesis_ok: bool,
+) -> String {
+    if synthesis_ok {
+        return "none".to_string();
+    }
+    let response = assistant_text(payload);
+    let normalized = normalize_for_compare(&response);
+    if normalized.is_empty() {
+        return "missing_final_response".to_string();
+    }
+    if response_uses_internal_runtime_context_as_evidence_diag(&normalized) {
+        return "internal_context_used_as_evidence".to_string();
+    }
+    if !has_tool_execution(payload) {
+        if response_acknowledges_missing_tool_context_diag(&normalized) {
+            return "missing_tool_context_fallback_insufficient".to_string();
+        }
+        return "tool_required_but_not_executed".to_string();
+    }
+    if evidence_extracted && !agent_received_evidence_context {
+        return "evidence_context_not_reaching_synthesis".to_string();
+    }
+    if tool_result_low_signal_diag(payload) {
+        if response_requests_more_scope_without_substance_diag(&normalized) {
+            return "low_signal_delegated_to_user".to_string();
+        }
+        if !response_has_low_evidence_signal_diag(&normalized) {
+            return "low_signal_not_acknowledged".to_string();
+        }
+        if required_entity_coverage_diag(case, &normalized) < 0.75 {
+            return "low_signal_entity_coverage_gap".to_string();
+        }
+        if !response_has_research_shape_diag(&normalized) {
+            return "low_signal_synthesis_too_thin".to_string();
+        }
+        return "low_signal_synthesis_contract_miss".to_string();
+    }
+    if evidence_extracted || packaged_tool_result {
+        if !response_has_source_signal_diag(&normalized) {
+            return "evidence_present_but_not_used".to_string();
+        }
+        if required_entity_coverage_diag(case, &normalized) < 0.75 {
+            return "evidence_entity_coverage_gap".to_string();
+        }
+        if !response_has_research_shape_diag(&normalized) {
+            return "evidence_present_but_not_synthesized".to_string();
+        }
+        return "evidence_synthesis_contract_miss".to_string();
+    }
+    "no_packaged_evidence_for_synthesis".to_string()
+}
+
+fn synthesis_failure_hardness(class: &str, first_failure_stage: &str) -> &'static str {
+    if first_failure_stage.starts_with('4') || first_failure_stage.starts_with('5') {
+        return "hard";
+    }
+    match class {
+        "none" => "none",
+        "missing_final_response"
+        | "tool_required_but_not_executed"
+        | "internal_context_used_as_evidence"
+        | "evidence_context_not_reaching_synthesis"
+        | "no_packaged_evidence_for_synthesis" => "hard",
+        _ => "soft",
+    }
+}
+
+fn first_failure_stage_hint(payload: &Value) -> String {
+    payload
+        .pointer("/response_finalization/outcome")
+        .and_then(Value::as_str)
+        .map(|raw| {
+            if raw.contains("missing_tool_attempt") || raw.contains("route_parse_failed") {
+                "4e".to_string()
+            } else if raw.contains("tool_failure") || raw.contains("low_signal") {
+                "6a".to_string()
+            } else {
+                String::new()
+            }
+        })
+        .unwrap_or_default()
+}
+
+fn tool_result_low_signal_diag(payload: &Value) -> bool {
+    let finalization =
+        normalize_for_compare(&response_finalization_outcome(payload).unwrap_or_default());
+    if finalization.contains("low_signal")
+        || finalization.contains("no_results")
+        || finalization.contains("tool_failure")
+    {
+        return true;
+    }
+    for pointer in [
+        "/response_finalization/tool_completion/completion_state",
+        "/response_finalization/tool_completion/reasoning",
+    ] {
+        if payload
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .map(text_has_low_signal_only_diag)
+            .unwrap_or(false)
+        {
+            return true;
+        }
+    }
+    payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().all(tool_row_is_low_signal_diag))
+        .unwrap_or(false)
+}
+
+fn tool_row_is_low_signal_diag(row: &Value) -> bool {
+    let status = normalize_for_compare(&str_at(row, &["status"], ""));
+    matches!(
+        status.as_str(),
+        "low_signal"
+            | "no_results"
+            | "partial_no_results"
+            | "error"
+            | "failed"
+            | "timeout"
+            | "blocked"
+            | "policy_denied"
+    ) || row
+        .get("result")
+        .and_then(Value::as_str)
+        .map(text_has_low_signal_only_diag)
+        .unwrap_or(false)
+}
+
+fn text_has_low_signal_only_diag(raw: &str) -> bool {
+    let normalized = normalize_for_compare(raw);
+    [
+        "low signal",
+        "no usable findings",
+        "no usable result",
+        "no results",
+        "not enough source coverage",
+        "limited evidence",
+        "limited results",
+        "weak evidence",
+        "off topic",
+        "off target",
+        "irrelevant",
+        "inconclusive",
+        "retrieval missed",
+        "retrieval gap",
+        "narrow the query",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
+fn response_has_source_signal_diag(normalized: &str) -> bool {
+    [
+        "source",
+        "evidence",
+        "according",
+        "docs",
+        "release",
+        "citation",
+        "http://",
+        "https://",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
+fn response_has_low_evidence_signal_diag(normalized: &str) -> bool {
+    [
+        "low signal",
+        "limited evidence",
+        "source coverage",
+        "limited results",
+        "limited source",
+        "weak evidence",
+        "off topic",
+        "off target",
+        "retrieval missed",
+        "retrieval gap",
+        "inconclusive",
+        "insufficient",
+        "not enough",
+        "no usable findings",
+        "caveat",
+        "uncertain",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
+fn response_has_research_shape_diag(normalized: &str) -> bool {
+    normalized.split_whitespace().count() >= 40
+        && [
+            "tradeoff",
+            "compare",
+            "comparison",
+            "versus",
+            "vs",
+            "recommend",
+            "best for",
+            "criteria",
+            "dimension",
+            "bounded conclusion",
+            "practical implication",
+            "current state",
+            "supports",
+            "does not support",
+            "risk",
+            "limitation",
+            "uncertainty",
+            "evidence",
+            "source-backed",
+            "maturity",
+            "security",
+            "evaluate",
+            "avoid",
+            "what is known",
+            "what is not known",
+        ]
+        .iter()
+        .any(|needle| normalized.contains(*needle))
+}
+
+fn response_requests_more_scope_without_substance_diag(normalized: &str) -> bool {
+    let has_scope_request = [
+        "narrow the query",
+        "pick 2",
+        "pick two",
+        "which specific",
+        "would you prefer",
+        "need a tighter query",
+        "provide a specific source",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle));
+    if !has_scope_request {
+        return false;
+    }
+    let has_bounded_substance = normalized.split_whitespace().count() >= 45
+        && (response_has_research_shape_diag(normalized)
+            || response_has_low_evidence_signal_diag(normalized)
+            || normalized.contains("supports")
+            || normalized.contains("does not support")
+            || normalized.contains("bounded"));
+    !has_bounded_substance
+}
+
+fn response_acknowledges_missing_tool_context_diag(normalized: &str) -> bool {
+    [
+        "no live web data",
+        "no returned tool result",
+        "tool result is not present in this turn",
+        "tool result is not available in this turn",
+        "no retrieved snippets",
+        "no retrieved results",
+        "no recorded tool outcome",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
+fn response_uses_internal_runtime_context_as_evidence_diag(normalized: &str) -> bool {
+    [
+        "identity context",
+        "system instruction",
+        "system instructions",
+        "agent name",
+        "hosting this conversation",
+        "evident from system",
+        "workspace metadata",
+        "platform identity",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle))
+}
+
+fn required_entity_coverage_diag(case: &Value, normalized_response: &str) -> f64 {
+    let entities = string_array_at(case, &["required_entities"]);
+    if entities.is_empty() {
+        return 1.0;
+    }
+    let covered = entities
+        .iter()
+        .filter(|entity| normalized_response.contains(&normalize_for_compare(entity)))
+        .count() as u64;
+    ratio(covered, entities.len() as u64)
 }
 
 pub(super) fn gate_transition_rate_rows(

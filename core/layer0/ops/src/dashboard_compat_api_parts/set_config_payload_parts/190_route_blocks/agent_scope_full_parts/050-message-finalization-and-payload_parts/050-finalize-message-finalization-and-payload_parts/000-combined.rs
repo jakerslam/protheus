@@ -131,6 +131,32 @@ fn finalize_message_finalization_and_payload(
         .get("manual_toolbox_pending_tool_request")
         .filter(|value| value.is_object())
         .cloned();
+    if manual_toolbox_pending_tool_request.is_none() && response_tools.is_empty() {
+        if let Some(latent_pending_request) =
+            manual_toolbox_pending_request_from_latent_candidates(&latent_tool_candidates, message)
+        {
+            response_workflow["manual_toolbox_pending_tool_request"] =
+                latent_pending_request.clone();
+            response_workflow["pending_tool_request"] = latent_pending_request.clone();
+            response_workflow["workflow_control"]["direct_response_path"] =
+                json!("latent_candidate_pending_tool_request");
+            workflow_system_events.push(turn_workflow_event(
+                "manual_toolbox_latent_candidate_promoted",
+                json!({
+                    "tool_name": latent_pending_request
+                        .get("tool_name")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    "source": latent_pending_request
+                        .get("source")
+                        .and_then(Value::as_str)
+                        .unwrap_or("latent_candidate_recovery"),
+                    "execution_authority": "cd_single_candidate_recovery"
+                }),
+            ));
+            manual_toolbox_pending_tool_request = Some(latent_pending_request);
+        }
+    }
     if response_tools.is_empty() && workflow_json_auto_executes_tools_if_permitted(&response_workflow)
     {
         if let Some(pending_request) = manual_toolbox_pending_tool_request.clone() {

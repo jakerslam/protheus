@@ -814,7 +814,7 @@ mod workflow_reader_tests {
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("freshness-sensitive external information or judgment that depends on current public evidence"),
+            gate_instruction.contains("external research, source-backed information, freshness-sensitive information"),
             "{gate_instruction}"
         );
         assert!(
@@ -846,6 +846,9 @@ mod workflow_reader_tests {
             .pointer("/tool_menu_interface_contract/private_gate_retry_instruction")
             .and_then(Value::as_str)
             .expect("private gate retry instruction");
+        let latent_candidate_recovery = selected
+            .pointer("/tool_menu_interface_contract/latent_candidate_recovery_contract")
+            .expect("latent candidate recovery contract");
 
         assert!(
             retry_instruction.contains("If the excerpt is empty, treat it as an empty response."),
@@ -862,6 +865,24 @@ mod workflow_reader_tests {
             "{retry_instruction}"
         );
         assert!(!retry_instruction.contains("Infring"), "{retry_instruction}");
+        assert_eq!(
+            latent_candidate_recovery
+                .get("enabled")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            latent_candidate_recovery
+                .get("promotion_scope")
+                .and_then(Value::as_str),
+            Some("single_valid_workflow_only_candidate_after_private_gate_failure")
+        );
+        assert_eq!(
+            latent_candidate_recovery
+                .get("ambiguity_policy")
+                .and_then(Value::as_str),
+            Some("do_not_promote_when_zero_or_multiple_valid_candidates")
+        );
     }
 
     #[test]
@@ -901,7 +922,7 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For rankings or selections"),
+            chat_requirement.contains("For rankings, selections, or tool-choice questions"),
             "{chat_requirement}"
         );
         assert!(
@@ -1019,6 +1040,10 @@ mod workflow_reader_tests {
             .and_then(Value::as_str)
             .expect("tool selection instruction");
 
+        assert!(
+            selection_instruction.contains("names multiple entities"),
+            "{selection_instruction}"
+        );
         assert!(
             selection_instruction.contains("single-product/library research centered on one named tool"),
             "{selection_instruction}"

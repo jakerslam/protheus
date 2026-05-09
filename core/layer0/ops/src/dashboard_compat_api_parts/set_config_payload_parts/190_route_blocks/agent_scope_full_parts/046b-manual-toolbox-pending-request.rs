@@ -430,6 +430,100 @@ fn manual_toolbox_pending_request_from_parts(
     }))
 }
 
+fn manual_toolbox_latent_candidate_recovery_enabled() -> bool {
+    default_workflow_tool_menu_contract()
+        .pointer("/latent_candidate_recovery_contract/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn manual_toolbox_pending_request_from_latent_candidate(
+    candidate: &Value,
+    message: &str,
+) -> Option<Value> {
+    if !manual_toolbox_latent_candidate_recovery_enabled()
+        || candidate.get("workflow_only").and_then(Value::as_bool) != Some(true)
+    {
+        return None;
+    }
+    let contract = default_workflow_tool_menu_contract();
+    let family_token = [
+        "selected_tool_family",
+        "tool_family",
+        "family",
+        "selected_family",
+    ]
+    .into_iter()
+    .find_map(|key| candidate.get(key).and_then(Value::as_str))
+    .unwrap_or("");
+    let family_key = workflow_family_key_for_selection(&contract, family_token);
+    if family_key.is_empty() {
+        return None;
+    }
+    let tool_token = [
+        "selected_tool_key",
+        "tool_key",
+        "tool",
+        "tool_name",
+        "selected_tool",
+    ]
+    .into_iter()
+    .find_map(|key| candidate.get(key).and_then(Value::as_str))
+    .unwrap_or("");
+    let tool_key = workflow_tool_key_for_selection(&contract, &family_key, tool_token);
+    if tool_key.is_empty() {
+        return None;
+    }
+    let tool_label = [
+        "selected_tool_label",
+        "tool_label",
+        "label",
+        "selected_label",
+    ]
+    .into_iter()
+    .find_map(|key| candidate.get(key).and_then(Value::as_str))
+    .map(|label| clean_text(label, 120))
+    .filter(|label| !label.is_empty())
+    .unwrap_or_else(|| tool_key.clone());
+    let input = candidate
+        .get("input")
+        .or_else(|| candidate.get("request_payload"))
+        .cloned()
+        .filter(Value::is_object)?;
+    let mut pending_request = manual_toolbox_pending_request_from_parts(
+        &family_key,
+        &tool_key,
+        &tool_label,
+        input,
+        message,
+    )?;
+    pending_request["source"] = json!("latent_candidate_recovery");
+    if let Some(selection_source) = candidate.get("selection_source").and_then(Value::as_str) {
+        pending_request["selection_source"] = json!(clean_text(selection_source, 120));
+    }
+    if let Some(discovery_receipt) = candidate.get("discovery_receipt").and_then(Value::as_str) {
+        pending_request["latent_candidate_receipt"] = json!(clean_text(discovery_receipt, 240));
+    }
+    Some(pending_request)
+}
+
+fn manual_toolbox_pending_request_from_latent_candidates(
+    candidates: &Value,
+    message: &str,
+) -> Option<Value> {
+    let mut valid_candidates = candidates
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|candidate| {
+                    manual_toolbox_pending_request_from_latent_candidate(candidate, message)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    (valid_candidates.len() == 1).then(|| valid_candidates.remove(0))
+}
+
 fn manual_toolbox_active_gate_id(
     category_key: &str,
     family_key: &str,

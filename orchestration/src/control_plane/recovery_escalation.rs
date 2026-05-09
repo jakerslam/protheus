@@ -136,8 +136,9 @@ pub fn recommend_chat_failover(
                 reason: "model switch requires Auto selection or explicit user request".to_string(),
             },
             failure: Some(failure),
-            telemetry_note: "escalate because explicit selected model cannot be changed automatically"
-                .to_string(),
+            telemetry_note:
+                "escalate because explicit selected model cannot be changed automatically"
+                    .to_string(),
         },
         None => ChatRecoveryPlan {
             action: ChatRecoveryAction::Escalate {

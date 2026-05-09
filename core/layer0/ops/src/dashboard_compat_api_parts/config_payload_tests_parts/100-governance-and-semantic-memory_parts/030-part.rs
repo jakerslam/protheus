@@ -321,6 +321,30 @@ fn latent_tool_candidates_preserve_general_live_web_research_turns() {
 }
 
 #[test]
+fn latent_tool_candidates_preserve_explicit_external_evidence_turns() {
+    let candidates = latent_tool_candidates_for_message(
+        "Search the web for public evidence about a new framework compared with established agentic frameworks.",
+        &[],
+    );
+    assert_eq!(candidates.len(), 1, "{candidates:?}");
+    assert_eq!(
+        candidates[0].get("tool").and_then(Value::as_str),
+        Some("batch_query")
+    );
+    assert_eq!(
+        candidates[0].pointer("/input/source").and_then(Value::as_str),
+        Some("web")
+    );
+}
+
+#[test]
+fn latent_tool_candidates_do_not_treat_web_app_builds_as_research() {
+    let candidates =
+        latent_tool_candidates_for_message("Build a web app dashboard for comparing reports.", &[]);
+    assert!(candidates.is_empty(), "{candidates:?}");
+}
+
+#[test]
 fn tooling_failure_fallback_triggers_for_diagnostic_prompt() {
     let fallback = maybe_tooling_failure_fallback(
         "so the tooling isnt working at all?",

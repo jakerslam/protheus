@@ -110,8 +110,7 @@ fn set_live_agent_model(
     if model_ref.is_empty() {
         return true;
     }
-    let resolved_model_ref =
-        resolve_live_agent_model_ref(base_url, &model_ref, timeout_seconds);
+    let resolved_model_ref = resolve_live_agent_model_ref(base_url, &model_ref, timeout_seconds);
     let response = curl_json(
         "PUT",
         base_url,
@@ -163,7 +162,11 @@ fn resolve_live_agent_model_ref_from_catalog(model_ref: &str, catalog: &Value) -
             continue;
         }
         let resolved = format!("{provider}/{model}");
-        if row.get("available").and_then(Value::as_bool).unwrap_or(false) {
+        if row
+            .get("available")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             exact_available_non_auto = Some(resolved);
             break;
         }
@@ -172,7 +175,9 @@ fn resolve_live_agent_model_ref_from_catalog(model_ref: &str, catalog: &Value) -
         }
     }
 
-    exact_available_non_auto.or(exact_non_auto).unwrap_or(cleaned)
+    exact_available_non_auto
+        .or(exact_non_auto)
+        .unwrap_or(cleaned)
 }
 
 pub(super) fn delete_live_agent(base_url: &str, agent_id: &str, timeout_seconds: u64) -> Value {
@@ -314,7 +319,10 @@ fn session_path_from_state_root(dashboard_state_root: &Path, agent_id: &str) -> 
 }
 
 fn session_messages_from_state_root(dashboard_state_root: &Path, agent_id: &str) -> Vec<Value> {
-    let state = read_json_path(&session_path_from_state_root(dashboard_state_root, agent_id));
+    let state = read_json_path(&session_path_from_state_root(
+        dashboard_state_root,
+        agent_id,
+    ));
     let active_id = clean_text(
         state
             .get("active_session_id")
@@ -374,11 +382,9 @@ fn recover_timed_out_response_from_state(
         .clamp(30, 300);
     let deadline = Instant::now() + Duration::from_secs(recovery_budget_seconds);
     loop {
-        if let Some(recovered) = recovered_payload_from_state(
-            dashboard_state_root,
-            agent_id,
-            baseline_snapshot,
-        ) {
+        if let Some(recovered) =
+            recovered_payload_from_state(dashboard_state_root, agent_id, baseline_snapshot)
+        {
             return Some(recovered);
         }
         if Instant::now() >= deadline {
@@ -494,8 +500,8 @@ fn read_json_path(path: &Path) -> Value {
 }
 
 fn message_role(row: &Value) -> String {
-    let raw = clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24)
-        .to_ascii_lowercase();
+    let raw =
+        clean_text(row.get("role").and_then(Value::as_str).unwrap_or(""), 24).to_ascii_lowercase();
     if raw.is_empty() {
         "assistant".to_string()
     } else {
@@ -857,7 +863,9 @@ mod eval_research_golden_utils_tests {
             Some("web_search")
         );
         assert_eq!(
-            payload.get("recovered_from_timeout").and_then(Value::as_bool),
+            payload
+                .get("recovered_from_timeout")
+                .and_then(Value::as_bool),
             Some(true)
         );
     }
@@ -887,15 +895,17 @@ mod eval_research_golden_utils_tests {
         });
         fs::write(
             sessions_dir.join(format!("{}.json", agent_id)),
-            format!("{}\n", serde_json::to_string_pretty(&session).expect("json")),
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&session).expect("json")
+            ),
         )
         .expect("session write");
         let baseline = SessionSnapshot {
             total_messages: 2,
             assistant_messages: 1,
         };
-        let payload =
-            recovered_payload_from_state(&root, agent_id, &baseline).expect("recovered");
+        let payload = recovered_payload_from_state(&root, agent_id, &baseline).expect("recovered");
         assert_eq!(
             payload.get("response").and_then(Value::as_str),
             Some("new answer")
@@ -924,8 +934,7 @@ mod eval_research_golden_utils_tests {
                 }
             ]
         });
-        let resolved =
-            resolve_live_agent_model_ref_from_catalog("kimi-k2.6:cloud", &catalog);
+        let resolved = resolve_live_agent_model_ref_from_catalog("kimi-k2.6:cloud", &catalog);
         assert_eq!(resolved, "ollama/kimi-k2.6:cloud");
     }
 
