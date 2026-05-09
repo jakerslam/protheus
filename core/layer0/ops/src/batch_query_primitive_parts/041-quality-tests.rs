@@ -450,6 +450,110 @@ mod quality_tests {
     }
 
     #[test]
+    fn broad_evaluative_single_query_uses_policy_visible_research_pack() {
+        let query = "Compare AlphaTool vs BetaTool";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Diff Tool Online — https://diff.example.com — Compare text snippets in your browser.",
+                    "content": "Diff Tool Online — https://diff.example.com — Compare text snippets in your browser.",
+                    "requested_url": "https://search.example.com?q=compare+alphatool+betatool",
+                    "status_code": 200
+                },
+                "Compare AlphaTool vs BetaTool primary source evidence": {
+                    "ok": true,
+                    "summary": "AlphaTool compared with BetaTool: AlphaTool documents production deployment controls while BetaTool documents a smaller beta program for production teams.",
+                    "content": "AlphaTool compared with BetaTool: AlphaTool documents production deployment controls while BetaTool documents a smaller beta program for production teams.",
+                    "requested_url": "https://research.example.org/alphatool-betatool-production",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "medium",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        assert_eq!(
+            out.get("query_plan_source").and_then(Value::as_str),
+            Some("policy_general_research_recovery")
+        );
+        let query_plan = out
+            .get("query_plan")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            query_plan.iter().any(|row| {
+                row.as_str()
+                    .map(|value| value.contains("primary source evidence"))
+                    .unwrap_or(false)
+            }),
+            "{query_plan:?}"
+        );
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("alphatool"), "{lowered}");
+        assert!(lowered.contains("betatool"), "{lowered}");
+        assert!(!lowered.contains("diff tool"), "{lowered}");
+    }
+
+    #[test]
+    fn general_research_recovery_intent_markers_are_policy_visible() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "version": "v1",
+                "batch_query": {
+                    "enabled_sources": ["web"],
+                    "max_parallel_subqueries": 2,
+                    "query_timeout_ms": 5000,
+                    "query_recovery": {
+                        "general_research": {
+                            "enabled": true,
+                            "max_queries": 2,
+                            "intent_markers": ["investigate"],
+                            "templates": [
+                                "{query}",
+                                "{query} primary evidence"
+                            ]
+                        }
+                    }
+                }
+            }),
+        )
+        .expect("write policy");
+        let out = with_fixture(
+            json!({
+                "Investigate AlphaTool": {
+                    "ok": true,
+                    "summary": "AlphaTool landing page with minimal marketing copy.",
+                    "content": "AlphaTool landing page with minimal marketing copy.",
+                    "requested_url": "https://example.com/alphatool",
+                    "status_code": 200
+                },
+                "Investigate AlphaTool primary evidence": {
+                    "ok": true,
+                    "summary": "AlphaTool primary evidence: AlphaTool publishes release notes and deployment documentation.",
+                    "content": "AlphaTool primary evidence: AlphaTool publishes release notes and deployment documentation.",
+                    "requested_url": "https://docs.example.com/alphatool/releases",
+                    "status_code": 200
+                }
+            }),
+            || run_query(tmp.path(), "Investigate AlphaTool", "medium"),
+        );
+        assert_eq!(
+            out.get("query_plan_source").and_then(Value::as_str),
+            Some("policy_general_research_recovery")
+        );
+        let query_plan = out
+            .get("query_plan")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(query_plan.len(), 2, "{query_plan:?}");
+    }
+
+    #[test]
     fn explicit_query_pack_executes_secondary_framework_queries() {
         let out = run_request_with_fixture(
             json!({

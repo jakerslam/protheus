@@ -107,6 +107,51 @@ fn default_policy() -> Value {
                         "{query} recent publications",
                         "{query} institution announcements"
                     ]
+                },
+                "general_research": {
+                    "enabled": true,
+                    "max_queries": 6,
+                    "intent_markers": [
+                        "assess",
+                        "avoid",
+                        "benchmark",
+                        "best ",
+                        "choose",
+                        "compare",
+                        "comparison",
+                        "current state",
+                        "ecosystem",
+                        "evaluate",
+                        "evaluation",
+                        "fit ",
+                        "landscape",
+                        "limitation",
+                        "limitations",
+                        "mature",
+                        "maturity",
+                        "production",
+                        "recommend",
+                        "recommendation",
+                        "reliability",
+                        "risk",
+                        "risks",
+                        "security",
+                        "strength",
+                        "strengths",
+                        "versus",
+                        " vs ",
+                        "weakness",
+                        "weaknesses",
+                        "which "
+                    ],
+                    "templates": [
+                        "{query}",
+                        "{query} primary source evidence",
+                        "{query} official documentation project sources",
+                        "{query} independent analysis comparison evidence",
+                        "{query} risks limitations security reliability evidence",
+                        "{query} production usage examples case studies"
+                    ]
                 }
             }
         }

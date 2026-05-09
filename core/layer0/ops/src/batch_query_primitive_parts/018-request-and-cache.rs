@@ -374,30 +374,39 @@ fn broad_current_research_recovery_max_queries(policy: &Value, budget: ApertureB
         .clamp(1, max_explicit_queries_for_budget("", budget) as u64) as usize
 }
 
-fn broad_current_research_recovery_templates(policy: &Value) -> Vec<String> {
-    let configured = policy
-        .pointer("/batch_query/query_recovery/broad_current_research/templates")
+fn query_recovery_policy_strings(policy: &Value, pointer: &str, max_len: usize) -> Vec<String> {
+    policy
+        .pointer(pointer)
         .and_then(Value::as_array)
         .map(|rows| {
             rows.iter()
                 .filter_map(Value::as_str)
-                .map(|row| clean_text(row, 600))
+                .map(|row| clean_text(row, max_len))
                 .filter(|row| !row.is_empty())
                 .collect::<Vec<_>>()
         })
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
+
+fn query_recovery_policy_strings_with_default(
+    policy: &Value,
+    pointer: &str,
+    max_len: usize,
+) -> Vec<String> {
+    let configured = query_recovery_policy_strings(policy, pointer, max_len);
     if configured.is_empty() {
-        vec![
-            "{query}".to_string(),
-            "{query} source-backed overview".to_string(),
-            "{query} primary sources".to_string(),
-            "{query} official sources".to_string(),
-            "{query} recent publications".to_string(),
-            "{query} institution announcements".to_string(),
-        ]
+        query_recovery_policy_strings(&default_policy(), pointer, max_len)
     } else {
         configured
     }
+}
+
+fn broad_current_research_recovery_templates(policy: &Value) -> Vec<String> {
+    query_recovery_policy_strings_with_default(
+        policy,
+        "/batch_query/query_recovery/broad_current_research/templates",
+        600,
+    )
 }
 
 fn query_looks_like_broad_current_research(query: &str) -> bool {
@@ -465,6 +474,93 @@ fn broad_current_research_recovery_queries(
     let mut dedup = HashSet::<String>::new();
     let mut queries = Vec::<String>::new();
     for template in broad_current_research_recovery_templates(policy) {
+        if queries.len() >= max_queries {
+            break;
+        }
+        if let Some(value) = expand_query_recovery_template(&template, query) {
+            let key = value.to_ascii_lowercase();
+            if dedup.insert(key) {
+                queries.push(value);
+            }
+        }
+    }
+    if queries.len() <= 1 {
+        Vec::new()
+    } else {
+        queries
+    }
+}
+
+fn general_research_recovery_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/query_recovery/general_research/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn general_research_recovery_max_queries(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/query_recovery/general_research/max_queries")
+        .and_then(Value::as_u64)
+        .unwrap_or(6)
+        .clamp(1, max_explicit_queries_for_budget("", budget) as u64) as usize
+}
+
+fn general_research_recovery_templates(policy: &Value) -> Vec<String> {
+    query_recovery_policy_strings_with_default(
+        policy,
+        "/batch_query/query_recovery/general_research/templates",
+        600,
+    )
+}
+
+fn general_research_recovery_markers(policy: &Value) -> Vec<String> {
+    query_recovery_policy_strings_with_default(
+        policy,
+        "/batch_query/query_recovery/general_research/intent_markers",
+        80,
+    )
+    .into_iter()
+    .map(|row| row.to_ascii_lowercase())
+    .collect()
+}
+
+fn query_looks_like_general_research(policy: &Value, query: &str) -> bool {
+    let cleaned = clean_text(query, 600);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if lowered.contains("http://")
+        || lowered.contains("https://")
+        || lowered.contains('"')
+        || lowered.contains('`')
+        || looks_like_internal_route_query(&cleaned)
+    {
+        return false;
+    }
+    if is_framework_catalog_intent(&cleaned) {
+        return false;
+    }
+    general_research_recovery_markers(policy)
+        .iter()
+        .any(|marker| lowered.contains(marker))
+}
+
+fn general_research_recovery_queries(
+    policy: &Value,
+    query: &str,
+    budget: ApertureBudget,
+) -> Vec<String> {
+    if !general_research_recovery_enabled(policy)
+        || !query_looks_like_general_research(policy, query)
+    {
+        return Vec::new();
+    }
+    let max_queries = general_research_recovery_max_queries(policy, budget);
+    let mut dedup = HashSet::<String>::new();
+    let mut queries = Vec::<String>::new();
+    for template in general_research_recovery_templates(policy) {
         if queries.len() >= max_queries {
             break;
         }
@@ -577,6 +673,21 @@ fn resolve_query_plan(
             rewrite_set,
             rerank_query,
             query_plan_source: "explicit_request_pack",
+        };
+    }
+    let recovery_queries = general_research_recovery_queries(policy, query, budget);
+    if !recovery_queries.is_empty() {
+        let rerank_query = recovery_queries
+            .first()
+            .cloned()
+            .unwrap_or_else(|| clean_text(query, 600));
+        let rewrite_set = recovery_queries.iter().skip(1).cloned().collect::<Vec<_>>();
+        return QueryPlanSelection {
+            rewrite_applied: recovery_queries.len() > 1,
+            queries: recovery_queries,
+            rewrite_set,
+            rerank_query,
+            query_plan_source: "policy_general_research_recovery",
         };
     }
     let recovery_queries = broad_current_research_recovery_queries(policy, query, budget);
