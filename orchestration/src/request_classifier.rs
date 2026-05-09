@@ -127,6 +127,7 @@ pub fn required_capabilities_for_typed_request(
         &request.mutability,
         &request.resource_kind,
     ) {
+        (_, _, ResourceKind::Tooling) => RequestClass::ToolCall,
         (OperationKind::Search | OperationKind::Fetch | OperationKind::InspectTooling, _, _) => {
             RequestClass::ToolCall
         }

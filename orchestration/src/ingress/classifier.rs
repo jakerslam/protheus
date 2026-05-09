@@ -197,6 +197,13 @@ fn typed_probe_contract_diagnostics(
     }
 
     let Some(envelope) = typed_request.core_probe_envelope.as_ref() else {
+        for requirement in missing_envelope_probe_contracts() {
+            if !requirements.iter().any(|row| row.0 == requirement.0) {
+                requirements.push(requirement);
+            }
+        }
+        requirements.sort_by_key(|row| row.0);
+        requirements.dedup_by_key(|row| row.0);
         let mut messages = vec!["typed_probe_contract_missing:core_probe_envelope".to_string()];
         messages.extend(
             requirements
@@ -255,6 +262,19 @@ fn typed_probe_contract_diagnostics(
             .push("typed_probe_contract_complete".to_string());
     }
     diagnostics
+}
+
+fn missing_envelope_probe_contracts() -> Vec<(&'static str, &'static [&'static str])> {
+    [
+        Capability::WorkspaceRead,
+        Capability::WorkspaceSearch,
+        Capability::WebSearch,
+        Capability::WebFetch,
+        Capability::ToolRoute,
+    ]
+    .iter()
+    .filter_map(required_probe_contract_for_capability)
+    .collect()
 }
 
 fn required_probe_contract_for_capability(

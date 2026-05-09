@@ -377,7 +377,7 @@ pub fn extract_tool_hints(
             hints.push("workspace_read".to_string());
         }
         (ResourceKind::Tooling, _) | (_, OperationKind::InspectTooling) => {
-            hints.push("tooling_route".to_string());
+            hints.push("tool_route".to_string());
         }
         _ => {}
     }

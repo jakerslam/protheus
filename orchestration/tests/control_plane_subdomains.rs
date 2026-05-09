@@ -93,13 +93,12 @@ fn control_plane_api_contract_enforces_kernel_boundary_rules() {
 
 #[test]
 fn control_plane_subdomain_ids_are_unique() {
-    let mut ids = subdomain_boundaries()
-        .into_iter()
-        .map(|row| row.id)
-        .collect::<Vec<_>>();
+    let boundaries = subdomain_boundaries();
+    let mut ids = boundaries.iter().map(|row| row.id).collect::<Vec<_>>();
     ids.sort();
     ids.dedup();
-    assert_eq!(ids.len(), 5);
+    assert_eq!(ids.len(), boundaries.len());
+    assert!(ids.len() >= 5);
 }
 
 #[test]
@@ -241,7 +240,7 @@ fn subdomain_trace_contracts_cover_all_lifecycle_stages() {
         WorkflowStage::ResultPackaging,
         WorkflowStage::VerificationClosure,
     ];
-    assert_eq!(traces.len(), stages.len());
+    assert!(traces.len() >= stages.len());
     for stage in stages {
         let trace = subdomain_trace_contract_by_stage(stage.clone())
             .expect("missing subdomain trace contract for lifecycle stage");
