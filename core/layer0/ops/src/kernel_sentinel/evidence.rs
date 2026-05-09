@@ -205,6 +205,7 @@ fn normalize_record(
         record.evidence.clone()
     };
     append_failure_citations(source, &id, &record, &mut evidence);
+    let stale_historical_failure = stale_historical_verity_drift(&record);
     let subject = clean_token(record.subject, "unknown_subject");
     let kind = clean_token(record.kind, "evidence_observation");
     let category = record.category.unwrap_or(config.default_category);
@@ -213,7 +214,6 @@ fn normalize_record(
         record.severity.unwrap_or(config.default_severity),
     );
     let fingerprint = clean_token(record.fingerprint, &format!("{source}:{subject}:{kind}"));
-    let stale_historical_failure = stale_historical_verity_drift(&record);
     let details = merged_details(record.details);
     let normalized = json!({
         "source": source,
