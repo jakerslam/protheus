@@ -916,7 +916,53 @@ mod workflow_reader_tests {
             chat_requirement.contains("Example formats include a short paragraph, brief bullets, a compact comparison table, or a mixed structure"),
             "{chat_requirement}"
         );
+        assert!(
+            chat_requirement.contains("If quality diagnostics say retry was recommended"),
+            "{chat_requirement}"
+        );
         assert!(!chat_requirement.contains("agentic framework"), "{chat_requirement}");
+    }
+
+    #[test]
+    fn workflow_reader_projects_retrieval_recovery_contract_from_json_spec() {
+        let selected = selected_turn_workflow("");
+        let recovery = selected
+            .pointer("/tool_menu_interface_contract/retrieval_recovery_contract")
+            .expect("retrieval recovery contract");
+        assert_eq!(
+            recovery.get("authority").and_then(Value::as_str),
+            Some("agent_submitted_tool_inputs")
+        );
+        assert_eq!(
+            recovery
+                .get("default_recovery_budget")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        let behavior = recovery
+            .get("recovery_behavior")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            behavior.contains("submit a more specific query or query pack before final synthesis"),
+            "{behavior}"
+        );
+        assert!(
+            behavior.contains("Do not ask the user to narrow"),
+            "{behavior}"
+        );
+        assert!(
+            recovery
+                .get("query_refinement_axes")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.as_str()
+                        .map(|value| value.contains("avoid hidden query expansion"))
+                        .unwrap_or(false)
+                }))
+                .unwrap_or(false),
+            "{recovery}"
+        );
     }
 
     #[test]
@@ -929,6 +975,18 @@ mod workflow_reader_tests {
 
         assert!(
             payload_instruction.contains("top-level `query` field is mandatory"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("4-6 concrete follow-up searches"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("If a prior tool result quality diagnostic is available and recommends retry"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("do not ask the user to narrow while the workflow still has internal recovery budget"),
             "{payload_instruction}"
         );
         assert!(
@@ -963,6 +1021,15 @@ mod workflow_reader_tests {
 
         assert!(
             selection_instruction.contains("single-product/library research centered on one named tool"),
+            "{selection_instruction}"
+        );
+        assert!(
+            selection_instruction
+                .contains("several independent evidence slices where one broad search is unlikely"),
+            "{selection_instruction}"
+        );
+        assert!(
+            selection_instruction.contains("does not require the user to name candidates up front"),
             "{selection_instruction}"
         );
         assert!(

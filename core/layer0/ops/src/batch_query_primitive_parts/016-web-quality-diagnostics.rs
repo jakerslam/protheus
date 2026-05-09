@@ -411,15 +411,22 @@ fn web_tool_quality_report(
             "reason": retry_reason,
             "input_contract": {
                 "authority": "agent_submitted",
-                "input_kind": "text",
+                "input_kind": "query_or_query_pack",
                 "required_fields": ["query"],
-                "optional_fields": ["source_url"],
+                "optional_fields": ["queries", "source_url"],
                 "hidden_query_expansion": false
             },
+            "query_strategy_hints": [
+                "preserve the user's original research objective",
+                "split broad requests into entity-specific or aspect-specific searches",
+                "target primary, official, source-backed, or directly citable pages when possible",
+                "use partial snippets, failure reasons, and off-topic signals to remove weak terms",
+                "prefer another agent-submitted query pack before asking the user to narrow"
+            ],
             "next_action": if retry_reason == "none" {
                 "synthesize_from_evidence"
             } else {
-                "ask_agent_for_narrower_query_or_specific_source_url"
+                "agent_refine_query_pack_and_retry_if_budget_remains"
             }
         }
     })
@@ -459,7 +466,8 @@ fn cached_web_tool_quality_report(
         }
         report["retry"]["recommended"] = json!(true);
         report["retry"]["reason"] = json!("weak_single_source");
-        report["retry"]["next_action"] = json!("ask_agent_for_narrower_query_or_specific_source_url");
+        report["retry"]["next_action"] =
+            json!("agent_refine_query_pack_and_retry_if_budget_remains");
     }
     report
 }

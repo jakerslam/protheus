@@ -323,6 +323,27 @@ mod web_quality_diagnostics_tests {
             Some(false)
         );
         assert_eq!(
+            out.pointer("/tool_result_quality/retry/input_contract/input_kind")
+                .and_then(Value::as_str),
+            Some("query_or_query_pack")
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/retry/next_action")
+                .and_then(Value::as_str),
+            Some("agent_refine_query_pack_and_retry_if_budget_remains")
+        );
+        assert!(
+            out.pointer("/tool_result_quality/retry/query_strategy_hints")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.as_str()
+                        .map(|value| value.contains("agent-submitted query pack"))
+                        .unwrap_or(false)
+                }))
+                .unwrap_or(false),
+            "{out:#}"
+        );
+        assert_eq!(
             out.pointer("/tool_result_quality/freshness/current_intent")
                 .and_then(Value::as_bool),
             Some(true)

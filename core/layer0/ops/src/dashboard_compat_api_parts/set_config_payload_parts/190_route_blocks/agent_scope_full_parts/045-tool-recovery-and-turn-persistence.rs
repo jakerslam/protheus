@@ -12,16 +12,83 @@ fn tool_rows_for_llm_recovery(response_tools: &[Value], limit: usize) -> Value {
         let input = clean_text(tool.get("input").and_then(Value::as_str).unwrap_or(""), 800);
         let result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 2_000);
         let status = clean_text(tool.get("status").and_then(Value::as_str).unwrap_or(""), 120);
-        rows.push(json!({
+        let mut row = json!({
             "name": display_name,
             "input": input,
             "status": status,
             "blocked": tool.get("blocked").and_then(Value::as_bool).unwrap_or(false),
             "is_error": tool.get("is_error").and_then(Value::as_bool).unwrap_or(false),
             "result": result
-        }));
+        });
+        if let Some(quality) = tool_quality_diagnostics_for_llm(tool) {
+            row["quality_diagnostics"] = quality;
+        }
+        rows.push(row);
     }
     Value::Array(rows)
+}
+
+fn tool_result_quality_object(tool: &Value) -> Option<&Value> {
+    tool.get("tool_result_quality")
+        .or_else(|| tool.pointer("/tool_pipeline/raw_payload/tool_result_quality"))
+        .filter(|value| value.is_object())
+}
+
+fn tool_quality_string_array(quality: &Value, pointer: &str, limit: usize) -> Vec<String> {
+    quality
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 120))
+                .filter(|row| !row.is_empty())
+                .take(limit)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn tool_quality_retry_recommended(tool: &Value) -> bool {
+    tool_result_quality_object(tool)
+        .and_then(|quality| quality.pointer("/retry/recommended"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn tool_quality_diagnostics_for_llm(tool: &Value) -> Option<Value> {
+    let quality = tool_result_quality_object(tool)?;
+    let candidate_quality = quality
+        .get("candidate_quality")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .take(3)
+                .map(|candidate| {
+                    json!({
+                        "title": clean_text(candidate.get("title").and_then(Value::as_str).unwrap_or(""), 160),
+                        "domain": clean_text(candidate.get("domain").and_then(Value::as_str).unwrap_or(""), 160),
+                        "snippet_preview": clean_text(candidate.get("snippet_preview").and_then(Value::as_str).unwrap_or(""), 320),
+                        "score": candidate.get("score").cloned().unwrap_or(Value::Null),
+                        "flags": tool_quality_string_array(candidate, "/flags", 6)
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    Some(json!({
+        "status": clean_text(quality.get("status").and_then(Value::as_str).unwrap_or(""), 80),
+        "flags": tool_quality_string_array(quality, "/flags", 12),
+        "evidence_count": quality.get("evidence_count").cloned().unwrap_or(Value::Null),
+        "candidate_count": quality.get("candidate_count").cloned().unwrap_or(Value::Null),
+        "retry": {
+            "recommended": quality.pointer("/retry/recommended").and_then(Value::as_bool).unwrap_or(false),
+            "reason": clean_text(quality.pointer("/retry/reason").and_then(Value::as_str).unwrap_or(""), 120),
+            "next_action": clean_text(quality.pointer("/retry/next_action").and_then(Value::as_str).unwrap_or(""), 160),
+            "query_strategy_hints": tool_quality_string_array(quality, "/retry/query_strategy_hints", 8)
+        },
+        "candidate_quality": candidate_quality
+    }))
 }
 
 fn tool_hidden_array_len(tool: &Value, key: &str) -> usize {
@@ -65,15 +132,54 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         .iter()
         .filter(|tool| {
             let status = tool.get("status").and_then(Value::as_str).unwrap_or("");
+            let quality_flags = tool_result_quality_object(tool)
+                .map(|quality| tool_quality_string_array(quality, "/flags", 16))
+                .unwrap_or_default();
             tool.get("low_signal").and_then(Value::as_bool).unwrap_or(false)
                 || matches!(status, "low_signal" | "no_results")
+                || tool_quality_retry_recommended(tool)
+                || quality_flags.iter().any(|flag| {
+                    matches!(
+                        flag.as_str(),
+                        "insufficient_evidence"
+                            | "low_signal"
+                            | "low_relevance_filtered"
+                            | "comparison_evidence_insufficient"
+                            | "weak_single_source"
+                    )
+                })
         })
         .count();
+    let retry_recommended_count = limited
+        .iter()
+        .filter(|tool| tool_quality_retry_recommended(tool))
+        .count();
+    let quality_flags = limited
+        .iter()
+        .filter_map(|tool| tool_result_quality_object(tool))
+        .flat_map(|quality| tool_quality_string_array(quality, "/flags", 16))
+        .take(16)
+        .collect::<Vec<_>>();
+    let retry_reasons = limited
+        .iter()
+        .filter_map(|tool| {
+            tool_result_quality_object(tool)
+                .and_then(|quality| quality.pointer("/retry/reason"))
+                .and_then(Value::as_str)
+                .map(|reason| clean_text(reason, 120))
+                .filter(|reason| !reason.is_empty() && reason != "none")
+        })
+        .take(8)
+        .collect::<Vec<_>>();
     let recorded_evidence_available =
         search_result_count > 0 || provider_result_count > 0 || evidence_ref_count > 0;
     let tool_result_quality = if tool_count == 0 {
         "none"
-    } else if recorded_evidence_available && low_signal_count == 0 && tool_error_count == 0 {
+    } else if recorded_evidence_available
+        && low_signal_count == 0
+        && tool_error_count == 0
+        && retry_recommended_count == 0
+    {
         "evidence_available"
     } else if recorded_evidence_available {
         "partial_or_low_signal_evidence"
@@ -90,6 +196,9 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         "recorded_tool_statuses": tool_statuses,
         "recorded_tool_error_count": tool_error_count,
         "recorded_low_signal_count": low_signal_count,
+        "recorded_retry_recommended_count": retry_recommended_count,
+        "recorded_quality_flags": quality_flags,
+        "recorded_retry_reasons": retry_reasons,
         "recorded_tool_result_quality": tool_result_quality,
         "recorded_search_results": search_result_count,
         "recorded_provider_results": provider_result_count,
@@ -101,7 +210,7 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         serde_json::to_string(&summary).unwrap_or_else(|_| "{\"recorded_tool_outcome_count\":0}".to_string());
     clean_text(
         &format!(
-            "Recorded tool/evidence state for this turn:\n{summary_json}\n\nOnly use tool or evidence details that are explicitly present in this recorded state and the recorded tool outcomes below. Treat `recorded_tool_result_quality` as the tool boundary signal: `low_signal`, `error`, or `no_evidence` means the workflow ran but evidence may be insufficient. If evidence counts are zero, do not claim returned snippets, evidence refs, or source-backed findings for this turn."
+            "Recorded tool/evidence state for this turn:\n{summary_json}\n\nOnly use tool or evidence details that are explicitly present in this recorded state and the recorded tool outcomes below. Treat `recorded_tool_result_quality`, `recorded_quality_flags`, and `recorded_retry_recommended_count` as the tool boundary signals: retry recommendations, low-signal flags, errors, or no evidence mean the workflow ran but evidence may be insufficient. If evidence counts are zero, do not claim returned snippets, evidence refs, or source-backed findings for this turn."
         ),
         2_000,
     )
@@ -380,6 +489,18 @@ mod tool_turn_response_text_tests {
             "status": "no_results",
             "provider_results": [{"provider": "direct_http"}],
             "evidence_refs": [{"source": "provider_result"}],
+            "tool_result_quality": {
+                "status": "no_results",
+                "flags": ["insufficient_evidence", "low_relevance_filtered"],
+                "evidence_count": 0,
+                "candidate_count": 1,
+                "retry": {
+                    "recommended": true,
+                    "reason": "insufficient_evidence",
+                    "next_action": "agent_refine_query_pack_and_retry_if_budget_remains",
+                    "query_strategy_hints": ["target primary or official sources"]
+                }
+            },
             "tool_pipeline": {
                 "raw_payload": {
                     "search_results": [{"title": "Example result"}]
@@ -394,11 +515,68 @@ mod tool_turn_response_text_tests {
             "\"recorded_provider_results\":1",
             "\"recorded_evidence_refs\":1",
             "\"recorded_tool_result_quality\":\"partial_or_low_signal_evidence\"",
+            "\"recorded_retry_recommended_count\":1",
+            "insufficient_evidence",
+            "low_relevance_filtered",
             "\"recorded_evidence_available\":true",
-            "tool boundary signal",
+            "tool boundary signals",
         ] {
             assert!(summary.contains(needle), "{summary}");
         }
+    }
+
+    #[test]
+    fn tool_rows_for_llm_recovery_expose_quality_diagnostics_without_raw_payloads() {
+        let rows = tool_rows_for_llm_recovery(
+            &[json!({
+                "name": "batch_query",
+                "status": "no_results",
+                "input": "{\"query\":\"scientific breakthroughs 2026\"}",
+                "result": "Search providers ran but no usable findings were extracted.",
+                "tool_result_quality": {
+                    "status": "no_results",
+                    "flags": ["insufficient_evidence"],
+                    "evidence_count": 0,
+                    "candidate_count": 0,
+                    "retry": {
+                        "recommended": true,
+                        "reason": "insufficient_evidence",
+                        "next_action": "agent_refine_query_pack_and_retry_if_budget_remains",
+                        "query_strategy_hints": ["split the ask into specific entities or source types"]
+                    },
+                    "candidate_quality": [{
+                        "title": "Search page",
+                        "domain": "search.example",
+                        "locator": "https://search.example/?q=x",
+                        "snippet_preview": "No usable result",
+                        "score": 0.12,
+                        "flags": ["low_score"]
+                    }]
+                }
+            })],
+            6,
+        );
+        assert_eq!(
+            rows.pointer("/0/quality_diagnostics/retry/recommended")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            rows.pointer("/0/quality_diagnostics/retry/next_action")
+                .and_then(Value::as_str),
+            Some("agent_refine_query_pack_and_retry_if_budget_remains")
+        );
+        assert!(
+            rows.pointer("/0/quality_diagnostics/candidate_quality/0/snippet_preview")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("No usable result"),
+            "{rows}"
+        );
+        assert!(
+            rows.pointer("/0/quality_diagnostics/candidate_quality/0/locator").is_none(),
+            "{rows}"
+        );
     }
 
     #[test]

@@ -389,9 +389,11 @@ fn broad_current_research_recovery_templates(policy: &Value) -> Vec<String> {
     if configured.is_empty() {
         vec![
             "{query}".to_string(),
-            "{query} {current_year}".to_string(),
-            "{query} research news".to_string(),
-            "{query} primary source".to_string(),
+            "{query} source-backed overview".to_string(),
+            "{query} primary sources".to_string(),
+            "{query} official sources".to_string(),
+            "{query} recent publications".to_string(),
+            "{query} institution announcements".to_string(),
         ]
     } else {
         configured

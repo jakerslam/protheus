@@ -85,12 +85,14 @@ fn default_policy() -> Value {
             "query_recovery": {
                 "broad_current_research": {
                     "enabled": true,
-                    "max_queries": 4,
+                    "max_queries": 6,
                     "templates": [
                         "{query}",
-                        "{query} {current_year}",
-                        "{query} research news",
-                        "{query} primary source"
+                        "{query} source-backed overview",
+                        "{query} primary sources",
+                        "{query} official sources",
+                        "{query} recent publications",
+                        "{query} institution announcements"
                     ]
                 }
             }

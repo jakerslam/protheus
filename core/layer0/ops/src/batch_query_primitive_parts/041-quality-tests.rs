@@ -405,17 +405,17 @@ mod quality_tests {
                     "requested_url": "https://duckduckgo.com/html/?q=scientific+breakthroughs+2026",
                     "status_code": 200
                 },
-                "scientific breakthroughs 2026 research news": {
+                "scientific breakthroughs 2026 source-backed overview": {
                     "ok": true,
-                    "summary": "Scientific breakthroughs 2026 research news reports verified advances in medicine, materials science, and astronomy from multiple research institutions.",
-                    "content": "Scientific breakthroughs 2026 research news reports verified advances in medicine, materials science, and astronomy from multiple research institutions.",
+                    "summary": "Scientific breakthroughs 2026 source-backed overview reports verified advances in medicine, materials science, and astronomy from multiple research institutions.",
+                    "content": "Scientific breakthroughs 2026 source-backed overview reports verified advances in medicine, materials science, and astronomy from multiple research institutions.",
                     "requested_url": "https://science.example.org/news/scientific-breakthroughs-2026",
                     "status_code": 200
                 },
-                "scientific breakthroughs 2026 primary source": {
+                "scientific breakthroughs 2026 primary sources": {
                     "ok": true,
-                    "summary": "Scientific breakthroughs 2026 primary source coverage points to peer-reviewed papers and institution releases for medicine and materials science findings.",
-                    "content": "Scientific breakthroughs 2026 primary source coverage points to peer-reviewed papers and institution releases for medicine and materials science findings.",
+                    "summary": "Scientific breakthroughs 2026 primary sources coverage points to peer-reviewed papers and institution releases for medicine and materials science findings.",
+                    "content": "Scientific breakthroughs 2026 primary sources coverage points to peer-reviewed papers and institution releases for medicine and materials science findings.",
                     "requested_url": "https://research.example.org/scientific-breakthroughs-2026",
                     "status_code": 200
                 }
@@ -433,10 +433,10 @@ mod quality_tests {
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert_eq!(query_plan.len(), 3, "{query_plan:?}");
+        assert_eq!(query_plan.len(), 6, "{query_plan:?}");
         assert!(query_plan.iter().any(|row| {
             row.as_str()
-                .map(|value| value == "scientific breakthroughs 2026 research news")
+                .map(|value| value == "scientific breakthroughs 2026 source-backed overview")
                 .unwrap_or(false)
         }));
         assert!(query_plan.iter().all(|row| {

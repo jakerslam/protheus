@@ -1,6 +1,36 @@
 {
   "version": "tool_cd_web_retrieval_v0",
   "source": "scrapling_pattern_assimilation_v0",
+  "diagnostic_projection_contract": {
+    "version": "web_retrieval_quality_diagnostics_v1",
+    "chat_visibility": "hidden_until_synthesized",
+    "required_result_fields": [
+      "tool_result_quality.status",
+      "tool_result_quality.flags",
+      "tool_result_quality.candidate_count",
+      "tool_result_quality.evidence_count",
+      "tool_result_quality.retry.recommended",
+      "tool_result_quality.retry.reason",
+      "tool_result_quality.retry.next_action",
+      "tool_result_quality.retry.query_strategy_hints",
+      "query_plan",
+      "query_plan_source",
+      "provider_result_count",
+      "partial_failure_details"
+    ],
+    "recovery_semantics": {
+      "authority": "agent_submitted_query_pack",
+      "hidden_query_expansion_allowed": false,
+      "retry_recommended_next_action": "agent_refine_query_pack_and_retry_if_budget_remains",
+      "retry_query_strategy": [
+        "preserve the original research objective",
+        "split broad requests into entity, aspect, time-window, or source-type searches",
+        "target primary, official, source-backed, or directly citable pages when relevant",
+        "use low-relevance and off-topic diagnostics to remove weak terms",
+        "synthesize from best recorded evidence only after internal recovery is exhausted"
+      ]
+    }
+  },
   "contracts": [
     {
       "tool_id": "web_search",
