@@ -1703,6 +1703,34 @@ fn latent_tool_candidates_preserve_explicit_external_evidence_turns() {
 }
 
 #[test]
+fn latent_tool_candidates_preserve_web_research_language() {
+    let candidates = latent_tool_candidates_for_message(
+        "Use web research to compare current workflow systems and give practical tradeoffs.",
+        &[],
+    );
+    assert_eq!(candidates.len(), 1, "{candidates:?}");
+    assert_eq!(
+        candidates[0]
+            .get("selected_tool_family")
+            .and_then(Value::as_str),
+        Some("web_research")
+    );
+}
+
+#[test]
+fn latent_tool_candidates_preserve_lookup_research_language() {
+    let candidates = latent_tool_candidates_for_message(
+        "Look up recent changes in several frameworks and summarize whether they matter for production systems.",
+        &[],
+    );
+    assert_eq!(candidates.len(), 1, "{candidates:?}");
+    assert_eq!(
+        candidates[0].get("tool").and_then(Value::as_str),
+        Some("batch_query")
+    );
+}
+
+#[test]
 fn latent_tool_candidates_do_not_treat_web_app_builds_as_research() {
     let candidates =
         latent_tool_candidates_for_message("Build a web app dashboard for comparing reports.", &[]);

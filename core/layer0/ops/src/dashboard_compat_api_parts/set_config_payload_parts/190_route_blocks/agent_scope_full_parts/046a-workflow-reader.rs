@@ -152,9 +152,40 @@ fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
         "synthesis_failed",
         "guard_violation_pass_through",
         "empty_llm_response",
+        "structured_failure",
     ]
     .iter()
     .all(|status| workflow_trace_status_message_pair_is_complete(contract, status));
+    let terminal_invariant_contract_complete = contract
+        .pointer("/terminal_invariant_contract/enabled")
+        .and_then(Value::as_bool)
+        == Some(true)
+        && workflow_contract_string_at(
+            contract,
+            "/terminal_invariant_contract/tool_required_empty_final_response_policy",
+            120,
+        )
+        .map(|policy| policy == "never_terminal")
+        .unwrap_or(false)
+        && workflow_contract_array_contains(
+            contract,
+            "/terminal_invariant_contract/allowed_tool_required_terminal_outcomes",
+            "pending_tool_request",
+        )
+        && workflow_contract_array_contains(
+            contract,
+            "/terminal_invariant_contract/allowed_tool_required_terminal_outcomes",
+            "executed_tool_result",
+        )
+        && workflow_contract_array_contains(
+            contract,
+            "/terminal_invariant_contract/allowed_tool_required_terminal_outcomes",
+            "structured_failure",
+        )
+        && contract
+            .pointer("/terminal_invariant_contract/chat_injection_allowed")
+            .and_then(Value::as_bool)
+            == Some(false);
     let diagnostic_markers_complete = workflow_contract_array_at(
         contract,
         "/diagnostic_markers/legacy_retry_templates",
@@ -269,6 +300,7 @@ fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
     first_gate_submission_complete
         && tool_request_contract_complete
         && trace_status_messages_complete
+        && terminal_invariant_contract_complete
         && diagnostic_markers_complete
         && declared_gates_are_valid
         && declares_final_output
@@ -323,6 +355,7 @@ fn workflow_source_of_truth_contract_is_complete(contract: &Value) -> bool {
         && workflow_contract_array_contains(contract, "/json_owns", "loopbacks")
         && workflow_contract_array_contains(contract, "/json_owns", "final_output_contract")
         && workflow_contract_array_contains(contract, "/json_owns", "trace_status_messages")
+        && workflow_contract_array_contains(contract, "/json_owns", "terminal_invariant_contract")
         && workflow_contract_array_contains(contract, "/json_owns", "diagnostic_markers")
 }
 
@@ -694,6 +727,7 @@ mod workflow_reader_tests {
             "synthesis_failed",
             "guard_violation_pass_through",
             "empty_llm_response",
+            "structured_failure",
         ] {
             assert!(
                 selected
@@ -721,6 +755,15 @@ mod workflow_reader_tests {
                 .pointer("/workflow_source_of_truth_contract/json_owns")
                 .and_then(Value::as_array)
                 .map(|rows| rows.iter().any(|row| row.as_str() == Some("trace_status_messages"))),
+            Some(true)
+        );
+        assert_eq!(
+            selected
+                .pointer("/workflow_source_of_truth_contract/json_owns")
+                .and_then(Value::as_array)
+                .map(|rows| rows
+                    .iter()
+                    .any(|row| row.as_str() == Some("terminal_invariant_contract"))),
             Some(true)
         );
     }
@@ -882,6 +925,21 @@ mod workflow_reader_tests {
                 .get("ambiguity_policy")
                 .and_then(Value::as_str),
             Some("do_not_promote_when_zero_or_multiple_valid_candidates")
+        );
+        let terminal_invariant = selected
+            .pointer("/tool_menu_interface_contract/terminal_invariant_contract")
+            .expect("terminal invariant contract");
+        assert_eq!(
+            terminal_invariant
+                .get("tool_required_empty_final_response_policy")
+                .and_then(Value::as_str),
+            Some("never_terminal")
+        );
+        assert_eq!(
+            terminal_invariant
+                .get("chat_injection_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
         );
     }
 

@@ -245,6 +245,23 @@ fn finalize_message_finalization_and_payload(
         &latest_assistant_text,
         &response_tools,
     );
+    if workflow_tool_required_empty_terminal_invariant_broken(
+        &response_workflow,
+        &response_tools,
+        manual_toolbox_pending_tool_request.as_ref(),
+    ) {
+        mark_workflow_tool_required_structured_failure(
+            &mut response_workflow,
+            "tool_required_empty_terminal_state",
+        );
+        workflow_system_events.push(turn_workflow_event(
+            "terminal_invariant_structured_failure",
+            json!({
+                "source": "terminal_invariant_contract",
+                "chat_injection_allowed": false
+            }),
+        ));
+    }
     let pending_tool_confirmation_fallback = manual_toolbox_pending_tool_request
         .as_ref()
         .map(|pending_request| {

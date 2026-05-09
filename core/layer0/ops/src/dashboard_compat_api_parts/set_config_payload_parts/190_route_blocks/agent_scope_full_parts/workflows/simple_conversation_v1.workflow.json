@@ -29,6 +29,19 @@
       "chat_injection_allowed": false,
       "execution_mode": "respect_declared_tool_execution_policy"
     },
+    "terminal_invariant_contract": {
+      "version": "terminal_invariant_v1",
+      "enabled": true,
+      "purpose": "A workflow path that has entered tool-routing gates must not finalize as an empty user-visible answer. It must continue as a pending tool request, an executed tool result, or an internal structured failure artifact.",
+      "tool_required_empty_final_response_policy": "never_terminal",
+      "allowed_tool_required_terminal_outcomes": [
+        "pending_tool_request",
+        "executed_tool_result",
+        "structured_failure"
+      ],
+      "structured_failure_chat_policy": "telemetry_only_no_system_chat_injection",
+      "chat_injection_allowed": false
+    },
     "private_gate_retry_instruction": "INTERNAL RETRY — output is never shown to the user. The previous response for `{current_gate_id}` was rejected with reason `{last_reject_reason}`. Previous excerpt: {last_invalid_excerpt}. If the excerpt is empty, treat it as an empty response. Re-read the current gate system instruction and output only the exact JSON artifact required by that gate. Do not answer the user directly, do not write prose, and do not include markdown.",
     "llm_gate_instruction": "INTERNAL GATE — output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. A natural-language answer at this gate is invalid even if it is helpful, accurate, or well formatted. No-tool values — {no_tool_categories} — skip tools and go straight to synthesis. Tool values — {tool_bearing_categories} — open the tool menu. IMPORTANT: when you choose a no-tool gate value (respond_directly or equivalent), the JSON object itself is the submission artifact and it MUST also include a \"final_answer\" field with the actual natural-language reply the user should see. A prose answer, markdown answer, or naked final answer without a valid gate JSON object does NOT count as choosing respond_directly and will be rejected. Choose a no-tool gate only for direct conversation, planning from current context, or explicit post-tool synthesis prompts that already refer to a returned tool result, existing snippets, evidence refs, or low-signal findings present in the current turn context. Choose `web_research` whenever the user asks for external research, source-backed information, freshness-sensitive information, or judgment that depends on public evidence, including current-state questions, comparisons, evaluations, rankings, recommendations, strengths or weaknesses, maturity, benchmarks, ecosystem status, or changing categories even when the user does not name candidates up front. Do NOT choose `respond_directly` for external research just because you can produce a plausible answer from memory. If the prompt references prior tool results but none are present, the only acceptable direct answer is to begin with 'No returned tool result is available in this turn, so no source-backed synthesis is available yet.' and avoid inventing evidence, low-signal results, or substitute entities from system, workspace, or generic prior knowledge. Example direct reply artifact: {\"gate\": \"respond_directly\", \"final_answer\": \"Hey! What can I help you with?\"}. Example tool-routed artifact: {\"gate\": \"web_research\"}. Do NOT write any other text outside the JSON object.",
     "gate_shapes_allowed": [
@@ -694,6 +707,10 @@
         "ui": "Workflow final answer gate failed; no system-authored chat text was injected.",
         "agent_process": "Final answer gate failed. Retry must produce LLM-authored output."
       },
+      "structured_failure": {
+        "ui": "Workflow ended with an internal structured failure artifact; no system-authored chat text was injected.",
+        "agent_process": "Structured failure recorded. Do not replace the final answer with system prose."
+      },
       "default": {
         "ui": "Workflow state exported for trace visibility.",
         "agent_process": "Follow the currently presented workflow gate."
@@ -988,6 +1005,7 @@
       "gate_transitions",
       "interaction_gates",
       "loopbacks",
+      "terminal_invariant_contract",
       "tool_family_menus",
       "tool_input_schemas",
       "trace_status_messages"
