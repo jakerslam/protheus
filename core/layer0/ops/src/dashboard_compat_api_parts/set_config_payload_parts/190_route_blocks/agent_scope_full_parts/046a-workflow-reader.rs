@@ -678,7 +678,7 @@ mod workflow_reader_tests {
             .expect("chat requirement");
         assert!(
             chat_requirement.contains(
-                "classify the retrieved package internally as exactly one lane: usable, low_signal, irrelevant, or failed"
+                "classify the available state internally as one lane: no_tool_state, usable, low_signal, irrelevant, or failed"
             ),
             "{chat_requirement}"
         );
@@ -687,19 +687,28 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("Do not make the whole answer a request to narrow scope"),
+            chat_requirement.contains("do not make the whole answer a request for the user to narrow"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("No returned tool result is available in this turn, so no source-backed synthesis is available yet."),
+            chat_requirement
+                .contains("no source-backed synthesis is available from this turn's state"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("do not say no tool result is available"),
+            chat_requirement.contains("never claim no tool result is available"),
             "{chat_requirement}"
         );
         assert!(
             chat_requirement.contains("Do not substitute system instructions"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("explicitly say the evidence was limited or low-signal"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("most useful conservative decision boundary"),
             "{chat_requirement}"
         );
         assert!(
@@ -865,7 +874,8 @@ mod workflow_reader_tests {
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("No returned tool result is available in this turn, so no source-backed synthesis is available yet."),
+            gate_instruction
+                .contains("no source-backed synthesis is available from this turn's state"),
             "{gate_instruction}"
         );
         assert!(
@@ -956,19 +966,23 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("usable: synthesize from retrieved evidence"),
+            chat_requirement.contains("For usable evidence, synthesize from retrieved evidence"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("low_signal: say the evidence was limited or low signal"),
+            chat_requirement.contains("For low_signal evidence, explicitly say the evidence was limited or low-signal"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("irrelevant: say retrieval missed the topic or was off-topic"),
+            chat_requirement.contains("For irrelevant evidence, say retrieval missed the topic or was off-topic"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("failed: give a concise structured failure"),
+            chat_requirement.contains("For failed retrieval, explicitly say the evidence was limited or unavailable from retrieval"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("most useful conservative decision boundary"),
             "{chat_requirement}"
         );
         assert!(
@@ -996,7 +1010,7 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("If quality diagnostics say retry was recommended"),
+            chat_requirement.contains("If quality diagnostics recommend retry"),
             "{chat_requirement}"
         );
         assert!(!chat_requirement.contains("agentic framework"), "{chat_requirement}");
@@ -1073,11 +1087,23 @@ mod workflow_reader_tests {
             "{payload_instruction}"
         );
         assert!(
+            payload_instruction.contains("For named product/library/framework evaluation"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("official docs, repository or release notes"),
+            "{payload_instruction}"
+        );
+        assert!(
             payload_instruction.contains("Invalid `batch_query` example"),
             "{payload_instruction}"
         );
         assert!(
             payload_instruction.contains("Benchmark example"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("Single-framework evaluation example"),
             "{payload_instruction}"
         );
         assert!(
@@ -1088,10 +1114,15 @@ mod workflow_reader_tests {
             payload_instruction.contains("RAG stack example"),
             "{payload_instruction}"
         );
+        assert!(
+            payload_instruction
+                .contains("Always follow the selected request_format and selected example above"),
+            "{payload_instruction}"
+        );
     }
 
     #[test]
-    fn workflow_reader_tool_selection_prefers_web_search_for_single_library_research() {
+    fn workflow_reader_tool_selection_uses_query_pack_for_evaluative_library_research() {
         let selected = selected_turn_workflow("");
         let selection_instruction = selected
             .pointer("/tool_menu_interface_contract/llm_tool_selection_instruction")
@@ -1103,7 +1134,7 @@ mod workflow_reader_tests {
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("single-product/library research centered on one named tool"),
+            selection_instruction.contains("asks where a product or library fits"),
             "{selection_instruction}"
         );
         assert!(
@@ -1116,11 +1147,11 @@ mod workflow_reader_tests {
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("Research Mastra for TypeScript agent workflows and whether it competes with LangGraph."),
+            selection_instruction.contains("Research a named framework's strengths, weak points, and fit versus an adjacent framework."),
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("{\"tool\": \"web_search\"}"),
+            selection_instruction.contains("{\"tool\": \"batch_query\"}"),
             "{selection_instruction}"
         );
     }
