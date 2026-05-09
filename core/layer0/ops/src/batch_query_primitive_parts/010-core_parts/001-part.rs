@@ -299,6 +299,17 @@ fn is_relevance_stop_token(token: &str) -> bool {
             | "with"
             | "you"
             | "your"
+            | "current"
+            | "latest"
+            | "newest"
+            | "recent"
+            | "research"
+            | "source"
+            | "sources"
+            | "primary"
+            | "news"
+            | "summary"
+            | "summarize"
     )
 }
 
@@ -318,6 +329,32 @@ fn tokenize_relevance(raw: &str, cap: usize) -> HashSet<String> {
         }
     }
     out
+}
+
+fn query_has_temporal_relevance_marker(query: &str, query_tokens: &HashSet<String>) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    query_tokens
+        .iter()
+        .any(|token| token.len() == 4 && token.chars().all(|ch| ch.is_ascii_digit()))
+        || [
+            "latest",
+            "current",
+            "newest",
+            "recent",
+            "today",
+            "this week",
+            "this month",
+            "as of",
+        ]
+        .iter()
+        .any(|marker| lowered.contains(marker))
+}
+
+fn query_requires_multi_term_evidence(query: &str, query_tokens: &HashSet<String>) -> bool {
+    if query_tokens.len() >= 3 {
+        return true;
+    }
+    query_tokens.len() >= 2 && query_has_temporal_relevance_marker(query, query_tokens)
 }
 
 fn looks_like_portal_noise_candidate(candidate: &Candidate) -> bool {
@@ -378,6 +415,9 @@ fn candidate_passes_relevance_gate(
         }
     }
     if overlap == 0 {
+        return false;
+    }
+    if query_requires_multi_term_evidence(query, &query_tokens) && overlap < 2 {
         return false;
     }
     let overlap_ratio = overlap as f64 / query_tokens.len() as f64;

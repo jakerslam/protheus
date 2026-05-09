@@ -136,6 +136,70 @@ fn cache_identity_query_plan(query: &str, query_plan: &[String]) -> Vec<String> 
     normalized
 }
 
+fn provider_result_identity(value: &Value) -> String {
+    let provider = clean_text(
+        value.get("provider").and_then(Value::as_str).unwrap_or(""),
+        120,
+    )
+    .to_ascii_lowercase();
+    let status = clean_text(value.get("status").and_then(Value::as_str).unwrap_or(""), 80)
+        .to_ascii_lowercase();
+    let error = clean_text(value.get("error").and_then(Value::as_str).unwrap_or(""), 160)
+        .to_ascii_lowercase();
+    if !provider.is_empty() && !error.is_empty() {
+        return crate::deterministic_receipt_hash(&json!({
+            "kind": "provider_error",
+            "provider": provider,
+            "status": status,
+            "error": error
+        }));
+    }
+
+    let content = value
+        .get("content_preview")
+        .or_else(|| value.get("summary"))
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 1_200).to_ascii_lowercase())
+        .unwrap_or_default();
+    if content.split_whitespace().count() >= 8 {
+        return crate::deterministic_receipt_hash(&json!({
+            "kind": "provider_content",
+            "provider": provider,
+            "status": status,
+            "content": content
+        }));
+    }
+
+    let stage = clean_text(value.get("stage").and_then(Value::as_str).unwrap_or(""), 120)
+        .to_ascii_lowercase();
+    let locator = clean_text(
+        value.get("locator").and_then(Value::as_str).unwrap_or(""),
+        600,
+    )
+    .to_ascii_lowercase();
+    crate::deterministic_receipt_hash(&json!({
+        "kind": "provider_locator",
+        "provider": provider,
+        "stage": stage,
+        "status": status,
+        "locator": locator
+    }))
+}
+
+fn dedup_provider_results(provider_results: Vec<Value>) -> (Vec<Value>, usize) {
+    let before = provider_results.len();
+    let mut seen = HashSet::<String>::new();
+    let mut deduped = Vec::<Value>::new();
+    for value in provider_results {
+        let key = provider_result_identity(&value);
+        if seen.insert(key) {
+            deduped.push(value);
+        }
+    }
+    let removed = before.saturating_sub(deduped.len());
+    (deduped, removed)
+}
+
 fn cache_ttl_for_status(status: &str) -> i64 {
     if status == "ok" || status == "partial" {
         CACHE_TTL_SUCCESS_SECS
@@ -257,7 +321,7 @@ fn extract_request_query_row(row: &Value, max_len: usize) -> Option<String> {
 
 fn max_explicit_queries_for_budget(primary_query: &str, budget: ApertureBudget) -> usize {
     let _ = primary_query;
-    budget.max_evidence.clamp(2, 6)
+    budget.max_candidates.clamp(2, 12)
 }
 
 fn normalize_requested_queries(
@@ -295,7 +359,133 @@ fn normalize_requested_queries(
     queries
 }
 
-fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> QueryPlanSelection {
+fn broad_current_research_recovery_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/query_recovery/broad_current_research/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn broad_current_research_recovery_max_queries(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/query_recovery/broad_current_research/max_queries")
+        .and_then(Value::as_u64)
+        .unwrap_or(4)
+        .clamp(1, max_explicit_queries_for_budget("", budget) as u64) as usize
+}
+
+fn broad_current_research_recovery_templates(policy: &Value) -> Vec<String> {
+    let configured = policy
+        .pointer("/batch_query/query_recovery/broad_current_research/templates")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 600))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if configured.is_empty() {
+        vec![
+            "{query}".to_string(),
+            "{query} {current_year}".to_string(),
+            "{query} research news".to_string(),
+            "{query} primary source".to_string(),
+        ]
+    } else {
+        configured
+    }
+}
+
+fn query_looks_like_broad_current_research(query: &str) -> bool {
+    let cleaned = clean_text(query, 600);
+    if cleaned.is_empty() || !current_web_intent(&cleaned) {
+        return false;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if lowered.contains("http://")
+        || lowered.contains("https://")
+        || lowered.contains('"')
+        || lowered.contains('`')
+    {
+        return false;
+    }
+    let word_count = cleaned.split_whitespace().count();
+    let broad_marker = [
+        "what are",
+        "what were",
+        "some ",
+        "overview",
+        "landscape",
+        "trend",
+        "trends",
+        "changes",
+        "developments",
+        "breakthrough",
+        "breakthroughs",
+        "news",
+        "current state",
+        "state of",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker));
+    broad_marker || word_count <= 8
+}
+
+fn expand_query_recovery_template(template: &str, query: &str) -> Option<String> {
+    let year = current_year();
+    if template.contains("{current_year}") && query.to_ascii_lowercase().contains(&year) {
+        return None;
+    }
+    let expanded = template
+        .replace("{query}", query)
+        .replace("{current_year}", &year);
+    let cleaned = clean_text(&expanded, 600);
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
+    }
+}
+
+fn broad_current_research_recovery_queries(
+    policy: &Value,
+    query: &str,
+    budget: ApertureBudget,
+) -> Vec<String> {
+    if !broad_current_research_recovery_enabled(policy)
+        || !query_looks_like_broad_current_research(query)
+    {
+        return Vec::new();
+    }
+    let max_queries = broad_current_research_recovery_max_queries(policy, budget);
+    let mut dedup = HashSet::<String>::new();
+    let mut queries = Vec::<String>::new();
+    for template in broad_current_research_recovery_templates(policy) {
+        if queries.len() >= max_queries {
+            break;
+        }
+        if let Some(value) = expand_query_recovery_template(&template, query) {
+            let key = value.to_ascii_lowercase();
+            if dedup.insert(key) {
+                queries.push(value);
+            }
+        }
+    }
+    if queries.len() <= 1 {
+        Vec::new()
+    } else {
+        queries
+    }
+}
+
+fn resolve_query_plan(
+    policy: &Value,
+    request: &Value,
+    query: &str,
+    budget: ApertureBudget,
+) -> QueryPlanSelection {
     let explicit_queries = normalize_requested_queries(request, query, budget);
     let explicit_query_pack_used = !explicit_queries.is_empty()
         && (query.is_empty()
@@ -316,6 +506,21 @@ fn resolve_query_plan(request: &Value, query: &str, budget: ApertureBudget) -> Q
             rewrite_set,
             rerank_query,
             query_plan_source: "explicit_request_pack",
+        };
+    }
+    let recovery_queries = broad_current_research_recovery_queries(policy, query, budget);
+    if !recovery_queries.is_empty() {
+        let rerank_query = recovery_queries
+            .first()
+            .cloned()
+            .unwrap_or_else(|| clean_text(query, 600));
+        let rewrite_set = recovery_queries.iter().skip(1).cloned().collect::<Vec<_>>();
+        return QueryPlanSelection {
+            rewrite_applied: recovery_queries.len() > 1,
+            queries: recovery_queries,
+            rewrite_set,
+            rerank_query,
+            query_plan_source: "policy_broad_current_research_recovery",
         };
     }
     let queries = cache_identity_query_plan(query, &explicit_queries);

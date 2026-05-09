@@ -192,9 +192,19 @@ fn search_payload_query_aligned(payload: &Value, query: &str) -> bool {
     if combined.trim().is_empty() {
         return false;
     }
+    fn term_matches_payload(term: &str, combined: &str) -> bool {
+        if combined.contains(term) {
+            return true;
+        }
+        if term.len() < 6 {
+            return false;
+        }
+        let prefix_len = term.len().min(5);
+        combined.contains(&term[..prefix_len])
+    }
     let matched_terms = terms
         .iter()
-        .filter(|term| combined.contains(term.as_str()))
+        .filter(|term| term_matches_payload(term.as_str(), &combined))
         .count();
     let required_hits = if terms.len() == 1 {
         1

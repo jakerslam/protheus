@@ -81,7 +81,19 @@ fn default_policy() -> Value {
             "enabled_sources": ["web"],
             "allow_large": false,
             "max_parallel_subqueries": 4,
-            "query_timeout_ms": 5000
+            "query_timeout_ms": 5000,
+            "query_recovery": {
+                "broad_current_research": {
+                    "enabled": true,
+                    "max_queries": 4,
+                    "templates": [
+                        "{query}",
+                        "{query} {current_year}",
+                        "{query} research news",
+                        "{query} primary source"
+                    ]
+                }
+            }
         }
     })
 }

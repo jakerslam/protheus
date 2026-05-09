@@ -9,7 +9,6 @@ fn collect_candidates_from_stage_payload(
 ) -> (Vec<Candidate>, Vec<String>, Option<Value>) {
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
-    let provider_result = hidden_provider_result_artifact(stage, query, payload);
     let rendered_rows = candidates_from_rendered_search_payload(
         query,
         payload,
@@ -89,10 +88,44 @@ fn collect_candidates_from_stage_payload(
             }
         }
     }
+    let provider_result = hidden_provider_result_artifact(stage, query, payload, candidates.len(), &issues);
     (candidates, issues, provider_result)
 }
 
-fn hidden_provider_result_artifact(stage: &str, query: &str, payload: &Value) -> Option<Value> {
+fn hidden_provider_result_quality(
+    payload_ok: bool,
+    candidate_count: usize,
+    issues: &[String],
+) -> &'static str {
+    if candidate_count > 0 {
+        return "usable";
+    }
+    if !payload_ok {
+        return "provider_error";
+    }
+    if issues.iter().any(|issue| {
+        issue.contains("candidate_low_relevance")
+            || issue.contains("fetch_candidate_low_relevance")
+            || issue.contains("query_result_mismatch")
+    }) {
+        return "low_relevance";
+    }
+    if issues
+        .iter()
+        .any(|issue| issue.contains("no_usable_summary") || issue.contains("low_signal"))
+    {
+        return "low_signal";
+    }
+    "no_synthesis_candidate"
+}
+
+fn hidden_provider_result_artifact(
+    stage: &str,
+    query: &str,
+    payload: &Value,
+    candidate_count: usize,
+    issues: &[String],
+) -> Option<Value> {
     let query_text = clean_text(query, 600);
     let stage_name = clean_text(stage, 80);
     let provider = clean_text(
@@ -128,12 +161,18 @@ fn hidden_provider_result_artifact(stage: &str, query: &str, payload: &Value) ->
     {
         return None;
     }
-    let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    let payload_ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false)
+        || payload
+            .get("provider_payload_rejected")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+    let result_quality = hidden_provider_result_quality(payload_ok, candidate_count, issues);
+    let ok = result_quality == "usable";
     let status = clean_text(
         payload
             .get("status")
             .and_then(Value::as_str)
-            .unwrap_or(if ok { "ok" } else { "error" }),
+            .unwrap_or(if payload_ok { "ok" } else { "error" }),
         32,
     );
     let mut out = serde_json::Map::new();
@@ -147,6 +186,15 @@ fn hidden_provider_result_artifact(stage: &str, query: &str, payload: &Value) ->
         out.insert("provider".to_string(), Value::String(provider));
     }
     out.insert("ok".to_string(), Value::Bool(ok));
+    out.insert("provider_transport_ok".to_string(), Value::Bool(payload_ok));
+    out.insert(
+        "result_quality".to_string(),
+        Value::String(result_quality.to_string()),
+    );
+    out.insert(
+        "synthesis_candidate_count".to_string(),
+        json!(candidate_count),
+    );
     if !status.is_empty() {
         out.insert("status".to_string(), Value::String(status));
     }
@@ -164,6 +212,11 @@ fn hidden_provider_result_artifact(stage: &str, query: &str, payload: &Value) ->
     }
     if !error.is_empty() {
         out.insert("error".to_string(), Value::String(error));
+    } else if payload_ok && !ok {
+        out.insert(
+            "error".to_string(),
+            Value::String(result_quality.to_string()),
+        );
     }
     if !links.is_empty() {
         out.insert(
@@ -236,21 +289,29 @@ fn retrieve_web_candidates_for_query(
             } else {
                 stage_fetch_payload(root, "duckduckgo_instant", &fallback_url)
             };
-        if let Some(value) =
-            hidden_provider_result_artifact("duckduckgo_instant", query, &fallback_payload)
-        {
-            provider_results.push(value);
-        }
+        let mut duckduckgo_candidate_count = 0usize;
+        let mut duckduckgo_issues = Vec::<String>::new();
         match candidate_from_duckduckgo_instant_payload(query, &fallback_url, &fallback_payload) {
             Ok(candidate) => {
                 if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                    duckduckgo_candidate_count = 1;
                     candidates.push(candidate);
                 } else {
-                    issues.push("duckduckgo_instant:candidate_low_relevance".to_string());
+                    duckduckgo_issues.push("duckduckgo_instant:candidate_low_relevance".to_string());
                 }
             }
-            Err(err) => issues.push(format!("duckduckgo_instant:{err}")),
+            Err(err) => duckduckgo_issues.push(format!("duckduckgo_instant:{err}")),
         }
+        if let Some(value) = hidden_provider_result_artifact(
+            "duckduckgo_instant",
+            query,
+            &fallback_payload,
+            duckduckgo_candidate_count,
+            &duckduckgo_issues,
+        ) {
+            provider_results.push(value);
+        }
+        issues.extend(duckduckgo_issues);
     }
 
     if candidates.is_empty() {

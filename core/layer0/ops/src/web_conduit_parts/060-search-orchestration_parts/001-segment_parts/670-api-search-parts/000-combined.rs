@@ -728,6 +728,7 @@
         let search_url = match selected_provider.as_str() {
             "duckduckgo_lite" => lite_url.clone(),
             "bing_rss" => web_search_bing_rss_url(&scoped_query),
+            "gdelt_doc" => web_search_gdelt_doc_url(&scoped_query, top_k),
             _ => primary_url.clone(),
         };
         let mut receipt = build_receipt(
@@ -883,6 +884,7 @@
         let search_url = match selected_provider.as_str() {
             "duckduckgo_lite" => lite_url.clone(),
             "bing_rss" => web_search_bing_rss_url(&scoped_query),
+            "gdelt_doc" => web_search_gdelt_doc_url(&scoped_query, top_k),
             _ => primary_url.clone(),
         };
         let mut receipt = build_receipt(
@@ -1084,6 +1086,14 @@
                 top_k,
                 timeout_ms,
             ),
+            "gdelt_doc" => api_search_gdelt_doc(
+                &scoped_query,
+                summary_only,
+                &allowed_domains,
+                exclude_subdomains,
+                top_k,
+                timeout_ms,
+            ),
             _ => api_fetch(
                 root,
                 &json!({
@@ -1116,7 +1126,8 @@
             break;
         }
     }
-    let mut out = if !selected.is_null() {
+    let provider_chain_selected_payload = !selected.is_null();
+    let mut out = if provider_chain_selected_payload {
         selected
     } else {
         last_payload.unwrap_or_else(|| {
@@ -1128,6 +1139,11 @@
             })
         })
     };
+    let provider_payload_rejected = !provider_chain_selected_payload
+        && out.get("ok").and_then(Value::as_bool).unwrap_or(false);
+    if provider_payload_rejected {
+        let _ = reject_unselected_search_payload(&mut out, &scoped_query);
+    }
     let final_selected_provider = if executed_provider.is_empty() {
         selected_provider.clone()
     } else {
@@ -1522,6 +1538,7 @@
     let search_url = match final_selected_provider.as_str() {
         "duckduckgo_lite" => lite_url.clone(),
         "bing_rss" => web_search_bing_rss_url(&scoped_query),
+        "gdelt_doc" => web_search_gdelt_doc_url(&scoped_query, top_k),
         _ => primary_url.clone(),
     };
     let response_hash = out

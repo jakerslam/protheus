@@ -297,6 +297,37 @@ mod tests {
     }
 
     #[test]
+    fn soft_search_failures_do_not_open_provider_circuit() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "provider_circuit_breaker": {
+                    "enabled": true,
+                    "failure_threshold": 2,
+                    "open_for_secs": 120,
+                    "soft_failure_errors": [
+                        "low_signal_search_payload",
+                        "query_result_mismatch"
+                    ]
+                }
+            }
+        });
+        record_provider_attempt(tmp.path(), "bing_rss", false, "query_result_mismatch", &policy);
+        record_provider_attempt(tmp.path(), "bing_rss", false, "query_result_mismatch", &policy);
+        assert!(provider_circuit_open_until(tmp.path(), "bing_rss", &policy).is_none());
+        let rows = provider_health_snapshot(tmp.path(), &[String::from("bing_rss")])
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let row = rows.first().cloned().unwrap_or_else(|| json!({}));
+        assert_eq!(row.get("circuit_open").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            row.get("last_failure_class").and_then(Value::as_str),
+            Some("soft_no_circuit")
+        );
+    }
+
+    #[test]
     fn provider_health_snapshot_exposes_timestamps_and_circuit_state() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({

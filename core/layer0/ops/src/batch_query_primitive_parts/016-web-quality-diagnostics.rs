@@ -1,5 +1,8 @@
 fn current_web_intent(query: &str) -> bool {
     let lowered = clean_text(query, 600).to_ascii_lowercase();
+    if lowered.contains(&current_year()) {
+        return true;
+    }
     [
         "latest",
         "current",
@@ -9,8 +12,6 @@ fn current_web_intent(query: &str) -> bool {
         "as of",
         "recent",
         "newest",
-        "april 2026",
-        "may 2026",
     ]
     .iter()
     .any(|marker| lowered.contains(marker))
