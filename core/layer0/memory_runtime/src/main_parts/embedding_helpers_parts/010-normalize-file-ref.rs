@@ -307,10 +307,13 @@ fn normalize_vector(values: &[f32]) -> Vec<f32> {
     out
 }
 
-fn hash_token_slot(token: &str, salt: u64, dims: usize) -> usize {
+const EMBEDDING_SLOT_DOMAIN: u64 = 0;
+const EMBEDDING_SIGN_DOMAIN: u64 = 1;
+
+fn hash_token_slot(token: &str, domain: u64, dims: usize) -> usize {
     let mut hasher = DefaultHasher::new();
     token.hash(&mut hasher);
-    salt.hash(&mut hasher);
+    domain.hash(&mut hasher);
     (hasher.finish() as usize) % dims.max(1)
 }
 
@@ -324,8 +327,8 @@ fn vectorize_text(text: &str, dims: usize) -> Vec<f32> {
         return vec;
     }
     for token in tokens {
-        let idx = hash_token_slot(&token, 0, dims);
-        let sign_idx = hash_token_slot(&token, 1, dims);
+        let idx = hash_token_slot(&token, EMBEDDING_SLOT_DOMAIN, dims);
+        let sign_idx = hash_token_slot(&token, EMBEDDING_SIGN_DOMAIN, dims);
         let sign = if sign_idx.is_multiple_of(2) {
             1.0f32
         } else {

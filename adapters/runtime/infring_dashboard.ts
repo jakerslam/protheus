@@ -57,6 +57,9 @@ const DEFAULT_TEAM = 'ops';
 const DEFAULT_REFRESH_MS = 2000;
 const DEFAULT_BACKEND_READY_TIMEOUT_MS = 120000;
 const BACKEND_PORT_OFFSET = 1000;
+const DASHBOARD_SHUTDOWN_EXIT_DELAY_DEFAULT_MS = 180;
+const DASHBOARD_SHUTDOWN_EXIT_DELAY_MIN_MS = 80;
+const DASHBOARD_SHUTDOWN_EXIT_DELAY_MAX_MS = 5000;
 const HOP_BY_HOP = new Set(['connection', 'host', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailers', 'transfer-encoding', 'upgrade']);
 
 function nowIso() { return new Date().toISOString(); }
@@ -75,6 +78,15 @@ function parsePositiveInt(value, fallback, min = 1, max = 65535) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(num)));
+}
+function normalizeShutdownExitDelayMs(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return DASHBOARD_SHUTDOWN_EXIT_DELAY_DEFAULT_MS;
+  if (!Number.isSafeInteger(Math.floor(num))) return DASHBOARD_SHUTDOWN_EXIT_DELAY_DEFAULT_MS;
+  return Math.max(
+    DASHBOARD_SHUTDOWN_EXIT_DELAY_MIN_MS,
+    Math.min(DASHBOARD_SHUTDOWN_EXIT_DELAY_MAX_MS, Math.floor(num)),
+  );
 }
 function normalizeArgs(argv = process.argv.slice(2)) { return Array.isArray(argv) ? argv.map((token) => String(token || '').trim()).filter(Boolean) : []; }
 function defaultApiPort(port) {
@@ -666,8 +678,8 @@ function dispatchDashboardSystemAction(action, payload = {}) {
     };
   }
 }
-function scheduleDashboardHostExit(cleanup, delayMs = 180) {
-  const waitMs = parsePositiveInt(delayMs, 180, 80, 5000);
+function scheduleDashboardHostExit(cleanup, normalizedDelayMs = DASHBOARD_SHUTDOWN_EXIT_DELAY_DEFAULT_MS) {
+  const waitMs = normalizeShutdownExitDelayMs(normalizedDelayMs);
   setTimeout(() => {
     try { cleanup(); } catch {}
     setTimeout(() => {
@@ -907,7 +919,8 @@ async function runServe(flags) {
         const result = dispatchDashboardSystemAction('shutdown', body);
         sendJson(res, result.ok ? 200 : 500, result);
         if (result.ok) {
-          scheduleDashboardHostExit(cleanup, body && body.exit_delay_ms);
+          const exitDelayMs = normalizeShutdownExitDelayMs(body && body.exit_delay_ms);
+          scheduleDashboardHostExit(cleanup, exitDelayMs);
         }
         return;
       }
