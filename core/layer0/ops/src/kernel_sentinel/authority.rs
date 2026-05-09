@@ -91,6 +91,8 @@ pub fn kernel_sentinel_contract() -> Value {
         },
         "system_doctrine_role": {
             "role": "repo_wide_usability_reliability_simplicity_enforcement",
+            "official_doctrine_name": "The Three Operating Laws",
+            "informal_nickname": "the three commandments",
             "policy_ref": "docs/workspace/REAL_WORK_FIRST.md",
             "observability_policy_ref": "observability/sentinel/usability_reliability_simplicity_enforcement_policy.json",
             "laws": ["usability", "reliability", "simplicity"],

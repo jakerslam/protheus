@@ -3,6 +3,8 @@
   "policy_id": "sentinel_usability_reliability_simplicity_enforcement.v1",
   "status": "active",
   "owner": "assurance.observability.sentinel",
+  "official_doctrine_name": "The Three Operating Laws",
+  "informal_nickname": "the three commandments",
   "doctrine_ref": "docs/workspace/REAL_WORK_FIRST.md",
   "purpose": "Make Kernel Sentinel enforce the repo-wide usability, reliability, and simplicity doctrine as live system-health pressure instead of treating it as advisory prose.",
   "laws": [

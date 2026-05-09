@@ -1,4 +1,4 @@
-# Usability, Reliability, Simplicity Doctrine
+# The Three Operating Laws
 
 Status: hard repo-wide policy.
 
@@ -6,11 +6,13 @@ InfRing should be judged by whether it is useful, reliable, and simple enough to
 
 This document is the operating filter for new backlog items, Sentinel recommendations, eval findings, assimilation work, maintenance proposals, and new subsystem proposals.
 
+Informal nickname: `the three commandments`.
+
 ## One-Line Rule
 
 Build what is useful. Make it reliable. Keep it simple enough to survive.
 
-## The Three System Laws
+## The Three Operating Laws
 
 1. `usability`: the system must help a user or agent complete concrete work.
 2. `reliability`: the useful path must keep working under normal pressure and fail with actionable diagnostics when it cannot.
