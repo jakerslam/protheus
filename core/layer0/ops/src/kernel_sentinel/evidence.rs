@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 mod advisory_bridge;
 mod artifact_states;
@@ -132,7 +133,47 @@ fn cap_advisory_severity(
     }
 }
 
+fn now_epoch_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(u128::from(u64::MAX)) as u64
+}
+
+fn raw_detail<'a>(record: &'a RawEvidenceRecord, key: &str) -> Option<&'a Value> {
+    record.details.get(key).or_else(|| {
+        record
+            .details
+            .get("details")
+            .and_then(Value::as_object)
+            .and_then(|nested| nested.get(key))
+    })
+}
+
+fn raw_string_detail(record: &RawEvidenceRecord, key: &str) -> Option<String> {
+    raw_detail(record, key)
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn stale_historical_verity_drift(record: &RawEvidenceRecord) -> bool {
+    if raw_string_detail(record, "type").as_deref() != Some("verity_drift_violation") {
+        return false;
+    }
+    let Some(ts_ms) = raw_detail(record, "ts_ms").and_then(Value::as_u64) else {
+        return false;
+    };
+    let max_age_ms = 24 * 60 * 60 * 1000u64;
+    now_epoch_ms().saturating_sub(ts_ms) > max_age_ms
+}
+
 fn should_open_finding(record: &RawEvidenceRecord) -> bool {
+    if stale_historical_verity_drift(record) {
+        return false;
+    }
     let status_failed = record
         .status
         .as_deref()
@@ -172,6 +213,7 @@ fn normalize_record(
         record.severity.unwrap_or(config.default_severity),
     );
     let fingerprint = clean_token(record.fingerprint, &format!("{source}:{subject}:{kind}"));
+    let stale_historical_failure = stale_historical_verity_drift(&record);
     let details = merged_details(record.details);
     let normalized = json!({
         "source": source,
@@ -191,6 +233,7 @@ fn normalize_record(
         "fingerprint": fingerprint,
         "evidence": evidence,
         "details": details,
+        "stale_historical_failure": stale_historical_failure,
         "path": path,
         "line": line
     });

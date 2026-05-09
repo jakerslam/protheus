@@ -55,6 +55,54 @@ fn severity_without_explicit_failure_signal_does_not_open_finding() {
 }
 
 #[test]
+fn stale_verity_drift_events_are_historical_not_current_receipt_blockers() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-stale-verity-drift");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("kernel_receipts.jsonl"),
+        r#"{"id":"old-drift","ok":false,"severity":"critical","category":"receipt_integrity","subject":"drift_events","kind":"kernel_receipt_bridge","type":"verity_drift_violation","ts_ms":1,"summary":"old drift","evidence":["verity://old"]}"#,
+    )
+    .unwrap();
+
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+
+    assert!(ingestion.findings.is_empty());
+    assert_eq!(
+        ingestion.report["normalized_records"][0]["stale_historical_failure"],
+        Value::Bool(true)
+    );
+}
+
+#[test]
+fn fresh_verity_drift_events_still_open_receipt_findings() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-fresh-verity-drift");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("kernel_receipts.jsonl"),
+        format!(
+            r#"{{"id":"fresh-drift","ok":false,"severity":"critical","category":"receipt_integrity","subject":"drift_events","kind":"kernel_receipt_bridge","type":"verity_drift_violation","ts_ms":{},"summary":"fresh drift","evidence":["verity://fresh"]}}"#,
+            now_epoch_ms()
+        ),
+    )
+    .unwrap();
+
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+
+    assert!(ingestion.findings.iter().any(|finding| {
+        finding.fingerprint == "kernel_receipt:drift_events:kernel_receipt_bridge"
+            && finding.severity == KernelSentinelSeverity::Critical
+    }));
+    assert_eq!(
+        ingestion.report["normalized_records"][0]["stale_historical_failure"],
+        Value::Bool(false)
+    );
+}
+
+#[test]
 fn runtime_collector_catalog_ingests_scheduler_and_boundedness_files() {
     let dir = std::env::temp_dir().join("kernel-sentinel-runtime-collector-catalog");
     fs::create_dir_all(&dir).unwrap();
