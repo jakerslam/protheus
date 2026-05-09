@@ -35,6 +35,21 @@
       ]
     },
     {
+      "id": "web_fetch_script_close_tag_whitespace_removed",
+      "mode": "web_fetch",
+      "raw_input": "<html><body><script>window.__BOOTSTRAP__=true;</script ><main><p>Gateway quarantine remains fail-closed under malformed HTML chrome.</p></main></body></html>",
+      "expected_contains": [
+        "Gateway quarantine remains fail-closed under malformed HTML chrome"
+      ],
+      "forbidden_contains": [
+        "window.__bootstrap__",
+        "<script"
+      ],
+      "sources": [
+        "https://docs.infring.dev/gateways/chaos"
+      ]
+    },
+    {
       "id": "web_search_result_summaries_clean",
       "mode": "web_search",
       "raw_input": "Search results for: infring runtime proof\nResult 1: Runtime proof harness records synthetic and empirical tracks with effective metric sources.\nResult 2: Release gate fails when empirical profile coverage is below thresholds.\nRelated searches: runtime proof profile coverage",

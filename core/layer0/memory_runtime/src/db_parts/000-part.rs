@@ -163,7 +163,8 @@ fn decrypt_legacy_value(cipher_key: &[u8; 32], payload: &str) -> Result<String, 
     if parts.len() != 3 {
         return Err("legacy_cipher_invalid_parts".to_string());
     }
-    let nonce = u64::from_str_radix(parts[1], 16).unwrap_or(0);
+    let nonce = u64::from_str_radix(parts[1], 16)
+        .map_err(|_| "legacy_cipher_invalid_nonce".to_string())?;
     let Ok(cipher_bytes) = hex::decode(parts[2]) else {
         return Err("legacy_cipher_invalid_hex".to_string());
     };

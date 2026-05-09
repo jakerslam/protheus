@@ -2,8 +2,8 @@
 #[cfg(test)]
 mod tests {
     use super::{
-        decrypt_hot_state_envelope, encrypt_value, wrap_hot_state_envelope, DbIndexEntry,
-        MemoryDb,
+        decrypt_hot_state_envelope, decrypt_legacy_value, encrypt_value, wrap_hot_state_envelope,
+        DbIndexEntry, MemoryDb,
     };
     use tempfile::tempdir;
 
@@ -48,6 +48,16 @@ mod tests {
         let legacy = "enc-v1:0000000000000001:00";
         let decrypted = decrypt_hot_state_envelope(&key, legacy);
         assert!(decrypted.is_err(), "legacy payload should be rejected");
+    }
+
+    #[test]
+    fn malformed_legacy_nonce_fails_closed() {
+        let key = test_key();
+        let decrypted = decrypt_legacy_value(&key, "enc-v1:not-a-nonce:00");
+        assert_eq!(
+            decrypted.expect_err("malformed legacy nonce should fail"),
+            "legacy_cipher_invalid_nonce"
+        );
     }
 
     #[test]

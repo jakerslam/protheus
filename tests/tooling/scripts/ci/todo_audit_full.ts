@@ -20,6 +20,13 @@ function toInt(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function markdownTableCell(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, "<br>");
+}
+
 function mapAuditStatus(row) {
   const original = String(row?.status || "").trim();
   const sourceStatus = ["reviewed", "audited"].includes(original) ? "" : original;
@@ -174,8 +181,19 @@ lines.push("| Order | ID | Status | Source Status | Impact | Dupes | Layer | Reg
 lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 
 sorted.forEach((row, idx) => {
+  const cells = [
+    idx + 1,
+    row.id || "",
+    row.status || "",
+    row.sourceStatus || "",
+    row.impact || "",
+    row.duplicateCount || 1,
+    row.layerMap || "",
+    row?.regression?.severity || "pass",
+    row.section || ""
+  ].map(markdownTableCell);
   lines.push(
-    `| ${idx + 1} | ${row.id || ""} | ${row.status || ""} | ${row.sourceStatus || ""} | ${row.impact || ""} | ${row.duplicateCount || 1} | ${row.layerMap || ""} | ${row?.regression?.severity || "pass"} | ${(row.section || "").replace(/\|/g, "\\|")} |`
+    `| ${cells.join(" | ")} |`
   );
 });
 

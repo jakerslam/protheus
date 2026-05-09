@@ -161,12 +161,12 @@ function writeMarkdown(pathname: string, body: string): void {
 
 function sanitizeWebBody(raw: string): string {
   let out = String(raw || '');
-  out = out.replace(/<script[\s\S]*?<\/script>/gi, ' ');
-  out = out.replace(/<style[\s\S]*?<\/style>/gi, ' ');
-  out = out.replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ');
-  out = out.replace(/<function=[\s\S]*?<\/function>/gi, ' ');
+  out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, ' ');
+  out = out.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, ' ');
+  out = out.replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript\s*>/gi, ' ');
+  out = out.replace(/<function=[\s\S]*?<\/function\s*>/gi, ' ');
   out = out.replace(/<function=[^\n>]*>/gi, ' ');
-  out = out.replace(/<\/function>/gi, ' ');
+  out = out.replace(/<\/function\s*>/gi, ' ');
   out = out.replace(/tool trace complete[^\n]*/gi, ' ');
   out = out.replace(/(^|\n)\s*file list\s*blocked[^\n]*/gi, ' ');
   out = out.replace(/this is a policy gate,\s*not a web-provider outage\.?/gi, ' ');
