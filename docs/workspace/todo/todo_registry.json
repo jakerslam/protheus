@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-06T02:45:51.226Z",
+  "updated_at": "2026-05-09T19:01:19.935Z",
   "policy": {
     "red_due_in_days_or_less": 7,
     "yellow_due_in_days_or_less": 14,
@@ -318,6 +318,72 @@
       "deadline": "2026-05-20",
       "source_family": "Combined Rust Artifact Burn-Down",
       "summary": "Add a validation guard or policy row that blocks new 000-combined.rs and .combined_parts artifacts unless they declare an explicit generated-source or compatibility exception with owner and expiry."
+    },
+    {
+      "id": "RWF-CODEQL-WORKFLOW",
+      "title": "Make CodeQL remediation the first canonical real-work workflow",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-10",
+      "source_family": "Real Work First",
+      "summary": "Define the reusable alert-to-patch loop: ingest CodeQL alert, locate file and rule, patch narrowly, run targeted validation, commit with a conventional prefix, and record the closure pattern.",
+      "work_gate": "real_work",
+      "real_work_score": 5
+    },
+    {
+      "id": "RWF-SENTINEL-FINDING-SHAPE",
+      "title": "Make Sentinel findings issue-ready before promotion",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-10",
+      "source_family": "Real Work First",
+      "summary": "Require promoted Sentinel findings to include evidence, recurrence or freshness, owner guess, root-cause hypothesis, proposed fix class, targeted validation suggestion, and TODO or issue wording.",
+      "work_gate": "reliability",
+      "real_work_score": 5
+    },
+    {
+      "id": "RWF-RELIABILITY-FLOOR",
+      "title": "Define the minimum reliable real-work paths",
+      "section": "red",
+      "owner": "codex",
+      "deadline": "2026-05-10",
+      "source_family": "Real Work First",
+      "summary": "Keep install and repair, gateway lifecycle, request-to-response execution, alert remediation, Sentinel finding promotion, TODO lifecycle, and commit/release hygiene as the reliability floor.",
+      "work_gate": "reliability",
+      "real_work_score": 5
+    },
+    {
+      "id": "RWF-SACRED-WORKFLOW",
+      "title": "Make the sacred workflow explicit and reusable",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-18",
+      "source_family": "Real Work First",
+      "summary": "Document and wire the common loop from request, issue, alert, or Sentinel finding through evidence inspection, ownership, patch, targeted validation, explanation, and TODO or issue update.",
+      "work_gate": "real_work",
+      "real_work_score": 4
+    },
+    {
+      "id": "RWF-SIMPLIFICATION-FILTER",
+      "title": "Add a simplification filter to TODO intake",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-18",
+      "source_family": "Real Work First",
+      "summary": "Reject or park active items that do not improve real work, reliability, or simplification; prefer deletion and compression over new subsystems unless the sacred workflow benefits.",
+      "work_gate": "simplification",
+      "real_work_score": 4
+    },
+    {
+      "id": "RWF-NO-NEW-SUBSYSTEM",
+      "title": "Require new subsystems to prove real-work value first",
+      "section": "yellow",
+      "owner": "codex",
+      "deadline": "2026-05-18",
+      "source_family": "Real Work First",
+      "summary": "Before adding a new subsystem, require a concrete user-facing or agent-facing workflow it improves, the reliability risk it reduces, and the simpler alternative considered.",
+      "work_gate": "simplification",
+      "real_work_score": 4
     }
   ]
 }

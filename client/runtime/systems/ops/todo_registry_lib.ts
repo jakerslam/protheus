@@ -11,6 +11,8 @@ export type TodoItem = {
   deadline: string;
   source_family: string;
   summary: string;
+  work_gate?: 'real_work' | 'reliability' | 'simplification';
+  real_work_score?: number;
 };
 
 export type ArchivedTodoItem = TodoItem & {
@@ -108,6 +110,8 @@ function renderTodoSection(title: string, items: TodoItem[]): string[] {
     lines.push(`  owner: \`${item.owner}\``);
     lines.push(`  deadline: \`${item.deadline}\``);
     lines.push(`  source_family: \`${item.source_family}\``);
+    if (item.work_gate) lines.push(`  work_gate: \`${item.work_gate}\``);
+    if (typeof item.real_work_score === 'number') lines.push(`  real_work_score: \`${item.real_work_score}\``);
     lines.push(`  summary: ${item.summary}`);
   }
   lines.push('');
@@ -195,6 +199,7 @@ export function renderTodoMarkdown(registry: TodoRegistry): string {
   lines.push(`- Archive history is rendered from [todo_archive_registry.json](/Users/jay/.openclaw/workspace/${TODO_ARCHIVE_REGISTRY_PATH}) and the preserved legacy appendix at [TODO_ARCHIVE_LEGACY.md](/Users/jay/.openclaw/workspace/${TODO_ARCHIVE_LEGACY_PATH}).`);
   lines.push('- Run manual commands through `npm run -s ops:todo:board -- <command>` so JSON and Markdown stay in sync.');
   lines.push('- Every active item must declare `owner` and `deadline`.');
+  lines.push('- Active items should declare `work_gate` as `real_work`, `reliability`, or `simplification` when possible; `real_work` is the practical TODO gate for the usability law.');
   lines.push('- Allowed deadline values: exact date like `2026-05-07`, `none`, `external`, or dependency-shaped values like `after_red_section`.');
   lines.push(`- Deadline promotion policy: items due in <= ${registry.policy.red_due_in_days_or_less} days belong in Red; items due in <= ${registry.policy.yellow_due_in_days_or_less} days belong in Yellow; everything later stays in White unless manually escalated.`);
   lines.push('');

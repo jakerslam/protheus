@@ -46,6 +46,22 @@ function setUpdated(registry: TodoRegistry): void {
   registry.updated_at = newUpdatedAt();
 }
 
+function normalizeWorkGate(value: string | undefined): TodoItem['work_gate'] | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'real_work' || normalized === 'reliability' || normalized === 'simplification') {
+    return normalized;
+  }
+  throw new Error(`invalid work gate: ${value}`);
+}
+
+function normalizeRealWorkScore(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const score = Number(value);
+  if (Number.isInteger(score) && score >= 1 && score <= 5) return score;
+  throw new Error(`invalid real work score: ${value}`);
+}
+
 function output(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
 }
@@ -87,6 +103,8 @@ function addItem(argv: string[]) {
     deadline: requireFlag(argv, 'deadline'),
     source_family: requireFlag(argv, 'source-family'),
     summary: requireFlag(argv, 'summary'),
+    work_gate: normalizeWorkGate(flag(argv, 'work-gate')),
+    real_work_score: normalizeRealWorkScore(flag(argv, 'real-work-score')),
   };
   if (registry.items.some((candidate) => candidate.id === item.id)) {
     throw new Error(`duplicate TODO item: ${item.id}`);
@@ -108,11 +126,15 @@ function updateItem(argv: string[]) {
   const deadline = flag(argv, 'deadline');
   const sourceFamily = flag(argv, 'source-family');
   const summary = flag(argv, 'summary');
+  const workGate = flag(argv, 'work-gate');
+  const realWorkScore = flag(argv, 'real-work-score');
   if (title) item.title = title.trim();
   if (owner) item.owner = owner.trim();
   if (deadline) item.deadline = deadline.trim();
   if (sourceFamily) item.source_family = sourceFamily.trim();
   if (summary) item.summary = summary.trim();
+  if (workGate !== undefined) item.work_gate = normalizeWorkGate(workGate);
+  if (realWorkScore !== undefined) item.real_work_score = normalizeRealWorkScore(realWorkScore);
   setUpdated(registry);
   saveTodoRegistry(registry);
   syncTodoViews(registry, archive);
@@ -206,8 +228,8 @@ function helpPayload() {
       'archive-list',
       'render',
       'audit [--apply=1]',
-      'add --id --title --section --owner --deadline --source-family --summary',
-      'update --id [--title] [--owner] [--deadline] [--source-family] [--summary]',
+      'add --id --title --section --owner --deadline --source-family --summary [--work-gate] [--real-work-score]',
+      'update --id [--title] [--owner] [--deadline] [--source-family] [--summary] [--work-gate] [--real-work-score]',
       'move --id --section',
       'complete --id [--note]',
       'delete --id',

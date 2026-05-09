@@ -15,6 +15,11 @@ pub(super) fn stream_problem_reliability(state_dir: &Path, issues: &[Value]) -> 
         "schema_version": 1,
         "generated_at": crate::now_iso(),
         "purpose": "make Sentinel problem discovery falsifiable, historically calibrated, and architecture-aware before solution autonomy",
+        "repo_wide_doctrine": {
+            "policy_ref": "docs/workspace/REAL_WORK_FIRST.md",
+            "laws": ["usability", "reliability", "simplicity"],
+            "promotion_rule": "problem findings should identify which doctrine law is damaged before becoming TODO or issue candidates"
+        },
         "active_falsification": active_falsification,
         "historical_calibration": historical_calibration,
         "architecture_pattern_detection": architecture_patterns,
