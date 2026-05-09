@@ -1634,9 +1634,10 @@ mod workflow_control_tests {
     fn workflow_final_answer_prompt_keeps_cd_synthesis_requirements() {
         let prompt = workflow_final_answer_prompt_context();
         assert!(prompt.contains("tradeoff"));
-        assert!(prompt.contains("regression test"));
+        assert!(prompt.contains("no_tool_state"));
+        assert!(prompt.contains("recorded tool outcome exists"));
         assert!(prompt.contains("source-backed"));
-        assert!(prompt.contains("bounded next step"));
+        assert!(prompt.contains("bounded next search direction"));
     }
 
     #[test]

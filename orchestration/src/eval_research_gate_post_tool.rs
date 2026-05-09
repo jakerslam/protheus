@@ -91,7 +91,6 @@ pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
     if tool_result_low_signal(payload) {
         return response_has_low_evidence_signal(&normalized)
             && response_has_research_shape(&normalized)
-            && required_entity_coverage(_case, &normalized) >= 0.75
             && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
@@ -344,9 +343,17 @@ fn text_has_low_signal_only(raw: &str) -> bool {
     let normalized = normalize_for_compare(raw);
     [
         "low signal",
+        "low-signal",
+        "low relevance",
+        "low-relevance",
         "no usable findings",
         "no usable result",
         "no results",
+        "no source-backed",
+        "not source-backed",
+        "zero evidence",
+        "zero snippets",
+        "zero recorded results",
         "not enough source coverage",
         "limited evidence",
         "limited results",
@@ -358,6 +365,7 @@ fn text_has_low_signal_only(raw: &str) -> bool {
         "irrelevant",
         "inconclusive",
         "retrieval missed",
+        "retrieval miss",
         "retrieval gap",
         "did not produce enough",
         "could not find enough",
@@ -386,6 +394,9 @@ fn response_has_source_signal(normalized: &str) -> bool {
 fn response_has_low_evidence_signal(normalized: &str) -> bool {
     [
         "low signal",
+        "low-signal",
+        "low relevance",
+        "low-relevance",
         "limited evidence",
         "source coverage",
         "limited results",
@@ -396,10 +407,16 @@ fn response_has_low_evidence_signal(normalized: &str) -> bool {
         "off target",
         "off-target",
         "retrieval missed",
+        "retrieval miss",
         "retrieval gap",
         "inconclusive",
         "insufficient",
         "not enough",
+        "no source-backed",
+        "not source-backed",
+        "zero evidence",
+        "zero snippets",
+        "zero recorded results",
         "no usable findings",
         "caveat",
         "uncertain",
@@ -524,18 +541,6 @@ fn response_uses_internal_runtime_context_as_evidence(normalized: &str) -> bool 
     ]
     .iter()
     .any(|needle| normalized.contains(*needle))
-}
-
-fn required_entity_coverage(case: &Value, normalized_response: &str) -> f64 {
-    let entities = string_array_at(case, &["required_entities"]);
-    if entities.is_empty() {
-        return 1.0;
-    }
-    let covered = entities
-        .iter()
-        .filter(|entity| normalized_response.contains(&normalize_for_compare(entity)))
-        .count() as u64;
-    ratio(covered, entities.len() as u64)
 }
 
 fn post_tool_paths(payload: &Value, keys: &[&str], predicate: fn(&Value) -> bool) -> Vec<String> {

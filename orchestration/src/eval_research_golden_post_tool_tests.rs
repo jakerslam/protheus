@@ -449,7 +449,7 @@ fn research_golden_grades_low_signal_evidence_as_low_evidence_synthesis() {
             "responses": [{
                 "case_id": "research_gold_test",
                 "response_payload": {
-                    "response": "The returned results were low signal, so this is not a source-backed winner. The limited evidence supports only that LangGraph has clearer public docs for durable graph execution; it does not support a complete Infring vs LangGraph comparison. Bounded conclusion: evaluate LangGraph first for public evidence maturity, and treat Infring as needing direct docs or repo inspection before selection.",
+                    "response": "The returned results were low-signal, so there is no source-backed winner. This retrieval miss supports only that LangGraph has clearer public docs for durable graph execution; it does not support a complete Infring vs LangGraph comparison. Bounded conclusion: evaluate LangGraph first for public evidence maturity, and treat Infring as needing direct docs or repo inspection before selection.",
                     "pending_tool_request": {
                         "status": "executed",
                         "tool_name": "web_search",
