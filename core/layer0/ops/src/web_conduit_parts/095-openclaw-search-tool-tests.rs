@@ -26,6 +26,75 @@ mod openclaw_search_tool_tests {
     }
 
     #[test]
+    fn render_gdelt_doc_payload_builds_current_news_receipts() {
+        let body = r#"{
+          "articles": [
+            {
+              "url": "https://example.com/science-breakthrough-2026",
+              "title": "Science breakthrough reported in 2026",
+              "seendate": "20260401T120000Z",
+              "domain": "example.com",
+              "language": "English",
+              "sourcecountry": "United States"
+            },
+            {
+              "url": "https://other.com/offscope",
+              "title": "Other result",
+              "seendate": "20260402T120000Z",
+              "domain": "other.com",
+              "language": "English",
+              "sourcecountry": "United States"
+            }
+          ]
+        }"#;
+        let rendered =
+            render_gdelt_doc_payload(body, &vec!["example.com".to_string()], true, 8, 12_000);
+        assert_eq!(rendered.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            rendered
+                .get("provider_raw_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            rendered
+                .get("provider_filtered_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        let content = rendered.get("content").and_then(Value::as_str).unwrap_or("");
+        assert!(content.contains("Science breakthrough reported in 2026"));
+        assert!(content.contains("seen 20260401T120000Z"));
+        let links = rendered
+            .get("links")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(links.len(), 1);
+        assert_eq!(
+            links[0].as_str(),
+            Some("https://example.com/science-breakthrough-2026")
+        );
+    }
+
+    #[test]
+    fn search_alignment_accepts_related_word_forms_without_domain_terms() {
+        let payload = json!({
+            "ok": true,
+            "summary": "China unveils major science and innovation outcomes for 2026.",
+            "content": "Cutting-edge breakthrough takes spotlight - seen 20260331T120000Z - https://example.test/science/2026",
+            "links": ["https://example.test/science/2026"],
+            "content_domains": ["example.test"],
+            "provider": "gdelt_doc"
+        });
+
+        assert!(search_payload_query_aligned(
+            &payload,
+            "scientific breakthroughs 2026"
+        ));
+    }
+
+    #[test]
     fn api_search_accepts_camel_case_search_provider_hint_alias() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = api_search(
@@ -102,6 +171,40 @@ mod openclaw_search_tool_tests {
             out.get("cache_ttl_minutes").and_then(Value::as_u64),
             Some(9)
         );
+    }
+
+    #[test]
+    fn rejected_search_payload_is_not_reported_as_success() {
+        let mut payload = json!({
+            "ok": true,
+            "summary": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator.",
+            "content": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator.",
+            "links": ["https://www.desmos.com/scientific"],
+            "content_domains": ["www.desmos.com"],
+            "provider": "bing_rss"
+        });
+
+        assert!(reject_unselected_search_payload(
+            &mut payload,
+            "scientific breakthroughs 2026"
+        ));
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            payload.get("error").and_then(Value::as_str),
+            Some("query_result_mismatch")
+        );
+        assert_eq!(
+            payload
+                .get("provider_payload_rejected")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(payload.get("content").and_then(Value::as_str), Some(""));
+        assert!(payload
+            .get("rejected_provider_summary")
+            .and_then(Value::as_str)
+            .map(|summary| summary.contains("Desmos"))
+            .unwrap_or(false));
     }
 
     #[test]

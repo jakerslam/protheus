@@ -13,7 +13,7 @@ const SEARCH_CACHE_MAX_ENTRIES: usize = 256;
 const SEARCH_CACHE_TTL_SUCCESS_SECS: i64 = 8 * 60;
 const SEARCH_CACHE_TTL_NO_RESULTS_SECS: i64 = 90;
 
-const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"];
+const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss", "gdelt_doc"];
 const DEFAULT_FETCH_PROVIDER_CHAIN: &[&str] = &["direct_http"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +57,7 @@ fn builtin_provider_descriptors(family: WebProviderFamily) -> &'static [WebProvi
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo", aliases: &["duckduckgo", "ddg"], source_kind: "html_search", env_keys: &[] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo_lite", aliases: &["duckduckgo_lite", "ddg_lite", "duckduckgo-lite", "ddg-lite", "lite"], source_kind: "html_search", env_keys: &[] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "bing_rss", aliases: &["bing", "bing_rss"], source_kind: "rss_feed", env_keys: &[] },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "gdelt_doc", aliases: &["gdelt", "gdelt_doc", "gdelt-doc", "gdelt_api"], source_kind: "news_doc_api", env_keys: &[] },
     ];
     const FETCH: &[WebProviderDescriptor] = &[WebProviderDescriptor { family: WebProviderFamily::Fetch, provider: "direct_http", aliases: &["direct_http", "direct-http", "curl", "http", "fetch"], source_kind: "http_get", env_keys: &[] }];
     match family {
@@ -324,13 +325,14 @@ where
     let mut prefix = Vec::<String>::new();
     match hint.as_str() {
         "bing" | "bing_rss" => return vec!["bing_rss".to_string()],
-        "duckduckgo" | "ddg" => prefix.extend(["duckduckgo", "duckduckgo_lite", "bing_rss"].into_iter().map(str::to_string)),
+        "gdelt" | "gdelt_doc" | "gdelt-doc" | "gdelt_api" => return vec!["gdelt_doc".to_string()],
+        "duckduckgo" | "ddg" => prefix.extend(["duckduckgo", "duckduckgo_lite", "bing_rss", "gdelt_doc"].into_iter().map(str::to_string)),
         "serper" | "serperdev" => prefix.push("serperdev".to_string()),
         _ => {}
     }
     let hint_explicit = matches!(
         hint.as_str(),
-        "bing" | "bing_rss" | "duckduckgo" | "ddg" | "serper" | "serperdev"
+        "bing" | "bing_rss" | "gdelt" | "gdelt_doc" | "gdelt-doc" | "gdelt_api" | "duckduckgo" | "ddg" | "serper" | "serperdev"
     );
     let mut merged = prefix;
     if prefer_runtime_provider && !hint_explicit {
@@ -443,6 +445,35 @@ pub(crate) fn circuit_policy(policy: &Value) -> CircuitPolicy {
     CircuitPolicy { enabled, failure_threshold, open_for_secs }
 }
 
+fn provider_error_counts_toward_circuit(error: &str, policy: &Value) -> bool {
+    let normalized = clean_text(error, 280).to_ascii_lowercase();
+    if normalized.is_empty() {
+        return true;
+    }
+    let scope = policy
+        .pointer("/web_conduit/provider_circuit_breaker")
+        .or_else(|| policy.get("provider_circuit_breaker"))
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let soft_errors = scope
+        .get("soft_failure_errors")
+        .or_else(|| scope.get("non_circuit_errors"))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_else(|| {
+            vec![
+                json!("low_signal_search_payload"),
+                json!("no_usable_summary"),
+                json!("query_result_mismatch"),
+            ]
+        });
+    !soft_errors.iter().any(|row| {
+        row.as_str()
+            .map(|value| clean_text(value, 280).to_ascii_lowercase() == normalized)
+            .unwrap_or(false)
+    })
+}
+
 fn provider_health_path(root: &Path) -> PathBuf {
     runtime_state_path(root, PROVIDER_HEALTH_REL)
 }
@@ -528,12 +559,19 @@ pub(crate) fn record_provider_attempt(
             obj.insert("last_error".to_string(), Value::String(String::new()));
         }
     } else {
-        failures = failures.saturating_add(1);
+        let circuit_counting_failure = provider_error_counts_toward_circuit(error, policy);
+        failures = if circuit_counting_failure {
+            failures.saturating_add(1)
+        } else {
+            0
+        };
         let mut open_until = row
             .get("circuit_open_until")
             .and_then(Value::as_i64)
             .unwrap_or(0);
-        if breaker.enabled && failures >= breaker.failure_threshold {
+        if !circuit_counting_failure {
+            open_until = 0;
+        } else if breaker.enabled && failures >= breaker.failure_threshold {
             open_until = now_ts + breaker.open_for_secs;
         }
         if let Some(obj) = row.as_object_mut() {
@@ -541,6 +579,14 @@ pub(crate) fn record_provider_attempt(
             obj.insert("circuit_open_until".to_string(), json!(open_until.max(0)));
             obj.insert("last_failure_at".to_string(), json!(now));
             obj.insert("last_error".to_string(), json!(clean_text(error, 280)));
+            obj.insert(
+                "last_failure_class".to_string(),
+                json!(if circuit_counting_failure {
+                    "circuit_counting"
+                } else {
+                    "soft_no_circuit"
+                }),
+            );
         }
     }
     providers.insert(provider_id, row);

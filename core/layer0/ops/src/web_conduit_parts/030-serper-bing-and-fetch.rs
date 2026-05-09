@@ -158,6 +158,101 @@ fn render_bing_rss_payload(
     })
 }
 
+fn render_gdelt_doc_payload(
+    body: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+    max_response_bytes: usize,
+) -> Value {
+    let parsed = match serde_json::from_str::<Value>(body) {
+        Ok(value) => value,
+        Err(_) => {
+            return json!({
+                "ok": false,
+                "error": "gdelt_doc_decode_failed",
+                "summary": "",
+                "content": "",
+                "links": [],
+                "content_domains": [],
+                "provider_raw_count": 0,
+                "provider_filtered_count": 0
+            });
+        }
+    };
+    let articles = parsed
+        .get("articles")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut lines = Vec::<String>::new();
+    let mut links = Vec::<String>::new();
+    let mut domains = Vec::<String>::new();
+    for row in &articles {
+        let link = normalize_search_result_link(
+            row.get("url").and_then(Value::as_str).unwrap_or(""),
+        );
+        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains)
+        {
+            continue;
+        }
+        let mut details = Vec::<String>::new();
+        let seen = clean_text(row.get("seendate").and_then(Value::as_str).unwrap_or(""), 80);
+        let domain = clean_text(row.get("domain").and_then(Value::as_str).unwrap_or(""), 180);
+        let language = clean_text(row.get("language").and_then(Value::as_str).unwrap_or(""), 80);
+        let country = clean_text(
+            row.get("sourcecountry").and_then(Value::as_str).unwrap_or(""),
+            120,
+        );
+        if !seen.is_empty() {
+            details.push(format!("seen {seen}"));
+        }
+        if !domain.is_empty() {
+            details.push(format!("source {domain}"));
+        }
+        if !language.is_empty() {
+            details.push(format!("language {language}"));
+        }
+        if !country.is_empty() {
+            details.push(format!("country {country}"));
+        }
+        let rendered = render_search_row(
+            row.get("title").and_then(Value::as_str).unwrap_or(""),
+            &details.join("; "),
+            &link,
+        );
+        if rendered.is_empty() {
+            continue;
+        }
+        lines.push(rendered);
+        links.push(link.clone());
+        push_unique_link_domain(&mut domains, &link);
+        if lines.len() >= top_k.max(1) {
+            break;
+        }
+    }
+    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
+    let ok = !content.is_empty();
+    json!({
+        "ok": ok,
+        "summary": if ok {
+            summarize_text(&content, 900)
+        } else {
+            crate::tool_output_match_filter::no_findings_user_copy().to_string()
+        },
+        "content": content,
+        "links": links,
+        "content_domains": domains,
+        "provider_raw_count": articles.len(),
+        "provider_filtered_count": lines.len(),
+        "error": if ok {
+            Value::Null
+        } else {
+            Value::String("no_relevant_results".to_string())
+        }
+    })
+}
+
 fn looks_like_search_challenge_payload(summary: &str, content: &str) -> bool {
     let combined = format!("{summary}\n{content}").to_ascii_lowercase();
     if combined.is_empty() {
@@ -423,6 +518,57 @@ fn search_provider_failure_mode(
     } else {
         "provider_chain_exhausted"
     }
+}
+
+fn reject_unselected_search_payload(out: &mut Value, scoped_query: &str) -> bool {
+    if !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return false;
+    }
+    let rejection_error = search_payload_error_for_query(out, scoped_query);
+    let Some(obj) = out.as_object_mut() else {
+        return false;
+    };
+    let rejected_summary = clean_text(
+        obj.get("summary").and_then(Value::as_str).unwrap_or(""),
+        900,
+    );
+    let rejected_content_preview = clean_text(
+        obj.get("content").and_then(Value::as_str).unwrap_or(""),
+        1_400,
+    );
+    obj.insert("ok".to_string(), Value::Bool(false));
+    obj.insert("error".to_string(), Value::String(rejection_error.clone()));
+    obj.insert("provider_payload_rejected".to_string(), json!(true));
+    obj.insert(
+        "provider_payload_rejection_reason".to_string(),
+        Value::String(rejection_error.clone()),
+    );
+    if !rejected_summary.is_empty() {
+        obj.insert(
+            "rejected_provider_summary".to_string(),
+            Value::String(rejected_summary),
+        );
+    }
+    if !rejected_content_preview.is_empty() {
+        obj.insert(
+            "rejected_provider_content_preview".to_string(),
+            Value::String(rejected_content_preview),
+        );
+    }
+    obj.insert("content".to_string(), Value::String(String::new()));
+    obj.insert(
+        "summary".to_string(),
+        Value::String(if rejection_error == "query_result_mismatch" {
+            "Search providers returned off-topic results for this query. Retry with narrower terms or explicit source URLs."
+                .to_string()
+        } else if rejection_error == "low_signal_search_payload" {
+            "Search providers returned only low-signal result pages for this query.".to_string()
+        } else {
+            "Search providers returned no payload that passed the search result quality checks."
+                .to_string()
+        }),
+    );
+    true
 }
 
 fn search_cache_skip_reason_from_failure_mode(search_provider_failure_mode: &str) -> &'static str {

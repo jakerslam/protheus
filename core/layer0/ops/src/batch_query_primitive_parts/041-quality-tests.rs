@@ -68,6 +68,40 @@ mod quality_tests {
     }
 
     #[test]
+    fn provider_result_dedup_collapses_repeated_content_and_errors() {
+        let repeated_content = "Scientific Calculator - Desmos is an online scientific calculator with trigonometry statistics logarithms and graphing.";
+        let (rows, removed) = dedup_provider_results(vec![
+            json!({
+                "provider": "bing_rss",
+                "status": "ok",
+                "summary": repeated_content,
+                "locator": "https://www.bing.com/search?q=scientific+breakthroughs+2026"
+            }),
+            json!({
+                "provider": "bing_rss",
+                "status": "ok",
+                "summary": repeated_content,
+                "locator": "https://www.bing.com/search?q=scientific+breakthroughs+2026+research+news"
+            }),
+            json!({
+                "provider": "serperdev",
+                "status": "error",
+                "error": "serper_api_key_missing",
+                "query": "scientific breakthroughs 2026"
+            }),
+            json!({
+                "provider": "serperdev",
+                "status": "error",
+                "error": "serper_api_key_missing",
+                "query": "scientific breakthroughs 2026 primary source"
+            }),
+        ]);
+
+        assert_eq!(rows.len(), 2, "{rows:#?}");
+        assert_eq!(removed, 2);
+    }
+
+    #[test]
     fn comparison_guard_summary_marks_retrieval_quality_miss() {
         let out = run_query_with_fixture(
             json!({
@@ -357,6 +391,62 @@ mod quality_tests {
                 .unwrap_or(false),
             "{out}"
         );
+    }
+
+    #[test]
+    fn broad_current_research_query_uses_policy_visible_recovery_pack() {
+        let query = "scientific breakthroughs 2026";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "scientific breakthroughs 2026 at DuckDuckGo All Regions Safe Search Any Time",
+                    "content": "",
+                    "requested_url": "https://duckduckgo.com/html/?q=scientific+breakthroughs+2026",
+                    "status_code": 200
+                },
+                "scientific breakthroughs 2026 research news": {
+                    "ok": true,
+                    "summary": "Scientific breakthroughs 2026 research news reports verified advances in medicine, materials science, and astronomy from multiple research institutions.",
+                    "content": "Scientific breakthroughs 2026 research news reports verified advances in medicine, materials science, and astronomy from multiple research institutions.",
+                    "requested_url": "https://science.example.org/news/scientific-breakthroughs-2026",
+                    "status_code": 200
+                },
+                "scientific breakthroughs 2026 primary source": {
+                    "ok": true,
+                    "summary": "Scientific breakthroughs 2026 primary source coverage points to peer-reviewed papers and institution releases for medicine and materials science findings.",
+                    "content": "Scientific breakthroughs 2026 primary source coverage points to peer-reviewed papers and institution releases for medicine and materials science findings.",
+                    "requested_url": "https://research.example.org/scientific-breakthroughs-2026",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "medium",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        assert_eq!(
+            out.get("query_plan_source").and_then(Value::as_str),
+            Some("policy_broad_current_research_recovery")
+        );
+        let query_plan = out
+            .get("query_plan")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(query_plan.len(), 3, "{query_plan:?}");
+        assert!(query_plan.iter().any(|row| {
+            row.as_str()
+                .map(|value| value == "scientific breakthroughs 2026 research news")
+                .unwrap_or(false)
+        }));
+        assert!(query_plan.iter().all(|row| {
+            row.as_str()
+                .map(|value| value != "scientific breakthroughs 2026 2026")
+                .unwrap_or(false)
+        }));
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("materials science"), "{lowered}");
+        assert!(lowered.contains("medicine"), "{lowered}");
     }
 
     #[test]

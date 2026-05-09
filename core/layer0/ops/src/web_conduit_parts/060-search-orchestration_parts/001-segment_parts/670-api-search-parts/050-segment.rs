@@ -341,6 +341,7 @@
     let search_url = match final_selected_provider.as_str() {
         "duckduckgo_lite" => lite_url.clone(),
         "bing_rss" => web_search_bing_rss_url(&scoped_query),
+        "gdelt_doc" => web_search_gdelt_doc_url(&scoped_query, top_k),
         _ => primary_url.clone(),
     };
     let response_hash = out

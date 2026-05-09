@@ -72,7 +72,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 })
             }
         };
-    let query_plan = resolve_query_plan(request, &query, budget);
+    let query_plan = resolve_query_plan(&policy, request, &query, budget);
     let cache_key_primary =
         cache_key_with_query_plan(&source, &query, &aperture, &policy, &query_plan.queries);
     let legacy_cache_key = cache_key(&source, &query, &aperture, &policy);
@@ -121,12 +121,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .map(Value::Array)
             .unwrap_or_else(|| json!([]));
         let search_results = cached.get("search_results").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
-        let provider_results = cached
+        let (provider_results_rows, provider_result_dedup_count) = dedup_provider_results(cached
             .get("provider_results")
             .and_then(Value::as_array)
             .cloned()
-            .map(Value::Array)
-            .unwrap_or_else(|| json!([]));
+            .unwrap_or_default());
+        let provider_results = Value::Array(provider_results_rows);
         let rewrite_set = cached
             .get("rewrite_set")
             .and_then(Value::as_array)
@@ -207,6 +207,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
             "candidate_count": 0,
             "dedup_count": 0,
+            "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
+            "provider_result_dedup_count": provider_result_dedup_count,
             "evidence_count": evidence_refs.as_array().map(|rows| rows.len()).unwrap_or(0),
             "cache_status": "hit",
             "latency_ms": started.elapsed().as_millis() as u64,
@@ -250,6 +252,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             },
             "partial_failure_details": partial_failure_details,
             "tool_result_quality": tool_result_quality,
+            "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
+            "provider_result_dedup_count": provider_result_dedup_count,
             "cache_status": "hit"
         });
         if search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = search_results; }
@@ -404,6 +408,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     });
     candidates.truncate(budget.max_candidates);
+    let (provider_results, provider_result_dedup_count) = dedup_provider_results(provider_results);
 
     let rerank_query = query_plan.rerank_query.clone();
     let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
@@ -631,6 +636,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
         "candidate_count": before_dedup,
         "dedup_count": before_dedup.saturating_sub(candidates.len()),
+        "provider_result_count": provider_results.len(),
+        "provider_result_dedup_count": provider_result_dedup_count,
         "evidence_count": evidence_refs.len(),
         "cache_status": "miss",
         "latency_ms": started.elapsed().as_millis() as u64,
@@ -669,6 +676,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         },
         "partial_failure_details": hard_partial_failures.clone(),
         "tool_result_quality": tool_result_quality.clone(),
+        "provider_result_count": provider_results.len(),
+        "provider_result_dedup_count": provider_result_dedup_count,
         "cache_status": "miss"
     });
     if comparison_guard_search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = comparison_guard_search_results.clone(); }

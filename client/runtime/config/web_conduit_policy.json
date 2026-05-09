@@ -20,7 +20,8 @@
       "serperdev",
       "duckduckgo",
       "duckduckgo_lite",
-      "bing_rss"
+      "bing_rss",
+      "gdelt_doc"
     ],
     "fetch_provider_order": [
       "direct_http"
@@ -33,7 +34,12 @@
     "provider_circuit_breaker": {
       "enabled": true,
       "failure_threshold": 3,
-      "open_for_secs": 300
+      "open_for_secs": 300,
+      "soft_failure_errors": [
+        "low_signal_search_payload",
+        "no_usable_summary",
+        "query_result_mismatch"
+      ]
     },
     "sensitive_domains": [
       "accounts.google.com",

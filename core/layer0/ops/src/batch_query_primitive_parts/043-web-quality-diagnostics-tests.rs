@@ -184,6 +184,100 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn multi_term_current_queries_reject_single_term_false_positives() {
+        let query = "scientific breakthroughs 2026";
+        let false_positive = candidate(
+            "https://www.desmos.com/scientific",
+            "A free online scientific calculator with trigonometry, statistics, and logarithms.",
+        );
+        assert!(
+            !candidate_passes_relevance_gate(query, &false_positive, false),
+            "single-term overlap should not become evidence for a multi-term current query"
+        );
+    }
+
+    #[test]
+    fn broad_current_query_drops_off_topic_provider_results_before_evidence() {
+        let query = "scientific breakthroughs 2026";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "bing_rss",
+                    "summary": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
+                    "content": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
+                    "links": ["https://www.desmos.com/scientific"],
+                    "requested_url": "https://www.bing.com/search?q=scientific+breakthroughs+2026&format=rss",
+                    "status_code": 200
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": true,
+                    "provider": "bing_rss",
+                    "summary": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
+                    "content": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
+                    "links": ["https://www.desmos.com/scientific"],
+                    "requested_url": "https://www.bing.com/search?q=scientific+breakthroughs+2026&format=rss",
+                    "status_code": 200
+                },
+                format!("duckduckgo_instant::{query}"): {"ok": false, "error": "duckduckgo_instant_no_usable_summary"}
+            }),
+            query,
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.pointer("/tool_result_quality/evidence_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert!(
+            quality_flags(&out)
+                .iter()
+                .any(|flag| flag == "low_relevance_filtered"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn provider_result_artifact_marks_low_relevance_payload_as_not_usable() {
+        let query = "scientific breakthroughs 2026";
+        let out = run_request_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "bing_rss",
+                    "summary": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
+                    "content": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
+                    "links": ["https://www.desmos.com/scientific"],
+                    "requested_url": "https://www.bing.com/search?q=scientific+breakthroughs+2026&format=rss",
+                    "status_code": 200
+                }
+            }),
+            &json!({"source":"web","queries":[query],"aperture":"small"}),
+        );
+        let provider_result = out
+            .get("provider_results")
+            .and_then(Value::as_array)
+            .and_then(|rows| rows.first())
+            .expect("provider result");
+        assert_eq!(
+            provider_result.get("provider_transport_ok").and_then(Value::as_bool),
+            Some(true),
+            "{out:#}"
+        );
+        assert_eq!(provider_result.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            provider_result.get("result_quality").and_then(Value::as_str),
+            Some("low_relevance")
+        );
+        assert_eq!(
+            provider_result
+                .get("synthesis_candidate_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+    }
+
+    #[test]
     fn fallback_links_are_ranked_before_followup_fetch() {
         let payload = json!({
             "links": [
@@ -233,6 +327,12 @@ mod web_quality_diagnostics_tests {
                 .and_then(Value::as_bool),
             Some(true)
         );
+    }
+
+    #[test]
+    fn current_year_counts_as_current_web_intent() {
+        assert!(current_web_intent("scientific breakthroughs 2026"));
+        assert!(current_web_intent("materials science publications 2026"));
     }
 
     #[test]

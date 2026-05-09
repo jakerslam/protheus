@@ -123,7 +123,12 @@ mod cache_rewrite_tests {
             "aperture": "medium"
         });
         let query = request_query_text(&payload, 600);
-        let plan = resolve_query_plan(&payload, &query, aperture_budget("medium").expect("budget"));
+        let plan = resolve_query_plan(
+            &default_policy(),
+            &payload,
+            &query,
+            aperture_budget("medium").expect("budget"),
+        );
         assert_eq!(plan.query_plan_source, "explicit_request_pack");
         assert!(plan.queries.len() >= 8, "{:?}", plan.queries);
         assert!(plan
@@ -148,7 +153,12 @@ mod cache_rewrite_tests {
             "aperture": "medium"
         });
         let query = request_query_text(&payload, 600);
-        let plan = resolve_query_plan(&payload, &query, aperture_budget("medium").expect("budget"));
+        let plan = resolve_query_plan(
+            &default_policy(),
+            &payload,
+            &query,
+            aperture_budget("medium").expect("budget"),
+        );
         assert_eq!(plan.query_plan_source, "agent_submitted_single_query");
         assert_eq!(plan.queries, vec!["top AI agentic frameworks".to_string()]);
         assert!(plan.rewrite_set.is_empty(), "{:?}", plan.rewrite_set);
