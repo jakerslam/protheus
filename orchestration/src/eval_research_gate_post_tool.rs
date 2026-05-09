@@ -78,18 +78,13 @@ pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
         return true;
     }
     if !has_tool_execution(payload) && response_acknowledges_missing_tool_context(&normalized) {
-        let has_bounded_missing_context_fallback = response_has_missing_tool_context_shape(&normalized)
-            || response_has_research_shape(&normalized)
-            || response_has_low_evidence_signal(&normalized)
-            || normalized.contains("what i know")
-            || normalized.contains("what we know");
+        let has_bounded_missing_context_fallback =
+            response_has_missing_tool_context_shape(&normalized)
+                || response_has_research_shape(&normalized)
+                || response_has_low_evidence_signal(&normalized)
+                || normalized.contains("what i know")
+                || normalized.contains("what we know");
         return has_bounded_missing_context_fallback
-            && !response_uses_internal_runtime_context_as_evidence(&normalized)
-            && !response_requests_more_scope_without_substance(&normalized);
-    }
-    if evidence_extracted || packaged_tool_result {
-        return response_has_source_signal(&normalized)
-            && response_has_research_shape(&normalized)
             && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
@@ -97,6 +92,12 @@ pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
         return response_has_low_evidence_signal(&normalized)
             && response_has_research_shape(&normalized)
             && required_entity_coverage(_case, &normalized) >= 0.75
+            && !response_uses_internal_runtime_context_as_evidence(&normalized)
+            && !response_requests_more_scope_without_substance(&normalized);
+    }
+    if evidence_extracted || packaged_tool_result {
+        return response_has_source_signal(&normalized)
+            && response_has_research_shape(&normalized)
             && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
@@ -171,7 +172,14 @@ pub(super) fn evidence_paths(payload: &Value) -> Vec<String> {
     .collect::<Vec<_>>();
     for path in post_tool_paths(
         payload,
-        &["evidence", "evidence_bundle", "evidence_refs", "sources", "citations", "findings"],
+        &[
+            "evidence",
+            "evidence_bundle",
+            "evidence_refs",
+            "sources",
+            "citations",
+            "findings",
+        ],
         value_has_content,
     ) {
         if !paths.iter().any(|existing| existing == &path) {
@@ -340,6 +348,17 @@ fn text_has_low_signal_only(raw: &str) -> bool {
         "no usable result",
         "no results",
         "not enough source coverage",
+        "limited evidence",
+        "limited results",
+        "weak evidence",
+        "off topic",
+        "off-topic",
+        "off target",
+        "off-target",
+        "irrelevant",
+        "inconclusive",
+        "retrieval missed",
+        "retrieval gap",
         "did not produce enough",
         "could not find enough",
         "narrow the query",
@@ -369,6 +388,17 @@ fn response_has_low_evidence_signal(normalized: &str) -> bool {
         "low signal",
         "limited evidence",
         "source coverage",
+        "limited results",
+        "limited source",
+        "weak evidence",
+        "off topic",
+        "off-topic",
+        "off target",
+        "off-target",
+        "retrieval missed",
+        "retrieval gap",
+        "inconclusive",
+        "insufficient",
         "not enough",
         "no usable findings",
         "caveat",
@@ -391,13 +421,27 @@ fn response_has_research_shape(normalized: &str) -> bool {
             "best for",
             "criteria",
             "dimension",
+            "bounded conclusion",
+            "practical implication",
+            "current state",
+            "supports",
+            "does not support",
+            "risk",
+            "limitation",
+            "uncertainty",
+            "evidence",
+            "source-backed",
+            "maturity",
+            "security",
+            "evaluate",
+            "avoid",
         ]
         .iter()
         .any(|needle| normalized.contains(*needle))
 }
 
 fn response_requests_more_scope_without_substance(normalized: &str) -> bool {
-    [
+    let has_scope_request = [
         "narrow the query",
         "pick 2",
         "pick two",
@@ -407,7 +451,17 @@ fn response_requests_more_scope_without_substance(normalized: &str) -> bool {
         "provide a specific source",
     ]
     .iter()
-    .any(|needle| normalized.contains(*needle))
+    .any(|needle| normalized.contains(*needle));
+    if !has_scope_request {
+        return false;
+    }
+    let has_bounded_substance = normalized.split_whitespace().count() >= 45
+        && (response_has_research_shape(normalized)
+            || response_has_low_evidence_signal(normalized)
+            || normalized.contains("supports")
+            || normalized.contains("does not support")
+            || normalized.contains("bounded"));
+    !has_bounded_substance
 }
 
 fn response_acknowledges_missing_tool_context(normalized: &str) -> bool {
@@ -483,7 +537,6 @@ fn required_entity_coverage(case: &Value, normalized_response: &str) -> f64 {
         .count() as u64;
     ratio(covered, entities.len() as u64)
 }
-
 
 fn post_tool_paths(payload: &Value, keys: &[&str], predicate: fn(&Value) -> bool) -> Vec<String> {
     let mut paths = Vec::new();

@@ -210,19 +210,7 @@ pub(super) fn post_agent_message(
                 return recovered;
             }
         }
-        let mut timed_out = response;
-        if let Some(object) = timed_out.as_object_mut() {
-            object.insert("timeout_recovery_attempted".to_string(), Value::Bool(true));
-            object.insert(
-                "timeout_recovery_source".to_string(),
-                Value::String("agent_session_state".to_string()),
-            );
-            object.insert(
-                "timeout_recovery_ready".to_string(),
-                Value::Bool(timeout_recovery.is_some()),
-            );
-        }
-        return timed_out;
+        return structured_timeout_failure_payload(response, timeout_recovery.is_some());
     }
     response
 }
@@ -238,6 +226,57 @@ fn is_retryable_curl_timeout(payload: &Value) -> bool {
             .and_then(Value::as_str)
             .map(|stderr| stderr.to_ascii_lowercase().contains("timed out"))
             .unwrap_or(false)
+}
+
+fn structured_timeout_failure_payload(response: Value, recovery_ready: bool) -> Value {
+    let mut payload = if response.is_object() {
+        response
+    } else {
+        json!({
+            "ok": false,
+            "raw_transport_payload": response
+        })
+    };
+    let response_text = "The live dashboard request timed out before the workflow produced a final answer. This is a transport failure, not a research result.";
+    if let Some(object) = payload.as_object_mut() {
+        object.insert("ok".to_string(), Value::Bool(false));
+        object.insert(
+            "response".to_string(),
+            Value::String(response_text.to_string()),
+        );
+        object.insert("timeout_recovery_attempted".to_string(), Value::Bool(true));
+        object.insert(
+            "timeout_recovery_source".to_string(),
+            Value::String("agent_session_state".to_string()),
+        );
+        object.insert(
+            "timeout_recovery_ready".to_string(),
+            Value::Bool(recovery_ready),
+        );
+        object.insert(
+            "response_finalization".to_string(),
+            json!({
+                "outcome": "structured_failure+transport_timeout+timeout_recovery_failed",
+                "structured_failure": {
+                    "kind": "transport_timeout",
+                    "reason": "live_dashboard_request_timed_out_before_final_answer",
+                    "retryable": true,
+                    "source": "eval_transport"
+                }
+            }),
+        );
+        object.insert(
+            "response_workflow".to_string(),
+            json!({
+                "final_llm_response": {
+                    "status": "transport_timeout",
+                    "attempted": false,
+                    "used": false
+                }
+            }),
+        );
+    }
+    payload
 }
 
 fn dashboard_state_root() -> Option<PathBuf> {
@@ -728,6 +767,51 @@ mod eval_research_golden_utils_tests {
             "stderr": "curl: (7) Failed to connect to 127.0.0.1 port 4173"
         });
         assert!(!is_retryable_curl_timeout(&payload));
+    }
+
+    #[test]
+    fn timeout_failure_payload_is_structured_terminal_artifact() {
+        let payload = structured_timeout_failure_payload(
+            json!({
+                "ok": false,
+                "transport_error": "curl_failed",
+                "stderr": "curl: (28) Operation timed out after 60004 milliseconds with 0 bytes received"
+            }),
+            true,
+        );
+        let response = payload
+            .get("response")
+            .and_then(Value::as_str)
+            .expect("response");
+        assert!(!response.trim().is_empty());
+        assert_eq!(
+            payload.get("transport_error").and_then(Value::as_str),
+            Some("curl_failed")
+        );
+        assert_eq!(
+            payload
+                .get("timeout_recovery_attempted")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .get("timeout_recovery_ready")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/outcome")
+                .and_then(Value::as_str),
+            Some("structured_failure+transport_timeout+timeout_recovery_failed")
+        );
+        assert_eq!(
+            payload
+                .pointer("/response_finalization/structured_failure/kind")
+                .and_then(Value::as_str),
+            Some("transport_timeout")
+        );
     }
 
     #[test]

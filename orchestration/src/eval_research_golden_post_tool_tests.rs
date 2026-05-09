@@ -218,8 +218,9 @@ fn research_golden_counts_low_signal_packaged_result_before_evidence_extraction(
     assert_eq!(code, 0);
     let report = read_json(root.join("out.json").to_str().unwrap());
     assert_eq!(
-        report
-            .pointer("/cases/0/gate_transition_diagnostics/post_tool_pipeline/packaged_tool_result_present"),
+        report.pointer(
+            "/cases/0/gate_transition_diagnostics/post_tool_pipeline/packaged_tool_result_present"
+        ),
         Some(&Value::Bool(true))
     );
     assert_eq!(
@@ -284,13 +285,15 @@ fn research_golden_counts_error_status_tool_artifacts_before_evidence_extraction
     assert_eq!(code, 0);
     let report = read_json(root.join("out.json").to_str().unwrap());
     assert_eq!(
-        report
-            .pointer("/cases/0/gate_transition_diagnostics/post_tool_pipeline/raw_provider_result_present"),
+        report.pointer(
+            "/cases/0/gate_transition_diagnostics/post_tool_pipeline/raw_provider_result_present"
+        ),
         Some(&Value::Bool(true))
     );
     assert_eq!(
-        report
-            .pointer("/cases/0/gate_transition_diagnostics/post_tool_pipeline/packaged_tool_result_present"),
+        report.pointer(
+            "/cases/0/gate_transition_diagnostics/post_tool_pipeline/packaged_tool_result_present"
+        ),
         Some(&Value::Bool(true))
     );
     assert_eq!(
@@ -423,6 +426,74 @@ fn research_golden_counts_tool_row_evidence_refs_as_extracted_evidence() {
 }
 
 #[test]
+fn research_golden_grades_low_signal_evidence_as_low_evidence_synthesis() {
+    let root = temp_path("research_golden_low_signal_evidence_lane");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "The returned results were low signal, so this is not a source-backed winner. The limited evidence supports only that LangGraph has clearer public docs for durable graph execution; it does not support a complete Infring vs LangGraph comparison. Bounded conclusion: evaluate LangGraph first for public evidence maturity, and treat Infring as needing direct docs or repo inspection before selection.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "web_search",
+                        "selected_tool_family": "Web Search / Fetch",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "low_signal",
+                        "raw_results": [{
+                            "title": "LangGraph durable graph docs",
+                            "snippet": "LangGraph documents graph orchestration, durable execution, and state-machine patterns for agent workflows."
+                        }],
+                        "result": "Low signal: one relevant LangGraph source surfaced, but no comparable public Infring source surfaced.",
+                        "evidence_refs": [
+                            {"title": "LangGraph durable graph docs", "locator": "https://docs.langchain.com/langgraph", "score": 0.91}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:low_signal+synthesized",
+                        "tool_completion": {
+                            "completion_state": "low_signal",
+                            "findings_available": true
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    let checkpoints = report
+        .pointer("/cases/0/gate_transition_diagnostics/checkpoints")
+        .and_then(Value::as_array)
+        .expect("checkpoints");
+    let gate_6a = checkpoints
+        .iter()
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str)
+                == Some("6a_synthesis_uses_evidence_or_low_evidence_fallback")
+        })
+        .expect("6a checkpoint");
+    assert_eq!(gate_6a.get("status").and_then(Value::as_str), Some("pass"));
+    assert_ne!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint")
+            .and_then(Value::as_str),
+        Some("6a_synthesis_uses_evidence_or_low_evidence_fallback")
+    );
+}
+
+#[test]
 fn research_golden_allows_post_tool_synthesis_without_fresh_request_candidate() {
     let root = temp_path("research_golden_post_tool_no_fresh_candidate");
     let cases = root.join("cases.json");
@@ -474,37 +545,53 @@ fn research_golden_allows_post_tool_synthesis_without_fresh_request_candidate() 
         .expect("checkpoints");
     let gate_4a = checkpoints
         .iter()
-        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some("4a_request_template_signaled"))
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str) == Some("4a_request_template_signaled")
+        })
         .expect("4a checkpoint");
     assert_eq!(gate_4a.get("status").and_then(Value::as_str), Some("pass"));
     let gate_4b = checkpoints
         .iter()
-        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some("4b_tool_request_candidate_present"))
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str)
+                == Some("4b_tool_request_candidate_present")
+        })
         .expect("4b checkpoint");
     assert_eq!(gate_4b.get("status").and_then(Value::as_str), Some("pass"));
     let gate_5a = checkpoints
         .iter()
-        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some("5a_tool_execution_recorded"))
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str) == Some("5a_tool_execution_recorded")
+        })
         .expect("5a checkpoint");
     assert_eq!(gate_5a.get("status").and_then(Value::as_str), Some("pass"));
     let gate_5b = checkpoints
         .iter()
-        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some("5b_raw_provider_result_present"))
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str) == Some("5b_raw_provider_result_present")
+        })
         .expect("5b checkpoint");
     assert_eq!(gate_5b.get("status").and_then(Value::as_str), Some("pass"));
     let gate_5c = checkpoints
         .iter()
-        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some("5c_packaged_tool_result_present"))
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str) == Some("5c_packaged_tool_result_present")
+        })
         .expect("5c checkpoint");
     assert_eq!(gate_5c.get("status").and_then(Value::as_str), Some("pass"));
     let gate_5d = checkpoints
         .iter()
-        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some("5d_evidence_refs_extracted"))
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str) == Some("5d_evidence_refs_extracted")
+        })
         .expect("5d checkpoint");
     assert_eq!(gate_5d.get("status").and_then(Value::as_str), Some("pass"));
     let gate_5e = checkpoints
         .iter()
-        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some("5e_agent_received_evidence_context"))
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str)
+                == Some("5e_agent_received_evidence_context")
+        })
         .expect("5e checkpoint");
     assert_eq!(gate_5e.get("status").and_then(Value::as_str), Some("pass"));
     assert_ne!(

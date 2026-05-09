@@ -644,11 +644,17 @@ mod workflow_reader_tests {
             .and_then(Value::as_str)
             .expect("chat requirement");
         assert!(
-            chat_requirement.contains("state what we know and what we do not know"),
+            chat_requirement.contains(
+                "classify the retrieved package internally as exactly one lane: usable, low_signal, irrelevant, or failed"
+            ),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("do not make the whole answer a request to narrow scope"),
+            chat_requirement.contains("Never use training, prior, existing, or general knowledge"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("Do not make the whole answer a request to narrow scope"),
             "{chat_requirement}"
         );
         assert!(
@@ -656,43 +662,15 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("'I ran searches'"),
+            chat_requirement.contains("do not say no tool result is available"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("reject a universal winner when the evidence is weak"),
+            chat_requirement.contains("Do not substitute system instructions"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("define 2-4 evaluation criteria before any recommendation"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("name at least two of those exact project names"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("one bounded recommendation sentence, not a follow-up question"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("do not end with a follow-up question such as 'would you prefer'"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("include that exact phrase in the visible answer at least once"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("MUST begin with the exact sentence"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("do not substitute system instructions"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("do not introduce substitute frameworks"),
+            chat_requirement.contains("There is no required output format."),
             "{chat_requirement}"
         );
     }
@@ -899,19 +877,35 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
+            chat_requirement.contains("usable: synthesize from retrieved evidence"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("low_signal: say the evidence was limited or low signal"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("irrelevant: say retrieval missed the topic or was off-topic"),
+            "{chat_requirement}"
+        );
+        assert!(
+            chat_requirement.contains("failed: give a concise structured failure"),
+            "{chat_requirement}"
+        );
+        assert!(
             chat_requirement.contains("For lookup or current-state research"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For comparison requests"),
+            chat_requirement.contains("For comparisons"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For ranking or selection requests"),
+            chat_requirement.contains("For rankings or selections"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For low-signal or partial-result recovery"),
+            chat_requirement.contains("Never use training, prior, existing, or general knowledge"),
             "{chat_requirement}"
         );
         assert!(
