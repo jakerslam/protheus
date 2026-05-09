@@ -273,6 +273,20 @@ fn no_results_summary_for_batch_query(
     if let Some(summary) = comparison_guard_summary {
         return summary;
     }
+    let query_result_mismatch = partial_failure_details
+        .as_array()
+        .map(|rows| {
+            rows.iter().any(|row| {
+                clean_text(row.as_str().unwrap_or(""), 320)
+                    .to_ascii_lowercase()
+                    .contains("query_result_mismatch")
+            })
+        })
+        .unwrap_or(false);
+    if query_result_mismatch {
+        return "Web retrieval returned content that appears unrelated to the request intent (query_result_mismatch). Retry with a narrower query or one specific source URL."
+            .to_string();
+    }
     if has_partial_failures {
         if is_framework_catalog_intent(query) {
             return "Search providers ran, but did not return enough catalog-style framework evidence in this turn. Retry with named frameworks or one specific source URL for source-backed findings."

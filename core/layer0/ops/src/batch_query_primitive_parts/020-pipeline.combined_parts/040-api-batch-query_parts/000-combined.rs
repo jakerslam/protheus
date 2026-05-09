@@ -293,10 +293,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 let tx_clone = tx.clone();
                 let query_item = q.clone();
                 let root_buf = root.to_path_buf();
+                let policy_buf = policy.clone();
                 let spawned = thread::Builder::new()
                     .name(format!("batch-query-{local_idx}"))
                     .spawn(move || {
-                        let out = retrieve_web_candidates_for_query(&root_buf, &query_item);
+                        let out =
+                            retrieve_web_candidates_for_query(&root_buf, &query_item, &policy_buf);
                         let _ = tx_clone.send((local_idx, query_item, out));
                     });
                 if spawned.is_err() {
@@ -366,7 +368,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     } else {
         for q in &queries {
             let (mut rows, issues, artifacts) =
-                retrieve_web_candidates_for_query_with_timeout(root, q, query_timeout);
+                retrieve_web_candidates_for_query_with_timeout(root, q, &policy, query_timeout);
             provider_results.extend(artifacts);
             let transport_only_issue = rows.is_empty()
                 && issues.iter().all(|issue| {

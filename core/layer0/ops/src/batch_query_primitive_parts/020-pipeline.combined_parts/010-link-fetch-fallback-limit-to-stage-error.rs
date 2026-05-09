@@ -76,13 +76,7 @@ fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
     if query_tokens.is_empty() {
         return 0;
     }
-    let candidate_tokens = tokenize_relevance(
-        &format!(
-            "{} {} {}",
-            candidate.title, candidate.snippet, candidate.locator
-        ),
-        120,
-    );
+    let candidate_tokens = tokenize_relevance(&candidate_relevance_text(candidate), 120);
     if candidate_tokens.is_empty() {
         return 0;
     }
@@ -132,6 +126,13 @@ fn candidate_is_synthesis_eligible(
     benchmark_intent: bool,
 ) -> bool {
     let framework_catalog_intent = is_framework_catalog_intent(query);
+    let snippet = clean_text(&candidate.snippet, 1_200);
+    let lowered_snippet = snippet.to_ascii_lowercase();
+    if lowered_snippet.contains("candidate domains include")
+        && lowered_snippet.contains("require direct page verification")
+    {
+        return false;
+    }
     if !candidate_passes_relevance_gate(query, candidate, benchmark_intent) {
         return false;
     }

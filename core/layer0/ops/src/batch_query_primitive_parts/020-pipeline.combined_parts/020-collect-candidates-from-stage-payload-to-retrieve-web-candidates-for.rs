@@ -9,6 +9,16 @@ fn collect_candidates_from_stage_payload(
 ) -> (Vec<Candidate>, Vec<String>, Option<Value>) {
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
+    let low_relevance_issue = |candidate: &Candidate, suffix: &str| {
+        if looks_like_competitive_programming_dump(&format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        )) {
+            format!("{stage}:query_result_mismatch")
+        } else {
+            format!("{stage}:{suffix}")
+        }
+    };
     let rendered_rows = candidates_from_rendered_search_payload(
         query,
         payload,
@@ -18,7 +28,7 @@ fn collect_candidates_from_stage_payload(
         if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
             candidates.push(candidate);
         } else {
-            issues.push(format!("{stage}:candidate_low_relevance"));
+            issues.push(low_relevance_issue(&candidate, "candidate_low_relevance"));
         }
     }
 
@@ -28,7 +38,7 @@ fn collect_candidates_from_stage_payload(
                 if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
                     candidates.push(candidate);
                 } else {
-                    issues.push(format!("{stage}:candidate_low_relevance"));
+                    issues.push(low_relevance_issue(&candidate, "candidate_low_relevance"));
                 }
             }
             Err(err) => issues.push(format!("{stage}:{err}")),
@@ -45,6 +55,9 @@ fn collect_candidates_from_stage_payload(
     );
     if contains_antibot_marker(&summary) || contains_antibot_marker(&content) {
         issues.push(format!("{stage}:anti_bot_challenge"));
+    }
+    if looks_like_competitive_programming_dump(&format!("{summary} {content}")) {
+        issues.push(format!("{stage}:query_result_mismatch"));
     }
     if contains_web_junk_marker(&summary) || contains_web_junk_marker(&content) {
         issues.push(format!("{stage}:junk_page"));
@@ -81,7 +94,10 @@ fn collect_candidates_from_stage_payload(
                     if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
                         candidates.push(candidate);
                     } else {
-                        issues.push(format!("{stage}:fetch_candidate_low_relevance"));
+                        issues.push(low_relevance_issue(
+                            &candidate,
+                            "fetch_candidate_low_relevance",
+                        ));
                     }
                 }
                 Err(err) => issues.push(format!("{stage}:fetch_candidate:{err}")),
@@ -230,6 +246,7 @@ fn hidden_provider_result_artifact(
 fn retrieve_web_candidates_for_query(
     root: &Path,
     query: &str,
+    policy: &Value,
 ) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
     let benchmark_intent = is_benchmark_or_comparison_intent(query);
     let mut candidates = Vec::<Candidate>::new();
@@ -312,6 +329,30 @@ fn retrieve_web_candidates_for_query(
             provider_results.push(value);
         }
         issues.extend(duckduckgo_issues);
+    }
+
+    if candidates.is_empty() {
+        for provider in provider_recovery_providers(policy, query) {
+            let provider_payload =
+                stage_search_payload(root, Some(&provider), query, Some(&provider));
+            let (mut provider_candidates, provider_issues, provider_result) =
+                collect_candidates_from_stage_payload(
+                    root,
+                    &provider,
+                    query,
+                    &provider_payload,
+                    benchmark_intent,
+                    &mut fetched_links,
+                );
+            if let Some(value) = provider_result {
+                provider_results.push(value);
+            }
+            issues.extend(provider_issues);
+            if !provider_candidates.is_empty() {
+                candidates.append(&mut provider_candidates);
+                break;
+            }
+        }
     }
 
     if candidates.is_empty() {

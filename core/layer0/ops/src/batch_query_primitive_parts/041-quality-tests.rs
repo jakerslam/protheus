@@ -840,4 +840,85 @@ mod quality_tests {
             "{lowered}"
         );
     }
+
+    #[test]
+    fn synthetic_web_result_prefix_does_not_create_relevance_overlap() {
+        let query = "web retrieval quality evidence promotion";
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "Web result from www.text-compare.com".to_string(),
+            locator: "https://www.text-compare.com/".to_string(),
+            snippet: "Text Compare! Paste text online and compare snippets.".to_string(),
+            excerpt_hash: "text-compare".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        assert!(
+            !candidate_passes_relevance_gate(query, &candidate, false),
+            "synthetic web-result title must not make unrelated provider chrome relevant"
+        );
+        assert!(
+            !candidate_is_synthesis_eligible(query, &candidate, false),
+            "unrelated provider chrome must not become synthesis evidence"
+        );
+    }
+
+    #[test]
+    fn policy_provider_recovery_promotes_usable_source_after_low_signal_chain() {
+        let query = "web retrieval quality evidence promotion";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "No usable search results were found for this request.",
+                    "content": "",
+                    "requested_url": "https://duckduckgo.com/html/?q=web+retrieval+quality+evidence+promotion",
+                    "status_code": 200
+                },
+                "bing_rss::web retrieval quality evidence promotion": {
+                    "ok": true,
+                    "provider": "bing_rss",
+                    "summary": "No usable search results were found for this request.",
+                    "content": "",
+                    "requested_url": "https://www.bing.com/search?q=web+retrieval+quality+evidence+promotion",
+                    "status_code": 200
+                },
+                "gdelt_doc::web retrieval quality evidence promotion": {
+                    "ok": true,
+                    "provider": "gdelt_doc",
+                    "summary": "Evidence promotion for web retrieval quality requires source-backed snippets, result-quality lanes, and provider fallback before synthesis.",
+                    "content": "A current engineering note explains web retrieval quality, evidence promotion, source-backed snippets, result-quality lanes, provider fallback, and synthesis-safe retrieval. https://example.org/web-retrieval-quality-evidence-promotion",
+                    "requested_url": "https://example.org/web-retrieval-quality-evidence-promotion",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "medium",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        assert!(
+            out.get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        let provider_results = out
+            .get("provider_results")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            provider_results.iter().any(|row| {
+                row.get("provider").and_then(Value::as_str) == Some("gdelt_doc")
+                    && row.get("result_quality").and_then(Value::as_str) == Some("usable")
+            }),
+            "{provider_results:#?}"
+        );
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("source-backed snippets"), "{lowered}");
+        assert!(!lowered.contains("text compare"), "{lowered}");
+    }
 }

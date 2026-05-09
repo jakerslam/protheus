@@ -82,6 +82,19 @@ fn default_policy() -> Value {
             "allow_large": false,
             "max_parallel_subqueries": 4,
             "query_timeout_ms": 5000,
+            "quality_gate": {
+                "enabled": true,
+                "provider_recovery": {
+                    "enabled": true,
+                    "max_providers": 2,
+                    "providers": [
+                        "gdelt_doc"
+                    ],
+                    "current_intent_providers": [
+                        "gdelt_doc"
+                    ]
+                }
+            },
             "query_recovery": {
                 "broad_current_research": {
                     "enabled": true,

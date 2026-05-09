@@ -482,6 +482,75 @@ fn broad_current_research_recovery_queries(
     }
 }
 
+fn quality_gate_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/quality_gate/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn provider_recovery_enabled(policy: &Value) -> bool {
+    quality_gate_enabled(policy)
+        && policy
+            .pointer("/batch_query/quality_gate/provider_recovery/enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+}
+
+fn provider_recovery_max_providers(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/quality_gate/provider_recovery/max_providers")
+        .and_then(Value::as_u64)
+        .unwrap_or(1)
+        .clamp(1, 6) as usize
+}
+
+fn provider_recovery_list(policy: &Value, pointer: &str) -> Vec<String> {
+    policy
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 80).to_ascii_lowercase())
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn provider_recovery_providers(policy: &Value, query: &str) -> Vec<String> {
+    if !provider_recovery_enabled(policy) {
+        return Vec::new();
+    }
+    let mut dedup = HashSet::<String>::new();
+    let mut providers = Vec::<String>::new();
+    let mut push_provider = |provider: String| {
+        if provider.is_empty() {
+            return;
+        }
+        if dedup.insert(provider.clone()) {
+            providers.push(provider);
+        }
+    };
+    if current_web_intent(query) {
+        for provider in provider_recovery_list(
+            policy,
+            "/batch_query/quality_gate/provider_recovery/current_intent_providers",
+        ) {
+            push_provider(provider);
+        }
+    }
+    for provider in provider_recovery_list(
+        policy,
+        "/batch_query/quality_gate/provider_recovery/providers",
+    ) {
+        push_provider(provider);
+    }
+    providers.truncate(provider_recovery_max_providers(policy));
+    providers
+}
+
 fn resolve_query_plan(
     policy: &Value,
     request: &Value,

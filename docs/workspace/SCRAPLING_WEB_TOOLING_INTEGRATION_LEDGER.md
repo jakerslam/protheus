@@ -245,8 +245,32 @@ Live-smoke result:
 - Post-fix direct `gdelt_doc` smoke for `scientific breakthroughs 2026` returned `ok=true`, links, source domains, and no provider errors.
 - The workflow-facing `batch-query` smoke still ended as `status=no_results` in this run because the auto provider chain hit low-signal DuckDuckGo, off-topic Bing, and a rate-limited GDELT attempt. That confirms the next gap is provider availability/backoff and batch-query evidence promotion, not the direct provider adapter.
 
+`SCRAPLING-LIVE-007`: policy-gated provider recovery and stricter evidence promotion.
+
+Scrapling pattern source: provider fallback ladders, result-quality lanes, and diagnostic/result separation. The extracted pattern is that weak provider output should trigger another admitted provider when policy allows it, while provider chrome and negative retrieval summaries stay diagnostic-only.
+
+Target behavior:
+
+- Keep recovery provider selection in the batch-query policy CD, not hardcoded to a user prompt, domain, or output format.
+- Let `batch-query` ask a policy-declared recovery provider after the primary provider chain yields no synthesis-eligible candidates.
+- Do not let synthetic titles such as `Web result from ...` create relevance overlap by themselves.
+- Treat generic negative retrieval summaries such as `no usable search results` as low-signal tool chrome, not usable evidence.
+- Preserve hard mismatch diagnostics, such as unrelated code/problem dumps, even when a broader no-results fallback would otherwise mask them.
+
+Current status: implemented, targeted validation passed.
+
+Validation:
+
+- `CARGO_INCREMENTAL=0 cargo test --manifest-path core/layer0/ops/Cargo.toml synthetic_web_result_prefix_does_not_create_relevance_overlap -- --nocapture`
+- `CARGO_INCREMENTAL=0 cargo test --manifest-path core/layer0/ops/Cargo.toml policy_provider_recovery_promotes_usable_source_after_low_signal_chain -- --nocapture`
+- `CARGO_INCREMENTAL=0 cargo test --manifest-path core/layer0/ops/Cargo.toml competitive_programming_dump_is_treated_as_query_mismatch_low_signal -- --nocapture`
+
+Implementation note:
+
+- This does not add a new domain-specific search path. The runtime only reads policy-declared recovery providers and applies general evidence-promotion rules.
+- Full live workflow/golden measurement is still pending because this patch is a targeted upstream retrieval fix; the expected improvement should show up as fewer soft 6a failures when low-signal primary providers have a usable recovery source.
+
 ## Queued
 
-- Evaluate whether live provider results should feed a stronger source-result quality lane before synthesis.
 - Re-run workflow/golden gates after the retrieval/provider changes are committed or otherwise isolated.
 - Evaluate whether current/news provider rate-limit handling needs cache/backoff policy before becoming part of the default live eval path.

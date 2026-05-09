@@ -143,6 +143,10 @@ fn looks_like_low_signal_search_summary(text: &str) -> bool {
     if lowered.contains("unfortunately, bots use duckduckgo too")
         || lowered.contains("please complete the following challenge")
         || lowered.contains("anomaly-modal")
+        || lowered.contains("no usable search results")
+        || lowered.contains("no usable results")
+        || lowered.contains("no source-backed findings")
+        || lowered.contains("no source-backed conclusions")
     {
         return true;
     }
