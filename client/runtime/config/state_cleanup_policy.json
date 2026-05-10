@@ -67,6 +67,11 @@
           "suffixes": [".json"]
         },
         {
+          "path": "local/state/batch_query",
+          "max_age_hours": 168,
+          "suffixes": [".json", ".jsonl"]
+        },
+        {
           "path": "local/state/client/cognition/adaptive/workflows/orchestron/adversarial",
           "max_age_hours": 168,
           "suffixes": [".json"]

@@ -7,6 +7,12 @@
     "allow_large": false,
     "max_parallel_subqueries": 3,
     "query_timeout_ms": 20000,
+    "cache": {
+      "mode": "enabled",
+      "ttl_success_seconds": 1800,
+      "ttl_no_results_seconds": 120,
+      "max_entries": 240
+    },
     "page_extraction": {
       "enabled": true,
       "extract_mode": "markdown",

@@ -81,6 +81,17 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/search/scrape.test.ts` | parsed | search-plus-scrape test contract | Extracted the requirement that search-attached scrape jobs preserve metadata and may partially fail while still returning useful markdown for at least some results. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/search.test.ts` | parsed | structured search result lanes | Extracted `web`, `news`, and `images` as separately bounded result lanes, include-domain behavior, and partial scrape tolerance. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/lib/search-query-builder.test.ts` | parsed | request-owned source constraints | Confirmed include/exclude domain filters and category maps are request/policy concerns. We used this for scope bridging, not for copying default research domain lists. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/scrape-cache.test.ts` | parsed | cache lifecycle controls | Extracted explicit cache max-age/min-age semantics, cache hit/miss reporting, and tests that disable stale cache influence. Pattern maps to CD-visible cache policy plus cleanup ownership. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts` | parsed | cache-only/no-outbound mode | Extracted lockdown as a cache-only retrieval mode with structured cache-miss failure and ZDR cleanup. Pattern is useful later for permission-sensitive retrieval, not normal first-turn search hardcoding. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/system-prompt-rejection.test.ts` | parsed | untrusted option boundary | Extracted rejection of caller-supplied system prompts in extraction options. Pattern maps to treating retrieved/public content as untrusted synthesis context, not agent/system instructions. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/scrape-formats.test.ts` | parsed | flexible input, consistent output | Extracted string/object/mixed format compatibility and stable output keys. Pattern supports flexible tool request shapes without forcing final answer formats. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/parsers.test.ts` | parsed | parser contracts and bounded document work | Extracted parser arrays, parser object options, PDF page limits, parser-mode validation, and billing/budget implications. Pattern is useful for future document-fetch primitives. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/document-converter.test.ts` | parsed | document-to-HTML normalization | Extracted DOCX/ODT/RTF/XLSX conversion to HTML as a pre-markdown document normalization layer. Pattern is future work for non-HTML web evidence, not needed for current SERP improvement slice. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/scrape-query.test.ts` | parsed | page-local query/highlight extraction | Extracted optional page-local answer/highlight extraction with prompt length bounds. Pattern should remain an optional evidence operation, not a default final-answer template. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/crawl.test.ts` | partial | crawl discovery contracts | Extracted sitemap-only/subset behavior, include-path filtering, async status, and ongoing-job cleanup. Remaining deeper crawl cases pending. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts` | parsed | prompt/options precedence placeholder | Logged explicit-options-over-prompt intent; tests are placeholders, so no implementation should be inferred from them. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/test-suite/README.md` | parsed | eval framing | Extracted accuracy, response-time, and error-handling eval categories. Pattern reinforces measuring evidence usefulness separately from transport success. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/test-suite/data/scrape.json` | parsed | answerability eval cases | Extracted yes/no page-evidence tasks over pricing, news, tables, docs, paywalls, and article lists. Pattern suggests future web-tool evals should measure answerable evidence, not only SERP-level transport. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/services/worker/scrape-worker.ts` | parsed | scrape worker lifecycle | Extracted timeout/abort, redirect filtering, dedupe/lock, discovered-link enqueue, billing metadata, and document metadata preservation. Useful for long-running crawl jobs, not first-turn search hardcoding. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/deep-research/research-manager.ts` | parsed | iterative research loop | Extracted query generation from findings, gap analysis, max failed attempts, and final synthesis from accumulated findings. Pattern maps to a future multi-turn research workflow CD, not a fixed prompt route. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/deep-research/deep-research-service.ts` | parsed | parallel searches plus seen-URL filtering | Extracted bounded depth, parallel query execution, unique URL tracking, source list retention, gap-driven continuation, and final synthesis as the end state. |
@@ -95,7 +106,7 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | Crawl and batch status contracts | SDK methods and deeper worker/redis queue internals | medium | Controller contracts parsed; worker lifecycle still pending before implementation. |
 | Map/discovery | deeper crawler/sitemap utilities used by map | medium | Controller and map-utils parsed; sitemap/crawler internals pending if site-discovery becomes the next primitive. |
 | Extract/structured data | `apps/api/src/lib/extract/**` | medium | Main lifecycle, schema/completion internals, document packaging, source tracking, and merge/dedupe helpers parsed. Remaining only deeper legacy `fire-0` duplicate surfaces if future diffs need them. |
-| Tests and evals | `apps/api/src/__tests__/snips/v2/**`, e2e tests, scrape evals | high | Needed to validate behavior patterns and edge cases. |
+| Tests and evals | Remaining v2/e2e tests, crawl/map/extract edge tests, scrape load/eval artifacts | high | Core search/scrape/cache/format/parser/query tests parsed; remaining tests should be used for edge-case policy and eval design, not copied app behavior. |
 | MCP/CLI/skill surfaces | Firecrawl MCP/CLI references and SDK examples | low | Useful after core retrieval primitive improves. |
 
 ## Implemented Slices
@@ -309,3 +320,27 @@ Expected effect:
 
 - The research agent should have more usable context at the post-tool synthesis boundary, especially when the short tool summary is too lossy.
 - This supports optional future structured extraction without forcing JSON, tables, or any fixed answer shape onto normal research output.
+
+### `FIRECRAWL-LIVE-009`: CD-visible cache lifecycle
+
+Pattern source: Firecrawl cache and lockdown tests, primarily from `apps/api/src/__tests__/snips/v2/scrape-cache.test.ts` and `apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts`.
+
+Target behavior:
+
+- Make cache freshness, no-result TTL, and entry caps visible in the live batch-query policy CD instead of leaving them only as Rust fallback constants.
+- Keep cache mode overrideable per request/environment so live evals can disable or refresh cache without changing retrieval logic.
+- Tie batch-query cache and receipt churn to the existing state cleanup policy so retrieval caches do not become unbounded local state.
+- Avoid adding a Firecrawl-style lockdown route to normal research; cache-only/no-outbound behavior should be a future permission-sensitive mode, not a hidden default.
+
+Current status: implemented first slice.
+
+Implementation:
+
+- Added a `batch_query.cache` block to the live policy with enabled mode, success TTL, no-result TTL, and max entries.
+- Added `local/state/batch_query` to the runtime state cleanup policy for bounded `.json` and `.jsonl` cleanup.
+- Left existing request/env cache controls intact so tests and live workflow runs can opt out of stale cache influence.
+
+Expected effect:
+
+- The retrieval cache is now easier to reason about, test, and tune from policy.
+- This does not directly improve candidate quality, but it prevents stale cache behavior from hiding real retrieval regressions during workflow testing.
