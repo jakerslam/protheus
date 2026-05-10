@@ -37,7 +37,19 @@
         "skip_heavy_processing_during_discovery": true,
         "max_prefetch_links": 24,
         "include_link_text": true,
-        "include_parent_context": true
+        "include_parent_context": true,
+        "link_normalization": {
+          "resolve_relative_urls": true,
+          "dedupe_canonical_urls": true,
+          "ignore_schemes": [
+            "javascript",
+            "mailto",
+            "tel"
+          ],
+          "ignore_anchor_only_links": true,
+          "truncate_link_text_chars": 200,
+          "record_internal_external_classification": true
+        }
       },
       "head_preview": {
         "enabled": true,
@@ -155,6 +167,19 @@
         "summaries_only": true,
         "raw_payload_chat_visible": false
       }
+    },
+    "streaming_progress": {
+      "enabled": true,
+      "visibility": "telemetry_only_until_synthesized",
+      "fields": [
+        "queued",
+        "active",
+        "completed",
+        "failed",
+        "urls_per_second",
+        "memory_pressure",
+        "wait_time_ms"
+      ]
     },
     "quality_gate": {
       "enabled": true,

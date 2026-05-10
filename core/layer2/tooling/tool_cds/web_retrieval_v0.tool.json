@@ -93,6 +93,14 @@
             "head_metadata",
             "candidate_score",
             "rejection_reason"
+          ],
+          "normalization": [
+            "resolve_relative_urls",
+            "dedupe_canonical_urls",
+            "ignore_non_fetchable_schemes",
+            "ignore_anchor_only_links",
+            "truncate_long_link_text",
+            "classify_internal_external"
           ]
         },
         "best_first_candidate_expansion": {
@@ -200,7 +208,8 @@
           504
         ],
         "memory_pressure_queueing": true,
-        "bounded_fanout_required": true
+        "bounded_fanout_required": true,
+        "stream_progress_telemetry": true
       },
       "blocked_recovery_trace": {
         "purpose": "tell synthesis whether retrieval failed because the web is low-signal or because access/readiness blocked the evidence path",

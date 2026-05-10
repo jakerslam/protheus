@@ -212,7 +212,19 @@
       "record_parent_url": true,
       "record_depth": true,
       "record_candidate_score": true,
-      "record_rejection_reason": true
+      "record_rejection_reason": true,
+      "stream_progress_to_telemetry": true
+    },
+    "link_normalization": {
+      "resolve_relative_urls": true,
+      "dedupe_canonical_urls": true,
+      "ignore_non_fetchable_schemes": [
+        "javascript",
+        "mailto",
+        "tel"
+      ],
+      "ignore_anchor_only_links": true,
+      "classify_internal_external": true
     }
   },
   "evidence_extraction": {
