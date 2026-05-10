@@ -101,6 +101,7 @@
         "partial_failures",
         "query_plan_source",
         "candidate_rejection_reasons",
+        "cache_status",
         "cache_freshness_status",
         "structured_artifact_counts",
         "chunk_relevance_scores",
@@ -117,7 +118,9 @@
         "include_status_code": true,
         "include_redirect_status": true,
         "include_fetch_mode": true,
+        "include_cache_status": true,
         "include_cache_freshness_status": true,
+        "include_head_fingerprint": true,
         "include_quality_flags": true,
         "include_error_summary": true
       },

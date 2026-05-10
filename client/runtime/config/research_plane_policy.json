@@ -151,6 +151,22 @@
       "freshness_when_relevant",
       "candidate_gain"
     ],
+    "state_projection": {
+      "enabled": true,
+      "purpose": "make adaptive retrieval progress resumable and diagnosable without exposing raw crawl state to chat",
+      "fields": [
+        "confidence",
+        "coverage",
+        "saturation",
+        "crawled_url_count",
+        "pending_candidate_count",
+        "source_domain_count",
+        "crawl_order",
+        "new_terms_history",
+        "stop_reason"
+      ],
+      "export_policy": "telemetry_or_evidence_metadata_only"
+    },
     "stop_conditions": [
       "confidence_threshold_met",
       "saturation_threshold_met",
@@ -243,7 +259,9 @@
         "status_code",
         "redirected_status_code",
         "fetch_mode",
+        "cache_status",
         "cache_freshness_status",
+        "head_fingerprint",
         "quality_flags",
         "error_message",
         "safe_response_header_summary"

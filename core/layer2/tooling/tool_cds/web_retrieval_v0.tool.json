@@ -25,7 +25,9 @@
       "result_envelope.status_code",
       "result_envelope.redirected_status_code",
       "result_envelope.fetch_mode",
+      "result_envelope.cache_status",
       "result_envelope.cache_freshness_status",
+      "result_envelope.head_fingerprint",
       "result_envelope.quality_flags",
       "result_envelope.error_message",
       "evidence_artifacts.raw_markdown",
@@ -171,10 +173,24 @@
           "etag",
           "last_modified",
           "head_fingerprint",
-          "source_timestamp"
+          "source_timestamp",
+          "cache_status"
         ],
         "cleanup_bound": "system_state_cleanup",
         "testability": "evals_may_bypass_or_isolate_cache_without_changing_user_runtime_defaults"
+      },
+      "adaptive_state_projection": {
+        "purpose": "surface progress and stop reasons for multi-step retrieval without letting crawl state become chat-visible payload",
+        "fields": [
+          "confidence",
+          "coverage",
+          "saturation",
+          "crawled_url_count",
+          "pending_candidate_count",
+          "source_domain_count",
+          "stop_reason"
+        ],
+        "visibility": "telemetry_or_evidence_metadata_only"
       },
       "resource_control": {
         "per_domain_rate_limit": true,
