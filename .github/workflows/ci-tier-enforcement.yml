@@ -1,0 +1,42 @@
+name: CI Tier Enforcement
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/**
+      - validation/conformance/contracts/ci_workflow_tier_manifest.json
+      - validation/conformance/contracts/ci_workflow_tier_policy.json
+      - tests/tooling/scripts/ci/ci_workflow_tier_guard.ts
+      - tests/tooling/scripts/ci/ci_workflow_tier_manifest_generate.ts
+  pull_request:
+    paths:
+      - .github/workflows/**
+      - validation/conformance/contracts/ci_workflow_tier_manifest.json
+      - validation/conformance/contracts/ci_workflow_tier_policy.json
+      - tests/tooling/scripts/ci/ci_workflow_tier_guard.ts
+      - tests/tooling/scripts/ci/ci_workflow_tier_manifest_generate.ts
+
+permissions:
+  contents: read
+
+jobs:
+  enforce-ci-tier-manifest:
+    name: enforce required/advisory/nightly CI tier manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Enforce CI tier manifest
+        run: node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_workflow_tier_guard.ts

@@ -1,0 +1,20 @@
+{
+  "type": "installer_windows_wrapper_contract",
+  "schema_version": 1,
+  "owner_domain": "installer",
+  "required_wrappers": ["infring.cmd", "infring.ps1"],
+  "policy": {
+    "cmd_wrapper_required": true,
+    "ps1_wrapper_must_not_be_the_only_command_path": true,
+    "execution_policy_safe_path_required": true,
+    "repair_must_rewrite_missing_cmd_wrapper": true
+  },
+  "success_card_tokens": [
+    "Setting up",
+    "successfully installed",
+    "Version:",
+    "Location:",
+    "Next:",
+    "Installation complete"
+  ]
+}

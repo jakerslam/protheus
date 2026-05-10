@@ -1,0 +1,18 @@
+{
+  "type": "installer_repair_contract",
+  "schema_version": 1,
+  "owner_domain": "installer",
+  "required_flags": ["Repair", "Full"],
+  "required_behaviors": [
+    "repair_existing_partial_install",
+    "rewrite_missing_wrappers",
+    "preserve_user_config_when_possible",
+    "emit_actionable_failure",
+    "print_completion_card_on_success"
+  ],
+  "known_windows_failure_modes": [
+    "powershell_execution_policy_blocks_ps1_wrapper",
+    "missing_infring_cmd_wrapper",
+    "installer_parse_error_prevents_repair"
+  ]
+}

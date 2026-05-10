@@ -28,6 +28,7 @@ use super::{
 const DEFAULT_AUTO_ARTIFACT: &str = "core/local/artifacts/kernel_sentinel_auto_run_current.json";
 const DEFAULT_STALE_MINUTES: usize = 90;
 const DEFAULT_MAX_RUNTIME_MS: usize = 600_000;
+const LIGHTWEIGHT_MAX_RUNTIME_MS: usize = 30_000;
 const AUTO_TIMEOUT_EXIT_CODE: i32 = 124;
 
 fn has_option(args: &[String], name: &str) -> bool {
@@ -59,8 +60,45 @@ fn max_runtime_ms(args: &[String]) -> usize {
     option_usize(args, "--max-runtime-ms", DEFAULT_MAX_RUNTIME_MS)
 }
 
+fn trace_id_from_args(args: &[String]) -> String {
+    option_string(
+        args,
+        "--trace-id",
+        "trace_kernel_sentinel_auto_run_unbound",
+    )
+}
+
+fn trace_span_id(trace_id: &str, stage: &str) -> String {
+    format!(
+        "span_{}",
+        crate::deterministic_receipt_hash(&json!({
+            "trace_id": trace_id,
+            "stage": stage
+        }))
+    )
+}
+
+fn use_lightweight_fresh_observation(args: &[String]) -> bool {
+    if bool_flag(args, "--strict")
+        || has_option(args, "--force-full-auto")
+        || has_option(args, "--stall-guard-test-sleep-ms")
+    {
+        return false;
+    }
+    let cadence = option_string(args, "--cadence", "maintenance");
+    matches!(cadence.as_str(), "maintenance" | "heartbeat" | "tick")
+        && max_runtime_ms(args) <= LIGHTWEIGHT_MAX_RUNTIME_MS
+}
+
 fn elapsed_ms(started_at: Instant) -> u64 {
     started_at.elapsed().as_millis().min(u128::from(u64::MAX)) as u64
+}
+
+fn push_stage_timing(stages: &mut Vec<Value>, name: &str, started_at: Instant) {
+    stages.push(json!({
+        "stage": name,
+        "elapsed_ms": elapsed_ms(started_at)
+    }));
 }
 
 fn build_auto_run_diagnostic_artifact(
@@ -76,6 +114,8 @@ fn build_auto_run_diagnostic_artifact(
     let out = auto_artifact_path(root, args);
     let max_runtime = max_runtime_ms(args);
     let cadence = option_string(args, "--cadence", "maintenance");
+    let trace_id = trace_id_from_args(args);
+    let span_id = trace_span_id(&trace_id, stage);
     let mut artifact = json!({
         "ok": false,
         "type": "kernel_sentinel_auto_run",
@@ -83,6 +123,10 @@ fn build_auto_run_diagnostic_artifact(
         "diagnostic_artifact": true,
         "small_artifact": true,
         "automatic": true,
+        "trace_id": trace_id,
+        "span_id": span_id,
+        "parent_span_id": null,
+        "source_domain": "observability",
         "canonical_name": super::KERNEL_SENTINEL_NAME,
         "module_id": super::KERNEL_SENTINEL_MODULE_ID,
         "cadence": cadence,
@@ -145,6 +189,72 @@ fn write_auto_run_diagnostic(
     );
     write_json(&auto_artifact_path(root, args), &artifact)?;
     Ok(artifact)
+}
+
+fn run_lightweight_fresh_observation(root: &Path, args: &[String], started_at: Instant) -> i32 {
+    let dir = state_dir_from_args(root, args);
+    let out = auto_artifact_path(root, args);
+    let cadence = option_string(args, "--cadence", "maintenance");
+    let report_path = dir.join("kernel_sentinel_report_current.json");
+    let final_report_path = dir.join("kernel_sentinel_final_report_current.json");
+    let verdict_path = dir.join("kernel_sentinel_verdict.json");
+    let stage = "auto_run_lightweight_fresh_observation";
+    let trace_id = trace_id_from_args(args);
+    let span_id = trace_span_id(&trace_id, stage);
+    let mut artifact = json!({
+        "ok": true,
+        "type": "kernel_sentinel_auto_run",
+        "artifact_kind": "fresh_lightweight_observation",
+        "lightweight": true,
+        "automatic": true,
+        "trace_id": trace_id,
+        "span_id": span_id,
+        "parent_span_id": null,
+        "source_domain": "observability",
+        "canonical_name": super::KERNEL_SENTINEL_NAME,
+        "module_id": super::KERNEL_SENTINEL_MODULE_ID,
+        "cadence": cadence,
+        "status": "fresh_lightweight_observation",
+        "stage": stage,
+        "generated_at": crate::now_iso(),
+        "elapsed_ms": elapsed_ms(started_at),
+        "max_runtime_ms": max_runtime_ms(args),
+        "strict": bool_flag(args, "--strict"),
+        "exit_code": 0,
+        "state_dir": dir,
+        "auto_artifact_path": out,
+        "report_path": report_path,
+        "final_report_path": final_report_path,
+        "verdict_path": verdict_path,
+        "raw_evidence_embedded": false,
+        "full_report_embedded": false,
+        "self_study_outputs_embedded": false,
+        "operator_summary": {
+            "status": "fresh",
+            "stage": "auto_run_lightweight_fresh_observation",
+            "diagnostic": "Kernel Sentinel emitted a bounded fresh observation for a tight maintenance budget; full self-study remains owned by dream/release auto-run.",
+            "next_action": "use this artifact for freshness; run dream or release Sentinel auto-run for full issue synthesis and self-study outputs"
+        },
+        "verdict": {
+            "ok": true,
+            "verdict": "fresh_lightweight_observation",
+            "strict": bool_flag(args, "--strict"),
+            "release_blockers": []
+        }
+    });
+    artifact["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&artifact));
+    if let Err(err) = write_json(&out, &artifact) {
+        eprintln!("kernel_sentinel_auto_lightweight_write_failed: {err}");
+        return 1;
+    }
+    if !bool_flag(args, "--quiet-success") {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&artifact)
+                .unwrap_or_else(|_| "{\"ok\":false,\"error\":\"encode_failed\"}".to_string())
+        );
+    }
+    0
 }
 
 #[cfg(not(test))]
@@ -255,6 +365,7 @@ pub fn build_auto_run_artifact(
     verdict: &Value,
     exit_code: i32,
     self_study_outputs: &Value,
+    stage_timings: &[Value],
 ) -> Value {
     let dir = state_dir_from_args(root, args);
     let evidence_dir = option_path(args, "--evidence-dir", dir.join("evidence"));
@@ -283,6 +394,8 @@ pub fn build_auto_run_artifact(
     let next_actions = self_study_outputs["rsi_readiness"]["next_actions"].clone();
     let diagnostic_run = build_kernel_sentinel_diagnostic_run_artifact(report);
     let diagnostic_report = build_kernel_sentinel_diagnostic_report_section(&diagnostic_run);
+    let trace_id = trace_id_from_args(args);
+    let span_id = trace_span_id(&trace_id, "auto_run_full");
     let issue_candidate = if rsi_ready {
         Value::Null
     } else {
@@ -339,6 +452,10 @@ pub fn build_auto_run_artifact(
         "ok": verdict["ok"].as_bool().unwrap_or(false),
         "type": "kernel_sentinel_auto_run",
         "automatic": true,
+        "trace_id": trace_id,
+        "span_id": span_id,
+        "parent_span_id": null,
+        "source_domain": "observability",
         "canonical_name": super::KERNEL_SENTINEL_NAME,
         "module_id": super::KERNEL_SENTINEL_MODULE_ID,
         "cadence": cadence,
@@ -380,6 +497,7 @@ pub fn build_auto_run_artifact(
         "self_study_outputs": self_study_outputs,
         "system_understanding_dossier_path": system_understanding_dossier_path,
         "diagnostic_run_path": diagnostic_run_path,
+        "stage_timings": stage_timings,
         "diagnostic_report": diagnostic_report,
         "verdict": verdict,
         "operator_summary": report["operator_summary"],
@@ -420,17 +538,23 @@ pub fn build_auto_run_artifact(
 }
 
 fn run_auto_inner(root: &Path, effective: &[String]) -> i32 {
+    let mut stage_timings = Vec::new();
     #[cfg(test)]
     if has_option(effective, "--stall-guard-test-sleep-ms") {
         let sleep_ms = option_usize(effective, "--stall-guard-test-sleep-ms", 25);
         thread::sleep(Duration::from_millis(sleep_ms as u64));
     }
+    let stage_started = Instant::now();
     if let Err(err) = collector::collect_and_persist(root, effective) {
         eprintln!("kernel_sentinel_auto_collect_failed: {err}");
         return 1;
     }
+    push_stage_timing(&mut stage_timings, "collect_and_persist", stage_started);
+    let stage_started = Instant::now();
     let (report, verdict, exit) = build_report(root, effective);
+    push_stage_timing(&mut stage_timings, "build_report", stage_started);
     let dir = state_dir_from_args(root, effective);
+    let stage_started = Instant::now();
     let self_study_outputs = match persist_run_outputs(root, &dir, &report, &verdict, effective) {
         Ok(outputs) => outputs,
         Err(err) => {
@@ -438,14 +562,20 @@ fn run_auto_inner(root: &Path, effective: &[String]) -> i32 {
             return 1;
         }
     };
-    let artifact = build_auto_run_artifact(
+    push_stage_timing(&mut stage_timings, "persist_run_outputs", stage_started);
+    let stage_started = Instant::now();
+    let mut artifact = build_auto_run_artifact(
         root,
         effective,
         &report,
         &verdict,
         exit,
         &self_study_outputs,
+        &stage_timings,
     );
+    push_stage_timing(&mut stage_timings, "build_auto_run_artifact", stage_started);
+    artifact["stage_timings"] = Value::Array(stage_timings.clone());
+    artifact["receipt_hash"] = Value::String(crate::deterministic_receipt_hash(&artifact));
     let out = auto_artifact_path(root, effective);
     if let Err(err) = write_json(&out, &artifact) {
         eprintln!("kernel_sentinel_auto_write_artifact_failed: {err}");
@@ -462,8 +592,21 @@ fn run_auto_inner(root: &Path, effective: &[String]) -> i32 {
 }
 
 pub fn run_auto(root: &Path, args: &[String]) -> i32 {
-    let effective = effective_args(args);
     let started_at = Instant::now();
+    let mut effective = effective_args(args);
+    if !has_option(&effective, "--trace-id") {
+        let trace_seed = json!({
+            "type": "kernel_sentinel_auto_run",
+            "cadence": option_string(&effective, "--cadence", "maintenance"),
+            "generated_at": crate::now_iso(),
+            "max_runtime_ms": max_runtime_ms(&effective),
+            "process_id": std::process::id()
+        });
+        effective.push(format!(
+            "--trace-id=trace_{}",
+            crate::deterministic_receipt_hash(&trace_seed)
+        ));
+    }
     let _ = write_auto_run_diagnostic(
         root,
         &effective,
@@ -473,6 +616,9 @@ pub fn run_auto(root: &Path, args: &[String]) -> i32 {
         0,
         started_at,
     );
+    if use_lightweight_fresh_observation(&effective) {
+        return run_lightweight_fresh_observation(root, &effective, started_at);
+    }
     let max_runtime = max_runtime_ms(&effective);
     if max_runtime == 0 {
         return run_auto_inner(root, &effective);

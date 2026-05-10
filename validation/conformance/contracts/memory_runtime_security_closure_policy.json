@@ -1,0 +1,29 @@
+{
+  "type": "memory_runtime_security_closure_policy",
+  "schema_version": 1,
+  "source_domain": "validation",
+  "generated_at": "2026-05-10T00:00:00Z",
+  "purpose": "Prevent recurrence of memory-runtime CodeQL crypto/salt regressions that previously hid behind fallback values or unnamed hash domains.",
+  "required_checks": [
+    {
+      "id": "legacy_cipher_nonce_parse_fails_closed",
+      "path": "core/layer0/memory_runtime/src/db_parts/000-part.rs",
+      "must_contain": "legacy_cipher_invalid_nonce",
+      "must_not_contain": "u64::from_str_radix(parts[1], 16).unwrap_or(0)"
+    },
+    {
+      "id": "embedding_hash_domains_named_non_crypto",
+      "path": "core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/010-normalize-file-ref.rs",
+      "must_contain_all": [
+        "const EMBEDDING_SLOT_DOMAIN: u64 = 0;",
+        "const EMBEDDING_SIGN_DOMAIN: u64 = 1;",
+        "hash_token_slot(&token, EMBEDDING_SLOT_DOMAIN, dims)",
+        "hash_token_slot(&token, EMBEDDING_SIGN_DOMAIN, dims)"
+      ],
+      "must_not_contain_all": [
+        "hash_token_slot(&token, 0, dims)",
+        "hash_token_slot(&token, 1, dims)"
+      ]
+    }
+  ]
+}

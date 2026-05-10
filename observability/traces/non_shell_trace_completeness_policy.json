@@ -1,0 +1,14 @@
+{
+  "type": "non_shell_trace_completeness_policy",
+  "schema_version": 1,
+  "owner_domain": "observability.traces",
+  "root_trace_schema": "observability/traces/trace_envelope.schema.json",
+  "required_domains_in_scope": ["kernel", "gateway", "validation", "observability", "governance", "conduit"],
+  "excluded_domains_for_this_wave": ["shell", "orchestration"],
+  "policy": {
+    "every_current_artifact_should_carry_or_reference_trace_id": true,
+    "compacted_artifacts_must_preserve_trace_refs_when_available": true,
+    "sentinel_lightweight_observations_must_be_trace_ready": true,
+    "missing_trace_id_is_warning_until_emitters_are_wired": true
+  }
+}

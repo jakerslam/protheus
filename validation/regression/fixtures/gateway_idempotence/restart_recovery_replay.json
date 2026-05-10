@@ -1,0 +1,22 @@
+{
+  "type": "gateway_idempotence_replay_fixture",
+  "schema_version": 1,
+  "scenario": "restart_recovery_keeps_requested_port",
+  "input": {
+    "command": "infring gateway restart --dashboard-host=127.0.0.1 --dashboard-port=4173",
+    "status_before": {
+      "active": false,
+      "dashboard_host": "127.0.0.1",
+      "dashboard_port": 4173,
+      "healthz_ready": false,
+      "pid": 0
+    }
+  },
+  "expected": {
+    "must_use_requested_host": "127.0.0.1",
+    "must_use_requested_port": 4173,
+    "must_emit_next_action_on_failure": true,
+    "required_output_tokens": ["gateway", "4173"],
+    "forbidden_output_tokens": ["4174", "4175", "random port"]
+  }
+}

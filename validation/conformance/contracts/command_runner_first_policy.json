@@ -1,0 +1,22 @@
+{
+  "type": "command_runner_first_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "registry_path": "tools/commands/command_registry.json",
+  "runner_path": "tools/commands/command_runner.ts",
+  "required_runner_capabilities": [
+    "list",
+    "groups",
+    "info",
+    "--domain=",
+    "--work-gate=",
+    "--lifecycle=",
+    "--search="
+  ],
+  "required_registry_metadata": ["domain", "work_gate", "description", "owner", "lifecycle"],
+  "policy": {
+    "command_runner_is_default_agent_navigation_surface": true,
+    "package_json_scripts_are_compatibility_backing_store": true,
+    "new_operator_commands_should_enter_registry_first": true
+  }
+}

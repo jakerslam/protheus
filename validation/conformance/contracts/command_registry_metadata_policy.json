@@ -1,0 +1,15 @@
+{
+  "type": "command_registry_metadata_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "registry_path": "tools/commands/command_registry.json",
+  "required_entry_fields": ["id", "group", "command", "lifecycle", "owner", "domain", "work_gate", "description"],
+  "allowed_work_gates": ["real_work", "reliability", "simplification"],
+  "policy": {
+    "command_registry_is_agent_navigation_surface": true,
+    "every_command_requires_domain_and_description": true,
+    "every_command_requires_three_laws_gate": true,
+    "compatibility_aliases_require_expiry_or_owner": true,
+    "package_json_script_count_should_trend_down": true
+  }
+}

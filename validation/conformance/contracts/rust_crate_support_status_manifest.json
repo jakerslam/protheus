@@ -1,0 +1,425 @@
+{
+  "type": "rust_crate_support_status_manifest",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "generated_at": "2026-05-10T21:25:16.777Z",
+  "crate_count": 58,
+  "statuses": {
+    "lab": 5,
+    "experimental": 30,
+    "production_candidate": 23
+  },
+  "policy": {
+    "every_rust_crate_requires_support_status": true,
+    "production_candidate_requires_targeted_validation": true,
+    "lab_crates_must_not_be_release_required_without_upgrade": true
+  },
+  "crates": [
+    {
+      "path": "adapters/protocol/wasm_adapter_skeleton/Cargo.toml",
+      "domain": "gateway",
+      "support_status": "lab",
+      "owner": "gateway",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/blob_test/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/burn_oracle_budget_gate/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/desktop/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/fluxlattice/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/foundation_hook_enforcer/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/graph/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/guard_registry_contract_consumer/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/hybrid_runtime/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/infring_agent_derive/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/infring_agent_surface/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/kernel_layers/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/memory/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/memory_abstraction/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/memory_runtime/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/mobile/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/ops/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/persona_dispatch_security_gate/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/pinnacle/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "lab",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/red_legion/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "lab",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/security/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/self_audit_runtime/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/singularity_seed/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "lab",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/swarm/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/swarm_router/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/tiny_runtime/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer0/vault/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/infring_types/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/ipc/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/isolation/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/llm_runtime/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/memory/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/memory_runtime/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/nursery_runtime/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/observability/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/primitives/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/provenance/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/resource/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/security/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/storage/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/task/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer1/update/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/assimilation/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/autonomy/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/conduit-security/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/conduit/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/execution/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/memory/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/nexus/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/ops/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/spine/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/stomach/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/tooling/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "production_candidate",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/tools/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer2/tools/task_fabric/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer3/os_extension_wrapper/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "core/layer_minus_one/exotic_wrapper/Cargo.toml",
+      "domain": "kernel",
+      "support_status": "lab",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    },
+    {
+      "path": "xtask/Cargo.toml",
+      "domain": "workspace_ops",
+      "support_status": "experimental",
+      "owner": "kernel",
+      "validation_required_before_status_upgrade": true
+    }
+  ]
+}

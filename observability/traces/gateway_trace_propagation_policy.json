@@ -1,0 +1,19 @@
+{
+  "type": "gateway_trace_propagation_policy",
+  "schema_version": 1,
+  "owner_domain": "observability.traces",
+  "source_path": "adapters/runtime/infring_dashboard.ts",
+  "required_tokens": [
+    "requestTraceId",
+    "x-infring-trace-id",
+    "filteredHeaders(req.headers",
+    "res.setHeader('x-infring-trace-id'",
+    "trace_id: traceId"
+  ],
+  "policy": {
+    "gateway_must_not_break_trace_identity": true,
+    "incoming_trace_id_is_preserved_when_valid": true,
+    "missing_trace_id_is_minted_at_gateway_boundary": true,
+    "proxied_api_and_websocket_requests_forward_trace_id": true
+  }
+}

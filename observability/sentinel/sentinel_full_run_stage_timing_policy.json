@@ -1,0 +1,23 @@
+{
+  "type": "sentinel_full_run_stage_timing_policy",
+  "schema_version": 1,
+  "owner_domain": "observability.sentinel",
+  "policy": {
+    "full_auto_run_must_emit_stage_timings": true,
+    "lightweight_maintenance_observation_must_not_hide_full_run_debt": true,
+    "dream_and_release_runs_own_expensive_self_study": true,
+    "full_auto_run_must_emit_trace_identity": true
+  },
+  "required_stage_names": [
+    "collect_and_persist",
+    "build_report",
+    "persist_run_outputs",
+    "build_auto_run_artifact"
+  ],
+  "required_trace_fields": [
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "source_domain"
+  ]
+}

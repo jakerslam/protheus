@@ -1,0 +1,50 @@
+name: Windows Locked-Down Install Replay
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - install.ps1
+      - .github/workflows/windows-locked-down-install-replay.yml
+      - validation/release_gates/policies/windows_locked_down_install_replay_policy.json
+      - tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts
+  pull_request:
+    paths:
+      - install.ps1
+      - .github/workflows/windows-locked-down-install-replay.yml
+      - validation/release_gates/policies/windows_locked_down_install_replay_policy.json
+      - tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts
+
+permissions:
+  contents: read
+
+jobs:
+  locked-down-install-replay:
+    name: locked-down PowerShell install replay
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Validate locked-down replay contract
+        shell: pwsh
+        run: node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts
+
+      - name: Replay installer from locked-down PowerShell host
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tmp = Join-Path $env:TEMP "infring-install-replay.ps1"
+          Copy-Item .\install.ps1 $tmp -Force
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full
+          Remove-Item $tmp -Force -ErrorAction SilentlyContinue

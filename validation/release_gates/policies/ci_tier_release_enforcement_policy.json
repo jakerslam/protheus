@@ -1,0 +1,21 @@
+{
+  "type": "ci_tier_release_enforcement_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.release_gates",
+  "workflow_path": ".github/workflows/ci-tier-enforcement.yml",
+  "required_guard": "tests/tooling/scripts/ci/ci_workflow_tier_guard.ts",
+  "required_manifest": "validation/conformance/contracts/ci_workflow_tier_manifest.json",
+  "required_policy": "validation/conformance/contracts/ci_workflow_tier_policy.json",
+  "required_tokens": [
+    "pull_request:",
+    "push:",
+    "workflow_dispatch:",
+    "ci_workflow_tier_guard.ts",
+    "validation/conformance/contracts/ci_workflow_tier_manifest.json"
+  ],
+  "policy": {
+    "ci_tier_manifest_must_be_checked_in_ci": true,
+    "ci_tier_drift_blocks_normal_pull_requests": true,
+    "branch_protection_should_include_ci_tier_enforcement_check": true
+  }
+}

@@ -1,0 +1,448 @@
+{
+  "trace_id": "validation:2026-05-10T21:38:19.684Z:10428",
+  "span_id": "span:command_surface_compression:10428",
+  "parent_span_id": null,
+  "source_domain": "validation",
+  "type": "command_surface_compression_report",
+  "generated_at": "2026-05-10T21:38:19.684Z",
+  "registry_path": "/Users/jay/.openclaw/workspace/tools/commands/command_registry.json",
+  "counts": {
+    "total": 1140,
+    "by_domain": {
+      "validation": 558,
+      "gateway": 17,
+      "workspace_ops": 424,
+      "kernel": 66,
+      "release_governance": 24,
+      "installer": 8,
+      "conduit": 2,
+      "observability": 35,
+      "governance": 6
+    },
+    "by_work_gate": {
+      "reliability": 642,
+      "simplification": 29,
+      "real_work": 469
+    },
+    "by_lifecycle": {
+      "compatibility_alias": 1137,
+      "canonical_entrypoint": 3
+    },
+    "by_prefix": {
+      "account": 1,
+      "actuation": 8,
+      "adaptive": 2,
+      "alias": 3,
+      "anti-sabotage": 3,
+      "assimilation": 6,
+      "authority": 4,
+      "autonomy": 28,
+      "autophagy": 7,
+      "autotest": 7,
+      "benchmark": 1,
+      "blk": 2,
+      "budget": 5,
+      "build": 5,
+      "capability": 2,
+      "chaos": 2,
+      "claws": 3,
+      "cmd": 1,
+      "commands": 2,
+      "compliance": 3,
+      "continuity": 7,
+      "coverage": 4,
+      "creative": 1,
+      "cryonics": 3,
+      "dashboard": 6,
+      "deploy": 2,
+      "dev": 1,
+      "distributed": 1,
+      "docs": 1,
+      "dr": 3,
+      "dual-brain": 2,
+      "echo": 3,
+      "economy": 2,
+      "effect": 1,
+      "evolution": 4,
+      "execution": 2,
+      "explain": 1,
+      "explanation": 3,
+      "finance": 6,
+      "forge": 3,
+      "formal": 2,
+      "foundation": 5,
+      "fractal": 6,
+      "fusion": 2,
+      "gateway": 3,
+      "git": 1,
+      "guard": 2,
+      "handoff": 2,
+      "hardware": 8,
+      "helix": 9,
+      "impact": 4,
+      "infring": 10,
+      "infringctl": 1,
+      "infringd": 1,
+      "install": 1,
+      "integrity": 3,
+      "js": 2,
+      "key": 6,
+      "lane": 2,
+      "learning": 2,
+      "lint": 1,
+      "local": 4,
+      "memory": 21,
+      "metrics": 6,
+      "nursery": 1,
+      "obsidian": 4,
+      "ops": 541,
+      "orchestron": 1,
+      "organ": 3,
+      "outreach": 2,
+      "passport": 5,
+      "platform": 1,
+      "polyglot": 2,
+      "postinstall": 1,
+      "postmortem": 1,
+      "primitives": 6,
+      "proactive": 2,
+      "profile": 1,
+      "redteam": 6,
+      "reflexes": 1,
+      "research": 1,
+      "resonance": 1,
+      "routing": 5,
+      "runtime": 7,
+      "safety": 1,
+      "schema": 1,
+      "security": 37,
+      "self-audit": 1,
+      "selfhost": 4,
+      "selfimprove": 4,
+      "sensory": 27,
+      "soul": 3,
+      "start": 1,
+      "state": 5,
+      "strategy": 1,
+      "supply-chain": 1,
+      "symbiosis": 9,
+      "test": 163,
+      "tooling": 3,
+      "ts": 3,
+      "typecheck": 1,
+      "visualizer": 1,
+      "weaver": 3,
+      "workflow": 10,
+      "workspace": 5,
+      "world-model": 1,
+      "xai": 7,
+      "zero-permission": 1
+    }
+  },
+  "largest_prefixes": [
+    {
+      "prefix": "ops",
+      "count": 541
+    },
+    {
+      "prefix": "test",
+      "count": 163
+    },
+    {
+      "prefix": "security",
+      "count": 37
+    },
+    {
+      "prefix": "autonomy",
+      "count": 28
+    },
+    {
+      "prefix": "sensory",
+      "count": 27
+    },
+    {
+      "prefix": "memory",
+      "count": 21
+    },
+    {
+      "prefix": "infring",
+      "count": 10
+    },
+    {
+      "prefix": "workflow",
+      "count": 10
+    },
+    {
+      "prefix": "helix",
+      "count": 9
+    },
+    {
+      "prefix": "symbiosis",
+      "count": 9
+    },
+    {
+      "prefix": "actuation",
+      "count": 8
+    },
+    {
+      "prefix": "hardware",
+      "count": 8
+    },
+    {
+      "prefix": "autophagy",
+      "count": 7
+    },
+    {
+      "prefix": "autotest",
+      "count": 7
+    },
+    {
+      "prefix": "continuity",
+      "count": 7
+    },
+    {
+      "prefix": "runtime",
+      "count": 7
+    },
+    {
+      "prefix": "xai",
+      "count": 7
+    },
+    {
+      "prefix": "assimilation",
+      "count": 6
+    },
+    {
+      "prefix": "dashboard",
+      "count": 6
+    },
+    {
+      "prefix": "finance",
+      "count": 6
+    },
+    {
+      "prefix": "fractal",
+      "count": 6
+    },
+    {
+      "prefix": "key",
+      "count": 6
+    },
+    {
+      "prefix": "metrics",
+      "count": 6
+    },
+    {
+      "prefix": "primitives",
+      "count": 6
+    },
+    {
+      "prefix": "redteam",
+      "count": 6
+    },
+    {
+      "prefix": "budget",
+      "count": 5
+    },
+    {
+      "prefix": "build",
+      "count": 5
+    },
+    {
+      "prefix": "foundation",
+      "count": 5
+    },
+    {
+      "prefix": "passport",
+      "count": 5
+    },
+    {
+      "prefix": "routing",
+      "count": 5
+    }
+  ],
+  "retirement_candidate_count": 100,
+  "retirement_candidates_sample": [
+    {
+      "id": "account:create",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation"
+    },
+    {
+      "id": "actuation:defrag:run",
+      "domain": "gateway",
+      "work_gate": "simplification",
+      "lifecycle": "compatibility_alias",
+      "owner": "gateway"
+    },
+    {
+      "id": "actuation:defrag:status",
+      "domain": "validation",
+      "work_gate": "simplification",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation"
+    },
+    {
+      "id": "actuation:disposable:acquire-session",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "actuation:disposable:register-account",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "actuation:disposable:register-proxy",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "actuation:subexec:gc",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "actuation:universal:run",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "actuation:universal:status",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "adaptive:runtime:status",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "adaptive:runtime:tick",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "alias:vault:consume-code",
+      "domain": "workspace_ops",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "alias:vault:issue",
+      "domain": "workspace_ops",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "alias:vault:route-code",
+      "domain": "workspace_ops",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "anti-sabotage:snapshot",
+      "domain": "workspace_ops",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "anti-sabotage:verify",
+      "domain": "workspace_ops",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "anti-sabotage:watch",
+      "domain": "workspace_ops",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "assimilation:assess",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "assimilation:habit-adapter:train",
+      "domain": "gateway",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "gateway"
+    },
+    {
+      "id": "assimilation:record-use",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "assimilation:rollback",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "assimilation:run",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops"
+    },
+    {
+      "id": "assimilation:status",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation"
+    },
+    {
+      "id": "authority:branch:evaluate",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation"
+    },
+    {
+      "id": "authority:branch:handoff",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation"
+    }
+  ],
+  "recommendations": [
+    "Prefer command-runner-first entrypoints over direct package script expansion.",
+    "Retire or hide advisory/manual/legacy commands from default operator surfaces.",
+    "Collapse prefixes with overlapping ownership before adding new command families.",
+    "Require owner, lifecycle, work_gate, and domain metadata on every new command."
+  ]
+}

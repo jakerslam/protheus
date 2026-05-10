@@ -1,0 +1,23 @@
+{
+  "type": "gateway_idempotence_replay_fixture",
+  "schema_version": 1,
+  "scenario": "status_is_read_only",
+  "input": {
+    "command": "infring gateway status --dashboard-host=127.0.0.1 --dashboard-port=4173",
+    "status_before": {
+      "active": true,
+      "dashboard_host": "127.0.0.1",
+      "dashboard_port": 4173,
+      "healthz_ready": true,
+      "pid": 4173
+    }
+  },
+  "expected": {
+    "must_not_start": true,
+    "must_not_restart": true,
+    "must_not_stop": true,
+    "must_report_active": true,
+    "required_output_tokens": ["active", "4173"],
+    "forbidden_output_tokens": ["starting", "restarting", "stopping"]
+  }
+}

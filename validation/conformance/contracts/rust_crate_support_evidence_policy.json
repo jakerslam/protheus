@@ -1,0 +1,13 @@
+{
+  "type": "rust_crate_support_evidence_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "manifest_path": "validation/conformance/contracts/rust_crate_support_status_manifest.json",
+  "report_path": "validation/reports/rust_crate_support_evidence_report_2026-05-10.json",
+  "policy": {
+    "production_candidate_requires_manifest_parse_evidence": true,
+    "missing_cargo_manifest_demotes_to_blocked": true,
+    "evidence_report_required_before_status_upgrade": true,
+    "support_status_must_be_based_on_observed_crate_state": true
+  }
+}

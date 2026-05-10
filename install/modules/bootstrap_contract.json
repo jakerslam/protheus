@@ -1,0 +1,22 @@
+{
+  "type": "installer_bootstrap_contract",
+  "schema_version": 1,
+  "owner_domain": "installer",
+  "public_entrypoints": ["install.sh", "install.ps1"],
+  "target_shape": "tiny bootstrap calls named modules",
+  "required_bootstrap_steps": [
+    "detect_platform",
+    "establish_install_root",
+    "resolve_release_or_source",
+    "run_preflight",
+    "install_or_repair",
+    "write_command_wrappers",
+    "print_completion_card"
+  ],
+  "forbidden_growth": [
+    "new_large_inline_platform_branches",
+    "new_unparsed_powershell_blocks",
+    "new_wrapper_generation_without_contract",
+    "new_download_logic_without_timeout_and_error_shape"
+  ]
+}

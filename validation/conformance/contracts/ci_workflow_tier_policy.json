@@ -1,0 +1,32 @@
+{
+  "type": "ci_workflow_tier_policy",
+  "schema_version": 2,
+  "owner_domain": "validation.conformance",
+  "workflow_root": ".github/workflows",
+  "manifest_path": "validation/conformance/contracts/ci_workflow_tier_manifest.json",
+  "tiers": [
+    "release_gate",
+    "security_gate",
+    "validation_guard",
+    "observability_guard",
+    "nightly_maintenance",
+    "advisory_guard"
+  ],
+  "required_tiers": ["release_gate", "security_gate", "validation_guard"],
+  "advisory_tiers": ["observability_guard", "nightly_maintenance", "advisory_guard"],
+  "policy": {
+    "every_workflow_must_be_classified": true,
+    "manifest_is_source_of_truth": true,
+    "push_workflows_should_not_all_be_required_by_default": true,
+    "nightly_policy_debt_should_not_block_normal_feature_work": true,
+    "release_and_security_gates_must_not_be_marked_advisory": true
+  },
+  "classification_hints": {
+    "nightly_tokens": ["nightly", "dream", "schedule:"],
+    "security_tokens": ["security", "audit", "codeql", "supply"],
+    "release_tokens": ["release", "version", "publish", "sbom"],
+    "observability_tokens": ["sentinel", "observability", "telemetry"],
+    "validation_tokens": ["validation", "test", "coverage", "smoke", "conformance"],
+    "fallback_tier": "advisory_guard"
+  }
+}

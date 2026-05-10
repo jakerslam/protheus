@@ -1,0 +1,16 @@
+{
+  "type": "release_version_convergence_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.release_gates",
+  "policy": {
+    "version_bump_commit_is_not_an_official_release": true,
+    "official_github_release_must_be_created_or_updated_for_release_tag": true,
+    "release_workflow_must_upload_windows_assets_before_publish": true,
+    "displayed_github_release_must_not_lag_runtime_version": true
+  },
+  "workflow_paths": [
+    ".github/workflows/version-bump.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/release-promote.yml"
+  ]
+}

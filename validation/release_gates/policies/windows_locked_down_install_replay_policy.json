@@ -1,0 +1,26 @@
+{
+  "type": "windows_locked_down_install_replay_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.release_gates",
+  "source_failures": [
+    "execution_policy_blocks_downloaded_ps1",
+    "mistyped_set_execution_policy_with_leading_backslash",
+    "missing_infring_cmd_wrapper_after_partial_install"
+  ],
+  "required_readme_tokens": [
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -File",
+    "infring.cmd",
+    "no-file fallback"
+  ],
+  "required_installer_tokens": [
+    "ExecutionPolicy",
+    "infring.cmd",
+    "infring.ps1",
+    "Repair",
+    "Full"
+  ],
+  "policy": {
+    "release_requires_locked_down_windows_replay": true,
+    "installer_must_not_depend_on_parent_session_execution_policy": true
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "type": "installer_module_policy",
+  "schema_version": 1,
+  "owner_domain": "installer",
+  "purpose": "Ensure installer behavior has named executable module homes before adding more code to the large public bootstraps.",
+  "modules": [
+    {
+      "path": "install/modules/windows_wrappers.ps1",
+      "required_tokens": ["Write-InfringWindowsWrappers", "Test-InfringWindowsWrappers", "infring.cmd", "infring.ps1"]
+    },
+    {
+      "path": "install/modules/completion_card.ps1",
+      "required_tokens": ["Write-InfringInstallCompletionCard", "successfully installed", "Version:", "Location:", "Next:"]
+    },
+    {
+      "path": "install/modules/bootstrap_common.sh",
+      "required_tokens": ["infring_install_status", "infring_install_mkdir", "infring_install_completion_card"]
+    }
+  ],
+  "policy": {
+    "public_installers_are_compatibility_bootstraps": true,
+    "new_installer_behavior_requires_named_module": true,
+    "module_contracts_are_validated_before_release": true
+  }
+}

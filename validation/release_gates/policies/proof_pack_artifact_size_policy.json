@@ -1,0 +1,25 @@
+{
+  "type": "proof_pack_artifact_size_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.release_gates",
+  "scope": "validation/release_gates/proof_packs/**",
+  "policy": {
+    "max_single_artifact_bytes": 5242880,
+    "max_single_json_lines": 100000,
+    "max_proof_pack_bytes": 52428800,
+    "oversized_artifacts_must_be_compacted_refs": true,
+    "raw_evidence_must_live_in_external_artifact_store_or_local_untracked_state": true,
+    "compacted_ref_required_fields": [
+      "type",
+      "compacted_at",
+      "reason",
+      "previous_artifact",
+      "retention_policy",
+      "operator_summary"
+    ]
+  },
+  "allowed_large_artifact_patterns": [
+    "manifest.json"
+  ],
+  "rationale": "Proof packs should be durable release evidence indexes, not checked-in raw observability dumps that make the repo unreviewable."
+}

@@ -1,0 +1,168 @@
+{
+  "type": "command_metadata_curated_overrides",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "purpose": "Replace inferred placeholder descriptions for high-value operator and agent commands with curated descriptions, domains, and work gates.",
+  "overrides": [
+    {
+      "id": "cmd",
+      "domain": "workspace_ops",
+      "work_gate": "real_work",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "workspace_ops",
+      "description": "Run a command by registry id through the metadata-aware command runner; preferred agent entrypoint over raw package-script spelunking."
+    },
+    {
+      "id": "commands:list",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "workspace_ops",
+      "description": "List command registry entries with metadata filters for domain, work gate, lifecycle, group, and search text."
+    },
+    {
+      "id": "commands:groups",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "workspace_ops",
+      "description": "Summarize command registry groups, domains, and three-commandment work gates for surface compression."
+    },
+    {
+      "id": "ops:kernel-sentinel:auto",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "observability.sentinel",
+      "description": "Run the Kernel Sentinel automatic observation loop with bounded runtime, compact artifacts, trace identity, and maintenance cadence controls."
+    },
+    {
+      "id": "ops:kernel-sentinel:heartbeat",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "observability.sentinel",
+      "description": "Run the lightweight Kernel Sentinel heartbeat path for freshness without expensive dream-state self-study."
+    },
+    {
+      "id": "ops:kernel-sentinel:release-gate",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "observability.sentinel",
+      "description": "Evaluate whether Kernel Sentinel evidence is fresh, bounded, and strong enough for release confidence."
+    },
+    {
+      "id": "ops:ksent:fresh-evidence:guard",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "observability.sentinel",
+      "description": "Guard that verifies Kernel Sentinel has fresh evidence artifacts and is not relying on stale self-observation."
+    },
+    {
+      "id": "gateway",
+      "domain": "gateway",
+      "work_gate": "real_work",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "gateway.runtime",
+      "description": "Start or attach to the Gateway runtime surface without treating Shell state as authority."
+    },
+    {
+      "id": "gateway:status",
+      "domain": "gateway",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "gateway.runtime",
+      "description": "Read Gateway status and health projection for operator diagnostics without mutating runtime state."
+    },
+    {
+      "id": "gateway:stop",
+      "domain": "gateway",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "gateway.runtime",
+      "description": "Stop the Gateway runtime through the governed command path while preserving diagnostic output."
+    },
+    {
+      "id": "ops:gateway:interface:guard",
+      "domain": "gateway",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "gateway.contracts",
+      "description": "Validate Gateway interface policy: bounded route classes, forbidden raw state shapes, and projection-only payload contracts."
+    },
+    {
+      "id": "ops:gateway-boundary:guard",
+      "domain": "gateway",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "gateway.contracts",
+      "description": "Guard the Gateway boundary membrane so external clients cannot bypass typed, bounded, auditable ingress."
+    },
+    {
+      "id": "install:personal",
+      "domain": "installer",
+      "work_gate": "real_work",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "installer",
+      "description": "Run the personal installation path for local operator setup using the public installer compatibility surface."
+    },
+    {
+      "id": "ops:windows-installer:contract:guard",
+      "domain": "installer",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "installer.windows",
+      "description": "Validate Windows installer contracts, wrapper expectations, and locked-down execution-policy recovery behavior."
+    },
+    {
+      "id": "security:audit",
+      "domain": "security",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "security",
+      "description": "Run dependency security audit for known package vulnerabilities before release or risky dependency work."
+    },
+    {
+      "id": "ops:release:verdict",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "validation.release_gates",
+      "description": "Produce the release verdict from validation, proof-pack, Sentinel, and governance evidence."
+    },
+    {
+      "id": "ops:release:proof-pack",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "validation.release_gates",
+      "description": "Build or refresh release proof-pack artifacts used by release gates and operator review."
+    },
+    {
+      "id": "ops:boundedness:release-gate",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "validation.release_gates",
+      "description": "Gate release confidence on boundedness evidence such as memory, queue, stale-surface, and recovery budgets."
+    },
+    {
+      "id": "memory:matrix:status",
+      "domain": "kernel",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "kernel.memory",
+      "description": "Read memory matrix status as a kernel-owned diagnostic rather than a Shell-owned cache mirror."
+    },
+    {
+      "id": "memory:efficiency:run",
+      "domain": "kernel",
+      "work_gate": "simplification",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "kernel.memory",
+      "description": "Run memory efficiency analysis to find retention, compaction, and representation-collapse opportunities."
+    }
+  ]
+}

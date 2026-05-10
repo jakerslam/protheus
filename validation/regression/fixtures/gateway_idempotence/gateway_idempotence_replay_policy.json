@@ -1,0 +1,20 @@
+{
+  "type": "gateway_idempotence_replay_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.regression",
+  "fixtures_dir": "validation/regression/fixtures/gateway_idempotence",
+  "source_path": "adapters/runtime/infring_dashboard.ts",
+  "required_source_tokens": [
+    "backendFreshnessSnapshot",
+    "backendHealth",
+    "backend_reused",
+    "dashboard_backend_timeout",
+    "requestTraceId"
+  ],
+  "policy": {
+    "start_when_active_must_attach_not_restart": true,
+    "status_must_be_read_only": true,
+    "restart_must_keep_requested_host_port": true,
+    "failure_must_emit_next_action": true
+  }
+}

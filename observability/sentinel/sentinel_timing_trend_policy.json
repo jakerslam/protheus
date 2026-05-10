@@ -1,0 +1,21 @@
+{
+  "type": "sentinel_timing_trend_policy",
+  "schema_version": 1,
+  "owner_domain": "observability.sentinel",
+  "report_path": "observability/reports/sentinel_timing_trend_report_2026-05-10.json",
+  "candidate_artifact_globs": [
+    "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+    "core/local/state/kernel_sentinel/kernel_sentinel_auto_run_current.json",
+    "validation/release_gates/proof_packs/**/kernel_sentinel_auto_run_current.json"
+  ],
+  "policy": {
+    "stage_timing_samples_should_accumulate_across_dream_and_release_runs": true,
+    "full_runs_should_emit_stage_timings": true,
+    "lightweight_runs_are_freshness_only_and_do_not_count_as_full_timing_samples": true,
+    "trend_report_should_stay_compact": true
+  },
+  "budgets": {
+    "max_report_bytes": 20000,
+    "warn_if_samples_below": 2
+  }
+}

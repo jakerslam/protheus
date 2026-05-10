@@ -505,6 +505,18 @@ async function ensureBackend(flags) {
   try { child.kill('SIGTERM'); } catch {}
   throw new Error('dashboard_backend_timeout');
 }
+function sanitizeTraceId(value) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const clean = String(raw || '').trim();
+  return /^[A-Za-z0-9_.:-]{8,160}$/.test(clean) ? clean : '';
+}
+function requestTraceId(req) {
+  if (req.__infringTraceId) return req.__infringTraceId;
+  const existing = sanitizeTraceId(req.headers && (req.headers['x-infring-trace-id'] || req.headers['traceparent']));
+  const minted = `trace_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
+  req.__infringTraceId = existing || minted;
+  return req.__infringTraceId;
+}
 function sendJson(res, statusCode, value) {
   res.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(`${JSON.stringify(value, null, 2)}\n`);
@@ -572,13 +584,14 @@ function mergeDashboardVersionPayload(payload) {
     arch: base.arch || process.arch,
   };
 }
-function filteredHeaders(headers, host) {
+function filteredHeaders(headers, host, traceId = '') {
   const out = {};
   for (const [key, value] of Object.entries(headers || {})) {
     if (!value || HOP_BY_HOP.has(String(key).toLowerCase())) continue;
     out[key] = value;
   }
   out.host = host;
+  if (traceId) out['x-infring-trace-id'] = traceId;
   return out;
 }
 function dashboardSystemActionArgs(action, payload = {}) {
@@ -693,7 +706,7 @@ function proxyToBackend(req, res, flags) {
     ignoreStreamErrors(res);
     ignoreStreamErrors(req.socket);
     ignoreStreamErrors(res.socket);
-    const upstream = http.request({ host: flags.apiHost, port: flags.apiPort, method: req.method || 'GET', path: req.url || '/', headers: filteredHeaders(req.headers, `${flags.apiHost}:${flags.apiPort}`) }, (upstreamRes) => {
+    const upstream = http.request({ host: flags.apiHost, port: flags.apiPort, method: req.method || 'GET', path: req.url || '/', headers: filteredHeaders(req.headers, `${flags.apiHost}:${flags.apiPort}`, requestTraceId(req)) }, (upstreamRes) => {
       ignoreStreamErrors(upstreamRes);
       ignoreStreamErrors(upstreamRes.socket);
       res.writeHead(upstreamRes.statusCode || 502, upstreamRes.headers);
@@ -714,7 +727,7 @@ function proxyUpgrade(req, socket, head, flags) {
     host: flags.apiHost,
     port: flags.apiPort,
     path: req.url || '/',
-    headers: { ...filteredHeaders(req.headers, `${flags.apiHost}:${flags.apiPort}`), connection: 'Upgrade', upgrade: req.headers.upgrade || 'websocket' },
+    headers: { ...filteredHeaders(req.headers, `${flags.apiHost}:${flags.apiPort}`, requestTraceId(req)), connection: 'Upgrade', upgrade: req.headers.upgrade || 'websocket' },
   });
   upstream.on('upgrade', (upstreamRes, upstreamSocket, upstreamHead) => {
     ignoreStreamErrors(upstreamRes);
@@ -819,6 +832,8 @@ async function runServe(flags) {
   const server = http.createServer(async (req, res) => {
     const requestUrl = new URL(req.url || '/', `http://${flags.host}:${flags.port}`);
     const pathname = requestUrl.pathname;
+    const traceId = requestTraceId(req);
+    try { res.setHeader('x-infring-trace-id', traceId); } catch {}
     try {
       if ((req.method === 'GET' || req.method === 'HEAD') && (pathname === '/dashboard-classic' || pathname === '/dashboard-shell')) {
         res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
@@ -937,7 +952,7 @@ async function runServe(flags) {
     } catch (error) {
       const message = cleanText(error && error.message ? error.message : String(error), 260);
       const statusCode = message === 'request_body_invalid_json' || message === 'request_body_too_large' ? 400 : 500;
-      sendJson(res, statusCode, { ok: false, type: 'infring_dashboard_request_error', error: message });
+      sendJson(res, statusCode, { ok: false, type: 'infring_dashboard_request_error', trace_id: traceId, error: message });
     }
   });
   server.on('upgrade', (req, socket, head) => {
