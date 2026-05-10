@@ -37,6 +37,8 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `FIRECRAWL-PATTERN-009` | Discovery candidates with rejection reasons | Crawl/map internals retain why a URL was accepted or denied: depth, include/exclude, robots, file type, non-web protocol, external scope, and section-link dedupe. This is useful for high-volume filtering diagnostics. | tracked |
 | `FIRECRAWL-PATTERN-010` | Async retrieval lifecycle discipline | Queue/crawl workers separate scheduling, active/backlogged state, lock renewal, liveness, completion, failure, retention, and webhook/status projection. Useful for future long-running research jobs. | tracked |
 | `FIRECRAWL-PATTERN-011` | Capability-gated rich extraction | Browser, replay, media, image, attribute, audio, and video extraction are explicit capabilities with validation and service availability checks. They should stay optional artifacts/workflows. | tracked |
+| `FIRECRAWL-PATTERN-012` | MCP-style tool capability catalog | The external MCP server exposes tools as a catalog of names, descriptions, annotations, schemas, and executors. This maps directly to future Tooling CDs. | tracked |
+| `FIRECRAWL-PATTERN-013` | Transport/auth/safe-mode membrane | MCP stdio/http transports, per-session auth, read-only/destructive/open-world annotations, and cloud safe mode keep capabilities gated without changing user-facing synthesis behavior. | tracked |
 
 ## Parsed This Pass
 
@@ -166,14 +168,31 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/test-suite/data/crawl.json` and `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/test-suite/load-test.yml` | parsed | crawl quality/load fixtures | Extracted crawl expected-pages/not-crawled-pages fixtures, backward-crawl regression notes, load phases, polling-until-completed, and captured job IDs. Pattern suggests future web-tool evals should cover negative URL inclusion and async polling, not only final answer quality. |
 | Firecrawl examples inventory (`/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/examples`) | surveyed | repeated agentic retrieval recipes | Surveyed 66 example/tutorial files. Repeated patterns are map/search to candidate URLs, model-assisted ranking, scrape/extract/poll, schema output for explicit extraction, scheduled scraping, and provider-specific demo models. No new primitive beyond patterns already captured; do not copy example-specific model choices, JSON-only prompts, company/deal/job domains, or social/source exclusions. |
 | Firecrawl CLI/MCP references in README and blog material | surveyed | external tool surface | The cloned repo references `firecrawl-cli` and a separate `firecrawl-mcp-server`, but does not contain their implementation. Pattern confirms tool access should be an admitted external capability with browser optionality and streaming/status support; separate assimilation would require cloning that repo. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl-mcp-server/README.md` | parsed | user-facing tool catalog and tool choice cautions | Extracted the public tool taxonomy: scrape, map, search, crawl/status, extract, agent/status, browser/session, interact, and parse. Useful as a Tooling CD catalog pattern; do not copy its tool-preference wording or example-specific prompts. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl-mcp-server/src/index.ts` | parsed | MCP tool definitions and execution membrane | Extracted zod request schemas, read-only/destructive/open-world annotations, session auth, safe-mode capability gating, search domain validation, include/exclude query constraints, async status tools, local-parse gating, and transport selection. Pattern belongs in Tooling CDs and broker admission, not hidden Rust behavior. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl-mcp-server/server.json` | parsed | MCP package/admission metadata | Extracted server identity, package registry metadata, stdio transport declaration, and secret environment variable contract as a compact external-tool admission pattern. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl-mcp-server/VERSIONING.md` | parsed | versioned tool surface | Extracted versioned endpoint/tool compatibility as a policy/admission concern. Pattern: tools can evolve behind explicit version contracts without changing workflow behavior. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl-mcp-server/CHANGELOG.md` | parsed | transport-aware logging caution | Extracted the stdio logging hang fix as a membrane caution: tool diagnostics must not corrupt machine transport streams, and chat-visible output must remain separate from logs. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl-mcp-server/src/legacy/index.md` | surveyed | legacy raw MCP definitions | Surveyed the older direct MCP SDK tool-definition style. It reinforces the same catalog/schema/executor pattern, but the current FastMCP surface is the better source for future Tooling CD shape. |
 
 ## Repo Surfaces Pending
 
 | Area | Paths | Priority | Reason |
 | --- | --- | --- | --- |
-| External Firecrawl MCP server | linked `firecrawl-mcp-server` repository, not included in this clone | optional future | Current repo only references the external MCP server. Clone it only if MCP/tool-surface assimilation becomes the target. |
+| External Firecrawl MCP server | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl-mcp-server` | parsed | Cloned and parsed for MCP/tool-surface patterns. No current runtime changes justified. |
 | Image/assets/notebook outputs | screenshots, PNG reports, demo notebooks, generated benchmark artifacts | no action | These are output/media artifacts, not implementation patterns for our web-tooling primitive. |
 | Long legacy e2e files already surveyed | full line-by-line legacy v0/v1/v2 e2e parity files | no action | Representative and targeted surfaces are parsed. Remaining line-by-line work would mostly duplicate already captured scrape/crawl/search/extract/browser contracts unless a specific regression points there. |
+
+## Assimilation Decision: 2026-05-10 MCP Tool-Surface Pass
+
+No runtime implementation was taken from this pass.
+
+Reason:
+
+- The MCP server is primarily a tool-capability catalog. Its strongest reusable pattern is not another retrieval heuristic; it is how a tool declares identity, parameters, annotations, auth/session requirements, transport mode, safe-mode limits, and async status companions.
+- Its descriptions contain strong tool-preference wording and specific examples. Those are useful as cautions, but should not be copied into our user-facing agent prompts or workflow CDs as fixed routing behavior.
+- The useful next architecture target is a small Tooling CD shape that can declare these same capability fields for our tools, then let workflows and agents choose among admitted capabilities. That should happen as a general tool contract, not as Firecrawl-specific Rust behavior.
+- For current web-research quality, the MCP repo does not reveal a new primitive beyond the ones already implemented from Firecrawl itself: higher-volume candidates, optional page extraction, structured result retention, evidence packs, cache lifecycle, and async status discipline.
 
 ## Assimilation Decision: 2026-05-10 Low-Surface Closure Pass
 
