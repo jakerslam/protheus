@@ -11,19 +11,96 @@
       "mode": "enabled",
       "ttl_success_seconds": 1800,
       "ttl_no_results_seconds": 120,
-      "max_entries": 240
+      "max_entries": 240,
+      "lifecycle": {
+        "cleanup_bound": "state_cleanup_policy:local/state/batch_query",
+        "validation_metadata": [
+          "etag",
+          "last_modified",
+          "head_fingerprint",
+          "source_timestamp"
+        ],
+        "freshness_check": "conditional_headers_or_head_fingerprint_when_available"
+      }
     },
     "page_extraction": {
       "enabled": true,
       "extract_mode": "markdown",
-      "max_links_per_stage": 2,
-      "max_total_fetches": 4,
-      "min_link_score": 0.08,
-      "trigger": "low_or_empty_candidates"
+      "max_links_per_stage": 3,
+      "max_total_fetches": 8,
+      "min_link_score": 0.0,
+      "trigger": "low_or_empty_candidates",
+      "prefetch": {
+        "enabled": true,
+        "goal": "discover_and_rank_links_before_full_fetch",
+        "max_prefetch_links": 24,
+        "include_link_text": true,
+        "include_parent_context": true
+      },
+      "head_preview": {
+        "enabled": true,
+        "max_candidates": 16,
+        "timeout_ms": 5000,
+        "fields": [
+          "title",
+          "description",
+          "canonical",
+          "lang",
+          "jsonld",
+          "status"
+        ]
+      },
+      "candidate_selection": {
+        "strategy": "score_then_fetch_best_available",
+        "score_axes": [
+          "query_relevance",
+          "link_text_signal",
+          "head_metadata_signal",
+          "source_diversity",
+          "freshness_when_relevant",
+          "content_density",
+          "low_junk_signal"
+        ],
+        "record_rejection_reasons": true
+      },
+      "dynamic_escalation": {
+        "enabled": true,
+        "default": "off",
+        "allowed_when_quality_flags_include": [
+          "needs_js",
+          "needs_dynamic",
+          "blocked_but_retryable"
+        ],
+        "requires_capability": "web_fetch.dynamic_page_allowed"
+      }
     },
     "structured_results": {
       "enabled": true,
-      "max_rows_per_stage": 12
+      "max_rows_per_stage": 16
+    },
+    "adaptive_sufficiency": {
+      "enabled": true,
+      "authority": "policy_owned_retrieval_primitive",
+      "min_evidence_items": 4,
+      "min_source_domains": 3,
+      "candidate_gain_threshold": 0.08,
+      "stop_when": [
+        "evidence_threshold_met",
+        "source_diversity_threshold_met",
+        "candidate_gain_below_threshold",
+        "query_budget_exhausted",
+        "tool_budget_exhausted"
+      ],
+      "diagnostics": [
+        "candidate_count",
+        "evidence_count",
+        "source_domain_count",
+        "quality_flags",
+        "partial_failures",
+        "query_plan_source",
+        "candidate_rejection_reasons",
+        "cache_freshness_status"
+      ]
     },
     "evidence_pack": {
       "enabled": true,
@@ -58,21 +135,21 @@
           "milestones",
           "news",
           "overview",
-          "some ",
           "state of",
           "trend",
-          "trends",
-          "what are",
-          "what were"
+          "trends"
         ],
         "templates": [
           "{query}",
-          "{query} source-backed overview",
+          "{query} primary evidence",
           "{query} primary sources",
           "{query} official sources",
           "{query} recent publications",
           "{query} institution announcements",
           "{query} research publications",
+          "{query} official announcements",
+          "{query} technical reports",
+          "{query} datasets",
           "{query} methodology evidence",
           "{query} peer reviewed evidence",
           "{query} source list"
@@ -121,6 +198,9 @@
           "{query} independent analysis comparison evidence",
           "{query} risks limitations security reliability evidence",
           "{query} production usage examples case studies",
+          "{query} methodology evidence",
+          "{query} technical report",
+          "{query} source diversity evidence",
           "{query} changelog release notes",
           "{query} repository issues adoption evidence",
           "{query} benchmark methodology evidence",

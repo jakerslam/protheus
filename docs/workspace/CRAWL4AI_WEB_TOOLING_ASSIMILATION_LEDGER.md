@@ -1,0 +1,124 @@
+# Crawl4AI Web Tooling Assimilation Ledger
+
+Created: 2026-05-10
+
+Source repo: `https://github.com/unclecode/crawl4ai`
+
+Local source clone: `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai`
+
+## Goal
+
+Track Crawl4AI pattern assimilation for improving web research retrieval quality after the current workflow gates became mostly healthy but golden results still failed on weak or incomplete evidence.
+
+This ledger is intentionally about portable mechanisms, not copied source, provider-specific browser tricks, or fixed answer formats.
+
+## Guardrails
+
+- Prefer CD/policy-owned behavior over Rust application hardcoding.
+- Do not add domain-specific routes for the research golden dataset.
+- Do not force user-facing answer formats.
+- Treat Crawl4AI as a source of general retrieval/crawling patterns, not as a required dependency or exclusive provider.
+- Keep browser automation, stealth, proxy, identity, and anti-bot behavior behind explicit capability and permission boundaries.
+- Preserve source provenance, rejection reasons, confidence, and coverage gaps as tool artifacts for synthesis.
+- Track parsed source surfaces here so future passes can continue without repeating or missing coverage.
+
+## Assimilation Targets
+
+| ID | Target | Why it matters | Status |
+| --- | --- | --- | --- |
+| `CRAWL4AI-PATTERN-001` | Progressive information sufficiency | Current failures are often low or partial evidence. Crawl4AI frames retrieval as gathering until confidence/coverage/saturation is enough or budget is exhausted. | active |
+| `CRAWL4AI-PATTERN-002` | Coverage-aware link/candidate scoring | Golden failures include entity coverage misses. Link scoring and expected-gain ranking may help choose follow-up candidates before page fetch. | active |
+| `CRAWL4AI-PATTERN-003` | LLM-ready markdown with fit/citation variants | Better page extraction should provide compact, citable context instead of raw page dumps or lossy snippets. | active |
+| `CRAWL4AI-PATTERN-004` | Adaptive crawling state and resumability | Future long-running research should expose progress, confidence, crawled URLs, and persistent knowledge state. | tracked |
+| `CRAWL4AI-PATTERN-005` | Multi-strategy deep crawling | BFS/DFS/best-first strategies and filters can become policy-owned retrieval modes rather than hardcoded search paths. | tracked |
+| `CRAWL4AI-PATTERN-006` | URL seeding and source discovery | Current search provider rows are sometimes weak. URL seeding/discovery patterns may broaden candidate pools before filtering. | active |
+| `CRAWL4AI-PATTERN-007` | Browser/session/proxy/anti-bot capability gating | Useful for hard pages, but should remain an admitted capability rather than normal research behavior. | tracked |
+| `CRAWL4AI-PATTERN-008` | Cache lifecycle and freshness validation | Real users benefit from cache, but evals need cache isolation and runtime cleanup. Crawl4AI separates cache modes and validates freshness with ETag/Last-Modified/head fingerprints. | active |
+| `CRAWL4AI-PATTERN-009` | Resource-aware fanout and rate limiting | Higher-volume retrieval needs bounded queues, per-domain backoff, and memory-pressure behavior so quality improvements do not become runaway churn. | active |
+| `CRAWL4AI-PATTERN-010` | Structured content extraction and table/media signals | Better research answers need not only prose snippets; tables, metadata, captions, media descriptions, and extracted blocks can become evidence features. | tracked |
+
+## Parsed This Pass
+
+| Path | Status | Relevant pattern | Result |
+| --- | --- | --- | --- |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/README.md` | parsed | feature taxonomy | Extracted the primary primitives: async browser crawling, LLM-ready markdown, fit markdown, citations, structured extraction, browser/session/proxy control, caching, lazy loading, full-page scan, and deployment/API surfaces. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/pyproject.toml` | parsed | dependency/capability map | Logged core capability dependencies: Playwright/Patchright, BM25, stemming, HTML parsing, rich CLI, Pydantic models, proxy/user-agent support, and optional embedding/transformer extras. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/PROGRESSIVE_CRAWLING.md` | parsed | progressive information sufficiency | Extracted the high-signal mechanism: coverage, consistency, saturation, domain coverage, expected link gain, stopping criteria, and statistical/embedding/LLM strategy ladder. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/api/adaptive-crawler.md` | parsed | adaptive crawler API contract | Extracted digest(start_url, query), confidence, coverage stats, sufficiency, relevant-content retrieval, export/import knowledge base, and configurable confidence/max-pages/top-k/min-gain knobs. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/adaptive_crawler.py` | parsed | adaptive retrieval loop | Confirmed portable mechanism: maintain crawled URLs, knowledge base, pending links, query metrics, term/document frequencies, new-term history, and confidence. Stop only when confidence, saturation, max pages/depth, no pending links, or min gain says to stop. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/deep_crawling/base_strategy.py` | parsed | deep-crawl lifecycle contract | Extracted interface pattern: strategy-owned traversal with common URL validation, link discovery, batch/stream variants, and no recursion leaks when deep crawl wraps a normal crawl call. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/deep_crawling/bff_strategy.py` | parsed | best-first candidate expansion | Extracted priority-queue traversal with max-pages, score threshold, batch processing, cancellation, resume state, and per-result parent/depth/score metadata. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/deep_crawling/scorers.py` | parsed | candidate scoring primitives | Extracted general scorers: keyword relevance, path depth, content type, freshness, domain authority, and composite weighted scoring. Useful as scoring vocabulary, not as fixed weights. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/deep_crawling/filters.py` | parsed | candidate filtering primitives | Extracted filter chain pattern: URL pattern, content type, domain allow/block, head-section BM25 relevance, and quality heuristics with pass/reject stats. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/link_preview.py` | parsed | candidate enrichment before crawl | Extracted the search-result enrichment pattern: filter URLs, fetch head metadata in parallel, attach status/error/relevance_score to links, then sort enriched links before deeper fetch. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/content_filter_strategy.py` | parsed | fit-content extraction | Extracted BM25 chunk filtering with priority tags and pruning by text density/link density/tag weight. Maps to compact evidence-pack generation. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/markdown_generation_strategy.py` | parsed | LLM-ready markdown | Extracted raw markdown, markdown-with-citations, references, fit markdown, and fit HTML as separate artifacts so synthesis can use compact grounded content while raw payload stays internal. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/async_url_seeder.py` | parsed | source discovery and bounded fanout | Extracted sitemap/Common Crawl URL discovery, head preview, BM25 scoring, source cache TTL/lastmod validation, dedupe, bounded queues, rate limits, and nonsense URL filtering. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/crawlers/google_search/crawler.py` | skimmed | structured search result extraction | Recorded schema-cached search result extraction pattern. Do not assimilate provider-specific Google scraping as a default path; only keep the structured extraction/cache pattern. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/content_scraping_strategy.py` | parsed | cleaning, link/media/table extraction | Extracted portable HTML cleaning sequence: remove script/style/meta/noise, preserve base URL, normalize links, score links with page context, extract metadata/media/tables, remove low-value attributes, and attach link-preview metadata when configured. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/async_webcrawler.py` | parsed | cache and processing lifecycle | Extracted mode separation: read cache only when policy allows, validate cache freshness, fetch when stale/missing, process HTML into cleaned/fit/markdown variants, and retain crawl stats/errors without exposing raw payloads to chat. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/async_crawler_strategy.py` | parsed | dynamic-page readiness and capability escalation | Extracted gated readiness primitives: wait conditions, virtual/full-page scroll, iframe/shadow DOM handling, overlay removal, network/console capture, delayed content, and cleanup after session reuse. These should be capability-gated, not defaults. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/async_dispatcher.py` | parsed | resource-aware fanout | Extracted adaptive concurrency: per-domain delays, backoff with jitter on rate-limit statuses, memory-pressure pause/requeue, fairness priority, retry metadata, and streaming result mode. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/cache_context.py` | parsed | cache mode primitive | Extracted clean cache mode vocabulary: enabled, disabled, read-only, write-only, and bypass, with decisions centralized by URL type and operation context. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/cache_validator.py` | parsed | cache freshness validation | Extracted ETag/Last-Modified conditional request and head-fingerprint validation pattern, plus stale/unknown/error lanes that avoid full recrawl when content is known fresh. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/async_configs.py` | parsed | declarative crawler config surface | Extracted config-as-contract pattern: browser config, run config, link preview config, virtual scroll config, seeding config, serializable allowlist, and explicit cache/dynamic/page-processing knobs. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/deep_crawling/bfs_strategy.py` | parsed | breadth-first traversal | Extracted level-based traversal with max-depth/max-pages, filter chain, scorer threshold, result metadata for depth/parent/score, cancellation, and resumable state. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/deep_crawling/dfs_strategy.py` | parsed | depth-first traversal | Extracted branch-probing traversal with the same filter/scorer/page-limit semantics and separate seen/visited state. Useful as a strategy option, not a default. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/browser_manager.py` | parsed | browser lifecycle gating | Extracted managed/dedicated/CDP lifecycle, temporary profile cleanup, resource-saving browser flags, text/light modes, and profile/session reuse patterns. Keep behind capability and permission boundaries. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/extraction_strategy.py` | parsed | structured extraction pipeline | Extracted chunked extraction contract: strategy input format, parallel/async extraction over sections, fence stripping, schema feedback from top-level HTML structure, and markdown/html/fit-markdown input selection. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/table_extraction.py` | parsed | table evidence extraction | Extracted data-table scoring separate from layout tables, including headers, rows, caption, summary, column consistency, text density, and nested-table penalties. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/chunking_strategy.py` | parsed | chunking primitives | Extracted identity, regex, fixed-length, sliding-window, and overlapping-window chunking strategies as general extraction primitives. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/core/fit-markdown.md` | parsed | fit markdown explanation | Confirmed fit content as a first-class artifact generated by pruning/BM25 before synthesis, not a user-visible prose format requirement. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/core/url-seeding.md` | parsed | seed-vs-crawl tradeoff | Extracted the general decision rule: seed URLs for bulk coverage and pre-filtering; deep crawl for freshness/unknown structure; combine by seeding candidates then crawling promising sections. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/core/deep-crawling.md` | parsed | traversal modes | Confirmed BFS/DFS/best-first as mode vocabulary with filters/scorers, streamed/non-streamed results, max depth/pages, and prefetch mode. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/advanced/multi-url-crawling.md` | parsed | dispatcher controls | Confirmed rate limiting, memory-adaptive dispatcher, semaphore dispatcher, and monitoring as resource-control patterns for high-volume retrieval. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/core/cache-modes.md` | parsed | cache mode docs | Confirmed one cache-mode field is cleaner than scattered cache booleans; map this to policy/CD rather than ad hoc runtime flags. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/antibot_detector.py` | parsed | blocked-result classification | Extracted layered blocked-result diagnostics: status-code lanes, high-confidence structural markers, short-page generic markers, structural empty-shell detection, and visible-text/content-element checks. Use as quality flags and trace fields, not as an automatic bypass mandate. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/proxy_strategy.py` | parsed | proxy/session capability boundary | Extracted rotation and sticky-session concepts with explicit TTL/release/session tracking. This remains a gated capability; ordinary research should diagnose blocked states before any proxy escalation. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/advanced/anti-bot-and-fallback.md` | parsed | blocked recovery lifecycle | Extracted attempt-trace shape: attempts, retries, status codes, blocked reason, fallback use, and resolved_by. Useful for telling synthesis what failed without leaking raw traces into chat. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/md_v2/advanced/proxy-security.md` | parsed | per-request proxy/security config | Confirmed proxy and SSL/security work should be per-request/admitted capability, not ambient default behavior. |
+
+## Repo Surfaces Pending
+
+| Area | Paths | Priority | Reason |
+| --- | --- | --- | --- |
+| Adaptive crawler implementation | adaptive examples/tests | medium | Core implementation and docs parsed; examples/tests may reveal tuning defaults but should not drive runtime behavior. |
+| Deep crawling strategies | remaining tail/tests for BFS/DFS/best-first | low | Core strategy surfaces parsed; remaining tests are for completeness and edge-case wording. |
+| Link preview/scoring and content scraping | link preview/scoring tests | low | Main high-signal extraction surface parsed; tests can confirm edge cases. |
+| URL seeding/search crawlers | URL seeder tests and sitemap/CC parser edge cases | medium | Main source discovery pattern parsed; remaining sections can confirm cache/fallback edge cases. |
+| Async crawler/browser manager | browser tests and advanced docs | medium | Runtime lifecycle, concurrency, session, timeout, and resource controls parsed; tests/docs remain for gated dynamic-page edge cases. |
+| Browser/proxy/anti-bot surfaces | browser/proxy tests and examples | low | Core detection/proxy docs parsed; remaining tests/examples are for edge-case coverage only. Useful as capability-gating patterns only; avoid copying bypass mechanics as defaults. |
+| Structured extraction and schema examples | no-LLM/LLM extraction docs and tests | medium | Could yield better evidence packaging patterns, but must avoid hardcoding output shape. |
+| Examples/assets/notebooks | `docs/examples/**`, `docs/apps/**`, images/notebooks | low | Survey only for repeated patterns; avoid example-domain hardcoding. |
+| Legacy package | `crawl4ai/legacy/**` | low | Parse only if current implementation leaves gaps; likely duplicate patterns. |
+
+## Assimilation Decisions
+
+| Decision | Status | Target | Notes |
+| --- | --- | --- | --- |
+| Prefer progressive sufficiency over one-shot low-signal synthesis | accepted | Tool CD diagnostics and batch-query policy | Use generic thresholds: candidate count, evidence count, source diversity, relevance/quality flags, and budget. Do not add domain-specific query paths. |
+| Enrich and filter candidates before deeper fetch | accepted | Batch-query page extraction | Crawl4AI's link preview pattern maps directly to the existing `page_extraction` policy: fetch more promising links when search rows are empty/thin, then rerank/package evidence. |
+| Keep answer shape unconstrained | accepted | Workflow/synthesis contract | Crawl4AI improves evidence, not final prose templates. The final answer remains LLM-shaped by user intent and evidence. |
+| Treat browser/proxy/anti-bot as gated capabilities | accepted | Future tooling CD | Do not make stealth/proxy/browser defaults for ordinary research. Surface them only when permissions/capability policy admits the mode. |
+| Do not adopt Crawl4AI as a dependency yet | accepted | Current pass | The immediate ROI comes from primitive patterns already compatible with existing web tooling: higher-volume candidate discovery, preview/enrichment, scoring, fit evidence, and sufficiency diagnostics. |
+| Prefer prefetch/link preview before expensive page fetch | accepted | Batch-query page extraction | Use lightweight link/head discovery to build a candidate pool, then spend fetch budget on high expected-gain candidates. |
+| Keep URL-only link thresholds permissive | accepted | Batch-query page extraction | A plausible second-source URL can have weak lexical overlap before it is fetched. Let later candidate/evidence filters reject noisy pages instead of dropping candidates at the URL-only stage. |
+| Keep cache useful but bounded | accepted | Batch-query cache and research-plane policy | Cache should help real users, but remain governed by TTL/freshness metadata and tied to state cleanup so evals can isolate it without changing runtime defaults. |
+| Treat dynamic/browser behavior as escalation, not normal search | accepted | Tool CD and research-plane policy | Dynamic fetch can recover pages that require JS or are blocked, but must be triggered by quality flags/capability policy instead of becoming the default retrieval route. |
+| Preserve non-prose evidence artifacts | accepted | Evidence extraction policy | Tables, fit HTML, captions, link metadata, and rejection reasons should be artifacts for synthesis, not fixed final-answer structure. |
+| Split low-signal retrieval from blocked retrieval | accepted | Tool CD diagnostics and research-plane policy | A weak search result and a blocked/JS-required page should not collapse into the same “no useful data” lane. The tool should surface quality flags and attempt trace so synthesis can calibrate the answer. |
+
+## Implemented This Pass
+
+| Change | File | Pattern |
+| --- | --- | --- |
+| Raised existing page-extraction follow-up budget so low/thin search output can fetch more promising links before synthesis. | `client/runtime/config/batch_query_policy.json` | `CRAWL4AI-PATTERN-002`, `CRAWL4AI-PATTERN-003` |
+| Lowered the default URL-only page-extraction threshold so promising but lexically sparse follow-up sources can be fetched and judged by content. | `client/runtime/config/batch_query_policy.json` | `CRAWL4AI-PATTERN-002` |
+| Added declarative progressive sufficiency/scoring/extraction diagnostics to the web retrieval Tool CD without changing the Rust player. | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `CRAWL4AI-PATTERN-001`, `CRAWL4AI-PATTERN-002`, `CRAWL4AI-PATTERN-003` |
+| Added research-plane policy vocabulary for adaptive crawling, URL seeding, fit markdown, and gated dynamic/browser modes. | `client/runtime/config/research_plane_policy.json` | `CRAWL4AI-PATTERN-004`, `CRAWL4AI-PATTERN-006`, `CRAWL4AI-PATTERN-007` |
+| Added page-extraction prefetch, head-preview, candidate-selection, and dynamic-escalation policy vocabulary. | `client/runtime/config/batch_query_policy.json` | `CRAWL4AI-PATTERN-002`, `CRAWL4AI-PATTERN-006`, `CRAWL4AI-PATTERN-007` |
+| Added cache lifecycle/freshness metadata tied to existing cleanup policy. | `client/runtime/config/batch_query_policy.json` | `CRAWL4AI-PATTERN-008` |
+| Added adaptive strategy menu, seed-vs-crawl guidance, queue metadata, extraction source selection, and rate/resource controls. | `client/runtime/config/research_plane_policy.json` | `CRAWL4AI-PATTERN-004`, `CRAWL4AI-PATTERN-005`, `CRAWL4AI-PATTERN-006`, `CRAWL4AI-PATTERN-009`, `CRAWL4AI-PATTERN-010` |
+| Added retrieval primitives, cache contract, and resource-control contract to the web retrieval Tool CD. | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `CRAWL4AI-PATTERN-001`, `CRAWL4AI-PATTERN-002`, `CRAWL4AI-PATTERN-003`, `CRAWL4AI-PATTERN-008`, `CRAWL4AI-PATTERN-009` |
+| Added blocked-recovery diagnostics and trace fields while keeping proxy/stealth escalation policy-gated. | `client/runtime/config/research_plane_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `CRAWL4AI-PATTERN-007`, `CRAWL4AI-PATTERN-009` |
+| Preserved provider-artifact source previews for coverage gaps without counting too-thin artifacts as evidence. | `core/layer0/ops/src/batch_query_primitive_parts/019-search-row-candidates.rs`, `core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts/000-combined.rs` | `CRAWL4AI-PATTERN-002`, `CRAWL4AI-PATTERN-003` |

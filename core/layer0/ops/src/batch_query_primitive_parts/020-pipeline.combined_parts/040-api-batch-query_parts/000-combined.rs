@@ -456,7 +456,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         .collect::<Vec<_>>();
 
     let min_synthesis_score = minimum_synthesis_score(benchmark_intent);
-    let actionable_ranked = ranked
+    let mut actionable_ranked = ranked
         .into_iter()
         .filter(|(row, score)| {
             let snippet = clean_text(&row.snippet, 1_200);
@@ -485,6 +485,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             &comparison_entities,
             &actionable_ranked,
             &retained_ranked,
+            &provider_results,
             budget.max_evidence,
         );
     let comparison_coverage_gap = comparison_guard_summary.is_some();
@@ -495,6 +496,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 clean_text(summary, 320)
             ));
         }
+        actionable_ranked.clear();
     }
 
     let evidence_refs = actionable_ranked

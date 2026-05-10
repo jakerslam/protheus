@@ -29,6 +29,133 @@
         "use low-relevance and off-topic diagnostics to remove weak terms",
         "synthesize from best recorded evidence only after internal recovery is exhausted"
       ]
+    },
+    "progressive_retrieval_contract": {
+      "authority": "tool_cd_declares_strategy_rust_executes_without_domain_routes",
+      "source_pattern": "crawl4ai_progressive_sufficiency",
+      "objective": "gather enough useful evidence before synthesis instead of forcing a final answer from structurally successful but weak search output",
+      "sufficiency_signals": [
+        "candidate_count",
+        "evidence_count",
+        "source_domain_count",
+        "candidate_quality_flags",
+        "source_diversity_flags",
+        "freshness_flags",
+        "partial_failure_details"
+      ],
+      "candidate_scoring_axes": [
+        "query_relevance",
+        "source_diversity",
+        "source_authority",
+        "freshness_when_relevant",
+        "content_density",
+        "low_junk_signal",
+        "novelty_against_retained_evidence"
+      ],
+      "candidate_enrichment_order": [
+        "search_provider_rows",
+        "prefetch_link_discovery",
+        "head_metadata_preview",
+        "structured_result_rows",
+        "rendered_result_rows",
+        "promising_link_fetch",
+        "fit_markdown_or_excerpt_packaging"
+      ],
+      "retrieval_primitives": {
+        "prefetch": {
+          "purpose": "discover links and candidate context without committing budget to full page extraction",
+          "outputs": [
+            "candidate_url",
+            "parent_url",
+            "link_text",
+            "head_metadata",
+            "candidate_score",
+            "rejection_reason"
+          ]
+        },
+        "best_first_candidate_expansion": {
+          "purpose": "spend follow-up fetches on the highest expected evidence gain",
+          "state": [
+            "visited_urls",
+            "pending_candidates",
+            "depth",
+            "parent_url",
+            "score",
+            "source_domain"
+          ]
+        },
+        "fit_content_packaging": {
+          "purpose": "provide compact evidence to synthesis while retaining raw payload out of chat",
+          "variants": [
+            "fit_markdown",
+            "references",
+            "source_excerpt",
+            "cleaned_html",
+            "fit_html"
+          ]
+        }
+      },
+      "cache_contract": {
+        "modes": [
+          "enabled",
+          "disabled",
+          "read_only",
+          "write_only",
+          "bypass"
+        ],
+        "freshness_signals": [
+          "etag",
+          "last_modified",
+          "head_fingerprint",
+          "source_timestamp"
+        ],
+        "cleanup_bound": "system_state_cleanup",
+        "testability": "evals_may_bypass_or_isolate_cache_without_changing_user_runtime_defaults"
+      },
+      "resource_control": {
+        "per_domain_rate_limit": true,
+        "backoff_on_status": [
+          429,
+          503,
+          504
+        ],
+        "memory_pressure_queueing": true,
+        "bounded_fanout_required": true
+      },
+      "blocked_recovery_trace": {
+        "purpose": "tell synthesis whether retrieval failed because the web is low-signal or because access/readiness blocked the evidence path",
+        "quality_flags": [
+          "blocked",
+          "rate_limited",
+          "needs_js",
+          "needs_dynamic",
+          "proxy_error",
+          "structural_empty_shell"
+        ],
+        "trace_fields": [
+          "attempts",
+          "retries",
+          "fetch_mode",
+          "status_code",
+          "blocked",
+          "reason",
+          "resolved_by"
+        ],
+        "capability_boundary": "diagnose_first_escalate_only_when_admitted_by_policy"
+      },
+      "stop_conditions": [
+        "usable_evidence_threshold_met",
+        "source_diversity_threshold_met",
+        "candidate_gain_below_threshold",
+        "query_budget_exhausted",
+        "tool_budget_exhausted"
+      ],
+      "non_goals": [
+        "do_not_add_domain_specific_research_routes",
+        "do_not_force_user_visible_answer_format",
+        "do_not_make_browser_or_proxy_modes_default",
+        "do_not_scrape_provider_pages_as_a_default_search_strategy"
+      ]
     }
   },
   "contracts": [

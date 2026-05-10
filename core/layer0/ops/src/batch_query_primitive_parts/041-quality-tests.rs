@@ -122,7 +122,7 @@ mod quality_tests {
     }
 
     #[test]
-    fn comparison_guard_preserves_partial_entity_evidence_with_gap_signal() {
+    fn comparison_guard_marks_partial_entity_evidence_as_coverage_gap_preview() {
         let query = "compare alphatool vs betatool for deployment readiness";
         let out = run_query_with_fixture(
             json!({
@@ -137,15 +137,19 @@ mod quality_tests {
             query,
             "medium",
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("partial"));
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
         let lowered = summary_lowered(&out);
-        assert!(lowered.contains("alphatool"), "{lowered}");
+        assert!(lowered.contains("retrieval-quality miss"), "{lowered}");
         let evidence_refs = out
             .get("evidence_refs")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        assert_eq!(evidence_refs.len(), 1, "{evidence_refs:#?}");
+        assert_eq!(evidence_refs.len(), 0, "{evidence_refs:#?}");
+        assert_eq!(
+            out.pointer("/search_results/0/locator").and_then(Value::as_str),
+            Some("https://docs.alpha.example.com/deployment-readiness")
+        );
         let partial_failures = out
             .get("partial_failure_details")
             .and_then(Value::as_array)

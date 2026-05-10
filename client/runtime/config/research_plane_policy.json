@@ -29,7 +29,27 @@
     "max_concurrency": 100,
     "per_domain_qps": 2,
     "max_retries": 3,
-    "checkpoint_every": 10
+    "checkpoint_every": 10,
+    "rate_limit": {
+      "backoff_status_codes": [
+        429,
+        503,
+        504
+      ],
+      "base_delay_ms": [
+        1000,
+        3000
+      ],
+      "max_delay_ms": 60000,
+      "jitter": true,
+      "per_domain_state": true
+    },
+    "resource_guard": {
+      "memory_pressure_mode": true,
+      "max_parallel_dynamic_pages": 4,
+      "requeue_on_pressure": true,
+      "record_wait_time": true
+    }
   },
   "safety_plane": {
     "enabled": true,
@@ -49,6 +69,38 @@
       "auto": 50000
     }
   },
+  "blocked_recovery": {
+    "enabled": true,
+    "default": "diagnose_only",
+    "escalate_only_from_quality_flags": [
+      "blocked",
+      "needs_js",
+      "needs_dynamic",
+      "rate_limited"
+    ],
+    "detection_signals": [
+      "status_code",
+      "structural_block_marker",
+      "captcha_marker",
+      "minimal_visible_text",
+      "script_heavy_shell",
+      "provider_error"
+    ],
+    "attempt_trace_fields": [
+      "attempts",
+      "retries",
+      "fetch_mode",
+      "status_code",
+      "blocked",
+      "reason",
+      "resolved_by"
+    ],
+    "non_goals": [
+      "do_not_enable_stealth_by_default",
+      "do_not_rotate_proxy_without_permission",
+      "do_not_hide_blocked_state_from_synthesis"
+    ]
+  },
   "conduit_enforcement": {
     "reject_bypass_flags": [
       "bypass",
@@ -61,6 +113,126 @@
   "goal_crawl": {
     "default_max_pages": 5,
     "default_max_discovery": 10
+  },
+  "adaptive_retrieval": {
+    "enabled": true,
+    "authority": "policy_owned_research_primitive",
+    "default_strategy": "best_first_when_candidates_are_scored",
+    "confidence_threshold": 0.7,
+    "max_pages": 20,
+    "top_k_links": 3,
+    "min_gain_threshold": 0.08,
+    "strategy_menu": [
+      "one_shot_search_pack",
+      "prefetch_then_rank",
+      "breadth_first_site_slice",
+      "depth_first_path_probe",
+      "best_first_candidate_expansion"
+    ],
+    "strategy_selection": {
+      "authority": "agent_or_policy_may_select_by_task_and_evidence_state",
+      "non_goal": "do_not_select_by_hardcoded_user_prompt_phrases",
+      "prefer_best_first_when": [
+        "candidate_scores_available",
+        "budget_is_limited",
+        "evidence_coverage_is_partial"
+      ],
+      "prefer_prefetch_then_rank_when": [
+        "search_rows_are_thin",
+        "source_pages_have_many_links",
+        "tool_needs_candidate_pool_before_fetch"
+      ]
+    },
+    "signals": [
+      "coverage",
+      "consistency",
+      "saturation",
+      "source_diversity",
+      "freshness_when_relevant",
+      "candidate_gain"
+    ],
+    "stop_conditions": [
+      "confidence_threshold_met",
+      "saturation_threshold_met",
+      "candidate_gain_below_threshold",
+      "max_pages_reached",
+      "budget_exhausted"
+    ]
+  },
+  "url_seeding": {
+    "enabled": true,
+    "sources": [
+      "search_provider_rows",
+      "sitemap",
+      "robots_sitemap",
+      "common_crawl_when_available"
+    ],
+    "mode_guidance": {
+      "deep_crawl": "fresh_real_time_discovery",
+      "url_seeding": "bulk_discovery_before_fetch",
+      "combined": "seed_for_candidate_pool_then_deep_crawl_promising_sections"
+    },
+    "head_preview": {
+      "enabled": true,
+      "scoring": "bm25_or_equivalent",
+      "include_fields": [
+        "title",
+        "description",
+        "keywords",
+        "canonical",
+        "lang",
+        "jsonld"
+      ]
+    },
+    "cache": {
+      "ttl_hours": 24,
+      "validate_lastmod": true,
+      "cleanup_bound": "system_cache_cleanup"
+    },
+    "queue": {
+      "bounded": true,
+      "dedupe_urls": true,
+      "rate_limit_by_domain": true,
+      "record_parent_url": true,
+      "record_depth": true,
+      "record_candidate_score": true,
+      "record_rejection_reason": true
+    }
+  },
+  "evidence_extraction": {
+    "default_output": "markdown",
+    "variants": [
+      "raw_markdown",
+      "fit_markdown",
+      "references",
+      "source_excerpt",
+      "cleaned_html",
+      "fit_html",
+      "table_summary"
+    ],
+    "source_selection": {
+      "default": "cleaned_content",
+      "allowed_sources": [
+        "raw_content",
+        "cleaned_content",
+        "fit_content"
+      ],
+      "fallback_order": [
+        "fit_content",
+        "cleaned_content",
+        "raw_content_excerpt"
+      ]
+    },
+    "content_filters": [
+      "query_relevance",
+      "text_density",
+      "low_link_density",
+      "source_provenance",
+      "attribute_pruning",
+      "script_style_noise_removal",
+      "media_quality_signal"
+    ],
+    "raw_payload_chat_visible": false
   },
   "site_map": {
     "default_depth": 2,

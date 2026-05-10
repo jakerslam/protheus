@@ -388,26 +388,86 @@ fn retained_search_results_preview(rows: &[(Candidate, f64)], limit: usize) -> V
     )
 }
 
+fn retained_provider_results_preview(query: &str, rows: &[Value], limit: usize) -> Value {
+    let mut out = Vec::<Value>::new();
+    for row in rows {
+        if out.len() >= limit.max(1) {
+            break;
+        }
+        let locator = clean_text(row.get("locator").and_then(Value::as_str).unwrap_or(""), 2_200);
+        let summary = clean_text(row.get("summary").and_then(Value::as_str).unwrap_or(""), 1_200);
+        if locator.is_empty() || summary.is_empty() {
+            continue;
+        }
+        let domain = extract_domains_from_text(&locator, 1)
+            .into_iter()
+            .next()
+            .unwrap_or_default();
+        if domain.is_empty() || is_search_engine_domain(&domain) {
+            continue;
+        }
+        if looks_like_ack_only(&summary)
+            || looks_like_low_signal_search_summary(&summary)
+            || contains_antibot_marker(&summary)
+            || contains_web_junk_marker(&summary)
+        {
+            continue;
+        }
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: format!("Web result from {domain}"),
+            locator: locator.clone(),
+            snippet: summary.clone(),
+            excerpt_hash: sha256_hex(&summary),
+            timestamp: None,
+            permissions: Some("public_web".to_string()),
+            status_code: row
+                .get("status_code")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+        };
+        if query_overlap_terms(query, &candidate) == 0
+            && source_trust_adjustment(&candidate) < 0.15
+        {
+            continue;
+        }
+        out.push(json!({
+            "source_kind": candidate.source_kind,
+            "title": candidate.title,
+            "locator": candidate.locator,
+            "snippet": trim_words(&candidate.snippet, 48),
+            "score": 0.0,
+            "timestamp": candidate.timestamp,
+            "permissions": candidate.permissions,
+            "status_code": candidate.status_code
+        }));
+    }
+    Value::Array(out)
+}
+
 fn candidate_retention_preview_eligible(query: &str, candidate: &Candidate, score: f64) -> bool {
     let snippet = clean_text(&candidate.snippet, 1_200);
     let domain = candidate_domain_hint(candidate);
     let trusted_source = source_trust_adjustment(candidate) >= 0.15;
     let overlap = query_overlap_terms(query, candidate);
     let trusted_overlap_preview = trusted_source && overlap >= 1;
+    let substantive_preview_text =
+        !looks_like_source_only_snippet(&snippet) || trusted_overlap_preview;
     (score > 0.0 || trusted_overlap_preview)
         && !snippet.is_empty()
         && !looks_like_ack_only(&snippet)
         && !looks_like_low_signal_search_summary(&snippet)
-        && !looks_like_source_only_snippet(&snippet)
+        && substantive_preview_text
         && !is_search_engine_domain(&domain)
         && !looks_like_portal_noise_candidate(candidate)
 }
 
 fn comparison_guard_failure_artifacts(
-    _query: &str,
+    query: &str,
     comparison_entities: &[String],
     actionable_ranked: &[(Candidate, f64)],
     retained_ranked: &[(Candidate, f64)],
+    provider_results: &[Value],
     max_results: usize,
 ) -> (Value, Option<String>) {
     if comparison_entities.len() < 2 {
@@ -426,8 +486,13 @@ fn comparison_guard_failure_artifacts(
     } else {
         actionable_ranked
     };
+    let search_results = if preview_rows.is_empty() {
+        retained_provider_results_preview(query, provider_results, max_results)
+    } else {
+        retained_search_results_preview(preview_rows, max_results)
+    };
     (
-        retained_search_results_preview(preview_rows, max_results),
+        search_results,
         Some(format!(
             "Search did not produce enough source coverage to compare {} in this turn. This is a retrieval-quality miss, not proof the systems are equivalent. Retry with named competitors or one specific source URL per side.",
             comparison_entities.join(" vs ")
