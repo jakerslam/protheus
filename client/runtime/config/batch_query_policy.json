@@ -314,6 +314,30 @@
         "recycle_count"
       ]
     },
+    "async_result_lifecycle": {
+      "enabled": true,
+      "use_for_large_or_long_running_batches": true,
+      "status_values": [
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "expired",
+        "cancelled"
+      ],
+      "handle_fields": [
+        "task_id",
+        "status",
+        "created_at",
+        "updated_at",
+        "expires_at",
+        "result_ref",
+        "error_summary"
+      ],
+      "cleanup_bound": "state_cleanup_policy:local/state/batch_query",
+      "callback_payload_includes_data_default": false,
+      "raw_result_payload_chat_visible": false
+    },
     "quality_gate": {
       "enabled": true,
       "provider_recovery": {

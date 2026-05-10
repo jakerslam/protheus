@@ -40,6 +40,9 @@
       "result_envelope.document_type",
       "result_envelope.quality_flags",
       "result_envelope.error_message",
+      "result_envelope.task_status",
+      "result_envelope.result_ref",
+      "result_envelope.expires_at",
       "evidence_artifacts.raw_markdown",
       "evidence_artifacts.markdown_with_citations",
       "evidence_artifacts.references_markdown",
@@ -274,7 +277,7 @@
           ],
           "visibility": "telemetry_or_evidence_metadata_only"
         },
-        "resource_control": {
+      "resource_control": {
         "per_domain_rate_limit": true,
         "backoff_on_status": [
           429,
@@ -315,9 +318,34 @@
             "evict_only_idle_contexts": true,
             "preserve_active_refcounts": true,
             "recycle_when_safe": "threshold_or_memory_pressure_when_no_active_sessions",
-            "resource_filtering_default": "off"
-          }
-        },
+          "resource_filtering_default": "off"
+        }
+      },
+      "async_result_lifecycle": {
+        "purpose": "support high-volume retrieval through handles, polling, and cleanup without making raw task payloads chat-visible",
+        "status_values": [
+          "queued",
+          "processing",
+          "completed",
+          "failed",
+          "expired",
+          "cancelled"
+        ],
+        "handle_fields": [
+          "task_id",
+          "status",
+          "created_at",
+          "updated_at",
+          "expires_at",
+          "result_ref",
+          "error_summary"
+        ],
+        "polling_allowed": true,
+        "ttl_cleanup_bound": "system_state_cleanup",
+        "callback_payload_data_default": false,
+        "active_resource_refcount_required_before_close": true,
+        "visibility": "handle_status_and_refs_only_until_synthesized"
+      },
       "blocked_recovery_trace": {
         "purpose": "tell synthesis whether retrieval failed because the web is low-signal or because access/readiness blocked the evidence path",
         "quality_flags": [

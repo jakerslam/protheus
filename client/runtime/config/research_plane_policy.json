@@ -396,6 +396,37 @@
     ],
     "raw_session_state_chat_visible": false
   },
+  "async_result_lifecycle": {
+    "enabled_for_high_volume_retrieval": true,
+    "status_values": [
+      "queued",
+      "processing",
+      "completed",
+      "failed",
+      "expired",
+      "cancelled"
+    ],
+    "handle_fields": [
+      "task_id",
+      "status",
+      "created_at",
+      "updated_at",
+      "expires_at",
+      "result_ref",
+      "error_summary"
+    ],
+    "payload_policy": {
+      "return_handle_before_large_payload": true,
+      "raw_result_payload_chat_visible": false,
+      "callback_payload_includes_data_default": false,
+      "callback_delivery_status_is_telemetry_only": true
+    },
+    "cleanup": {
+      "ttl_bound": "system_state_cleanup",
+      "active_request_refcount_required_before_resource_close": true,
+      "record_cleanup_reason": true
+    }
+  },
   "evidence_extraction": {
     "default_output": "markdown",
     "variants": [
