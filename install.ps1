@@ -337,14 +337,29 @@ exit /b 0
 '@
 
     try {
+      $ps1Template = @'
+param([Parameter(ValueFromRemainingArguments=$true)][string[]]$CommandArgs)
+$target = Join-Path $PSScriptRoot "__TARGET__"
+if (-not (Test-Path -LiteralPath $target)) {
+  Write-Warning "[infring shim] bootstrap wrapper missing: $target"
+  Write-Host "[infring bootstrap] run: install.ps1 -Repair -Full"
+  exit 0
+}
+& $target @CommandArgs
+exit $LASTEXITCODE
+'@
       $wrapperMap = @(
-        @{ cmd = "infring.cmd" },
-        @{ cmd = "infringctl.cmd" },
-        @{ cmd = "infringd.cmd" }
+        @{ cmd = "infring.cmd"; ps1 = "infring.ps1" },
+        @{ cmd = "infringctl.cmd"; ps1 = "infringctl.ps1" },
+        @{ cmd = "infringd.cmd"; ps1 = "infringd.ps1" }
       )
       foreach ($item in $wrapperMap) {
         $cmdPath = Join-Path $InstallRoot ([string]$item.cmd)
-        Set-Content -Path $cmdPath -Value $cmdTemplate -Encoding ASCII
+        $cmdContent = $cmdTemplate
+        Set-Content -LiteralPath $cmdPath -Value $cmdContent -Encoding ASCII -Force
+        $ps1Path = Join-Path $InstallRoot ([string]$item.ps1)
+        $psContent = $ps1Template.Replace("__TARGET__", [string]$item.cmd)
+        Set-Content -LiteralPath $ps1Path -Value $psContent -Encoding UTF8 -Force
       }
       Remove-StaleWindowsCommandShims -ShimInstallDir $InstallRoot
       return $true
@@ -2881,13 +2896,25 @@ echo [infring bootstrap] rerun with execution-policy bypass:
 echo [infring bootstrap] powershell.exe -NoProfile -ExecutionPolicy Bypass -File install.ps1 -Repair -Full
 exit /b %ERRORLEVEL%
 '@
+  $ps1Template = @'
+param([Parameter(ValueFromRemainingArguments=$true)][string[]]$CommandArgs)
+$target = Join-Path $PSScriptRoot "__TARGET__"
+if (-not (Test-Path -LiteralPath $target)) {
+  Write-Warning "[infring shim] bootstrap wrapper missing: $target"
+  Write-Host "[infring bootstrap] run: install.ps1 -Repair -Full"
+  exit 0
+}
+& $target @CommandArgs
+exit $LASTEXITCODE
+'@
   $wrapperNames = @(
-    "infring.cmd",
-    "infringctl.cmd",
-    "infringd.cmd"
+    @{ cmd = "infring.cmd"; ps1 = "infring.ps1" },
+    @{ cmd = "infringctl.cmd"; ps1 = "infringctl.ps1" },
+    @{ cmd = "infringd.cmd"; ps1 = "infringd.ps1" }
   )
 
-  foreach ($wrapperName in $wrapperNames) {
+  foreach ($wrapper in $wrapperNames) {
+    $wrapperName = [string]$wrapper.cmd
     $cmdPath = Join-Path $InstallDir ([string]$wrapperName)
     $rewriteCmd = $false
     if (Test-Path $cmdPath) {
@@ -2895,7 +2922,8 @@ exit /b %ERRORLEVEL%
     }
     if ((-not (Test-Path $cmdPath)) -or $rewriteCmd) {
       try {
-        Set-Content -LiteralPath $cmdPath -Value $cmdTemplate -Encoding ASCII -Force
+        $cmdContent = $cmdTemplate
+        Set-Content -LiteralPath $cmdPath -Value $cmdContent -Encoding ASCII -Force
         if ($rewriteCmd) {
           Write-Host "[infring install] repair rewrote broken command wrapper: $cmdPath"
         } else {
@@ -2903,6 +2931,25 @@ exit /b %ERRORLEVEL%
         }
       } catch {
         Write-Host "[infring install] repair warning: failed to bootstrap command wrapper: $cmdPath"
+      }
+    }
+    $ps1Name = [string]$wrapper.ps1
+    $ps1Path = Join-Path $InstallDir $ps1Name
+    $rewritePs1 = $false
+    if (Test-Path $ps1Path) {
+      $rewritePs1 = [bool](Test-RepairArtifactBroken -InstallPath $ps1Path -ArtifactName $ps1Name)
+    }
+    if ((-not (Test-Path $ps1Path)) -or $rewritePs1) {
+      try {
+        $psContent = $ps1Template.Replace("__TARGET__", $wrapperName)
+        Set-Content -LiteralPath $ps1Path -Value $psContent -Encoding UTF8 -Force
+        if ($rewritePs1) {
+          Write-Host "[infring install] repair rewrote broken PowerShell shim: $ps1Path"
+        } else {
+          Write-Host "[infring install] repair bootstrapped PowerShell shim: $ps1Path"
+        }
+      } catch {
+        Write-Host "[infring install] repair warning: failed to bootstrap PowerShell shim: $ps1Path"
       }
     }
   }
@@ -4042,6 +4089,9 @@ $infringPs1 = Join-Path $InstallDir "infring.ps1"
 $infringctlPs1 = Join-Path $InstallDir "infringctl.ps1"
 $infringdPs1 = Join-Path $InstallDir "infringd.ps1"
 
+Write-PowerShellShim -Path $infringPs1 -TargetCmd "infring.cmd" -DeprecationMessage "PowerShell shim is compatibility-only; prefer infring.cmd on locked-down Windows hosts."
+Write-PowerShellShim -Path $infringctlPs1 -TargetCmd "infringctl.cmd" -DeprecationMessage "PowerShell shim is compatibility-only; prefer infringctl.cmd on locked-down Windows hosts."
+Write-PowerShellShim -Path $infringdPs1 -TargetCmd "infringd.cmd" -DeprecationMessage "PowerShell shim is compatibility-only; prefer infringd.cmd on locked-down Windows hosts."
 Remove-StaleWindowsCommandShims -ShimInstallDir $InstallDir
 Ensure-RepairBootstrapWrapperFloor -InstallDir $InstallDir
 
@@ -4049,6 +4099,10 @@ if ($InstallPure) {
   Write-Host "[infring install] pure mode: skipping Infring client bundle"
   $script:InstallClientRuntimeMode = "pure_profile"
   $script:InstallRuntimeContractStatus = "pure_profile"
+} elseif ([bool]$script:InstallBootstrapOnlyMode) {
+  Write-Host "[infring install] bootstrap-only mode: skipping client runtime bundle until runtime binaries are installed"
+  $script:InstallClientRuntimeMode = "bootstrap_only_profile"
+  $script:InstallRuntimeContractStatus = "bootstrap_only_profile"
 } elseif ($InstallFull) {
   $clientDir = Join-Path $InstallDir "infring-client"
   if (Install-ClientBundle $version $triple $clientDir) {
@@ -4235,7 +4289,7 @@ $gatewaySmokeError = [string]$gatewayStatusCheck.error_code
 $dashboardSmokeStatus = if ([string]$dashboardSmokeCheck.status -eq "skipped") { "skipped" } elseif ([bool]$dashboardSmokeCheck.ok) { "passed" } else { "failed:$([string]$dashboardSmokeCheck.error_code)" }
 $gatewaySmokeStatus = if ($gatewaySmokeOk) { "passed" } else { "failed:$gatewaySmokeError" }
 $runtimeContractMode = [string]$script:InstallClientRuntimeMode
-$runtimeContractOk = @("verified", "pure_profile", "minimal_profile") -contains [string]$script:InstallRuntimeContractStatus
+$runtimeContractOk = @("verified", "pure_profile", "minimal_profile", "bootstrap_only_profile") -contains [string]$script:InstallRuntimeContractStatus
 $binaryInstallStatus = if ([bool]$script:InstallBootstrapOnlyMode) { "bootstrap_fallback" } else { "ok" }
 $verificationConfidence = "high"
 if (-not $runtimeContractOk -or $failedSmokeRequired.Count -gt 0) {

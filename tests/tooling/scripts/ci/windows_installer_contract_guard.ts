@@ -209,6 +209,17 @@ function run(argv: string[]): number {
   });
 
   checks.push({
+    id: 'windows_install_script_bootstrap_only_is_degraded_success',
+    ok:
+      source.includes('$script:InstallBootstrapOnlyMode = $true')
+      && source.includes('bootstrap_only_profile')
+      && source.includes('bootstrap-only mode: skipping client runtime bundle until runtime binaries are installed')
+      && source.includes('"bootstrap_only_profile") -contains [string]$script:InstallRuntimeContractStatus'),
+    detail:
+      'Windows full-mode onboarding fallback must complete as degraded bootstrap-only success instead of throwing after wrappers are written',
+  });
+
+  checks.push({
     id: 'windows_install_script_repair_wrapper_map_covers_three_entrypoints',
     ok:
       source.includes('@{ cmd = "infring.cmd"; ps1 = "infring.ps1" }')

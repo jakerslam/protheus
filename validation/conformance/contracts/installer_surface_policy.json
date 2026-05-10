@@ -1,0 +1,45 @@
+{
+  "type": "installer_surface_policy",
+  "schema_version": 1,
+  "owner_domain": "validation",
+  "entrypoints": [
+    "install.sh",
+    "install.ps1"
+  ],
+  "module_contracts": [
+    "install/modules/bootstrap_contract.json",
+    "install/modules/repair_contract.json",
+    "install/modules/windows_wrapper_contract.json"
+  ],
+  "size_policy": {
+    "max_install_sh_bytes": 194657,
+    "max_install_ps1_bytes": 178174,
+    "growth_allowed": false,
+    "max_install_ps1_bytes_reason": "2026-05-10 Windows bootstrap-only repair fix: added degraded-success fallback, LiteralPath/Force wrapper floor, and ps1-to-cmd continuity contracts; shrink target remains active.",
+    "shrink_target_install_sh_bytes": 50000,
+    "shrink_target_install_ps1_bytes": 50000
+  },
+  "syntax_policy": {
+    "bash_n_required": true,
+    "powershell_parse_required_when_pwsh_available": true,
+    "missing_pwsh_is_advisory": true
+  },
+  "required_tokens": {
+    "install.sh": [
+      "Installation complete",
+      "Version:",
+      "Location:",
+      "Next:"
+    ],
+    "install.ps1": [
+      "Repair",
+      "Full",
+      "Installation complete",
+      "Version:",
+      "Location:",
+      "Next:",
+      "infring.cmd",
+      "infring.ps1"
+    ]
+  }
+}
