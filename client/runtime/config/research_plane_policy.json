@@ -185,6 +185,19 @@
       "authority": "agent_or_policy_may_plan_lanes_from_user_request_and_evidence_state",
       "max_parallel_lanes": 4,
       "default_max_lanes": 8,
+      "two_phase_retrieval": {
+        "enabled": true,
+        "phase_order": [
+          "initial_discovery",
+          "coverage_assessment",
+          "targeted_followup",
+          "synthesis_or_bounded_gap"
+        ],
+        "initial_discovery": "one broad pass may discover vocabulary, candidates, source classes, and gaps, but should not be treated as enough for broad research unless sufficiency signals are already met",
+        "coverage_assessment": "compare discovered evidence against the user's requested entities, aspects, time windows, and source constraints",
+        "targeted_followup": "when coverage is weak, submit specific follow-up lanes based on the user request plus discovery signals before final synthesis",
+        "synthesis_or_bounded_gap": "finish only after enough coverage exists or bounded follow-up has recorded explicit gap reasons"
+      },
       "lane_types": [
         "overall_objective",
         "entity_or_candidate",
@@ -195,6 +208,7 @@
         "coverage_gap_recovery"
       ],
       "fairness_policy": "do_not_complete_multi-entity_or_multi-aspect_retrieval_until_each_major_lane_has_evidence_or_an_explicit_gap",
+      "single_query_finish_policy": "single_query_discovery_is_not_sufficient_for_broad_comparative_evaluative_or_multi_lane_research_without_sufficiency_or_recorded_gap_reasons",
       "filter_after_collection": true,
       "record_rejection_reasons": true,
       "non_goals": [

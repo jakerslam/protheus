@@ -1052,6 +1052,18 @@ mod workflow_reader_tests {
             coverage_behavior.contains("retrieval coverage lane"),
             "{coverage_behavior}"
         );
+        let two_phase_behavior = recovery
+            .get("two_phase_retrieval_behavior")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            two_phase_behavior.contains("initial discovery pass"),
+            "{two_phase_behavior}"
+        );
+        assert!(
+            two_phase_behavior.contains("targeted follow-up queries"),
+            "{two_phase_behavior}"
+        );
         assert!(
             recovery
                 .get("query_refinement_axes")
@@ -1079,7 +1091,27 @@ mod workflow_reader_tests {
             "{payload_instruction}"
         );
         assert!(
+            payload_instruction.contains("A single broad query may be used as an initial discovery pass"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("must not finish from that pass unless the returned evidence already covers the request"),
+            "{payload_instruction}"
+        );
+        assert!(
             payload_instruction.contains("4-8 concrete follow-up searches"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("omitting `queries` is also invalid unless this is explicitly a narrow lookup or an initial discovery pass"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("submit targeted follow-up queries rather than finalizing"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("keep the exact entity name in the query pack"),
             "{payload_instruction}"
         );
         assert!(

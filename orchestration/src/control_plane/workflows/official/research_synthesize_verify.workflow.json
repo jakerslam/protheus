@@ -78,6 +78,7 @@
       "coverage_gap_recovery"
     ],
     "before_synthesis": "each major requested lane should have usable evidence, weak evidence, or an explicit coverage gap",
+    "two_phase_retrieval": "a broad discovery query may start research, but broad, comparative, current, evaluative, multi-entity, or multi-aspect research should continue through targeted follow-up based on discovery results and missing lanes before synthesis unless sufficiency is already met",
     "low_evidence_finalization": "when retrieval remains weak after bounded recovery, produce a useful bounded synthesis that separates evidence, uncertainty, coverage gaps, and decision value without forcing a format",
     "non_goals": [
       "do_not_hardcode_research_domains",

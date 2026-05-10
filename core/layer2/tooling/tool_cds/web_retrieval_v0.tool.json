@@ -125,6 +125,33 @@
           "max_parallel_lanes": 4,
           "reserve_recovery_lanes": 2
         },
+        "two_phase_retrieval": {
+          "enabled": true,
+          "initial_discovery": {
+            "allowed": true,
+            "purpose": "cheap broad pass to learn vocabulary, candidate entities, source classes, and weak lanes",
+            "terminal_when": "only_when_sufficiency_signals_show_the_user_request_is_covered"
+          },
+          "targeted_followup": {
+            "required_when": [
+              "coverage_missing_or_weak",
+              "results_are_low_signal",
+              "results_are_off_topic",
+              "broad_request_has_only_one_generic_query",
+              "named_entities_or_user_stated_aspects_are_not_represented"
+            ],
+            "minimum_lanes": 3,
+            "maximum_lanes": 8,
+            "derive_from": [
+              "user_request",
+              "initial_result_terms",
+              "quality_flags",
+              "missing_coverage_buckets",
+              "source_class_gaps"
+            ]
+          },
+          "finish_rule": "do_not_synthesize_broad_research_from_a_single_discovery_query_unless_coverage_is_sufficient_or_gap_reasons_are_recorded_after_bounded_followup"
+        },
         "completion_rule": "multi-entity_or_multi-aspect_retrieval_should_record_evidence_or_an_explicit_gap_for_each_major_lane_before_final_synthesis",
         "evidence_bucket_fields": [
           "bucket_id",
@@ -686,6 +713,25 @@
       "required_args": ["query"],
       "aliases": ["web_research"],
       "optional_args": ["aperture", "timeout_ms", "source_scope"],
+      "request_quality_floor": {
+        "broad_research_requires_query_pack_or_followup": true,
+        "initial_discovery_only_allowed": true,
+        "single_query_may_finish_only_when": "narrow_lookup_or_sufficiency_signals_met",
+        "targeted_followup_min_queries": 3,
+        "targeted_followup_max_queries": 8,
+        "followup_query_basis": [
+          "user_requested_entities",
+          "user_requested_aspects",
+          "discovered_terms",
+          "missing_coverage_buckets",
+          "source_class_gaps"
+        ],
+        "non_goals": [
+          "do_not_hardcode_domain_candidates",
+          "do_not_force_output_format",
+          "do_not_expand_queries_without_recording_them"
+        ]
+      },
       "operations": ["search_pack"],
       "retrieval": {
         "mode": "search_pack",
