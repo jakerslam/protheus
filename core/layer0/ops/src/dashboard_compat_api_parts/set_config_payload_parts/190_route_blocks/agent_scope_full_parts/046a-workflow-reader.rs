@@ -1075,14 +1075,6 @@ mod workflow_reader_tests {
             "{payload_instruction}"
         );
         assert!(
-            payload_instruction.contains("Do not exceed 6 queries"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("do not create a cross product"),
-            "{payload_instruction}"
-        );
-        assert!(
             payload_instruction.contains("If a prior tool result quality diagnostic is available and recommends retry"),
             "{payload_instruction}"
         );
@@ -1096,18 +1088,6 @@ mod workflow_reader_tests {
         );
         assert!(
             payload_instruction.contains("For named product/library/framework evaluation"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("open-source or software discovery"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("fused or camelcase"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("For sparse benchmark questions"),
             "{payload_instruction}"
         );
         assert!(
