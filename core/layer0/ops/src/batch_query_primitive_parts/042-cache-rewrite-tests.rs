@@ -130,6 +130,7 @@ mod cache_rewrite_tests {
             aperture_budget("medium").expect("budget"),
         );
         assert_eq!(plan.query_plan_source, "explicit_request_pack");
+        assert_eq!(plan.rerank_query, query);
         assert!(plan.queries.len() >= 8, "{:?}", plan.queries);
         assert!(plan
             .queries

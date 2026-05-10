@@ -535,7 +535,7 @@ mod quality_tests {
                     "ok": true,
                     "summary": "AlphaTool primary evidence: AlphaTool publishes release notes and deployment documentation.",
                     "content": "AlphaTool primary evidence: AlphaTool publishes release notes and deployment documentation.",
-                    "requested_url": "https://docs.example.com/alphatool/releases",
+                    "requested_url": "https://docs.alpha.example.com/releases",
                     "status_code": 200
                 }
             }),
@@ -609,6 +609,41 @@ mod quality_tests {
                 .map(|value| value.contains("smolagents"))
                 .unwrap_or(false)
         }));
+    }
+
+    #[test]
+    fn explicit_query_pack_reranks_against_overall_objective_not_first_probe() {
+        let out = run_request_with_fixture(
+            json!({
+                "AlphaTool release notes": {
+                    "ok": true,
+                    "summary": "AlphaTool release notes document deployment controls for production teams.",
+                    "content": "AlphaTool release notes document deployment controls for production teams.",
+                    "requested_url": "https://docs.example.com/alphatool/releases",
+                    "status_code": 200
+                },
+                "BetaTool production readiness documentation": {
+                    "ok": true,
+                    "summary": "BetaTool production readiness documentation explains reliability limits and review workflows for production teams.",
+                    "content": "BetaTool production readiness documentation explains reliability limits and review workflows for production teams.",
+                    "requested_url": "https://docs.beta.example.com/production",
+                    "status_code": 200
+                }
+            }),
+            &json!({
+                "source":"web",
+                "query":"Research AlphaTool and BetaTool production readiness for production teams.",
+                "queries":[
+                    "AlphaTool release notes",
+                    "BetaTool production readiness documentation"
+                ],
+                "aperture":"medium"
+            }),
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("alphatool"), "{lowered}");
+        assert!(lowered.contains("betatool"), "{lowered}");
     }
 
     #[test]

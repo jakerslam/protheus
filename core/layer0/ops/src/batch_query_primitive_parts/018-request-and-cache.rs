@@ -105,7 +105,7 @@ fn cache_key_with_query_plan(
         return cache_key(source, query, aperture, policy);
     }
     crate::deterministic_receipt_hash(&json!({
-        "version": 3,
+        "version": 4,
         "source": source,
         "query": query,
         "aperture": aperture,
@@ -662,10 +662,15 @@ fn resolve_query_plan(
                 .map(|value| !value.eq_ignore_ascii_case(query))
                 .unwrap_or(false));
     if explicit_query_pack_used {
-        let rerank_query = clean_text(
-            explicit_queries.first().map(String::as_str).unwrap_or(query),
-            600,
-        );
+        let rerank_query = clean_text(query, 600);
+        let rerank_query = if rerank_query.is_empty() {
+            explicit_queries
+                .first()
+                .cloned()
+                .unwrap_or_else(|| clean_text(query, 600))
+        } else {
+            rerank_query
+        };
         let rewrite_set = explicit_queries.iter().skip(1).cloned().collect::<Vec<_>>();
         return QueryPlanSelection {
             rewrite_applied: explicit_queries.len() > 1,
