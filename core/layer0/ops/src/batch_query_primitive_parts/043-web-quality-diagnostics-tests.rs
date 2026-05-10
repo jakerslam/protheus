@@ -476,13 +476,25 @@ mod web_quality_diagnostics_tests {
                         "headline": "Science news roundup",
                         "snippet": "A current 2026 science roundup tracks research announcements, publications, and verified institutional sources."
                     }
+                ],
+                "images": [
+                    {
+                        "url": "https://images.example.org/science-2026-chart",
+                        "imageUrl": "https://cdn.example.org/science-chart.png",
+                        "title": "Science evidence chart",
+                        "alt": "A scientific breakthroughs 2026 chart summarizing source-backed research evidence."
+                    }
                 ]
             }),
             4,
         );
-        assert_eq!(rows.len(), 2, "{rows:#?}");
+        assert_eq!(rows.len(), 3, "{rows:#?}");
         assert!(rows.iter().any(|row| row.source_kind == "web"), "{rows:#?}");
         assert!(rows.iter().any(|row| row.source_kind == "news"), "{rows:#?}");
+        assert!(
+            rows.iter().any(|row| row.source_kind == "images"),
+            "{rows:#?}"
+        );
         assert!(
             rows.iter()
                 .any(|row| row.snippet.contains("Scientific breakthroughs")),

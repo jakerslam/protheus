@@ -60,7 +60,16 @@ fn candidate_from_rendered_search_row(
 fn structured_result_collection_key(key: &str) -> bool {
     matches!(
         key.to_ascii_lowercase().as_str(),
-        "web" | "news" | "results" | "items" | "organic" | "documents" | "data" | "links"
+        "web"
+            | "news"
+            | "images"
+            | "image"
+            | "results"
+            | "items"
+            | "organic"
+            | "documents"
+            | "data"
+            | "links"
     )
 }
 
@@ -99,7 +108,20 @@ fn nested_metadata_string_field(
 fn structured_result_locator(map: &Map<String, Value>) -> String {
     let direct = object_string_field(
         map,
-        &["url", "link", "href", "source", "sourceURL", "requested_url", "locator"],
+        &[
+            "url",
+            "link",
+            "href",
+            "source",
+            "sourceURL",
+            "source_url",
+            "imageUrl",
+            "image_url",
+            "thumbnail",
+            "thumbnailUrl",
+            "requested_url",
+            "locator",
+        ],
         2_200,
     );
     if !direct.is_empty() {
@@ -107,7 +129,16 @@ fn structured_result_locator(map: &Map<String, Value>) -> String {
     }
     nested_metadata_string_field(
         map,
-        &["url", "sourceURL", "ogUrl", "canonical", "requested_url"],
+        &[
+            "url",
+            "sourceURL",
+            "source_url",
+            "imageUrl",
+            "image_url",
+            "ogUrl",
+            "canonical",
+            "requested_url",
+        ],
         2_200,
     )
 }

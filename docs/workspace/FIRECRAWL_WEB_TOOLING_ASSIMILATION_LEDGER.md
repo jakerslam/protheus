@@ -28,7 +28,7 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | --- | --- | --- | --- |
 | `FIRECRAWL-PATTERN-001` | High-recall search result buffer | Firecrawl asks for more candidates than final results need, then limits after ranking/filtering. This directly addresses tiny evidence pools. | active |
 | `FIRECRAWL-PATTERN-002` | Search-plus-scrape evidence flow | Firecrawl search can attach scraped page content, not just SERP snippets. This is the likely next primitive for user-quality research. | active |
-| `FIRECRAWL-PATTERN-003` | Multi-source result lanes | Search can return web/news/images lanes with separate result types. Our tool artifacts should keep lanes explicit. | pending |
+| `FIRECRAWL-PATTERN-003` | Multi-source result lanes | Search can return web/news/images lanes with separate result types. Our tool artifacts should keep lanes explicit. | active |
 | `FIRECRAWL-PATTERN-004` | Category and domain filters as request policy | Firecrawl exposes categories like GitHub/research/PDF and include/exclude domains. If used, this belongs in CD/tool request contracts, not hardcoded gates. | active |
 | `FIRECRAWL-PATTERN-005` | Async crawl/batch progress contract | Crawl/batch scrape returns status, total, completed, data, errors, and polling. Useful for long research jobs, not first-turn search. | active |
 | `FIRECRAWL-PATTERN-006` | LLM-ready document contract | Document objects preserve markdown, summary, metadata, source URL, status, cache state, and errors. This maps well to evidence packs. | active |
@@ -73,6 +73,8 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/services/worker/scrape-worker.ts` | parsed | scrape worker lifecycle | Extracted timeout/abort, redirect filtering, dedupe/lock, discovered-link enqueue, billing metadata, and document metadata preservation. Useful for long-running crawl jobs, not first-turn search hardcoding. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/deep-research/research-manager.ts` | parsed | iterative research loop | Extracted query generation from findings, gap analysis, max failed attempts, and final synthesis from accumulated findings. Pattern maps to a future multi-turn research workflow CD, not a fixed prompt route. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/deep-research/deep-research-service.ts` | parsed | parallel searches plus seen-URL filtering | Extracted bounded depth, parallel query execution, unique URL tracking, source list retention, gap-driven continuation, and final synthesis as the end state. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/js-sdk/firecrawl/src/v2/types.ts` | parsed | typed multi-lane result contract | Confirmed web/news/images rows have separate fields and can also be returned as scraped documents. Used to keep provider rows structured without forcing a final answer shape. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/js-sdk/firecrawl/src/__tests__/e2e/v2/search.test.ts` | parsed | multi-lane search behavior | Confirmed web/news/images may be requested together, bounded by limit, and can contain either search rows or scraped documents. |
 
 ## Repo Surfaces Pending
 
@@ -218,3 +220,29 @@ Expected effect:
 
 - A future Firecrawl-like provider adapter can return `web` rows with markdown/metadata directly, and batch query will consume them as evidence instead of discarding them behind a low-signal wrapper summary.
 - This improves the high-volume-filtering path without changing user-facing output format or adding prompt/domain hardcoding.
+
+### `FIRECRAWL-LIVE-006`: retain structured provider rows
+
+Pattern source: `FIRECRAWL-PATTERN-001`, `FIRECRAWL-PATTERN-003`, and `FIRECRAWL-PATTERN-006`, primarily from Firecrawl search tests and SDK result type contracts.
+
+Target behavior:
+
+- Preserve structured provider rows alongside the existing rendered search text.
+- Keep web/news/images lanes explicit where the provider payload supports them.
+- Let batch query consume structured rows through the same candidate filtering path already used for Firecrawl-style payloads.
+- Avoid changing user-facing synthesis format or adding domain-specific research behavior.
+
+Current status: implemented first slice.
+
+Implementation:
+
+- Serper parser now retains filtered organic rows as `web` result objects.
+- Bing RSS parser now retains filtered RSS items as `web` result objects.
+- GDELT parser now retains filtered article rows as `news` result objects with date/source metadata.
+- Batch-query structured row extraction now recognizes image lanes and common image URL field aliases.
+- Added tests for provider structured-row retention and multi-lane candidate extraction.
+
+Expected effect:
+
+- Built-in providers can feed the high-volume structured candidate path instead of only relying on rendered summary text.
+- This should make retrieval artifacts easier for the agent to inspect and easier for synthesis to ground, while preserving all existing rendered text behavior.

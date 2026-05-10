@@ -15,6 +15,7 @@ fn render_serper_payload(
                 "summary": "",
                 "content": "",
                 "links": [],
+                "web": [],
                 "content_domains": [],
                 "provider_raw_count": 0,
                 "provider_filtered_count": 0
@@ -29,6 +30,7 @@ fn render_serper_payload(
         .unwrap_or_default();
     let mut lines = Vec::<String>::new();
     let mut links = Vec::<String>::new();
+    let mut web_rows = Vec::<Value>::new();
     let mut domains = Vec::<String>::new();
     for row in &organic {
         let link = normalize_search_result_link(
@@ -46,6 +48,13 @@ fn render_serper_payload(
         if rendered.is_empty() {
             continue;
         }
+        web_rows.push(json!({
+            "url": link,
+            "title": clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 240),
+            "description": clean_text(row.get("snippet").and_then(Value::as_str).unwrap_or(""), 1_200),
+            "position": row.get("position").and_then(Value::as_i64).unwrap_or((lines.len() + 1) as i64),
+            "provider": "serperdev"
+        }));
         lines.push(rendered);
         links.push(link.clone());
         push_unique_link_domain(&mut domains, &link);
@@ -64,6 +73,7 @@ fn render_serper_payload(
         },
         "content": content,
         "links": links,
+        "web": web_rows,
         "content_domains": domains,
         "provider_raw_count": organic.len(),
         "provider_filtered_count": lines.len(),
@@ -111,6 +121,7 @@ fn render_bing_rss_payload(
         ITEM_RE.get_or_init(|| Regex::new(r"(?is)<item\b[^>]*>(.*?)</item>").expect("item regex"));
     let mut lines = Vec::<String>::new();
     let mut links = Vec::<String>::new();
+    let mut web_rows = Vec::<Value>::new();
     let mut domains = Vec::<String>::new();
     let mut raw_count = 0usize;
     for captures in item_re.captures_iter(body) {
@@ -129,6 +140,12 @@ fn render_bing_rss_payload(
         if rendered.is_empty() {
             continue;
         }
+        web_rows.push(json!({
+            "url": link,
+            "title": extract_xml_tag_value(item, "title"),
+            "description": extract_xml_tag_value(item, "description"),
+            "provider": "bing_rss"
+        }));
         lines.push(rendered);
         links.push(link.clone());
         push_unique_link_domain(&mut domains, &link);
@@ -147,6 +164,7 @@ fn render_bing_rss_payload(
         },
         "content": content,
         "links": links,
+        "web": web_rows,
         "content_domains": domains,
         "provider_raw_count": raw_count,
         "provider_filtered_count": lines.len(),
@@ -174,6 +192,7 @@ fn render_gdelt_doc_payload(
                 "summary": "",
                 "content": "",
                 "links": [],
+                "news": [],
                 "content_domains": [],
                 "provider_raw_count": 0,
                 "provider_filtered_count": 0
@@ -187,6 +206,7 @@ fn render_gdelt_doc_payload(
         .unwrap_or_default();
     let mut lines = Vec::<String>::new();
     let mut links = Vec::<String>::new();
+    let mut news_rows = Vec::<Value>::new();
     let mut domains = Vec::<String>::new();
     for row in &articles {
         let link = normalize_search_result_link(
@@ -224,6 +244,16 @@ fn render_gdelt_doc_payload(
         if rendered.is_empty() {
             continue;
         }
+        news_rows.push(json!({
+            "url": link,
+            "title": clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 240),
+            "snippet": clean_text(&details.join("; "), 1_200),
+            "date": seen,
+            "domain": domain,
+            "language": language,
+            "source_country": country,
+            "provider": "gdelt_doc"
+        }));
         lines.push(rendered);
         links.push(link.clone());
         push_unique_link_domain(&mut domains, &link);
@@ -242,6 +272,7 @@ fn render_gdelt_doc_payload(
         },
         "content": content,
         "links": links,
+        "news": news_rows,
         "content_domains": domains,
         "provider_raw_count": articles.len(),
         "provider_filtered_count": lines.len(),

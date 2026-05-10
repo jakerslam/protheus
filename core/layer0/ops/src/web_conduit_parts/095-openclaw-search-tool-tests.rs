@@ -65,6 +65,20 @@ mod openclaw_search_tool_tests {
         let content = rendered.get("content").and_then(Value::as_str).unwrap_or("");
         assert!(content.contains("Science breakthrough reported in 2026"));
         assert!(content.contains("seen 20260401T120000Z"));
+        let news = rendered
+            .get("news")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(news.len(), 1, "{rendered:#}");
+        assert_eq!(
+            news[0].get("url").and_then(Value::as_str),
+            Some("https://example.com/science-breakthrough-2026")
+        );
+        assert_eq!(
+            news[0].get("provider").and_then(Value::as_str),
+            Some("gdelt_doc")
+        );
         let links = rendered
             .get("links")
             .and_then(Value::as_array)
@@ -75,6 +89,37 @@ mod openclaw_search_tool_tests {
             links[0].as_str(),
             Some("https://example.com/science-breakthrough-2026")
         );
+    }
+
+    #[test]
+    fn render_serper_payload_retains_structured_web_rows() {
+        let body = r#"{
+          "organic": [
+            {
+              "title": "Research methods guide",
+              "link": "https://example.org/research-methods",
+              "snippet": "A source-backed guide to research methods and evidence review.",
+              "position": 1
+            }
+          ]
+        }"#;
+        let rendered = render_serper_payload(body, &[], false, 8, 12_000);
+        assert_eq!(rendered.get("ok").and_then(Value::as_bool), Some(true));
+        let web = rendered
+            .get("web")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(web.len(), 1, "{rendered:#}");
+        assert_eq!(
+            web[0].get("url").and_then(Value::as_str),
+            Some("https://example.org/research-methods")
+        );
+        assert_eq!(
+            web[0].get("provider").and_then(Value::as_str),
+            Some("serperdev")
+        );
+        assert_eq!(rendered.pointer("/links/0").and_then(Value::as_str), web[0].get("url").and_then(Value::as_str));
     }
 
     #[test]
