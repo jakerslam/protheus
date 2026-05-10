@@ -150,6 +150,10 @@ This ledger is intentionally about portable mechanisms, not copied source, provi
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/deploy/docker/mcp_bridge.py` | skimmed | tool wrapper surface | Confirmed API-to-MCP wrapping is an integration surface, not a retrieval primitive. Do not assimilate route names or transport behavior into web retrieval. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/crawlers/amazon_product/crawler.py` | skimmed | domain crawler example | Rejected as provider/domain-specific. Keep only the idea that specialized crawlers declare metadata and schema separately from generic retrieval. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/legacy/web_crawler.py` | skimmed | legacy crawler duplicate | Confirmed older Selenium/cache/chunking flow mostly duplicates current parsed patterns. No new assimilation needed. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/crawl4ai/processors/pdf/processor.py` | parsed | PDF/page evidence processing | Confirmed per-page text/markdown/html/images/links/layout, metadata, encrypted/file-size flags, optional image extraction, batching, and temp cleanup. Current document evidence policy already covers the portable pieces. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/apps/linkdin/README.md` | skimmed | domain app workflow | Rejected LinkedIn/profile/geoUrn/sales-specific details. Kept only the general pattern of staged discovery -> structured records -> downstream analysis as app-level, not retrieval default. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/docs/releases_review/demo_v0.8.5.py` | skimmed | release feature sweep | Confirmed this release demo mostly recaps already-assimilated patterns: blocked detection, crawl stats, proxy chain, shadow DOM, cancellation, consent popup cleanup, sibling selectors, tables, resource filtering, browser recycling, and BM25 dedupe. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/crawl4ai/tests/regression/test_reg_extraction.py` | parsed | extraction regression coverage | Confirmed CSS/XPath/LXML/regex/no-op/cosine extraction all behave as separate strategies with defaults, nested fields, empty-result safety, and table extraction. No new final-output format constraints added. |
 
 ## Repo Surfaces Pending
 
@@ -162,9 +166,19 @@ This ledger is intentionally about portable mechanisms, not copied source, provi
 | Async crawler/browser manager | remaining browser/profile/proxy tests | low | Lifecycle, concurrency, session, timeout, resource filtering, and memory controls are parsed; remaining tests are gated dynamic-page edge cases. |
 | Browser/proxy/anti-bot surfaces | browser/proxy tests and examples | low | Core detection/proxy docs parsed; remaining tests/examples are for edge-case coverage only. Useful as capability-gating patterns only; avoid copying bypass mechanics as defaults. |
 | Structured extraction and schema examples | no-LLM/LLM extraction docs and tests | low | Core schema, selector, regex, chunking, and extraction-ladder patterns are parsed and implemented as evidence policy. Remaining examples are mostly domain demonstrations. |
-| Examples/assets/notebooks | `docs/examples/**`, `docs/apps/**`, images/notebooks | low | Survey only for repeated patterns; avoid example-domain hardcoding. |
+| Examples/assets/notebooks | `docs/examples/**`, `docs/apps/**`, images/notebooks | low | Representative examples and app workflows are surveyed. Remaining files are mostly demos, notebooks, static assets, and domain-specific walkthroughs; parse only if a future gap points to one. |
 | Legacy package | `crawl4ai/legacy/**` | low | Representative legacy crawler was skimmed and confirmed duplicate. No further parse unless a specific gap appears. |
 | Deployment/API/MCP wrappers | `deploy/docker/**`, `tests/docker/**`, `tests/mcp/**` | low | Job handles, webhook payload discipline, pool cleanup, hook boundaries, and MCP wrapper shape were surveyed. Remaining files are app/server integration rather than retrieval primitives. |
+
+## Coverage Snapshot
+
+| Surface | State | Notes |
+| --- | --- | --- |
+| Core crawler/retrieval/extraction modules | covered | Main implementation files for adaptive crawl, URL seeding, dispatch, cache, browser lifecycle, content extraction, markdown, tables, chunks, structured extraction, anti-bot, proxy, and PDF processing have been parsed or skimmed. |
+| Tests for high-signal primitives | covered | Relevant tests for BM25/pruning, markdown/citations, prefetch, cache validation, sitemap parsing, structured extraction, deep crawl, browser lifecycle, resource filtering, proxy/anti-bot, and regression extraction have been parsed or skimmed. |
+| Deployment/API/MCP wrappers | surveyed | Portable task lifecycle/payload/cleanup patterns assimilated; route wiring and server specifics rejected. |
+| Provider/domain examples | surveyed/rejected | Google/Amazon/LinkedIn and release-demo specifics are not being adopted as default behavior. |
+| Remaining repo material | low-value | Static assets, notebooks, release demos, Docker/server glue, legacy duplicates, and project metadata remain available in the clone but have no obvious portable web-retrieval primitive left to extract. |
 
 ## Assimilation Decisions
 
