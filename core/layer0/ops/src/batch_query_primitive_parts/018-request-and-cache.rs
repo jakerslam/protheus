@@ -2,6 +2,10 @@ const CACHE_REL: &str = "client/runtime/local/state/batch_query/cache.json";
 const CACHE_MAX_ENTRIES: usize = 240;
 const CACHE_TTL_SUCCESS_SECS: i64 = 30 * 60;
 const CACHE_TTL_NO_RESULTS_SECS: i64 = 2 * 60;
+const CACHE_MODE_ENV: &str = "INFRING_BATCH_QUERY_CACHE_MODE";
+const CACHE_TTL_SUCCESS_ENV: &str = "INFRING_BATCH_QUERY_CACHE_TTL_SUCCESS_SECONDS";
+const CACHE_TTL_NO_RESULTS_ENV: &str = "INFRING_BATCH_QUERY_CACHE_TTL_NO_RESULTS_SECONDS";
+const CACHE_MAX_ENTRIES_ENV: &str = "INFRING_BATCH_QUERY_CACHE_MAX_ENTRIES";
 
 #[derive(Clone, Debug)]
 struct QueryPlanSelection {
@@ -10,6 +14,32 @@ struct QueryPlanSelection {
     rewrite_applied: bool,
     rerank_query: String,
     query_plan_source: &'static str,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct BatchQueryCacheControl {
+    mode: String,
+    ttl_success_secs: i64,
+    ttl_no_results_secs: i64,
+    max_entries: usize,
+}
+
+impl BatchQueryCacheControl {
+    fn read_enabled(&self) -> bool {
+        self.mode == "enabled"
+    }
+
+    fn write_enabled(&self) -> bool {
+        self.mode == "enabled" || self.mode == "refresh"
+    }
+
+    fn fresh_status(&self) -> &'static str {
+        match self.mode.as_str() {
+            "enabled" => "miss",
+            "refresh" => "refresh",
+            _ => "disabled",
+        }
+    }
 }
 
 fn contains_antibot_marker(text: &str) -> bool {
@@ -83,13 +113,24 @@ fn cache_path(root: &Path) -> PathBuf {
     root.join(CACHE_REL)
 }
 
+fn cache_identity_policy(policy: &Value) -> Value {
+    let mut batch_query = policy
+        .get("batch_query")
+        .cloned()
+        .unwrap_or(Value::Null);
+    if let Some(obj) = batch_query.as_object_mut() {
+        obj.remove("cache");
+    }
+    batch_query
+}
+
 fn cache_key(source: &str, query: &str, aperture: &str, policy: &Value) -> String {
     crate::deterministic_receipt_hash(&json!({
         "version": 1,
         "source": source,
         "query": query,
         "aperture": aperture,
-        "policy": policy.get("batch_query").cloned().unwrap_or(Value::Null),
+        "policy": cache_identity_policy(policy),
     }))
 }
 
@@ -110,7 +151,7 @@ fn cache_key_with_query_plan(
         "query": query,
         "aperture": aperture,
         "query_plan": normalized_plan,
-        "policy": policy.get("batch_query").cloned().unwrap_or(Value::Null),
+        "policy": cache_identity_policy(policy),
     }))
 }
 
@@ -200,36 +241,150 @@ fn dedup_provider_results(provider_results: Vec<Value>) -> (Vec<Value>, usize) {
     (deduped, removed)
 }
 
-fn cache_ttl_for_status(status: &str) -> i64 {
-    if status == "ok" || status == "partial" {
-        CACHE_TTL_SUCCESS_SECS
-    } else {
-        CACHE_TTL_NO_RESULTS_SECS
+fn cache_policy_i64(policy: &Value, pointer: &str, default_value: i64, min: i64, max: i64) -> i64 {
+    policy
+        .pointer(pointer)
+        .and_then(Value::as_i64)
+        .unwrap_or(default_value)
+        .clamp(min, max)
+}
+
+fn cache_policy_usize(
+    policy: &Value,
+    pointer: &str,
+    default_value: usize,
+    min: usize,
+    max: usize,
+) -> usize {
+    policy
+        .pointer(pointer)
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(default_value)
+        .clamp(min, max)
+}
+
+fn env_i64(key: &str, fallback: i64, min: i64, max: i64) -> i64 {
+    std::env::var(key)
+        .ok()
+        .and_then(|raw| raw.parse::<i64>().ok())
+        .unwrap_or(fallback)
+        .clamp(min, max)
+}
+
+fn env_usize(key: &str, fallback: usize, min: usize, max: usize) -> usize {
+    std::env::var(key)
+        .ok()
+        .and_then(|raw| raw.parse::<usize>().ok())
+        .unwrap_or(fallback)
+        .clamp(min, max)
+}
+
+fn normalize_cache_mode(raw: &str) -> String {
+    match clean_text(raw, 40).to_ascii_lowercase().as_str() {
+        "refresh" | "fresh" | "write_only" | "write-only" => "refresh".to_string(),
+        "disabled" | "disable" | "off" | "none" | "bypass" | "no_cache" | "no-cache" => {
+            "disabled".to_string()
+        }
+        _ => "enabled".to_string(),
     }
 }
 
-fn load_cached_response(root: &Path, key: &str) -> Option<Value> {
+fn requested_cache_mode(request: &Value) -> Option<String> {
+    request
+        .get("cache_mode")
+        .or_else(|| request.pointer("/cache/mode"))
+        .or_else(|| request.pointer("/cache_policy/mode"))
+        .and_then(Value::as_str)
+        .map(normalize_cache_mode)
+}
+
+fn batch_query_cache_control(policy: &Value, request: &Value) -> BatchQueryCacheControl {
+    let ttl_success = cache_policy_i64(
+        policy,
+        "/batch_query/cache/ttl_success_seconds",
+        CACHE_TTL_SUCCESS_SECS,
+        30,
+        7 * 24 * 60 * 60,
+    );
+    let ttl_no_results = cache_policy_i64(
+        policy,
+        "/batch_query/cache/ttl_no_results_seconds",
+        CACHE_TTL_NO_RESULTS_SECS,
+        30,
+        24 * 60 * 60,
+    );
+    let max_entries = cache_policy_usize(
+        policy,
+        "/batch_query/cache/max_entries",
+        CACHE_MAX_ENTRIES,
+        1,
+        10_000,
+    );
+    let mode = std::env::var(CACHE_MODE_ENV)
+        .ok()
+        .map(|raw| normalize_cache_mode(&raw))
+        .or_else(|| requested_cache_mode(request))
+        .or_else(|| {
+            policy
+                .pointer("/batch_query/cache/mode")
+                .and_then(Value::as_str)
+                .map(normalize_cache_mode)
+        })
+        .unwrap_or_else(|| "enabled".to_string());
+    BatchQueryCacheControl {
+        mode,
+        ttl_success_secs: env_i64(CACHE_TTL_SUCCESS_ENV, ttl_success, 30, 7 * 24 * 60 * 60),
+        ttl_no_results_secs: env_i64(CACHE_TTL_NO_RESULTS_ENV, ttl_no_results, 30, 24 * 60 * 60),
+        max_entries: env_usize(CACHE_MAX_ENTRIES_ENV, max_entries, 1, 10_000),
+    }
+}
+
+fn cache_ttl_for_status(status: &str, control: &BatchQueryCacheControl) -> i64 {
+    if status == "ok" || status == "partial" {
+        control.ttl_success_secs
+    } else {
+        control.ttl_no_results_secs
+    }
+}
+
+fn prune_cache_entries(
+    entries: &mut Map<String, Value>,
+    now_ts: i64,
+    max_entries: usize,
+) -> usize {
+    let before = entries.len();
+    entries.retain(|_, entry| entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0) > now_ts);
+    if entries.len() > max_entries {
+        let mut order = entries
+            .iter()
+            .map(|(entry_key, entry)| {
+                (
+                    entry_key.clone(),
+                    entry.get("stored_at").and_then(Value::as_i64).unwrap_or(0),
+                )
+            })
+            .collect::<Vec<_>>();
+        order.sort_by_key(|(_, stored_at)| *stored_at);
+        let drop_count = entries.len().saturating_sub(max_entries);
+        for (entry_key, _) in order.into_iter().take(drop_count) {
+            entries.remove(&entry_key);
+        }
+    }
+    before.saturating_sub(entries.len())
+}
+
+fn load_cached_response(root: &Path, key: &str, control: &BatchQueryCacheControl) -> Option<Value> {
+    if !control.read_enabled() {
+        return None;
+    }
     let path = cache_path(root);
     let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
     let now_ts = chrono::Utc::now().timestamp();
     let mut mutated = false;
     let mut hit = None::<Value>;
     if let Some(entries) = cache.get_mut("entries").and_then(Value::as_object_mut) {
-        let stale_keys = entries
-            .iter()
-            .filter_map(|(entry_key, entry)| {
-                let expires_at = entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0);
-                if expires_at <= now_ts {
-                    Some(entry_key.clone())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        for stale_key in stale_keys {
-            entries.remove(&stale_key);
-            mutated = true;
-        }
+        mutated = prune_cache_entries(entries, now_ts, control.max_entries) > 0;
         if let Some(entry) = entries.get(key) {
             if let Some(response) = entry.get("response") {
                 hit = Some(response.clone());
@@ -242,7 +397,16 @@ fn load_cached_response(root: &Path, key: &str) -> Option<Value> {
     hit
 }
 
-fn store_cached_response(root: &Path, key: &str, response: &Value, status: &str) {
+fn store_cached_response(
+    root: &Path,
+    key: &str,
+    response: &Value,
+    status: &str,
+    control: &BatchQueryCacheControl,
+) {
+    if !control.write_enabled() {
+        return;
+    }
     let path = cache_path(root);
     let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
     let now_ts = chrono::Utc::now().timestamp();
@@ -251,9 +415,8 @@ fn store_cached_response(root: &Path, key: &str, response: &Value, status: &str)
         .and_then(Value::as_object)
         .cloned()
         .unwrap_or_default();
-    entries
-        .retain(|_, entry| entry.get("expires_at").and_then(Value::as_i64).unwrap_or(0) > now_ts);
-    let ttl = cache_ttl_for_status(status).max(30);
+    prune_cache_entries(&mut entries, now_ts, control.max_entries);
+    let ttl = cache_ttl_for_status(status, control).max(30);
     entries.insert(
         key.to_string(),
         json!({
@@ -263,25 +426,68 @@ fn store_cached_response(root: &Path, key: &str, response: &Value, status: &str)
             "response": response
         }),
     );
-    if entries.len() > CACHE_MAX_ENTRIES {
-        let mut order = entries
-            .iter()
-            .map(|(entry_key, entry)| {
-                (
-                    entry_key.clone(),
-                    entry.get("stored_at").and_then(Value::as_i64).unwrap_or(0),
-                )
-            })
-            .collect::<Vec<_>>();
-        order.sort_by_key(|(_, stored_at)| *stored_at);
-        let drop_count = entries.len().saturating_sub(CACHE_MAX_ENTRIES);
-        for (entry_key, _) in order.into_iter().take(drop_count) {
-            entries.remove(&entry_key);
-        }
-    }
+    prune_cache_entries(&mut entries, now_ts, control.max_entries);
     cache["version"] = json!(1);
     cache["entries"] = Value::Object(entries);
     let _ = write_json_atomic(&path, &cache);
+}
+
+fn prune_batch_query_cache(root: &Path, control: &BatchQueryCacheControl) -> Value {
+    let path = cache_path(root);
+    if !path.exists() {
+        return json!({
+            "ok": true,
+            "type": "batch_query_cache_cleanup",
+            "cache_path": path.to_string_lossy().to_string(),
+            "cache_written": false,
+            "before_entries": 0,
+            "after_entries": 0,
+            "removed_entries": 0,
+            "max_entries": control.max_entries,
+            "ttl_success_seconds": control.ttl_success_secs,
+            "ttl_no_results_seconds": control.ttl_no_results_secs
+        });
+    }
+    let mut cache = read_json_or(&path, json!({"version": 1, "entries": {}}));
+    let now_ts = chrono::Utc::now().timestamp();
+    let before = cache
+        .get("entries")
+        .and_then(Value::as_object)
+        .map(|entries| entries.len())
+        .unwrap_or(0);
+    let mut entries = cache
+        .get("entries")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let removed = prune_cache_entries(&mut entries, now_ts, control.max_entries);
+    let after = entries.len();
+    cache["version"] = json!(1);
+    cache["entries"] = Value::Object(entries);
+    let cache_written = removed > 0;
+    let write_ok = if cache_written {
+        write_json_atomic(&path, &cache).is_ok()
+    } else {
+        true
+    };
+    json!({
+        "ok": write_ok,
+        "type": "batch_query_cache_cleanup",
+        "cache_path": path.to_string_lossy().to_string(),
+        "cache_written": cache_written,
+        "before_entries": before,
+        "after_entries": after,
+        "removed_entries": removed,
+        "max_entries": control.max_entries,
+        "ttl_success_seconds": control.ttl_success_secs,
+        "ttl_no_results_seconds": control.ttl_no_results_secs
+    })
+}
+
+pub(crate) fn cleanup_cache(root: &Path) -> Value {
+    let policy = load_policy(root);
+    let control = batch_query_cache_control(&policy, &json!({}));
+    prune_batch_query_cache(root, &control)
 }
 
 fn request_query_text(request: &Value, max_len: usize) -> String {

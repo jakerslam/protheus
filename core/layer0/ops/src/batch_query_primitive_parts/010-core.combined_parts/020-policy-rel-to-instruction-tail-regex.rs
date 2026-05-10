@@ -82,6 +82,12 @@ fn default_policy() -> Value {
             "allow_large": false,
             "max_parallel_subqueries": 4,
             "query_timeout_ms": 5000,
+            "cache": {
+                "mode": "enabled",
+                "ttl_success_seconds": 1800,
+                "ttl_no_results_seconds": 120,
+                "max_entries": 240
+            },
             "quality_gate": {
                 "enabled": true,
                 "provider_recovery": {

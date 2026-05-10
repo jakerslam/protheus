@@ -46,6 +46,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     );
     let fresh_agent_per_case = parse_bool_flag(args, "fresh-agent-per-case", false);
     let cleanup_fresh_agents = parse_bool_flag(args, "cleanup-fresh-agents", true);
+    let isolate_tool_cache = parse_bool_flag(args, "isolate-tool-cache", live);
     let fresh_agent_model = parse_flag(args, "fresh-agent-model")
         .or_else(|| env::var("INFRING_RESEARCH_GOLDEN_FRESH_MODEL").ok())
         .map(|raw| clean_text(&raw, 240))
@@ -107,6 +108,21 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         let prompt = str_at(case, &["prompt"], "");
         let mut case_agent_id = agent_id.clone();
         let mut case_setup_failures = setup_failures.clone();
+        let mut cache_isolation = json!({
+            "ok": true,
+            "type": "research_golden_cache_isolation",
+            "applied": false
+        });
+        if live && setup_failures.is_empty() && isolate_tool_cache {
+            cache_isolation = isolate_batch_query_cache_for_eval();
+            if !cache_isolation
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            {
+                case_setup_failures.push("batch_query_cache_isolation_failed".to_string());
+            }
+        }
         if live && setup_failures.is_empty() && fresh_agent_per_case {
             match create_live_agent(
                 &base_url,
@@ -240,6 +256,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 "confirmation_sent": confirmation_sent,
                 "confirmation_fixture_used": confirmation_fixture_used,
                 "confirmation_payload_used": confirmation_payload_used,
+                "cache_isolation": cache_isolation,
                 "final_payload_source": if confirmation_payload_used {
                     "confirmation_turn"
                 } else {
@@ -298,7 +315,8 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "cleanup_fresh_agents": cleanup_fresh_agents,
             "fresh_agent_model_set": fresh_agent_model.is_some(),
             "timeout_seconds": timeout_seconds,
-            "confirm_pending_tool": confirm_pending_tool
+            "confirm_pending_tool": confirm_pending_tool,
+            "isolate_tool_cache": isolate_tool_cache
         },
         "grader": {
             "kind": "deterministic_seed_research_grader",

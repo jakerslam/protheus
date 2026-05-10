@@ -73,13 +73,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             }
         };
     let query_plan = resolve_query_plan(&policy, request, &query, budget);
+    let cache_control = batch_query_cache_control(&policy, request);
     let cache_key_primary =
         cache_key_with_query_plan(&source, &query, &aperture, &policy, &query_plan.queries);
     let legacy_cache_key = cache_key(&source, &query, &aperture, &policy);
-    let (cached_response, cache_lookup_key) = if let Some(cached) = load_cached_response(root, &cache_key_primary) {
+    let (cached_response, cache_lookup_key) = if let Some(cached) =
+        load_cached_response(root, &cache_key_primary, &cache_control)
+    {
         (Some(cached), cache_key_primary.clone())
     } else if cache_key_primary != legacy_cache_key {
-        if let Some(cached) = load_cached_response(root, &legacy_cache_key) {
+        if let Some(cached) = load_cached_response(root, &legacy_cache_key, &cache_control) {
             (Some(cached), legacy_cache_key.clone())
         } else {
             (None, cache_key_primary.clone())
@@ -211,6 +214,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "provider_result_dedup_count": provider_result_dedup_count,
             "evidence_count": evidence_refs.as_array().map(|rows| rows.len()).unwrap_or(0),
             "cache_status": "hit",
+            "cache_mode": cache_control.mode.as_str(),
             "latency_ms": started.elapsed().as_millis() as u64,
             "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
             "parallel_retrieval_used": parallel_retrieval_used,
@@ -254,7 +258,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "tool_result_quality": tool_result_quality,
             "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
             "provider_result_dedup_count": provider_result_dedup_count,
-            "cache_status": "hit"
+            "cache_status": "hit",
+            "cache_mode": cache_control.mode.as_str()
         });
         if search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = search_results; }
         if provider_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
@@ -624,6 +629,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "adapter_version": "web_conduit_v1",
         "disposable": true
     });
+    let fresh_cache_status = cache_control.fresh_status();
     let receipt = json!({
         "type": "batch_query_receipt",
         "ts": crate::now_iso(),
@@ -649,7 +655,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "provider_result_count": provider_results.len(),
         "provider_result_dedup_count": provider_result_dedup_count,
         "evidence_count": evidence_refs.len(),
-        "cache_status": "miss",
+        "cache_status": fresh_cache_status,
+        "cache_mode": cache_control.mode.as_str(),
         "latency_ms": started.elapsed().as_millis() as u64,
         "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
         "parallel_retrieval_used": parallel_allowed,
@@ -688,7 +695,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "tool_result_quality": tool_result_quality.clone(),
         "provider_result_count": provider_results.len(),
         "provider_result_dedup_count": provider_result_dedup_count,
-        "cache_status": "miss"
+        "cache_status": fresh_cache_status,
+        "cache_mode": cache_control.mode.as_str()
     });
     if comparison_guard_search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = comparison_guard_search_results.clone(); }
     if !provider_results.is_empty() {
@@ -711,6 +719,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "parallel_retrieval_used": parallel_allowed
         }),
         status,
+        &cache_control,
     );
     if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
     if let Some(meta) = nexus_connection {

@@ -5,6 +5,7 @@ fn usage() {
     );
     println!("  infring-ops batch-query status");
     println!("  infring-ops batch-query policy");
+    println!("  infring-ops batch-query cleanup");
 }
 
 fn print_payload(payload: &Value) {
@@ -31,9 +32,11 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             "ok": true,
             "type": "batch_query_status",
             "policy_path": root.join(POLICY_REL).to_string_lossy().to_string(),
-            "receipts_path": root.join(RECEIPTS_REL).to_string_lossy().to_string()
+            "receipts_path": root.join(RECEIPTS_REL).to_string_lossy().to_string(),
+            "cache_path": cache_path(root).to_string_lossy().to_string()
         }),
         "policy" => json!({"ok": true, "type": "batch_query_policy", "policy": load_policy(root)}),
+        "cleanup" => cleanup_cache(root),
         "query" => {
             let flag_or_positional = |flags: &[&str], positional_idx: usize, fallback: &str| {
                 flags

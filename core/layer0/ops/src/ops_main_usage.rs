@@ -28,7 +28,7 @@ pub(super) fn print_usage() {
     println!("  infring-ops passport-iteration-chain-kernel <record|status> [--payload-base64=<base64_json>]");
     println!("  infring-ops egress-gateway-kernel <load-policy|load-state|authorize> [--payload-base64=<base64_json>]");
     println!("  infring-ops web-conduit|browse <status|receipts|setup|migrate-legacy-config|native-codex|fetch|search|providers> [flags]");
-    println!("  infring-ops batch-query <query|status|policy> [--source=web] [--query=<terms>] [--aperture=small|medium]");
+    println!("  infring-ops batch-query <query|status|policy|cleanup> [--source=web] [--query=<terms>] [--aperture=small|medium]");
     println!("  infring-ops memory-semantic-query <query|status> [--agent=<id>] [--query=<terms>] [--limit=<n>]");
     println!("  infring-ops context-stacks <create|list|archive|tail-merge|tail-promote|render|batch-class|scheduler-check|node-spike|contract-verify|taste-tune|partial-merge|hybrid-retrieve|status|policy> [flags]");
     println!("  infring-ops stomach-kernel <run|status|rollback|retention|purge> [flags]");

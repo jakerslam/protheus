@@ -10,6 +10,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const DASHBOARD_STATE_ROOT_ENV: &str = "INFRING_TOOLING_DASHBOARD_STATE_ROOT";
 const AGENT_SESSIONS_SUBDIR: &str = "agent_sessions";
+const BATCH_QUERY_CACHE_REL: &str = "client/runtime/local/state/batch_query/cache.json";
 
 #[derive(Clone, Debug, Default)]
 struct SessionSnapshot {
@@ -188,6 +189,33 @@ pub(super) fn delete_live_agent(base_url: &str, agent_id: &str, timeout_seconds:
         &json!({}),
         timeout_seconds,
     )
+}
+
+pub(super) fn isolate_batch_query_cache_for_eval() -> Value {
+    let path = repo_root().join(BATCH_QUERY_CACHE_REL);
+    if !path.exists() {
+        return json!({
+            "ok": true,
+            "type": "research_golden_cache_isolation",
+            "cache_path": path.display().to_string(),
+            "removed": false
+        });
+    }
+    match fs::remove_file(&path) {
+        Ok(_) => json!({
+            "ok": true,
+            "type": "research_golden_cache_isolation",
+            "cache_path": path.display().to_string(),
+            "removed": true
+        }),
+        Err(err) => json!({
+            "ok": false,
+            "type": "research_golden_cache_isolation",
+            "cache_path": path.display().to_string(),
+            "removed": false,
+            "error": format!("remove_batch_query_cache_failed:{err}")
+        }),
+    }
 }
 
 pub(super) fn post_agent_message(
