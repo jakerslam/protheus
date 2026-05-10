@@ -132,6 +132,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .map(Value::Array)
             .unwrap_or_else(|| json!([]));
         let search_results = cached.get("search_results").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
+        let evidence_pack = cached.get("evidence_pack").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
         let (provider_results_rows, provider_result_dedup_count) = dedup_provider_results(cached
             .get("provider_results")
             .and_then(Value::as_array)
@@ -222,6 +223,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
             "provider_result_dedup_count": provider_result_dedup_count,
             "evidence_count": evidence_refs.as_array().map(|rows| rows.len()).unwrap_or(0),
+            "evidence_pack_count": evidence_pack.as_array().map(|rows| rows.len()).unwrap_or(0),
             "cache_status": "hit",
             "cache_mode": cache_control.mode.as_str(),
             "latency_ms": started.elapsed().as_millis() as u64,
@@ -272,6 +274,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "cache_mode": cache_control.mode.as_str()
         });
         if search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = search_results; }
+        if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
+            out["evidence_pack"] = evidence_pack;
+        }
         if provider_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
             out["provider_results"] = provider_results;
         }
@@ -504,6 +509,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             permissions: row.permissions.clone(),
         })
         .collect::<Vec<_>>();
+    let evidence_pack =
+        evidence_pack_from_ranked_candidates(&policy, &actionable_ranked, budget.max_evidence);
 
     let hard_partial_failures = partial_failures
         .iter()
@@ -676,6 +683,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "provider_result_count": provider_results.len(),
         "provider_result_dedup_count": provider_result_dedup_count,
         "evidence_count": evidence_refs.len(),
+        "evidence_pack_count": evidence_pack.as_array().map(|rows| rows.len()).unwrap_or(0),
         "cache_status": fresh_cache_status,
         "cache_mode": cache_control.mode.as_str(),
         "latency_ms": started.elapsed().as_millis() as u64,
@@ -721,6 +729,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "cache_mode": cache_control.mode.as_str()
     });
     if comparison_guard_search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = comparison_guard_search_results.clone(); }
+    if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
+        out["evidence_pack"] = evidence_pack.clone();
+    }
     if !provider_results.is_empty() {
         out["provider_results"] = Value::Array(provider_results.clone());
     }
@@ -731,6 +742,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "status": status,
             "summary": summary,
             "evidence_refs": evidence_refs,
+            "evidence_pack": evidence_pack,
             "search_results": comparison_guard_search_results,
             "provider_results": provider_results,
             "rewrite_set": rewrite_set,

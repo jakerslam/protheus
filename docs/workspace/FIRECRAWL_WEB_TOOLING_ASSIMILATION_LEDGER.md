@@ -32,7 +32,7 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `FIRECRAWL-PATTERN-004` | Category and domain filters as request policy | Firecrawl exposes categories like GitHub/research/PDF and include/exclude domains. If used, this belongs in CD/tool request contracts, not hardcoded gates. | active |
 | `FIRECRAWL-PATTERN-005` | Async crawl/batch progress contract | Crawl/batch scrape returns status, total, completed, data, errors, and polling. Useful for long research jobs, not first-turn search. | active |
 | `FIRECRAWL-PATTERN-006` | LLM-ready document contract | Document objects preserve markdown, summary, metadata, source URL, status, cache state, and errors. This maps well to evidence packs. | active |
-| `FIRECRAWL-PATTERN-007` | Optional structured extraction | JSON/schema extraction is an optional layer after source retrieval, not a forced final answer shape. | pending |
+| `FIRECRAWL-PATTERN-007` | Optional structured extraction | JSON/schema extraction is an optional layer after source retrieval, not a forced final answer shape. | active |
 | `FIRECRAWL-PATTERN-008` | Query context preservation | Firecrawl agent/search APIs accept an intent prompt and optional URLs. Our follow-up retries need the same idea: compile full research intent, not the latest utterance alone. | active |
 
 ## Parsed This Pass
@@ -67,6 +67,17 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/build-prompts.ts` | parsed | intent-preserving query/rerank prompts | Extracted separation between SERP query phrasing, pre-rerank intent phrasing, and extraction instructions. Useful guidance: preserve intent and keep page content untrusted; do not force final answer format. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/document-scraper.ts` | parsed | queued scrape document contract | Extracted queued page scrape with blocked URL check, trace timing/status/contentStats, single URL double-timeout retry, and queue cleanup. Useful for async page extraction trace, not first-turn web search hardcoding. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/helpers/source-tracker.ts` | parsed | extraction provenance through merge/dedupe | Extracted per-item source tracking through transformation, pre-dedupe mapping, and final merged item source mapping. Pattern is useful for claim/evidence provenance, not for forcing output shape. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/extraction-service.ts` | parsed | optional extraction lifecycle | Extracted prompt-to-URL discovery, schema generation/dereference, single-vs-multi-entity split, scrape-before-extract, source mapping, null-aware merge, billing/usage, and terminal structured result shape. Useful pattern: extraction is a post-retrieval layer with provenance, not a replacement for synthesis. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/completions/analyzeSchemaAndPrompt.ts` | parsed | schema-aware extraction planning | Extracted schema/prompt analysis into multi-entity keys and reasoning. Useful as a future optional extraction planner; do not hardcode schema lanes into normal research answers. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/completions/batchExtract.ts` | parsed | per-document structured extraction | Extracted per-page extraction over LLM-ready documents with source URL retention, agent option, retry model, and cost tracking. Pattern maps to optional structured evidence artifacts. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/completions/singleAnswer.ts` | parsed | multi-document answer extraction | Extracted a document bundle prompt with page IDs, source list retention, and untrusted-content warning. Pattern maps to synthesis context packaging, not a final response template. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/build-document.ts` | parsed | LLM-ready document packaging | Extracted markdown plus sanitized/capped metadata packaging. Pattern used for a bounded evidence pack that gives the agent source snippets and metadata without exposing raw provider payloads. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/helpers/deduplicate-objs-array.ts` | parsed | exact structured dedupe | Extracted exact-object dedupe as a post-extraction cleanup primitive. Useful later for structured artifacts; not needed for current freeform research synthesis. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/helpers/merge-null-val-objs.ts` | parsed | null-aware merge | Extracted merge of partial structured objects by filling null-equivalent fields when non-null values agree. Useful later for optional structured extraction artifacts. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/helpers/mix-schema-objs.ts` | parsed | single/multi result recomposition | Extracted schema-guided recomposition of single-answer and multi-entity extraction results. Useful later only behind an explicit extraction schema. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/rust-sdk/src/search.rs` | parsed | typed search-plus-scrape result union | Confirmed Rust-side search can return either web rows or scraped documents. Pattern reinforces preserving document-like rows in a structured evidence pack. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/rust-sdk/src/types.rs` | parsed | document and JSON extraction contract | Extracted typed formats, JSON extraction options, document metadata, markdown/html/raw/json/summary/links/images fields, cache state, and warnings. Useful pattern: keep extraction formats optional and preserve provenance metadata. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/rust-sdk/src/scrape.rs` | parsed | scrape options and schema convenience wrapper | Confirmed JSON/schema extraction is a convenience over scrape options, not the default search path. Pattern maps to policy-declared optional evidence packs, not a hardcoded research format. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/search/scrape.test.ts` | parsed | search-plus-scrape test contract | Extracted the requirement that search-attached scrape jobs preserve metadata and may partially fail while still returning useful markdown for at least some results. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/search.test.ts` | parsed | structured search result lanes | Extracted `web`, `news`, and `images` as separately bounded result lanes, include-domain behavior, and partial scrape tolerance. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/lib/search-query-builder.test.ts` | parsed | request-owned source constraints | Confirmed include/exclude domain filters and category maps are request/policy concerns. We used this for scope bridging, not for copying default research domain lists. |
@@ -83,7 +94,7 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | Scrape pipeline internals | `apps/api/src/scraper/scrapeURL/**`, `apps/api/src/services/worker/scrape-worker*` | high | Needed for clean markdown/page extraction patterns. |
 | Crawl and batch status contracts | SDK methods and deeper worker/redis queue internals | medium | Controller contracts parsed; worker lifecycle still pending before implementation. |
 | Map/discovery | deeper crawler/sitemap utilities used by map | medium | Controller and map-utils parsed; sitemap/crawler internals pending if site-discovery becomes the next primitive. |
-| Extract/structured data | `apps/api/src/lib/extract/**` | medium | Controller, URL processor, reranker, document scraper, and source tracker parsed; schema/completion internals still pending. |
+| Extract/structured data | `apps/api/src/lib/extract/**` | medium | Main lifecycle, schema/completion internals, document packaging, source tracking, and merge/dedupe helpers parsed. Remaining only deeper legacy `fire-0` duplicate surfaces if future diffs need them. |
 | Tests and evals | `apps/api/src/__tests__/snips/v2/**`, e2e tests, scrape evals | high | Needed to validate behavior patterns and edge cases. |
 | MCP/CLI/skill surfaces | Firecrawl MCP/CLI references and SDK examples | low | Useful after core retrieval primitive improves. |
 
@@ -271,3 +282,30 @@ Expected effect:
 
 - The agent can retrieve a wider, more filterable evidence pool for broad research questions without asking the user to narrow immediately.
 - Recovery behavior is now easier to tune in the CD/policy layer as we learn from real workflow failures.
+
+### `FIRECRAWL-LIVE-008`: policy-owned synthesis evidence pack
+
+Pattern source: `FIRECRAWL-PATTERN-006` and `FIRECRAWL-PATTERN-007`, primarily from Firecrawl document contracts, extraction source tracking, and Rust SDK search/scrape result unions.
+
+Target behavior:
+
+- Give the agent a compact, source-mapped evidence pack after retrieval so synthesis can inspect curated snippets instead of relying only on a short summary string.
+- Keep the evidence pack policy-owned and bounded by item count and snippet length.
+- Preserve source kind, locator, source scope, snippet, excerpt hash, score, timestamp, permissions, and visibility metadata.
+- Keep this as synthesis context, not a user-facing answer format.
+- Avoid provider-specific, domain-specific, or prompt-specific behavior.
+
+Current status: implemented first slice.
+
+Implementation:
+
+- Added `batch_query.evidence_pack` policy fields for enablement, max items, and max snippet words.
+- Added ranked-candidate evidence-pack packaging from already-actionable candidates.
+- Returned and cached `evidence_pack` beside `evidence_refs`, while retaining the existing final summary and provider-result behavior.
+- Added receipt-level evidence-pack counts for observability.
+- Added regression coverage proving successful web results expose synthesis-context snippets with explicit content authority metadata.
+
+Expected effect:
+
+- The research agent should have more usable context at the post-tool synthesis boundary, especially when the short tool summary is too lossy.
+- This supports optional future structured extraction without forcing JSON, tables, or any fixed answer shape onto normal research output.

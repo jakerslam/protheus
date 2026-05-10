@@ -166,6 +166,68 @@ fn select_diverse_ranked_candidates(
     selected
 }
 
+fn evidence_pack_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/evidence_pack/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn evidence_pack_max_items(policy: &Value, max_evidence: usize) -> usize {
+    if !evidence_pack_enabled(policy) {
+        return 0;
+    }
+    policy
+        .pointer("/batch_query/evidence_pack/max_items")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(max_evidence)
+        .clamp(1, max_evidence.max(1))
+}
+
+fn evidence_pack_max_snippet_words(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/evidence_pack/max_snippet_words")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(72)
+        .clamp(16, 160)
+}
+
+fn evidence_pack_from_ranked_candidates(
+    policy: &Value,
+    actionable_ranked: &[(Candidate, f64)],
+    max_evidence: usize,
+) -> Value {
+    let max_items = evidence_pack_max_items(policy, max_evidence);
+    if max_items == 0 {
+        return json!([]);
+    }
+    let max_snippet_words = evidence_pack_max_snippet_words(policy);
+    Value::Array(
+        actionable_ranked
+            .iter()
+            .take(max_items)
+            .map(|(candidate, score)| {
+                let domain = candidate_domain_hint(candidate);
+                json!({
+                    "source_kind": candidate.source_kind.clone(),
+                    "title": clean_text(&candidate.title, 240),
+                    "locator": clean_text(&candidate.locator, 2_200),
+                    "source_scope": domain,
+                    "snippet": trim_words(&clean_text(&candidate.snippet, 1_800), max_snippet_words),
+                    "excerpt_hash": candidate.excerpt_hash.clone(),
+                    "score": (*score * 100.0).round() / 100.0,
+                    "timestamp": candidate.timestamp.clone(),
+                    "permissions": candidate.permissions.clone(),
+                    "content_authority": "retrieved_public_web",
+                    "visibility": "synthesis_context"
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
 fn fallback_link_score(query: &str, link: &str) -> f64 {
     let cleaned = clean_text(link, 2_200);
     let lowered = cleaned.to_ascii_lowercase();

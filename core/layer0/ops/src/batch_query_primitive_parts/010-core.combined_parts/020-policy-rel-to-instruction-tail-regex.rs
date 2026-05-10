@@ -100,6 +100,11 @@ fn default_policy() -> Value {
                 "enabled": true,
                 "max_rows_per_stage": 12
             },
+            "evidence_pack": {
+                "enabled": true,
+                "max_items": 6,
+                "max_snippet_words": 72
+            },
             "quality_gate": {
                 "enabled": true,
                 "provider_recovery": {

@@ -651,13 +651,13 @@ mod web_quality_diagnostics_tests {
 
     #[test]
     fn successful_web_result_exports_synthesis_quality_bundle() {
-        let query = "current AI agent frameworks May 2026";
+        let query = "AI agent framework documentation";
         let out = run_query_with_fixture(
             json!({
                 query: {
                     "ok": true,
-                    "summary": "LangGraph, OpenAI Agents SDK, CrewAI, and AutoGen publish official 2026 documentation for agent framework tool use and orchestration patterns.",
-                    "requested_url": "https://docs.example.com/agent-frameworks-2026",
+                    "summary": "LangGraph, OpenAI Agents SDK, CrewAI, and AutoGen publish official documentation for agent framework tool use and orchestration patterns.",
+                    "requested_url": "https://docs.example.com/agent-frameworks",
                     "status_code": 200
                 }
             }),
@@ -678,6 +678,22 @@ mod web_quality_diagnostics_tests {
             out.pointer("/tool_result_quality/retry/recommended")
                 .and_then(Value::as_bool),
             Some(false)
+        );
+        assert!(
+            out.pointer("/evidence_pack/0/snippet")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("LangGraph")
+        );
+        assert_eq!(
+            out.pointer("/evidence_pack/0/visibility")
+                .and_then(Value::as_str),
+            Some("synthesis_context")
+        );
+        assert_eq!(
+            out.pointer("/evidence_pack/0/content_authority")
+                .and_then(Value::as_str),
+            Some("retrieved_public_web")
         );
     }
 
