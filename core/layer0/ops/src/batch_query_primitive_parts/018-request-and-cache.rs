@@ -782,7 +782,18 @@ fn broad_current_research_recovery_templates(policy: &Value) -> Vec<String> {
     )
 }
 
-fn query_looks_like_broad_current_research(query: &str) -> bool {
+fn broad_current_research_recovery_markers(policy: &Value) -> Vec<String> {
+    query_recovery_policy_strings_with_default(
+        policy,
+        "/batch_query/query_recovery/broad_current_research/intent_markers",
+        80,
+    )
+    .into_iter()
+    .map(|row| row.to_ascii_lowercase())
+    .collect()
+}
+
+fn query_looks_like_broad_current_research(policy: &Value, query: &str) -> bool {
     let cleaned = clean_text(query, 600);
     if cleaned.is_empty() || !current_web_intent(&cleaned) {
         return false;
@@ -796,24 +807,9 @@ fn query_looks_like_broad_current_research(query: &str) -> bool {
         return false;
     }
     let word_count = cleaned.split_whitespace().count();
-    let broad_marker = [
-        "what are",
-        "what were",
-        "some ",
-        "overview",
-        "landscape",
-        "trend",
-        "trends",
-        "changes",
-        "developments",
-        "breakthrough",
-        "breakthroughs",
-        "news",
-        "current state",
-        "state of",
-    ]
-    .iter()
-    .any(|marker| lowered.contains(marker));
+    let broad_marker = broad_current_research_recovery_markers(policy)
+        .iter()
+        .any(|marker| lowered.contains(marker));
     broad_marker || word_count <= 8
 }
 
@@ -839,7 +835,7 @@ fn broad_current_research_recovery_queries(
     budget: ApertureBudget,
 ) -> Vec<String> {
     if !broad_current_research_recovery_enabled(policy)
-        || !query_looks_like_broad_current_research(query)
+        || !query_looks_like_broad_current_research(policy, query)
     {
         return Vec::new();
     }

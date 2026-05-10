@@ -495,6 +495,65 @@ mod quality_tests {
     }
 
     #[test]
+    fn broad_current_research_markers_are_policy_visible() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_json_atomic(
+            &policy_path(tmp.path()),
+            &json!({
+                "version": "v1",
+                "batch_query": {
+                    "enabled_sources": ["web"],
+                    "max_parallel_subqueries": 2,
+                    "query_timeout_ms": 5000,
+                    "query_recovery": {
+                        "broad_current_research": {
+                            "enabled": true,
+                            "max_queries": 2,
+                            "intent_markers": ["milestones"],
+                            "templates": [
+                                "{query}",
+                                "{query} source list"
+                            ]
+                        }
+                    }
+                }
+            }),
+        )
+        .expect("write policy");
+        let query = "Give me the important research milestones reported by universities in 2026";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Search page chrome with little usable evidence.",
+                    "content": "",
+                    "requested_url": "https://search.example.com?q=milestones+2026",
+                    "status_code": 200
+                },
+                "Give me the important research milestones reported by universities in 2026 source list": {
+                    "ok": true,
+                    "summary": "University research milestone source list cites institution releases and publications for 2026 research advances.",
+                    "content": "University research milestone source list cites institution releases and publications for 2026 research advances.",
+                    "requested_url": "https://research.example.org/2026-milestones",
+                    "status_code": 200
+                }
+            }),
+            || run_query(tmp.path(), query, "medium"),
+        );
+        assert_eq!(
+            out.get("query_plan_source").and_then(Value::as_str),
+            Some("policy_broad_current_research_recovery")
+        );
+        let query_plan = out
+            .get("query_plan")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(query_plan.len(), 2, "{query_plan:?}");
+        assert!(summary_lowered(&out).contains("institution releases"));
+    }
+
+    #[test]
     fn broad_evaluative_single_query_uses_policy_visible_research_pack() {
         let query = "Compare AlphaTool vs BetaTool";
         let out = run_query_with_fixture(

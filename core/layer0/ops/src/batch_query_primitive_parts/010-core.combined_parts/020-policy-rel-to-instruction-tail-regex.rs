@@ -117,6 +117,22 @@ fn default_policy() -> Value {
                 "broad_current_research": {
                     "enabled": true,
                     "max_queries": 6,
+                    "intent_markers": [
+                        "breakthrough",
+                        "breakthroughs",
+                        "changes",
+                        "current state",
+                        "developments",
+                        "landscape",
+                        "news",
+                        "overview",
+                        "some ",
+                        "state of",
+                        "trend",
+                        "trends",
+                        "what are",
+                        "what were"
+                    ],
                     "templates": [
                         "{query}",
                         "{query} source-backed overview",

@@ -33,7 +33,7 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `FIRECRAWL-PATTERN-005` | Async crawl/batch progress contract | Crawl/batch scrape returns status, total, completed, data, errors, and polling. Useful for long research jobs, not first-turn search. | active |
 | `FIRECRAWL-PATTERN-006` | LLM-ready document contract | Document objects preserve markdown, summary, metadata, source URL, status, cache state, and errors. This maps well to evidence packs. | active |
 | `FIRECRAWL-PATTERN-007` | Optional structured extraction | JSON/schema extraction is an optional layer after source retrieval, not a forced final answer shape. | pending |
-| `FIRECRAWL-PATTERN-008` | Query context preservation | Firecrawl agent/search APIs accept an intent prompt and optional URLs. Our follow-up retries need the same idea: compile full research intent, not the latest utterance alone. | pending |
+| `FIRECRAWL-PATTERN-008` | Query context preservation | Firecrawl agent/search APIs accept an intent prompt and optional URLs. Our follow-up retries need the same idea: compile full research intent, not the latest utterance alone. | active |
 
 ## Parsed This Pass
 
@@ -246,3 +246,28 @@ Expected effect:
 
 - Built-in providers can feed the high-volume structured candidate path instead of only relying on rendered summary text.
 - This should make retrieval artifacts easier for the agent to inspect and easier for synthesis to ground, while preserving all existing rendered text behavior.
+
+### `FIRECRAWL-LIVE-007`: CD-owned intent-preserving recovery packs
+
+Pattern source: `FIRECRAWL-PATTERN-008`, primarily from `apps/api/src/lib/deep-research/research-manager.ts` and `apps/api/src/lib/deep-research/deep-research-service.ts`.
+
+Target behavior:
+
+- Keep broad/current and general research recovery query generation policy-owned.
+- Let the policy declare the generic intent markers and source-class templates that trigger higher-volume retrieval.
+- Preserve the user's original research question as the rerank/synthesis intent while issuing multiple source-class searches.
+- Avoid domain-specific routes, fixed output formats, or hidden Rust-only prompt behavior.
+
+Current status: implemented first slice.
+
+Implementation:
+
+- Moved broad/current research recovery markers into the batch-query policy contract with Rust defaults only as a fallback.
+- Added live policy markers for general broad/current asks, including milestones and current-state language.
+- Added live policy query templates for source lists, peer-reviewed evidence, research publications, methodology evidence, release notes, repository/adoption evidence, benchmark methodology, and security advisory evidence.
+- Added regression coverage proving broad/current recovery can be triggered by policy-declared markers rather than a Rust-only marker list.
+
+Expected effect:
+
+- The agent can retrieve a wider, more filterable evidence pool for broad research questions without asking the user to narrow immediately.
+- Recovery behavior is now easier to tune in the CD/policy layer as we learn from real workflow failures.
