@@ -47,8 +47,42 @@
             "tel"
           ],
           "ignore_anchor_only_links": true,
+          "trim_href_whitespace": true,
+          "preserve_query_strings": true,
+          "preserve_fragments_unless_anchor_only": true,
+          "preserve_https_for_internal_links_after_redirect": true,
+          "reject_invalid_base_urls": true,
           "truncate_link_text_chars": 200,
           "record_internal_external_classification": true
+        }
+      },
+      "source_access": {
+        "robots_policy": "respect_and_record",
+        "robots_cache_ttl_seconds": 86400,
+        "robots_failure_lane": "unknown_or_error_not_success",
+        "record_access_fields": [
+          "robots_status",
+          "robots_allowed",
+          "robots_error",
+          "redirect_chain",
+          "content_type",
+          "document_type"
+        ]
+      },
+      "document_extraction": {
+        "enabled": true,
+        "handled_types": [
+          "html",
+          "pdf",
+          "text"
+        ],
+        "pdf": {
+          "extract_text": true,
+          "extract_metadata": true,
+          "extract_links": true,
+          "extract_images_default": false,
+          "page_batching": true,
+          "scanned_pdf_without_ocr_quality_flag": "image_only_pdf"
         }
       },
       "head_preview": {
@@ -134,6 +168,8 @@
         "include_cache_freshness_status": true,
         "include_head_fingerprint": true,
         "include_quality_flags": true,
+        "include_access_status": true,
+        "include_document_type": true,
         "include_error_summary": true
       },
       "content_variants": [
@@ -141,7 +177,9 @@
         "fit_markdown",
         "markdown_with_citations",
         "references_markdown",
-        "cleaned_content_excerpt"
+        "cleaned_content_excerpt",
+        "pdf_text_excerpt",
+        "pdf_page_summary"
       ],
       "chunking": {
         "enabled": true,
@@ -162,7 +200,9 @@
           "table_summary",
           "link_summary",
           "media_summary",
-          "page_metadata_summary"
+          "page_metadata_summary",
+          "document_metadata_summary",
+          "pdf_link_summary"
         ],
         "summaries_only": true,
         "raw_payload_chat_visible": false

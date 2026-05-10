@@ -28,6 +28,10 @@
       "result_envelope.cache_status",
       "result_envelope.cache_freshness_status",
       "result_envelope.head_fingerprint",
+      "result_envelope.robots_status",
+      "result_envelope.robots_allowed",
+      "result_envelope.content_type",
+      "result_envelope.document_type",
       "result_envelope.quality_flags",
       "result_envelope.error_message",
       "evidence_artifacts.raw_markdown",
@@ -38,6 +42,9 @@
       "evidence_artifacts.link_summary",
       "evidence_artifacts.media_summary",
       "evidence_artifacts.page_metadata_summary",
+      "evidence_artifacts.document_metadata_summary",
+      "evidence_artifacts.pdf_text_excerpt",
+      "evidence_artifacts.pdf_page_summary",
       "evidence_chunks"
     ],
     "recovery_semantics": {
@@ -99,6 +106,11 @@
             "dedupe_canonical_urls",
             "ignore_non_fetchable_schemes",
             "ignore_anchor_only_links",
+            "trim_href_whitespace",
+            "preserve_query_strings",
+            "preserve_fragments_unless_anchor_only",
+            "preserve_https_for_internal_links_after_redirect",
+            "reject_invalid_base_urls",
             "truncate_long_link_text",
             "classify_internal_external"
           ]
@@ -127,7 +139,11 @@
             "table_summary",
             "link_summary",
             "media_summary",
-            "page_metadata_summary"
+            "page_metadata_summary",
+            "document_metadata_summary",
+            "pdf_text_excerpt",
+            "pdf_page_summary",
+            "pdf_link_summary"
           ]
         },
         "chunk_ranked_evidence": {
@@ -231,6 +247,33 @@
           "resolved_by"
         ],
         "capability_boundary": "diagnose_first_escalate_only_when_admitted_by_policy"
+      },
+      "source_access_contract": {
+        "robots_policy": "respect_and_record",
+        "redirect_chain_recording": true,
+        "preserve_https_for_internal_links_after_redirect": true,
+        "content_type_detection": true,
+        "document_type_detection": true,
+        "failure_lanes": [
+          "robots_denied",
+          "robots_unknown",
+          "redirect_loop",
+          "unsupported_document_type",
+          "image_only_pdf"
+        ],
+        "visibility": "telemetry_or_evidence_metadata_only"
+      },
+      "dynamic_readiness_diagnostics": {
+        "purpose": "summarize why static fetch was incomplete without leaking raw network or console payloads",
+        "summary_fields": [
+          "lazy_load_required",
+          "virtual_scroll_required",
+          "wait_condition_timeout",
+          "network_request_count",
+          "network_failure_count",
+          "console_error_count"
+        ],
+        "raw_payload_chat_visible": false
       },
       "stop_conditions": [
         "usable_evidence_threshold_met",

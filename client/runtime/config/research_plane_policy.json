@@ -224,8 +224,37 @@
         "tel"
       ],
       "ignore_anchor_only_links": true,
+      "trim_href_whitespace": true,
+      "preserve_query_strings": true,
+      "preserve_fragments_unless_anchor_only": true,
+      "preserve_https_for_internal_links_after_redirect": true,
+      "reject_invalid_base_urls": true,
       "classify_internal_external": true
     }
+  },
+  "source_access": {
+    "robots_policy": "respect_and_record",
+    "robots_cache": {
+      "ttl_hours": 24,
+      "handle_empty_or_malformed_as": "unknown_access_state",
+      "handle_timeout_as": "unknown_access_state",
+      "max_robots_bytes": "bounded_by_tool_budget"
+    },
+    "redirect_policy": {
+      "record_chain": true,
+      "preserve_original_scheme_for_internal_link_resolution": true,
+      "classify_http_downgrade": true
+    },
+    "diagnostic_fields": [
+      "robots_status",
+      "robots_allowed",
+      "robots_error",
+      "redirect_chain",
+      "final_url",
+      "content_type",
+      "document_type"
+    ],
+    "chat_visibility": "hidden_until_synthesized"
   },
   "evidence_extraction": {
     "default_output": "markdown",
@@ -242,6 +271,10 @@
       "page_metadata_summary",
       "link_summary",
       "media_summary",
+      "document_metadata_summary",
+      "pdf_text_excerpt",
+      "pdf_page_summary",
+      "pdf_link_summary",
       "error_summary",
       "dispatch_summary"
     ],
@@ -274,6 +307,10 @@
         "cache_status",
         "cache_freshness_status",
         "head_fingerprint",
+        "robots_status",
+        "robots_allowed",
+        "content_type",
+        "document_type",
         "quality_flags",
         "error_message",
         "safe_response_header_summary"
@@ -319,6 +356,7 @@
         "links",
         "media",
         "metadata",
+        "documents",
         "citations",
         "extracted_content"
       ],
@@ -348,7 +386,32 @@
         "title",
         "score",
         "surrounding_context"
+      ],
+      "document_quality_fields": [
+        "document_type",
+        "page_count",
+        "page_span",
+        "metadata_title",
+        "metadata_author",
+        "text_extracted",
+        "link_count",
+        "image_count",
+        "image_only_without_ocr",
+        "rejection_reason"
       ]
+    },
+    "dynamic_readiness_diagnostics": {
+      "enabled": true,
+      "purpose": "diagnose pages where static retrieval misses content without making browser behavior the default",
+      "signals": [
+        "wait_condition_timeout",
+        "lazy_load_required",
+        "virtual_scroll_required",
+        "network_request_counts",
+        "failed_request_counts",
+        "console_error_counts"
+      ],
+      "raw_network_and_console_payloads_chat_visible": false
     },
     "content_filters": [
       "query_relevance",
