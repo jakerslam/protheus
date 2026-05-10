@@ -10,7 +10,7 @@ Canonical contract:
 
 ## Repo-wide doctrine enforcement
 
-Kernel Sentinel enforces the repo-wide [Usability, Reliability, Simplicity Doctrine](/Users/jay/.openclaw/workspace/docs/workspace/REAL_WORK_FIRST.md) as live system-health pressure.
+Kernel Sentinel enforces the repo-wide [Three Operating Laws](/Users/jay/.openclaw/workspace/docs/workspace/REAL_WORK_FIRST.md) as live system-health pressure. Informally, these are the system's "three commandments": usability, reliability, and simplicity.
 
 Sentinel should flag recurring evidence that the system is:
 
