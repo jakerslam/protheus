@@ -95,6 +95,9 @@
           "canonical",
           "lang",
           "jsonld",
+          "open_graph",
+          "jsonld_schema_types",
+          "head_fingerprint",
           "status"
         ]
       },
@@ -109,7 +112,15 @@
           "content_density",
           "low_junk_signal"
         ],
-        "record_rejection_reasons": true
+        "record_rejection_reasons": true,
+        "score_report": {
+          "record_threshold": true,
+          "record_min_max_avg": true,
+          "record_top_matched_terms": true,
+          "normalize_scores": true,
+          "deterministic_for_same_cached_inputs": true,
+          "empty_query_returns_unscored_discovery": true
+        }
       },
       "retrieval_profile_selection": {
         "enabled": true,
@@ -203,7 +214,13 @@
         "cache_freshness_status",
         "structured_artifact_counts",
         "chunk_relevance_scores",
-        "result_envelope_quality"
+        "result_envelope_quality",
+        "confidence_components",
+        "previous_confidence",
+        "confidence_delta",
+        "score_distribution",
+        "score_threshold",
+        "stop_reason"
       ]
     },
     "evidence_pack": {
@@ -272,7 +289,10 @@
         "failed",
         "urls_per_second",
         "memory_pressure",
-        "wait_time_ms"
+        "wait_time_ms",
+        "rate_limit_backoff_ms",
+        "active_context_count",
+        "recycle_count"
       ]
     },
     "quality_gate": {

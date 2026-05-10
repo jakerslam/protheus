@@ -49,6 +49,48 @@
       "max_parallel_dynamic_pages": 4,
       "requeue_on_pressure": true,
       "record_wait_time": true
+    },
+    "browser_lifecycle": {
+      "enabled_for_dynamic_capability_only": true,
+      "context_signature_axes": [
+        "proxy",
+        "locale",
+        "timezone",
+        "geolocation",
+        "navigator_override",
+        "storage_state"
+      ],
+      "ignore_non_context_axes": [
+        "word_count_threshold",
+        "css_selector",
+        "screenshot",
+        "pdf",
+        "scan_full_page",
+        "only_text",
+        "wait_until",
+        "page_timeout",
+        "capture_network_requests"
+      ],
+      "eviction": {
+        "policy": "lru_idle_context_only",
+        "preserve_active_refcounts": true,
+        "cleanup_page_mappings": true
+      },
+      "recycle": {
+        "policy": "threshold_or_memory_pressure_when_no_active_sessions",
+        "clear_tracking_state": true,
+        "record_recycle_count": true
+      },
+      "resource_filtering": {
+        "default": "off",
+        "opt_in_flags": [
+          "text_mode",
+          "avoid_css",
+          "avoid_ads"
+        ],
+        "must_not_block_first_party_content": true,
+        "record_blocked_resource_counts": true
+      }
     }
   },
   "safety_plane": {
@@ -147,6 +189,7 @@
       "coverage",
       "consistency",
       "saturation",
+      "confidence_delta",
       "source_diversity",
       "freshness_when_relevant",
       "candidate_gain"
@@ -156,13 +199,18 @@
       "purpose": "make adaptive retrieval progress resumable and diagnosable without exposing raw crawl state to chat",
       "fields": [
         "confidence",
+        "previous_confidence",
+        "confidence_delta",
+        "confidence_components",
         "coverage",
+        "consistency",
         "saturation",
         "crawled_url_count",
         "pending_candidate_count",
         "source_domain_count",
         "crawl_order",
         "new_terms_history",
+        "relevant_content_refs",
         "stop_reason"
       ],
       "export_policy": "telemetry_or_evidence_metadata_only"
@@ -197,8 +245,25 @@
         "keywords",
         "canonical",
         "lang",
+        "open_graph",
+        "jsonld_schema_types",
         "jsonld"
       ]
+    },
+    "scoring_report": {
+      "enabled": true,
+      "normalize_scores": true,
+      "record_threshold": true,
+      "record_score_distribution": true,
+      "record_top_candidate_terms": true,
+      "handle_empty_query_as_unscored_discovery": true,
+      "preserve_query_unicode_and_symbols": true,
+      "deterministic_for_same_cached_inputs": true
+    },
+    "source_combination": {
+      "explicit_only": true,
+      "record_sources_used": true,
+      "do_not_hit_unrequested_sources": true
     },
     "cache": {
       "ttl_hours": 24,

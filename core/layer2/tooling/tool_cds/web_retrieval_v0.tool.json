@@ -28,6 +28,9 @@
       "result_envelope.cache_status",
       "result_envelope.cache_freshness_status",
       "result_envelope.head_fingerprint",
+      "result_envelope.score_distribution",
+      "result_envelope.score_threshold",
+      "result_envelope.sources_used",
       "result_envelope.robots_status",
       "result_envelope.robots_allowed",
       "result_envelope.content_type",
@@ -67,6 +70,8 @@
         "candidate_count",
         "evidence_count",
         "source_domain_count",
+        "score_distribution",
+        "confidence_delta",
         "candidate_quality_flags",
         "source_diversity_flags",
         "freshness_flags",
@@ -98,6 +103,7 @@
             "parent_url",
             "link_text",
             "head_metadata",
+            "score_distribution",
             "candidate_score",
             "rejection_reason"
           ],
@@ -241,28 +247,66 @@
       },
       "adaptive_state_projection": {
         "purpose": "surface progress and stop reasons for multi-step retrieval without letting crawl state become chat-visible payload",
-        "fields": [
-          "confidence",
-          "coverage",
-          "saturation",
-          "crawled_url_count",
-          "pending_candidate_count",
-          "source_domain_count",
-          "stop_reason"
-        ],
-        "visibility": "telemetry_or_evidence_metadata_only"
-      },
-      "resource_control": {
+          "fields": [
+            "confidence",
+            "previous_confidence",
+            "confidence_delta",
+            "confidence_components",
+            "coverage",
+            "consistency",
+            "saturation",
+            "crawled_url_count",
+            "pending_candidate_count",
+            "source_domain_count",
+            "relevant_content_refs",
+            "stop_reason"
+          ],
+          "visibility": "telemetry_or_evidence_metadata_only"
+        },
+        "resource_control": {
         "per_domain_rate_limit": true,
         "backoff_on_status": [
           429,
           503,
           504
         ],
-        "memory_pressure_queueing": true,
-        "bounded_fanout_required": true,
-        "stream_progress_telemetry": true
-      },
+          "memory_pressure_queueing": true,
+          "bounded_fanout_required": true,
+          "stream_progress_telemetry": true,
+          "score_report_fields": [
+            "score_threshold",
+            "score_min",
+            "score_max",
+            "score_avg",
+            "top_matched_terms"
+          ],
+          "browser_context_lifecycle": {
+            "enabled_for_dynamic_capability_only": true,
+            "context_signature_axes": [
+              "proxy",
+              "locale",
+              "timezone",
+              "geolocation",
+              "navigator_override",
+              "storage_state"
+            ],
+            "ignore_non_context_axes": [
+              "word_count_threshold",
+              "css_selector",
+              "screenshot",
+              "pdf",
+              "scan_full_page",
+              "only_text",
+              "wait_until",
+              "page_timeout",
+              "capture_network_requests"
+            ],
+            "evict_only_idle_contexts": true,
+            "preserve_active_refcounts": true,
+            "recycle_when_safe": "threshold_or_memory_pressure_when_no_active_sessions",
+            "resource_filtering_default": "off"
+          }
+        },
       "blocked_recovery_trace": {
         "purpose": "tell synthesis whether retrieval failed because the web is low-signal or because access/readiness blocked the evidence path",
         "quality_flags": [
