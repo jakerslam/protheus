@@ -154,7 +154,29 @@
     },
     "structured_results": {
       "enabled": true,
-      "max_rows_per_stage": 16
+      "max_rows_per_stage": 16,
+      "deterministic_extraction_first": true,
+      "strategy_ladder": [
+        "schema_selector_when_repeating_structure_detected",
+        "regex_entity_extraction_for_known_low-risk_patterns",
+        "semantic_extraction_when_structure_is_inconsistent"
+      ],
+      "record_fields": [
+        "strategy",
+        "base_selector",
+        "element_count",
+        "schema_confidence",
+        "field_count",
+        "extracted_row_count",
+        "fallback_reason"
+      ],
+      "schema_safety": {
+        "sample_before_full_extract": true,
+        "validate_parent_selector_not_singleton_when_list_expected": true,
+        "retain_base_attributes": true,
+        "support_nested_and_list_fields": true,
+        "raw_schema_chat_visible": false
+      }
     },
     "adaptive_sufficiency": {
       "enabled": true,
@@ -232,7 +254,9 @@
           "media_summary",
           "page_metadata_summary",
           "document_metadata_summary",
-          "pdf_link_summary"
+          "pdf_link_summary",
+          "structured_extract_summary",
+          "regex_extract_summary"
         ],
         "summaries_only": true,
         "raw_payload_chat_visible": false

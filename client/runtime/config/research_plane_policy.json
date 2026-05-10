@@ -205,6 +205,13 @@
       "validate_lastmod": true,
       "cleanup_bound": "system_cache_cleanup"
     },
+    "sitemap_parsing": {
+      "namespace_tolerant": true,
+      "support_sitemap_index_children": true,
+      "normalize_relative_locations": true,
+      "record_sitemap_source": true,
+      "record_parse_error": true
+    },
     "queue": {
       "bounded": true,
       "dedupe_urls": true,
@@ -338,6 +345,41 @@
         "raw_content_excerpt"
       ]
     },
+    "structured_extraction": {
+      "enabled": true,
+      "purpose": "create deterministic evidence artifacts from repeatable page structure before falling back to semantic extraction",
+      "strategy_ladder": [
+        "css_or_xpath_schema_when_repeating_structure_detected",
+        "regex_entity_extraction_for_known_low-risk_patterns",
+        "semantic_extraction_when_structure_is_inconsistent_or_inferential"
+      ],
+      "schema_features": [
+        "base_selector",
+        "base_fields",
+        "nested",
+        "list",
+        "nested_list",
+        "attribute",
+        "text",
+        "html",
+        "default_value",
+        "transform"
+      ],
+      "quality_fields": [
+        "strategy",
+        "base_selector",
+        "element_count",
+        "field_count",
+        "extracted_row_count",
+        "schema_confidence",
+        "fallback_reason"
+      ],
+      "non_goals": [
+        "do_not_force_final_answer_json",
+        "do_not_generate_site_specific_schema_from_prompt_examples",
+        "do_not_expose_raw_schema_to_chat"
+      ]
+    },
     "result_envelope": {
       "purpose": "preserve retrieval state for synthesis without exposing raw payloads to chat",
       "fields": [
@@ -402,7 +444,9 @@
         "metadata",
         "documents",
         "citations",
-        "extracted_content"
+        "extracted_content",
+        "structured_extract_summary",
+        "regex_extract_summary"
       ],
       "table_quality_fields": [
         "caption",
@@ -442,6 +486,15 @@
         "image_count",
         "image_only_without_ocr",
         "rejection_reason"
+      ],
+      "structured_extract_quality_fields": [
+        "strategy",
+        "base_selector",
+        "element_count",
+        "field_count",
+        "extracted_row_count",
+        "schema_confidence",
+        "fallback_reason"
       ]
     },
     "dynamic_readiness_diagnostics": {

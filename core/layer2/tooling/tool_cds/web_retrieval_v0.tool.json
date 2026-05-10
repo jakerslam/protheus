@@ -171,7 +171,9 @@
             "link_summary",
             "media_summary",
             "page_metadata_summary",
-            "extracted_content_summary"
+            "extracted_content_summary",
+            "structured_extract_summary",
+            "regex_extract_summary"
           ],
           "quality_fields": [
             "row_count",
@@ -182,6 +184,40 @@
             "media_alt_or_title",
             "artifact_relevance_score",
             "rejection_reason"
+          ]
+        },
+        "deterministic_structured_extraction": {
+          "purpose": "preserve repeatable page structures as evidence artifacts before semantic synthesis",
+          "strategy_ladder": [
+            "css_or_xpath_schema_when_repeating_structure_detected",
+            "regex_entity_extraction_for_known_low-risk_patterns",
+            "semantic_extraction_when_structure_is_inconsistent_or_inferential"
+          ],
+          "schema_features": [
+            "base_selector",
+            "base_fields",
+            "nested",
+            "list",
+            "nested_list",
+            "attribute",
+            "text",
+            "html",
+            "default_value",
+            "transform"
+          ],
+          "quality_fields": [
+            "strategy",
+            "base_selector",
+            "element_count",
+            "field_count",
+            "extracted_row_count",
+            "schema_confidence",
+            "fallback_reason"
+          ],
+          "non_goals": [
+            "do_not_force_final_answer_json",
+            "do_not_hardcode_site_schemas",
+            "do_not_expose_raw_schema_to_chat"
           ]
         }
       },
@@ -254,6 +290,9 @@
         "preserve_https_for_internal_links_after_redirect": true,
         "content_type_detection": true,
         "document_type_detection": true,
+        "sitemap_namespace_tolerant": true,
+        "sitemap_index_children_supported": true,
+        "sitemap_relative_locations_normalized": true,
         "failure_lanes": [
           "robots_denied",
           "robots_unknown",
