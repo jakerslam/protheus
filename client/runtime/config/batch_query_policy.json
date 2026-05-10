@@ -38,6 +38,15 @@
         "max_prefetch_links": 24,
         "include_link_text": true,
         "include_parent_context": true,
+        "artifact_contract": "html_links_metadata_only_until_selected_for_full_processing",
+        "skip_outputs": [
+          "cleaned_html",
+          "markdown",
+          "extracted_content",
+          "screenshots",
+          "pdf"
+        ],
+        "can_reprocess_raw_html_with_base_url": true,
         "link_normalization": {
           "resolve_relative_urls": true,
           "dedupe_canonical_urls": true,
@@ -53,7 +62,10 @@
           "preserve_https_for_internal_links_after_redirect": true,
           "reject_invalid_base_urls": true,
           "truncate_link_text_chars": 200,
-          "record_internal_external_classification": true
+          "record_internal_external_classification": true,
+          "handle_protocol_relative_urls": true,
+          "treat_subdomains_as_configurable_same_site": true,
+          "return_empty_links_on_malformed_html": true
         }
       },
       "source_access": {
@@ -220,6 +232,9 @@
         "confidence_delta",
         "score_distribution",
         "score_threshold",
+        "checkpoint_ref",
+        "resume_state_ref",
+        "cancelled",
         "stop_reason"
       ]
     },
@@ -291,6 +306,8 @@
         "memory_pressure",
         "wait_time_ms",
         "rate_limit_backoff_ms",
+        "checkpoint_ref",
+        "cancelled",
         "active_context_count",
         "recycle_count"
       ]

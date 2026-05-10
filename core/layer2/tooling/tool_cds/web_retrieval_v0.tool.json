@@ -31,6 +31,9 @@
       "result_envelope.score_distribution",
       "result_envelope.score_threshold",
       "result_envelope.sources_used",
+      "result_envelope.checkpoint_ref",
+      "result_envelope.resume_state_ref",
+      "result_envelope.cancelled",
       "result_envelope.robots_status",
       "result_envelope.robots_allowed",
       "result_envelope.content_type",
@@ -118,8 +121,12 @@
             "preserve_https_for_internal_links_after_redirect",
             "reject_invalid_base_urls",
             "truncate_long_link_text",
+            "handle_protocol_relative_urls",
+            "return_empty_links_on_malformed_html",
             "classify_internal_external"
-          ]
+          ],
+          "artifact_contract": "html_links_metadata_only_until_selected_for_full_processing",
+          "can_reprocess_raw_html_with_base_url": true
         },
         "best_first_candidate_expansion": {
           "purpose": "spend follow-up fetches on the highest expected evidence gain",
@@ -258,6 +265,9 @@
             "crawled_url_count",
             "pending_candidate_count",
             "source_domain_count",
+            "checkpoint_ref",
+            "resume_state_ref",
+            "cancelled",
             "relevant_content_refs",
             "stop_reason"
           ],
@@ -401,6 +411,7 @@
         "usable_evidence_threshold_met",
         "source_diversity_threshold_met",
         "candidate_gain_below_threshold",
+        "cancelled_by_user_or_policy",
         "query_budget_exhausted",
         "tool_budget_exhausted"
       ],

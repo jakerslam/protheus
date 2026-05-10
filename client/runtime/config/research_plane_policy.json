@@ -210,6 +210,9 @@
         "source_domain_count",
         "crawl_order",
         "new_terms_history",
+        "checkpoint_ref",
+        "resume_state_ref",
+        "cancelled",
         "relevant_content_refs",
         "stop_reason"
       ],
@@ -220,6 +223,7 @@
       "saturation_threshold_met",
       "candidate_gain_below_threshold",
       "max_pages_reached",
+      "cancelled_by_user_or_policy",
       "budget_exhausted"
     ]
   },
@@ -283,6 +287,9 @@
       "rate_limit_by_domain": true,
       "record_parent_url": true,
       "record_depth": true,
+      "record_strategy": true,
+      "record_checkpoint_ref": true,
+      "record_cancelled_state": true,
       "record_candidate_score": true,
       "record_rejection_reason": true,
       "stream_progress_to_telemetry": true
