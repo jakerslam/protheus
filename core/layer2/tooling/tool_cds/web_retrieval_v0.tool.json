@@ -1,6 +1,6 @@
 {
   "version": "tool_cd_web_retrieval_v0",
-  "source": "scrapling_pattern_assimilation_v0",
+  "source": "web_tooling_pattern_assimilation_v0",
   "diagnostic_projection_contract": {
     "version": "web_retrieval_quality_diagnostics_v1",
     "chat_visibility": "hidden_until_synthesized",
@@ -48,6 +48,14 @@
       "result_envelope.task_status",
       "result_envelope.result_ref",
       "result_envelope.expires_at",
+      "provider_envelope.request_id",
+      "provider_envelope.resolved_search_type",
+      "provider_envelope.search_time_ms",
+      "provider_envelope.cost_summary",
+      "provider_envelope.statuses",
+      "provider_envelope.highlights",
+      "provider_envelope.highlight_scores",
+      "provider_envelope.subpages",
       "evidence_artifacts.raw_markdown",
       "evidence_artifacts.markdown_with_citations",
       "evidence_artifacts.references_markdown",
@@ -109,6 +117,36 @@
         "promising_link_fetch",
         "fit_markdown_or_excerpt_packaging"
       ],
+      "semantic_query_planning": {
+        "source_pattern": "exa_semantic_search_guidance",
+        "provider_binding": "none_source_pattern_is_attribution_only",
+        "purpose": "make query packs retrieve target evidence rather than repeat broad keywords",
+        "query_style": "describe_target_source_or_page",
+        "diversity_axes": [
+          "entity_or_candidate",
+          "user_stated_aspect_or_criterion",
+          "source_class",
+          "time_window",
+          "stance_or_failure_mode",
+          "implementation_or_methodology",
+          "cross_comparison"
+        ],
+        "anti_patterns": [
+          "synonym_only_rewrites",
+          "single_word_or_two_word_broad_queries",
+          "one_large_result_window_instead_of_distinct_lanes",
+          "provider_specific_category_syntax_as_required_behavior"
+        ],
+        "trace_fields": [
+          "query_intent",
+          "target_source_description",
+          "diversity_axis",
+          "expected_evidence_type",
+          "coverage_bucket_ref",
+          "result_window"
+        ],
+        "visibility": "query_pack_and_reasoning_metadata_visible_in_trace_not_as_final_chat"
+      },
       "coverage_aware_query_planning": {
         "purpose": "let the agent or policy gather more processible evidence by splitting broad research into coverage lanes before filtering",
         "lane_types": [
@@ -304,7 +342,191 @@
             "do_not_hardcode_site_schemas",
             "do_not_expose_raw_schema_to_chat"
           ]
+        },
+        "search_then_fetch_escalation": {
+          "purpose": "treat search snippets and highlights as candidate evidence, then fetch promising URLs only when body context is needed",
+          "fetch_when": [
+            "highlight_is_relevant_but_too_thin",
+            "requested_field_missing_from_snippet",
+            "source_quality_judgment_requires_body_context",
+            "soft_filter_or_negation_requires_reading_content",
+            "multi_field_extraction_requires_page_context"
+          ],
+          "skip_fetch_when": [
+            "narrow_lookup_is_directly_supported",
+            "result_is_off_topic",
+            "result_is_duplicate",
+            "source_access_or_budget_blocks_fetch"
+          ],
+          "partial_failure_policy": "retain_successful_urls_and_record_per_url_errors"
         }
+      },
+      "provider_result_envelope": {
+        "source_pattern": "exa_sanitized_result_envelope",
+        "provider_binding": "none_source_pattern_is_attribution_only",
+        "purpose": "retain safe provider metadata for ranking, coverage diagnostics, and synthesis calibration without leaking raw payloads",
+        "raw_payload_chat_visible": false,
+        "sensitive_key_policy": "strip_known_sensitive_keys_recursively",
+        "top_level_fields": [
+          "request_id",
+          "resolved_search_type",
+          "auto_prompt",
+          "auto_date",
+          "search_time_ms",
+          "cost_summary",
+          "provider_statuses"
+        ],
+        "result_fields": [
+          "provider_score",
+          "provider_rank",
+          "title",
+          "url",
+          "published_date",
+          "author",
+          "summary",
+          "text_excerpt",
+          "highlights",
+          "highlight_scores",
+          "entities",
+          "links",
+          "image_links",
+          "subpages"
+        ],
+        "status_fields": [
+          "id",
+          "status",
+          "source",
+          "error_tag",
+          "http_status_code"
+        ],
+        "grounding_fields": [
+          "field",
+          "confidence",
+          "citation_url",
+          "citation_title"
+        ],
+        "exports_to": [
+          "batch_query_policy.provider_result_envelope",
+          "research_plane_policy.evidence_extraction.provider_result_envelope",
+          "research_plane_policy.evidence_extraction.retrieval_status_classification"
+        ],
+        "non_goals": [
+          "do_not_treat_provider_similarity_as_validation",
+          "do_not_make_provider_owned_synthesis_a_final_answer",
+          "do_not_require_provider_specific_category_syntax"
+        ]
+      },
+      "advanced_search_controls": {
+        "source_pattern": "exa_advanced_search_surface",
+        "provider_binding": "none_source_pattern_is_attribution_only",
+        "purpose": "declare optional retrieval controls that adapters may support without making them workflow routes",
+        "adapter_owned_fields": [
+          "source_class_or_category_hint",
+          "include_domains",
+          "exclude_domains",
+          "start_published_date",
+          "end_published_date",
+          "start_crawl_date",
+          "end_crawl_date",
+          "include_text",
+          "exclude_text",
+          "user_location",
+          "moderation",
+          "additional_queries",
+          "text_max_characters",
+          "context_max_characters",
+          "summary_query",
+          "highlights_query",
+          "highlights_max_characters",
+          "freshness_max_age",
+          "live_fetch_preference",
+          "live_fetch_timeout_ms",
+          "subpage_limit",
+          "subpage_target_terms"
+        ],
+        "selection_rule": "agent_or_policy_may_use_when_user_intent_or_evidence_state_calls_for_the_control",
+        "non_goals": [
+          "do_not_route_by_provider_specific_tool_name",
+          "do_not_add_domain_specific_defaults",
+          "do_not_silently_filter_sources_without_trace_metadata"
+        ]
+      },
+      "tool_admission_contract": {
+        "source_pattern": "exa_default_advanced_deprecated_catalog",
+        "provider_binding": "none_source_pattern_is_attribution_only",
+        "purpose": "keep simple search and fetch broadly available while advanced controls and provider-specific specialties remain admitted capabilities, not workflow branches",
+        "default_capabilities": [
+          "web_search",
+          "web_fetch"
+        ],
+        "optional_capabilities": [
+          "advanced_search_controls",
+          "source_class_hints",
+          "high_volume_result_windows",
+          "subpage_expansion",
+          "async_research_handle"
+        ],
+        "deprecated_or_provider_specific_capabilities": "may_alias_to_general_capabilities_but_must_not_become_user_intent_routes",
+        "auth_or_permission_gates": "record_as_tool_capability_status_and_permission_state",
+        "consumed_by": [
+          "tool_registry_admission",
+          "batch_query_policy.advanced_search_controls",
+          "research_plane_policy.adaptive_retrieval.semantic_query_planning"
+        ],
+        "non_goals": [
+          "do_not_force_exa_or_any_provider_as_the_only_web_path",
+          "do_not_choose_tools_by_hardcoded_prompt_phrases",
+          "do_not_make_specialty_tools_required_for_domain_tasks"
+        ]
+      },
+      "provider_error_contract": {
+        "source_pattern": "exa_request_error_and_rate_limit_handling",
+        "provider_binding": "none_source_pattern_is_attribution_only",
+        "purpose": "turn provider/transport failures into structured result quality metadata before recovery or synthesis",
+        "status_values": [
+          "usable",
+          "low_signal",
+          "irrelevant",
+          "empty_success",
+          "partial_success",
+          "bad_request_shape",
+          "auth_required",
+          "rate_limited",
+          "transient_provider_failure",
+          "permanent_provider_failure"
+        ],
+        "retry_semantics": {
+          "transient_status_codes": [
+            500,
+            502,
+            503,
+            504
+          ],
+          "rate_limit_policy": "record_retry_after_and_budget_status",
+          "bad_request_policy": "surface_request_shape_hint_to_policy_or_agent_for_replanning"
+        },
+        "research_status_normalization": {
+          "usable": "usable_evidence",
+          "low_signal": "low_signal_evidence",
+          "irrelevant": "irrelevant_evidence",
+          "empty_success": "empty_success",
+          "partial_success": "partial_success",
+          "bad_request_shape": "bad_request_shape",
+          "auth_required": "auth_or_permission_blocked",
+          "rate_limited": "rate_limited",
+          "transient_provider_failure": "transient_provider_failure",
+          "permanent_provider_failure": "permanent_provider_failure"
+        },
+        "exports_to": [
+          "batch_query_policy.provider_request_lifecycle",
+          "research_plane_policy.evidence_extraction.retrieval_status_classification"
+        ],
+        "sanitization": [
+          "strip_credentials_from_forwarded_requests",
+          "hide_raw_provider_error_bodies_from_chat",
+          "retain_safe_status_and_timestamp_metadata"
+        ],
+        "classification_rule": "protocol_success_or_provider_result_count_does_not_equal_usable_evidence"
       },
       "cache_contract": {
         "modes": [
