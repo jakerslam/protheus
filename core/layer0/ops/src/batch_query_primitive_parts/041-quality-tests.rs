@@ -122,6 +122,51 @@ mod quality_tests {
     }
 
     #[test]
+    fn comparison_guard_preserves_partial_entity_evidence_with_gap_signal() {
+        let query = "compare alphatool vs betatool for deployment readiness";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "AlphaTool deployment readiness evidence documents production controls and review workflows.",
+                    "content": "AlphaTool deployment readiness evidence documents production controls and review workflows.",
+                    "requested_url": "https://docs.alpha.example.com/deployment-readiness",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "medium",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("partial"));
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("alphatool"), "{lowered}");
+        let evidence_refs = out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(evidence_refs.len(), 1, "{evidence_refs:#?}");
+        let partial_failures = out
+            .get("partial_failure_details")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(partial_failures.iter().any(|row| {
+            row.as_str()
+                .map(|value| value.contains("comparison_entity_coverage_gap"))
+                .unwrap_or(false)
+        }));
+        let quality_flags = out
+            .pointer("/tool_result_quality/flags")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(quality_flags
+            .iter()
+            .any(|row| row.as_str() == Some("comparison_evidence_insufficient")));
+    }
+
+    #[test]
     fn cached_placeholder_summary_is_rewritten_to_actionable_low_signal_guidance() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = load_policy(tmp.path());

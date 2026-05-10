@@ -258,6 +258,11 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
         if lowered.contains("query_result_mismatch") {
             flags.push("query_result_mismatch".to_string());
         }
+        if lowered.contains("comparison_entity_coverage_gap")
+            || lowered.contains("source coverage to compare")
+        {
+            flags.push("comparison_evidence_insufficient".to_string());
+        }
     }
     flags.sort();
     flags.dedup();

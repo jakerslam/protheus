@@ -426,7 +426,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         .collect::<Vec<_>>();
 
     let min_synthesis_score = minimum_synthesis_score(benchmark_intent);
-    let mut actionable_ranked = ranked
+    let actionable_ranked = ranked
         .into_iter()
         .filter(|(row, score)| {
             let snippet = clean_text(&row.snippet, 1_200);
@@ -457,8 +457,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             &retained_ranked,
             budget.max_evidence,
         );
-    if comparison_guard_summary.is_some() {
-        actionable_ranked.clear();
+    let comparison_coverage_gap = comparison_guard_summary.is_some();
+    if let Some(summary) = comparison_guard_summary.as_ref() {
+        if !actionable_ranked.is_empty() {
+            partial_failures.push(format!(
+                "comparison_entity_coverage_gap:{}",
+                clean_text(summary, 320)
+            ));
+        }
     }
 
     let evidence_refs = actionable_ranked
@@ -534,7 +540,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                     || comparison_haystack.contains("faster")
                     || comparison_haystack.contains("slower");
                 let benchmark_quality_ok = looks_like_metric_rich_text(&snippet_raw)
-                    || (comparison_entities.len() >= 2 && entity_hits >= 1 && comparative_copy);
+                    || (comparison_entities.len() >= 2
+                        && entity_hits >= 1
+                        && (comparative_copy || comparison_coverage_gap));
                 if !benchmark_quality_ok {
                     continue;
                 }
