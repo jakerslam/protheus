@@ -150,7 +150,22 @@
       "unsafe-client-route",
       "client-bypass"
     ],
-    "strict_fail_closed": true
+    "strict_fail_closed": true,
+    "url_scheme_policy": {
+      "allowed_for_remote_fetch": [
+        "http",
+        "https"
+      ],
+      "allowed_for_internal_processing": [
+        "raw"
+      ],
+      "blocked": [
+        "file",
+        "javascript",
+        "data"
+      ]
+    },
+    "user_supplied_executable_hooks": "disabled_unless_explicit_trusted_local_capability"
   },
   "goal_crawl": {
     "default_max_pages": 5,
@@ -300,7 +315,9 @@
       "ignore_non_fetchable_schemes": [
         "javascript",
         "mailto",
-        "tel"
+        "tel",
+        "file",
+        "data"
       ],
       "ignore_anchor_only_links": true,
       "trim_href_whitespace": true,

@@ -53,7 +53,9 @@
           "ignore_schemes": [
             "javascript",
             "mailto",
-            "tel"
+            "tel",
+            "file",
+            "data"
           ],
           "ignore_anchor_only_links": true,
           "trim_href_whitespace": true,

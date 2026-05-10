@@ -114,6 +114,7 @@
             "resolve_relative_urls",
             "dedupe_canonical_urls",
             "ignore_non_fetchable_schemes",
+            "block_file_javascript_and_data_schemes",
             "ignore_anchor_only_links",
             "trim_href_whitespace",
             "preserve_query_strings",
@@ -419,7 +420,8 @@
         "do_not_add_domain_specific_research_routes",
         "do_not_force_user_visible_answer_format",
         "do_not_make_browser_or_proxy_modes_default",
-        "do_not_scrape_provider_pages_as_a_default_search_strategy"
+        "do_not_scrape_provider_pages_as_a_default_search_strategy",
+        "do_not_execute_user_supplied_hook_code_without_trusted_local_capability"
       ]
     }
   },
