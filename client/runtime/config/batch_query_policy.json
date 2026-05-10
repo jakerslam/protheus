@@ -111,6 +111,25 @@
         ],
         "record_rejection_reasons": true
       },
+      "retrieval_profile_selection": {
+        "enabled": true,
+        "authority": "content_and_evidence_state_not_domain_routes",
+        "match_axes": [
+          "content_type",
+          "document_type",
+          "quality_flags",
+          "evidence_gap",
+          "explicit_user_constraints"
+        ],
+        "fallback_profile": "default_markdown_fetch",
+        "first_match_wins": true,
+        "record_selected_profile": true,
+        "disallow_match_axes": [
+          "hardcoded_domain_name",
+          "golden_case_id",
+          "example_prompt_phrase"
+        ]
+      },
       "dynamic_escalation": {
         "enabled": true,
         "default": "off",
@@ -120,6 +139,17 @@
           "blocked_but_retryable"
         ],
         "requires_capability": "web_fetch.dynamic_page_allowed"
+      },
+      "session_reuse": {
+        "default": "stateless",
+        "allowed_when": [
+          "sequential_dynamic_steps_required",
+          "explicit_session_handle_supplied",
+          "capability_policy_admits_session_state"
+        ],
+        "parallel_session_reuse_allowed": false,
+        "close_or_expire_on_completion": true,
+        "record_session_state": "handle_only"
       }
     },
     "structured_results": {

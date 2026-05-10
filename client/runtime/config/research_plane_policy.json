@@ -256,6 +256,50 @@
     ],
     "chat_visibility": "hidden_until_synthesized"
   },
+  "retrieval_profiles": {
+    "enabled": true,
+    "authority": "cd_policy_selects_by_content_and_evidence_state_not_domain_routes",
+    "match_axes": [
+      "content_type",
+      "document_type",
+      "quality_flags",
+      "evidence_gap",
+      "explicit_user_constraints",
+      "available_capabilities"
+    ],
+    "profile_names": [
+      "default_markdown_fetch",
+      "fit_content_fetch",
+      "pdf_document_fetch",
+      "structured_artifact_fetch",
+      "dynamic_readiness_probe",
+      "prefetch_only_discovery"
+    ],
+    "fallback_profile": "default_markdown_fetch",
+    "record_selected_profile": true,
+    "non_goals": [
+      "do_not_select_profiles_by_hardcoded_domain",
+      "do_not_select_profiles_by_example_prompt_phrase",
+      "do_not_silently_enable_browser_or_proxy_modes"
+    ]
+  },
+  "session_reuse": {
+    "default": "stateless",
+    "allowed_for": [
+      "sequential_dynamic_steps",
+      "explicit_session_handle",
+      "capability_admitted_stateful_fetch"
+    ],
+    "parallel_reuse_allowed": false,
+    "cleanup_required": true,
+    "projection_fields": [
+      "session_state",
+      "session_reused",
+      "session_closed",
+      "session_error"
+    ],
+    "raw_session_state_chat_visible": false
+  },
   "evidence_extraction": {
     "default_output": "markdown",
     "variants": [
@@ -407,10 +451,18 @@
         "wait_condition_timeout",
         "lazy_load_required",
         "virtual_scroll_required",
+        "scroll_behavior_static",
+        "scroll_behavior_appended",
+        "scroll_behavior_replaced",
         "network_request_counts",
         "failed_request_counts",
         "console_error_counts"
       ],
+      "scroll_probe": {
+        "bounded": true,
+        "distinguish_append_vs_replace": true,
+        "requires_dynamic_capability_for_full_capture": true
+      },
       "raw_network_and_console_payloads_chat_visible": false
     },
     "content_filters": [

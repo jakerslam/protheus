@@ -263,11 +263,50 @@
         ],
         "visibility": "telemetry_or_evidence_metadata_only"
       },
+      "retrieval_profile_selection": {
+        "purpose": "allow different extraction strategies without hardcoding domains or user prompt examples",
+        "match_axes": [
+          "content_type",
+          "document_type",
+          "quality_flags",
+          "evidence_gap",
+          "explicit_user_constraints",
+          "available_capabilities"
+        ],
+        "profiles": [
+          "default_markdown_fetch",
+          "fit_content_fetch",
+          "pdf_document_fetch",
+          "structured_artifact_fetch",
+          "dynamic_readiness_probe",
+          "prefetch_only_discovery"
+        ],
+        "fallback_profile": "default_markdown_fetch",
+        "non_goals": [
+          "do_not_match_on_hardcoded_domain",
+          "do_not_match_on_golden_case_id",
+          "do_not_match_on_example_prompt_phrase"
+        ]
+      },
+      "session_reuse_contract": {
+        "default": "stateless",
+        "allowed_only_for": [
+          "sequential_dynamic_steps",
+          "explicit_session_handle",
+          "capability_admitted_stateful_fetch"
+        ],
+        "parallel_reuse_allowed": false,
+        "cleanup_required": true,
+        "visibility": "handle_and_status_only"
+      },
       "dynamic_readiness_diagnostics": {
         "purpose": "summarize why static fetch was incomplete without leaking raw network or console payloads",
         "summary_fields": [
           "lazy_load_required",
           "virtual_scroll_required",
+          "scroll_behavior_static",
+          "scroll_behavior_appended",
+          "scroll_behavior_replaced",
           "wait_condition_timeout",
           "network_request_count",
           "network_failure_count",
