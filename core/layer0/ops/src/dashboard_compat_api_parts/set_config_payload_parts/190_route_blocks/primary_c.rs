@@ -29,6 +29,19 @@ fn normalize_permission_trit(raw: &Value) -> &'static str {
     "inherit"
 }
 
+fn explicit_agent_model_field(row: Option<&Value>, keys: &[&str], max_len: usize) -> String {
+    let Some(row) = row else {
+        return String::new();
+    };
+    for key in keys {
+        let value = clean_text(row.get(*key).and_then(Value::as_str).unwrap_or(""), max_len);
+        if !value.is_empty() && !value.eq_ignore_ascii_case("auto") {
+            return value;
+        }
+    }
+    String::new()
+}
+
 fn default_permissions_manifest() -> Value {
     json!({
         "version": 1,
@@ -267,22 +280,40 @@ fn handle_primary_dashboard_routes_c(
             resolved_requested_name
         };
         let (default_provider, default_model) = extract_app_settings(root, snapshot);
-        let model_provider = clean_text(
+        let requested_provider = clean_text(
             request
                 .get("provider")
                 .and_then(Value::as_str)
                 .or_else(|| manifest_fields.get("provider").map(|v| v.as_str()))
-                .unwrap_or(&default_provider),
+                .unwrap_or(""),
             80,
         );
-        let model_name = clean_text(
+        let requested_model = clean_text(
             request
                 .get("model")
                 .and_then(Value::as_str)
                 .or_else(|| manifest_fields.get("model").map(|v| v.as_str()))
-                .unwrap_or(&default_model),
+                .unwrap_or(""),
             120,
         );
+        let inherited_provider =
+            explicit_agent_model_field(parent_row.as_ref(), &["model_provider"], 80);
+        let inherited_model =
+            explicit_agent_model_field(parent_row.as_ref(), &["model_name", "model"], 120);
+        let model_provider = if !requested_provider.is_empty() {
+            requested_provider
+        } else if !inherited_provider.is_empty() {
+            inherited_provider
+        } else {
+            default_provider.clone()
+        };
+        let model_name = if !requested_model.is_empty() {
+            requested_model
+        } else if !inherited_model.is_empty() {
+            inherited_model
+        } else {
+            default_model.clone()
+        };
         let model_override = if model_provider.is_empty() || model_name.is_empty() {
             "auto".to_string()
         } else {

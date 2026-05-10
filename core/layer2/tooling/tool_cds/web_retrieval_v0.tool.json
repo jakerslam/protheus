@@ -13,6 +13,8 @@
       "tool_result_quality.retry.reason",
       "tool_result_quality.retry.next_action",
       "tool_result_quality.retry.query_strategy_hints",
+      "tool_result_quality.coverage.bucket_status",
+      "tool_result_quality.coverage.missing_buckets",
       "query_plan",
       "query_plan_source",
       "provider_result_count",
@@ -31,6 +33,9 @@
       "result_envelope.score_distribution",
       "result_envelope.score_threshold",
       "result_envelope.sources_used",
+      "result_envelope.coverage_buckets",
+      "result_envelope.missing_coverage_buckets",
+      "result_envelope.coverage_gap_reasons",
       "result_envelope.checkpoint_ref",
       "result_envelope.resume_state_ref",
       "result_envelope.cancelled",
@@ -76,6 +81,9 @@
         "candidate_count",
         "evidence_count",
         "source_domain_count",
+        "coverage_bucket_count",
+        "covered_bucket_count",
+        "missing_coverage_buckets",
         "score_distribution",
         "confidence_delta",
         "candidate_quality_flags",
@@ -101,6 +109,39 @@
         "promising_link_fetch",
         "fit_markdown_or_excerpt_packaging"
       ],
+      "coverage_aware_query_planning": {
+        "purpose": "let the agent or policy gather more processible evidence by splitting broad research into coverage lanes before filtering",
+        "lane_types": [
+          "overall_objective",
+          "entity_or_candidate",
+          "user_stated_aspect_or_criterion",
+          "source_class",
+          "time_window",
+          "cross_comparison",
+          "coverage_gap_recovery"
+        ],
+        "budget_policy": {
+          "default_max_lanes": 8,
+          "max_parallel_lanes": 4,
+          "reserve_recovery_lanes": 2
+        },
+        "completion_rule": "multi-entity_or_multi-aspect_retrieval_should_record_evidence_or_an_explicit_gap_for_each_major_lane_before_final_synthesis",
+        "evidence_bucket_fields": [
+          "bucket_id",
+          "bucket_kind",
+          "requested_text",
+          "query_refs",
+          "evidence_count",
+          "source_domain_count",
+          "quality_flags",
+          "gap_reason"
+        ],
+        "non_goals": [
+          "do_not_hardcode_topic_candidates",
+          "do_not_force_final_answer_shape",
+          "do_not_hide_queries_from_tool_payload_or_trace"
+        ]
+      },
       "retrieval_primitives": {
         "prefetch": {
           "purpose": "discover links and candidate context without committing budget to full page extraction",
@@ -649,7 +690,7 @@
       "retrieval": {
         "mode": "search_pack",
         "supports_bulk": true,
-        "max_bulk_items": 6,
+        "max_bulk_items": 8,
         "cost_tier": "medium",
         "requires_network": true
       },
@@ -693,7 +734,7 @@
         "reuse_allowed": false,
         "pooling_mode": "batch_fanout",
         "max_pages_default": 1,
-        "max_parallel_items_default": 6,
+        "max_parallel_items_default": 4,
         "request_overrides_allowed": false,
         "close_on_complete_default": true
       },
@@ -730,6 +771,7 @@
         "include_discovery_artifacts": true,
         "include_error_envelope": true,
         "include_resource_metadata": true,
+        "include_coverage_buckets": true,
         "include_artifact_refs": false,
         "allowed_artifact_kinds": [
           "fit_markdown",
@@ -739,6 +781,7 @@
           "link_summary",
           "media_summary",
           "page_metadata_summary",
+          "coverage_summary",
           "evidence_chunks"
         ]
       },

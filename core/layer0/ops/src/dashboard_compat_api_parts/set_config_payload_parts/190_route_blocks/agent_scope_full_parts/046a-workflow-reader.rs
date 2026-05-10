@@ -1030,7 +1030,7 @@ mod workflow_reader_tests {
             recovery
                 .get("default_recovery_budget")
                 .and_then(Value::as_u64),
-            Some(1)
+            Some(2)
         );
         let behavior = recovery
             .get("recovery_behavior")
@@ -1043,6 +1043,14 @@ mod workflow_reader_tests {
         assert!(
             behavior.contains("Do not ask the user to narrow"),
             "{behavior}"
+        );
+        let coverage_behavior = recovery
+            .get("coverage_behavior")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            coverage_behavior.contains("retrieval coverage lane"),
+            "{coverage_behavior}"
         );
         assert!(
             recovery
@@ -1071,7 +1079,11 @@ mod workflow_reader_tests {
             "{payload_instruction}"
         );
         assert!(
-            payload_instruction.contains("4-6 concrete follow-up searches"),
+            payload_instruction.contains("4-8 concrete follow-up searches"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("allocate query coverage fairly"),
             "{payload_instruction}"
         );
         assert!(

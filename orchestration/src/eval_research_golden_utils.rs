@@ -73,6 +73,7 @@ pub(super) fn payload_has_pending_tool_confirmation(payload: &Value) -> bool {
 pub(super) fn create_live_agent(
     base_url: &str,
     case_id: &str,
+    parent_agent_id: &str,
     model_ref: Option<&str>,
     timeout_seconds: u64,
 ) -> Option<String> {
@@ -82,7 +83,8 @@ pub(super) fn create_live_agent(
         "/api/agents",
         &json!({
             "name": name,
-            "role": "analyst"
+            "role": "analyst",
+            "parent_agent_id": parent_agent_id
         }),
         timeout_seconds,
     );

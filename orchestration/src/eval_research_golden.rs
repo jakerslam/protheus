@@ -127,6 +127,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             match create_live_agent(
                 &base_url,
                 case_id.as_str(),
+                &agent_id,
                 fresh_agent_model.as_deref(),
                 timeout_seconds,
             ) {

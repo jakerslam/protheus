@@ -60,10 +60,30 @@
     "run_budgets": {
       "max_stages": 12,
       "max_model_turns": 8,
-      "max_tool_calls": 6,
+      "max_tool_calls": 8,
       "token_budget": 16000,
       "loop_signature_detector": "stage_tool_signature_v1"
     }
+  },
+  "research_evidence_quality_contract": {
+    "version": "coverage_aware_research_v1",
+    "authority": "workflow_cd_declares_quality_shape_runtime_executes_without_domain_routes",
+    "coverage_lanes": [
+      "overall_objective",
+      "entity_or_candidate",
+      "user_stated_aspect_or_criterion",
+      "source_class",
+      "time_window",
+      "cross_comparison",
+      "coverage_gap_recovery"
+    ],
+    "before_synthesis": "each major requested lane should have usable evidence, weak evidence, or an explicit coverage gap",
+    "low_evidence_finalization": "when retrieval remains weak after bounded recovery, produce a useful bounded synthesis that separates evidence, uncertainty, coverage gaps, and decision value without forcing a format",
+    "non_goals": [
+      "do_not_hardcode_research_domains",
+      "do_not_force_output_tables_or_lists",
+      "do_not_use_training_knowledge_as_retrieved_evidence"
+    ]
   },
   "default_for_request_classes": [
     "read_only",

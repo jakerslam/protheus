@@ -75,6 +75,57 @@ fn agent_create_preserves_auto_model_selection_until_invocation() {
 }
 
 #[test]
+fn agent_create_inherits_parent_model_when_model_is_omitted() {
+    let root = agent_create_temp_root();
+    init_git_repo(root.path());
+    save_app_settings(root.path(), "auto", "auto");
+    let parent = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        br#"{"name":"Parent Model","role":"analyst","provider":"ollama","model":"kimi-k2.6:cloud"}"#,
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create parent");
+    assert_eq!(parent.status, 200);
+    let parent_id = clean_text(
+        parent
+            .payload
+            .get("agent_id")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        180,
+    );
+    assert!(!parent_id.is_empty());
+
+    let child_body = format!(
+        r#"{{"name":"Child Model","role":"analyst","parent_agent_id":"{}"}}"#,
+        parent_id
+    );
+    let child = handle(
+        root.path(),
+        "POST",
+        "/api/agents",
+        child_body.as_bytes(),
+        &agent_create_ok_snapshot(),
+    )
+    .expect("create child");
+    assert_eq!(child.status, 200);
+    assert_eq!(
+        child.payload.get("model_provider").and_then(Value::as_str),
+        Some("ollama")
+    );
+    assert_eq!(
+        child.payload.get("model_name").and_then(Value::as_str),
+        Some("kimi-k2.6:cloud")
+    );
+    assert_eq!(
+        child.payload.get("runtime_model").and_then(Value::as_str),
+        Some("kimi-k2.6:cloud")
+    );
+}
+
+#[test]
 fn agent_model_update_to_auto_does_not_materialize_routed_model() {
     let root = agent_create_temp_root();
     init_git_repo(root.path());

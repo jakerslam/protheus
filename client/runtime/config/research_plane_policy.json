@@ -179,6 +179,30 @@
     "max_pages": 20,
     "top_k_links": 3,
     "min_gain_threshold": 0.08,
+    "coverage_aware_fanout": {
+      "enabled": true,
+      "purpose": "increase useful evidence volume by splitting retrieval across user-visible coverage lanes before filtering and synthesis",
+      "authority": "agent_or_policy_may_plan_lanes_from_user_request_and_evidence_state",
+      "max_parallel_lanes": 4,
+      "default_max_lanes": 8,
+      "lane_types": [
+        "overall_objective",
+        "entity_or_candidate",
+        "user_stated_aspect_or_criterion",
+        "source_class",
+        "time_window",
+        "cross_comparison",
+        "coverage_gap_recovery"
+      ],
+      "fairness_policy": "do_not_complete_multi-entity_or_multi-aspect_retrieval_until_each_major_lane_has_evidence_or_an_explicit_gap",
+      "filter_after_collection": true,
+      "record_rejection_reasons": true,
+      "non_goals": [
+        "do_not_seed_domain_specific_candidates_from_golden_cases",
+        "do_not_force_final_answer_format",
+        "do_not_hide_query_expansion_from_tool_payload_or_trace"
+      ]
+    },
     "strategy_menu": [
       "one_shot_search_pack",
       "prefetch_then_rank",
@@ -202,6 +226,8 @@
     },
     "signals": [
       "coverage",
+      "coverage_bucket_balance",
+      "missing_coverage_buckets",
       "consistency",
       "saturation",
       "confidence_delta",
@@ -223,6 +249,11 @@
         "crawled_url_count",
         "pending_candidate_count",
         "source_domain_count",
+        "coverage_bucket_count",
+        "covered_bucket_count",
+        "weak_bucket_count",
+        "missing_coverage_buckets",
+        "coverage_gap_reasons",
         "crawl_order",
         "new_terms_history",
         "checkpoint_ref",
@@ -519,7 +550,10 @@
         "document_type",
         "quality_flags",
         "error_message",
-        "safe_response_header_summary"
+        "safe_response_header_summary",
+        "coverage_buckets",
+        "missing_coverage_buckets",
+        "coverage_gap_reasons"
       ],
       "resource_fields": [
         "task_id",

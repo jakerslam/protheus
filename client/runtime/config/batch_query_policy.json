@@ -5,7 +5,7 @@
       "web"
     ],
     "allow_large": false,
-    "max_parallel_subqueries": 3,
+    "max_parallel_subqueries": 4,
     "query_timeout_ms": 20000,
     "cache": {
       "mode": "enabled",
@@ -22,6 +22,62 @@
         ],
         "freshness_check": "conditional_headers_or_head_fingerprint_when_available"
       }
+    },
+    "coverage_aware_query_planning": {
+      "enabled": true,
+      "authority": "agent_submitted_query_pack_with_policy_scoring",
+      "trigger": "multi_entity_or_multi_aspect_or_open_ended_research",
+      "budget": {
+        "min_lanes_for_multi_entity": 4,
+        "default_max_lanes": 8,
+        "reserve_recovery_lanes": 2,
+        "parallel_lane_limit": 4
+      },
+      "lane_types": [
+        "overall_objective",
+        "entity_or_candidate",
+        "user_stated_aspect_or_criterion",
+        "cross_comparison_or_source_diversity",
+        "coverage_gap_recovery"
+      ],
+      "planning_rules": [
+        "preserve the user's original research objective as the top-level query",
+        "when the prompt names multiple entities or candidates, allocate at least one retrieval lane to each major entity before synthesis",
+        "when the prompt names aspects, criteria, risks, time windows, or source constraints, allocate retrieval lanes to those dimensions instead of using only generic topic searches",
+        "when the prompt is open-ended, use discovery lanes for category, source class, and decision criteria before relying on prior-memory candidates",
+        "do not drop a major entity, criterion, or requested scope without recording a coverage gap"
+      ],
+      "coverage_buckets": {
+        "enabled": true,
+        "bucket_kinds": [
+          "entity",
+          "aspect",
+          "source_class",
+          "time_window",
+          "cross_comparison"
+        ],
+        "status_values": [
+          "covered",
+          "weak",
+          "missing",
+          "not_applicable"
+        ],
+        "record_fields": [
+          "bucket_id",
+          "bucket_kind",
+          "requested_text",
+          "query_refs",
+          "evidence_count",
+          "source_domain_count",
+          "quality_flags",
+          "gap_reason"
+        ]
+      },
+      "non_goals": [
+        "do_not_hardcode_domain_candidates",
+        "do_not_force_user_visible_answer_format",
+        "do_not_expand_queries_hidden_from_submitted_payload"
+      ]
     },
     "page_extraction": {
       "enabled": true,
@@ -228,6 +284,10 @@
         "cache_freshness_status",
         "structured_artifact_counts",
         "chunk_relevance_scores",
+        "coverage_bucket_count",
+        "covered_bucket_count",
+        "missing_coverage_buckets",
+        "bucket_evidence_counts",
         "result_envelope_quality",
         "confidence_components",
         "previous_confidence",
@@ -294,6 +354,14 @@
         ],
         "summaries_only": true,
         "raw_payload_chat_visible": false
+      },
+      "coverage_buckets": {
+        "enabled": true,
+        "max_buckets": 12,
+        "include_bucket_status": true,
+        "include_gap_reasons": true,
+        "include_best_evidence_refs": true,
+        "raw_bucket_payload_chat_visible": false
       }
     },
     "streaming_progress": {
