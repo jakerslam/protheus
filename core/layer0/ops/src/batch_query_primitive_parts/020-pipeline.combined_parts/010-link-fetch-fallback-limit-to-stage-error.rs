@@ -1,4 +1,3 @@
-const LINK_FETCH_FALLBACK_LIMIT: usize = 3;
 const INTERNAL_ROUTE_HINT: &str =
     "This looks like an internal command mapping request, not a web search query. Use local route diagnostics instead of web retrieval.";
 
@@ -51,7 +50,7 @@ fn stage_search_payload(
     crate::web_conduit::api_search(root, &request)
 }
 
-fn stage_fetch_payload(root: &Path, stage: &str, url: &str) -> Value {
+fn stage_fetch_payload(root: &Path, stage: &str, url: &str, extract_mode: &str) -> Value {
     if let Some(payload) = fixture_payload_for_stage_url(stage, url) {
         return payload;
     }
@@ -62,6 +61,7 @@ fn stage_fetch_payload(root: &Path, stage: &str, url: &str) -> Value {
         root,
         &json!({
             "url": url,
+            "extract_mode": extract_mode,
             "summary_only": false
         }),
     )
@@ -69,6 +69,20 @@ fn stage_fetch_payload(root: &Path, stage: &str, url: &str) -> Value {
 
 fn payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
     ranked_payload_links_for_fallback(query, payload, max_links)
+}
+
+fn payload_links_for_page_extraction(
+    query: &str,
+    policy: &Value,
+    payload: &Value,
+    max_links: usize,
+) -> Vec<String> {
+    ranked_payload_links_for_fallback_with_min_score(
+        query,
+        payload,
+        max_links,
+        page_extraction_min_link_score(policy),
+    )
 }
 
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {

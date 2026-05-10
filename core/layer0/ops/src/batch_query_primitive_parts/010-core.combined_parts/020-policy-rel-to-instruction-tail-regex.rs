@@ -88,6 +88,14 @@ fn default_policy() -> Value {
                 "ttl_no_results_seconds": 120,
                 "max_entries": 240
             },
+            "page_extraction": {
+                "enabled": true,
+                "extract_mode": "text",
+                "max_links_per_stage": 3,
+                "max_total_fetches": 8,
+                "min_link_score": 0.08,
+                "trigger": "low_or_empty_candidates"
+            },
             "quality_gate": {
                 "enabled": true,
                 "provider_recovery": {
@@ -254,6 +262,51 @@ fn query_timeout(policy: &Value) -> Duration {
         .unwrap_or(5000)
         .clamp(500, 20_000);
     Duration::from_millis(timeout_ms)
+}
+
+fn page_extraction_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_max_links_per_stage(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/max_links_per_stage")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(0, 10) as usize
+}
+
+fn page_extraction_max_total_fetches(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/max_total_fetches")
+        .and_then(Value::as_u64)
+        .unwrap_or(8)
+        .clamp(0, 40) as usize
+}
+
+fn page_extraction_extract_mode(policy: &Value) -> String {
+    let raw = policy
+        .pointer("/batch_query/page_extraction/extract_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("text")
+        .trim()
+        .to_ascii_lowercase();
+    if raw == "markdown" {
+        "markdown".to_string()
+    } else {
+        "text".to_string()
+    }
+}
+
+fn page_extraction_min_link_score(policy: &Value) -> f64 {
+    policy
+        .pointer("/batch_query/page_extraction/min_link_score")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.08)
+        .clamp(-1.0, 1.0)
 }
 
 #[cfg(test)]

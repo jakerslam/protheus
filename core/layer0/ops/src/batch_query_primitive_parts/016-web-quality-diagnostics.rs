@@ -208,14 +208,19 @@ fn fallback_link_score(query: &str, link: &str) -> f64 {
     score
 }
 
-fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
+fn ranked_payload_links_for_fallback_with_min_score(
+    query: &str,
+    payload: &Value,
+    max_links: usize,
+    min_score: f64,
+) -> Vec<String> {
     let mut ranked = non_search_engine_links(payload, max_links.saturating_mul(4).max(max_links))
         .into_iter()
         .map(|link| {
             let score = fallback_link_score(query, &link);
             (link, score)
         })
-        .filter(|(_, score)| *score > -1.0)
+        .filter(|(_, score)| *score > -1.0 && *score >= min_score)
         .collect::<Vec<_>>();
     ranked.sort_by(|a, b| {
         b.1.partial_cmp(&a.1)
@@ -227,6 +232,10 @@ fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: us
         .take(max_links.max(1))
         .map(|(link, _)| link)
         .collect::<Vec<_>>()
+}
+
+fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
+    ranked_payload_links_for_fallback_with_min_score(query, payload, max_links, -1.0)
 }
 
 fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {

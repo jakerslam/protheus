@@ -3,6 +3,7 @@ fn collect_candidates_from_stage_payload(
     root: &Path,
     stage: &str,
     query: &str,
+    policy: &Value,
     payload: &Value,
     benchmark_intent: bool,
     fetched_links: &mut HashSet<String>,
@@ -62,17 +63,30 @@ fn collect_candidates_from_stage_payload(
     if contains_web_junk_marker(&summary) || contains_web_junk_marker(&content) {
         issues.push(format!("{stage}:junk_page"));
     }
-    let should_fetch_links = candidates.is_empty()
-        || looks_like_low_signal_search_summary(&summary)
-        || candidates
-            .iter()
-            .all(|candidate| candidate_needs_link_fetch(query, candidate));
+    let should_fetch_links = page_extraction_enabled(policy)
+        && page_extraction_max_links_per_stage(policy) > 0
+        && page_extraction_max_total_fetches(policy) > fetched_links.len()
+        && (candidates.is_empty()
+            || looks_like_low_signal_search_summary(&summary)
+            || candidates
+                .iter()
+                .all(|candidate| candidate_needs_link_fetch(query, candidate)));
     if should_fetch_links {
-        for link in payload_links_for_fallback(query, payload, LINK_FETCH_FALLBACK_LIMIT) {
+        for link in payload_links_for_page_extraction(
+            query,
+            policy,
+            payload,
+            page_extraction_max_links_per_stage(policy),
+        ) {
+            if fetched_links.len() >= page_extraction_max_total_fetches(policy) {
+                issues.push(format!("{stage}:page_extraction_budget_exhausted"));
+                break;
+            }
             if !fetched_links.insert(link.clone()) {
                 continue;
             }
-            let fetch_payload = stage_fetch_payload(root, stage, &link);
+            let fetch_payload =
+                stage_fetch_payload(root, stage, &link, &page_extraction_extract_mode(policy));
             if !fetch_payload
                 .get("ok")
                 .and_then(Value::as_bool)
@@ -260,6 +274,7 @@ fn retrieve_web_candidates_for_query(
         root,
         "primary",
         query,
+        policy,
         &primary_payload,
         benchmark_intent,
         &mut fetched_links,
@@ -285,6 +300,7 @@ fn retrieve_web_candidates_for_query(
             root,
             "bing_rss",
             query,
+            policy,
             &bing_payload,
             benchmark_intent,
             &mut fetched_links,
@@ -304,7 +320,7 @@ fn retrieve_web_candidates_for_query(
             } else if fixture_mode_enabled() {
                 fixture_missing_payload()
             } else {
-                stage_fetch_payload(root, "duckduckgo_instant", &fallback_url)
+                stage_fetch_payload(root, "duckduckgo_instant", &fallback_url, "text")
             };
         let mut duckduckgo_candidate_count = 0usize;
         let mut duckduckgo_issues = Vec::<String>::new();
@@ -340,6 +356,7 @@ fn retrieve_web_candidates_for_query(
                     root,
                     &provider,
                     query,
+                    policy,
                     &provider_payload,
                     benchmark_intent,
                     &mut fetched_links,

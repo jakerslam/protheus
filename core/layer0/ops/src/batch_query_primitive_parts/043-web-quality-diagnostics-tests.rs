@@ -1,5 +1,6 @@
 mod web_quality_diagnostics_tests {
     use super::*;
+    use std::collections::HashSet;
     use std::sync::Mutex;
 
     static WEB_QUALITY_TEST_ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -297,6 +298,90 @@ mod web_quality_diagnostics_tests {
             Some("https://docs.example.com/agent-framework/releases")
         );
         assert!(!links.iter().any(|link| link.contains("bing.com")));
+    }
+
+    #[test]
+    fn page_extraction_link_threshold_filters_weak_followups() {
+        let payload = json!({
+            "links": [
+                "https://www.desmos.com/scientific",
+                "https://research.example.org/scientific-breakthroughs-2026"
+            ]
+        });
+        let mut policy = default_policy();
+        policy["batch_query"]["page_extraction"] = json!({
+            "enabled": true,
+            "extract_mode": "markdown",
+            "max_links_per_stage": 3,
+            "max_total_fetches": 3,
+            "min_link_score": 0.08,
+            "trigger": "low_or_empty_candidates"
+        });
+        let links = payload_links_for_page_extraction(
+            "scientific breakthroughs 2026",
+            &policy,
+            &payload,
+            3,
+        );
+        assert_eq!(
+            links,
+            vec!["https://research.example.org/scientific-breakthroughs-2026"]
+        );
+    }
+
+    #[test]
+    fn page_extraction_budget_is_policy_owned() {
+        let query = "agentic research systems";
+        let first = "https://docs.example.com/agentic-research-systems";
+        let second = "https://news.example.com/agentic-research-systems";
+        let payload = json!({
+            "ok": true,
+            "summary": "No usable search results.",
+            "links": [second, first],
+            "requested_url": "https://search.example.com"
+        });
+        let fixture = json!({
+            query: payload,
+            format!("primary::{first}"): {
+                "ok": true,
+                "summary": "Agentic research systems evidence from project documentation with retrieval, synthesis, and current workflow evaluation details.",
+                "requested_url": first,
+                "status_code": 200
+            },
+            format!("primary::{second}"): {
+                "ok": true,
+                "summary": "Agentic research systems evidence from a news source with current deployment context and system evaluation notes.",
+                "requested_url": second,
+                "status_code": 200
+            }
+        });
+        let mut policy = default_policy();
+        policy["batch_query"]["page_extraction"] = json!({
+            "enabled": true,
+            "extract_mode": "markdown",
+            "max_links_per_stage": 1,
+            "max_total_fetches": 1,
+            "min_link_score": 0.08,
+            "trigger": "low_or_empty_candidates"
+        });
+        assert_eq!(page_extraction_extract_mode(&policy), "markdown");
+
+        with_fixture(fixture, || {
+            let tmp = tempfile::tempdir().expect("tempdir");
+            let stage_payload = stage_search_payload(tmp.path(), None, query, None);
+            let mut fetched_links = HashSet::<String>::new();
+            let (candidates, issues, _) = collect_candidates_from_stage_payload(
+                tmp.path(),
+                "primary",
+                query,
+                &policy,
+                &stage_payload,
+                false,
+                &mut fetched_links,
+            );
+            assert_eq!(fetched_links.len(), 1, "{issues:?}");
+            assert_eq!(candidates.len(), 1, "{issues:?}");
+        });
     }
 
     #[test]

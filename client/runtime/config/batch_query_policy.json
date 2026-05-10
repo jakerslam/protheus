@@ -5,7 +5,16 @@
       "web"
     ],
     "allow_large": false,
-    "max_parallel_subqueries": 4,
+    "max_parallel_subqueries": 3,
+    "query_timeout_ms": 20000,
+    "page_extraction": {
+      "enabled": true,
+      "extract_mode": "markdown",
+      "max_links_per_stage": 2,
+      "max_total_fetches": 4,
+      "min_link_score": 0.08,
+      "trigger": "low_or_empty_candidates"
+    },
     "quality_gate": {
       "enabled": true,
       "provider_recovery": {
@@ -22,7 +31,7 @@
     "query_recovery": {
       "broad_current_research": {
         "enabled": true,
-        "max_queries": 6,
+        "max_queries": 10,
         "templates": [
           "{query}",
           "{query} source-backed overview",
