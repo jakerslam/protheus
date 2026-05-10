@@ -203,24 +203,121 @@
     "default_output": "markdown",
     "variants": [
       "raw_markdown",
+      "markdown_with_citations",
       "fit_markdown",
       "references",
+      "references_markdown",
       "source_excerpt",
       "cleaned_html",
       "fit_html",
-      "table_summary"
+      "table_summary",
+      "page_metadata_summary",
+      "link_summary",
+      "media_summary",
+      "error_summary",
+      "dispatch_summary"
     ],
     "source_selection": {
       "default": "cleaned_content",
       "allowed_sources": [
         "raw_content",
         "cleaned_content",
-        "fit_content"
+        "fit_content",
+        "structured_artifact_summary"
       ],
       "fallback_order": [
         "fit_content",
+        "markdown_with_citations",
         "cleaned_content",
+        "structured_artifact_summary",
         "raw_content_excerpt"
+      ]
+    },
+    "result_envelope": {
+      "purpose": "preserve retrieval state for synthesis without exposing raw payloads to chat",
+      "fields": [
+        "source_url",
+        "final_url",
+        "canonical_url",
+        "success",
+        "status_code",
+        "redirected_status_code",
+        "fetch_mode",
+        "cache_freshness_status",
+        "quality_flags",
+        "error_message",
+        "safe_response_header_summary"
+      ],
+      "resource_fields": [
+        "task_id",
+        "duration_ms",
+        "memory_usage_mb",
+        "peak_memory_mb",
+        "dispatcher_error"
+      ],
+      "network_console_capture": "diagnostic_only_and_hidden_from_chat"
+    },
+    "chunking": {
+      "enabled": true,
+      "purpose": "make large or noisy pages usable by synthesis through ranked evidence chunks instead of whole-page dumps",
+      "strategies": [
+        "paragraph_or_heading_boundary",
+        "fixed_window",
+        "sliding_window_with_overlap",
+        "semantic_or_similarity_ranked_when_available"
+      ],
+      "selection": {
+        "prefer_query_relevant_fit_chunks": true,
+        "retain_adjacent_context": true,
+        "avoid_single_chunk_overconfidence": true
+      },
+      "metadata_fields": [
+        "chunk_id",
+        "source_url",
+        "parent_artifact",
+        "heading_path",
+        "relevance_score",
+        "token_estimate",
+        "rejection_reason"
+      ]
+    },
+    "structured_artifacts": {
+      "enabled": true,
+      "purpose": "retain non-prose evidence signals without forcing a final answer shape",
+      "artifact_kinds": [
+        "tables",
+        "links",
+        "media",
+        "metadata",
+        "citations",
+        "extracted_content"
+      ],
+      "table_quality_fields": [
+        "caption",
+        "summary",
+        "headers",
+        "row_count",
+        "column_count",
+        "has_headers",
+        "data_table_score",
+        "rejection_reason"
+      ],
+      "link_quality_fields": [
+        "href",
+        "text",
+        "title",
+        "context",
+        "domain",
+        "intrinsic_score",
+        "contextual_score",
+        "total_score"
+      ],
+      "media_quality_fields": [
+        "src",
+        "alt",
+        "title",
+        "score",
+        "surrounding_context"
       ]
     },
     "content_filters": [

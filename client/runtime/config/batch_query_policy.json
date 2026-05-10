@@ -33,6 +33,8 @@
       "prefetch": {
         "enabled": true,
         "goal": "discover_and_rank_links_before_full_fetch",
+        "mode": "fast_link_and_head_discovery_before_selected_full_fetch",
+        "skip_heavy_processing_during_discovery": true,
         "max_prefetch_links": 24,
         "include_link_text": true,
         "include_parent_context": true
@@ -99,13 +101,57 @@
         "partial_failures",
         "query_plan_source",
         "candidate_rejection_reasons",
-        "cache_freshness_status"
+        "cache_freshness_status",
+        "structured_artifact_counts",
+        "chunk_relevance_scores",
+        "result_envelope_quality"
       ]
     },
     "evidence_pack": {
       "enabled": true,
       "max_items": 6,
-      "max_snippet_words": 72
+      "max_snippet_words": 72,
+      "result_envelope": {
+        "include_source_url": true,
+        "include_final_url": true,
+        "include_status_code": true,
+        "include_redirect_status": true,
+        "include_fetch_mode": true,
+        "include_cache_freshness_status": true,
+        "include_quality_flags": true,
+        "include_error_summary": true
+      },
+      "content_variants": [
+        "source_excerpt",
+        "fit_markdown",
+        "markdown_with_citations",
+        "references_markdown",
+        "cleaned_content_excerpt"
+      ],
+      "chunking": {
+        "enabled": true,
+        "selection": "rank_query_relevant_chunks_with_adjacent_context",
+        "metadata_fields": [
+          "chunk_id",
+          "source_url",
+          "parent_artifact",
+          "heading_path",
+          "relevance_score",
+          "token_estimate",
+          "rejection_reason"
+        ]
+      },
+      "structured_artifacts": {
+        "enabled": true,
+        "artifact_kinds": [
+          "table_summary",
+          "link_summary",
+          "media_summary",
+          "page_metadata_summary"
+        ],
+        "summaries_only": true,
+        "raw_payload_chat_visible": false
+      }
     },
     "quality_gate": {
       "enabled": true,
