@@ -91,16 +91,23 @@ fn retrieve_web_candidates_for_query_with_timeout(
     root: &Path,
     query: &str,
     policy: &Value,
+    search_scope: &BatchQuerySearchScope,
     timeout: Duration,
 ) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
     let (tx, rx) = std::sync::mpsc::channel::<(Vec<Candidate>, Vec<String>, Vec<Value>)>();
     let root_buf = root.to_path_buf();
     let query_buf = query.to_string();
     let policy_buf = policy.clone();
+    let search_scope_buf = search_scope.clone();
     let spawned = thread::Builder::new()
         .name("batch-query-retrieve".to_string())
         .spawn(move || {
-            let out = retrieve_web_candidates_for_query(&root_buf, &query_buf, &policy_buf);
+            let out = retrieve_web_candidates_for_query(
+                &root_buf,
+                &query_buf,
+                &policy_buf,
+                &search_scope_buf,
+            );
             let _ = tx.send(out);
         });
     if spawned.is_err() {

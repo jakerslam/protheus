@@ -73,15 +73,23 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             }
         };
     let query_plan = resolve_query_plan(&policy, request, &query, budget);
+    let search_scope = batch_query_search_scope(request);
+    let search_scope_value = search_scope.to_value();
     let cache_control = batch_query_cache_control(&policy, request);
-    let cache_key_primary =
-        cache_key_with_query_plan(&source, &query, &aperture, &policy, &query_plan.queries);
+    let cache_key_primary = cache_key_with_query_plan_and_scope(
+        &source,
+        &query,
+        &aperture,
+        &policy,
+        &query_plan.queries,
+        &search_scope,
+    );
     let legacy_cache_key = cache_key(&source, &query, &aperture, &policy);
     let (cached_response, cache_lookup_key) = if let Some(cached) =
         load_cached_response(root, &cache_key_primary, &cache_control)
     {
         (Some(cached), cache_key_primary.clone())
-    } else if cache_key_primary != legacy_cache_key {
+    } else if search_scope.is_empty() && cache_key_primary != legacy_cache_key {
         if let Some(cached) = load_cached_response(root, &legacy_cache_key, &cache_control) {
             (Some(cached), legacy_cache_key.clone())
         } else {
@@ -183,7 +191,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let provider_snapshot = json!({
-            "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_lookup_key})),
+            "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_lookup_key, "search_scope": search_scope_value.clone()})),
             "source": source,
             "adapter_version": "web_conduit_v1",
             "disposable": true
@@ -203,7 +211,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 "authority": "agent_submitted",
                 "query_used": query,
                 "hidden_query_expansion": false,
-                "query_plan_source": query_plan_source
+                "query_plan_source": query_plan_source,
+                "search_scope": search_scope_value.clone()
             },
             "adapter_version": "web_conduit_v1",
             "provider_snapshot": provider_snapshot,
@@ -252,7 +261,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 "authority": "agent_submitted",
                 "query_used": query,
                 "hidden_query_expansion": false,
-                "query_plan_source": query_plan_source
+                "query_plan_source": query_plan_source,
+                "search_scope": search_scope_value.clone()
             },
             "partial_failure_details": partial_failure_details,
             "tool_result_quality": tool_result_quality,
@@ -299,11 +309,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 let query_item = q.clone();
                 let root_buf = root.to_path_buf();
                 let policy_buf = policy.clone();
+                let search_scope_buf = search_scope.clone();
                 let spawned = thread::Builder::new()
                     .name(format!("batch-query-{local_idx}"))
                     .spawn(move || {
-                        let out =
-                            retrieve_web_candidates_for_query(&root_buf, &query_item, &policy_buf);
+                        let out = retrieve_web_candidates_for_query(
+                            &root_buf,
+                            &query_item,
+                            &policy_buf,
+                            &search_scope_buf,
+                        );
                         let _ = tx_clone.send((local_idx, query_item, out));
                     });
                 if spawned.is_err() {
@@ -372,8 +387,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     } else {
         for q in &queries {
-            let (mut rows, issues, artifacts) =
-                retrieve_web_candidates_for_query_with_timeout(root, q, &policy, query_timeout);
+            let (mut rows, issues, artifacts) = retrieve_web_candidates_for_query_with_timeout(
+                root,
+                q,
+                &policy,
+                &search_scope,
+                query_timeout,
+            );
             provider_results.extend(artifacts);
             let transport_only_issue = rows.is_empty()
                 && issues.iter().all(|issue| {
@@ -624,7 +644,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let tool_result_quality = web_tool_quality_report(&query, status, before_dedup, evidence_refs.len(), &partial_failures, &hard_partial_failures, &actionable_ranked);
 
     let provider_snapshot = json!({
-        "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": queries})),
+        "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": queries, "search_scope": search_scope_value.clone()})),
         "source": source,
         "adapter_version": "web_conduit_v1",
         "disposable": true
@@ -645,7 +665,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "authority": "agent_submitted",
             "query_used": query,
             "hidden_query_expansion": false,
-            "query_plan_source": query_plan.query_plan_source
+            "query_plan_source": query_plan.query_plan_source,
+            "search_scope": search_scope_value.clone()
         },
         "adapter_version": "web_conduit_v1",
         "provider_snapshot": provider_snapshot,
@@ -689,7 +710,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "authority": "agent_submitted",
             "query_used": query,
             "hidden_query_expansion": false,
-            "query_plan_source": query_plan.query_plan_source
+            "query_plan_source": query_plan.query_plan_source,
+            "search_scope": search_scope_value.clone()
         },
         "partial_failure_details": hard_partial_failures.clone(),
         "tool_result_quality": tool_result_quality.clone(),
@@ -714,6 +736,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "rewrite_set": rewrite_set,
             "query_plan": queries,
             "query_plan_source": query_plan.query_plan_source,
+            "search_scope": search_scope_value,
             "partial_failure_details": hard_partial_failures,
             "tool_result_quality": tool_result_quality,
             "parallel_retrieval_used": parallel_allowed

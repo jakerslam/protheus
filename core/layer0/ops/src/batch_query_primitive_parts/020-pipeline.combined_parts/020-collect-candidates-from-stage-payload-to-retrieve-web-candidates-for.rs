@@ -261,6 +261,7 @@ fn retrieve_web_candidates_for_query(
     root: &Path,
     query: &str,
     policy: &Value,
+    search_scope: &BatchQuerySearchScope,
 ) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
     let benchmark_intent = is_benchmark_or_comparison_intent(query);
     let mut candidates = Vec::<Candidate>::new();
@@ -268,7 +269,7 @@ fn retrieve_web_candidates_for_query(
     let mut provider_results = Vec::<Value>::new();
     let mut fetched_links = HashSet::<String>::new();
 
-    let primary_payload = stage_search_payload(root, None, query, None);
+    let primary_payload = stage_search_payload(root, None, query, None, search_scope);
     let (primary_candidates, primary_issues, primary_provider_result) =
         collect_candidates_from_stage_payload(
         root,
@@ -294,7 +295,8 @@ fn retrieve_web_candidates_for_query(
     }
 
     if candidates.is_empty() {
-        let bing_payload = stage_search_payload(root, Some("bing_rss"), query, Some("bing"));
+        let bing_payload =
+            stage_search_payload(root, Some("bing_rss"), query, Some("bing"), search_scope);
         let (bing_candidates, bing_issues, bing_provider_result) =
             collect_candidates_from_stage_payload(
             root,
@@ -350,7 +352,7 @@ fn retrieve_web_candidates_for_query(
     if candidates.is_empty() {
         for provider in provider_recovery_providers(policy, query) {
             let provider_payload =
-                stage_search_payload(root, Some(&provider), query, Some(&provider));
+                stage_search_payload(root, Some(&provider), query, Some(&provider), search_scope);
             let (mut provider_candidates, provider_issues, provider_result) =
                 collect_candidates_from_stage_payload(
                     root,

@@ -368,7 +368,8 @@ mod web_quality_diagnostics_tests {
 
         with_fixture(fixture, || {
             let tmp = tempfile::tempdir().expect("tempdir");
-            let stage_payload = stage_search_payload(tmp.path(), None, query, None);
+            let stage_payload =
+                stage_search_payload(tmp.path(), None, query, None, &BatchQuerySearchScope::default());
             let mut fetched_links = HashSet::<String>::new();
             let (candidates, issues, _) = collect_candidates_from_stage_payload(
                 tmp.path(),
@@ -382,6 +383,76 @@ mod web_quality_diagnostics_tests {
             assert_eq!(fetched_links.len(), 1, "{issues:?}");
             assert_eq!(candidates.len(), 1, "{issues:?}");
         });
+    }
+
+    #[test]
+    fn batch_query_search_scope_normalizes_request_owned_domain_aliases() {
+        let scope = batch_query_search_scope(&json!({
+            "query": "structured retrieval patterns",
+            "includeDomains": [
+                "https://www.docs.rs/crate/example",
+                "*.GitHub.com",
+                {"url": "https://docs.rs/other"},
+                "localhost",
+                "bad domain"
+            ],
+            "exactDomainOnly": "true"
+        }));
+        assert_eq!(scope.allowed_domains, vec!["docs.rs", "github.com"]);
+        assert!(scope.exclude_subdomains);
+    }
+
+    #[test]
+    fn stage_search_request_preserves_request_owned_scope() {
+        let scope = BatchQuerySearchScope {
+            allowed_domains: vec!["docs.rs".to_string(), "github.com".to_string()],
+            exclude_subdomains: true,
+        };
+        let request = stage_search_request("rust async runtime", Some("bing"), &scope);
+        assert_eq!(request.get("query").and_then(Value::as_str), Some("rust async runtime"));
+        assert_eq!(request.get("provider").and_then(Value::as_str), Some("bing"));
+        assert_eq!(
+            request
+                .get("allowed_domains")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>()),
+            Some(vec!["docs.rs", "github.com"])
+        );
+        assert_eq!(
+            request.get("exclude_subdomains").and_then(Value::as_bool),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn scoped_batch_query_cache_key_differs_from_unscoped() {
+        let policy = default_policy();
+        let query = "rust async runtime comparison";
+        let plan = vec![query.to_string()];
+        let unscoped = cache_key_with_query_plan_and_scope(
+            "web",
+            query,
+            "medium",
+            &policy,
+            &plan,
+            &BatchQuerySearchScope::default(),
+        );
+        let scoped = cache_key_with_query_plan_and_scope(
+            "web",
+            query,
+            "medium",
+            &policy,
+            &plan,
+            &BatchQuerySearchScope {
+                allowed_domains: vec!["docs.rs".to_string()],
+                exclude_subdomains: true,
+            },
+        );
+        assert_ne!(unscoped, scoped);
+        assert_eq!(
+            unscoped,
+            cache_key_with_query_plan("web", query, "medium", &policy, &plan)
+        );
     }
 
     #[test]

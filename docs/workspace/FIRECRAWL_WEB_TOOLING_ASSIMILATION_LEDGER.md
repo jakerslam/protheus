@@ -29,7 +29,7 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `FIRECRAWL-PATTERN-001` | High-recall search result buffer | Firecrawl asks for more candidates than final results need, then limits after ranking/filtering. This directly addresses tiny evidence pools. | active |
 | `FIRECRAWL-PATTERN-002` | Search-plus-scrape evidence flow | Firecrawl search can attach scraped page content, not just SERP snippets. This is the likely next primitive for user-quality research. | active |
 | `FIRECRAWL-PATTERN-003` | Multi-source result lanes | Search can return web/news/images lanes with separate result types. Our tool artifacts should keep lanes explicit. | pending |
-| `FIRECRAWL-PATTERN-004` | Category and domain filters as request policy | Firecrawl exposes categories like GitHub/research/PDF and include/exclude domains. If used, this belongs in CD/tool request contracts, not hardcoded gates. | pending |
+| `FIRECRAWL-PATTERN-004` | Category and domain filters as request policy | Firecrawl exposes categories like GitHub/research/PDF and include/exclude domains. If used, this belongs in CD/tool request contracts, not hardcoded gates. | active |
 | `FIRECRAWL-PATTERN-005` | Async crawl/batch progress contract | Crawl/batch scrape returns status, total, completed, data, errors, and polling. Useful for long research jobs, not first-turn search. | active |
 | `FIRECRAWL-PATTERN-006` | LLM-ready document contract | Document objects preserve markdown, summary, metadata, source URL, status, cache state, and errors. This maps well to evidence packs. | active |
 | `FIRECRAWL-PATTERN-007` | Optional structured extraction | JSON/schema extraction is an optional layer after source retrieval, not a forced final answer shape. | pending |
@@ -158,3 +158,30 @@ Expected effect:
 
 - This should reduce rate-budget waste on weak SERP links such as calculators, dictionary pages, generic portals, or login/signup surfaces when only one loose query term overlaps.
 - It does not solve provider coverage by itself; it prevents the new extraction budget from amplifying bad candidate discovery.
+
+### `FIRECRAWL-LIVE-004`: request-owned source constraints
+
+Pattern source: `FIRECRAWL-PATTERN-004`, primarily from `apps/api/src/controllers/v2/search.ts` and `apps/api/src/lib/search-query-builder.ts`.
+
+Target behavior:
+
+- Preserve source-scope fields supplied by the user, agent, or workflow CD.
+- Bridge those fields through batch query to the existing web conduit search surface.
+- Keep domain scoping request-owned rather than introducing a hardcoded research-domain list.
+- Keep scoped and unscoped cache identities separate so test runs and live requests do not cross-contaminate.
+- Expose the scope in the query contract for diagnostics without forcing any final answer format.
+
+Current status: implemented first slice.
+
+Implementation:
+
+- Added a `BatchQuerySearchScope` request contract for `allowed_domains`/`include_domains` and camelCase aliases.
+- Added conservative domain normalization and dedupe for explicit request values only.
+- Forwarded `allowed_domains` and `exclude_subdomains` into web conduit search requests.
+- Added scoped cache identity for non-empty source constraints, while preserving legacy cache fallback for unscoped requests.
+- Added tests for scope normalization, request forwarding, and scoped cache separation.
+
+Expected effect:
+
+- Research workflows can now ask for broader retrieval while still constraining source families when the request already carries that intent.
+- This does not add domain-specific research behavior. It gives the agent and workflow CDs a cleaner primitive for source control when they choose to use it.

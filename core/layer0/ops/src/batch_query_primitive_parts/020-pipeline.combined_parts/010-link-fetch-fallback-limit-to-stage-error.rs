@@ -29,6 +29,7 @@ fn stage_search_payload(
     stage: Option<&str>,
     query: &str,
     provider: Option<&str>,
+    search_scope: &BatchQuerySearchScope,
 ) -> Value {
     if let Some(stage_name) = stage {
         if let Some(payload) = fixture_payload_for_stage_query(stage_name, query) {
@@ -40,6 +41,15 @@ fn stage_search_payload(
     if fixture_mode_enabled() {
         return fixture_missing_payload();
     }
+    let request = stage_search_request(query, provider, search_scope);
+    crate::web_conduit::api_search(root, &request)
+}
+
+fn stage_search_request(
+    query: &str,
+    provider: Option<&str>,
+    search_scope: &BatchQuerySearchScope,
+) -> Value {
     let mut request = json!({
         "query": query,
         "summary_only": false
@@ -47,7 +57,11 @@ fn stage_search_payload(
     if let Some(provider_name) = provider {
         request["provider"] = Value::String(provider_name.to_string());
     }
-    crate::web_conduit::api_search(root, &request)
+    if !search_scope.allowed_domains.is_empty() {
+        request["allowed_domains"] = json!(search_scope.allowed_domains.clone());
+        request["exclude_subdomains"] = json!(search_scope.exclude_subdomains);
+    }
+    request
 }
 
 fn stage_fetch_payload(root: &Path, stage: &str, url: &str, extract_mode: &str) -> Value {

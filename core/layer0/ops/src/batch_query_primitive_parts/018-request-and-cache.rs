@@ -16,6 +16,25 @@ struct QueryPlanSelection {
     query_plan_source: &'static str,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct BatchQuerySearchScope {
+    allowed_domains: Vec<String>,
+    exclude_subdomains: bool,
+}
+
+impl BatchQuerySearchScope {
+    fn is_empty(&self) -> bool {
+        self.allowed_domains.is_empty()
+    }
+
+    fn to_value(&self) -> Value {
+        json!({
+            "allowed_domains": self.allowed_domains.clone(),
+            "exclude_subdomains": self.exclude_subdomains
+        })
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct BatchQueryCacheControl {
     mode: String,
@@ -151,6 +170,32 @@ fn cache_key_with_query_plan(
         "query": query,
         "aperture": aperture,
         "query_plan": normalized_plan,
+        "policy": cache_identity_policy(policy),
+    }))
+}
+
+fn cache_key_with_query_plan_and_scope(
+    source: &str,
+    query: &str,
+    aperture: &str,
+    policy: &Value,
+    query_plan: &[String],
+    search_scope: &BatchQuerySearchScope,
+) -> String {
+    let normalized_plan = cache_identity_query_plan(query, query_plan);
+    if search_scope.is_empty() && normalized_plan.len() <= 1 {
+        return cache_key(source, query, aperture, policy);
+    }
+    if search_scope.is_empty() {
+        return cache_key_with_query_plan(source, query, aperture, policy, query_plan);
+    }
+    crate::deterministic_receipt_hash(&json!({
+        "version": 5,
+        "source": source,
+        "query": query,
+        "aperture": aperture,
+        "query_plan": normalized_plan,
+        "search_scope": search_scope.to_value(),
         "policy": cache_identity_policy(policy),
     }))
 }
@@ -507,6 +552,128 @@ fn request_query_text(request: &Value, max_len: usize) -> String {
         .and_then(Value::as_array)
         .and_then(|rows| rows.iter().find_map(|row| extract_request_query_row(row, max_len)))
         .unwrap_or_default()
+}
+
+fn request_bool_alias(request: &Value, names: &[&str]) -> bool {
+    for name in names {
+        if let Some(value) = request.get(*name) {
+            if let Some(flag) = value.as_bool() {
+                return flag;
+            }
+            if let Some(raw) = value.as_str() {
+                let lowered = clean_text(raw, 20).to_ascii_lowercase();
+                if matches!(lowered.as_str(), "1" | "true" | "yes" | "on") {
+                    return true;
+                }
+                if matches!(lowered.as_str(), "0" | "false" | "no" | "off") {
+                    return false;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn normalize_batch_query_scope_domain(raw: &str) -> Option<String> {
+    let mut value = clean_text(raw, 260).to_ascii_lowercase();
+    if value.is_empty() {
+        return None;
+    }
+    for prefix in ["https://", "http://"] {
+        if let Some(stripped) = value.strip_prefix(prefix) {
+            value = stripped.to_string();
+            break;
+        }
+    }
+    if let Some(stripped) = value.strip_prefix("*.") {
+        value = stripped.to_string();
+    }
+    if let Some(stripped) = value.strip_prefix("www.") {
+        value = stripped.to_string();
+    }
+    value = value
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or("")
+        .trim_matches('.')
+        .to_string();
+    if value.is_empty() || !value.contains('.') {
+        return None;
+    }
+    if !value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-')
+    {
+        return None;
+    }
+    Some(value)
+}
+
+fn push_normalized_scope_domain(raw: &str, seen: &mut HashSet<String>, out: &mut Vec<String>) {
+    if let Some(domain) = normalize_batch_query_scope_domain(raw) {
+        if seen.insert(domain.clone()) {
+            out.push(domain);
+        }
+    }
+}
+
+fn collect_scope_domains_from_value(
+    value: &Value,
+    seen: &mut HashSet<String>,
+    out: &mut Vec<String>,
+) {
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                collect_scope_domains_from_value(row, seen, out);
+            }
+        }
+        Value::String(raw) => {
+            for part in raw.split([',', ';', '\n', '\t', ' ']) {
+                push_normalized_scope_domain(part, seen, out);
+            }
+        }
+        Value::Object(map) => {
+            for key in ["domain", "host", "url", "origin"] {
+                if let Some(raw) = map.get(key).and_then(Value::as_str) {
+                    push_normalized_scope_domain(raw, seen, out);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn batch_query_search_scope(request: &Value) -> BatchQuerySearchScope {
+    let mut seen = HashSet::<String>::new();
+    let mut allowed_domains = Vec::<String>::new();
+    for key in [
+        "allowed_domains",
+        "include_domains",
+        "allowedDomains",
+        "includeDomains",
+    ] {
+        if let Some(value) = request.get(key) {
+            collect_scope_domains_from_value(value, &mut seen, &mut allowed_domains);
+            if !allowed_domains.is_empty() {
+                break;
+            }
+        }
+    }
+    let exclude_subdomains = !allowed_domains.is_empty()
+        && request_bool_alias(
+            request,
+            &[
+                "exclude_subdomains",
+                "exact_domain_only",
+                "excludeSubdomains",
+                "exactDomainOnly",
+            ],
+        );
+    BatchQuerySearchScope {
+        allowed_domains,
+        exclude_subdomains,
+    }
 }
 
 fn extract_request_query_row(row: &Value, max_len: usize) -> Option<String> {
