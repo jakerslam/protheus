@@ -39,6 +39,21 @@ socket contracts, exposes `/api/shell-socket/**` routes, and forwards accepted
 traffic through the appropriate Nexus/Conduit path to Kernel, Orchestration, or
 Assurance owners.
 
+## Parity Evidence
+
+The socket has two complementary proof modes:
+
+- `npm run -s ops:shell-socket:headless-probe` proves all socket capabilities
+  against a Gateway-shaped fixture without browser assets.
+- `npm run -s ops:shell-socket:live-probe` probes the live Gateway target at
+  `5173` and reports passed, failed, missing, and exercised capabilities.
+
+The live probe is intentionally stricter than a smoke test: it reports
+`live_parity_complete=false` until every required capability is both exercised
+and returning bounded projection/ack envelopes. After Shell Socket route changes
+in Rust, restart Gateway before treating live probe failures as current runtime
+truth.
+
 ## Allowed Here
 
 - Shell Socket contracts.

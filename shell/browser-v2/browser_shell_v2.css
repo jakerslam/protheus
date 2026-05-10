@@ -1,0 +1,511 @@
+:root {
+  --browser-shell-v2-bg: var(--shell-background, #f4efe5);
+  --browser-shell-v2-text: var(--text, #161411);
+  --browser-shell-v2-muted: var(--text-muted, #6f675f);
+  --browser-shell-v2-surface: color-mix(in srgb, var(--surface, #fff8ee) 74%, transparent);
+  --browser-shell-v2-border: color-mix(in srgb, var(--border, #8f7d68) 32%, transparent);
+  --browser-shell-v2-radius: var(--radius-lg, 22px);
+  --browser-shell-v2-shadow: 0 18px 70px color-mix(in srgb, #372817 18%, transparent);
+}
+
+.browser-shell-v2 {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  padding: 22px;
+  color: var(--browser-shell-v2-text);
+  background:
+    radial-gradient(circle at 15% 10%, color-mix(in srgb, #fff6df 72%, transparent), transparent 28%),
+    linear-gradient(135deg, var(--browser-shell-v2-bg), color-mix(in srgb, var(--browser-shell-v2-bg) 76%, #ccb58e));
+}
+
+.browser-shell-v2__topbar,
+.browser-shell-v2__workspace,
+.browser-shell-v2__detail,
+.browser-shell-v2__events,
+.browser-shell-v2__search,
+.browser-shell-v2__issue,
+.browser-shell-v2__approval,
+.browser-shell-v2__controls,
+.browser-shell-v2__receipts,
+.browser-shell-v2__input {
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: var(--browser-shell-v2-radius);
+  background: var(--browser-shell-v2-surface);
+  box-shadow: var(--browser-shell-v2-shadow);
+  backdrop-filter: blur(14px) saturate(1.14);
+}
+
+.browser-shell-v2__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+}
+
+.browser-shell-v2__eyebrow,
+.browser-shell-v2__label {
+  margin: 0;
+  color: var(--browser-shell-v2-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.browser-shell-v2 h1 {
+  margin: 2px 0 0;
+  font-size: clamp(1.35rem, 3vw, 2.1rem);
+}
+
+.browser-shell-v2__status {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  font-weight: 800;
+}
+
+.browser-shell-v2__status small {
+  max-width: 360px;
+  color: var(--browser-shell-v2-muted);
+  font-weight: 600;
+  text-align: right;
+}
+
+.browser-shell-v2__workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+  gap: 16px;
+  padding: 16px;
+}
+
+.browser-shell-v2__rail {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--browser-shell-v2-surface) 64%, transparent);
+}
+
+.browser-shell-v2__selector-list {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 8px;
+}
+
+.browser-shell-v2__selector-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--browser-shell-v2-border) 72%, transparent);
+  border-radius: 12px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 34%, transparent);
+  font: inherit;
+  text-align: left;
+}
+
+.browser-shell-v2__selector-list button.active {
+  border-color: color-mix(in srgb, #1c6d58 58%, var(--browser-shell-v2-border));
+  background: color-mix(in srgb, #dff8ed 58%, transparent);
+}
+
+.browser-shell-v2__selector-list span {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browser-shell-v2__selector-list small {
+  color: var(--browser-shell-v2-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.browser-shell-v2__messages {
+  min-height: 0;
+  display: grid;
+  align-content: end;
+  gap: 10px;
+  overflow: auto;
+}
+
+.browser-shell-v2__message,
+.browser-shell-v2__empty {
+  max-width: min(780px, 84%);
+  padding: 12px 14px;
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: 18px 18px 18px 6px;
+  background: color-mix(in srgb, white 58%, transparent);
+}
+
+.browser-shell-v2__message--user {
+  justify-self: end;
+  border-radius: 18px 18px 6px 18px;
+  background: color-mix(in srgb, #d8ebff 70%, transparent);
+}
+
+.browser-shell-v2__message header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  color: var(--browser-shell-v2-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.browser-shell-v2__message p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.browser-shell-v2__detail-button {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: 999px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 48%, transparent);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 820;
+}
+
+.browser-shell-v2__detail {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+}
+
+.browser-shell-v2__detail strong,
+.browser-shell-v2__detail p {
+  margin: 0;
+}
+
+.browser-shell-v2__detail p:not(.browser-shell-v2__label) {
+  color: var(--browser-shell-v2-muted);
+}
+
+.browser-shell-v2__events {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.browser-shell-v2__events-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.browser-shell-v2__events-header small {
+  color: var(--browser-shell-v2-muted);
+  font-weight: 700;
+}
+
+.browser-shell-v2__events-header button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: 999px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 52%, transparent);
+  font: inherit;
+  font-weight: 820;
+}
+
+.browser-shell-v2__event-list {
+  display: grid;
+  gap: 7px;
+}
+
+.browser-shell-v2__event-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--browser-shell-v2-border) 62%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, white 32%, transparent);
+}
+
+.browser-shell-v2__event-list span {
+  font-weight: 760;
+}
+
+.browser-shell-v2__event-list small {
+  color: var(--browser-shell-v2-muted);
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.browser-shell-v2__search {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.browser-shell-v2__search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.browser-shell-v2__search-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.browser-shell-v2__search-form input,
+.browser-shell-v2__search-form button,
+.browser-shell-v2__search-results button {
+  min-height: 36px;
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: 999px;
+  font: inherit;
+}
+
+.browser-shell-v2__search-form input {
+  padding: 0 12px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 58%, transparent);
+}
+
+.browser-shell-v2__search-form button,
+.browser-shell-v2__search-results button {
+  padding: 0 12px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 52%, transparent);
+  font-weight: 820;
+}
+
+.browser-shell-v2__search-results {
+  display: grid;
+  gap: 8px;
+}
+
+.browser-shell-v2__search-results article {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--browser-shell-v2-border) 62%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, white 32%, transparent);
+}
+
+.browser-shell-v2__search-results p {
+  margin: 0;
+  color: var(--browser-shell-v2-muted);
+}
+
+.browser-shell-v2__issue,
+.browser-shell-v2__approval {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.browser-shell-v2__issue-form,
+.browser-shell-v2__approval-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.browser-shell-v2__approval-form {
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 160px) auto;
+}
+
+.browser-shell-v2__issue-form label,
+.browser-shell-v2__approval-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.browser-shell-v2__issue-form input,
+.browser-shell-v2__issue-form button,
+.browser-shell-v2__approval-form input,
+.browser-shell-v2__approval-form select,
+.browser-shell-v2__approval-form button {
+  min-height: 36px;
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: 999px;
+  font: inherit;
+}
+
+.browser-shell-v2__issue-form input,
+.browser-shell-v2__approval-form input,
+.browser-shell-v2__approval-form select {
+  padding: 0 12px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 58%, transparent);
+}
+
+.browser-shell-v2__issue-form button,
+.browser-shell-v2__approval-form button {
+  padding: 0 12px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, #ffe3b8 58%, transparent);
+  font-weight: 850;
+}
+
+.browser-shell-v2__issue-status,
+.browser-shell-v2__approval-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: var(--browser-shell-v2-muted);
+}
+
+.browser-shell-v2__controls {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.browser-shell-v2__control-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.browser-shell-v2__control-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.browser-shell-v2__control-form input,
+.browser-shell-v2__control-form button {
+  min-height: 36px;
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: 999px;
+  font: inherit;
+}
+
+.browser-shell-v2__control-form input {
+  padding: 0 12px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 58%, transparent);
+}
+
+.browser-shell-v2__control-form button {
+  padding: 0 12px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, #dcecff 58%, transparent);
+  font-weight: 850;
+}
+
+.browser-shell-v2__control-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: var(--browser-shell-v2-muted);
+}
+
+.browser-shell-v2__receipts {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.browser-shell-v2__receipts small {
+  color: var(--browser-shell-v2-muted);
+  font-weight: 700;
+}
+
+.browser-shell-v2__receipt-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.browser-shell-v2__receipt-list code {
+  max-width: 100%;
+  padding: 6px 9px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--browser-shell-v2-border) 62%, transparent);
+  border-radius: 999px;
+  color: var(--browser-shell-v2-muted);
+  background: color-mix(in srgb, white 36%, transparent);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browser-shell-v2__input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 12px;
+}
+
+.browser-shell-v2__input input,
+.browser-shell-v2__input button {
+  min-height: 44px;
+  border: 1px solid var(--browser-shell-v2-border);
+  border-radius: 999px;
+  font: inherit;
+}
+
+.browser-shell-v2__input input {
+  padding: 0 16px;
+  color: var(--browser-shell-v2-text);
+  background: color-mix(in srgb, white 70%, transparent);
+}
+
+.browser-shell-v2__input button {
+  padding: 0 18px;
+  color: white;
+  background: #1c6d58;
+  font-weight: 850;
+}
+
+@media (max-width: 760px) {
+  .browser-shell-v2 {
+    padding: 12px;
+  }
+
+  .browser-shell-v2__topbar,
+  .browser-shell-v2__workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .browser-shell-v2__topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .browser-shell-v2__status {
+    justify-items: start;
+  }
+
+  .browser-shell-v2__status small {
+    text-align: left;
+  }
+
+  .browser-shell-v2__message,
+  .browser-shell-v2__empty {
+    max-width: 100%;
+  }
+}

@@ -10,6 +10,7 @@ const ROOT = process.cwd();
 const DEFAULT_SOCKET_CONTRACT = 'shell/socket/contract/shell_socket_contract.json';
 const DEFAULT_ROUTE_CONTRACT = 'validation/conformance/contracts/shell_socket_gateway_contract.json';
 const DEFAULT_GATEWAY_CONTRACT = 'client/runtime/config/gateway_ingress_egress_contract.json';
+const DEFAULT_SHELL_SOCKET_IMPL = 'core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/shell_socket.rs';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_socket_gateway_route_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_SOCKET_GATEWAY_ROUTE_GUARD_CURRENT.md';
 
@@ -98,6 +99,7 @@ const REQUIRED_MISSING_ROUTE_POLICY = [
 ];
 
 const HTTP_PATTERN = /^(GET|POST|PUT|PATCH|DELETE) \/api\/shell-socket(\/|\?|$)/;
+const SHELL_SOCKET_SEARCH_FN_PATTERN = /fn\s+shell_socket_search\b[\s\S]*?\n}\n\nfn\s+shell_socket_ingress_ack\b/;
 
 function abs(relPath: string): string {
   return path.resolve(ROOT, relPath);
@@ -109,6 +111,10 @@ function exists(relPath: string): boolean {
 
 function readJson<T>(relPath: string): T {
   return JSON.parse(fs.readFileSync(abs(relPath), 'utf8')) as T;
+}
+
+function readText(relPath: string): string {
+  return fs.readFileSync(abs(relPath), 'utf8');
 }
 
 function clone<T>(value: T): T {
@@ -229,6 +235,35 @@ function validateRoutes(socket: SocketContract, routeContract: RouteContract, al
   }
 }
 
+function validateShellSocketImplementation(implPath: string, violations: Violation[]): void {
+  if (!exists(implPath)) {
+    push(violations, 'missing_shell_socket_impl', implPath, 'Missing Shell Socket Gateway implementation file.');
+    return;
+  }
+  const source = readText(implPath);
+  const searchFn = source.match(SHELL_SOCKET_SEARCH_FN_PATTERN)?.[0] || '';
+  if (!searchFn) {
+    push(violations, 'missing_shell_socket_search_impl', implPath, 'Missing shell_socket_search implementation.');
+    return;
+  }
+  if (searchFn.includes('dashboard_internal_search::search_conversations') || searchFn.includes('search_conversations(')) {
+    push(
+      violations,
+      'shell_socket_search_uses_legacy_full_conversation_search',
+      implPath,
+      'Shell Socket search must use bounded projection indexes and must not call the legacy full conversation search path.',
+    );
+  }
+  if (!searchFn.includes('build_sidebar_agent_roster_fast') || !searchFn.includes('compact_sidebar_roster_rows')) {
+    push(
+      violations,
+      'shell_socket_search_not_projection_bounded',
+      implPath,
+      'Shell Socket search must stay bound to the compact roster projection path until a dedicated bounded index owner exists.',
+    );
+  }
+}
+
 function renderMarkdown(report: any): string {
   const lines = [
     '# Shell Socket Gateway Route Guard',
@@ -252,6 +287,7 @@ const strict = common.strict;
 const socketPath = cleanText(readFlag(argv, 'socket-contract') || DEFAULT_SOCKET_CONTRACT, 600);
 const routePath = cleanText(readFlag(argv, 'route-contract') || DEFAULT_ROUTE_CONTRACT, 600);
 const gatewayPath = cleanText(readFlag(argv, 'gateway-contract') || DEFAULT_GATEWAY_CONTRACT, 600);
+const implPath = cleanText(readFlag(argv, 'shell-socket-impl') || DEFAULT_SHELL_SOCKET_IMPL, 600);
 const outJson = cleanText(readFlag(argv, 'out-json') || common.out || DEFAULT_OUT_JSON, 600);
 const outMarkdown = cleanText(readFlag(argv, 'out-markdown') || DEFAULT_OUT_MARKDOWN, 600);
 const includeControlledViolation = parseBool(readFlag(argv, 'include-controlled-violation'), false);
@@ -270,6 +306,7 @@ validateMetadata(routeContract, routePath, socketPath, violations);
 const allowedRouteClasses = validateGatewayAlignment(routeContract, gateway, routePath, violations);
 validateRouteCoverage(socket, routeContract, routePath, violations);
 validateRoutes(socket, routeContract, allowedRouteClasses, routePath, violations);
+validateShellSocketImplementation(implPath, violations);
 
 const report = {
   ok: violations.length === 0,
@@ -278,6 +315,7 @@ const report = {
   socket_contract_path: socketPath,
   route_contract_path: routePath,
   gateway_contract_path: gatewayPath,
+  shell_socket_impl_path: implPath,
   capability_count: socket.capabilities?.length || 0,
   route_mapping_count: routeContract.route_mappings?.length || 0,
   violations,

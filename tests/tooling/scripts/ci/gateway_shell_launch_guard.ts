@@ -17,10 +17,12 @@ const REQUIRED_TOKENS = [
   'INFRING_GATEWAY_DEFAULT_SHELL',
   'INFRING_GATEWAY_FALLBACK_SHELL',
   'INFRING_GATEWAY_LAUNCH_ON_START=1',
-  '--shell=ui|terminal|legacy-ui|none',
+  '--shell=ui|ui-v2|terminal|legacy-ui|none',
   'infring_gateway_select_shell',
   'infring_gateway_configured_shell',
   'infring_gateway_launch_terminal_shell',
+  'infring_gateway_prepare_browser_v2_shell',
+  'browser_shell_v2_server.ts',
   'terminal_shell.ts',
   '--interactive=1',
   'INFRING_DASHBOARD_OPEN_ON_START=0',
@@ -42,8 +44,9 @@ function push(violations: Violation[], kind: string, pathRel: string, detail: st
 function mutateControlled(source: string): string {
   return source
     .replace('infring_gateway_launch_terminal_shell', 'infring_gateway_launch_term_removed')
+    .replace('infring_gateway_prepare_browser_v2_shell', 'infring_gateway_prepare_browser_v2_removed')
     .replace('INFRING_DASHBOARD_OPEN_ON_START=0', 'INFRING_DASHBOARD_OPEN_ON_START=1')
-    .replace('--shell=ui|terminal|legacy-ui|none', '--shell=ui');
+    .replace('--shell=ui|ui-v2|terminal|legacy-ui|none', '--shell=ui');
 }
 
 function validate(source: string, installerPath: string): Violation[] {
@@ -54,7 +57,7 @@ function validate(source: string, installerPath: string): Violation[] {
   if (!source.includes('write_shell_launch_config "$WORKSPACE_DIR"')) {
     push(violations, 'missing_setup_config_write', installerPath, 'Installer must write the setup shell default config.');
   }
-  if (!source.includes('gateway_shell_override') || !source.includes('--terminal-shell|--terminal') || !source.includes('--no-shell')) {
+  if (!source.includes('gateway_shell_override') || !source.includes('--terminal-shell|--terminal') || !source.includes('--ui-v2-shell|--ui-v2') || !source.includes('--no-shell')) {
     push(violations, 'missing_gateway_shell_override_parse', installerPath, 'Gateway wrapper must parse explicit shell override flags.');
   }
   if (!source.includes('infring_gateway_shell_uses_browser "$gateway_selected_shell"')) {
@@ -62,6 +65,9 @@ function validate(source: string, installerPath: string): Violation[] {
   }
   if (!source.includes('echo "[infring gateway] shell: terminal"')) {
     push(violations, 'missing_terminal_shell_receipt', installerPath, 'Terminal launch must emit an operator-visible shell receipt.');
+  }
+  if (!source.includes('echo "[infring gateway] shell: ${shell_mode}"') || !source.includes('INFRING_BROWSER_SHELL_V2_PORT:-5273')) {
+    push(violations, 'missing_browser_v2_shell_launch_receipt', installerPath, 'Browser Shell V2 launch must emit a shell receipt and use an isolated V2 port.');
   }
   return violations;
 }
@@ -78,6 +84,7 @@ function markdown(installerPath: string, violations: Violation[]): string {
   if (violations.length === 0) {
     lines.push('- `infring gateway` has setup-configured shell selection.');
     lines.push('- `--shell=terminal` disables browser auto-open and launches Terminal Shell through the Shell Socket.');
+    lines.push('- `--shell=ui-v2` launches the clean Browser Shell V2 server without using the legacy dashboard host.');
   } else {
     for (const violation of violations) lines.push(`- ${violation.kind}: ${violation.path} - ${violation.detail}`);
   }

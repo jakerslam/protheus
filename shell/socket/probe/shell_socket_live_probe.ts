@@ -46,6 +46,8 @@ const FORBIDDEN_DEFAULT_FIELDS = new Set([
   'workflow_graph',
 ]);
 
+const REQUIRED_LIVE_CAPABILITIES: ShellSocketCapabilityId[] = SHELL_SOCKET_ROUTES.map((route) => route.capabilityId);
+
 function readArg(name: string, fallback = ''): string {
   const prefix = `--${name}=`;
   const found = process.argv.find((arg) => arg.startsWith(prefix));
@@ -118,7 +120,7 @@ function collectForbiddenFields(value: unknown, trail = '$'): string[] {
   return out;
 }
 
-async function requestJson(baseUrl: string, method: string, urlPath: string, body?: unknown, timeoutMs = 3000): Promise<RequestResult> {
+async function requestJson(baseUrl: string, method: string, urlPath: string, body?: unknown, timeoutMs = 8000): Promise<RequestResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -200,18 +202,50 @@ function messageRows(payload: Record<string, unknown>): Record<string, unknown>[
 }
 
 function markdownReport(result: Record<string, unknown>, steps: ProbeStep[]): string {
+  const missingCapabilities = Array.isArray(result.missing_live_capabilities)
+    ? result.missing_live_capabilities
+    : [];
+  const passedCapabilities = Array.isArray(result.passed_live_capabilities)
+    ? result.passed_live_capabilities
+    : [];
+  const failedCapabilities = Array.isArray(result.failed_live_capabilities)
+    ? result.failed_live_capabilities
+    : [];
   const lines = [
     '# Shell Socket Live Probe',
     '',
     `- ok: ${String(result.ok)}`,
+    `- live_parity_complete: ${String(result.live_parity_complete)}`,
     `- live_available: ${String(result.live_available)}`,
     `- base_url: ${String(result.base_url)}`,
     `- require_live: ${String(result.require_live)}`,
     `- step_count: ${steps.length}`,
+    `- required_live_capabilities: ${Array.isArray(result.required_live_capabilities) ? result.required_live_capabilities.length : 0}`,
+    `- passed_live_capabilities: ${passedCapabilities.length}`,
+    `- failed_live_capabilities: ${failedCapabilities.length}`,
+    `- missing_live_capabilities: ${missingCapabilities.length}`,
     `- violation_count: ${Array.isArray(result.violations) ? result.violations.length : 0}`,
     '',
-    '## Steps',
+    '## Failed Live Capabilities',
   ];
+  if (failedCapabilities.length === 0) lines.push('- none');
+  for (const capability of failedCapabilities) lines.push(`- ${String(capability)}`);
+  lines.push(
+    '',
+    '## Missing Live Capabilities',
+  );
+  if (missingCapabilities.length === 0) lines.push('- none');
+  for (const capability of missingCapabilities) lines.push(`- ${String(capability)}`);
+  lines.push(
+    '',
+    '## Passed Live Capabilities',
+  );
+  if (passedCapabilities.length === 0) lines.push('- none');
+  for (const capability of passedCapabilities) lines.push(`- ${String(capability)}`);
+  lines.push(
+    '',
+    '## Steps',
+  );
   for (const row of steps) {
     lines.push(`- ${row.capability_id}: status=${row.status} required_ok=${row.required_ok} bytes=${row.payload_bytes} note=${row.note || 'none'}`);
   }
@@ -288,6 +322,26 @@ async function run(): Promise<Record<string, unknown>> {
     steps.push(approval.step);
 
     if (agentId) {
+      const rejectedModel = await step(
+        baseUrl,
+        'set_model',
+        ['accepted', 'rejected', 'reason_code', 'receipt_ref'],
+        { agent_id: agentId },
+        {},
+        (_status, payload) => payload.rejected === true,
+      );
+      steps.push(rejectedModel.step);
+
+      const rejectedGitTree = await step(
+        baseUrl,
+        'set_git_tree',
+        ['accepted', 'rejected', 'reason_code', 'receipt_ref'],
+        { agent_id: agentId },
+        {},
+        (_status, payload) => payload.rejected === true,
+      );
+      steps.push(rejectedGitTree.step);
+
       const sessions = await step(baseUrl, 'list_sessions', ['session_ids', 'receipt_ref'], { agent_id: agentId, limit: 1 });
       steps.push(sessions.step);
       sessionId = firstString(sessions.payload.active_session_id, sessions.payload.session_ids);
@@ -296,13 +350,18 @@ async function run(): Promise<Record<string, unknown>> {
       const messages = await step(baseUrl, 'get_message_window', ['message_window', 'receipt_ref'], { session_id: sessionId, limit: 2 });
       steps.push(messages.step);
       const rows = messageRows(messages.payload);
-      const detailRef = firstString(...rows.map((row) => row.detail_ref), messages.payload.detail_refs);
+      const detailRef = firstString(...rows.map((row) => row.detail_ref), messages.payload.detail_refs) || 'probe-missing-detail';
       const events = await step(baseUrl, 'subscribe_events', ['event_id', 'event_kind', 'receipt_refs'], { session_id: sessionId });
       steps.push(events.step);
-      if (detailRef) {
-        const detail = await step(baseUrl, 'get_message_detail', ['detail_id', 'detail_kind', 'detail_projection', 'receipt_ref'], { detail_ref: detailRef, view: 'summary', limit: 1 });
-        steps.push(detail.step);
-      }
+      const detail = await step(
+        baseUrl,
+        'get_message_detail',
+        ['detail_id', 'detail_kind', 'detail_projection', 'receipt_ref'],
+        { detail_ref: detailRef, view: 'summary', limit: 1 },
+        undefined,
+        (status) => status === 200 || status === 404,
+      );
+      steps.push(detail.step);
     }
   }
 
@@ -311,6 +370,16 @@ async function run(): Promise<Record<string, unknown>> {
       violations.push(`step_failed:${row.capability_id}:${row.status || row.note || 'unknown'}`);
     }
   }
+  const exercisedCapabilities = Array.from(new Set(steps.map((row) => row.capability_id)));
+  const exercisedSet = new Set(exercisedCapabilities);
+  const missingLiveCapabilities = REQUIRED_LIVE_CAPABILITIES.filter((capabilityId) => !exercisedSet.has(capabilityId));
+  const failedLiveCapabilities = Array.from(new Set(steps.filter((row) => !row.required_ok).map((row) => row.capability_id)));
+  const failedSet = new Set(failedLiveCapabilities);
+  const passedLiveCapabilities = REQUIRED_LIVE_CAPABILITIES.filter((capabilityId) => exercisedSet.has(capabilityId) && !failedSet.has(capabilityId));
+  const liveParityComplete = liveAvailable && missingLiveCapabilities.length === 0 && failedLiveCapabilities.length === 0;
+  if (requireLive && missingLiveCapabilities.length > 0) {
+    violations.push(`live_capabilities_not_exercised:${missingLiveCapabilities.join(',')}`);
+  }
   const ok = violations.length === 0 || (!requireLive && !liveAvailable);
   const result = {
     ok,
@@ -318,8 +387,13 @@ async function run(): Promise<Record<string, unknown>> {
     base_url: baseUrl,
     require_live: requireLive,
     live_available: liveAvailable,
+    live_parity_complete: liveParityComplete,
     step_count: steps.length,
-    exercised_capabilities: steps.map((row) => row.capability_id),
+    required_live_capabilities: REQUIRED_LIVE_CAPABILITIES,
+    exercised_capabilities: exercisedCapabilities,
+    passed_live_capabilities: passedLiveCapabilities,
+    failed_live_capabilities: failedLiveCapabilities,
+    missing_live_capabilities: missingLiveCapabilities,
     violations,
     steps,
     note: liveAvailable

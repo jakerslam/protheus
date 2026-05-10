@@ -215,7 +215,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
   };
 }
 
-if (process.argv.some((arg) => arg === '--self-test=1' || arg === '--self-test')) {
+if (typeof process !== 'undefined' && Array.isArray(process.argv) && process.argv.some((arg) => arg === '--self-test=1' || arg === '--self-test')) {
   const result = shellSocketClientSelfTest();
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.ok ? 0 : 1;
