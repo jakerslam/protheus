@@ -419,10 +419,14 @@ fn web_tool_quality_report(
             "query_strategy_hints": [
                 "preserve the user's original research objective",
                 "split broad requests into entity-specific or aspect-specific searches",
+                "keep query packs concise; choose the strongest 4-6 query angles instead of an exhaustive entity-by-source-class cross product",
+                "for open-ended discovery, start with category plus source-class or candidate-discovery searches before candidate-specific searches",
                 "target primary, official, source-backed, or directly citable pages when possible",
                 "use partial snippets, failure reasons, and off-topic signals to remove weak terms",
                 "for current or recent research, prefer current/recent source-class searches such as changelog, release notes, repository, publication, announcement, security advisory, or methodology over broad stale year ranges",
                 "for one named entity, keep the exact entity name in every retry query and vary source class or decision aspect rather than replacing it with loose synonyms",
+                "for fused or camelcase entity names, include the exact token and a readable spaced or alias variant alongside source-class terms",
+                "for sparse benchmark research, search benchmark results, leaderboards or evaluation suites, methodology and reproducibility, and practical evaluation criteria",
                 "prefer another agent-submitted query pack before asking the user to narrow"
             ],
             "next_action": if retry_reason == "none" {

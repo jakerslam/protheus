@@ -354,6 +354,10 @@ mod web_quality_diagnostics_tests {
             .join(" ");
         assert!(hints.contains("stale year ranges"), "{hints}");
         assert!(hints.contains("exact entity name"), "{hints}");
+        assert!(hints.contains("4-6 query angles"), "{hints}");
+        assert!(hints.contains("candidate-discovery"), "{hints}");
+        assert!(hints.contains("camelcase"), "{hints}");
+        assert!(hints.contains("leaderboards"), "{hints}");
         assert_eq!(
             out.pointer("/tool_result_quality/freshness/current_intent")
                 .and_then(Value::as_bool),
