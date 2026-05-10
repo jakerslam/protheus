@@ -506,6 +506,75 @@ fn research_golden_grades_low_signal_evidence_as_low_evidence_synthesis() {
 }
 
 #[test]
+fn research_golden_accepts_no_results_retrieval_failure_as_low_evidence_synthesis() {
+    let root = temp_path("research_golden_no_results_low_evidence");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "The web search returned no directly relevant results for this query and the evidence is limited. That retrieval failure is not evidence that Infring and LangGraph are equivalent. The attempted search covered official docs and comparison terms, but returned zero candidate snippets or evidence refs, so I cannot cite a source-backed winner. Bounded conclusion: use this only as a low-evidence signal, retry with narrower source targets, and avoid treating the absence of retrievable evidence as a product judgment.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "web_search",
+                        "selected_tool_family": "Web Search / Fetch",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "no_results",
+                        "raw_results": [{
+                            "title": "No usable result",
+                            "snippet": "No results were returned for the query."
+                        }],
+                        "result": "No results: provider returned no usable source snippets.",
+                        "evidence_refs": [
+                            {"title": "No usable result", "locator": "tool:no-results", "score": 0.0}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:no_results+synthesized",
+                        "tool_completion": {
+                            "completion_state": "no_results",
+                            "findings_available": false,
+                            "evidence_refs_used": ["tool:no-results"]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    let checkpoints = report
+        .pointer("/cases/0/gate_transition_diagnostics/checkpoints")
+        .and_then(Value::as_array)
+        .expect("checkpoints");
+    let gate_6a = checkpoints
+        .iter()
+        .find(|row| {
+            row.get("checkpoint").and_then(Value::as_str)
+                == Some("6a_synthesis_uses_evidence_or_low_evidence_fallback")
+        })
+        .expect("6a checkpoint");
+    assert_eq!(gate_6a.get("status").and_then(Value::as_str), Some("pass"));
+    assert_ne!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_class")
+            .and_then(Value::as_str),
+        Some("low_signal_not_acknowledged")
+    );
+}
+
+#[test]
 fn research_golden_allows_post_tool_synthesis_without_fresh_request_candidate() {
     let root = temp_path("research_golden_post_tool_no_fresh_candidate");
     let cases = root.join("cases.json");
