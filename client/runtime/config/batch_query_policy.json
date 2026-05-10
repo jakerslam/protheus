@@ -15,6 +15,10 @@
       "min_link_score": 0.08,
       "trigger": "low_or_empty_candidates"
     },
+    "structured_results": {
+      "enabled": true,
+      "max_rows_per_stage": 12
+    },
     "quality_gate": {
       "enabled": true,
       "provider_recovery": {

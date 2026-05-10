@@ -96,6 +96,10 @@ fn default_policy() -> Value {
                 "min_link_score": 0.08,
                 "trigger": "low_or_empty_candidates"
             },
+            "structured_results": {
+                "enabled": true,
+                "max_rows_per_stage": 12
+            },
             "quality_gate": {
                 "enabled": true,
                 "provider_recovery": {
@@ -307,6 +311,21 @@ fn page_extraction_min_link_score(policy: &Value) -> f64 {
         .and_then(Value::as_f64)
         .unwrap_or(0.08)
         .clamp(-1.0, 1.0)
+}
+
+fn structured_results_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/structured_results/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn structured_results_max_rows_per_stage(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/structured_results/max_rows_per_stage")
+        .and_then(Value::as_u64)
+        .unwrap_or(12)
+        .clamp(0, 40) as usize
 }
 
 #[cfg(test)]

@@ -57,6 +57,247 @@ fn candidate_from_rendered_search_row(
     })
 }
 
+fn structured_result_collection_key(key: &str) -> bool {
+    matches!(
+        key.to_ascii_lowercase().as_str(),
+        "web" | "news" | "results" | "items" | "organic" | "documents" | "data" | "links"
+    )
+}
+
+fn structured_result_source_kind(key: &str, fallback: &str) -> String {
+    match key.to_ascii_lowercase().as_str() {
+        "web" | "news" | "images" | "image" | "document" | "documents" => {
+            key.to_ascii_lowercase()
+        }
+        _ => fallback.to_string(),
+    }
+}
+
+fn object_string_field(map: &Map<String, Value>, keys: &[&str], max_len: usize) -> String {
+    for key in keys {
+        if let Some(value) = map.get(*key).and_then(Value::as_str) {
+            let cleaned = clean_text(value, max_len);
+            if !cleaned.is_empty() {
+                return cleaned;
+            }
+        }
+    }
+    String::new()
+}
+
+fn nested_metadata_string_field(
+    map: &Map<String, Value>,
+    keys: &[&str],
+    max_len: usize,
+) -> String {
+    map.get("metadata")
+        .and_then(Value::as_object)
+        .map(|metadata| object_string_field(metadata, keys, max_len))
+        .unwrap_or_default()
+}
+
+fn structured_result_locator(map: &Map<String, Value>) -> String {
+    let direct = object_string_field(
+        map,
+        &["url", "link", "href", "source", "sourceURL", "requested_url", "locator"],
+        2_200,
+    );
+    if !direct.is_empty() {
+        return direct;
+    }
+    nested_metadata_string_field(
+        map,
+        &["url", "sourceURL", "ogUrl", "canonical", "requested_url"],
+        2_200,
+    )
+}
+
+fn structured_result_status_code(map: &Map<String, Value>) -> i64 {
+    for key in ["status_code", "statusCode", "code"] {
+        if let Some(value) = map.get(key).and_then(Value::as_i64) {
+            return value;
+        }
+    }
+    map.get("metadata")
+        .and_then(Value::as_object)
+        .and_then(|metadata| {
+            ["status_code", "statusCode", "code"]
+                .iter()
+                .find_map(|key| metadata.get(*key).and_then(Value::as_i64))
+        })
+        .unwrap_or(0)
+}
+
+fn candidate_from_structured_result_object(
+    _query: &str,
+    source_kind: &str,
+    map: &Map<String, Value>,
+) -> Option<Candidate> {
+    let locator = structured_result_locator(map);
+    if locator.is_empty() {
+        return None;
+    }
+    let domain = extract_domains_from_text(&locator, 1)
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    if domain.is_empty() || is_search_engine_domain(&domain) {
+        return None;
+    }
+    let title = {
+        let direct = object_string_field(map, &["title", "name", "headline"], 240);
+        if !direct.is_empty() {
+            direct
+        } else {
+            let metadata_title =
+                nested_metadata_string_field(map, &["title", "ogTitle"], 240);
+            if metadata_title.is_empty() {
+                format!("Web result from {}", clean_text(&domain, 120))
+            } else {
+                metadata_title
+            }
+        }
+    };
+    let raw_snippet = object_string_field(
+        map,
+        &[
+            "description",
+            "snippet",
+            "summary",
+            "markdown",
+            "content",
+            "text",
+            "answer",
+            "alt",
+        ],
+        6_000,
+    );
+    let metadata_description =
+        nested_metadata_string_field(map, &["description", "ogDescription"], 1_200);
+    let snippet_seed = if raw_snippet.is_empty() {
+        metadata_description
+    } else {
+        raw_snippet
+    };
+    let snippet = trim_words(
+        &normalize_htmlish_content_for_snippet(&clean_text(&snippet_seed, 6_000)),
+        72,
+    );
+    if snippet.is_empty()
+        || looks_like_ack_only(&snippet)
+        || looks_like_low_signal_search_summary(&snippet)
+        || looks_like_source_only_snippet(&snippet)
+    {
+        return None;
+    }
+    let excerpt_seed = format!("{title} {snippet}");
+    Some(Candidate {
+        source_kind: clean_text(source_kind, 80),
+        title,
+        locator,
+        snippet,
+        excerpt_hash: sha256_hex(&excerpt_seed),
+        timestamp: Some(crate::now_iso()),
+        permissions: Some("public_web".to_string()),
+        status_code: structured_result_status_code(map),
+    })
+}
+
+fn collect_structured_search_candidates_from_value(
+    query: &str,
+    value: &Value,
+    source_kind: &str,
+    in_collection: bool,
+    depth: usize,
+    max_rows: usize,
+    out: &mut Vec<Candidate>,
+) {
+    if out.len() >= max_rows || depth > 6 {
+        return;
+    }
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                collect_structured_search_candidates_from_value(
+                    query,
+                    row,
+                    source_kind,
+                    in_collection,
+                    depth + 1,
+                    max_rows,
+                    out,
+                );
+                if out.len() >= max_rows {
+                    break;
+                }
+            }
+        }
+        Value::Object(map) => {
+            if in_collection {
+                if let Some(candidate) =
+                    candidate_from_structured_result_object(query, source_kind, map)
+                {
+                    out.push(candidate);
+                    if out.len() >= max_rows {
+                        return;
+                    }
+                }
+            }
+            for (key, child) in map {
+                if !child.is_array() && !child.is_object() {
+                    continue;
+                }
+                let child_source_kind = structured_result_source_kind(key, source_kind);
+                let child_in_collection = in_collection || structured_result_collection_key(key);
+                collect_structured_search_candidates_from_value(
+                    query,
+                    child,
+                    &child_source_kind,
+                    child_in_collection,
+                    depth + 1,
+                    max_rows,
+                    out,
+                );
+                if out.len() >= max_rows {
+                    break;
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn candidates_from_structured_search_payload(
+    query: &str,
+    payload: &Value,
+    max_rows: usize,
+) -> Vec<Candidate> {
+    if max_rows == 0 {
+        return Vec::new();
+    }
+    let mut out = Vec::<Candidate>::new();
+    collect_structured_search_candidates_from_value(
+        query,
+        payload,
+        "web",
+        false,
+        0,
+        max_rows,
+        &mut out,
+    );
+    let mut seen = HashSet::<String>::new();
+    out.retain(|candidate| {
+        let key = format!(
+            "{}|{}|{}",
+            candidate.locator.to_ascii_lowercase(),
+            candidate.title.to_ascii_lowercase(),
+            candidate.excerpt_hash
+        );
+        seen.insert(key)
+    });
+    out
+}
+
 fn candidates_from_rendered_search_payload(
     query: &str,
     payload: &Value,

@@ -67,6 +67,12 @@ This ledger is intentionally about portable patterns, not copied source or provi
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/build-prompts.ts` | parsed | intent-preserving query/rerank prompts | Extracted separation between SERP query phrasing, pre-rerank intent phrasing, and extraction instructions. Useful guidance: preserve intent and keep page content untrusted; do not force final answer format. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/document-scraper.ts` | parsed | queued scrape document contract | Extracted queued page scrape with blocked URL check, trace timing/status/contentStats, single URL double-timeout retry, and queue cleanup. Useful for async page extraction trace, not first-turn web search hardcoding. |
 | `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/extract/helpers/source-tracker.ts` | parsed | extraction provenance through merge/dedupe | Extracted per-item source tracking through transformation, pre-dedupe mapping, and final merged item source mapping. Pattern is useful for claim/evidence provenance, not for forcing output shape. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/search/scrape.test.ts` | parsed | search-plus-scrape test contract | Extracted the requirement that search-attached scrape jobs preserve metadata and may partially fail while still returning useful markdown for at least some results. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/snips/v2/search.test.ts` | parsed | structured search result lanes | Extracted `web`, `news`, and `images` as separately bounded result lanes, include-domain behavior, and partial scrape tolerance. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/__tests__/lib/search-query-builder.test.ts` | parsed | request-owned source constraints | Confirmed include/exclude domain filters and category maps are request/policy concerns. We used this for scope bridging, not for copying default research domain lists. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/services/worker/scrape-worker.ts` | parsed | scrape worker lifecycle | Extracted timeout/abort, redirect filtering, dedupe/lock, discovered-link enqueue, billing metadata, and document metadata preservation. Useful for long-running crawl jobs, not first-turn search hardcoding. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/deep-research/research-manager.ts` | parsed | iterative research loop | Extracted query generation from findings, gap analysis, max failed attempts, and final synthesis from accumulated findings. Pattern maps to a future multi-turn research workflow CD, not a fixed prompt route. |
+| `/Users/jay/.openclaw/workspace/local/workspace/shadow/external-repos/firecrawl/apps/api/src/lib/deep-research/deep-research-service.ts` | parsed | parallel searches plus seen-URL filtering | Extracted bounded depth, parallel query execution, unique URL tracking, source list retention, gap-driven continuation, and final synthesis as the end state. |
 
 ## Repo Surfaces Pending
 
@@ -185,3 +191,30 @@ Expected effect:
 
 - Research workflows can now ask for broader retrieval while still constraining source families when the request already carries that intent.
 - This does not add domain-specific research behavior. It gives the agent and workflow CDs a cleaner primitive for source control when they choose to use it.
+
+### `FIRECRAWL-LIVE-005`: structured search-result candidate pools
+
+Pattern source: `FIRECRAWL-PATTERN-001`, `FIRECRAWL-PATTERN-003`, and `FIRECRAWL-PATTERN-006`, primarily from `apps/api/src/__tests__/snips/v2/search.test.ts`, `apps/api/src/search/scrape.ts`, and the SDK search result contracts.
+
+Target behavior:
+
+- Accept AI-friendly provider payloads that already contain structured result arrays.
+- Preserve result lanes such as web/news/documents as candidate metadata.
+- Prefer many structured candidates plus downstream filtering over one lossy summary string.
+- Keep the row budget policy-owned.
+- Avoid any domain-specific answer behavior or final response format rules.
+
+Current status: implemented first slice.
+
+Implementation:
+
+- Added `batch_query.structured_results` policy fields for enablement and max rows per stage.
+- Added generic structured-result extraction from arrays such as `web`, `news`, `results`, `items`, `organic`, `documents`, `data`, and `links`.
+- Candidate extraction reads common row fields (`url`/`link`/`href`, title/name/headline, description/snippet/markdown/content/text) and metadata fallbacks without assuming a specific provider.
+- Structured candidates now feed the same eligibility, scoring, dedupe, evidence, and synthesis path as rendered search rows.
+- Added tests proving structured Firecrawl-style payloads produce candidates and can synthesize even when the wrapper summary is low-signal.
+
+Expected effect:
+
+- A future Firecrawl-like provider adapter can return `web` rows with markdown/metadata directly, and batch query will consume them as evidence instead of discarding them behind a low-signal wrapper summary.
+- This improves the high-volume-filtering path without changing user-facing output format or adding prompt/domain hardcoding.

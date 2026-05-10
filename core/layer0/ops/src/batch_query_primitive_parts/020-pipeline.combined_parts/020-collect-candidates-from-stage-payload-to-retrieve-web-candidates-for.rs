@@ -20,6 +20,19 @@ fn collect_candidates_from_stage_payload(
             format!("{stage}:{suffix}")
         }
     };
+    if structured_results_enabled(policy) {
+        for candidate in candidates_from_structured_search_payload(
+            query,
+            payload,
+            structured_results_max_rows_per_stage(policy),
+        ) {
+            if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                candidates.push(candidate);
+            } else {
+                issues.push(low_relevance_issue(&candidate, "candidate_low_relevance"));
+            }
+        }
+    }
     let rendered_rows = candidates_from_rendered_search_payload(
         query,
         payload,

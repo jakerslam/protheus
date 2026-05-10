@@ -456,6 +456,81 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn structured_search_payload_arrays_become_candidates() {
+        let query = "scientific breakthroughs 2026";
+        let rows = candidates_from_structured_search_payload(
+            query,
+            &json!({
+                "ok": true,
+                "summary": "low-signal wrapper",
+                "web": [
+                    {
+                        "url": "https://science.example.org/breakthroughs-2026",
+                        "title": "Scientific breakthroughs in 2026",
+                        "description": "Scientific breakthroughs in 2026 include source-backed publication updates and laboratory announcements."
+                    }
+                ],
+                "news": [
+                    {
+                        "link": "https://news.example.org/science-2026",
+                        "headline": "Science news roundup",
+                        "snippet": "A current 2026 science roundup tracks research announcements, publications, and verified institutional sources."
+                    }
+                ]
+            }),
+            4,
+        );
+        assert_eq!(rows.len(), 2, "{rows:#?}");
+        assert!(rows.iter().any(|row| row.source_kind == "web"), "{rows:#?}");
+        assert!(rows.iter().any(|row| row.source_kind == "news"), "{rows:#?}");
+        assert!(
+            rows.iter()
+                .any(|row| row.snippet.contains("Scientific breakthroughs")),
+            "{rows:#?}"
+        );
+    }
+
+    #[test]
+    fn structured_search_results_can_synthesize_without_summary_shell() {
+        let query = "scientific breakthroughs 2026";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "No usable search results.",
+                    "web": [
+                        {
+                            "url": "https://science.example.org/breakthroughs-2026",
+                            "title": "Scientific breakthroughs in 2026",
+                            "description": "Scientific breakthroughs in 2026 include source-backed publication updates and laboratory announcements from research institutions."
+                        },
+                        {
+                            "url": "https://research.example.edu/2026-publications",
+                            "title": "2026 research publications",
+                            "description": "Research publications in 2026 report new scientific findings, methods, and evidence from public institutional sources."
+                        }
+                    ]
+                }
+            }),
+            query,
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"), "{out:#}");
+        assert_eq!(
+            out.pointer("/tool_result_quality/evidence_count")
+                .and_then(Value::as_u64),
+            Some(2),
+            "{out:#}"
+        );
+        assert!(
+            out.get("summary")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("science.example.org"),
+            "{out:#}"
+        );
+    }
+
+    #[test]
     fn quality_report_keeps_retry_query_authority_with_agent() {
         let out = run_query_with_fixture(
             json!({
