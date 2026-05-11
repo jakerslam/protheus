@@ -161,4 +161,5 @@ jobs:
           gh release create "${RELEASE_TAG}" \
             --title "${RELEASE_TAG}" \
             --notes "Automated ${BUMP_KIND} release for version ${NEXT_VERSION} from conventional commit prefixes." \
+            --latest \
             "${prerelease_args[@]}"
