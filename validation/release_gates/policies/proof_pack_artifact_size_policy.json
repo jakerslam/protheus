@@ -1,6 +1,6 @@
 {
   "type": "proof_pack_artifact_size_policy",
-  "schema_version": 1,
+  "schema_version": 2,
   "owner_domain": "validation.release_gates",
   "scope": [
     "validation/release_gates/proof_packs/**",
@@ -19,7 +19,16 @@
       "previous_artifact",
       "retention_policy",
       "operator_summary"
-    ]
+    ],
+    "release_gate_enforcement": {
+      "pre_assembly_guard_required": true,
+      "post_assembly_guard_required": true,
+      "assembler_must_compact_oversized_source_artifacts": true,
+      "oversized_existing_proof_pack_artifacts_block_release": true,
+      "oversized_existing_proof_pack_artifacts_may_be_replaced_by_compacted_refs": true,
+      "oversized_proof_pack_directories_block_release": true,
+      "guard_artifact": "core/local/artifacts/proof_pack_artifact_size_guard_current.json"
+    }
   },
   "allowed_large_artifact_patterns": [
     "manifest.json"

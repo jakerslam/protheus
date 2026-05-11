@@ -1,11 +1,13 @@
 {
   "type": "memory_runtime_security_closure_policy",
-  "schema_version": 2,
+  "schema_version": 3,
   "source_domain": "validation",
   "generated_at": "2026-05-11T00:00:00Z",
-  "purpose": "Prevent recurrence of memory-runtime CodeQL crypto/salt regressions that previously hid behind fallback values or unnamed hash domains.",
+  "purpose": "Prevent recurrence of CodeQL security alert classes recently closed in memory-runtime and adjacent validation/gateway tooling: crypto nonce/salt regressions, unsafe HTML tag filtering, user-controlled timer lifetimes, and incomplete markdown table escaping.",
   "source_roots": [
-    "core/layer0/memory_runtime/src"
+    "core/layer0/memory_runtime/src",
+    "tests/tooling/scripts/ci",
+    "adapters/runtime"
   ],
   "code_scanning_classes": [
     {
@@ -23,6 +25,45 @@
         "core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/**/*.rs"
       ],
       "closure_expectation": "Nonce parse errors must fail closed, and deterministic embedding hash domains must be symbolic/non-crypto rather than raw numeric salt arguments."
+    },
+    {
+      "id": "codeql_js_bad_tag_filter",
+      "tool": "CodeQL",
+      "rule_id": "js/bad-tag-filter",
+      "github_alert_ids": [
+        125
+      ],
+      "severity": "high",
+      "scope": [
+        "tests/tooling/scripts/ci/web_tooling_extraction_guard.ts"
+      ],
+      "closure_expectation": "HTML tag filters used by validation tooling must match end tags with optional whitespace and tag attributes, not only the narrow </tag> spelling."
+    },
+    {
+      "id": "codeql_js_resource_exhaustion_timer_duration",
+      "tool": "CodeQL",
+      "rule_id": "js/resource-exhaustion",
+      "github_alert_ids": [
+        123
+      ],
+      "severity": "high",
+      "scope": [
+        "adapters/runtime/infring_dashboard.ts"
+      ],
+      "closure_expectation": "Dashboard shutdown timers must normalize user-provided delay values through bounded min/max constants before setTimeout receives the duration."
+    },
+    {
+      "id": "codeql_js_incomplete_sanitization_markdown_table",
+      "tool": "CodeQL",
+      "rule_id": "js/incomplete-sanitization",
+      "github_alert_ids": [
+        109
+      ],
+      "severity": "high",
+      "scope": [
+        "tests/tooling/scripts/ci/todo_audit_full.ts"
+      ],
+      "closure_expectation": "Markdown table cells must escape backslashes before pipe escaping so generated audit tables cannot produce ambiguous escaped delimiters."
     }
   ],
   "required_checks": [
@@ -73,6 +114,67 @@
           "reason": "raw numeric embedding hash domains can reopen CodeQL alerts #120/#121"
         }
       ]
+    },
+    {
+      "id": "web_tooling_html_filter_end_tags_allow_whitespace",
+      "code_scanning_rule_id": "js/bad-tag-filter",
+      "github_alert_ids": [
+        125
+      ],
+      "path": "tests/tooling/scripts/ci/web_tooling_extraction_guard.ts",
+      "must_contain_all": [
+        "function sanitizeWebBody",
+        "out.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script\\s*>/gi",
+        "out.replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style\\s*>/gi",
+        "out.replace(/<noscript\\b[^>]*>[\\s\\S]*?<\\/noscript\\s*>/gi",
+        "<\\/function\\s*>"
+      ],
+      "must_not_contain_all": [
+        "out.replace(/<script[\\s\\S]*?<\\/script>/gi",
+        "out.replace(/<style[\\s\\S]*?<\\/style>/gi",
+        "out.replace(/<noscript[\\s\\S]*?<\\/noscript>/gi"
+      ]
+    },
+    {
+      "id": "dashboard_shutdown_timer_duration_is_bounded",
+      "code_scanning_rule_id": "js/resource-exhaustion",
+      "github_alert_ids": [
+        123
+      ],
+      "path": "adapters/runtime/infring_dashboard.ts",
+      "must_contain_all": [
+        "const DASHBOARD_SHUTDOWN_EXIT_DELAY_MIN_MS = 80;",
+        "const DASHBOARD_SHUTDOWN_EXIT_DELAY_MAX_MS = 5000;",
+        "function normalizeShutdownExitDelayMs(value)",
+        "const waitMs = normalizeShutdownExitDelayMs(normalizedDelayMs);",
+        "}, waitMs);"
+      ],
+      "must_not_match": [
+        {
+          "pattern": "setTimeout\\(\\s*\\(\\)\\s*=>[\\s\\S]{0,200}\\},\\s*normalizedDelayMs\\s*\\)",
+          "reason": "dashboard shutdown must not pass user-controlled normalizedDelayMs directly into setTimeout"
+        }
+      ]
+    },
+    {
+      "id": "todo_audit_markdown_table_cells_escape_backslashes",
+      "code_scanning_rule_id": "js/incomplete-sanitization",
+      "github_alert_ids": [
+        109
+      ],
+      "path": "tests/tooling/scripts/ci/todo_audit_full.ts",
+      "must_contain_all": [
+        "function markdownTableCell(value)",
+        ".replace(/\\\\/g, \"\\\\\\\\\")",
+        ".replace(/\\|/g, \"\\\\|\")",
+        "].map(markdownTableCell);"
+      ],
+      "must_not_match": [
+        {
+          "pattern": "\\$\\{\\(row\\.section \\|\\| \"\"\\)\\.replace\\(/\\\\\\|/g,\\s*\"\\\\\\\\\\|\"\\)\\}",
+          "reason": "inline pipe-only escaping can reopen CodeQL alert #109 because backslashes are not escaped first"
+        }
+      ]
     }
   ],
   "global_forbidden_patterns": [
@@ -103,6 +205,46 @@
       ],
       "pattern": "hash_token_slot\\(&token,\\s*[01]\\s*,\\s*dims\\)",
       "reason": "embedding hash domains must remain named and non-cryptographic"
+    },
+    {
+      "id": "validation_bad_html_script_filter_regression",
+      "code_scanning_rule_id": "js/bad-tag-filter",
+      "github_alert_ids": [
+        125
+      ],
+      "root": "tests/tooling/scripts/ci",
+      "include_extensions": [
+        ".ts"
+      ],
+      "pattern": "out\\.replace\\(/<script\\[\\\\s\\\\S\\]\\*\\?<\\\\/script>/gi",
+      "reason": "script tag filters must accept optional whitespace in closing tags and tag attributes"
+    },
+    {
+      "id": "dashboard_shutdown_direct_user_timer_regression",
+      "code_scanning_rule_id": "js/resource-exhaustion",
+      "github_alert_ids": [
+        123
+      ],
+      "root": "adapters/runtime",
+      "include_extensions": [
+        ".ts",
+        ".js"
+      ],
+      "pattern": "setTimeout\\(\\s*\\(\\)\\s*=>[\\s\\S]{0,200}\\},\\s*normalizedDelayMs\\s*\\)",
+      "reason": "dashboard timers must use normalized bounded durations, not user-provided values directly"
+    },
+    {
+      "id": "todo_audit_inline_pipe_only_escape_regression",
+      "code_scanning_rule_id": "js/incomplete-sanitization",
+      "github_alert_ids": [
+        109
+      ],
+      "root": "tests/tooling/scripts/ci",
+      "include_extensions": [
+        ".ts"
+      ],
+      "pattern": "\\$\\{\\(row\\.section \\|\\| \"\"\\)\\.replace\\(/\\\\\\|/g,\\s*\"\\\\\\\\\\|\"\\)\\}",
+      "reason": "generated markdown cells must escape backslashes before pipes through markdownTableCell()"
     }
   ],
   "release_artifact": "core/local/artifacts/memory_runtime_security_closure_guard_current.json"

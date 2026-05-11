@@ -1,6 +1,6 @@
 {
   "id": "assurance_artifact_retention_policy",
-  "version": 1,
+  "version": 3,
   "owner": "validation + observability",
   "status": "active",
   "purpose": "Prevent validation and observability artifacts from becoming entropy while preserving compact evidence needed for Sentinel, release gates, and human review.",
@@ -40,11 +40,21 @@
       "_latest"
     ],
     "index_owner_domain": "observability",
-    "index_purpose": "Canonical latest-file lookup for local validation and observability artifacts; raw evidence stays in source artifacts."
+    "index_purpose": "Canonical latest-file lookup for local validation and observability artifacts; raw evidence stays in source artifacts.",
+    "include_root_path": true,
+    "include_canonical_ref": true,
+    "prefix_identity": "root_path + normalized_prefix"
   },
   "required_report_fields": [
     "type",
-    "generated_at"
+    "generated_at",
+    "trace_id",
+    "span_id",
+    "source_domain",
+    "latest_ref_index_path",
+    "cleanup_candidate_total",
+    "cleanup_candidate_bytes",
+    "cleanup_candidate_pressure"
   ],
   "raw_evidence_markers": [
     "\"raw_evidence\":",
@@ -55,8 +65,35 @@
     "\"conversation_tree\":"
   ],
   "actions": {
-    "guard_only": true,
+    "guard_only": false,
     "delete_automatically": false,
-    "emit_cleanup_candidates": true
-  }
+    "emit_cleanup_candidates": true,
+    "apply_script_required": true,
+    "dry_run_default": true,
+    "live_cleanup_requires_ack": true
+  },
+  "apply": {
+    "script_path": "tests/tooling/scripts/ci/assurance_artifact_retention_apply.ts",
+    "artifact_path": "core/local/artifacts/assurance_artifact_retention_apply_current.json",
+    "markdown_report_path": "local/workspace/reports/ASSURANCE_ARTIFACT_RETENTION_APPLY_CURRENT.md",
+    "requires_apply_flag": "--apply=1",
+    "requires_ack_flag": "--ack-retention-cleanup=1",
+    "max_delete_per_run": 500,
+    "protect_canonical_refs": true,
+    "allowed_extensions": [
+      ".json",
+      ".jsonl",
+      ".md",
+      ".txt"
+    ]
+  },
+  "cleanup_candidate_budget": {
+    "max_total_candidates_before_yellow": 500,
+    "max_total_candidates_before_red": 1000,
+    "max_core_local_candidates_before_yellow": 250,
+    "max_core_local_candidates_before_red": 500,
+    "fail_on_red_candidate_pressure": true,
+    "yellow_candidate_pressure_is_actionable": true
+  },
+  "guard_result_path": "core/local/artifacts/assurance_artifact_retention_guard_current.json"
 }

@@ -23,12 +23,19 @@ if (!Array.isArray(report.artifact_paths) || report.artifact_paths.length < 2) v
 
 const requiredSummaryKeys = [
   'dirty_paths',
+  'dirty_added',
+  'dirty_modified',
+  'dirty_deleted',
+  'dirty_untracked',
   'npm_scripts',
   'command_entries',
+  'compat_command_entries',
+  'operator_surface_entries',
   'workflow_files',
   'required_ci_checks',
   'core_local_artifacts',
   'core_local_artifact_bytes',
+  'artifact_cleanup_candidates',
   'effective_loc',
   'effective_loc_delta',
   'effective_loc_delta_pct',
@@ -38,6 +45,34 @@ const requiredSummaryKeys = [
 ];
 for (const key of requiredSummaryKeys) {
   if (typeof report.summary?.[key] !== 'number') violations.push(`missing_numeric_summary_${key}`);
+}
+const trackedMetrics = Array.isArray(report.tracked_metrics) ? report.tracked_metrics.map(String) : [];
+if (trackedMetrics.length === 0) violations.push('missing_tracked_metrics');
+for (const key of Array.isArray(policy.tracked_metrics) ? policy.tracked_metrics.map(String) : []) {
+  if (!trackedMetrics.includes(key)) violations.push(`tracked_metric_missing_${key}`);
+}
+const trendDeltas = report.trend_deltas && typeof report.trend_deltas === 'object' ? report.trend_deltas as Json : {};
+if (policy?.policy?.history_deltas_required === true && Object.keys(trendDeltas).length === 0) {
+  violations.push('missing_trend_deltas');
+}
+for (const key of trackedMetrics) {
+  const row = trendDeltas[key];
+  if (!row || typeof row !== 'object') {
+    violations.push(`missing_trend_delta_${key}`);
+    continue;
+  }
+  if (typeof row.current !== 'number') violations.push(`trend_delta_missing_current_${key}`);
+  if (typeof row.previous !== 'number') violations.push(`trend_delta_missing_previous_${key}`);
+  if (typeof row.delta !== 'number') violations.push(`trend_delta_missing_delta_${key}`);
+}
+const topEntropyDrivers = Array.isArray(report.top_entropy_drivers) ? report.top_entropy_drivers as Json[] : [];
+if (policy?.policy?.top_entropy_drivers_required === true && topEntropyDrivers.length === 0) {
+  violations.push('missing_top_entropy_drivers');
+}
+for (const row of topEntropyDrivers) {
+  if (!row.name || !row.metric_key || !row.severity || typeof row.value !== 'number') {
+    violations.push(`top_entropy_driver_invalid_${row.name || 'unknown'}`);
+  }
 }
 
 for (const row of dimensions) {
@@ -51,6 +86,23 @@ for (const row of dimensions) {
 
 const redDimensions = Array.isArray(report.red_dimensions) ? report.red_dimensions : [];
 if (redDimensions.length > 0 && !dimensions.some((row) => row.severity === 'red')) violations.push('red_dimensions_mismatch');
+const artifactDimension = dimensions.find((row) => row.name === 'artifact_pressure');
+if (
+  policy?.policy?.artifact_pressure_must_include_retention_candidates === true &&
+  typeof artifactDimension?.details?.artifact_cleanup_candidates !== 'number'
+) {
+  violations.push('artifact_pressure_missing_retention_candidates');
+}
+const worktreeDimension = dimensions.find((row) => row.name === 'worktree_churn');
+if (
+  policy?.policy?.dirty_churn_must_include_status_breakdown === true &&
+  (typeof worktreeDimension?.details?.dirty_added !== 'number' ||
+    typeof worktreeDimension?.details?.dirty_modified !== 'number' ||
+    typeof worktreeDimension?.details?.dirty_deleted !== 'number' ||
+    typeof worktreeDimension?.details?.dirty_untracked !== 'number')
+) {
+  violations.push('worktree_churn_missing_status_breakdown');
+}
 
 const generatedAt = new Date().toISOString();
 const traceId = `validation:${generatedAt}:repo-entropy-scorecard-guard`;
@@ -66,6 +118,8 @@ const result = {
   report_path: reportRelPath,
   scorecard_severity: report.severity || null,
   entropy_score: report.entropy_score || 0,
+  tracked_metrics: trackedMetrics,
+  top_entropy_drivers: topEntropyDrivers,
   red_dimensions: report.red_dimensions || [],
   yellow_dimensions: report.yellow_dimensions || [],
   violation_count: violations.length,

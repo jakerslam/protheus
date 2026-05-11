@@ -2626,7 +2626,9 @@
       "artifact_paths": [
         "core/local/artifacts/memory_continuity_closure_guard_current.json",
         "local/workspace/reports/MEMORY_CONTINUITY_CLOSURE_GUARD_CURRENT.md"
-      ]
+      ],
+      "owner": "validation.conformance",
+      "source_domain": "validation"
     },
     "ops:knowledge-graph-query-acceleration:closure:guard": {
       "description": "Release evidence guard for Layer 2 knowledge-graph query acceleration: multi-index lookups, traversal algorithms, planner/cache joins, materialized/approximate lanes, and federated planning.",
@@ -2641,7 +2643,9 @@
       "artifact_paths": [
         "core/local/artifacts/knowledge_graph_query_acceleration_closure_guard_current.json",
         "local/workspace/reports/KNOWLEDGE_GRAPH_QUERY_ACCELERATION_CLOSURE_GUARD_CURRENT.md"
-      ]
+      ],
+      "owner": "validation.conformance",
+      "source_domain": "validation"
     },
     "ops:web-conduit:openclaw-media:closure:guard": {
       "description": "Release evidence guard for OpenClaw web-conduit provider, fetch, media, hosting, outbound attachment, audio, and media-store slices.",
@@ -2656,7 +2660,9 @@
       "artifact_paths": [
         "core/local/artifacts/web_conduit_openclaw_media_closure_guard_current.json",
         "local/workspace/reports/WEB_CONDUIT_OPENCLAW_MEDIA_CLOSURE_GUARD_CURRENT.md"
-      ]
+      ],
+      "owner": "validation.conformance",
+      "source_domain": "validation"
     },
     "ops:web-retrieval:reliability-closure:guard": {
       "owner": "ops",
@@ -2816,7 +2822,7 @@
       "canonical_definition_paths": [
         "validation/regression/contracts/shell_runtime_payload_budget_contract.json",
         "tests/tooling/scripts/ci/shell_runtime_payload_budget_guard.ts",
-        "validation/conformance/contracts/interface_payload_budget_contract.json"
+        "client/runtime/config/interface_payload_budget_contract.json"
       ],
       "artifact_paths": [
         "core/local/artifacts/shell_runtime_payload_budget_guard_current.json",
@@ -2940,6 +2946,1118 @@
         "core/local/artifacts/real_work_workflow_proof_current.json",
         "core/local/artifacts/real_work_workflow_proof_guard_current.json",
         "local/workspace/reports/REAL_WORK_WORKFLOW_PROOF_CURRENT.md"
+      ]
+    },
+    "ops:ci-branch-protection:apply:dry-run": {
+      "owner": "validation.release_gates",
+      "description": "Dry-run GitHub branch protection required-check reduction from the approved CI projection.",
+      "timeout_sec": 60,
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/ci_branch_protection_apply.ts",
+        "--out-json=core/local/artifacts/ci_branch_protection_apply_current.json",
+        "--out-markdown=local/workspace/reports/CI_BRANCH_PROTECTION_APPLY_CURRENT.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/ci_branch_protection_apply_current.json",
+        "local/workspace/reports/CI_BRANCH_PROTECTION_APPLY_CURRENT.md"
+      ],
+      "canonical_definition_paths": [
+        "validation/release_gates/policies/ci_branch_protection_projection_policy.json",
+        "tests/tooling/scripts/ci/ci_branch_protection_apply.ts"
+      ]
+    },
+    "ops:browser-shell-v2-accessibility:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Browser Shell V2 Accessibility Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/browser_shell_v2_accessibility_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_accessibility_guard_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_ACCESSIBILITY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/browser_shell_v2_accessibility_guard.ts",
+        "--out-json=core/local/artifacts/browser_shell_v2_accessibility_guard_current.json",
+        "--out-markdown=local/workspace/reports/BROWSER_SHELL_V2_ACCESSIBILITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:browser-shell-v2-amputation:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Browser Shell V2 Amputation Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/browser_shell_v2_amputation_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_amputation_guard_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_AMPUTATION_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/browser_shell_v2_amputation_guard.ts",
+        "--out-json=core/local/artifacts/browser_shell_v2_amputation_guard_current.json",
+        "--out-markdown=local/workspace/reports/BROWSER_SHELL_V2_AMPUTATION_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:browser-shell-v2-legacy-visual-parity:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Browser Shell V2 Legacy Visual Parity Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/browser_shell_v2_legacy_visual_parity_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_legacy_visual_parity_guard_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_LEGACY_VISUAL_PARITY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/browser_shell_v2_legacy_visual_parity_guard.ts",
+        "--out-json=core/local/artifacts/browser_shell_v2_legacy_visual_parity_guard_current.json",
+        "--out-markdown=local/workspace/reports/BROWSER_SHELL_V2_LEGACY_VISUAL_PARITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:browser-shell-v2-memory-surface:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Browser Shell V2 Memory Surface Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/browser_shell_v2_memory_surface_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_memory_surface_guard_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_MEMORY_SURFACE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/browser_shell_v2_memory_surface_guard.ts",
+        "--out-json=core/local/artifacts/browser_shell_v2_memory_surface_guard_current.json",
+        "--out-markdown=local/workspace/reports/BROWSER_SHELL_V2_MEMORY_SURFACE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:browser-shell-v2-visual-parity:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Browser Shell V2 Visual Parity Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/browser_shell_v2_visual_parity_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_visual_parity_guard_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_VISUAL_PARITY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/browser_shell_v2_visual_parity_guard.ts",
+        "--out-json=core/local/artifacts/browser_shell_v2_visual_parity_guard_current.json",
+        "--out-markdown=local/workspace/reports/BROWSER_SHELL_V2_VISUAL_PARITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:ci-branch-protection-projection:registered": {
+      "owner": "validation.release_gates",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Ci Branch Protection Projection Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/ci_branch_protection_projection_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/ci_branch_protection_projection_guard_current.json",
+        "local/workspace/reports/CI_BRANCH_PROTECTION_PROJECTION_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/ci_branch_protection_projection_guard.ts",
+        "--out-json=core/local/artifacts/ci_branch_protection_projection_guard_current.json",
+        "--out-markdown=local/workspace/reports/CI_BRANCH_PROTECTION_PROJECTION_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:ci-required-gate-reduction:registered": {
+      "owner": "validation.release_gates",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Ci Required Gate Reduction Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/ci_required_gate_reduction_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/ci_required_gate_reduction_guard_current.json",
+        "local/workspace/reports/CI_REQUIRED_GATE_REDUCTION_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/ci_required_gate_reduction_guard.ts",
+        "--out-json=core/local/artifacts/ci_required_gate_reduction_guard_current.json",
+        "--out-markdown=local/workspace/reports/CI_REQUIRED_GATE_REDUCTION_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:ci-required-gate-reduction:registered:2": {
+      "owner": "validation.release_gates",
+      "source_domain": "validation",
+      "lifecycle": "reference_only",
+      "description": "Ci Required Gate Reduction Report registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/ci_required_gate_reduction_report.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/ci_required_gate_reduction_report_current.json",
+        "local/workspace/reports/CI_REQUIRED_GATE_REDUCTION_REPORT_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/ci_required_gate_reduction_report.ts",
+        "--out-json=core/local/artifacts/ci_required_gate_reduction_report_current.json",
+        "--out-markdown=local/workspace/reports/CI_REQUIRED_GATE_REDUCTION_REPORT_CURRENT.md"
+      ],
+      "run_policy": "manual_or_advisory_reference"
+    },
+    "ops:ci-tier-release-enforcement:registered": {
+      "owner": "validation.release_gates",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Ci Tier Release Enforcement Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/ci_tier_release_enforcement_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/ci_tier_release_enforcement_guard_current.json",
+        "local/workspace/reports/CI_TIER_RELEASE_ENFORCEMENT_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/ci_tier_release_enforcement_guard.ts",
+        "--out-json=core/local/artifacts/ci_tier_release_enforcement_guard_current.json",
+        "--out-markdown=local/workspace/reports/CI_TIER_RELEASE_ENFORCEMENT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:ci-workflow-tier:registered": {
+      "owner": "validation.release_gates",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Ci Workflow Tier Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/ci_workflow_tier_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/ci_workflow_tier_guard_current.json",
+        "local/workspace/reports/CI_WORKFLOW_TIER_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/ci_workflow_tier_guard.ts",
+        "--out-json=core/local/artifacts/ci_workflow_tier_guard_current.json",
+        "--out-markdown=local/workspace/reports/CI_WORKFLOW_TIER_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:command-metadata-curated:registered": {
+      "owner": "tools.commands.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Command Metadata Curated Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/command_metadata_curated_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/command_metadata_curated_guard_current.json",
+        "local/workspace/reports/COMMAND_METADATA_CURATED_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/command_metadata_curated_guard.ts",
+        "--out-json=core/local/artifacts/command_metadata_curated_guard_current.json",
+        "--out-markdown=local/workspace/reports/COMMAND_METADATA_CURATED_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:command-operator-surface:registered": {
+      "owner": "tools.commands.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Command Operator Surface Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/command_operator_surface_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/command_operator_surface_guard_current.json",
+        "local/workspace/reports/COMMAND_OPERATOR_SURFACE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/command_operator_surface_guard.ts",
+        "--out-json=core/local/artifacts/command_operator_surface_guard_current.json",
+        "--out-markdown=local/workspace/reports/COMMAND_OPERATOR_SURFACE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:command-registry-metadata:registered": {
+      "owner": "tools.commands.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Command Registry Metadata Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/command_registry_metadata_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/command_registry_metadata_guard_current.json",
+        "local/workspace/reports/COMMAND_REGISTRY_METADATA_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/command_registry_metadata_guard.ts",
+        "--out-json=core/local/artifacts/command_registry_metadata_guard_current.json",
+        "--out-markdown=local/workspace/reports/COMMAND_REGISTRY_METADATA_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:command-runner-first:registered": {
+      "owner": "tools.commands.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Command Runner First Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/command_runner_first_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/command_runner_first_guard_current.json",
+        "local/workspace/reports/COMMAND_RUNNER_FIRST_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/command_runner_first_guard.ts",
+        "--out-json=core/local/artifacts/command_runner_first_guard_current.json",
+        "--out-markdown=local/workspace/reports/COMMAND_RUNNER_FIRST_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:eval-gold-dataset-schema:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Eval Gold Dataset Schema Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/eval_gold_dataset_schema_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/eval_gold_dataset_schema_guard_current.json",
+        "local/workspace/reports/EVAL_GOLD_DATASET_SCHEMA_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/eval_gold_dataset_schema_guard.ts",
+        "--out-json=core/local/artifacts/eval_gold_dataset_schema_guard_current.json",
+        "--out-markdown=local/workspace/reports/EVAL_GOLD_DATASET_SCHEMA_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-adapter-invariants:registered": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Adapter Invariants Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_adapter_invariants_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_adapter_invariants_guard_current.json",
+        "local/workspace/reports/GATEWAY_ADAPTER_INVARIANTS_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_adapter_invariants_guard.ts",
+        "--out-json=core/local/artifacts/gateway_adapter_invariants_guard_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_ADAPTER_INVARIANTS_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-disposable-live-replay:registered": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Disposable Live Replay registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_disposable_live_replay.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_disposable_live_replay_current.json",
+        "local/workspace/reports/GATEWAY_DISPOSABLE_LIVE_REPLAY_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_disposable_live_replay.ts",
+        "--out-json=core/local/artifacts/gateway_disposable_live_replay_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_DISPOSABLE_LIVE_REPLAY_CURRENT.md"
+      ]
+    },
+    "ops:gateway-disposable-live-replay:registered:2": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Disposable Live Replay Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_disposable_live_replay_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_disposable_live_replay_guard_current.json",
+        "local/workspace/reports/GATEWAY_DISPOSABLE_LIVE_REPLAY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_disposable_live_replay_guard.ts",
+        "--out-json=core/local/artifacts/gateway_disposable_live_replay_guard_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_DISPOSABLE_LIVE_REPLAY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-idempotence-replay:registered": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Idempotence Replay Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_idempotence_replay_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_idempotence_replay_guard_current.json",
+        "local/workspace/reports/GATEWAY_IDEMPOTENCE_REPLAY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_idempotence_replay_guard.ts",
+        "--out-json=core/local/artifacts/gateway_idempotence_replay_guard_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_IDEMPOTENCE_REPLAY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-status-launcher-drift:registered": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Status Launcher Drift Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_status_launcher_drift_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_status_launcher_drift_guard_current.json",
+        "local/workspace/reports/GATEWAY_STATUS_LAUNCHER_DRIFT_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_status_launcher_drift_guard.ts",
+        "--out-json=core/local/artifacts/gateway_status_launcher_drift_guard_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_STATUS_LAUNCHER_DRIFT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-status-launcher-drift:registered:2": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "reference_only",
+      "description": "Gateway Status Launcher Drift Report registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_status_launcher_drift_report.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_status_launcher_drift_report_current.json",
+        "local/workspace/reports/GATEWAY_STATUS_LAUNCHER_DRIFT_REPORT_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_status_launcher_drift_report.ts",
+        "--out-json=core/local/artifacts/gateway_status_launcher_drift_report_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_STATUS_LAUNCHER_DRIFT_REPORT_CURRENT.md"
+      ],
+      "run_policy": "manual_or_advisory_reference"
+    },
+    "ops:gateway-status-live-replay:registered": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Status Live Replay registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_status_live_replay.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_status_live_replay_current.json",
+        "local/workspace/reports/GATEWAY_STATUS_LIVE_REPLAY_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_status_live_replay.ts",
+        "--out-json=core/local/artifacts/gateway_status_live_replay_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_STATUS_LIVE_REPLAY_CURRENT.md"
+      ]
+    },
+    "ops:gateway-status-live-replay:registered:2": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Status Live Replay Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_status_live_replay_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_status_live_replay_guard_current.json",
+        "local/workspace/reports/GATEWAY_STATUS_LIVE_REPLAY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_status_live_replay_guard.ts",
+        "--out-json=core/local/artifacts/gateway_status_live_replay_guard_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_STATUS_LIVE_REPLAY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-supervisor-authority-drift:registered": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Supervisor Authority Drift Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_supervisor_authority_drift_guard_current.json",
+        "local/workspace/reports/GATEWAY_SUPERVISOR_AUTHORITY_DRIFT_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_guard.ts",
+        "--out-json=core/local/artifacts/gateway_supervisor_authority_drift_guard_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_SUPERVISOR_AUTHORITY_DRIFT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:gateway-supervisor-authority-drift:registered:2": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "reference_only",
+      "description": "Gateway Supervisor Authority Drift Report registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_report.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_supervisor_authority_drift_report_current.json",
+        "local/workspace/reports/GATEWAY_SUPERVISOR_AUTHORITY_DRIFT_REPORT_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_report.ts",
+        "--out-json=core/local/artifacts/gateway_supervisor_authority_drift_report_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_SUPERVISOR_AUTHORITY_DRIFT_REPORT_CURRENT.md"
+      ],
+      "run_policy": "manual_or_advisory_reference"
+    },
+    "ops:gateway-trace-propagation:registered": {
+      "owner": "gateways.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Gateway Trace Propagation Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/gateway_trace_propagation_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/gateway_trace_propagation_guard_current.json",
+        "local/workspace/reports/GATEWAY_TRACE_PROPAGATION_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/gateway_trace_propagation_guard.ts",
+        "--out-json=core/local/artifacts/gateway_trace_propagation_guard_current.json",
+        "--out-markdown=local/workspace/reports/GATEWAY_TRACE_PROPAGATION_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:installer-module-dispatch:registered": {
+      "owner": "validation.installers",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Installer Module Dispatch Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/installer_module_dispatch_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/installer_module_dispatch_guard_current.json",
+        "local/workspace/reports/INSTALLER_MODULE_DISPATCH_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/installer_module_dispatch_guard.ts",
+        "--out-json=core/local/artifacts/installer_module_dispatch_guard_current.json",
+        "--out-markdown=local/workspace/reports/INSTALLER_MODULE_DISPATCH_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:installer-module:registered": {
+      "owner": "validation.installers",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Installer Module Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/installer_module_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/installer_module_guard_current.json",
+        "local/workspace/reports/INSTALLER_MODULE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/installer_module_guard.ts",
+        "--out-json=core/local/artifacts/installer_module_guard_current.json",
+        "--out-markdown=local/workspace/reports/INSTALLER_MODULE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:kernel-sentinel-problem-projection-freshness:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Kernel Sentinel Problem Projection Freshness Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/kernel_sentinel_problem_projection_freshness_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/kernel_sentinel_problem_projection_freshness_guard_current.json",
+        "local/workspace/reports/KERNEL_SENTINEL_PROBLEM_PROJECTION_FRESHNESS_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/kernel_sentinel_problem_projection_freshness_guard.ts",
+        "--out-json=core/local/artifacts/kernel_sentinel_problem_projection_freshness_guard_current.json",
+        "--out-markdown=local/workspace/reports/KERNEL_SENTINEL_PROBLEM_PROJECTION_FRESHNESS_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:kernel-sentinel-stale-auto-run-repair:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Kernel Sentinel Stale Auto Run Repair Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/kernel_sentinel_stale_auto_run_repair_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/kernel_sentinel_stale_auto_run_repair_guard_current.json",
+        "local/workspace/reports/KERNEL_SENTINEL_STALE_AUTO_RUN_REPAIR_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/kernel_sentinel_stale_auto_run_repair_guard.ts",
+        "--out-json=core/local/artifacts/kernel_sentinel_stale_auto_run_repair_guard_current.json",
+        "--out-markdown=local/workspace/reports/KERNEL_SENTINEL_STALE_AUTO_RUN_REPAIR_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:kernel-sentinel-trace-completeness:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Kernel Sentinel Trace Completeness Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/kernel_sentinel_trace_completeness_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/kernel_sentinel_trace_completeness_guard_current.json",
+        "local/workspace/reports/KERNEL_SENTINEL_TRACE_COMPLETENESS_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/kernel_sentinel_trace_completeness_guard.ts",
+        "--out-json=core/local/artifacts/kernel_sentinel_trace_completeness_guard_current.json",
+        "--out-markdown=local/workspace/reports/KERNEL_SENTINEL_TRACE_COMPLETENESS_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:kernel-sentinel-verity-receipt-drift-closure:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Kernel Sentinel Verity Receipt Drift Closure Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/kernel_sentinel_verity_receipt_drift_closure_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/kernel_sentinel_verity_receipt_drift_closure_guard_current.json",
+        "local/workspace/reports/KERNEL_SENTINEL_VERITY_RECEIPT_DRIFT_CLOSURE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/kernel_sentinel_verity_receipt_drift_closure_guard.ts",
+        "--out-json=core/local/artifacts/kernel_sentinel_verity_receipt_drift_closure_guard_current.json",
+        "--out-markdown=local/workspace/reports/KERNEL_SENTINEL_VERITY_RECEIPT_DRIFT_CLOSURE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:non-shell-trace-completeness:registered": {
+      "owner": "observability.traces",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Non Shell Trace Completeness Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/non_shell_trace_completeness_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/non_shell_trace_completeness_guard_current.json",
+        "local/workspace/reports/NON_SHELL_TRACE_COMPLETENESS_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/non_shell_trace_completeness_guard.ts",
+        "--out-json=core/local/artifacts/non_shell_trace_completeness_guard_current.json",
+        "--out-markdown=local/workspace/reports/NON_SHELL_TRACE_COMPLETENESS_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:orchestration-boundary-contract:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Orchestration Boundary Contract Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/orchestration_boundary_contract_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/orchestration_boundary_contract_guard_current.json",
+        "local/workspace/reports/ORCHESTRATION_BOUNDARY_CONTRACT_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/orchestration_boundary_contract_guard.ts",
+        "--out-json=core/local/artifacts/orchestration_boundary_contract_guard_current.json",
+        "--out-markdown=local/workspace/reports/ORCHESTRATION_BOUNDARY_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:pr-template-contract:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Pr Template Contract Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/pr_template_contract_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/pr_template_contract_guard_current.json",
+        "local/workspace/reports/PR_TEMPLATE_CONTRACT_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/pr_template_contract_guard.ts",
+        "--out-json=core/local/artifacts/pr_template_contract_guard_current.json",
+        "--out-markdown=local/workspace/reports/PR_TEMPLATE_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:release-version-convergence:registered": {
+      "owner": "validation.release_gates",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Release Version Convergence Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/release_version_convergence_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/release_version_convergence_guard_current.json",
+        "local/workspace/reports/RELEASE_VERSION_CONVERGENCE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/release_version_convergence_guard.ts",
+        "--out-json=core/local/artifacts/release_version_convergence_guard_current.json",
+        "--out-markdown=local/workspace/reports/RELEASE_VERSION_CONVERGENCE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:representation-collapse:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Representation Collapse Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/representation_collapse_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/representation_collapse_guard_current.json",
+        "local/workspace/reports/REPRESENTATION_COLLAPSE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/representation_collapse_guard.ts",
+        "--out-json=core/local/artifacts/representation_collapse_guard_current.json",
+        "--out-markdown=local/workspace/reports/REPRESENTATION_COLLAPSE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:rust-crate-cargo-check-evidence:registered": {
+      "owner": "kernel.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Rust Crate Cargo Check Evidence Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/rust_crate_cargo_check_evidence_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/rust_crate_cargo_check_evidence_guard_current.json",
+        "local/workspace/reports/RUST_CRATE_CARGO_CHECK_EVIDENCE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/rust_crate_cargo_check_evidence_guard.ts",
+        "--out-json=core/local/artifacts/rust_crate_cargo_check_evidence_guard_current.json",
+        "--out-markdown=local/workspace/reports/RUST_CRATE_CARGO_CHECK_EVIDENCE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:rust-crate-support-evidence:registered": {
+      "owner": "kernel.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Rust Crate Support Evidence Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/rust_crate_support_evidence_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/rust_crate_support_evidence_guard_current.json",
+        "local/workspace/reports/RUST_CRATE_SUPPORT_EVIDENCE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/rust_crate_support_evidence_guard.ts",
+        "--out-json=core/local/artifacts/rust_crate_support_evidence_guard_current.json",
+        "--out-markdown=local/workspace/reports/RUST_CRATE_SUPPORT_EVIDENCE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:rust-crate-support-status:registered": {
+      "owner": "kernel.validation",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Rust Crate Support Status Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/rust_crate_support_status_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/rust_crate_support_status_guard_current.json",
+        "local/workspace/reports/RUST_CRATE_SUPPORT_STATUS_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/rust_crate_support_status_guard.ts",
+        "--out-json=core/local/artifacts/rust_crate_support_status_guard_current.json",
+        "--out-markdown=local/workspace/reports/RUST_CRATE_SUPPORT_STATUS_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:safe-commit-workspace:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Safe Commit Workspace Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/safe_commit_workspace_guard_current.json",
+        "local/workspace/reports/SAFE_COMMIT_WORKSPACE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts",
+        "--out-json=core/local/artifacts/safe_commit_workspace_guard_current.json",
+        "--out-markdown=local/workspace/reports/SAFE_COMMIT_WORKSPACE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:sentinel-full-run-stage-runner:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Sentinel Full Run Stage Runner Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/sentinel_full_run_stage_runner_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/sentinel_full_run_stage_runner_guard_current.json",
+        "local/workspace/reports/SENTINEL_FULL_RUN_STAGE_RUNNER_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/sentinel_full_run_stage_runner_guard.ts",
+        "--out-json=core/local/artifacts/sentinel_full_run_stage_runner_guard_current.json",
+        "--out-markdown=local/workspace/reports/SENTINEL_FULL_RUN_STAGE_RUNNER_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:sentinel-full-run-stage-split-plan:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Sentinel Full Run Stage Split Plan Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/sentinel_full_run_stage_split_plan_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/sentinel_full_run_stage_split_plan_guard_current.json",
+        "local/workspace/reports/SENTINEL_FULL_RUN_STAGE_SPLIT_PLAN_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/sentinel_full_run_stage_split_plan_guard.ts",
+        "--out-json=core/local/artifacts/sentinel_full_run_stage_split_plan_guard_current.json",
+        "--out-markdown=local/workspace/reports/SENTINEL_FULL_RUN_STAGE_SPLIT_PLAN_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:sentinel-full-run-timeout:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Sentinel Full Run Timeout Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/sentinel_full_run_timeout_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/sentinel_full_run_timeout_guard_current.json",
+        "local/workspace/reports/SENTINEL_FULL_RUN_TIMEOUT_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/sentinel_full_run_timeout_guard.ts",
+        "--out-json=core/local/artifacts/sentinel_full_run_timeout_guard_current.json",
+        "--out-markdown=local/workspace/reports/SENTINEL_FULL_RUN_TIMEOUT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:sentinel-issue-quality-score:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Sentinel Issue Quality Score Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/sentinel_issue_quality_score_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/sentinel_issue_quality_score_guard_current.json",
+        "local/workspace/reports/SENTINEL_ISSUE_QUALITY_SCORE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/sentinel_issue_quality_score_guard.ts",
+        "--out-json=core/local/artifacts/sentinel_issue_quality_score_guard_current.json",
+        "--out-markdown=local/workspace/reports/SENTINEL_ISSUE_QUALITY_SCORE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:sentinel-stage-timing-policy:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Sentinel Stage Timing Policy Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/sentinel_stage_timing_policy_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/sentinel_stage_timing_policy_guard_current.json",
+        "local/workspace/reports/SENTINEL_STAGE_TIMING_POLICY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/sentinel_stage_timing_policy_guard.ts",
+        "--out-json=core/local/artifacts/sentinel_stage_timing_policy_guard_current.json",
+        "--out-markdown=local/workspace/reports/SENTINEL_STAGE_TIMING_POLICY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:sentinel-timing-sample-capture:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Sentinel Timing Sample Capture Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/sentinel_timing_sample_capture_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/sentinel_timing_sample_capture_guard_current.json",
+        "local/workspace/reports/SENTINEL_TIMING_SAMPLE_CAPTURE_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/sentinel_timing_sample_capture_guard.ts",
+        "--out-json=core/local/artifacts/sentinel_timing_sample_capture_guard_current.json",
+        "--out-markdown=local/workspace/reports/SENTINEL_TIMING_SAMPLE_CAPTURE_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:sentinel-timing-trend:registered": {
+      "owner": "observability.sentinel",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Sentinel Timing Trend Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/sentinel_timing_trend_guard_current.json",
+        "local/workspace/reports/SENTINEL_TIMING_TREND_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts",
+        "--out-json=core/local/artifacts/sentinel_timing_trend_guard_current.json",
+        "--out-markdown=local/workspace/reports/SENTINEL_TIMING_TREND_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:shell-chat-slash-authority:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Shell Chat Slash Authority Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/shell_chat_slash_authority_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/shell_chat_slash_authority_guard_current.json",
+        "local/workspace/reports/SHELL_CHAT_SLASH_AUTHORITY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/shell_chat_slash_authority_guard.ts",
+        "--out-json=core/local/artifacts/shell_chat_slash_authority_guard_current.json",
+        "--out-markdown=local/workspace/reports/SHELL_CHAT_SLASH_AUTHORITY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:windows-locked-down-install-replay:registered": {
+      "owner": "validation.installers",
+      "source_domain": "validation",
+      "lifecycle": "executable_guard",
+      "description": "Windows Locked Down Install Replay Guard registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/windows_locked_down_install_replay_guard_current.json",
+        "local/workspace/reports/WINDOWS_LOCKED_DOWN_INSTALL_REPLAY_GUARD_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts",
+        "--out-json=core/local/artifacts/windows_locked_down_install_replay_guard_current.json",
+        "--out-markdown=local/workspace/reports/WINDOWS_LOCKED_DOWN_INSTALL_REPLAY_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:workflow-authority-transition:registered": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "lifecycle": "reference_only",
+      "description": "Workflow Authority Transition Audit registered by guard-of-guards ownership cleanup.",
+      "timeout_sec": 60,
+      "canonical_definition_paths": [
+        "tests/tooling/scripts/ci/workflow_authority_transition_audit.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/workflow_authority_transition_audit_current.json",
+        "local/workspace/reports/WORKFLOW_AUTHORITY_TRANSITION_AUDIT_CURRENT.md"
+      ],
+      "command": [
+        "node",
+        "client/runtime/lib/ts_entrypoint.ts",
+        "tests/tooling/scripts/ci/workflow_authority_transition_audit.ts",
+        "--out-json=core/local/artifacts/workflow_authority_transition_audit_current.json",
+        "--out-markdown=local/workspace/reports/WORKFLOW_AUTHORITY_TRANSITION_AUDIT_CURRENT.md"
+      ],
+      "run_policy": "manual_or_advisory_reference"
+    },
+    "ops:artifact-retention:dry-run": {
+      "owner": "validation.conformance",
+      "source_domain": "validation",
+      "description": "Dry-run local assurance artifact retention cleanup from the canonical retention report.",
+      "timeout_sec": 60,
+      "script": "ops:artifact-retention:dry-run",
+      "canonical_definition_paths": [
+        "validation/conformance/contracts/assurance_artifact_retention_policy.json",
+        "tests/tooling/scripts/ci/assurance_artifact_retention_report.ts",
+        "tests/tooling/scripts/ci/assurance_artifact_retention_apply.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/assurance_artifact_retention_report_current.json",
+        "core/local/artifacts/assurance_artifact_retention_apply_current.json",
+        "local/workspace/reports/ASSURANCE_ARTIFACT_RETENTION_APPLY_CURRENT.md"
       ]
     }
   },

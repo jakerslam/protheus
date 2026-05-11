@@ -17,6 +17,15 @@ if (report.source_domain !== 'validation') violations.push('wrong_source_domain'
 if (report.type !== 'guard_registry_ownership_report') violations.push('wrong_report_type');
 if (!Array.isArray(report.rows)) violations.push('missing_guard_rows');
 if (!Array.isArray(report.findings)) violations.push('missing_findings');
+if (policy?.policy?.remediation_queue_required === true && !Array.isArray(report.remediation_queue)) {
+  violations.push('missing_remediation_queue');
+}
+if (policy?.policy?.detection_coverage_required === true && !Array.isArray(report.detection_coverage)) {
+  violations.push('missing_detection_coverage');
+}
+if (policy?.policy?.finding_counts_by_kind_required === true && (!report.finding_count_by_kind || typeof report.finding_count_by_kind !== 'object')) {
+  violations.push('missing_finding_count_by_kind');
+}
 for (const key of [
   'guard_count',
   'registered_guard_count',
@@ -41,6 +50,20 @@ if (Number(report.orphan_artifact_count || 0) > 0 && !report.findings.some((row:
 }
 if (Number(report.duplicate_family_count || 0) > 0 && !Array.isArray(report.duplicate_families)) violations.push('duplicate_families_missing');
 if (!['pass', 'white', 'yellow', 'red'].includes(String(report.severity || ''))) violations.push('invalid_severity');
+const remediationQueue = Array.isArray(report.remediation_queue) ? report.remediation_queue as Json[] : [];
+for (const row of remediationQueue) {
+  if (typeof row.priority !== 'number') violations.push(`remediation_queue_missing_priority:${row.target || 'unknown'}`);
+  if (!row.kind || !row.target || !row.owner_guess || !row.next_action) {
+    violations.push(`remediation_queue_incomplete:${row.target || row.kind || 'unknown'}`);
+  }
+}
+const detectionCoverage = Array.isArray(report.detection_coverage) ? report.detection_coverage as Json[] : [];
+for (const row of (policy.required_detection_classes as Json[]) || []) {
+  const id = String(row.id || '');
+  const coverage = detectionCoverage.find((item) => item.id === id);
+  if (!coverage) violations.push(`missing_detection_class:${id}`);
+  else if (coverage.covered !== true) violations.push(`uncovered_detection_class:${id}`);
+}
 
 const generatedAt = new Date().toISOString();
 const traceId = `validation:${generatedAt}:guard-registry-ownership-guard`;
@@ -62,6 +85,8 @@ const result = {
   missing_ownership_count: report.missing_ownership_count || 0,
   duplicate_family_count: report.duplicate_family_count || 0,
   orphan_artifact_count: report.orphan_artifact_count || 0,
+  detection_coverage: detectionCoverage,
+  remediation_queue: remediationQueue,
   violation_count: violations.length,
   violations,
 };

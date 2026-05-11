@@ -15,6 +15,13 @@ function ensureDir(p) {
   fs.mkdirSync(path.dirname(p), { recursive: true });
 }
 
+function markdownTableCell(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, "<br>");
+}
+
 function toInt(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -146,9 +153,19 @@ lines.push("| Order | ID | Status | Source Status | Bucket | Impact | Layer | La
 lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 
 sorted.forEach((row, idx) => {
-  lines.push(
-    `| ${idx + 1} | ${row.id || ""} | ${row.status || ""} | ${row.sourceStatus || ""} | ${row.todoBucket || ""} | ${row.impact || ""} | ${row.layerMap || ""} | ${row.laneScript || ""} | ${row.laneRunnable ? "yes" : "no"} | ${(row.section || "").replace(/\|/g, "\\|")} |`
-  );
+  const cells = [
+    idx + 1,
+    row.id || "",
+    row.status || "",
+    row.sourceStatus || "",
+    row.todoBucket || "",
+    row.impact || "",
+    row.layerMap || "",
+    row.laneScript || "",
+    row.laneRunnable ? "yes" : "no",
+    row.section || ""
+  ].map(markdownTableCell);
+  lines.push(`| ${cells.join(" | ")} |`);
 });
 
 ensureDir(OUT_MD);

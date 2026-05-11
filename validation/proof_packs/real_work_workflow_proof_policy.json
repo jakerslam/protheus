@@ -1,6 +1,6 @@
 {
   "type": "real_work_workflow_proof_policy",
-  "schema_version": 2,
+  "schema_version": 3,
   "owner_domain": "validation.proof_packs",
   "report_path": "core/local/artifacts/real_work_workflow_proof_current.json",
   "guard_result_path": "core/local/artifacts/real_work_workflow_proof_guard_current.json",
@@ -8,6 +8,8 @@
   "minimum_ready_lanes": 6,
   "minimum_user_visible_lanes": 4,
   "minimum_live_lanes": 1,
+  "minimum_distinct_work_classes": 5,
+  "minimum_distinct_capability_domains": 4,
   "default_max_age_hours": 360,
   "lanes": [
     {
@@ -195,8 +197,32 @@
     "guard_artifact_path",
     "guard_artifact_ok",
     "source_guard_path",
+    "end_to_end_chain",
+    "user_value_statement",
     "fresh",
     "next_action"
+  ],
+  "required_ready_chain_fields": [
+    "operator_trigger",
+    "execution_surface",
+    "evidence_artifact",
+    "guard_verification",
+    "user_value",
+    "release_confidence"
+  ],
+  "required_ready_domains": [
+    "gateway",
+    "tooling",
+    "installer",
+    "validation"
+  ],
+  "required_ready_work_classes": [
+    "gateway_runtime_operation",
+    "workspace_tooling",
+    "user_recovery",
+    "developer_workflow",
+    "operator_navigation",
+    "security_repair"
   ],
   "policy": {
     "proof_must_be_evidence_backed": true,
@@ -205,6 +231,11 @@
     "proof_report_must_be_compact": true,
     "proof_must_include_live_gateway_lane": true,
     "proof_must_use_passing_guard_artifacts_not_only_source_files": true,
-    "strict_guard_blocks_when_minimums_not_met": true
+    "strict_guard_blocks_when_minimums_not_met": true,
+    "ready_lanes_must_have_end_to_end_chain": true,
+    "ready_lanes_must_explain_user_value": true,
+    "proof_must_include_distinct_work_classes": true,
+    "proof_must_include_distinct_capability_domains": true,
+    "proof_summary_must_name_capability_outcomes": true
   }
 }

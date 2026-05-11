@@ -16,6 +16,13 @@ function ensureDir(p) {
   fs.mkdirSync(path.dirname(p), { recursive: true });
 }
 
+function markdownTableCell(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n/g, "<br>");
+}
+
 function parseHumanActions(markdown) {
   const lines = markdown.split(/\r?\n/);
   const out = new Map();
@@ -121,9 +128,14 @@ function main() {
   lines.push("| ID | Impact | Status | HMAN Refs | Section |");
   lines.push("| --- | --- | --- | --- | --- |");
   for (const row of mapped.sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0) || a.id.localeCompare(b.id))) {
-    lines.push(
-      `| ${row.id} | ${row.impact || ""} | ${row.status} | ${(row.hmanRefs || []).join(", ")} | ${(row.section || "").replace(/\|/g, "\\|")} |`
-    );
+    const cells = [
+      row.id,
+      row.impact || "",
+      row.status,
+      (row.hmanRefs || []).join(", "),
+      row.section || ""
+    ].map(markdownTableCell);
+    lines.push(`| ${cells.join(" | ")} |`);
   }
 
   ensureDir(OUT_MD);

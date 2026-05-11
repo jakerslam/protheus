@@ -20,6 +20,15 @@ if (report.ok !== true) violations.push('real_work_proof_below_minimums');
 if (Number(report.ready_lane_count || 0) < Number(policy.minimum_ready_lanes || 1)) violations.push('ready_lane_count_below_minimum');
 if (Number(report.user_visible_ready_lane_count || 0) < Number(policy.minimum_user_visible_lanes || 1)) violations.push('user_visible_ready_lane_count_below_minimum');
 if (Number(report.live_ready_lane_count || 0) < Number(policy.minimum_live_lanes || 0)) violations.push('live_ready_lane_count_below_minimum');
+if (Number(report.distinct_ready_work_class_count || 0) < Number(policy.minimum_distinct_work_classes || 1)) {
+  violations.push('distinct_ready_work_class_count_below_minimum');
+}
+if (Number(report.distinct_ready_capability_domain_count || 0) < Number(policy.minimum_distinct_capability_domains || 1)) {
+  violations.push('distinct_ready_capability_domain_count_below_minimum');
+}
+if (policy?.policy?.proof_summary_must_name_capability_outcomes === true && !Array.isArray(report.capability_outcomes)) {
+  violations.push('missing_capability_outcomes');
+}
 for (const row of lanes) {
   for (const field of (policy.required_lane_fields as string[]) || []) {
     if (!(field in row)) violations.push(`lane_${row.id || 'unknown'}_missing_${field}`);
@@ -29,13 +38,26 @@ for (const row of lanes) {
     if (row.guard_artifact_ok !== true) violations.push(`lane_${row.id}_ready_without_passing_guard_artifact`);
     if (!row.source_guard_path) violations.push(`lane_${row.id}_ready_without_source_guard`);
     if (row.fresh !== true) violations.push(`lane_${row.id}_ready_without_fresh_evidence`);
+    if (policy?.policy?.ready_lanes_must_explain_user_value === true && !row.user_value_statement) {
+      violations.push(`lane_${row.id}_ready_without_user_value_statement`);
+    }
+    if (policy?.policy?.ready_lanes_must_have_end_to_end_chain === true) {
+      const chain = row.end_to_end_chain && typeof row.end_to_end_chain === 'object' ? row.end_to_end_chain as Json : {};
+      for (const field of (policy.required_ready_chain_fields as string[]) || []) {
+        if (!chain[field]) violations.push(`lane_${row.id}_ready_chain_missing_${field}`);
+      }
+    }
   } else if (!row.next_action) {
     violations.push(`lane_${row.id || 'unknown'}_missing_next_action`);
   }
 }
 const readyDomains = new Set(lanes.filter((row) => row.ready === true).map((row) => row.capability_domain));
-for (const domain of ['gateway', 'tooling', 'installer', 'validation']) {
+for (const domain of (policy.required_ready_domains as string[]) || ['gateway', 'tooling', 'installer', 'validation']) {
   if (!readyDomains.has(domain)) violations.push(`missing_ready_domain_${domain}`);
+}
+const readyWorkClasses = new Set(lanes.filter((row) => row.ready === true).map((row) => row.work_class));
+for (const workClass of (policy.required_ready_work_classes as string[]) || []) {
+  if (!readyWorkClasses.has(workClass)) violations.push(`missing_ready_work_class_${workClass}`);
 }
 const generatedAt = new Date().toISOString();
 const traceId = `validation:${generatedAt}:real-work-workflow-proof-guard`;
@@ -52,6 +74,10 @@ const result = {
   ready_lane_count: report.ready_lane_count || 0,
   user_visible_ready_lane_count: report.user_visible_ready_lane_count || 0,
   live_ready_lane_count: report.live_ready_lane_count || 0,
+  distinct_ready_work_class_count: report.distinct_ready_work_class_count || 0,
+  distinct_ready_capability_domain_count: report.distinct_ready_capability_domain_count || 0,
+  ready_work_classes: report.ready_work_classes || [],
+  ready_capability_domains: report.ready_capability_domains || [],
   total_lane_count: report.total_lane_count || 0,
   violation_count: violations.length,
   violations,

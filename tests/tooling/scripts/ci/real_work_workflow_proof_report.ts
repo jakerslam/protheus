@@ -23,6 +23,8 @@ type Policy = {
   minimum_ready_lanes?: number;
   minimum_user_visible_lanes?: number;
   minimum_live_lanes?: number;
+  minimum_distinct_work_classes?: number;
+  minimum_distinct_capability_domains?: number;
   default_max_age_hours?: number;
   lanes?: LanePolicy[];
 };
@@ -111,6 +113,14 @@ function markdownFor(report: Json): string {
   lines.push(`- ready_lane_count: ${report.ready_lane_count}/${report.total_lane_count}`);
   lines.push(`- user_visible_ready_lane_count: ${report.user_visible_ready_lane_count}`);
   lines.push(`- live_ready_lane_count: ${report.live_ready_lane_count}`);
+  lines.push(`- distinct_ready_work_class_count: ${report.distinct_ready_work_class_count}`);
+  lines.push(`- distinct_ready_capability_domain_count: ${report.distinct_ready_capability_domain_count}`);
+  lines.push('');
+  lines.push('## Capability Outcomes');
+  lines.push('');
+  for (const outcome of report.capability_outcomes || []) {
+    lines.push(`- ${markdownEscape(outcome.capability_domain)}: ${outcome.ready_lane_count} ready lanes; work_classes=${markdownEscape((outcome.work_classes || []).join(', '))}`);
+  }
   lines.push('');
   lines.push('## Lanes');
   lines.push('');
@@ -138,6 +148,22 @@ function compactEvidence(payload: Json | null): Json {
     };
   }
   return out;
+}
+
+function chainForLane(lane: LanePolicy, evidencePath: string | null, guardArtifactPath: string | null, sourceGuardPath: string | null, ready: boolean) {
+  return {
+    operator_trigger: `${lane.work_class}:${lane.id}`,
+    execution_surface: sourceGuardPath || guardArtifactPath || evidencePath || null,
+    evidence_artifact: evidencePath,
+    guard_verification: guardArtifactPath,
+    user_value: lane.purpose,
+    release_confidence: ready ? 'fresh_passing_guarded_evidence' : 'incomplete_or_stale_evidence',
+  };
+}
+
+function userValueStatement(lane: LanePolicy): string {
+  const visibility = lane.user_visible === true ? 'user-visible' : 'system-maintenance';
+  return `${visibility} ${lane.capability_domain} proof: ${lane.purpose}`;
 }
 
 function laneReport(lane: LanePolicy) {
@@ -194,6 +220,8 @@ function laneReport(lane: LanePolicy) {
     guard_age_hours: guardAge,
     source_guard_path: sourceGuardPath,
     fresh: evidenceFresh && guardFresh,
+    end_to_end_chain: chainForLane(lane, evidencePath, guardArtifactPath, sourceGuardPath, ready),
+    user_value_statement: userValueStatement(lane),
     required_field_failures: required.failures,
     reasons,
     next_action: ready ? null : `Repair ${lane.id}: ${reasons.join('; ') || 'unknown readiness failure'}.`,
@@ -210,9 +238,29 @@ function run(argv: string[]) {
   const minimumReady = Number(policy.minimum_ready_lanes || 1);
   const minimumUserVisible = Number(policy.minimum_user_visible_lanes || 1);
   const minimumLive = Number(policy.minimum_live_lanes || 0);
-  const ok = ready.length >= minimumReady && userVisibleReady.length >= minimumUserVisible && liveReady.length >= minimumLive;
+  const readyWorkClasses = Array.from(new Set(ready.map((lane) => lane.work_class))).sort();
+  const readyCapabilityDomains = Array.from(new Set(ready.map((lane) => lane.capability_domain))).sort();
+  const minimumDistinctWorkClasses = Number(policy.minimum_distinct_work_classes || 1);
+  const minimumDistinctCapabilityDomains = Number(policy.minimum_distinct_capability_domains || 1);
+  const ok =
+    ready.length >= minimumReady &&
+    userVisibleReady.length >= minimumUserVisible &&
+    liveReady.length >= minimumLive &&
+    readyWorkClasses.length >= minimumDistinctWorkClasses &&
+    readyCapabilityDomains.length >= minimumDistinctCapabilityDomains;
   const generatedAt = new Date().toISOString();
   const traceId = `validation:${generatedAt}:real-work-workflow-proof`;
+  const capabilityOutcomes = readyCapabilityDomains.map((domain) => {
+    const domainLanes = ready.filter((lane) => lane.capability_domain === domain);
+    return {
+      capability_domain: domain,
+      ready_lane_count: domainLanes.length,
+      work_classes: Array.from(new Set(domainLanes.map((lane) => lane.work_class))).sort(),
+      user_visible_lane_count: domainLanes.filter((lane) => lane.user_visible).length,
+      live_lane_count: domainLanes.filter((lane) => lane.live_proof).length,
+      evidence_paths: domainLanes.map((lane) => lane.evidence_path).filter(Boolean),
+    };
+  });
   const report = {
     trace_id: traceId,
     span_id: `span:${traceId}`,
@@ -228,7 +276,14 @@ function run(argv: string[]) {
     minimum_user_visible_lanes: minimumUserVisible,
     live_ready_lane_count: liveReady.length,
     minimum_live_lanes: minimumLive,
+    distinct_ready_work_class_count: readyWorkClasses.length,
+    minimum_distinct_work_classes: minimumDistinctWorkClasses,
+    distinct_ready_capability_domain_count: readyCapabilityDomains.length,
+    minimum_distinct_capability_domains: minimumDistinctCapabilityDomains,
+    ready_work_classes: readyWorkClasses,
+    ready_capability_domains: readyCapabilityDomains,
     total_lane_count: lanes.length,
+    capability_outcomes: capabilityOutcomes,
     lanes,
     summary: ok
       ? 'Real-work proof has fresh passing evidence across live Gateway operation, workspace/tooling work, installer recovery, security remediation, and operator workflows.'

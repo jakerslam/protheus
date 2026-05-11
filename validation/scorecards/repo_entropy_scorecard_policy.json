@@ -1,6 +1,6 @@
 {
   "type": "repo_entropy_scorecard_policy",
-  "schema_version": 2,
+  "schema_version": 3,
   "owner_domain": "validation.scorecards",
   "report_path": "core/local/artifacts/repo_entropy_scorecard_current.json",
   "markdown_report_path": "local/workspace/reports/REPO_ENTROPY_SCORECARD_CURRENT.md",
@@ -14,6 +14,27 @@
     "loc_growth",
     "guard_surface",
     "duplicate_surfaces"
+  ],
+  "tracked_metrics": [
+    "dirty_paths",
+    "dirty_added",
+    "dirty_modified",
+    "dirty_deleted",
+    "dirty_untracked",
+    "npm_scripts",
+    "command_entries",
+    "compat_command_entries",
+    "operator_surface_entries",
+    "workflow_files",
+    "required_ci_checks",
+    "core_local_artifacts",
+    "core_local_artifact_bytes",
+    "artifact_cleanup_candidates",
+    "effective_loc",
+    "effective_loc_delta_pct",
+    "guard_scripts",
+    "gate_registry_entries",
+    "duplicate_surface_roots"
   ],
   "thresholds": {
     "red": {
@@ -77,7 +98,8 @@
     "ci_required_gate_reduction_plan": "validation/reports/ci_required_gate_reduction_plan_2026-05-10.json",
     "ci_workflow_tier_manifest": "validation/conformance/contracts/ci_workflow_tier_manifest.json",
     "command_registry": "tools/commands/command_registry.json",
-    "tooling_gate_registry": "tests/tooling/config/tooling_gate_registry.json"
+    "tooling_gate_registry": "tests/tooling/config/tooling_gate_registry.json",
+    "artifact_retention": "core/local/artifacts/assurance_artifact_retention_report_current.json"
   },
   "policy": {
     "scorecard_is_observational_by_default": true,
@@ -85,6 +107,10 @@
     "red_dimensions_require_next_actions": true,
     "scorecard_must_not_mutate_worktree": true,
     "scorecard_must_not_read_shell_or_orchestration_internals": true,
-    "loc_growth_uses_existing_effective_loc_artifact_when_available": true
+    "loc_growth_uses_existing_effective_loc_artifact_when_available": true,
+    "history_deltas_required": true,
+    "top_entropy_drivers_required": true,
+    "artifact_pressure_must_include_retention_candidates": true,
+    "dirty_churn_must_include_status_breakdown": true
   }
 }

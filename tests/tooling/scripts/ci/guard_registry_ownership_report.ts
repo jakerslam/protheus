@@ -140,11 +140,44 @@ function markdownFor(report: Json): string {
   for (const finding of report.findings || []) {
     lines.push(`| ${markdownEscape(finding.kind)} | ${markdownEscape(finding.path || finding.family || finding.artifact)} | ${markdownEscape(finding.detail || finding.count || '')} | ${markdownEscape(finding.next_action)} |`);
   }
+  lines.push('', '## Remediation Queue', '');
+  for (const row of report.remediation_queue || []) {
+    lines.push(`- ${markdownEscape(row.priority)} ${markdownEscape(row.kind)}: ${markdownEscape(row.target)} — ${markdownEscape(row.next_action)}`);
+  }
+  lines.push('', '## Detection Coverage', '');
+  for (const row of report.detection_coverage || []) {
+    lines.push(`- ${markdownEscape(row.id)}: ${row.covered ? 'covered' : 'missing'}`);
+  }
   lines.push('');
   return `${lines.join('\n')}\n`;
 }
 
+function findingPriority(finding: Json): number {
+  const rank: Record<string, number> = {
+    stale_guard_candidate: 900,
+    guard_missing_ownership_marker: 800,
+    duplicate_guard_family: 760,
+    unregistered_guard_script: 700,
+    orphan_guard_artifact: 500,
+  };
+  return Number(rank[String(finding.kind || '')] || 100);
+}
+
+function remediationTarget(finding: Json): string {
+  return String(finding.path || finding.family || finding.artifact || 'unknown');
+}
+
+function remediationOwner(finding: Json): string {
+  if (finding.owner_guess) return String(finding.owner_guess);
+  if (finding.kind === 'orphan_guard_artifact') return 'validation.artifact-retention';
+  if (finding.kind === 'duplicate_guard_family') return 'validation.guard-registry';
+  return 'validation';
+}
+
 const markers = (policy.required_source_markers_any as string[]) || [];
+const allowedDuplicateFamilies = new Map<string, Json>(
+  ((policy.allowed_duplicate_families as Json[]) || []).map((row) => [String(row.family || ''), row]),
+);
 const guardRoots = (policy.guard_roots as string[]) || [];
 const artifactRoots = (policy.artifact_roots as string[]) || [];
 const packageRefs = packageScriptReferences();
@@ -181,9 +214,17 @@ const rows = guardFiles.map((file) => {
 
 const byFamily = new Map<string, Json[]>();
 for (const row of rows) byFamily.set(row.family, [...(byFamily.get(row.family) || []), row]);
-const duplicateFamilies = [...byFamily.entries()]
+const allDuplicateFamilies = [...byFamily.entries()]
   .filter(([, familyRows]) => familyRows.length > 1)
-  .map(([family, familyRows]) => ({ family, count: familyRows.length, paths: familyRows.map((row) => row.path) }));
+  .map(([family, familyRows]) => ({
+    family,
+    count: familyRows.length,
+    paths: familyRows.map((row) => row.path),
+    declared_allowed: allowedDuplicateFamilies.has(family),
+    reason: allowedDuplicateFamilies.get(family)?.reason || null,
+  }));
+const duplicateFamilies = allDuplicateFamilies.filter((row) => !row.declared_allowed);
+const allowedDuplicateFamilyRows = allDuplicateFamilies.filter((row) => row.declared_allowed);
 const missingOwnership = rows.filter((row) => !row.has_ownership_marker);
 const unregistered = rows.filter((row) => !row.registered);
 const stale = rows.filter((row) => !row.registered && !row.has_ownership_marker);
@@ -203,7 +244,8 @@ const artifactRows = artifactRoots
 const orphanArtifacts = artifactRows.filter((row) => !row.declared);
 
 const findingLimit = Number(policy.finding_limits?.max_findings_in_report || 250);
-const findings = [
+const remediationQueueLimit = Number(policy.finding_limits?.max_remediation_queue_items || 25);
+const allFindings = [
   ...missingOwnership.map((row) => ({
     kind: 'guard_missing_ownership_marker',
     path: row.path,
@@ -236,13 +278,55 @@ const findings = [
     kind: 'orphan_guard_artifact',
     artifact: row.path,
     detail: `bytes=${row.bytes}`,
+    owner_guess: 'validation.artifact-retention',
     next_action: 'Add this artifact to a registered gate or release manifest, or clean it with artifact retention.',
   })),
-].slice(0, findingLimit);
+];
+const findings = allFindings.slice(0, findingLimit);
+const findingCountsByKind = allFindings.reduce((acc: Record<string, number>, finding) => {
+  const kind = String(finding.kind || 'unknown');
+  acc[kind] = (acc[kind] || 0) + 1;
+  return acc;
+}, {});
+const remediationQueue = [...allFindings]
+  .sort((a, b) => findingPriority(b) - findingPriority(a) || remediationTarget(a).localeCompare(remediationTarget(b)))
+  .slice(0, remediationQueueLimit)
+  .map((finding, idx) => ({
+    priority: idx + 1,
+    kind: finding.kind,
+    target: remediationTarget(finding),
+    owner_guess: remediationOwner(finding),
+    next_action: finding.next_action || 'inspect and decide whether to register, merge, archive, or retention-clean this guard surface',
+  }));
+
+const requiredDetectionClasses = Array.isArray(policy.required_detection_classes) ? policy.required_detection_classes : [];
+const implementedDetectionKinds = new Set([
+  'guard_missing_ownership_marker',
+  'unregistered_guard_script',
+  'stale_guard_candidate',
+  'duplicate_guard_family',
+  'orphan_guard_artifact',
+]);
+const detectionCoverage = requiredDetectionClasses.map((row: Json) => ({
+  id: String(row.id || ''),
+  purpose: String(row.purpose || ''),
+  covered: implementedDetectionKinds.has(String(row.id || '')),
+}));
 
 const generatedAt = new Date().toISOString();
 const traceId = `validation:${generatedAt}:guard-registry-ownership`;
-const severity = stale.length > 0 || orphanArtifacts.length > 0 ? 'yellow' : missingOwnership.length > 0 || duplicateFamilies.length > 0 || unregistered.length > 0 ? 'white' : 'pass';
+const thresholds = policy.severity_thresholds || {};
+const severity = missingOwnership.length >= Number(thresholds.missing_ownership_red || Number.POSITIVE_INFINITY)
+  || duplicateFamilies.length >= Number(thresholds.undeclared_duplicate_family_red || Number.POSITIVE_INFINITY)
+  || stale.length >= Number(thresholds.stale_guard_candidates_red || Number.POSITIVE_INFINITY)
+  || orphanArtifacts.length >= Number(thresholds.orphan_artifacts_red || Number.POSITIVE_INFINITY)
+  ? 'red'
+  : stale.length >= Number(thresholds.stale_guard_candidates_yellow || Number.POSITIVE_INFINITY)
+    || orphanArtifacts.length >= Number(thresholds.orphan_artifacts_yellow || Number.POSITIVE_INFINITY)
+    ? 'yellow'
+    : unregistered.length > 0
+      ? 'white'
+      : 'pass';
 const report = {
   trace_id: traceId,
   span_id: `span:${traceId}`,
@@ -260,10 +344,15 @@ const report = {
   owned_guard_count: rows.length - missingOwnership.length,
   missing_ownership_count: missingOwnership.length,
   duplicate_family_count: duplicateFamilies.length,
+  allowed_duplicate_family_count: allowedDuplicateFamilyRows.length,
   guard_artifact_count: artifactRows.length,
   orphan_artifact_count: orphanArtifacts.length,
+  finding_count_by_kind: findingCountsByKind,
+  detection_coverage: detectionCoverage,
+  remediation_queue: remediationQueue,
   findings,
   duplicate_families: duplicateFamilies,
+  allowed_duplicate_families: allowedDuplicateFamilyRows,
   orphan_artifacts: orphanArtifacts.slice(0, Number(policy.finding_limits?.max_rows_in_report || 500)),
   rows: rows.slice(0, Number(policy.finding_limits?.max_rows_in_report || 500)),
 };

@@ -71,6 +71,32 @@ function safeGit(args: string[]): string {
   }
 }
 
+function worktreeChurnMetrics(dirtyRows: string[]) {
+  let dirtyAdded = 0;
+  let dirtyModified = 0;
+  let dirtyDeleted = 0;
+  let dirtyUntracked = 0;
+  for (const row of dirtyRows) {
+    const x = row.slice(0, 1);
+    const y = row.slice(1, 2);
+    if (row.startsWith('??')) {
+      dirtyUntracked += 1;
+      continue;
+    }
+    if (x === 'A' || y === 'A') dirtyAdded += 1;
+    if (x === 'M' || y === 'M') dirtyModified += 1;
+    if (x === 'D' || y === 'D') dirtyDeleted += 1;
+  }
+  return {
+    dirty_paths: dirtyRows.length,
+    dirty_added: dirtyAdded,
+    dirty_modified: dirtyModified,
+    dirty_deleted: dirtyDeleted,
+    dirty_untracked: dirtyUntracked,
+    sample: dirtyRows.slice(0, 25),
+  };
+}
+
 function currentRevision(): string {
   return safeGit(['rev-parse', 'HEAD']).trim() || 'unknown';
 }
@@ -137,7 +163,15 @@ function artifactMetrics(policy: Json) {
     bytes += rootBytes;
     byRoot.push({ root: relRoot, files: files.length, bytes: rootBytes });
   }
-  return { core_local_artifacts: count, core_local_artifact_bytes: bytes, roots: byRoot };
+  const retentionReport = readJson(String(policy?.source_artifacts?.artifact_retention || 'core/local/artifacts/assurance_artifact_retention_report_current.json'));
+  return {
+    core_local_artifacts: count,
+    core_local_artifact_bytes: bytes,
+    artifact_cleanup_candidates: Number(retentionReport?.cleanup_candidate_total || 0),
+    artifact_cleanup_candidate_bytes: Number(retentionReport?.cleanup_candidate_bytes || 0),
+    artifact_cleanup_pressure: retentionReport?.cleanup_candidate_pressure || null,
+    roots: byRoot,
+  };
 }
 
 function guardMetrics(policy: Json) {
@@ -246,6 +280,20 @@ function markdownFor(report: Json): string {
     if (typeof value !== 'object') lines.push(`- ${key}: ${value}`);
   }
   lines.push('');
+  lines.push('## Top Entropy Drivers');
+  lines.push('');
+  for (const row of report.top_entropy_drivers || []) {
+    lines.push(`- ${markdownEscape(row.name)}: ${markdownEscape(row.severity)} (${markdownEscape(row.metric_key)}=${markdownEscape(row.value)})`);
+  }
+  lines.push('');
+  lines.push('## Trend Deltas');
+  lines.push('');
+  for (const [key, row] of Object.entries(report.trend_deltas || {})) {
+    const delta = typeof row === 'object' && row ? (row as Json).delta : '';
+    const pct = typeof row === 'object' && row ? (row as Json).delta_pct : '';
+    lines.push(`- ${markdownEscape(key)}: delta=${markdownEscape(delta)} delta_pct=${markdownEscape(pct)}`);
+  }
+  lines.push('');
   return `${lines.join('\n')}\n`;
 }
 
@@ -267,6 +315,36 @@ function appendHistory(filePath: string, payload: unknown) {
   fs.appendFileSync(abs, `${JSON.stringify(payload)}\n`);
 }
 
+function readPreviousHistory(filePath: string): Json | null {
+  const abs = path.resolve(root, filePath);
+  try {
+    const rows = fs.readFileSync(abs, 'utf8').split(/\r?\n/).filter(Boolean);
+    for (let idx = rows.length - 1; idx >= 0; idx -= 1) {
+      const parsed = JSON.parse(rows[idx]) as Json;
+      if (parsed && typeof parsed.summary === 'object') return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function trendDeltas(summary: Json, previous: Json | null, trackedMetrics: string[]): Json {
+  const prevSummary = previous?.summary && typeof previous.summary === 'object' ? previous.summary as Json : {};
+  const out: Json = {};
+  for (const key of trackedMetrics) {
+    const current = Number(summary[key] || 0);
+    const prior = Number(prevSummary[key] || 0);
+    out[key] = {
+      current,
+      previous: prior,
+      delta: current - prior,
+      delta_pct: prior > 0 ? Number((((current - prior) / prior) * 100).toFixed(3)) : null,
+    };
+  }
+  return out;
+}
+
 function run(argv: string[]): number {
   const policyRelPath = readFlag(argv, 'policy') || defaultPolicyPath;
   const policyPath = path.resolve(root, policyRelPath);
@@ -276,6 +354,7 @@ function run(argv: string[]): number {
   const outMarkdown = readFlag(argv, 'out-markdown') || String(policy.markdown_report_path || 'local/workspace/reports/REPO_ENTROPY_SCORECARD_CURRENT.md');
   const historyPath = readFlag(argv, 'history') || String(policy.history_path || 'local/state/validation/repo_entropy_scorecard/history.jsonl');
   const dirtyRows = safeGit(['status', '--porcelain=v1']).split(/\r?\n/).filter(Boolean);
+  const worktree = worktreeChurnMetrics(dirtyRows);
   const commands = commandMetrics(policy);
   const ci = ciMetrics(policy);
   const artifacts = artifactMetrics(policy);
@@ -284,7 +363,7 @@ function run(argv: string[]): number {
   const loc = effectiveLocMetrics(policy);
 
   const dimensions: Dimension[] = [
-    dimension(policy, 'worktree_churn', 'dirty_paths', dirtyRows.length, { dirty_paths: dirtyRows.length }, [
+    dimension(policy, 'worktree_churn', 'dirty_paths', dirtyRows.length, worktree, [
       'Use safe commit workspace flow before risky operations.',
       'Split unrelated dirty state before release, history rewrite, or large refactors.',
     ]),
@@ -320,6 +399,48 @@ function run(argv: string[]): number {
   const entropyScore = dimensions.reduce((sum, row) => sum + severityWeight[row.severity], 0);
   const generatedAt = new Date().toISOString();
   const traceId = `validation:${generatedAt}:repo-entropy-scorecard`;
+  const summary = {
+    dirty_paths: dirtyRows.length,
+    dirty_added: worktree.dirty_added,
+    dirty_modified: worktree.dirty_modified,
+    dirty_deleted: worktree.dirty_deleted,
+    dirty_untracked: worktree.dirty_untracked,
+    npm_scripts: commands.npm_scripts,
+    command_entries: commands.command_entries,
+    compat_command_entries: commands.compat_command_entries,
+    operator_surface_entries: commands.operator_surface_entries,
+    workflow_files: ci.workflow_files,
+    required_ci_checks: ci.required_ci_checks,
+    core_local_artifacts: artifacts.core_local_artifacts,
+    core_local_artifact_bytes: artifacts.core_local_artifact_bytes,
+    artifact_cleanup_candidates: artifacts.artifact_cleanup_candidates,
+    artifact_cleanup_candidate_bytes: artifacts.artifact_cleanup_candidate_bytes,
+    effective_loc: loc.effective_loc,
+    effective_files: loc.effective_files,
+    effective_loc_delta: loc.effective_loc_delta,
+    effective_loc_delta_pct: loc.effective_loc_delta_pct,
+    guard_scripts: guards.guard_scripts,
+    gate_registry_entries: guards.gate_registry_entries,
+    duplicate_surface_roots: duplicates.duplicate_surface_roots,
+  };
+  const trackedMetrics = Array.isArray(policy.tracked_metrics)
+    ? policy.tracked_metrics.map(String)
+    : Object.keys(summary);
+  const previousHistory = readPreviousHistory(historyPath);
+  const topEntropyDrivers = [...dimensions]
+    .sort((a, b) => {
+      const severityOrder: Record<Severity, number> = { red: 3, yellow: 2, white: 1, pass: 0 };
+      const severityDelta = severityOrder[b.severity] - severityOrder[a.severity];
+      return severityDelta || b.value - a.value || a.name.localeCompare(b.name);
+    })
+    .slice(0, 5)
+    .map((row) => ({
+      name: row.name,
+      severity: row.severity,
+      metric_key: row.metric_key,
+      value: row.value,
+      next_action: row.next_actions[0] || '',
+    }));
   const report = {
     trace_id: traceId,
     span_id: `span:${traceId}`,
@@ -334,24 +455,10 @@ function run(argv: string[]): number {
     red_dimensions: dimensions.filter((row) => row.severity === 'red').map((row) => row.name),
     yellow_dimensions: dimensions.filter((row) => row.severity === 'yellow').map((row) => row.name),
     dimensions,
-    summary: {
-      dirty_paths: dirtyRows.length,
-      npm_scripts: commands.npm_scripts,
-      command_entries: commands.command_entries,
-      compat_command_entries: commands.compat_command_entries,
-      operator_surface_entries: commands.operator_surface_entries,
-      workflow_files: ci.workflow_files,
-      required_ci_checks: ci.required_ci_checks,
-      core_local_artifacts: artifacts.core_local_artifacts,
-      core_local_artifact_bytes: artifacts.core_local_artifact_bytes,
-      effective_loc: loc.effective_loc,
-      effective_files: loc.effective_files,
-      effective_loc_delta: loc.effective_loc_delta,
-      effective_loc_delta_pct: loc.effective_loc_delta_pct,
-      guard_scripts: guards.guard_scripts,
-      gate_registry_entries: guards.gate_registry_entries,
-      duplicate_surface_roots: duplicates.duplicate_surface_roots,
-    },
+    tracked_metrics: trackedMetrics,
+    trend_deltas: trendDeltas(summary, previousHistory, trackedMetrics),
+    top_entropy_drivers: topEntropyDrivers,
+    summary,
     artifact_paths: [outJson, outMarkdown],
     strict_mode: strict,
     observational: policy?.policy?.scorecard_is_observational_by_default !== false,

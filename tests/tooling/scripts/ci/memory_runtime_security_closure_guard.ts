@@ -83,6 +83,16 @@ for (const check of policy.required_checks || []) {
       );
     }
   }
+  for (const pattern of check.must_match || []) {
+    if (!makeRegExp(pattern).test(src)) {
+      violations.push(
+        baseViolation(check, 'missing_required_pattern', {
+          pattern: pattern.pattern,
+          detail: pattern.reason || null,
+        }),
+      );
+    }
+  }
 }
 
 for (const pattern of policy.global_forbidden_patterns || []) {
@@ -118,6 +128,8 @@ const payload = {
   generated_at: generatedAt,
   policy_path: policyRelPath,
   code_scanning_classes: policy.code_scanning_classes || [],
+  covered_code_scanning_rule_ids: Array.from(new Set((policy.code_scanning_classes || []).map((row) => row.rule_id).filter(Boolean))).sort(),
+  covered_github_alert_ids: Array.from(new Set((policy.code_scanning_classes || []).flatMap((row) => row.github_alert_ids || []))).sort((a, b) => Number(a) - Number(b)),
   scanned_source_roots: policy.source_roots || [],
   scanned_file_count: scannedFiles.size,
   required_check_count: (policy.required_checks || []).length,

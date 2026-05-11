@@ -3,7 +3,7 @@
   "schema_version": 1,
   "generated_at": "2026-05-11T06:07:39.671Z",
   "source": "package.json",
-  "script_count": 1151,
+  "script_count": 1180,
   "group_counts": {
     "account": 1,
     "actuation": 8,
@@ -71,7 +71,7 @@
     "metrics": 6,
     "nursery": 1,
     "obsidian": 4,
-    "ops": 551,
+    "ops": 580,
     "orchestron": 1,
     "organ": 3,
     "outreach": 2,
@@ -115,10 +115,16 @@
     "zero-permission": 1
   },
   "compression_policy": {
-    "canonical_runner": "tools/commands/command_runner.ts",
+    "canonical_runner": "npm run -s cmd --",
     "compatibility_aliases_allowed": true,
     "new_package_scripts_require_policy_update": true,
-    "goal": "move command truth from package.json script sprawl into a structured registry and runner"
+    "goal": "structured command runner is the default operator surface; compatibility aliases are hidden unless explicitly requested",
+    "operator_surface_target_count": 100,
+    "operator_surface_contract": "validation/conformance/contracts/command_metadata_curated_overrides.json",
+    "default_operator_surface_count": 100,
+    "command_runner_first_policy": "validation/conformance/contracts/command_runner_first_policy.json",
+    "package_json_role": "compatibility_backing_store",
+    "sentinel_full_sample_refresh_command": "ops:kernel-sentinel:timing:refresh"
   },
   "entries": [
     {
@@ -983,12 +989,16 @@
       "id": "build:memory",
       "group": "build",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/napi_build_surface_compat.ts build --apply=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command build:memory in group build; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 26,
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
     },
     {
       "id": "build:systems",
@@ -1110,11 +1120,11 @@
       "domain": "workspace_ops",
       "work_gate": "real_work",
       "description": "Run a command by registry id through the metadata-aware command runner; preferred agent entrypoint over raw package-script spelunking.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
       "operator_surface_rank": 1,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_reason": "top_100_operator_surface:real_work:workspace_ops"
     },
     {
       "id": "commands:groups",
@@ -1126,11 +1136,11 @@
       "domain": "workspace_ops",
       "work_gate": "simplification",
       "description": "Summarize command registry groups, domains, and three-commandment work gates for surface compression.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 2,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 3,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
     },
     {
       "id": "commands:list",
@@ -1142,11 +1152,11 @@
       "domain": "workspace_ops",
       "work_gate": "simplification",
       "description": "List command registry entries with metadata filters for domain, work gate, lifecycle, group, and search text.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 3,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 2,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
     },
     {
       "id": "compliance:posture",
@@ -1972,11 +1982,7 @@
       "domain": "gateway",
       "work_gate": "real_work",
       "description": "Start or attach to the Gateway runtime surface without treating Shell state as authority.",
-      "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z",
-      "operator_surface": true,
-      "operator_surface_rank": 4,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "metadata_curated_at": "2026-05-10T00:00:00Z"
     },
     {
       "id": "gateway:status",
@@ -1988,11 +1994,11 @@
       "domain": "gateway",
       "work_gate": "reliability",
       "description": "Read Gateway status and health projection for operator diagnostics without mutating runtime state.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 5,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 12,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "gateway:stop",
@@ -2004,11 +2010,11 @@
       "domain": "gateway",
       "work_gate": "reliability",
       "description": "Stop the Gateway runtime through the governed command path while preserving diagnostic output.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 6,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 13,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "git:add:code",
@@ -2026,16 +2032,16 @@
       "group": "git",
       "command": "node tools/git/safe_commit_report.ts",
       "lifecycle": "canonical_entrypoint",
-      "owner": "workspace_ops.git_safety",
+      "owner": "workspace_ops",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "workspace_ops",
       "work_gate": "reliability",
       "description": "Plan an explicit-path surgical commit with a temporary Git index, diff checks, and no mutation of the real staging area.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-11T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 21,
-      "operator_surface_reason": "high-value dirty-worktree safety command promoted for agent commit hygiene"
+      "operator_surface_rank": 11,
+      "operator_surface_reason": "top_100_operator_surface:reliability:workspace_ops"
     },
     {
       "id": "guard:merge",
@@ -2360,37 +2366,46 @@
       "id": "infring:verify:layer2-parity",
       "group": "infring",
       "command": "npm run -s ops:layer2:parity:guard --",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command infring:verify:layer2-parity in group infring; domain=validation; three-laws gate=reliability."
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 54,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "infring:verify:layer3-contract",
       "group": "infring",
       "command": "npm run -s ops:layer3:contract:guard --",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command infring:verify:layer3-contract in group infring; domain=validation; three-laws gate=reliability."
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 55,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "infring:verify:proof-pack",
       "group": "infring",
       "command": "npm run -s ops:release:proof-pack --",
-      "lifecycle": "compatibility_alias",
-      "owner": "release_governance",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command infring:verify:proof-pack in group infring; domain=release_governance; three-laws gate=reliability.",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 85,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 52,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "infring:verify:public-benchmark",
@@ -2407,12 +2422,16 @@
       "id": "infring:verify:runtime-proof",
       "group": "infring",
       "command": "npm run -s ops:runtime-proof:verify --",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command infring:verify:runtime-proof in group infring; domain=validation; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 53,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "infring:verify:trusted-core",
@@ -2457,11 +2476,11 @@
       "domain": "installer",
       "work_gate": "real_work",
       "description": "Run the personal installation path for local operator setup using the public installer compatibility surface.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 7,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 19,
+      "operator_surface_reason": "top_100_operator_surface:real_work:installer"
     },
     {
       "id": "integrity:assist",
@@ -2687,89 +2706,97 @@
       "id": "memory:auto-recall:status",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/memory_auto_recall.ts status",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:auto-recall:status in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:backfill:xml",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/memory/backfill_xml_hierarchy.ts",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "kernel",
       "work_gate": "reliability",
-      "description": "Registry command memory:backfill:xml in group memory; domain=validation; three-laws gate=reliability."
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 99,
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
     },
     {
       "id": "memory:backfill:xml:apply",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/memory/backfill_xml_hierarchy.ts --apply=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "kernel",
       "work_gate": "reliability",
-      "description": "Registry command memory:backfill:xml:apply in group memory; domain=validation; three-laws gate=reliability."
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 100,
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
     },
     {
       "id": "memory:causal-graph:build",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/causal_temporal_graph.ts build --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:causal-graph:build in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:causal-graph:query",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/causal_temporal_graph.ts query --mode=why --event-id=latest",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "kernel",
       "work_gate": "reliability",
-      "description": "Registry command memory:causal-graph:query in group memory; domain=validation; three-laws gate=reliability."
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:cross-cell-exchange:run",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/cross_cell_exchange_plane.ts exchange --from=cell_a --to=master --payload={}",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:cross-cell-exchange:run in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:dream-sequencer:run",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/dream_sequencer.ts run --apply=1 --reason=manual",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:dream-sequencer:run in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:dream-sequencer:status",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/dream_sequencer.ts status",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:dream-sequencer:status in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:efficiency:run",
@@ -2779,68 +2806,68 @@
       "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "simplification",
+      "work_gate": "reliability",
       "description": "Run memory efficiency analysis to find retention, compaction, and representation-collapse opportunities.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 8,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 25,
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
     },
     {
       "id": "memory:fallback-gate:disable-emergency",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/memory_fallback_retirement_gate.ts disable-emergency",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "kernel",
       "work_gate": "reliability",
-      "description": "Registry command memory:fallback-gate:disable-emergency in group memory; domain=validation; three-laws gate=reliability."
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:fallback-gate:enable-emergency",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/memory_fallback_retirement_gate.ts enable-emergency --reason=\"manual_emergency\"",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "kernel",
       "work_gate": "reliability",
-      "description": "Registry command memory:fallback-gate:enable-emergency in group memory; domain=validation; three-laws gate=reliability."
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:hybrid-engine:consolidate",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/hybrid_memory_engine.ts consolidate",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:hybrid-engine:consolidate in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:hybrid-engine:ingest",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/hybrid_memory_engine.ts ingest --objective=global --content=\"sample\"",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:hybrid-engine:ingest in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:matrix:build",
       "group": "memory",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/memory_matrix.ts run --apply=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "kernel",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
       "domain": "kernel",
-      "work_gate": "real_work",
-      "description": "Registry command memory:matrix:build in group memory; domain=kernel; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors."
     },
     {
       "id": "memory:matrix:status",
@@ -2852,11 +2879,7 @@
       "domain": "kernel",
       "work_gate": "reliability",
       "description": "Read memory matrix status as a kernel-owned diagnostic rather than a Shell-owned cache mirror.",
-      "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z",
-      "operator_surface": true,
-      "operator_surface_rank": 9,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "metadata_curated_at": "2026-05-10T00:00:00Z"
     },
     {
       "id": "memory:offdevice:restore-drill",
@@ -2928,12 +2951,16 @@
       "id": "metrics:effective-loc",
       "group": "metrics",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/effective_loc_metric.ts --strict=1",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
-      "work_gate": "reliability",
-      "description": "Registry command metrics:effective-loc in group metrics; domain=validation; three-laws gate=reliability."
+      "work_gate": "simplification",
+      "description": "Curated operator command for metrics / effective loc; selected for simplification work in the validation domain.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 70,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
       "id": "metrics:effective-loc:delta-main",
@@ -3098,10 +3125,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:agent-surface:status:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 87,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:agent-surface:status:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:alert-transport",
@@ -3189,10 +3213,29 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:architecture:transition-residue:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 88,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:architecture:transition-residue:guard in group ops; domain=validation; three-laws gate=reliability."
+    },
+    {
+      "id": "ops:artifact-retention:apply",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/assurance_artifact_retention_apply.ts",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Registry command ops:artifact-retention:apply in group ops; domain=workspace_ops; three-laws gate=simplification."
+    },
+    {
+      "id": "ops:artifact-retention:dry-run",
+      "group": "ops",
+      "command": "npm run -s ops:artifact-retention:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/assurance_artifact_retention_apply.ts --report=core/local/artifacts/assurance_artifact_retention_report_current.json",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Registry command ops:artifact-retention:dry-run in group ops; domain=workspace_ops; three-laws gate=simplification."
     },
     {
       "id": "ops:artifact-retention:guard",
@@ -3202,8 +3245,12 @@
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
-      "work_gate": "reliability",
-      "description": "Validate local artifact retention budgets, cleanup candidates, and latest-ref index coverage."
+      "work_gate": "simplification",
+      "description": "Control artifact retention and generated-output hygiene so local evidence stays useful without unbounded repository noise.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 57,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
       "id": "ops:artifact-retention:report",
@@ -3213,8 +3260,12 @@
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
-      "work_gate": "reliability",
-      "description": "Generate local assurance artifact retention report and canonical latest-ref index."
+      "work_gate": "simplification",
+      "description": "Control artifact retention and generated-output hygiene so local evidence stays useful without unbounded repository noise.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 56,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
       "id": "ops:assimilation:authority:guard",
@@ -3247,10 +3298,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assimilation:v1:support:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 89,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:assimilation:v1:support:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:assurance:envelope:guard",
@@ -3261,15 +3309,12 @@
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:envelope:guard in group ops; domain=observability; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 90,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:assurance:envelope:guard in group ops; domain=observability; three-laws gate=reliability."
     },
     {
       "id": "ops:assurance:governance",
       "group": "ops",
-      "command": "npm run -s ops:assurance:placement:guard && npm run -s ops:assurance:envelope:guard && npm run -s ops:assurance:scorecard-derivation:guard && npm run -s ops:assurance:shell-truth-leak:guard && npm run -s ops:assurance:physical-domain-placement:guard && npm run -s ops:assurance:physical-domain-completion:audit",
+      "command": "npm run -s ops:assurance:placement:guard && npm run -s ops:assurance:envelope:guard && npm run -s ops:assurance:scorecard-derivation:guard && npm run -s ops:assurance:shell-truth-leak:guard && npm run -s ops:assurance:physical-domain-placement:guard && npm run -s ops:assurance:physical-domain-completion:audit && npm run -s ops:memory-runtime:security-closure:guard && npm run -s ops:guard-registry:ownership:guard",
       "lifecycle": "compatibility_alias",
       "owner": "ops",
       "source": "package.json:scripts",
@@ -3286,10 +3331,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:physical-domain-completion:audit in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 80,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:assurance:physical-domain-completion:audit in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:assurance:physical-domain-placement:guard",
@@ -3300,10 +3342,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:physical-domain-placement:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 91,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:assurance:physical-domain-placement:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:assurance:placement:guard",
@@ -3314,10 +3353,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:placement:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 92,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:assurance:placement:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:assurance:scorecard-derivation:guard",
@@ -3328,10 +3364,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:scorecard-derivation:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 93,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:assurance:scorecard-derivation:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:assurance:shell-truth-leak:guard",
@@ -3678,23 +3711,31 @@
       "id": "ops:boundary:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/boundary_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "ops",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:boundary:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 68,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "ops:boundedness:inspect",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_boundedness_inspect_bundle.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:boundedness:inspect in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 75,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:boundedness:release-gate",
@@ -3703,14 +3744,14 @@
       "lifecycle": "canonical_entrypoint",
       "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Gate release confidence on boundedness evidence such as memory, queue, stale-surface, and recovery budgets.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 10,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 45,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:browser-shell-v2:build",
@@ -3793,17 +3834,17 @@
       "id": "ops:capability-proof-burden:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/capability_proof_burden_guard.ts --strict=1 --out-json=core/local/artifacts/capability_proof_burden_guard_current.json --out-markdown=local/workspace/reports/CAPABILITY_PROOF_BURDEN_GUARD_CURRENT.md",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation.capability_proof",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Require capability claims to carry proof burden, evidence refs, and explicit exemptions instead of assertion-only confidence.",
-      "operator_surface": true,
-      "operator_surface_rank": 34,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 50,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:capacity-forecast:run",
@@ -3859,6 +3900,17 @@
       "domain": "validation",
       "work_gate": "reliability",
       "description": "Registry command ops:ci-baseline:guard in group ops; domain=validation; three-laws gate=reliability."
+    },
+    {
+      "id": "ops:ci-branch-protection:apply",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_branch_protection_apply.ts",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Registry command ops:ci-branch-protection:apply in group ops; domain=workspace_ops; three-laws gate=simplification."
     },
     {
       "id": "ops:ci-quality:check",
@@ -3985,64 +4037,133 @@
       "id": "ops:combined-artifacts:hygiene:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/combined_rust_artifact_hygiene_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation.repo_hygiene",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
       "description": "Guard against checked-in combined artifact shards and generated Rust bundles that inflate the repo without serving runtime truth.",
-      "operator_surface": true,
-      "operator_surface_rank": 42,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 58,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
+    },
+    {
+      "id": "ops:command-metadata:curated:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/command_metadata_curated_guard.ts",
+      "lifecycle": "curated_operator_command",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Validate that the default command-runner surface contains the curated top 100 operator commands and hides compatibility aliases by default.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 8,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
+    },
+    {
+      "id": "ops:command-operator-surface:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/command_operator_surface_guard.ts",
+      "lifecycle": "curated_operator_command",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Validate that the command runner default list is exactly the bounded curated operator surface.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 10,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
     },
     {
       "id": "ops:command-registry:check",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/command_registry_surface_contract.ts check --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "workspace_ops",
       "source": "package.json:scripts",
       "domain": "workspace_ops",
-      "work_gate": "real_work",
-      "description": "Registry command ops:command-registry:check in group ops; domain=workspace_ops; three-laws gate=real_work."
+      "work_gate": "simplification",
+      "description": "Curated operator command for ops / command registry / check; selected for simplification work in the workspace_ops domain.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 6,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
     },
     {
       "id": "ops:command-registry:sync",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/command_registry_surface_contract.ts sync --strict=0",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "workspace_ops",
       "source": "package.json:scripts",
       "domain": "workspace_ops",
-      "work_gate": "real_work",
-      "description": "Registry command ops:command-registry:sync in group ops; domain=workspace_ops; three-laws gate=real_work."
+      "work_gate": "simplification",
+      "description": "Curated operator command for ops / command registry / sync; selected for simplification work in the workspace_ops domain.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 7,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
+    },
+    {
+      "id": "ops:command-runner:first:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/command_runner_first_guard.ts",
+      "lifecycle": "curated_operator_command",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Validate that the metadata-aware command runner is the default agent navigation surface and package scripts are only compatibility backing.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 9,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
     },
     {
       "id": "ops:command-surface:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/package_script_surface_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "workspace_ops",
       "source": "package.json:scripts",
-      "domain": "validation",
-      "work_gate": "reliability",
-      "description": "Registry command ops:command-surface:guard in group ops; domain=validation; three-laws gate=reliability."
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Curated operator command for ops / command surface / guard; selected for simplification work in the workspace_ops domain.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 90,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
+    },
+    {
+      "id": "ops:commit-message:check-file",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --message-file",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Registry command ops:commit-message:check-file in group ops; domain=workspace_ops; three-laws gate=simplification."
     },
     {
       "id": "ops:commit-message:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --out=core/local/artifacts/conventional_commit_gate_current.json",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "workspace_ops",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "workspace_ops",
       "work_gate": "reliability",
-      "description": "Registry command ops:commit-message:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "description": "Validate commit messages against the standard conventional prefix policy used by release automation.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 94,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 91,
+      "operator_surface_reason": "top_100_operator_surface:reliability:workspace_ops"
     },
     {
       "id": "ops:compat-tail:run",
@@ -4130,10 +4251,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:conduit:scrambler-posture:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 54,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:conduit:scrambler-posture:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:config-registry",
@@ -4177,10 +4295,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:cross-layer-import:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 95,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:cross-layer-import:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:dashboard:segment-ghost:guard",
@@ -4191,10 +4306,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:dashboard:segment-ghost:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 96,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:dashboard:segment-ghost:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:dashboard:surface:guard",
@@ -4282,10 +4394,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:docs-surface:check in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 97,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:docs-surface:check in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:dod:gate",
@@ -4417,10 +4526,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval-agent:chat-monitor:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 67,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval-agent:chat-monitor:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval-feedback:lifecycle:guard",
@@ -4431,10 +4537,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval-feedback:lifecycle:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 43,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval-feedback:lifecycle:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:adversarial:guard",
@@ -4445,10 +4548,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:adversarial:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 68,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:adversarial:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:agent-capability:l1",
@@ -4514,10 +4614,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:autopilot:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 69,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:autopilot:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:continuous:guard",
@@ -4583,10 +4680,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:issue:filing:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 70,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:issue:filing:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:issue:resolution:guard",
@@ -4597,10 +4691,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:issue:resolution:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 71,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:issue:resolution:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:judge-human:agreement:guard",
@@ -4611,10 +4702,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:judge-human:agreement:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 72,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:judge-human:agreement:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:judge-lane:guard",
@@ -4647,10 +4735,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:monitor:slo:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 73,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:monitor:slo:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:quality:gate:v1",
@@ -4672,10 +4757,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:quality:metrics:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 74,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:quality:metrics:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:regression:guard",
@@ -4686,10 +4768,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:regression:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 75,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:regression:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:reviewer:weekly:ingest",
@@ -4711,10 +4790,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:runtime:authority:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 76,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:eval:runtime:authority:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:eval:synthetic-user-chat:harness",
@@ -4990,81 +5066,122 @@
       "domain": "gateway",
       "work_gate": "reliability",
       "description": "Guard the Gateway boundary membrane so external clients cannot bypass typed, bounded, auditable ingress.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 11,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 15,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "ops:gateway-boundary:report",
       "group": "ops",
       "command": "cargo run --quiet --manifest-path core/layer2/conduit-security/Cargo.toml --bin gateway_boundary_guard -- --strict=0",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation.gateway_boundary",
+      "lifecycle": "curated_operator_command",
+      "owner": "gateway.contracts",
+      "source": "package.json:scripts",
+      "domain": "gateway",
+      "work_gate": "reliability",
+      "description": "Generate a Gateway boundary report showing whether external surfaces remain typed, bounded, and membrane-mediated.",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 16,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
+    },
+    {
+      "id": "ops:gateway-disposable-live-replay",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_disposable_live_replay.ts --out-json=core/local/artifacts/gateway_disposable_live_replay_current.json",
+      "lifecycle": "active",
+      "owner": "validation/gateway-regression",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Generate a Gateway boundary report showing whether external surfaces remain typed, bounded, and membrane-mediated.",
-      "operator_surface": true,
-      "operator_surface_rank": 27,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
-      "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "description": "Plan disposable Gateway live replay without mutating the runtime."
+    },
+    {
+      "id": "ops:gateway-disposable-live-replay:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_disposable_live_replay_guard.ts",
+      "lifecycle": "active",
+      "owner": "validation/gateway-regression",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Guard disposable Gateway live replay policy, freshness, and idempotence proof completeness."
+    },
+    {
+      "id": "ops:gateway-disposable-live-replay:live",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_disposable_live_replay.ts --apply=1 --out-json=core/local/artifacts/gateway_disposable_live_replay_current.json",
+      "lifecycle": "active",
+      "owner": "validation/gateway-regression",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Run disposable Gateway start/status/repeated-start/restart/cleanup live proof on an isolated port."
     },
     {
       "id": "ops:gateway-runtime-chaos:gate",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_runtime_chaos_gate.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "gateway.runtime",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "gateway",
       "work_gate": "reliability",
-      "description": "Registry command ops:gateway-runtime-chaos:gate in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Operate or validate the Gateway membrane so external clients use typed, bounded, auditable ingress and projection-only egress.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 73,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "ops:gateway-status:manifest",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_status_manifest.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "gateway.runtime",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "gateway",
       "work_gate": "reliability",
-      "description": "Registry command ops:gateway-status:manifest in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Operate or validate the Gateway membrane so external clients use typed, bounded, auditable ingress and projection-only egress.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 74,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "ops:gateway-support:matrix:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_support_matrix_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation.gateway_boundary",
+      "lifecycle": "curated_operator_command",
+      "owner": "gateway.contracts",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "gateway",
       "work_gate": "reliability",
       "description": "Validate Gateway support matrix coverage so adapters and platforms expose explicit status instead of vague support claims.",
-      "operator_surface": true,
-      "operator_surface_rank": 41,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 18,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "ops:gateway:external-surface:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/gateway_external_surface_guard.ts --strict=1 --contract=validation/conformance/contracts/gateway_external_surface_contract.json --out-json=core/local/artifacts/gateway_external_surface_guard_current.json --out-markdown=local/workspace/reports/GATEWAY_EXTERNAL_SURFACE_GUARD_CURRENT.md",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation.gateway_boundary",
+      "lifecycle": "curated_operator_command",
+      "owner": "gateway.contracts",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "gateway",
       "work_gate": "reliability",
       "description": "Guard external Gateway surfaces against raw state leaks, unbudgeted routes, and direct runtime-authority exposure.",
-      "operator_surface": true,
-      "operator_surface_rank": 28,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 17,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "ops:gateway:interface:guard",
@@ -5076,11 +5193,11 @@
       "domain": "gateway",
       "work_gate": "reliability",
       "description": "Validate Gateway interface policy: bounded route classes, forbidden raw state shapes, and projection-only payload contracts.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 12,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 14,
+      "operator_surface_reason": "top_100_operator_surface:reliability:gateway"
     },
     {
       "id": "ops:gateway:shell-launch:guard",
@@ -5102,10 +5219,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:gem:closure:full in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 58,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:gem:closure:full in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:gem:closure:guard",
@@ -5152,6 +5266,17 @@
       "description": "Registry command ops:gem:subagent-route:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
+      "id": "ops:githooks:install",
+      "group": "ops",
+      "command": "git config core.hooksPath .githooks",
+      "lifecycle": "compatibility_alias",
+      "owner": "workspace_ops",
+      "source": "package.json:scripts",
+      "domain": "workspace_ops",
+      "work_gate": "simplification",
+      "description": "Registry command ops:githooks:install in group ops; domain=workspace_ops; three-laws gate=simplification."
+    },
+    {
       "id": "ops:good-first-issues:publish",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/good_first_issue_seed.ts --apply=1",
@@ -5188,23 +5313,31 @@
       "id": "ops:guard-registry:ownership:guard",
       "group": "ops",
       "command": "npm run -s ops:guard-registry:ownership:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/guard_registry_ownership_guard.ts",
-      "lifecycle": "operator_surface",
+      "lifecycle": "curated_operator_command",
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
-      "description": "Generate and validate the guard-of-guards ownership report for recurring guard registry governance."
+      "description": "Inspect and enforce guard registry ownership so validation checks have clear owners, sources, and non-duplicated purposes.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 60,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
       "id": "ops:guard-registry:ownership:report",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/guard_registry_ownership_report.ts",
-      "lifecycle": "operator_surface",
+      "lifecycle": "curated_operator_command",
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
-      "description": "Generate the guard-of-guards ownership report, including duplicate guard families, stale/unregistered guard scripts, and orphan guard artifacts."
+      "description": "Inspect and enforce guard registry ownership so validation checks have clear owners, sources, and non-duplicated purposes.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 59,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
       "id": "ops:harness:6m",
@@ -5325,10 +5458,7 @@
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
-      "description": "Registry command ops:infring:install-plan in group ops; domain=installer; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 64,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:infring:install-plan in group ops; domain=installer; three-laws gate=reliability."
     },
     {
       "id": "ops:infring:runtime-budget",
@@ -5353,36 +5483,58 @@
       "description": "Registry command ops:infring:update-plan in group ops; domain=workspace_ops; three-laws gate=real_work."
     },
     {
+      "id": "ops:installer-module-dispatch:guard",
+      "group": "ops",
+      "command": "npm run -s ops:installer-module-dispatch:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/installer_module_dispatch_guard.ts",
+      "lifecycle": "active",
+      "owner": "installer/validation",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Guard that installer modules are actively dispatched, not merely mirrored or referenced."
+    },
+    {
+      "id": "ops:installer-module-dispatch:report",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/installer_module_dispatch_report.ts",
+      "lifecycle": "active",
+      "owner": "installer/validation",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Report whether public installers actively dispatch into install/modules helpers."
+    },
+    {
       "id": "ops:installer-reliability:closure:guard",
       "group": "ops",
       "command": "npm run -s tooling:run -- --id=ops:installer-reliability:closure:guard --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "installer.reliability",
+      "lifecycle": "curated_operator_command",
+      "owner": "installer",
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
       "description": "Verify installer reliability closure evidence, including repair, wrapper availability, fallback behavior, and platform diagnostics.",
-      "operator_surface": true,
-      "operator_surface_rank": 35,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 51,
+      "operator_surface_reason": "top_100_operator_surface:reliability:installer"
     },
     {
       "id": "ops:installer-surface:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/installer_surface_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "installer.contracts",
+      "lifecycle": "curated_operator_command",
+      "owner": "installer",
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
       "description": "Validate installer command surfaces, wrapper names, repair behavior, and bootstrap fallback contracts across platforms.",
-      "operator_surface": true,
-      "operator_surface_rank": 26,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 21,
+      "operator_surface_reason": "top_100_operator_surface:reliability:installer"
     },
     {
       "id": "ops:interface:payload-budget:guard",
@@ -5393,10 +5545,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:interface:payload-budget:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 98,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:interface:payload-budget:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:ipc-bridge:soak",
@@ -5451,10 +5600,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:kernel-naming:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 49,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:kernel-naming:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:kernel-naming:guard:strict",
@@ -5465,10 +5611,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:kernel-naming:guard:strict in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 50,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:kernel-naming:guard:strict in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:kernel-sentinel:auto",
@@ -5480,11 +5623,11 @@
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Run the Kernel Sentinel automatic observation loop with bounded runtime, compact artifacts, trace identity, and maintenance cadence controls.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 13,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 27,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:kernel-sentinel:heartbeat",
@@ -5496,11 +5639,11 @@
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Run the lightweight Kernel Sentinel heartbeat path for freshness without expensive dream-state self-study.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 14,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 28,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:kernel-sentinel:release-gate",
@@ -5512,22 +5655,131 @@
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Evaluate whether Kernel Sentinel evidence is fresh, bounded, and strong enough for release confidence.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 15,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 29,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:kernel-sentinel:schedule",
       "group": "ops",
       "command": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- kernel-sentinel schedule --strict=0 --cadence=maintenance --schedule-artifact=core/local/artifacts/kernel_sentinel_schedule_current.json --auto-artifact=core/local/artifacts/kernel_sentinel_auto_run_current.json --quiet-success=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:kernel-sentinel:schedule in group ops; domain=observability; three-laws gate=reliability."
+      "description": "Run or guard Kernel Sentinel observation so anti-entropy findings stay fresh, compact, evidenced, and human-reviewable.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 71,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:kernel-sentinel:stage-run:dream",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --cadence=dream --phase=all --reset=1 --max-runtime-ms=120000 --out-json=observability/reports/sentinel_full_run_stage_runner_current.json",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Run a fresh full staged Kernel Sentinel dream sample, resetting staged state and capturing all five phase timings into the Observability timing store.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 30,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:kernel-sentinel:stage-run:release",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --cadence=release --phase=all --reset=1 --max-runtime-ms=120000 --out-json=observability/reports/sentinel_full_run_stage_runner_current.json",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Run a fresh full staged Kernel Sentinel release sample, resetting staged state and capturing all five phase timings into the Observability timing store.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 31,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:kernel-sentinel:stage-runner:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_full_run_stage_runner_guard.ts",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Verify the staged Sentinel full-run runner, state file, compact report, resume cursor, and timing output remain coherent.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 34,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:kernel-sentinel:timing:guard",
+      "group": "ops",
+      "command": "npm run -s ops:kernel-sentinel:timing:report && npm run -s ops:kernel-sentinel:timing:sample:guard && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_stage_timing_policy_guard.ts && npm run -s ops:kernel-sentinel:stage-runner:guard",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Run the Sentinel timing report and all timing/stage guards so dream/release sample history is release-usable.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 35,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:kernel-sentinel:timing:refresh",
+      "group": "ops",
+      "command": "npm run -s ops:kernel-sentinel:stage-run:dream && npm run -s ops:kernel-sentinel:stage-run:release && npm run -s ops:kernel-sentinel:timing:guard",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Collect fresh full dream and release Sentinel timing samples, regenerate trend evidence, and run the timing guard cluster.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 36,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:kernel-sentinel:timing:report",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_timing_trend_report.ts",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Regenerate the Sentinel timing trend report from accumulated dream/release full-run samples.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 32,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:kernel-sentinel:timing:sample:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_timing_sample_capture_guard.ts",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Verify Sentinel timing samples exist, are full-cycle, and cover required dream/release cadences.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 33,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:knowledge-graph-query-acceleration:closure:guard",
@@ -5544,33 +5796,33 @@
       "id": "ops:ksent:boundedness-repair:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_boundedness_repair_lane_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "observability.sentinel.boundedness",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Check Sentinel boundedness repair artifacts for compact, fresh diagnostics instead of unbounded self-observation noise.",
-      "operator_surface": true,
-      "operator_surface_rank": 23,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 40,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:ksent:empty-response-repair:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_empty_response_repair_lane_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "observability.sentinel.response_quality",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Guard against empty or non-actionable Sentinel feedback by requiring usable issue evidence and repair diagnostics.",
-      "operator_surface": true,
-      "operator_surface_rank": 25,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 41,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:ksent:fresh-evidence:guard",
@@ -5582,54 +5834,95 @@
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Guard that verifies Kernel Sentinel has fresh evidence artifacts and is not relying on stale self-observation.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 16,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 37,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:ksent:issue-quality:guard",
+      "group": "ops",
+      "command": "npm run -s ops:ksent:issue-quality:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_guard.ts",
+      "lifecycle": "active",
+      "owner": "observability/sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Guard Sentinel issue-quality scoring, recurrence history, trace caps, and promotion readiness."
+    },
+    {
+      "id": "ops:ksent:issue-quality:report",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_report.ts",
+      "lifecycle": "active",
+      "owner": "observability/sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Refresh Sentinel issue-quality scoring from live evidence and retained recurrence history."
     },
     {
       "id": "ops:ksent:policy:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_policy_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "observability.sentinel.policy",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Validate Kernel Sentinel policy constraints for evidence scope, finding quality, report size, and safe observation behavior.",
-      "operator_surface": true,
-      "operator_surface_rank": 24,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 39,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:ksent:release-bridge-repair:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_release_bridge_repair_lane_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "observability.sentinel.release_bridge",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
       "source": "package.json:scripts",
-      "domain": "release_governance",
+      "domain": "observability",
       "work_gate": "reliability",
       "description": "Verify Kernel Sentinel release-bridge repair evidence so stale observation state cannot masquerade as release truth.",
-      "operator_surface": true,
-      "operator_surface_rank": 22,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 42,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+    },
+    {
+      "id": "ops:ksent:trace-completeness:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_trace_completeness_guard.ts --strict=1",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability.sentinel",
+      "source": "package.json:scripts",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "description": "Verify Kernel Sentinel current reports and streams carry a complete trace envelope: trace_id, span_id, parent_span_id, and source_domain.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 38,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:layer-placement:check",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer_placement_check.ts",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "ops",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:layer-placement:check in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 95,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "ops:layer0-ops:authority:audit",
@@ -5640,10 +5933,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:layer0-ops:authority:audit in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 81,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:layer0-ops:authority:audit in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:layer2:parity:guard",
@@ -5676,10 +5966,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:layer3:contract:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 99,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:layer3:contract:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:legacy-alias:guard",
@@ -5701,10 +5988,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:legacy-memory-wrapper:audit in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 46,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:legacy-memory-wrapper:audit in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:legacy-runner:release-guard",
@@ -5716,10 +6000,6 @@
       "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Gate legacy runner use during release so compatibility paths stay explicit and do not become the default execution surface.",
-      "operator_surface": true,
-      "operator_surface_rank": 31,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-11T00:00:00Z"
     },
     {
@@ -5836,12 +6116,16 @@
       "id": "ops:memory-runtime:security-closure:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/memory_runtime_security_closure_guard.ts",
-      "lifecycle": "operator_surface",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "kernel",
       "work_gate": "reliability",
-      "description": "Run the recurring memory-runtime CodeQL closure guard for hard-coded cryptographic value regressions."
+      "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 24,
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
     },
     {
       "id": "ops:metakernel:attestation-graph",
@@ -6193,10 +6477,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:mlsys5:assimilation:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 100,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:mlsys5:assimilation:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:model-health:recover",
@@ -6235,86 +6516,93 @@
       "id": "ops:nexus:boundary:audit",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/nexus_import_export_boundary_audit.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "security",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "security",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:boundary:audit in group ops; domain=validation; three-laws gate=reliability.",
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 86,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 72,
+      "operator_surface_reason": "top_100_operator_surface:reliability:security"
     },
     {
       "id": "ops:nexus:checklist",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/nexus_module_file_checklist.ts --strict=1",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "ops",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:checklist in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 96,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "ops:nexus:checkpoint-policy:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/nexus_checkpoint_policy_guard.ts --strict=1 --out=core/local/artifacts/nexus_checkpoint_policy_guard_current.json",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation.nexus_boundaries",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
       "description": "Check Nexus checkpoint policy so cross-domain handoffs remain explicit, typed, and auditable rather than implicit imports.",
-      "operator_surface": true,
-      "operator_surface_rank": 37,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 66,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "ops:nexus:governance",
       "group": "ops",
       "command": "npm run -s ops:nexus:checkpoint-policy:guard && npm run -s ops:nexus:route-inventory:guard && npm run -s ops:nexus:checklist && npm run -s ops:nexus:boundary:audit && npm run -s ops:nexus:kernel-coupling:guard",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "ops",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:governance in group ops; domain=validation; three-laws gate=reliability.",
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 47,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 97,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "ops:nexus:kernel-coupling:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_nexus_coupling_guard.ts --strict=1 --policy=tests/tooling/config/kernel_nexus_coupling_policy.json --out=core/local/artifacts/kernel_nexus_coupling_guard_current.json --report=local/workspace/reports/KERNEL_NEXUS_COUPLING_GUARD_CURRENT.md",
-      "lifecycle": "compatibility_alias",
-      "owner": "validation.nexus_boundaries",
+      "lifecycle": "curated_operator_command",
+      "owner": "kernel.memory",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "kernel",
       "work_gate": "reliability",
       "description": "Detect unauthorized Kernel coupling across Nexus boundaries and preserve Kernel authority as a narrow explicit contract.",
-      "operator_surface": true,
-      "operator_surface_rank": 38,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 67,
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
     },
     {
       "id": "ops:nexus:route-inventory:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/cross_domain_nexus_route_inventory_guard.ts --strict=1 --out-json=core/local/artifacts/cross_domain_nexus_route_inventory_guard_current.json --out-markdown=local/workspace/reports/CROSS_DOMAIN_NEXUS_ROUTE_INVENTORY_GUARD_CURRENT.md",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "ops",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:route-inventory:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 48,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 98,
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
     },
     {
       "id": "ops:nightly:turn-loop-analytics",
@@ -6342,23 +6630,31 @@
       "id": "ops:observability-defaults:generate",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/observability_deployment_defaults.ts generate",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability",
       "source": "package.json:scripts",
       "domain": "observability",
-      "work_gate": "real_work",
-      "description": "Registry command ops:observability-defaults:generate in group ops; domain=observability; three-laws gate=real_work."
+      "work_gate": "reliability",
+      "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 82,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:observability:current-truth:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/observability_current_truth_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability",
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:observability:current-truth:guard in group ops; domain=observability; three-laws gate=reliability."
+      "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 92,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:offsite:diagnose",
@@ -6402,10 +6698,7 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:operator-critical:release in group ops; domain=release_governance; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 56,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:operator-critical:release in group ops; domain=release_governance; three-laws gate=reliability."
     },
     {
       "id": "ops:operator-critical:status",
@@ -6570,10 +6863,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:ownership:drift:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 51,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:ownership:drift:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:ownership:drift:weekly",
@@ -6887,45 +7177,61 @@
       "id": "ops:proof-pack:artifact-size:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/proof_pack_artifact_size_guard.ts",
-      "lifecycle": "operator_surface",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
-      "work_gate": "reliability",
-      "description": "Enforces proof-pack single-artifact, JSON-line, and total-pack size budgets across canonical proof-pack roots."
+      "domain": "release_governance",
+      "work_gate": "simplification",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 47,
+      "operator_surface_reason": "top_100_operator_surface:simplification:release_governance"
     },
     {
       "id": "ops:proof-pack:gate",
       "group": "ops",
       "command": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- top1-assurance benchmark-thresholds --strict=1 --refresh=0",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:proof-pack:gate in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 76,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:proof-pack:gate:docker",
       "group": "ops",
       "command": "npm run -s ops:proof-pack:gate -- --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:proof-pack:gate:docker in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 77,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:proof-pack:gate:status",
       "group": "ops",
       "command": "npm run -s ops:formal-proof:status",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:proof-pack:gate:status in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 78,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:public-platform:contract",
@@ -6975,158 +7281,183 @@
       "id": "ops:real-work:workflow-proof",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/real_work_workflow_proof_report.ts --out-json=core/local/artifacts/real_work_workflow_proof_current.json --out-markdown=local/workspace/reports/REAL_WORK_WORKFLOW_PROOF_CURRENT.md",
-      "lifecycle": "operator_surface",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "real_work",
-      "description": "Generate the real-work workflow proof report for useful end-to-end system work."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 63,
+      "operator_surface_reason": "top_100_operator_surface:real_work:release_governance"
     },
     {
       "id": "ops:real-work:workflow-proof:guard",
       "group": "ops",
       "command": "npm run -s ops:real-work:workflow-proof && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/real_work_workflow_proof_guard.ts",
-      "lifecycle": "operator_surface",
-      "owner": "validation",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "real_work",
-      "description": "Generate and validate the real-work workflow proof gate for release evidence."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 64,
+      "operator_surface_reason": "top_100_operator_surface:real_work:release_governance"
     },
     {
       "id": "ops:release-blockers:gate",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_blocker_rubric_gate.ts --strict=1 --out=core/local/artifacts/release_blocker_rubric_current.json",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
-      "work_gate": "reliability",
-      "description": "Registry command ops:release-blockers:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "work_gate": "simplification",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 59,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 83,
+      "operator_surface_reason": "top_100_operator_surface:simplification:release_governance"
     },
     {
       "id": "ops:release-contract:gate",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_contract_gate.ts --strict=1 --out=core/local/artifacts/release_contract_gate_current.json",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release-contract:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 60,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 84,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release-hardening-window:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_hardening_window_guard.ts --strict=1 --out=core/local/artifacts/release_hardening_window_guard_current.json",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Validate release hardening-window evidence before promotion so temporary debt does not silently survive into release.",
-      "operator_surface": true,
-      "operator_surface_rank": 32,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 48,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release-reviewer-redundancy:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_lane_reviewer_redundancy_guard.ts --strict=1 --out=core/local/artifacts/release_lane_reviewer_redundancy_guard_current.json --out-markdown=local/workspace/reports/RELEASE_LANE_REVIEWER_REDUNDANCY_GUARD_CURRENT.md",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Check reviewer redundancy expectations for release review so a single weak signal does not become release confidence.",
-      "operator_surface": true,
-      "operator_surface_rank": 33,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 49,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release-semver:plan",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/release_semver_contract.ts run --strict=0 --write=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release-semver:plan in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 85,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release-semver:status",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/release_semver_contract.ts status",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release-semver:status in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 86,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release:policy:gate",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_policy_gate.ts --strict=1 --out=core/local/artifacts/release_policy_gate_current.json",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release:policy:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 44,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 87,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release:proof-pack",
       "group": "ops",
-      "command": "npm run -s ops:proof-pack:artifact-size:guard && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_proof_pack_assemble.ts --strict=1 && npm run -s ops:proof-pack:artifact-size:guard",
-      "lifecycle": "operator_surface",
-      "owner": "validation",
+      "command": "npm run -s ops:proof-pack:artifact-size:guard && npm run -s ops:memory-runtime:security-closure:guard && npm run -s ops:repo-entropy:scorecard:guard && npm run -s ops:guard-registry:ownership:guard && npm run -s ops:real-work:workflow-proof:guard && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_proof_pack_assemble.ts --strict=1 && npm run -s ops:proof-pack:artifact-size:guard",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Assembles the release proof pack with proof-pack size-budget precheck and postcheck enforcement."
+      "description": "Build or refresh release proof-pack artifacts used by release gates and operator review.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 44,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release:rc-rehearsal",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_candidate_dress_rehearsal.ts --strict=1 --out=core/local/artifacts/release_candidate_dress_rehearsal_current.json",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release:rc-rehearsal in group ops; domain=release_governance; three-laws gate=reliability.",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 61,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 88,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release:scorecard:gate",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/release_scorecard_generate.ts --strict=1 --stage=prebundle --require-release-artifacts=0 --out=client/runtime/local/state/release/scorecard/release_scorecard.json",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release:scorecard:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 62,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 89,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:release:verdict",
@@ -7138,11 +7469,11 @@
       "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Produce the release verdict from validation, proof-pack, Sentinel, and governance evidence.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 18,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 43,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:reliability:gauntlet",
@@ -7159,23 +7490,31 @@
       "id": "ops:repo-entropy:scorecard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/repo_entropy_scorecard_report.ts --strict=0 --out-json=core/local/artifacts/repo_entropy_scorecard_current.json --out-markdown=local/workspace/reports/REPO_ENTROPY_SCORECARD_CURRENT.md",
-      "lifecycle": "operator_surface",
+      "lifecycle": "curated_operator_command",
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
-      "description": "Generate the repo entropy scorecard across churn, command/CI sprawl, artifacts, LOC growth, guards, and duplicate surfaces."
+      "description": "Generate or guard the repo entropy scorecard for command count, CI surface, artifacts, churn, and complexity trend signals.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 61,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
       "id": "ops:repo-entropy:scorecard:guard",
       "group": "ops",
       "command": "npm run -s ops:repo-entropy:scorecard && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/repo_entropy_scorecard_guard.ts",
-      "lifecycle": "operator_surface",
+      "lifecycle": "curated_operator_command",
       "owner": "validation",
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
-      "description": "Generate and validate the repo entropy scorecard schema for recurring anti-entropy governance."
+      "description": "Generate or guard the repo entropy scorecard for command count, CI surface, artifacts, churn, and complexity trend signals.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 62,
+      "operator_surface_reason": "top_100_operator_surface:simplification:validation"
     },
     {
       "id": "ops:repo-health:check",
@@ -7346,53 +7685,62 @@
       "id": "ops:runtime-proof:harness",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_harness.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:runtime-proof:harness in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 79,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:runtime-proof:reality:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_reality_guard.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:runtime-proof:reality:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 45,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "operator_surface_rank": 80,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:runtime-proof:release-gate",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_release_gate.ts --strict=1",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Gate release on runtime-proof evidence rather than policy-shaped claims, with explicit blockers for missing proof artifacts.",
-      "operator_surface": true,
-      "operator_surface_rank": 39,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 46,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:runtime-proof:verify",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/runtime_proof_verify.ts --strict=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "validation.release_gates",
       "source": "package.json:scripts",
-      "domain": "validation",
+      "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:runtime-proof:verify in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 81,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:runtime-retention:run",
@@ -7538,6 +7886,61 @@
       "description": "Registry command ops:rust-core-file-size:gate in group ops; domain=validation; three-laws gate=reliability."
     },
     {
+      "id": "ops:rust-crate:cargo-check:evidence:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/rust_crate_cargo_check_evidence_guard.ts",
+      "lifecycle": "active",
+      "owner": "validation/rust-crate-evidence",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Guard Rust production-candidate cargo-check evidence and promotion readiness."
+    },
+    {
+      "id": "ops:rust-crate:cargo-check:evidence:refresh",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/rust_crate_cargo_check_evidence_report.ts --execute=1",
+      "lifecycle": "active",
+      "owner": "validation/rust-crate-evidence",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Execute cargo check for Rust production-candidate crates and write evidence."
+    },
+    {
+      "id": "ops:rust-crate:cargo-check:evidence:report",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/rust_crate_cargo_check_evidence_report.ts",
+      "lifecycle": "active",
+      "owner": "validation/rust-crate-evidence",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Plan Rust production-candidate crate cargo-check evidence from the support manifest."
+    },
+    {
+      "id": "ops:rust-crate:support:evidence:guard",
+      "group": "ops",
+      "command": "npm run -s ops:rust-crate:support:evidence:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/rust_crate_support_evidence_guard.ts",
+      "lifecycle": "active",
+      "owner": "validation/rust-crate-evidence",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Guard Rust production candidates so manifest-ready alone is not enough for promotion."
+    },
+    {
+      "id": "ops:rust-crate:support:evidence:report",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/rust_crate_support_evidence_report.ts",
+      "lifecycle": "active",
+      "owner": "validation/rust-crate-evidence",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Report Rust crate support status with manifest and validation evidence."
+    },
+    {
       "id": "ops:rust-hybrid:list",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/run_infring_ops.ts runtime-systems manifest",
@@ -7579,10 +7982,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
-      "description": "Registry command ops:rust-hygiene:baseline:guard in group ops; domain=validation; three-laws gate=simplification.",
-      "operator_surface": true,
-      "operator_surface_rank": 65,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:rust-hygiene:baseline:guard in group ops; domain=validation; three-laws gate=simplification."
     },
     {
       "id": "ops:rust-productivity:list",
@@ -7714,10 +8114,7 @@
       "source": "package.json:scripts",
       "domain": "gateway",
       "work_gate": "real_work",
-      "description": "Registry command ops:rust50:conf-004:run in group ops; domain=gateway; three-laws gate=real_work.",
-      "operator_surface": true,
-      "operator_surface_rank": 77,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:rust50:conf-004:run in group ops; domain=gateway; three-laws gate=real_work."
     },
     {
       "id": "ops:rust50:conf-004:status",
@@ -7728,10 +8125,7 @@
       "source": "package.json:scripts",
       "domain": "gateway",
       "work_gate": "real_work",
-      "description": "Registry command ops:rust50:conf-004:status in group ops; domain=gateway; three-laws gate=real_work.",
-      "operator_surface": true,
-      "operator_surface_rank": 78,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:rust50:conf-004:status in group ops; domain=gateway; three-laws gate=real_work."
     },
     {
       "id": "ops:rust50:gate",
@@ -8875,10 +9269,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:todo:audit-full in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 63,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:todo:audit-full in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:todo:board",
@@ -8911,10 +9302,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:todo:real-work:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 82,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:todo:real-work:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:token-economics",
@@ -8991,10 +9379,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:tooling:harness-only:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 52,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:tooling:harness-only:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:tools:context-route",
@@ -9099,39 +9484,47 @@
       "id": "ops:trace-contract:append",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/compat/legacy_retired_lane.ts append --stage=intent --outcome=ok --lane-id=SYSTEMS-OBSERVABILITY-THOUGHT-ACTION-TRACE-CONTRACT",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability",
       "source": "package.json:scripts",
       "domain": "observability",
-      "work_gate": "simplification",
-      "description": "Registry command ops:trace-contract:append in group ops; domain=observability; three-laws gate=simplification."
+      "work_gate": "reliability",
+      "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 93,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:trace-contract:verify",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/compat/legacy_retired_lane.ts verify --strict=1 --lane-id=SYSTEMS-OBSERVABILITY-THOUGHT-ACTION-TRACE-CONTRACT",
-      "lifecycle": "compatibility_alias",
-      "owner": "ops",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability",
       "source": "package.json:scripts",
       "domain": "observability",
-      "work_gate": "simplification",
-      "description": "Registry command ops:trace-contract:verify in group ops; domain=observability; three-laws gate=simplification."
+      "work_gate": "reliability",
+      "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 94,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:trace:substrate:guard",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/universal_trace_substrate_guard.ts --strict=1 --out-json=core/local/artifacts/universal_trace_substrate_guard_current.json --out-markdown=local/workspace/reports/UNIVERSAL_TRACE_SUBSTRATE_GUARD_CURRENT.md",
-      "lifecycle": "compatibility_alias",
-      "owner": "observability.traces",
+      "lifecycle": "curated_operator_command",
+      "owner": "observability",
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
       "description": "Validate the unified trace substrate so one trace identity flows through evidence, tools, Sentinel, and release artifacts.",
-      "operator_surface": true,
-      "operator_surface_rank": 36,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 65,
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
     },
     {
       "id": "ops:transport:convergence:guard",
@@ -9153,10 +9546,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:transport:spawn-audit in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 83,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:transport:spawn-audit in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:transport:topology:gate",
@@ -9322,11 +9712,22 @@
       "domain": "installer",
       "work_gate": "reliability",
       "description": "Validate Windows installer contracts, wrapper expectations, and locked-down execution-policy recovery behavior.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 19,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 22,
+      "operator_surface_reason": "top_100_operator_surface:reliability:installer"
+    },
+    {
+      "id": "ops:windows-locked-down-install-replay:guard",
+      "group": "ops",
+      "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts",
+      "lifecycle": "active",
+      "owner": "installer/windows-validation",
+      "source": "package.json:scripts",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "description": "Guard locked-down Windows installer replay workflow and validate replay receipt evidence when present."
     },
     {
       "id": "ops:workflow-closure",
@@ -9348,10 +9749,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:workflow-failure-recovery:guard in group ops; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 66,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command ops:workflow-failure-recovery:guard in group ops; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "ops:workspace-tooling:context:soak",
@@ -9368,17 +9766,17 @@
       "id": "ops:workspace-tooling:release-proof",
       "group": "ops",
       "command": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/workspace_tooling_release_proof.ts --strict=1",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "validation.release_gates",
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
       "description": "Build workspace-tooling release proof so file and search tooling remain first-class evidence alongside web tooling.",
-      "operator_surface": true,
-      "operator_surface_rank": 40,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 69,
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
     },
     {
       "id": "ops:yellow:deferred-work:guard",
@@ -9560,17 +9958,17 @@
       "id": "postinstall:memory",
       "group": "postinstall",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/memory/napi_build_surface_compat.ts postinstall --apply=1",
-      "lifecycle": "compatibility_alias",
-      "owner": "installer.memory_runtime",
+      "lifecycle": "curated_operator_command",
+      "owner": "installer",
       "source": "package.json:scripts",
-      "domain": "installer",
+      "domain": "kernel",
       "work_gate": "reliability",
       "description": "Run post-install memory-runtime setup checks needed for local operation after installer repair or source fallback.",
-      "operator_surface": true,
-      "operator_surface_rank": 29,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation",
+      "metadata_curated_at": "2026-05-11T00:00:00Z",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-11T00:00:00Z"
+      "operator_surface": true,
+      "operator_surface_rank": 20,
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
     },
     {
       "id": "postmortem",
@@ -9922,10 +10320,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command safety:resilience:evaluate in group safety; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 53,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command safety:resilience:evaluate in group safety; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "schema:evolution:run",
@@ -9948,11 +10343,11 @@
       "domain": "security",
       "work_gate": "reliability",
       "description": "Run dependency security audit for known package vulnerabilities before release or risky dependency work.",
-      "metadata_curated": true,
       "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "metadata_curated": true,
       "operator_surface": true,
-      "operator_surface_rank": 20,
-      "operator_surface_reason": "canonical curated command retained in the default operator surface"
+      "operator_surface_rank": 23,
+      "operator_surface_reason": "top_100_operator_surface:reliability:security"
     },
     {
       "id": "security:critical-path:run",
@@ -10084,10 +10479,7 @@
       "source": "package.json:scripts",
       "domain": "workspace_ops",
       "work_gate": "reliability",
-      "description": "Registry command security:organ-state:decrypt in group security; domain=workspace_ops; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 79,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command security:organ-state:decrypt in group security; domain=workspace_ops; three-laws gate=reliability."
     },
     {
       "id": "security:organ-state:encrypt",
@@ -10241,10 +10633,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command security:sandbox:evaluate-workflow in group security; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 57,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command security:sandbox:evaluate-workflow in group security; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "security:sandbox:status",
@@ -12070,10 +12459,7 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command test:ops:subconscious-boundary-guard in group test; domain=validation; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 55,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command test:ops:subconscious-boundary-guard in group test; domain=validation; three-laws gate=reliability."
     },
     {
       "id": "test:ops:system-map-generator",
@@ -12216,10 +12602,7 @@
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
-      "description": "Registry command test:personal:installer:terms in group test; domain=installer; three-laws gate=reliability.",
-      "operator_surface": true,
-      "operator_surface_rank": 30,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command test:personal:installer:terms in group test; domain=installer; three-laws gate=reliability."
     },
     {
       "id": "test:pre-neuralink:interface",
@@ -13017,23 +13400,31 @@
       "id": "workspace:commands",
       "group": "workspace",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/workspace_command_index.ts",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "workspace_ops",
       "source": "package.json:scripts",
       "domain": "workspace_ops",
-      "work_gate": "real_work",
-      "description": "Registry command workspace:commands in group workspace; domain=workspace_ops; three-laws gate=real_work."
+      "work_gate": "simplification",
+      "description": "List command registry entries through the bounded operator surface with filters for domain, gate, lifecycle, owner, and search text.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 4,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
     },
     {
       "id": "workspace:commands:json",
       "group": "workspace",
       "command": "node client/runtime/lib/ts_entrypoint.ts client/runtime/systems/ops/workspace_command_index.ts --json=1",
-      "lifecycle": "compatibility_alias",
+      "lifecycle": "curated_operator_command",
       "owner": "workspace_ops",
       "source": "package.json:scripts",
       "domain": "workspace_ops",
-      "work_gate": "real_work",
-      "description": "Registry command workspace:commands:json in group workspace; domain=workspace_ops; three-laws gate=real_work."
+      "work_gate": "simplification",
+      "description": "List command registry entries through the bounded operator surface with filters for domain, gate, lifecycle, owner, and search text.",
+      "metadata_curated": true,
+      "operator_surface": true,
+      "operator_surface_rank": 5,
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
     },
     {
       "id": "workspace:dev",
@@ -13088,10 +13479,7 @@
       "source": "package.json:scripts",
       "domain": "gateway",
       "work_gate": "real_work",
-      "description": "Registry command xai:embedding-adapter:adapt in group xai; domain=gateway; three-laws gate=real_work.",
-      "operator_surface": true,
-      "operator_surface_rank": 84,
-      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
+      "description": "Registry command xai:embedding-adapter:adapt in group xai; domain=gateway; three-laws gate=real_work."
     },
     {
       "id": "xai:motivation:evaluate",
@@ -13166,5 +13554,31 @@
   "metadata_curated_at": "2026-05-11T00:00:00Z",
   "operator_surface_count": 100,
   "operator_surface_policy": "validation/conformance/contracts/command_operator_surface_policy.json",
-  "operator_surface_updated_at": "2026-05-11T00:00:00Z"
+  "operator_surface_updated_at": "2026-05-11T00:00:00Z",
+  "commands": [
+    {
+      "command": "ops:ksent:issue-quality:report",
+      "package_script": "ops:ksent:issue-quality:report",
+      "script": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_report.ts",
+      "category": "observability",
+      "owner": "observability/sentinel",
+      "lifecycle": "active",
+      "surface": "operator_curated",
+      "description": "Refresh the Sentinel issue-quality score report with problem-quality scoring and recurrence.",
+      "default_visible": true,
+      "safe_for_agents": true
+    },
+    {
+      "command": "ops:ksent:issue-quality:guard",
+      "package_script": "ops:ksent:issue-quality:guard",
+      "script": "npm run -s ops:ksent:issue-quality:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_guard.ts",
+      "category": "observability",
+      "owner": "observability/sentinel",
+      "lifecycle": "active",
+      "surface": "operator_curated",
+      "description": "Guard Sentinel issue-quality scoring, history shape, and promotion readiness contract.",
+      "default_visible": true,
+      "safe_for_agents": true
+    }
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "type": "guard_registry_ownership_policy",
-  "schema_version": 2,
+  "schema_version": 3,
   "owner_domain": "validation.conformance",
   "report_path": "core/local/artifacts/guard_registry_ownership_current.json",
   "guard_result_path": "core/local/artifacts/guard_registry_ownership_guard_current.json",
@@ -50,7 +50,8 @@
   ],
   "finding_limits": {
     "max_rows_in_report": 500,
-    "max_findings_in_report": 250
+    "max_findings_in_report": 250,
+    "max_remediation_queue_items": 25
   },
   "policy": {
     "guards_must_have_ownership_or_policy_marker": true,
@@ -58,6 +59,107 @@
     "unregistered_guard_scripts_are_findings_not_immediate_failures": true,
     "orphan_guard_artifacts_are_findings_not_immediate_failures": true,
     "guard_registry_report_is_canonical_input_to_entropy_scorecard": true,
-    "guard_of_guards_must_not_mutate_worktree": true
-  }
+    "guard_of_guards_must_not_mutate_worktree": true,
+    "allowed_duplicate_guard_families_must_be_declared": true,
+    "undeclared_duplicate_guard_families_are_findings": true,
+    "detection_coverage_required": true,
+    "remediation_queue_required": true,
+    "finding_counts_by_kind_required": true
+  },
+  "allowed_duplicate_families": [
+    {
+      "family": "blocked_external_packet",
+      "reason": "audit producer and enforcement gate are distinct surfaces",
+      "expected_roles": [
+        "audit",
+        "gate"
+      ]
+    },
+    {
+      "family": "ci_required_gate_reduction",
+      "reason": "report producer and guard enforcer are distinct surfaces",
+      "expected_roles": [
+        "report",
+        "guard"
+      ]
+    },
+    {
+      "family": "gateway_disposable_live_replay",
+      "reason": "live replay producer and guard enforcer are distinct surfaces",
+      "expected_roles": [
+        "producer",
+        "guard"
+      ]
+    },
+    {
+      "family": "gateway_status_launcher_drift",
+      "reason": "report producer and guard enforcer are distinct surfaces",
+      "expected_roles": [
+        "report",
+        "guard"
+      ]
+    },
+    {
+      "family": "gateway_status_live_replay",
+      "reason": "live replay producer and guard enforcer are distinct surfaces",
+      "expected_roles": [
+        "producer",
+        "guard"
+      ]
+    },
+    {
+      "family": "gateway_supervisor_authority_drift",
+      "reason": "report producer and guard enforcer are distinct surfaces",
+      "expected_roles": [
+        "report",
+        "guard"
+      ]
+    },
+    {
+      "family": "guard_registry_ownership",
+      "reason": "canonical guard-of-guards report and guard pair",
+      "expected_roles": [
+        "report",
+        "guard"
+      ]
+    },
+    {
+      "family": "repo_entropy",
+      "reason": "scorecard producer and guard enforcer are distinct surfaces",
+      "expected_roles": [
+        "scorecard",
+        "guard"
+      ]
+    }
+  ],
+  "severity_thresholds": {
+    "orphan_artifacts_yellow": 25,
+    "orphan_artifacts_red": 100,
+    "stale_guard_candidates_yellow": 1,
+    "stale_guard_candidates_red": 5,
+    "missing_ownership_red": 1,
+    "undeclared_duplicate_family_red": 1
+  },
+  "required_detection_classes": [
+    {
+      "id": "guard_missing_ownership_marker",
+      "purpose": "Catch guard scripts that do not declare source_domain, owner_domain, policy path, or layer ownership."
+    },
+    {
+      "id": "unregistered_guard_script",
+      "purpose": "Catch guard scripts that exist physically but are not reachable through package, command, or gate registries."
+    },
+    {
+      "id": "stale_guard_candidate",
+      "purpose": "Catch likely dead guard scripts that are both unregistered and missing ownership markers."
+    },
+    {
+      "id": "duplicate_guard_family",
+      "purpose": "Catch duplicate guard surfaces unless explicitly declared as a report/guard or tier pair."
+    },
+    {
+      "id": "orphan_guard_artifact",
+      "purpose": "Catch guard-like artifacts that are not declared by a registered gate or proof-pack manifest."
+    }
+  ]
 }
