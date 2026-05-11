@@ -43,6 +43,7 @@ for (const target of policy.dispatch_targets || []) {
     installer: target.installer,
     module: target.module,
     module_symbol: symbol,
+    required_mode: target.required_mode || 'referenced',
     status,
     references_module_path: referencesModulePath,
     references_symbol: referencesSymbol,
@@ -51,7 +52,7 @@ for (const target of policy.dispatch_targets || []) {
     next_action: status === 'referenced'
       ? null
       : status === 'mirror_only'
-        ? 'Gradually replace mirrored installer implementation with module dispatch after platform replay coverage is green.'
+        ? 'Replace mirrored installer implementation with active module dispatch; mirror-only is no longer completion evidence.'
         : 'Wire installer to the named module or explain why this module is no longer needed.',
   });
 }

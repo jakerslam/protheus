@@ -5,12 +5,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '../..');
-const VITEST_PACKAGE_PATH = require.resolve('vitest/package.json');
-const VITEST_PACKAGE = require(VITEST_PACKAGE_PATH);
-const VITEST_BIN = path.resolve(
-  path.dirname(VITEST_PACKAGE_PATH),
-  VITEST_PACKAGE.bin.vitest
-);
+const VITEST_BIN = require.resolve('vitest/vitest.mjs');
 const SUITE = [
   'tests/vitest/v6_memory_policy_validator.test.ts',
   'tests/vitest/v6_memory_session_isolation.test.ts',

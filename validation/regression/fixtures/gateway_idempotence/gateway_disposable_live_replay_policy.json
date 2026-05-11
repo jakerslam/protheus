@@ -5,9 +5,17 @@
   "report_path": "core/local/artifacts/gateway_disposable_live_replay_current.json",
   "apply_env": "INFRING_GATEWAY_DISPOSABLE_REPLAY_APPLY",
   "default_apply": false,
+  "build_before_apply": true,
+  "build_timeout_ms": 300000,
+  "ops_binary_candidates": [
+    "target/debug/infring-ops",
+    "target/release/infring-ops"
+  ],
+  "live_proof_required_for_completion": true,
+  "live_proof_max_age_ms": 86400000,
   "host": "127.0.0.1",
   "port": 4197,
-  "timeout_ms": 18000,
+  "timeout_ms": 60000,
   "required_output_tokens_any": [
     "gateway",
     "active",
@@ -24,12 +32,13 @@
       "kind": "status",
       "mutates": false,
       "execute_in_dry_run": false,
+      "accept_exit_codes": [0, 1],
+      "diagnostic_only": true,
       "command": [
-        "npm",
-        "run",
-        "-s",
-        "gateway:status",
-        "--",
+        "${INFRING_OPS}",
+        "daemon-control",
+        "status",
+        "--auto-heal=0",
         "--dashboard-host=127.0.0.1",
         "--dashboard-port=4197"
       ]
@@ -39,12 +48,17 @@
       "kind": "start",
       "mutates": true,
       "requires_apply": true,
+      "accept_exit_codes": [0],
+      "success_tokens_any": ["active", "running", "started", "status", "health"],
+      "require_receipt_ok": true,
+      "require_dashboard_running": true,
+      "forbidden_tokens": ["restart failed", "start failed", "dashboard healthz not ready"],
       "command": [
-        "npm",
-        "run",
-        "-s",
-        "gateway",
-        "--",
+        "${INFRING_OPS}",
+        "daemon-control",
+        "start",
+        "--dashboard-open=0",
+        "--gateway-persist=0",
         "--dashboard-host=127.0.0.1",
         "--dashboard-port=4197"
       ]
@@ -54,12 +68,16 @@
       "kind": "status",
       "mutates": false,
       "requires_apply": true,
+      "accept_exit_codes": [0],
+      "success_tokens_any": ["active", "running", "status", "health"],
+      "require_receipt_ok": true,
+      "require_dashboard_running": true,
+      "forbidden_tokens": ["restart failed", "start failed", "dashboard healthz not ready"],
       "command": [
-        "npm",
-        "run",
-        "-s",
-        "gateway:status",
-        "--",
+        "${INFRING_OPS}",
+        "daemon-control",
+        "status",
+        "--auto-heal=0",
         "--dashboard-host=127.0.0.1",
         "--dashboard-port=4197"
       ]
@@ -69,13 +87,17 @@
       "kind": "restart",
       "mutates": true,
       "requires_apply": true,
+      "accept_exit_codes": [0],
+      "success_tokens_any": ["active", "running", "started", "status", "health"],
+      "require_receipt_ok": true,
+      "require_dashboard_running": true,
+      "forbidden_tokens": ["restart failed", "start failed", "dashboard healthz not ready"],
       "command": [
-        "npm",
-        "run",
-        "-s",
-        "gateway",
-        "--",
+        "${INFRING_OPS}",
+        "daemon-control",
         "restart",
+        "--dashboard-open=0",
+        "--gateway-persist=0",
         "--dashboard-host=127.0.0.1",
         "--dashboard-port=4197"
       ]
@@ -86,12 +108,13 @@
       "mutates": true,
       "requires_apply": true,
       "always_cleanup": true,
+      "accept_exit_codes": [0, 1],
+      "diagnostic_only": true,
       "command": [
-        "npm",
-        "run",
-        "-s",
-        "gateway:stop",
-        "--",
+        "${INFRING_OPS}",
+        "daemon-control",
+        "stop",
+        "--auto-heal=0",
         "--dashboard-host=127.0.0.1",
         "--dashboard-port=4197"
       ]
@@ -103,6 +126,10 @@
     "cleanup_step_required_for_live_apply": true,
     "dry_run_must_emit_operator_next_action": true,
     "dry_run_must_not_execute_runtime_commands": true,
-    "status_step_must_remain_read_only": true
+    "status_step_must_remain_read_only": true,
+    "live_proof_must_not_count_diagnostic_failure_tokens_as_success": true,
+    "live_proof_must_disable_dashboard_auto_open": true,
+    "live_proof_uses_source_authoritative_ops_binary": true,
+    "status_defaults_to_read_only_auto_heal_off": true
   }
 }

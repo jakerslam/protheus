@@ -1,29 +1,109 @@
 {
   "type": "memory_runtime_security_closure_policy",
-  "schema_version": 1,
+  "schema_version": 2,
   "source_domain": "validation",
-  "generated_at": "2026-05-10T00:00:00Z",
+  "generated_at": "2026-05-11T00:00:00Z",
   "purpose": "Prevent recurrence of memory-runtime CodeQL crypto/salt regressions that previously hid behind fallback values or unnamed hash domains.",
+  "source_roots": [
+    "core/layer0/memory_runtime/src"
+  ],
+  "code_scanning_classes": [
+    {
+      "id": "codeql_rust_hard_coded_cryptographic_value",
+      "tool": "CodeQL",
+      "rule_id": "rust/hard-coded-cryptographic-value",
+      "github_alert_ids": [
+        120,
+        121,
+        124
+      ],
+      "severity": "critical",
+      "scope": [
+        "core/layer0/memory_runtime/src/db_parts/**/*.rs",
+        "core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/**/*.rs"
+      ],
+      "closure_expectation": "Nonce parse errors must fail closed, and deterministic embedding hash domains must be symbolic/non-crypto rather than raw numeric salt arguments."
+    }
+  ],
   "required_checks": [
     {
       "id": "legacy_cipher_nonce_parse_fails_closed",
+      "code_scanning_rule_id": "rust/hard-coded-cryptographic-value",
+      "github_alert_ids": [
+        124
+      ],
       "path": "core/layer0/memory_runtime/src/db_parts/000-part.rs",
-      "must_contain": "legacy_cipher_invalid_nonce",
-      "must_not_contain": "u64::from_str_radix(parts[1], 16).unwrap_or(0)"
+      "must_contain_all": [
+        "legacy_cipher_invalid_nonce",
+        "u64::from_str_radix(parts[1], 16)",
+        ".map_err(|_| \"legacy_cipher_invalid_nonce\".to_string())?"
+      ],
+      "must_not_contain": "u64::from_str_radix(parts[1], 16).unwrap_or(0)",
+      "must_not_match": [
+        {
+          "pattern": "from_str_radix\\([^;]+\\)\\s*\\.unwrap_or\\(0\\)",
+          "flags": "s",
+          "reason": "hex parse fallback to nonce zero can reopen CodeQL alert #124"
+        }
+      ]
     },
     {
-      "id": "embedding_hash_domains_named_non_crypto",
+      "id": "embedding_hash_domains_symbolic_non_crypto",
+      "code_scanning_rule_id": "rust/hard-coded-cryptographic-value",
+      "github_alert_ids": [
+        120,
+        121
+      ],
       "path": "core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/010-normalize-file-ref.rs",
       "must_contain_all": [
-        "const EMBEDDING_SLOT_DOMAIN: u64 = 0;",
-        "const EMBEDDING_SIGN_DOMAIN: u64 = 1;",
-        "hash_token_slot(&token, EMBEDDING_SLOT_DOMAIN, dims)",
-        "hash_token_slot(&token, EMBEDDING_SIGN_DOMAIN, dims)"
+        "enum EmbeddingHashDomain",
+        "EmbeddingHashDomain::Slot",
+        "EmbeddingHashDomain::Sign",
+        "domain.label().hash(&mut hasher)"
       ],
       "must_not_contain_all": [
         "hash_token_slot(&token, 0, dims)",
-        "hash_token_slot(&token, 1, dims)"
+        "hash_token_slot(&token, 1, dims)",
+        "const EMBEDDING_SLOT_DOMAIN: u64 = 0;",
+        "const EMBEDDING_SIGN_DOMAIN: u64 = 1;"
+      ],
+      "must_not_match": [
+        {
+          "pattern": "hash_token_slot\\(&token,\\s*[01]\\s*,\\s*dims\\)",
+          "reason": "raw numeric embedding hash domains can reopen CodeQL alerts #120/#121"
+        }
       ]
     }
-  ]
+  ],
+  "global_forbidden_patterns": [
+    {
+      "id": "memory_runtime_hex_parse_zero_fallback",
+      "code_scanning_rule_id": "rust/hard-coded-cryptographic-value",
+      "github_alert_ids": [
+        124
+      ],
+      "root": "core/layer0/memory_runtime/src",
+      "include_extensions": [
+        ".rs"
+      ],
+      "pattern": "from_str_radix\\([^;]+\\)\\s*\\.unwrap_or\\(0\\)",
+      "flags": "s",
+      "reason": "memory-runtime hex parse failures must not silently fall back to zero in crypto-adjacent code"
+    },
+    {
+      "id": "memory_runtime_embedding_numeric_hash_domain",
+      "code_scanning_rule_id": "rust/hard-coded-cryptographic-value",
+      "github_alert_ids": [
+        120,
+        121
+      ],
+      "root": "core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts",
+      "include_extensions": [
+        ".rs"
+      ],
+      "pattern": "hash_token_slot\\(&token,\\s*[01]\\s*,\\s*dims\\)",
+      "reason": "embedding hash domains must remain named and non-cryptographic"
+    }
+  ],
+  "release_artifact": "core/local/artifacts/memory_runtime_security_closure_guard_current.json"
 }

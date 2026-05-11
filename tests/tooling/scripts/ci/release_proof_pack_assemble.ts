@@ -16,6 +16,14 @@ type PackManifest = {
   required_artifacts: string[];
   optional_artifacts: string[];
 };
+type ProofPackSizePolicy = {
+  policy_path: string;
+  max_single_artifact_bytes: number;
+  max_proof_pack_bytes: number;
+  oversized_artifacts_must_be_compacted_refs: boolean;
+  allowed_large_artifact_patterns: string[];
+  compacted_ref_required_fields: string[];
+};
 
 const MANDATORY_RELEASE_PROOF_ARTIFACTS = [
   'core/local/artifacts/layer2_lane_parity_guard_current.json',
@@ -82,6 +90,29 @@ function sha256File(absPath: string): string {
   return createHash('sha256').update(data).digest('hex');
 }
 
+function readProofPackSizePolicy(root: string): ProofPackSizePolicy {
+  const policyPath = 'validation/release_gates/policies/proof_pack_artifact_size_policy.json';
+  const absPath = path.resolve(root, policyPath);
+  const parsed = JSON.parse(fs.readFileSync(absPath, 'utf8'));
+  const policy = parsed.policy || {};
+  return {
+    policy_path: policyPath,
+    max_single_artifact_bytes: Number(policy.max_single_artifact_bytes || 5_242_880),
+    max_proof_pack_bytes: Number(policy.max_proof_pack_bytes || 52_428_800),
+    oversized_artifacts_must_be_compacted_refs: policy.oversized_artifacts_must_be_compacted_refs !== false,
+    allowed_large_artifact_patterns: Array.isArray(parsed.allowed_large_artifact_patterns)
+      ? parsed.allowed_large_artifact_patterns.map(String)
+      : [],
+    compacted_ref_required_fields: Array.isArray(policy.compacted_ref_required_fields)
+      ? policy.compacted_ref_required_fields.map(String)
+      : [],
+  };
+}
+
+function largeArtifactAllowed(relPath: string, sizePolicy: ProofPackSizePolicy): boolean {
+  return sizePolicy.allowed_large_artifact_patterns.some((pattern) => relPath.endsWith(pattern));
+}
+
 function categoryLookup(manifest: PackManifest): Map<string, string> {
   const out = new Map<string, string>();
   const groups = manifest.artifact_groups || {};
@@ -122,7 +153,7 @@ function duplicatePathEntries(section: string, rows: string[] | undefined) {
     }));
 }
 
-function copyIntoPack(root: string, relPath: string, packRoot: string) {
+function copyIntoPack(root: string, relPath: string, packRoot: string, sizePolicy: ProofPackSizePolicy) {
   const source = path.resolve(root, relPath);
   const exists = fs.existsSync(source);
   const destination = path.resolve(packRoot, relPath);
@@ -130,14 +161,47 @@ function copyIntoPack(root: string, relPath: string, packRoot: string) {
   let sizeBytes = 0;
   let modifiedAt = '';
   let ageHours: number | null = null;
+  let compacted = false;
+  let originalSizeBytes = 0;
+  let originalChecksum = '';
   if (exists) {
     ensureParent(destination);
-    fs.copyFileSync(source, destination);
-    checksum = sha256File(destination);
     const stat = fs.statSync(source);
-    sizeBytes = stat.size;
+    originalSizeBytes = stat.size;
+    originalChecksum = sha256File(source);
     modifiedAt = stat.mtime.toISOString();
     ageHours = Math.max(0, (Date.now() - stat.mtimeMs) / (60 * 60 * 1000));
+    if (
+      sizePolicy.oversized_artifacts_must_be_compacted_refs &&
+      stat.size > sizePolicy.max_single_artifact_bytes &&
+      !largeArtifactAllowed(relPath, sizePolicy)
+    ) {
+      compacted = true;
+      const compactedRef = {
+        type: 'proof_pack_compacted_artifact_ref',
+        compacted_at: new Date().toISOString(),
+        reason: 'source artifact exceeded proof-pack single-artifact byte budget',
+        previous_artifact: relPath,
+        retention_policy: {
+          source_retained_in_place: true,
+          source_path: relPath,
+          source_size_bytes: stat.size,
+          source_sha256: originalChecksum,
+          max_single_artifact_bytes: sizePolicy.max_single_artifact_bytes,
+          policy_path: sizePolicy.policy_path,
+        },
+        operator_summary: {
+          artifact: relPath,
+          action: 'inspect source artifact directly if raw evidence is needed; proof pack carries compacted reference only',
+          compacted_ref_required_fields: sizePolicy.compacted_ref_required_fields,
+        },
+      };
+      fs.writeFileSync(destination, `${JSON.stringify(compactedRef, null, 2)}\n`, 'utf8');
+    } else {
+      fs.copyFileSync(source, destination);
+    }
+    checksum = sha256File(destination);
+    sizeBytes = fs.statSync(destination).size;
   }
   return {
     path: relPath,
@@ -148,7 +212,33 @@ function copyIntoPack(root: string, relPath: string, packRoot: string) {
     size_bytes: sizeBytes,
     source_modified_at: modifiedAt,
     source_age_hours: ageHours,
+    compacted,
+    original_size_bytes: originalSizeBytes,
+    original_checksum: originalChecksum,
   };
+}
+
+function proofPackSizeBudgetFailures(artifactRows: Array<{ path: string; size_bytes: number; compacted?: boolean }>, sizePolicy: ProofPackSizePolicy) {
+  const singleArtifactFailures = artifactRows
+    .filter((row) => row.size_bytes > sizePolicy.max_single_artifact_bytes)
+    .filter((row) => !largeArtifactAllowed(row.path, sizePolicy))
+    .map((row) => ({
+      path: row.path,
+      size_bytes: row.size_bytes,
+      max_bytes: sizePolicy.max_single_artifact_bytes,
+      compacted: row.compacted === true,
+      failure: 'proof_pack_single_artifact_budget_exceeded',
+    }));
+  const copiedArtifactBytes = artifactRows.reduce((sum, row) => sum + Number(row.size_bytes || 0), 0);
+  const packFailures = copiedArtifactBytes > sizePolicy.max_proof_pack_bytes
+    ? [{
+        path: 'release_proof_pack',
+        size_bytes: copiedArtifactBytes,
+        max_bytes: sizePolicy.max_proof_pack_bytes,
+        failure: 'proof_pack_total_budget_exceeded',
+      }]
+    : [];
+  return { singleArtifactFailures, packFailures, copiedArtifactBytes };
 }
 
 function jsonArtifactStatus(absPath: string): { declares_status: boolean; passing: boolean; detail: string } {
@@ -194,6 +284,7 @@ function blockerPriority(blocker: any): number {
     category_threshold_failures: 720,
     stale_artifact_failures: 650,
     current_evidence_failures: 600,
+    proof_pack_size_budget_failures: 590,
     manifest_duplicate_warnings: 100,
   };
   return Number(classRank[String(blocker?.class || '')] || 0);
@@ -395,6 +486,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
 
   const manifestRaw = fs.readFileSync(path.resolve(root, args.manifestPath), 'utf8');
   const manifest = JSON.parse(manifestRaw) as PackManifest;
+  const sizePolicy = readProofPackSizePolicy(root);
   const categoryByPath = categoryLookup(manifest);
   const requiredArtifacts = dedupePaths(manifest.required_artifacts || []);
   const requiredArtifactSet = new Set(requiredArtifacts);
@@ -430,18 +522,21 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     size_bytes: number;
     source_modified_at: string;
     source_age_hours: number | null;
+    compacted: boolean;
+    original_size_bytes: number;
+    original_checksum: string;
   }> = [];
 
   for (const normalized of requiredArtifacts) {
     artifactRows.push({
-      ...copyIntoPack(root, normalized, packRoot),
+      ...copyIntoPack(root, normalized, packRoot, sizePolicy),
       category: cleanText(categoryByPath.get(normalized) || 'ungrouped', 120),
       required: true,
     });
   }
   for (const normalized of optionalArtifacts) {
     artifactRows.push({
-      ...copyIntoPack(root, normalized, packRoot),
+      ...copyIntoPack(root, normalized, packRoot, sizePolicy),
       category: cleanText(categoryByPath.get(normalized) || 'ungrouped', 120),
       required: false,
     });
@@ -602,6 +697,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
           },
         ]),
   ];
+  const sizeBudget = proofPackSizeBudgetFailures(artifactRows, sizePolicy);
+  const proofPackSizeBudgetFailuresRows = [
+    ...sizeBudget.singleArtifactFailures,
+    ...sizeBudget.packFailures,
+  ];
   const blockerClassCounts = {
     required_missing: requiredMissing.length,
     mandatory_artifact_failures: mandatoryArtifactFailures.length,
@@ -610,6 +710,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     stale_artifact_failures: staleArtifactFailures.length,
     current_evidence_failures: currentEvidenceFailures.length,
     summary_consistency_failures: proofPackSummaryConsistencyFailures.length,
+    proof_pack_size_budget_failures: proofPackSizeBudgetFailuresRows.length,
     manifest_duplicate_warnings: manifestDuplicateWarnings.length,
   };
   const releaseBlockingIssueCount =
@@ -619,7 +720,8 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     blockerClassCounts.category_threshold_failures +
     blockerClassCounts.stale_artifact_failures +
     blockerClassCounts.current_evidence_failures +
-    blockerClassCounts.summary_consistency_failures;
+    blockerClassCounts.summary_consistency_failures +
+    blockerClassCounts.proof_pack_size_budget_failures;
   const blockerSeverityCounts = {
     release_blocking: releaseBlockingIssueCount,
     hygiene: blockerClassCounts.manifest_duplicate_warnings,
@@ -674,6 +776,13 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       artifact: 'release_proof_pack_summary',
       action: 'repair proof-pack summary/category accounting mismatch',
       detail: row.detail,
+    })),
+    ...proofPackSizeBudgetFailuresRows.map((row) => ({
+      class: 'proof_pack_size_budget_failures',
+      severity: 'release_blocking',
+      artifact: row.path,
+      action: `compact or remove oversized proof-pack artifact ${row.path}`,
+      detail: `${row.failure}:size_bytes=${row.size_bytes};max_bytes=${row.max_bytes}`,
     })),
     ...manifestDuplicateWarnings.map((row) => ({
       class: 'manifest_duplicate_warnings',
@@ -753,6 +862,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     staleArtifactFailures.length === 0 &&
     currentEvidenceFailures.length === 0 &&
     proofPackSummaryConsistencyFailures.length === 0 &&
+    proofPackSizeBudgetFailuresRows.length === 0 &&
     topBlockerActionabilityFailures.length === 0;
   const topBlockersActionable = topBlockerActionabilityFailures.length === 0;
   const issueCandidate =
@@ -770,6 +880,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
             ...staleArtifactFailures.map((row) => row.path),
             ...currentEvidenceFailures.map((row) => row.path),
             ...proofPackSummaryConsistencyFailures.map((row) => row.id),
+            ...proofPackSizeBudgetFailuresRows.map((row) => row.path),
             ...manifestDuplicateWarnings.map((row) => `${row.section}:${row.path}`),
           ].join('|')}`,
           dedupe_key: `release_proof_pack:${[
@@ -778,6 +889,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
             ...staleArtifactFailures.map((row) => row.path),
             ...currentEvidenceFailures.map((row) => row.path),
             ...proofPackSummaryConsistencyFailures.map((row) => row.id),
+            ...proofPackSizeBudgetFailuresRows.map((row) => row.path),
             ...manifestDuplicateWarnings.map((row) => `${row.section}:${row.path}`),
           ].join('|')}`,
           owner: 'release_governance/proof_pack',
@@ -796,6 +908,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
           stale_artifact_failure_count: staleArtifactFailures.length,
           current_evidence_failure_count: currentEvidenceFailures.length,
           summary_consistency_failure_count: proofPackSummaryConsistencyFailures.length,
+          proof_pack_size_budget_failure_count: proofPackSizeBudgetFailuresRows.length,
           category_required_missing_sum: categoryRequiredMissingSum,
           category_artifact_count_sum: categoryArtifactCountSum,
           category_required_total_sum: categoryRequiredTotalSum,
@@ -868,6 +981,11 @@ export function run(argv: string[] = process.argv.slice(2)): number {
               artifact: 'release_proof_pack_summary',
               detail: row.detail,
             })),
+            ...proofPackSizeBudgetFailuresRows.map((row) => ({
+              action: `compact or remove oversized proof-pack artifact ${row.path}`,
+              artifact: row.path,
+              detail: `${row.failure}:size_bytes=${row.size_bytes};max_bytes=${row.max_bytes}`,
+            })),
             ...manifestDuplicateWarnings.map((row) => ({
               action: row.recommendation,
               artifact: row.path,
@@ -880,6 +998,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
             'stale_artifact_failure_count is zero',
             'current_evidence_failure_count is zero',
             'summary_consistency_failure_count is zero',
+            'proof_pack_size_budget_failure_count is zero',
             'manifest_duplicate_warning_count is zero or explicitly accepted as non-blocking hygiene debt',
           ],
         };
@@ -900,6 +1019,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     required_failed_artifacts: requiredFailedArtifacts,
     stale_artifact_failures: staleArtifactFailures,
     current_evidence_failures: currentEvidenceFailures,
+    proof_pack_size_budget: {
+      policy_path: sizePolicy.policy_path,
+      max_single_artifact_bytes: sizePolicy.max_single_artifact_bytes,
+      max_proof_pack_bytes: sizePolicy.max_proof_pack_bytes,
+      copied_artifact_bytes: sizeBudget.copiedArtifactBytes,
+      compacted_artifact_count: artifactRows.filter((row) => row.compacted === true).length,
+      failure_count: proofPackSizeBudgetFailuresRows.length,
+    },
+    proof_pack_size_budget_failures: proofPackSizeBudgetFailuresRows,
     manifest_duplicate_warnings: manifestDuplicateWarnings,
     manifest_hygiene_contract: {
       assembly_dedupes_duplicate_paths: true,
@@ -956,6 +1084,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       stale_artifact_failure_count: staleArtifactFailures.length,
       current_evidence_failure_count: currentEvidenceFailures.length,
       summary_consistency_failure_count: proofPackSummaryConsistencyFailures.length,
+      proof_pack_size_budget_failure_count: proofPackSizeBudgetFailuresRows.length,
       category_required_missing_sum: categoryRequiredMissingSum,
       category_artifact_count_sum: categoryArtifactCountSum,
       category_required_total_sum: categoryRequiredTotalSum,
@@ -991,6 +1120,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         staleArtifactFailures[0]?.path ||
         currentEvidenceFailures[0]?.path ||
         proofPackSummaryConsistencyFailures[0]?.id ||
+        proofPackSizeBudgetFailuresRows[0]?.path ||
         manifestDuplicateWarnings[0]?.path ||
         '',
       issue_candidate_ready: issueCandidate !== null,
@@ -1014,6 +1144,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         failed_artifacts: requiredFailedArtifacts.length + mandatoryArtifactFailures.length,
         historical_snapshot_artifacts: currentEvidenceFailures.length,
         summary_consistency_failures: proofPackSummaryConsistencyFailures.length,
+        proof_pack_size_budget_failures: proofPackSizeBudgetFailuresRows.length,
         category_required_missing_sum: categoryRequiredMissingSum,
         category_artifact_count_sum: categoryArtifactCountSum,
         category_required_total_sum: categoryRequiredTotalSum,
@@ -1058,6 +1189,7 @@ export function run(argv: string[] = process.argv.slice(2)): number {
       historical_or_noncurrent_artifact_count: currentEvidenceFailures.length,
       category_threshold_failure_count: categoryThresholdFailures.length,
       summary_consistency_failure_count: proofPackSummaryConsistencyFailures.length,
+      proof_pack_size_budget_failure_count: proofPackSizeBudgetFailuresRows.length,
       category_required_missing_sum: categoryRequiredMissingSum,
       category_artifact_count_sum: categoryArtifactCountSum,
       category_required_total_sum: categoryRequiredTotalSum,
@@ -1091,6 +1223,15 @@ export function run(argv: string[] = process.argv.slice(2)): number {
     stale_artifact_failures: staleArtifactFailures,
     current_evidence_failures: currentEvidenceFailures,
     summary_consistency_failures: proofPackSummaryConsistencyFailures,
+    proof_pack_size_budget: {
+      policy_path: sizePolicy.policy_path,
+      max_single_artifact_bytes: sizePolicy.max_single_artifact_bytes,
+      max_proof_pack_bytes: sizePolicy.max_proof_pack_bytes,
+      copied_artifact_bytes: sizeBudget.copiedArtifactBytes,
+      compacted_artifact_count: artifactRows.filter((row) => row.compacted === true).length,
+      failure_count: proofPackSizeBudgetFailuresRows.length,
+    },
+    proof_pack_size_budget_failures: proofPackSizeBudgetFailuresRows,
     blocker_class_counts: blockerClassCounts,
     blocker_severity_counts: blockerSeverityCounts,
     top_blockers: topBlockers,
@@ -1114,6 +1255,10 @@ export function run(argv: string[] = process.argv.slice(2)): number {
         detail: `${row.path}:${row.failure}`,
       })),
       ...proofPackSummaryConsistencyFailures.map((row) => ({ id: row.id, detail: row.detail })),
+      ...proofPackSizeBudgetFailuresRows.map((row) => ({
+        id: row.failure,
+        detail: `${row.path}:size_bytes=${row.size_bytes};max_bytes=${row.max_bytes}`,
+      })),
       ...categoryThresholdFailures.map((row) => ({ id: row.id, detail: row.detail })),
       ...topBlockerActionabilityFailures.map((row) => ({
         id: 'proof_pack_top_blocker_actionability_failed',

@@ -14,10 +14,19 @@
     "stage_timing_samples_should_accumulate_across_dream_and_release_runs": true,
     "full_runs_should_emit_stage_timings": true,
     "lightweight_runs_are_freshness_only_and_do_not_count_as_full_timing_samples": true,
-    "trend_report_should_stay_compact": true
+    "trend_report_should_stay_compact": true,
+    "completed_staged_runner_should_auto_capture_full_timing_sample": true,
+    "trend_report_requires_dream_and_release_full_samples": true,
+    "sample_capture_should_prefer_all_phase_results": true
   },
   "budgets": {
     "max_report_bytes": 20000,
-    "warn_if_samples_below": 2
-  }
+    "warn_if_samples_below": 2,
+    "min_full_samples": 2,
+    "min_full_stage_count": 5
+  },
+  "required_cadences": [
+    "dream",
+    "release"
+  ]
 }

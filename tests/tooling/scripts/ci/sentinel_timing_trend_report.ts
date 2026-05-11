@@ -8,6 +8,8 @@ const root = process.cwd();
 const policyPath = path.join(root, 'observability/sentinel/sentinel_timing_trend_policy.json');
 const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
 const outPath = path.join(root, policy.report_path);
+const requiredCadences = Array.isArray(policy.required_cadences) ? policy.required_cadences.map(String) : [];
+const minFullStageCount = Number(policy.budgets?.min_full_stage_count || 1);
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out;
   for (const name of fs.readdirSync(dir)) {
@@ -38,6 +40,8 @@ if (sampleStorePath && fs.existsSync(sampleStorePath)) {
         trace_id: sample.trace_id || '',
         cadence: sample.cadence || '',
         artifact_kind: sample.artifact_kind || 'staged_sample',
+        full_cycle: sample.full_cycle === true || Number(sample.stage_count || stages.length || 0) >= minFullStageCount || String(sample.artifact_kind || '').includes('full'),
+        stage_count: Number(sample.stage_count || stages.length || 0),
         stage_timings: stages.map((stage) => ({ stage: stage.stage || 'unknown', elapsed_ms: Number(stage.elapsed_ms) || 0 }))
       });
     } catch {}
@@ -55,10 +59,24 @@ for (const file of candidates) {
       trace_id: artifact.trace_id || '',
       cadence: artifact.cadence || '',
       artifact_kind: artifact.artifact_kind || 'full_auto_run',
+      full_cycle: artifact.full_cycle === true || Number(artifact.stage_count || stages.length || 0) >= minFullStageCount || String(artifact.artifact_kind || '').includes('full'),
+      stage_count: Number(artifact.stage_count || stages.length || 0),
       stage_timings: stages.map((stage) => ({ stage: stage.stage || 'unknown', elapsed_ms: Number(stage.elapsed_ms) || 0 }))
     });
   } catch {}
 }
+const cadenceCounts = {};
+for (const sample of samples) {
+  const cadence = sample.cadence || 'unknown';
+  cadenceCounts[cadence] = (cadenceCounts[cadence] || 0) + 1;
+}
+const fullSamples = samples.filter((sample) => sample.full_cycle === true);
+const fullCadenceCounts = {};
+for (const sample of fullSamples) {
+  const cadence = sample.cadence || 'unknown';
+  fullCadenceCounts[cadence] = (fullCadenceCounts[cadence] || 0) + 1;
+}
+const missingRequiredCadences = requiredCadences.filter((cadence) => !fullCadenceCounts[cadence]);
 const byStage = {};
 for (const sample of samples) {
   for (const stage of sample.stage_timings) {
@@ -80,12 +98,17 @@ const payload = {
   generated_at: new Date().toISOString(),
   policy_path: path.relative(root, policyPath),
   sample_count: samples.length,
-  status: samples.length >= (policy.budgets?.warn_if_samples_below || 2) ? 'trend_ready' : 'insufficient_samples',
+  full_sample_count: fullSamples.length,
+  required_cadences: requiredCadences,
+  cadence_counts: cadenceCounts,
+  full_cadence_counts: fullCadenceCounts,
+  missing_required_cadences: missingRequiredCadences,
+  status: samples.length >= (policy.budgets?.warn_if_samples_below || 2) && missingRequiredCadences.length === 0 ? 'trend_ready' : 'insufficient_samples',
   by_stage: byStage,
   samples: samples.slice(0, 20),
-  next_action: samples.length >= (policy.budgets?.warn_if_samples_below || 2)
+  next_action: samples.length >= (policy.budgets?.warn_if_samples_below || 2) && missingRequiredCadences.length === 0
     ? 'compare stage max/avg across dream and release runs for regressions'
-    : 'collect at least one additional full dream or release Sentinel run with stage_timings'
+    : `collect full Sentinel timing samples for required cadences: ${missingRequiredCadences.join(', ') || 'additional samples'}`
 };
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, `${JSON.stringify(payload, null, 2)}\n`);

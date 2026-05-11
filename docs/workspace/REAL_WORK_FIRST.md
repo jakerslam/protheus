@@ -96,6 +96,14 @@ The system is not meaningfully useful if these paths are unreliable:
 
 These paths should outrank speculative capability work.
 
+Canonical reliability floor policy:
+
+- [reliability_floor_policy.md](/Users/jay/.openclaw/workspace/docs/workspace/reliability_floor_policy.md)
+
+Canonical CodeQL real-work loop:
+
+- [CODEQL_REMEDIATION_WORKFLOW.md](/Users/jay/.openclaw/workspace/docs/workspace/process/CODEQL_REMEDIATION_WORKFLOW.md)
+
 ## Simplification Rule
 
 Simplification is not cleanup theater. It should reduce one of:

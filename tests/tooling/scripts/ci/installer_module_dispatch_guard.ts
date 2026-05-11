@@ -12,6 +12,16 @@ const violations = [];
 if (!report) violations.push({ kind: 'installer_module_dispatch_report_missing' });
 if (report && report.source_domain !== 'validation') violations.push({ kind: 'installer_module_dispatch_wrong_source_domain', actual: report.source_domain });
 for (const row of (report?.rows || [])) {
+  const requiredMode = row.required_mode || 'referenced';
+  if (requiredMode === 'referenced' && row.status !== 'referenced') {
+    violations.push({
+      kind: 'installer_module_dispatch_not_referenced',
+      installer: row.installer,
+      module: row.module,
+      status: row.status,
+      required_mode: requiredMode,
+    });
+  }
   if (!['referenced', 'mirror_only'].includes(row.status)) {
     violations.push({ kind: 'installer_module_dispatch_unwired', installer: row.installer, module: row.module, status: row.status });
   }

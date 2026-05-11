@@ -5,7 +5,10 @@ fn attach_test_harness_execution_receipt(
     started: std::time::Instant,
 ) -> Value {
     let ok = payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
-    let error = payload.get("error").and_then(|v| v.as_str());
+    let error = payload
+        .get("error")
+        .and_then(|v| v.as_str())
+        .map(str::to_owned);
     if let Some(obj) = payload.as_object_mut() {
         obj.entry("execution_receipt".to_string()).or_insert_with(|| {
             json!({

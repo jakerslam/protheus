@@ -4,10 +4,26 @@
   "owner_domain": "validation.conformance",
   "manifest_path": "validation/conformance/contracts/rust_crate_support_status_manifest.json",
   "report_path": "validation/reports/rust_crate_support_evidence_report_2026-05-10.json",
+  "cargo_check_report_path": "core/local/artifacts/rust_crate_cargo_check_evidence_current.json",
+  "accepted_validation_evidence_statuses": [
+    "cargo_check_passed",
+    "cargo_test_passed",
+    "explicit_exemption"
+  ],
+  "blocking_validation_evidence_statuses": [
+    "missing_validation_evidence",
+    "planned_not_executed",
+    "manifest_missing",
+    "cargo_check_failed",
+    "cargo_check_timeout"
+  ],
+  "production_candidate_validation_exemptions": [],
   "policy": {
     "production_candidate_requires_manifest_parse_evidence": true,
+    "production_candidate_requires_cargo_check_test_or_explicit_exemption": true,
     "missing_cargo_manifest_demotes_to_blocked": true,
     "evidence_report_required_before_status_upgrade": true,
-    "support_status_must_be_based_on_observed_crate_state": true
+    "support_status_must_be_based_on_observed_crate_state": true,
+    "manifest_parse_ready_is_not_sufficient_for_production_candidate": true
   }
 }

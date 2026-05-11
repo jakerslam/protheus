@@ -9,12 +9,26 @@
     "unmerged_paths_present",
     "tracked_delete_shadowed_by_untracked_same_path",
     "large_dirty_surface_requires_surgical_commit",
-    "surgical_commit_recommended"
+    "surgical_commit_recommended",
+    "explicit_paths_required_for_surgical_commit_plan",
+    "selected_paths_include_unmerged_paths",
+    "temporary_index_candidate_failed",
+    "GIT_INDEX_FILE",
+    "read-tree",
+    "write-tree",
+    "selected_paths",
+    "workspace_unsafe_reasons",
+    "candidate_blockers",
+    "unselected_dirty_count",
+    "real_index_mutated"
   ],
   "policy": {
     "ordinary_commit_for_large_dirty_tree_forbidden": true,
     "unmerged_paths_block_normal_commit": true,
     "delete_untracked_shadow_pairs_block_normal_commit": true,
+    "explicit_paths_required_for_surgical_commit_plan": true,
+    "temporary_index_validation_required": true,
+    "real_index_mutation_forbidden": true,
     "report_only_no_git_mutation": true
   },
   "forbidden_tool_tokens": [

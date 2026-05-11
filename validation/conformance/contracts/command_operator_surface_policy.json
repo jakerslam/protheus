@@ -16,6 +16,11 @@
     "default_command_list_must_be_bounded": true,
     "compatibility_aliases_may_be_promoted_only_with_rank_and_reason": true,
     "full_compatibility_surface_requires_explicit_include_compat": true,
-    "canonical_curated_commands_remain_in_default_surface": true
-  }
+    "canonical_curated_commands_remain_in_default_surface": true,
+    "promoted_compatibility_commands_require_curated_metadata": true,
+    "default_list_must_equal_operator_surface_ids": true,
+    "runner_output_must_name_preferred_entrypoint": true,
+    "raw_package_scripts_are_backing_compatibility_surface": true
+  },
+  "minimum_curated_operator_surface_count": 40
 }

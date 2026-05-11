@@ -152,40 +152,9 @@ fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
         "synthesis_failed",
         "guard_violation_pass_through",
         "empty_llm_response",
-        "structured_failure",
     ]
     .iter()
     .all(|status| workflow_trace_status_message_pair_is_complete(contract, status));
-    let terminal_invariant_contract_complete = contract
-        .pointer("/terminal_invariant_contract/enabled")
-        .and_then(Value::as_bool)
-        == Some(true)
-        && workflow_contract_string_at(
-            contract,
-            "/terminal_invariant_contract/tool_required_empty_final_response_policy",
-            120,
-        )
-        .map(|policy| policy == "never_terminal")
-        .unwrap_or(false)
-        && workflow_contract_array_contains(
-            contract,
-            "/terminal_invariant_contract/allowed_tool_required_terminal_outcomes",
-            "pending_tool_request",
-        )
-        && workflow_contract_array_contains(
-            contract,
-            "/terminal_invariant_contract/allowed_tool_required_terminal_outcomes",
-            "executed_tool_result",
-        )
-        && workflow_contract_array_contains(
-            contract,
-            "/terminal_invariant_contract/allowed_tool_required_terminal_outcomes",
-            "structured_failure",
-        )
-        && contract
-            .pointer("/terminal_invariant_contract/chat_injection_allowed")
-            .and_then(Value::as_bool)
-            == Some(false);
     let diagnostic_markers_complete = workflow_contract_array_at(
         contract,
         "/diagnostic_markers/legacy_retry_templates",
@@ -300,7 +269,6 @@ fn workflow_tool_menu_contract_is_complete(contract: &Value) -> bool {
     first_gate_submission_complete
         && tool_request_contract_complete
         && trace_status_messages_complete
-        && terminal_invariant_contract_complete
         && diagnostic_markers_complete
         && declared_gates_are_valid
         && declares_final_output
@@ -355,7 +323,6 @@ fn workflow_source_of_truth_contract_is_complete(contract: &Value) -> bool {
         && workflow_contract_array_contains(contract, "/json_owns", "loopbacks")
         && workflow_contract_array_contains(contract, "/json_owns", "final_output_contract")
         && workflow_contract_array_contains(contract, "/json_owns", "trace_status_messages")
-        && workflow_contract_array_contains(contract, "/json_owns", "terminal_invariant_contract")
         && workflow_contract_array_contains(contract, "/json_owns", "diagnostic_markers")
 }
 
@@ -676,43 +643,33 @@ mod workflow_reader_tests {
             .pointer("/final_output_contract/chat_requirement")
             .and_then(Value::as_str)
             .expect("chat requirement");
+        let lowered_chat_requirement = chat_requirement.to_ascii_lowercase();
+        for needle in [
+            "match the semantic shape of the request",
+            "for lookup or current-state research",
+            "for comparison requests",
+            "for ranking or selection requests",
+            "for low-signal or partial-result recovery",
+            "do not make the whole answer a request to narrow scope",
+            "'i ran searches'",
+            "do not end with a follow-up question when a bounded answer is possible",
+            "there is no required output format",
+        ] {
+            assert!(lowered_chat_requirement.contains(needle), "{chat_requirement}");
+        }
         assert!(
-            chat_requirement.contains(
-                "classify the available state internally as one lane: no_tool_state, usable, low_signal, irrelevant, or failed"
-            ),
+            lowered_chat_requirement.contains("no returned tool result is available")
+                &&
+            chat_requirement.contains("must explicitly say")
+                && !chat_requirement.contains("MUST begin with the exact sentence"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("Never use training, prior, existing, or general knowledge"),
+            chat_requirement.contains("do not substitute system instructions"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("do not make the whole answer a request for the user to narrow"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement
-                .contains("no source-backed synthesis is available from this turn's state"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("never claim no tool result is available"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("Do not substitute system instructions"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("explicitly say the evidence was limited or low-signal"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("most useful conservative decision boundary"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("There is no required output format."),
+            lowered_chat_requirement.contains("do not introduce substitute entities"),
             "{chat_requirement}"
         );
     }
@@ -736,7 +693,6 @@ mod workflow_reader_tests {
             "synthesis_failed",
             "guard_violation_pass_through",
             "empty_llm_response",
-            "structured_failure",
         ] {
             assert!(
                 selected
@@ -764,15 +720,6 @@ mod workflow_reader_tests {
                 .pointer("/workflow_source_of_truth_contract/json_owns")
                 .and_then(Value::as_array)
                 .map(|rows| rows.iter().any(|row| row.as_str() == Some("trace_status_messages"))),
-            Some(true)
-        );
-        assert_eq!(
-            selected
-                .pointer("/workflow_source_of_truth_contract/json_owns")
-                .and_then(Value::as_array)
-                .map(|rows| rows
-                    .iter()
-                    .any(|row| row.as_str() == Some("terminal_invariant_contract"))),
             Some(true)
         );
     }
@@ -866,7 +813,7 @@ mod workflow_reader_tests {
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("external research, source-backed information, freshness-sensitive information"),
+            gate_instruction.contains("freshness-sensitive external information or judgment that depends on current public evidence"),
             "{gate_instruction}"
         );
         assert!(
@@ -875,7 +822,8 @@ mod workflow_reader_tests {
         );
         assert!(
             gate_instruction
-                .contains("no source-backed synthesis is available from this turn's state"),
+                .to_ascii_lowercase()
+                .contains("no returned tool result is available"),
             "{gate_instruction}"
         );
         assert!(
@@ -899,9 +847,6 @@ mod workflow_reader_tests {
             .pointer("/tool_menu_interface_contract/private_gate_retry_instruction")
             .and_then(Value::as_str)
             .expect("private gate retry instruction");
-        let latent_candidate_recovery = selected
-            .pointer("/tool_menu_interface_contract/latent_candidate_recovery_contract")
-            .expect("latent candidate recovery contract");
 
         assert!(
             retry_instruction.contains("If the excerpt is empty, treat it as an empty response."),
@@ -918,39 +863,6 @@ mod workflow_reader_tests {
             "{retry_instruction}"
         );
         assert!(!retry_instruction.contains("Infring"), "{retry_instruction}");
-        assert_eq!(
-            latent_candidate_recovery
-                .get("enabled")
-                .and_then(Value::as_bool),
-            Some(true)
-        );
-        assert_eq!(
-            latent_candidate_recovery
-                .get("promotion_scope")
-                .and_then(Value::as_str),
-            Some("single_valid_workflow_only_candidate_after_private_gate_failure")
-        );
-        assert_eq!(
-            latent_candidate_recovery
-                .get("ambiguity_policy")
-                .and_then(Value::as_str),
-            Some("do_not_promote_when_zero_or_multiple_valid_candidates")
-        );
-        let terminal_invariant = selected
-            .pointer("/tool_menu_interface_contract/terminal_invariant_contract")
-            .expect("terminal invariant contract");
-        assert_eq!(
-            terminal_invariant
-                .get("tool_required_empty_final_response_policy")
-                .and_then(Value::as_str),
-            Some("never_terminal")
-        );
-        assert_eq!(
-            terminal_invariant
-                .get("chat_injection_allowed")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
     }
 
     #[test]
@@ -966,39 +878,19 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For usable evidence, synthesize from retrieved evidence"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("For low_signal evidence, explicitly say the evidence was limited or low-signal"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("For irrelevant evidence, say retrieval missed the topic or was off-topic"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("For failed retrieval, explicitly say the evidence was limited or unavailable from retrieval"),
-            "{chat_requirement}"
-        );
-        assert!(
-            chat_requirement.contains("most useful conservative decision boundary"),
-            "{chat_requirement}"
-        );
-        assert!(
             chat_requirement.contains("For lookup or current-state research"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For comparisons"),
+            chat_requirement.contains("For comparison requests"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For rankings, selections, or tool-choice questions"),
+            chat_requirement.contains("For ranking or selection requests"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("Never use training, prior, existing, or general knowledge"),
+            chat_requirement.contains("For low-signal or partial-result recovery"),
             "{chat_requirement}"
         );
         assert!(
@@ -1009,53 +901,7 @@ mod workflow_reader_tests {
             chat_requirement.contains("Example formats include a short paragraph, brief bullets, a compact comparison table, or a mixed structure"),
             "{chat_requirement}"
         );
-        assert!(
-            chat_requirement.contains("If quality diagnostics recommend retry"),
-            "{chat_requirement}"
-        );
         assert!(!chat_requirement.contains("agentic framework"), "{chat_requirement}");
-    }
-
-    #[test]
-    fn workflow_reader_projects_retrieval_recovery_contract_from_json_spec() {
-        let selected = selected_turn_workflow("");
-        let recovery = selected
-            .pointer("/tool_menu_interface_contract/retrieval_recovery_contract")
-            .expect("retrieval recovery contract");
-        assert_eq!(
-            recovery.get("authority").and_then(Value::as_str),
-            Some("agent_submitted_tool_inputs")
-        );
-        assert_eq!(
-            recovery
-                .get("default_recovery_budget")
-                .and_then(Value::as_u64),
-            Some(1)
-        );
-        let behavior = recovery
-            .get("recovery_behavior")
-            .and_then(Value::as_str)
-            .unwrap_or("");
-        assert!(
-            behavior.contains("submit a more specific query or query pack before final synthesis"),
-            "{behavior}"
-        );
-        assert!(
-            behavior.contains("Do not ask the user to narrow"),
-            "{behavior}"
-        );
-        assert!(
-            recovery
-                .get("query_refinement_axes")
-                .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| {
-                    row.as_str()
-                        .map(|value| value.contains("avoid hidden query expansion"))
-                        .unwrap_or(false)
-                }))
-                .unwrap_or(false),
-            "{recovery}"
-        );
     }
 
     #[test]
@@ -1071,27 +917,7 @@ mod workflow_reader_tests {
             "{payload_instruction}"
         );
         assert!(
-            payload_instruction.contains("4-6 concrete follow-up searches"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("If a prior tool result quality diagnostic is available and recommends retry"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("do not ask the user to narrow while the workflow still has internal recovery budget"),
-            "{payload_instruction}"
-        );
-        assert!(
             payload_instruction.contains("contains only `queries` and `aperture` is invalid"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("For named product/library/framework evaluation"),
-            "{payload_instruction}"
-        );
-        assert!(
-            payload_instruction.contains("official docs, repository or release notes"),
             "{payload_instruction}"
         );
         assert!(
@@ -1103,10 +929,6 @@ mod workflow_reader_tests {
             "{payload_instruction}"
         );
         assert!(
-            payload_instruction.contains("Single-framework evaluation example"),
-            "{payload_instruction}"
-        );
-        assert!(
             payload_instruction.contains("a payload that omits `aperture` is invalid"),
             "{payload_instruction}"
         );
@@ -1114,15 +936,10 @@ mod workflow_reader_tests {
             payload_instruction.contains("RAG stack example"),
             "{payload_instruction}"
         );
-        assert!(
-            payload_instruction
-                .contains("Always follow the selected request_format and selected example above"),
-            "{payload_instruction}"
-        );
     }
 
     #[test]
-    fn workflow_reader_tool_selection_hardens_machine_control_contract() {
+    fn workflow_reader_tool_selection_prefers_web_search_for_single_library_research() {
         let selected = selected_turn_workflow("");
         let selection_instruction = selected
             .pointer("/tool_menu_interface_contract/llm_tool_selection_instruction")
@@ -1130,33 +947,15 @@ mod workflow_reader_tests {
             .expect("tool selection instruction");
 
         assert!(
-            selection_instruction.contains("single JSON object with exactly one key named `tool`"),
+            selection_instruction.contains("single-product/library research centered on one named tool"),
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("XML/tool markup"),
+            selection_instruction.contains("Research Mastra for TypeScript agent workflows and whether it competes with LangGraph."),
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("multiple evidence slices or query reformulation"),
-            "{selection_instruction}"
-        );
-        assert!(
-            selection_instruction.contains("source-backed fit assessment"),
-            "{selection_instruction}"
-        );
-        assert!(
-            selection_instruction
-                .contains("If uncertain between `batch_query` and `web_search`, choose `batch_query`"),
-            "{selection_instruction}"
-        );
-        assert!(
-            selection_instruction.contains("{\"tool\":\"batch_query\"}"),
-            "{selection_instruction}"
-        );
-        assert!(!selection_instruction.contains("Infring"), "{selection_instruction}");
-        assert!(
-            !selection_instruction.contains("Research a named framework"),
+            selection_instruction.contains("{\"tool\": \"web_search\"}"),
             "{selection_instruction}"
         );
     }

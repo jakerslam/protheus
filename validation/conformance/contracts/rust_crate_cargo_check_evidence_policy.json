@@ -6,6 +6,54 @@
   "timeout_ms": 120000,
   "sample_manifests": [
     {
+      "path": "core/layer0/memory_abstraction/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer0/memory_runtime/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer0/memory/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer0/ops/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/infring_types/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/ipc/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/isolation/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/llm_runtime/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/memory_runtime/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/memory/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/nursery_runtime/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/observability/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
       "path": "core/layer1/primitives/Cargo.toml",
       "reason": "Layer 1 primitive substrate should stay cargo-checkable before production promotion."
     },
@@ -14,24 +62,40 @@
       "reason": "Receipt/provenance substrate is central to release confidence."
     },
     {
-      "path": "core/layer2/nexus/Cargo.toml",
-      "reason": "Nexus is the cross-domain connection substrate and should have direct compile evidence."
+      "path": "core/layer1/resource/Cargo.toml",
+      "reason": "Resource governance is central to boundedness and release confidence."
     },
     {
       "path": "core/layer1/security/Cargo.toml",
       "reason": "Security substrate should stay cargo-checkable before production promotion."
     },
     {
-      "path": "core/layer1/resource/Cargo.toml",
-      "reason": "Resource governance is central to boundedness and release confidence."
+      "path": "core/layer1/storage/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/task/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer1/update/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
+    },
+    {
+      "path": "core/layer2/conduit-security/Cargo.toml",
+      "reason": "Gateway/conduit security enforcement should stay cargo-checkable."
     },
     {
       "path": "core/layer2/conduit/Cargo.toml",
       "reason": "Conduit is the internal delivery substrate and should have direct compile evidence."
     },
     {
-      "path": "core/layer2/conduit-security/Cargo.toml",
-      "reason": "Gateway/conduit security enforcement should stay cargo-checkable."
+      "path": "core/layer2/nexus/Cargo.toml",
+      "reason": "Nexus is the cross-domain connection substrate and should have direct compile evidence."
+    },
+    {
+      "path": "core/layer2/tooling/Cargo.toml",
+      "reason": "kernel production candidate requires cargo-check evidence or an explicit validation exemption before release promotion."
     }
   ],
   "accepted_evidence_statuses": [
@@ -42,6 +106,8 @@
     "production_candidate_sample_requires_cargo_check_observation": true,
     "failed_cargo_check_is_evidence_but_blocks_promotion": true,
     "cargo_check_evidence_must_include_command_and_duration": true,
-    "full_58_crate_sweep_is_not_required_for_daily_iteration": true
+    "full_58_crate_sweep_is_not_required_for_daily_iteration": true,
+    "production_candidate_sample_source": "rust_crate_support_status_manifest.production_candidate",
+    "every_production_candidate_requires_cargo_check_or_explicit_exemption": true
   }
 }

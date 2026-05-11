@@ -2,7 +2,6 @@
         let search_url = match selected_provider.as_str() {
             "duckduckgo_lite" => lite_url.clone(),
             "bing_rss" => web_search_bing_rss_url(&scoped_query),
-            "gdelt_doc" => web_search_gdelt_doc_url(&scoped_query, top_k),
             _ => primary_url.clone(),
         };
         let mut receipt = build_receipt(
@@ -197,14 +196,6 @@
                 }),
             ),
             "bing_rss" => api_search_bing_rss(
-                &scoped_query,
-                summary_only,
-                &allowed_domains,
-                exclude_subdomains,
-                top_k,
-                timeout_ms,
-            ),
-            "gdelt_doc" => api_search_gdelt_doc(
                 &scoped_query,
                 summary_only,
                 &allowed_domains,

@@ -15,11 +15,23 @@ type Entry = {
   domain?: string;
   work_gate?: string;
   description?: string;
+  metadata_curated?: boolean;
   operator_surface?: boolean;
   operator_surface_rank?: number;
   operator_surface_reason?: string;
 };
-function registry(): { entries: Entry[]; script_count: number; group_counts: Record<string, number> } {
+type Registry = {
+  entries: Entry[];
+  script_count: number;
+  group_counts: Record<string, number>;
+  compression_policy?: {
+    canonical_runner?: string;
+    compatibility_aliases_allowed?: boolean;
+    new_package_scripts_require_policy_update?: boolean;
+    goal?: string;
+  };
+};
+function registry(): Registry {
   return JSON.parse(fs.readFileSync(path.join(ROOT, REGISTRY_PATH), 'utf8'));
 }
 function quote(arg: string): string {
@@ -39,6 +51,8 @@ function includesText(entry: Entry, needle: string): boolean {
   return haystack.includes(needle.toLowerCase());
 }
 function usage(): void {
+  console.error('Preferred entrypoint: npm run -s cmd -- <command-id> [args...]');
+  console.error('Compatibility backing: package.json scripts remain addressable through this registry runner.');
   console.error('Usage: npm run -s cmd -- <command-id> [args...]');
   console.error('       npm run -s cmd -- list [--group=<group>] [--domain=<domain>] [--work-gate=<gate>] [--lifecycle=<state>] [--search=<text>] [--include-compat=1] [--operator-surface=0]');
   console.error('       npm run -s cmd -- info <command-id>');
@@ -58,6 +72,32 @@ function publicEntry(entry: Entry): Partial<Entry> {
     operator_surface_reason: entry.operator_surface_reason,
   };
 }
+function entrypoint(data: Registry): { preferred: string; backing: string; policy_goal: string } {
+  return {
+    preferred: 'npm run -s cmd --',
+    backing: 'package.json:scripts',
+    policy_goal: data.compression_policy?.goal || 'structured command runner is the default operator surface',
+  };
+}
+function suggestedIds(entries: Entry[], needle: string): string[] {
+  const haystack = String(needle || '').toLowerCase();
+  const tokens = haystack.split(/[:_-]+/).filter(Boolean);
+  return entries
+    .filter((entry) => entry.operator_surface === true)
+    .map((entry) => {
+      const id = entry.id.toLowerCase();
+      let score = 0;
+      if (id === haystack) score += 100;
+      if (id.includes(haystack) || haystack.includes(id)) score += 50;
+      for (const token of tokens) if (id.includes(token)) score += 10;
+      if (entry.metadata_curated) score += 2;
+      return { id: entry.id, score };
+    })
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+    .slice(0, 5)
+    .map((row) => row.id);
+}
 function main(): void {
   const data = registry();
   const args = process.argv.slice(2);
@@ -74,6 +114,7 @@ function main(): void {
       operatorSurface: flag(args, '--operator-surface') !== '0',
     };
     const rows = data.entries.filter((entry) => {
+      if (!filters.includeCompat && filters.operatorSurface && entry.operator_surface !== true) return false;
       if (!filters.includeCompat && filters.operatorSurface && entry.lifecycle === 'compatibility_alias' && !entry.operator_surface) return false;
       if (!filters.includeCompat && !filters.operatorSurface && entry.lifecycle === 'compatibility_alias') return false;
       if (filters.group && entry.group !== filters.group) return false;
@@ -82,7 +123,7 @@ function main(): void {
       if (filters.lifecycle && entry.lifecycle !== filters.lifecycle) return false;
       return includesText(entry, filters.search);
     }).sort((a, b) => (a.operator_surface_rank || 999999) - (b.operator_surface_rank || 999999) || a.id.localeCompare(b.id));
-    console.log(JSON.stringify({ ok: true, type: 'command_registry_list', count: rows.length, filters, entries: rows.map(publicEntry) }, null, 2));
+    console.log(JSON.stringify({ ok: true, type: 'command_registry_list', entrypoint: entrypoint(data), count: rows.length, filters, entries: rows.map(publicEntry) }, null, 2));
     return;
   }
   if (first === 'info') {
@@ -92,7 +133,7 @@ function main(): void {
       console.error(`Unknown command id: ${id}`);
       process.exit(2);
     }
-    console.log(JSON.stringify({ ok: true, type: 'command_registry_info', entry }, null, 2));
+    console.log(JSON.stringify({ ok: true, type: 'command_registry_info', entrypoint: entrypoint(data), entry }, null, 2));
     return;
   }
   if (first === 'groups') {
@@ -106,12 +147,14 @@ function main(): void {
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
-    console.log(JSON.stringify({ ok: true, type: 'command_registry_groups', script_count: data.script_count, group_counts: data.group_counts, domains, work_gates: workGates }, null, 2));
+    console.log(JSON.stringify({ ok: true, type: 'command_registry_groups', entrypoint: entrypoint(data), script_count: data.script_count, group_counts: data.group_counts, domains, work_gates: workGates }, null, 2));
     return;
   }
   const entry = data.entries.find((row) => row.id === first);
   if (!entry) {
     console.error(`Unknown command id: ${first}`);
+    const suggestions = suggestedIds(data.entries, first);
+    if (suggestions.length) console.error(`Suggested operator-surface commands: ${suggestions.join(', ')}`);
     usage();
     process.exit(2);
   }

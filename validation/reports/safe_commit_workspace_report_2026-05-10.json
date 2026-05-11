@@ -1,39 +1,121 @@
 {
-  "trace_id": "workspace_ops:2026-05-10T23:34:04.275Z:83897",
-  "span_id": "span:workspace_ops:2026-05-10T23:34:04.275Z:83897",
+  "trace_id": "workspace_ops:2026-05-11T04:14:45.754Z:94346",
+  "span_id": "span:workspace_ops:2026-05-11T04:14:45.754Z:94346",
   "parent_span_id": null,
   "source_domain": "workspace_ops",
-  "ok": false,
+  "ok": true,
   "type": "safe_commit_workspace_report",
-  "generated_at": "2026-05-10T23:34:04.277Z",
+  "generated_at": "2026-05-11T04:14:45.755Z",
   "git_status_exit_code": 0,
+  "mode": "surgical_commit_dry_run",
+  "dry_run_only": true,
+  "real_index_mutated": false,
   "summary": {
-    "total_rows": 265,
-    "staged": 158,
-    "unstaged": 27,
-    "untracked": 97,
+    "total_rows": 436,
+    "staged": 265,
+    "unstaged": 42,
+    "untracked": 157,
     "unmerged": 1,
-    "staged_deletes": 63,
-    "shadowed_deletes": 46,
+    "staged_deletes": 161,
+    "shadowed_deletes": 138,
     "unsafe_reasons": [
       "unmerged_paths_present",
       "tracked_delete_shadowed_by_untracked_same_path",
       "large_dirty_surface_requires_surgical_commit"
     ],
+    "workspace_unsafe_reasons": [
+      "unmerged_paths_present",
+      "tracked_delete_shadowed_by_untracked_same_path",
+      "large_dirty_surface_requires_surgical_commit"
+    ],
+    "candidate_blockers": [],
     "normal_commit_safe": false,
     "surgical_commit_recommended": true
+  },
+  "surgical_commit_plan": {
+    "selected_paths": [
+      "package.json",
+      "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts",
+      "tools/commands/command_registry.json",
+      "tools/git/safe_commit_report.ts",
+      "validation/conformance/contracts/safe_commit_workspace_policy.json"
+    ],
+    "selected_row_count": 7,
+    "selected_unmerged_count": 0,
+    "unselected_dirty_count": 429,
+    "selected_by_domain": {
+      "other": 1,
+      "validation_harness": 2,
+      "workspace_ops": 2,
+      "validation": 2
+    },
+    "temporary_index": {
+      "attempted": true,
+      "ok": true,
+      "reason": "temporary_index_commit_candidate_valid",
+      "dry_run_only": true,
+      "real_index_mutated": false,
+      "temporary_index_used": true,
+      "selected_paths": [
+        "package.json",
+        "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts",
+        "tools/commands/command_registry.json",
+        "tools/git/safe_commit_report.ts",
+        "validation/conformance/contracts/safe_commit_workspace_policy.json"
+      ],
+      "candidate_name_status": [
+        "M\tpackage.json",
+        "M\ttools/commands/command_registry.json",
+        "M\ttools/git/safe_commit_report.ts",
+        "M\tvalidation/conformance/contracts/safe_commit_workspace_policy.json"
+      ],
+      "candidate_tree": "ba772f7420a51836d7d52e4aa4adf37b3ae38fb8",
+      "steps": [
+        {
+          "id": "temporary_index_read_tree_head",
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "id": "temporary_index_stage_selected_paths",
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "id": "temporary_index_diff_check",
+          "status": 0,
+          "stderr": "",
+          "stdout": ""
+        },
+        {
+          "id": "temporary_index_name_status",
+          "status": 0,
+          "stderr": "",
+          "stdout": "M\tpackage.json\nM\ttools/commands/command_registry.json\nM\ttools/git/safe_commit_report.ts\nM\tvalidation/conformance/contracts/safe_commit_workspace_policy.json"
+        },
+        {
+          "id": "temporary_index_write_tree",
+          "status": 0,
+          "stderr": "",
+          "stdout": "ba772f7420a51836d7d52e4aa4adf37b3ae38fb8"
+        }
+      ]
+    },
+    "apply_policy": "This tool never mutates the real index. If the temporary-index plan passes, an operator may stage exactly selected_paths manually or through a separate approved commit command."
   },
   "by_domain": {
     "ci": 4,
     "other": 25,
-    "shell": 16,
-    "kernel_or_core": 56,
+    "shell": 20,
+    "kernel_or_core": 58,
     "installer": 10,
-    "observability": 19,
+    "observability": 41,
     "orchestration": 11,
-    "validation_harness": 59,
-    "workspace_ops": 4,
-    "validation": 61
+    "validation_harness": 148,
+    "workspace_ops": 5,
+    "validation": 114
   },
   "unmerged_paths": [
     "orchestration/src/eval_research_golden_scoring.rs"
@@ -41,50 +123,104 @@
   "shadowed_delete_paths": [
     ".github/workflows/ci-tier-enforcement.yml",
     ".github/workflows/windows-locked-down-install-replay.yml",
+    "observability/reports/KERNEL_SENTINEL_RED_LANE_STATUS_2026-05-09.md",
+    "observability/reports/sentinel_full_run_stage_runner_current.json",
+    "observability/reports/sentinel_full_run_stage_split_plan_2026-05-10.json",
+    "observability/reports/sentinel_full_run_timeout_report_2026-05-10.json",
+    "observability/reports/sentinel_staged_compact_report_2026-05-10.json",
     "observability/reports/sentinel_timing_trend_report_2026-05-10.json",
+    "observability/sentinel/eval_runtime_boundary_policy.json",
+    "observability/sentinel/eval_runtime_boundary_policy.md",
+    "observability/sentinel/feedback_absorption_policy.json",
+    "observability/sentinel/feedback_absorption_policy.md",
+    "observability/sentinel/sentinel_finding_promotion_policy.md",
+    "observability/sentinel/sentinel_full_run_stage_runner.ts",
+    "observability/sentinel/sentinel_full_run_stage_split_policy.json",
     "observability/sentinel/sentinel_full_run_stage_timing_policy.json",
+    "observability/sentinel/sentinel_full_run_timeout_policy.json",
     "observability/sentinel/sentinel_timing_trend_policy.json",
     "observability/traces/gateway_trace_propagation_policy.json",
     "observability/traces/non_shell_trace_completeness_policy.json",
+    "tests/tooling/scripts/ci/assurance_artifact_retention_guard.ts",
+    "tests/tooling/scripts/ci/assurance_artifact_retention_report.ts",
+    "tests/tooling/scripts/ci/blocked_hygiene_mutation_guard.ts",
+    "tests/tooling/scripts/ci/ci_branch_protection_projection_guard.ts",
+    "tests/tooling/scripts/ci/ci_branch_protection_projection_report.ts",
+    "tests/tooling/scripts/ci/ci_required_gate_reduction_guard.ts",
+    "tests/tooling/scripts/ci/ci_required_gate_reduction_report.ts",
     "tests/tooling/scripts/ci/ci_tier_release_enforcement_guard.ts",
     "tests/tooling/scripts/ci/ci_workflow_tier_guard.ts",
     "tests/tooling/scripts/ci/ci_workflow_tier_manifest_generate.ts",
+    "tests/tooling/scripts/ci/combined_rust_artifact_hygiene_guard.ts",
     "tests/tooling/scripts/ci/command_metadata_curated_guard.ts",
+    "tests/tooling/scripts/ci/command_operator_surface_guard.ts",
     "tests/tooling/scripts/ci/command_registry_metadata_guard.ts",
     "tests/tooling/scripts/ci/command_runner_first_guard.ts",
     "tests/tooling/scripts/ci/command_surface_compression_report.ts",
+    "tests/tooling/scripts/ci/digital_dna_foundation_graduation_guard.ts",
     "tests/tooling/scripts/ci/gateway_adapter_invariants_guard.ts",
+    "tests/tooling/scripts/ci/gateway_disposable_live_replay.ts",
+    "tests/tooling/scripts/ci/gateway_disposable_live_replay_guard.ts",
     "tests/tooling/scripts/ci/gateway_idempotence_replay_guard.ts",
+    "tests/tooling/scripts/ci/gateway_status_launcher_drift_guard.ts",
+    "tests/tooling/scripts/ci/gateway_status_launcher_drift_report.ts",
+    "tests/tooling/scripts/ci/gateway_status_live_replay.ts",
+    "tests/tooling/scripts/ci/gateway_status_live_replay_guard.ts",
+    "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_guard.ts",
+    "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_report.ts",
     "tests/tooling/scripts/ci/gateway_trace_propagation_guard.ts",
+    "tests/tooling/scripts/ci/guard_registry_ownership_guard.ts",
+    "tests/tooling/scripts/ci/guard_registry_ownership_report.ts",
+    "tests/tooling/scripts/ci/installer_module_dispatch_guard.ts",
+    "tests/tooling/scripts/ci/installer_module_dispatch_report.ts",
     "tests/tooling/scripts/ci/installer_module_guard.ts",
+    "tests/tooling/scripts/ci/installer_surface_guard.ts",
+    "tests/tooling/scripts/ci/kernel_sentinel_fresh_evidence_guard.ts",
+    "tests/tooling/scripts/ci/kernel_sentinel_policy_guard.ts",
     "tests/tooling/scripts/ci/memory_runtime_security_closure_guard.ts",
     "tests/tooling/scripts/ci/non_shell_trace_completeness_guard.ts",
+    "tests/tooling/scripts/ci/package_script_surface_guard.ts",
     "tests/tooling/scripts/ci/proof_pack_artifact_size_guard.ts",
+    "tests/tooling/scripts/ci/real_work_workflow_proof_guard.ts",
+    "tests/tooling/scripts/ci/real_work_workflow_proof_report.ts",
     "tests/tooling/scripts/ci/release_version_convergence_guard.ts",
+    "tests/tooling/scripts/ci/repo_entropy_scorecard_guard.ts",
+    "tests/tooling/scripts/ci/repo_entropy_scorecard_report.ts",
+    "tests/tooling/scripts/ci/rust_crate_cargo_check_evidence_guard.ts",
+    "tests/tooling/scripts/ci/rust_crate_cargo_check_evidence_report.ts",
     "tests/tooling/scripts/ci/rust_crate_support_evidence_guard.ts",
     "tests/tooling/scripts/ci/rust_crate_support_evidence_report.ts",
     "tests/tooling/scripts/ci/rust_crate_support_status_guard.ts",
+    "tests/tooling/scripts/ci/rust_hygiene_baseline_guard.ts",
+    "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_full_run_stage_runner_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_full_run_stage_split_plan_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_full_run_stage_split_plan_report.ts",
+    "tests/tooling/scripts/ci/sentinel_full_run_timeout_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_full_run_timeout_report.ts",
+    "tests/tooling/scripts/ci/sentinel_issue_quality_score_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_issue_quality_score_report.ts",
     "tests/tooling/scripts/ci/sentinel_stage_timing_policy_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_timing_sample_capture.ts",
+    "tests/tooling/scripts/ci/sentinel_timing_sample_capture_guard.ts",
     "tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts",
     "tests/tooling/scripts/ci/sentinel_timing_trend_report.ts",
+    "tests/tooling/scripts/ci/srs_intake_closure_guard.ts",
+    "tests/tooling/scripts/ci/todo_real_work_gate_guard.ts",
     "tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts",
+    "tests/tooling/scripts/ci/yellow_deferred_work_queue_guard.ts",
+    "validation/conformance/contracts/assurance_artifact_retention_policy.json",
+    "validation/conformance/contracts/blocked_hygiene_mutation_policy.json",
     "validation/conformance/contracts/ci_workflow_tier_manifest.json",
     "validation/conformance/contracts/ci_workflow_tier_policy.json",
+    "validation/conformance/contracts/combined_rust_artifact_hygiene_policy.json",
     "validation/conformance/contracts/command_metadata_curated_overrides.json",
+    "validation/conformance/contracts/command_operator_surface_policy.json",
     "validation/conformance/contracts/command_registry_metadata_policy.json",
     "validation/conformance/contracts/command_runner_first_policy.json",
     "validation/conformance/contracts/gateway_adapter_invariants_policy.json",
-    "validation/conformance/contracts/installer_module_policy.json",
-    "validation/conformance/contracts/memory_runtime_security_closure_policy.json",
-    "validation/conformance/contracts/rust_crate_support_evidence_policy.json",
-    "validation/conformance/contracts/rust_crate_support_status_manifest.json",
-    "validation/release_gates/policies/ci_tier_release_enforcement_policy.json",
-    "validation/release_gates/policies/proof_pack_artifact_size_policy.json",
-    "validation/release_gates/policies/release_version_convergence_policy.json",
-    "validation/release_gates/policies/windows_locked_down_install_replay_policy.json",
-    "validation/reports/command_surface_compression_report_2026-05-10.json",
-    "validation/reports/non_shell_roi_implementation_wave_2026-05-10.md",
-    "validation/reports/rust_crate_support_evidence_report_2026-05-10.json"
+    "validation/conformance/contracts/guard_registry_ownership_policy.json",
+    "validation/conformance/contracts/installer_module_policy.json"
   ],
   "sample_rows": [
     {
@@ -469,6 +605,20 @@
       "xy": "MM",
       "index": "M",
       "worktree": "M",
+      "file": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/010-evaluate-dispatch-security-to-evaluate-security-decision-via-cargo.rs",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security_parts/000-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
       "file": "core/layer0/ops/src/kernel_sentinel/authority.rs",
       "source": ""
     },
@@ -676,30 +826,30 @@
       "source": ""
     },
     {
-      "xy": "M ",
+      "xy": "MM",
       "index": "M",
-      "worktree": " ",
+      "worktree": "M",
       "file": "docs/workspace/todo/TODO.md",
       "source": ""
     },
     {
-      "xy": "M ",
+      "xy": "MM",
       "index": "M",
-      "worktree": " ",
+      "worktree": "M",
       "file": "docs/workspace/todo/TODO_ARCHIVE.md",
       "source": ""
     },
     {
-      "xy": "M ",
+      "xy": "MM",
       "index": "M",
-      "worktree": " ",
+      "worktree": "M",
       "file": "docs/workspace/todo/todo_archive_registry.json",
       "source": ""
     },
     {
-      "xy": "M ",
+      "xy": "MM",
       "index": "M",
-      "worktree": " ",
+      "worktree": "M",
       "file": "docs/workspace/todo/todo_registry.json",
       "source": ""
     },
@@ -770,6 +920,48 @@
       "xy": "D ",
       "index": "D",
       "worktree": " ",
+      "file": "observability/reports/KERNEL_SENTINEL_RED_LANE_STATUS_2026-05-09.md",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "observability/reports/kernel_sentinel_empty_response_repair_lane.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/reports/sentinel_full_run_stage_runner_current.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/reports/sentinel_full_run_stage_split_plan_2026-05-10.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/reports/sentinel_full_run_timeout_report_2026-05-10.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/reports/sentinel_staged_compact_report_2026-05-10.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
       "file": "observability/reports/sentinel_timing_trend_report_2026-05-10.json",
       "source": ""
     },
@@ -784,7 +976,63 @@
       "xy": "D ",
       "index": "D",
       "worktree": " ",
+      "file": "observability/sentinel/eval_runtime_boundary_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/eval_runtime_boundary_policy.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/feedback_absorption_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/feedback_absorption_policy.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/sentinel_finding_promotion_policy.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/sentinel_full_run_stage_runner.ts",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/sentinel_full_run_stage_split_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
       "file": "observability/sentinel/sentinel_full_run_stage_timing_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/sentinel_full_run_timeout_policy.json",
       "source": ""
     },
     {
@@ -814,119 +1062,7 @@
       "worktree": " ",
       "file": "observability/traces/non_shell_trace_completeness_policy.json",
       "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/eval_research_gate_diagnostics.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/eval_research_gate_post_tool.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/eval_research_golden.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/eval_research_golden_post_tool_tests.rs",
-      "source": ""
-    },
-    {
-      "xy": "UU",
-      "index": "U",
-      "worktree": "U",
-      "file": "orchestration/src/eval_research_golden_scoring.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/eval_research_golden_utils.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/ingress/classifier.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/ingress/parser.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/orchestration_stability_guard.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/src/request_classifier.rs",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "orchestration/tests/control_plane_subdomains.rs",
-      "source": ""
-    },
-    {
-      "xy": "MM",
-      "index": "M",
-      "worktree": "M",
-      "file": "package.json",
-      "source": ""
-    },
-    {
-      "xy": "M ",
-      "index": "M",
-      "worktree": " ",
-      "file": "tests/client-memory-tools/run_ci_suite.ts",
-      "source": ""
-    },
-    {
-      "xy": "MM",
-      "index": "M",
-      "worktree": "M",
-      "file": "tests/tooling/config/tooling_gate_registry.json",
-      "source": ""
-    },
-    {
-      "xy": "D ",
-      "index": "D",
-      "worktree": " ",
-      "file": "tests/tooling/scripts/ci/ci_tier_release_enforcement_guard.ts",
-      "source": ""
-    },
-    {
-      "xy": "D ",
-      "index": "D",
-      "worktree": " ",
-      "file": "tests/tooling/scripts/ci/ci_workflow_tier_guard.ts",
-      "source": ""
     }
   ],
-  "recommendation": "Do not use ordinary staging/commit flow. Use an isolated temporary index or clean/stash unrelated work first."
+  "recommendation": "Temporary-index validation passed for selected_paths. Keep the real commit surgical and stage only those paths."
 }

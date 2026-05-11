@@ -44,6 +44,7 @@ use receipt_completeness::build_receipt_completeness_report;
 use source_catalog::source_configs;
 use state_transitions::build_state_transition_report;
 use trajectories::build_trajectory_report;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone)]
 pub struct KernelSentinelEvidenceIngestion {
@@ -141,6 +142,8 @@ fn now_epoch_ms() -> u64 {
         .min(u128::from(u64::MAX)) as u64
 }
 
+const EVIDENCE_FINDING_MAX_AGE_MS: u64 = 24 * 60 * 60 * 1000;
+
 fn raw_detail<'a>(record: &'a RawEvidenceRecord, key: &str) -> Option<&'a Value> {
     record.details.get(key).or_else(|| {
         record
@@ -159,6 +162,17 @@ fn raw_string_detail(record: &RawEvidenceRecord, key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+fn raw_record_age_ms(record: &RawEvidenceRecord) -> Option<u64> {
+    ["generated_at", "observed_at", "timestamp"]
+        .iter()
+        .find_map(|key| raw_string_detail(record, key))
+        .and_then(|raw| DateTime::parse_from_rfc3339(&raw).ok())
+        .map(|timestamp| {
+            let observed_ms = timestamp.with_timezone(&Utc).timestamp_millis().max(0) as u64;
+            now_epoch_ms().saturating_sub(observed_ms)
+        })
+}
+
 fn stale_historical_verity_drift(record: &RawEvidenceRecord) -> bool {
     if raw_string_detail(record, "type").as_deref() != Some("verity_drift_violation") {
         return false;
@@ -170,8 +184,15 @@ fn stale_historical_verity_drift(record: &RawEvidenceRecord) -> bool {
     now_epoch_ms().saturating_sub(ts_ms) > max_age_ms
 }
 
+fn stale_historical_evidence_failure(record: &RawEvidenceRecord) -> bool {
+    stale_historical_verity_drift(record)
+        || raw_record_age_ms(record)
+            .map(|age| age > EVIDENCE_FINDING_MAX_AGE_MS)
+            .unwrap_or(false)
+}
+
 fn should_open_finding(record: &RawEvidenceRecord) -> bool {
-    if stale_historical_verity_drift(record) {
+    if stale_historical_evidence_failure(record) {
         return false;
     }
     let status_failed = record
@@ -204,8 +225,11 @@ fn normalize_record(
     } else {
         record.evidence.clone()
     };
+    if let Some(age_ms) = raw_record_age_ms(&record) {
+        evidence.push(format!("freshness://age_seconds/{}", age_ms / 1000));
+    }
     append_failure_citations(source, &id, &record, &mut evidence);
-    let stale_historical_failure = stale_historical_verity_drift(&record);
+    let stale_historical_failure = stale_historical_evidence_failure(&record);
     let subject = clean_token(record.subject, "unknown_subject");
     let kind = clean_token(record.kind, "evidence_observation");
     let category = record.category.unwrap_or(config.default_category);

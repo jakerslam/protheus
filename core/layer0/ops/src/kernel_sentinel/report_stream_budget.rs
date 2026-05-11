@@ -43,6 +43,8 @@ fn digest_only_report(
     json!({
         "ok": report["ok"].clone(),
         "type": "kernel_sentinel_final_report",
+        "trace_id": report["trace_id"].clone(),
+        "parent_span_id": report["parent_span_id"].clone(),
         "artifact_kind": "stream_digest_only_final_report",
         "generated_at": report["generated_at"].clone(),
         "anti_entropy_digest": report["anti_entropy"]["operator_digest"].clone(),
@@ -74,6 +76,8 @@ fn minimal_digest_report(
     json!({
         "ok": report["ok"].clone(),
         "type": "kernel_sentinel_final_report",
+        "trace_id": report["trace_id"].clone(),
+        "parent_span_id": report["parent_span_id"].clone(),
         "artifact_kind": "stream_minimal_digest_final_report",
         "anti_entropy_digest": report["anti_entropy"]["operator_digest"].clone(),
         "raw_evidence": {"embedded": false},

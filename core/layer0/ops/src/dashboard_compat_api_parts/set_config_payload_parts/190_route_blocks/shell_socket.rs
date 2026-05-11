@@ -332,32 +332,98 @@ fn shell_socket_search(root: &Path, path: &str) -> Value {
         .or_else(|| query_value(path, "query"))
         .unwrap_or_default();
     let limit = shell_socket_limit(path, 20, 80);
-    let legacy = crate::dashboard_internal_search::search_conversations(root, &query, limit);
-    let results = legacy
-        .get("results")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+    let cleaned_query = clean_text(&query, 260);
+    let terms = cleaned_query
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|term| term.len() >= 2)
+        .map(|term| term.to_string())
+        .collect::<Vec<String>>();
     let mut hits = Vec::<Value>::new();
     let mut hit_ids = Vec::<Value>::new();
     let mut snippets = Map::<String, Value>::new();
     let mut labels = Map::<String, Value>::new();
     let mut detail_refs = Map::<String, Value>::new();
-    for row in results {
+    if cleaned_query.is_empty() || terms.is_empty() {
+        return json!({
+            "query_id": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit})),
+            "hits": hits,
+            "hit_ids": hit_ids,
+            "snippets": snippets,
+            "labels": labels,
+            "counts": json!({"hits": 0}),
+            "next_cursor": Value::Null,
+            "detail_refs": detail_refs,
+            "receipt_ref": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit, "empty": true})),
+            "correlation_id": "shell_socket.search"
+        });
+    }
+    let rows = compact_sidebar_roster_rows(build_sidebar_agent_roster_fast(root, &json!({}), true));
+    let mut scored = Vec::<(i64, String, Value)>::new();
+    for row in rows {
         let id = clean_agent_id(row.get("agent_id").and_then(Value::as_str).unwrap_or(""));
+        let id = if id.is_empty() {
+            clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or(""))
+        } else {
+            id
+        };
         if id.is_empty() {
             continue;
         }
-        let snippet = clean_text(row.get("snippet").and_then(Value::as_str).unwrap_or(""), 260);
         let label = clean_text(row.get("name").and_then(Value::as_str).unwrap_or(&id), 120);
+        let state = clean_text(
+            row.get("sidebar_status_state")
+                .or_else(|| row.get("state"))
+                .and_then(Value::as_str)
+                .unwrap_or("unknown"),
+            80,
+        );
+        let preview = clean_text(
+            row.get("sidebar_status_label")
+                .or_else(|| row.get("role"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            180,
+        );
+        let haystack = format!("{id} {label} {state} {preview}").to_ascii_lowercase();
+        let mut score = 0i64;
+        if haystack.contains(&cleaned_query.to_ascii_lowercase()) {
+            score += 100;
+        }
+        for term in &terms {
+            if haystack.contains(term) {
+                score += 20;
+            }
+        }
+        if score <= 0 {
+            continue;
+        }
+        scored.push((
+            score,
+            clean_text(row.get("updated_at").and_then(Value::as_str).unwrap_or(""), 80),
+            json!({
+                "id": id,
+                "kind": "agent",
+                "label": label,
+                "snippet": if preview.is_empty() { state } else { preview },
+                "detail_ref": format!("agent:{id}")
+            }),
+        ));
+    }
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
+    for (_, _, row) in scored.into_iter().take(limit) {
+        let id = clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or(""));
+        if id.is_empty() {
+            continue;
+        }
         hit_ids.push(json!(id.clone()));
-        snippets.insert(id.clone(), json!(snippet));
-        labels.insert(id.clone(), json!(label.clone()));
-        detail_refs.insert(id.clone(), json!(format!("agent:{id}")));
-        hits.push(json!({"id": id, "kind": "agent", "label": label, "snippet": snippet, "detail_ref": format!("agent:{id}")}));
+        snippets.insert(id.clone(), row.get("snippet").cloned().unwrap_or_else(|| json!("")));
+        labels.insert(id.clone(), row.get("label").cloned().unwrap_or_else(|| json!(id.clone())));
+        detail_refs.insert(id.clone(), row.get("detail_ref").cloned().unwrap_or_else(|| json!(format!("agent:{id}"))));
+        hits.push(row);
     }
     json!({
-        "query_id": shell_socket_receipt_ref("search", &json!({"q": query, "limit": limit})),
+        "query_id": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit})),
         "hits": hits,
         "hit_ids": hit_ids,
         "snippets": snippets,
@@ -365,7 +431,7 @@ fn shell_socket_search(root: &Path, path: &str) -> Value {
         "counts": json!({"hits": hit_ids.len()}),
         "next_cursor": Value::Null,
         "detail_refs": detail_refs,
-        "receipt_ref": shell_socket_receipt_ref("search", &legacy),
+        "receipt_ref": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit, "hits": hit_ids.len()})),
         "correlation_id": "shell_socket.search"
     })
 }

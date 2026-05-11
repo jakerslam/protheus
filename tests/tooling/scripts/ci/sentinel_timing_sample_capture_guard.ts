@@ -12,12 +12,23 @@ const latestPath = path.join(root, policy.latest_sample_path || 'core/local/arti
 const storePath = path.join(root, policy.sample_store_path || '');
 const latest = fs.existsSync(latestPath) ? JSON.parse(fs.readFileSync(latestPath, 'utf8')) : null;
 const lines = fs.existsSync(storePath) ? fs.readFileSync(storePath, 'utf8').split(/\r?\n/).filter(Boolean) : [];
+const samples = lines.map((line) => {
+  try { return JSON.parse(line); } catch { return null; }
+}).filter(Boolean);
 const violations = [];
 if (!latest) violations.push({ kind: 'sentinel_timing_sample_latest_missing' });
 if (!lines.length) violations.push({ kind: 'sentinel_timing_sample_store_empty' });
 if (latest && latest.source_domain !== 'observability') violations.push({ kind: 'sentinel_timing_sample_wrong_source_domain', actual: latest.source_domain });
 if (latest && Number(latest.stage_count || 0) < 1) violations.push({ kind: 'sentinel_timing_sample_missing_stages' });
 if (latest && !Array.isArray(latest.stage_timings)) violations.push({ kind: 'sentinel_timing_sample_missing_stage_timings' });
+if (latest && policy.policy?.full_runs_should_emit_stage_timings && latest.full_cycle !== true && Number(latest.stage_count || 0) < Number(policy.budgets?.min_full_stage_count || 1)) {
+  violations.push({ kind: 'sentinel_timing_sample_latest_not_full_cycle', stage_count: Number(latest.stage_count || 0) });
+}
+if (Array.isArray(policy.required_cadences)) {
+  const present = new Set(samples.filter((row) => row.full_cycle === true || Number(row.stage_count || 0) >= Number(policy.budgets?.min_full_stage_count || 1)).map((row) => String(row.cadence || '')));
+  const missing = policy.required_cadences.map(String).filter((cadence) => !present.has(cadence));
+  if (missing.length) violations.push({ kind: 'sentinel_timing_sample_missing_required_cadences', missing });
+}
 const traceId = `observability:${new Date().toISOString()}:${process.pid}`;
 const payload = {
   trace_id: traceId,
@@ -29,6 +40,7 @@ const payload = {
   ok: violations.length === 0,
   policy_path: policyPath,
   sample_count: lines.length,
+  full_sample_count: samples.filter((row) => row.full_cycle === true || Number(row.stage_count || 0) >= Number(policy.budgets?.min_full_stage_count || 1)).length,
   latest_sample_path: policy.latest_sample_path,
   violations,
 };

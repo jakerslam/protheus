@@ -82,7 +82,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full
 
 # Repeat install without network.
 $env:INFRING_INSTALL_OFFLINE = "1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full -Offline
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full -Offline -ReleaseVersion v0.3.12
 
 # Optional cleanup.
 Remove-Item Env:INFRING_INSTALL_OFFLINE -ErrorAction SilentlyContinue

@@ -93,34 +93,7 @@ fn default_policy() -> Value {
             "enabled_sources": ["web"],
             "allow_large": false,
             "max_parallel_subqueries": 4,
-            "query_timeout_ms": 5000,
-            "quality_gate": {
-                "enabled": true,
-                "provider_recovery": {
-                    "enabled": true,
-                    "max_providers": 2,
-                    "providers": [
-                        "gdelt_doc"
-                    ],
-                    "current_intent_providers": [
-                        "gdelt_doc"
-                    ]
-                }
-            },
-            "query_recovery": {
-                "broad_current_research": {
-                    "enabled": true,
-                    "max_queries": 6,
-                    "templates": [
-                        "{query}",
-                        "{query} source-backed overview",
-                        "{query} primary sources",
-                        "{query} official sources",
-                        "{query} recent publications",
-                        "{query} institution announcements"
-                    ]
-                }
-            }
+            "query_timeout_ms": 5000
         }
     })
 }
@@ -402,10 +375,6 @@ fn looks_like_low_signal_search_summary(text: &str) -> bool {
     if lowered.contains("unfortunately, bots use duckduckgo too")
         || lowered.contains("please complete the following challenge")
         || lowered.contains("anomaly-modal")
-        || lowered.contains("no usable search results")
-        || lowered.contains("no usable results")
-        || lowered.contains("no source-backed findings")
-        || lowered.contains("no source-backed conclusions")
     {
         return true;
     }

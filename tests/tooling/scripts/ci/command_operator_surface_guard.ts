@@ -14,6 +14,7 @@ const runner = fs.readFileSync(path.join(root, policy.runner_path), 'utf8');
 const entries = Array.isArray(registry.entries) ? registry.entries : [];
 const surface = entries.filter((entry) => entry.operator_surface === true);
 const curatedCanonical = surface.filter((entry) => entry.metadata_curated && entry.lifecycle === 'canonical_entrypoint');
+const curatedSurface = surface.filter((entry) => entry.metadata_curated);
 const violations = [];
 
 if (surface.length !== policy.required_operator_surface_count) {
@@ -21,6 +22,9 @@ if (surface.length !== policy.required_operator_surface_count) {
 }
 if (curatedCanonical.length < policy.minimum_curated_canonical_count) {
   violations.push({ kind: 'operator_surface_missing_curated_canonical_commands', expected_minimum: policy.minimum_curated_canonical_count, actual: curatedCanonical.length });
+}
+if (Number.isInteger(policy.minimum_curated_operator_surface_count) && curatedSurface.length < policy.minimum_curated_operator_surface_count) {
+  violations.push({ kind: 'operator_surface_missing_curated_metadata', expected_minimum: policy.minimum_curated_operator_surface_count, actual: curatedSurface.length });
 }
 for (const entry of surface) {
   if (!Number.isInteger(entry.operator_surface_rank) || entry.operator_surface_rank < 1) violations.push({ kind: 'operator_surface_missing_rank', id: entry.id });
@@ -37,8 +41,21 @@ if (!runner.includes('--operator-surface=0')) violations.push({ kind: 'command_r
 
 const listed = spawnSync('node', ['client/runtime/lib/ts_entrypoint.ts', policy.runner_path, 'list'], { cwd: root, encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024 });
 let defaultCount = null;
+let defaultIds = [];
 try {
-  defaultCount = JSON.parse(listed.stdout || '{}').count;
+  const parsed = JSON.parse(listed.stdout || '{}');
+  defaultCount = parsed.count;
+  defaultIds = Array.isArray(parsed.entries) ? parsed.entries.map((entry) => entry.id).filter(Boolean) : [];
+  if (policy.policy?.default_list_must_equal_operator_surface_ids) {
+    const expectedIds = new Set(surface.map((entry) => entry.id));
+    const actualIds = new Set(defaultIds);
+    const missing = [...expectedIds].filter((id) => !actualIds.has(id)).sort();
+    const extra = [...actualIds].filter((id) => !expectedIds.has(id)).sort();
+    if (missing.length || extra.length) violations.push({ kind: 'command_runner_default_list_not_operator_surface_exact', missing, extra });
+  }
+  if (policy.policy?.runner_output_must_name_preferred_entrypoint && parsed.entrypoint?.preferred !== 'npm run -s cmd --') {
+    violations.push({ kind: 'command_runner_missing_preferred_entrypoint', actual: parsed.entrypoint?.preferred || null });
+  }
 } catch {
   violations.push({ kind: 'command_runner_default_list_not_json' });
 }
@@ -58,7 +75,9 @@ const payload = {
   policy_path: policyPath,
   operator_surface_count: surface.length,
   curated_canonical_count: curatedCanonical.length,
+  curated_operator_surface_count: curatedSurface.length,
   default_list_count: defaultCount,
+  default_list_id_count: defaultIds.length,
   violations,
 };
 fs.mkdirSync(path.join(root, 'core/local/artifacts'), { recursive: true });

@@ -64,7 +64,8 @@ function main(): void {
   const violations: Violation[] = [];
   validateFeedback(violations);
   validateBoundary(violations);
-  const payload = { ok: violations.length === 0, type: 'kernel_sentinel_policy_guard', generated_at: new Date().toISOString(), strict, violations };
+  const traceId = `observability:${new Date().toISOString()}:kernel-sentinel-policy-guard`;
+  const payload = { trace_id: traceId, span_id: `span:${traceId}`, parent_span_id: null, source_domain: 'observability', ok: violations.length === 0, type: 'kernel_sentinel_policy_guard', generated_at: new Date().toISOString(), strict, violations };
   ensureDir(outJson);
   fs.writeFileSync(abs(outJson), `${JSON.stringify(payload, null, 2)}\n`);
   ensureDir(outMd);

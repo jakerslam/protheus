@@ -168,14 +168,6 @@ fn web_search_bing_rss_url(query: &str) -> String {
     )
 }
 
-fn web_search_gdelt_doc_url(query: &str, top_k: usize) -> String {
-    let max_records = top_k.clamp(1, 30);
-    format!(
-        "https://api.gdeltproject.org/api/v2/doc/doc?query={}&mode=artlist&format=json&maxrecords={max_records}&sort=HybridRel",
-        encode_query_component(&clean_text(query, 600))
-    )
-}
-
 fn normalize_allowed_domains(raw: &Value) -> Vec<String> {
     let rows = if let Some(array) = raw.as_array() {
         array
@@ -296,3 +288,4 @@ fn push_unique_link_domain(domains: &mut Vec<String>, link: &str) {
         domains.push(domain);
     }
 }
+

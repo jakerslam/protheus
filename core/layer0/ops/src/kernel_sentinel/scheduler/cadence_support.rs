@@ -13,11 +13,7 @@ fn activity_root(root: &Path, args: &[String]) -> PathBuf {
 }
 
 fn dream_idle_seconds(args: &[String]) -> usize {
-    option_usize(
-        args,
-        "--dream-idle-seconds",
-        DEFAULT_DREAM_IDLE_SECONDS,
-    )
+    option_usize(args, "--dream-idle-seconds", DEFAULT_DREAM_IDLE_SECONDS)
 }
 
 fn dream_max_without_seconds(args: &[String]) -> usize {

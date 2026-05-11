@@ -106,7 +106,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
             }
             "status" => {
                 let cfg = parse_dashboard_launch_config(argv, "start");
-                let auto_heal = parse_bool(parse_flag(argv, "auto-heal").as_deref(), true);
+                let auto_heal = parse_bool(parse_flag(argv, "auto-heal").as_deref(), false);
                 let authority_guard = dashboard_runtime_duplicate_guard(root, &cfg);
                 let self_heal = if auto_heal {
                     heal_gateway_runtime(root, &cfg)

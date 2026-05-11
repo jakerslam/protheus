@@ -163,6 +163,174 @@
       "lifecycle": "canonical_entrypoint",
       "owner": "kernel.memory",
       "description": "Run memory efficiency analysis to find retention, compaction, and representation-collapse opportunities."
+    },
+    {
+      "id": "git:safe-commit:plan",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "canonical_entrypoint",
+      "owner": "workspace_ops.git_safety",
+      "description": "Plan an explicit-path surgical commit with a temporary Git index, diff checks, and no mutation of the real staging area."
+    },
+    {
+      "id": "ops:ksent:release-bridge-repair:guard",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "observability.sentinel.release_bridge",
+      "description": "Verify Kernel Sentinel release-bridge repair evidence so stale observation state cannot masquerade as release truth."
+    },
+    {
+      "id": "ops:ksent:boundedness-repair:guard",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "observability.sentinel.boundedness",
+      "description": "Check Sentinel boundedness repair artifacts for compact, fresh diagnostics instead of unbounded self-observation noise."
+    },
+    {
+      "id": "ops:ksent:policy:guard",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "observability.sentinel.policy",
+      "description": "Validate Kernel Sentinel policy constraints for evidence scope, finding quality, report size, and safe observation behavior."
+    },
+    {
+      "id": "ops:ksent:empty-response-repair:guard",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "observability.sentinel.response_quality",
+      "description": "Guard against empty or non-actionable Sentinel feedback by requiring usable issue evidence and repair diagnostics."
+    },
+    {
+      "id": "ops:installer-surface:guard",
+      "domain": "installer",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "installer.contracts",
+      "description": "Validate installer command surfaces, wrapper names, repair behavior, and bootstrap fallback contracts across platforms."
+    },
+    {
+      "id": "ops:gateway-boundary:report",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.gateway_boundary",
+      "description": "Generate a Gateway boundary report showing whether external surfaces remain typed, bounded, and membrane-mediated."
+    },
+    {
+      "id": "ops:gateway:external-surface:guard",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.gateway_boundary",
+      "description": "Guard external Gateway surfaces against raw state leaks, unbudgeted routes, and direct runtime-authority exposure."
+    },
+    {
+      "id": "postinstall:memory",
+      "domain": "installer",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "installer.memory_runtime",
+      "description": "Run post-install memory-runtime setup checks needed for local operation after installer repair or source fallback."
+    },
+    {
+      "id": "ops:legacy-runner:release-guard",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.release_gates",
+      "description": "Gate legacy runner use during release so compatibility paths stay explicit and do not become the default execution surface."
+    },
+    {
+      "id": "ops:release-hardening-window:guard",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.release_gates",
+      "description": "Validate release hardening-window evidence before promotion so temporary debt does not silently survive into release."
+    },
+    {
+      "id": "ops:release-reviewer-redundancy:guard",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.release_gates",
+      "description": "Check reviewer redundancy expectations for release review so a single weak signal does not become release confidence."
+    },
+    {
+      "id": "ops:capability-proof-burden:guard",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.capability_proof",
+      "description": "Require capability claims to carry proof burden, evidence refs, and explicit exemptions instead of assertion-only confidence."
+    },
+    {
+      "id": "ops:installer-reliability:closure:guard",
+      "domain": "installer",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "installer.reliability",
+      "description": "Verify installer reliability closure evidence, including repair, wrapper availability, fallback behavior, and platform diagnostics."
+    },
+    {
+      "id": "ops:trace:substrate:guard",
+      "domain": "observability",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "observability.traces",
+      "description": "Validate the unified trace substrate so one trace identity flows through evidence, tools, Sentinel, and release artifacts."
+    },
+    {
+      "id": "ops:nexus:checkpoint-policy:guard",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.nexus_boundaries",
+      "description": "Check Nexus checkpoint policy so cross-domain handoffs remain explicit, typed, and auditable rather than implicit imports."
+    },
+    {
+      "id": "ops:nexus:kernel-coupling:guard",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.nexus_boundaries",
+      "description": "Detect unauthorized Kernel coupling across Nexus boundaries and preserve Kernel authority as a narrow explicit contract."
+    },
+    {
+      "id": "ops:runtime-proof:release-gate",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.release_gates",
+      "description": "Gate release on runtime-proof evidence rather than policy-shaped claims, with explicit blockers for missing proof artifacts."
+    },
+    {
+      "id": "ops:workspace-tooling:release-proof",
+      "domain": "release_governance",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.release_gates",
+      "description": "Build workspace-tooling release proof so file and search tooling remain first-class evidence alongside web tooling."
+    },
+    {
+      "id": "ops:gateway-support:matrix:guard",
+      "domain": "validation",
+      "work_gate": "reliability",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.gateway_boundary",
+      "description": "Validate Gateway support matrix coverage so adapters and platforms expose explicit status instead of vague support claims."
+    },
+    {
+      "id": "ops:combined-artifacts:hygiene:guard",
+      "domain": "validation",
+      "work_gate": "simplification",
+      "lifecycle": "compatibility_alias",
+      "owner": "validation.repo_hygiene",
+      "description": "Guard against checked-in combined artifact shards and generated Rust bundles that inflate the repo without serving runtime truth."
     }
   ]
 }

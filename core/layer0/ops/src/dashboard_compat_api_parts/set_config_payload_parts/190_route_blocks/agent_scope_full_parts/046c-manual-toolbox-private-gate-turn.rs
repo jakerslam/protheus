@@ -27,20 +27,6 @@ fn handle_manual_toolbox_private_gate_turn(
     last_invalid_excerpt: &mut String,
     last_reject_reason: &mut String,
 ) -> Option<ManualToolboxPrivateGateOutcome> {
-    if response_tools.is_empty() {
-        if let Some(pending_request) =
-            manual_toolbox_pending_request_from_tool_invocation_markup(retried_text, message)
-        {
-            record_manual_toolbox_pending_request_value(workflow, pending_request);
-            mark_workflow_pending_gate_without_final_synthesis(
-                workflow,
-                "skipped_pending_tool_confirmation",
-                "manual_toolbox_gate_submission",
-                attempt,
-            );
-            return Some(ManualToolboxPrivateGateOutcome::Finalize);
-        }
-    }
     if active_manual_toolbox_category_turn
         && response_tools.is_empty()
         && response_is_exact_no_tool_gate_submission(retried_text)
@@ -381,72 +367,7 @@ mod split_manual_toolbox_gate_tests {
 
     #[test]
     fn split_manual_toolbox_max_attempts_honors_cd_retry_budget() {
-        assert_eq!(manual_toolbox_private_gate_max_attempts(), 6);
-    }
-
-    #[test]
-    fn split_manual_toolbox_promotes_one_valid_latent_candidate() {
-        let candidates = json!([{
-            "tool": "batch_query",
-            "selected_tool_family": "web_research",
-            "selected_tool_label": "Research query pack",
-            "workflow_only": true,
-            "selection_source": "latent_live_web_research",
-            "discovery_receipt": "candidate-receipt",
-            "input": {
-                "source": "web",
-                "query": "Compare three data tools for AI research agents.",
-                "queries": [
-                    "tool A official docs",
-                    "tool B official docs"
-                ],
-                "aperture": "medium"
-            }
-        }]);
-        let pending = manual_toolbox_pending_request_from_latent_candidates(
-            &candidates,
-            "Compare three data tools for AI research agents.",
-        )
-        .expect("single latent candidate promotion");
-
-        assert_eq!(pending.get("source").and_then(Value::as_str), Some("latent_candidate_recovery"));
-        assert_eq!(pending.get("tool_name").and_then(Value::as_str), Some("batch_query"));
-        assert_eq!(
-            pending.get("selected_tool_family").and_then(Value::as_str),
-            Some("web_research")
-        );
-        assert_eq!(
-            pending.pointer("/input/query").and_then(Value::as_str),
-            Some("Compare three data tools for AI research agents.")
-        );
-        assert_eq!(
-            pending.get("latent_candidate_receipt").and_then(Value::as_str),
-            Some("candidate-receipt")
-        );
-    }
-
-    #[test]
-    fn split_manual_toolbox_refuses_ambiguous_latent_candidates() {
-        let candidates = json!([
-            {
-                "tool": "web_search",
-                "selected_tool_family": "web_research",
-                "workflow_only": true,
-                "input": {"query": "first", "aperture": "medium"}
-            },
-            {
-                "tool": "web_search",
-                "selected_tool_family": "web_research",
-                "workflow_only": true,
-                "input": {"query": "second", "aperture": "medium"}
-            }
-        ]);
-
-        assert!(manual_toolbox_pending_request_from_latent_candidates(
-            &candidates,
-            "Find evidence."
-        )
-        .is_none());
+        assert_eq!(manual_toolbox_private_gate_max_attempts(), 5);
     }
 
     #[test]

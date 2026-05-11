@@ -180,7 +180,12 @@ async function run(argv = process.argv.slice(2)) {
     });
   }
 
+  const traceId = `observability:${new Date().toISOString()}:kernel-sentinel-boundedness-repair-lane`;
   const payload = {
+    trace_id: traceId,
+    span_id: `span:${traceId}`,
+    parent_span_id: contract.trace_id || null,
+    source_domain: 'observability',
     ok: violations.length === 0,
     type: 'kernel_sentinel_boundedness_repair_lane_guard',
     generated_at: new Date().toISOString(),

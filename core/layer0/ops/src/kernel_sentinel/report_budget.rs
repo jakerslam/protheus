@@ -70,6 +70,8 @@ fn assemble_final_report(
     json!({
         "ok": report["ok"].clone(),
         "type": "kernel_sentinel_final_report",
+        "trace_id": report["trace_id"].clone(),
+        "parent_span_id": report["parent_span_id"].clone(),
         "artifact_kind": "operator_summary",
         "generated_at": crate::now_iso(),
         "canonical_name": super::KERNEL_SENTINEL_NAME,

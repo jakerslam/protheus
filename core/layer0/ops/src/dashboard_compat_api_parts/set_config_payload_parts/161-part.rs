@@ -445,6 +445,22 @@ fn derive_hidden_evidence_refs_from_web_payload(payload: &Value) -> Option<Value
             return Some(Value::Array(projected));
         }
     }
+    for derived in [
+        derive_hidden_search_results_from_web_payload(payload),
+        derive_hidden_provider_results_from_web_payload(payload),
+    ] {
+        let Some(Value::Array(rows)) = derived else {
+            continue;
+        };
+        let projected = rows
+            .iter()
+            .filter_map(project_hidden_tool_result_row)
+            .take(6)
+            .collect::<Vec<_>>();
+        if !projected.is_empty() {
+            return Some(Value::Array(projected));
+        }
+    }
     None
 }
 
@@ -533,7 +549,21 @@ fn response_tool_card(
     is_error: bool,
     status: &str,
 ) -> Value {
-    let mut artifact_payload = payload.clone();
+    let mut artifact_payload = if payload.is_object() {
+        payload.clone()
+    } else {
+        let mut obj = serde_json::Map::new();
+        if !payload.is_null() {
+            obj.insert("raw_result".to_string(), payload.clone());
+            if let Some(raw) = payload.as_str() {
+                let summary = trim_text(raw.trim(), 1_200);
+                if !summary.is_empty() {
+                    obj.insert("summary".to_string(), Value::String(summary));
+                }
+            }
+        }
+        Value::Object(obj)
+    };
     if let Some(obj) = artifact_payload.as_object_mut() {
         for (key, value) in [("query", input.get("query").or_else(|| input.get("q"))), ("source", input.get("source"))] {
             if obj.get(key).and_then(Value::as_str).map(str::trim).unwrap_or("").is_empty() {
@@ -542,8 +572,29 @@ fn response_tool_card(
                 }
             }
         }
+        let normalized_tool = normalize_tool_name(tool_name);
+        if matches!(normalized_tool.as_str(), "batch_query" | "batch-query" | "web_search" | "search_web" | "search" | "web_query")
+            && obj
+                .get("source")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
+        {
+            obj.insert("source".to_string(), json!("web"));
+        }
         if obj.get("status").and_then(Value::as_str).map(str::trim).unwrap_or("").is_empty() {
             obj.insert("status".to_string(), json!(status));
+        }
+        if is_error
+            && obj
+                .get("error")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .unwrap_or("")
+                .is_empty()
+        {
+            obj.insert("error".to_string(), json!("tool_execution_failed"));
         }
     }
     let tool_attempt_receipt = payload
@@ -800,6 +851,44 @@ mod response_tool_card_tests {
         assert_eq!(card.pointer("/provider_results/0/provider").and_then(Value::as_str), Some("web"));
         assert_eq!(card.pointer("/provider_results/0/status").and_then(Value::as_str), Some("error"));
         assert_eq!(card.pointer("/provider_results/0/failure_detail").and_then(Value::as_str), Some("primary:search_failed"));
+    }
+
+    #[test]
+    fn response_tool_card_derives_hidden_provider_results_from_receiptless_error_shape() {
+        let card = response_tool_card(
+            "tool-auto-batch_query".to_string(),
+            "batch_query",
+            &json!({
+                "query": "Compare current agent frameworks on reliability and deployment.",
+                "aperture": "medium"
+            }),
+            &Value::Null,
+            true,
+            "error",
+        );
+
+        assert_eq!(
+            card.pointer("/provider_results/0/provider")
+                .and_then(Value::as_str),
+            Some("web")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/query")
+                .and_then(Value::as_str),
+            Some("Compare current agent frameworks on reliability and deployment.")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/status").and_then(Value::as_str),
+            Some("error")
+        );
+        assert_eq!(
+            card.pointer("/provider_results/0/error").and_then(Value::as_str),
+            Some("tool_execution_failed")
+        );
+        assert_eq!(
+            card.pointer("/evidence_refs/0/provider").and_then(Value::as_str),
+            Some("web")
+        );
     }
 }
 

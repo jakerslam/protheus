@@ -22,19 +22,19 @@
       "installer": "install.ps1",
       "module": "install/modules/windows_wrappers.ps1",
       "module_symbol": "Write-InfringWindowsWrappers",
-      "required_mode": "referenced_or_mirror_only"
+      "required_mode": "referenced"
     },
     {
       "installer": "install.ps1",
       "module": "install/modules/completion_card.ps1",
       "module_symbol": "Write-InfringInstallCompletionCard",
-      "required_mode": "referenced_or_mirror_only"
+      "required_mode": "referenced"
     },
     {
       "installer": "install.sh",
       "module": "install/modules/bootstrap_common.sh",
       "module_symbol": "infring_install_completion_card",
-      "required_mode": "referenced_or_mirror_only"
+      "required_mode": "referenced"
     }
   ],
   "policy": {

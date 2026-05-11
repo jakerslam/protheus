@@ -1,243 +1,6 @@
 {
   "version": "tool_cd_web_retrieval_v0",
   "source": "scrapling_pattern_assimilation_v0",
-  "diagnostic_projection_contract": {
-    "version": "web_retrieval_quality_diagnostics_v1",
-    "chat_visibility": "hidden_until_synthesized",
-    "required_result_fields": [
-      "tool_result_quality.status",
-      "tool_result_quality.flags",
-      "tool_result_quality.candidate_count",
-      "tool_result_quality.evidence_count",
-      "tool_result_quality.retry.recommended",
-      "tool_result_quality.retry.reason",
-      "tool_result_quality.retry.next_action",
-      "tool_result_quality.retry.query_strategy_hints",
-      "query_plan",
-      "query_plan_source",
-      "provider_result_count",
-      "partial_failure_details"
-    ],
-    "optional_result_artifact_fields": [
-      "result_envelope.source_url",
-      "result_envelope.final_url",
-      "result_envelope.canonical_url",
-      "result_envelope.status_code",
-      "result_envelope.redirected_status_code",
-      "result_envelope.fetch_mode",
-      "result_envelope.cache_status",
-      "result_envelope.cache_freshness_status",
-      "result_envelope.head_fingerprint",
-      "result_envelope.quality_flags",
-      "result_envelope.error_message",
-      "evidence_artifacts.raw_markdown",
-      "evidence_artifacts.markdown_with_citations",
-      "evidence_artifacts.references_markdown",
-      "evidence_artifacts.fit_markdown",
-      "evidence_artifacts.table_summary",
-      "evidence_artifacts.link_summary",
-      "evidence_artifacts.media_summary",
-      "evidence_artifacts.page_metadata_summary",
-      "evidence_chunks"
-    ],
-    "recovery_semantics": {
-      "authority": "agent_submitted_query_pack",
-      "hidden_query_expansion_allowed": false,
-      "retry_recommended_next_action": "agent_refine_query_pack_and_retry_if_budget_remains",
-      "retry_query_strategy": [
-        "preserve the original research objective",
-        "split broad requests into entity, aspect, time-window, or source-type searches",
-        "target primary, official, source-backed, or directly citable pages when relevant",
-        "use low-relevance and off-topic diagnostics to remove weak terms",
-        "synthesize from best recorded evidence only after internal recovery is exhausted"
-      ]
-    },
-    "progressive_retrieval_contract": {
-      "authority": "tool_cd_declares_strategy_rust_executes_without_domain_routes",
-      "source_pattern": "crawl4ai_progressive_sufficiency",
-      "objective": "gather enough useful evidence before synthesis instead of forcing a final answer from structurally successful but weak search output",
-      "sufficiency_signals": [
-        "candidate_count",
-        "evidence_count",
-        "source_domain_count",
-        "candidate_quality_flags",
-        "source_diversity_flags",
-        "freshness_flags",
-        "partial_failure_details"
-      ],
-      "candidate_scoring_axes": [
-        "query_relevance",
-        "source_diversity",
-        "source_authority",
-        "freshness_when_relevant",
-        "content_density",
-        "low_junk_signal",
-        "novelty_against_retained_evidence"
-      ],
-      "candidate_enrichment_order": [
-        "search_provider_rows",
-        "prefetch_link_discovery",
-        "head_metadata_preview",
-        "structured_result_rows",
-        "rendered_result_rows",
-        "promising_link_fetch",
-        "fit_markdown_or_excerpt_packaging"
-      ],
-      "retrieval_primitives": {
-        "prefetch": {
-          "purpose": "discover links and candidate context without committing budget to full page extraction",
-          "outputs": [
-            "candidate_url",
-            "parent_url",
-            "link_text",
-            "head_metadata",
-            "candidate_score",
-            "rejection_reason"
-          ]
-        },
-        "best_first_candidate_expansion": {
-          "purpose": "spend follow-up fetches on the highest expected evidence gain",
-          "state": [
-            "visited_urls",
-            "pending_candidates",
-            "depth",
-            "parent_url",
-            "score",
-            "source_domain"
-          ]
-        },
-        "fit_content_packaging": {
-          "purpose": "provide compact evidence to synthesis while retaining raw payload out of chat",
-          "variants": [
-            "raw_markdown",
-            "markdown_with_citations",
-            "fit_markdown",
-            "references_markdown",
-            "source_excerpt",
-            "cleaned_html",
-            "fit_html",
-            "table_summary",
-            "link_summary",
-            "media_summary",
-            "page_metadata_summary"
-          ]
-        },
-        "chunk_ranked_evidence": {
-          "purpose": "rank page sections before synthesis so large pages do not collapse into weak snippets",
-          "strategies": [
-            "paragraph_or_heading_boundary",
-            "fixed_window",
-            "sliding_window_with_overlap",
-            "semantic_or_similarity_ranked_when_available"
-          ],
-          "metadata": [
-            "chunk_id",
-            "source_url",
-            "parent_artifact",
-            "heading_path",
-            "relevance_score",
-            "token_estimate",
-            "rejection_reason"
-          ]
-        },
-        "structured_artifact_packaging": {
-          "purpose": "preserve tables, links, media, metadata, and extracted structures as evidence signals without prescribing user-visible formatting",
-          "artifact_kinds": [
-            "table_summary",
-            "link_summary",
-            "media_summary",
-            "page_metadata_summary",
-            "extracted_content_summary"
-          ],
-          "quality_fields": [
-            "row_count",
-            "column_count",
-            "caption",
-            "headers_present",
-            "link_context",
-            "media_alt_or_title",
-            "artifact_relevance_score",
-            "rejection_reason"
-          ]
-        }
-      },
-      "cache_contract": {
-        "modes": [
-          "enabled",
-          "disabled",
-          "read_only",
-          "write_only",
-          "bypass"
-        ],
-        "freshness_signals": [
-          "etag",
-          "last_modified",
-          "head_fingerprint",
-          "source_timestamp",
-          "cache_status"
-        ],
-        "cleanup_bound": "system_state_cleanup",
-        "testability": "evals_may_bypass_or_isolate_cache_without_changing_user_runtime_defaults"
-      },
-      "adaptive_state_projection": {
-        "purpose": "surface progress and stop reasons for multi-step retrieval without letting crawl state become chat-visible payload",
-        "fields": [
-          "confidence",
-          "coverage",
-          "saturation",
-          "crawled_url_count",
-          "pending_candidate_count",
-          "source_domain_count",
-          "stop_reason"
-        ],
-        "visibility": "telemetry_or_evidence_metadata_only"
-      },
-      "resource_control": {
-        "per_domain_rate_limit": true,
-        "backoff_on_status": [
-          429,
-          503,
-          504
-        ],
-        "memory_pressure_queueing": true,
-        "bounded_fanout_required": true
-      },
-      "blocked_recovery_trace": {
-        "purpose": "tell synthesis whether retrieval failed because the web is low-signal or because access/readiness blocked the evidence path",
-        "quality_flags": [
-          "blocked",
-          "rate_limited",
-          "needs_js",
-          "needs_dynamic",
-          "proxy_error",
-          "structural_empty_shell"
-        ],
-        "trace_fields": [
-          "attempts",
-          "retries",
-          "fetch_mode",
-          "status_code",
-          "blocked",
-          "reason",
-          "resolved_by"
-        ],
-        "capability_boundary": "diagnose_first_escalate_only_when_admitted_by_policy"
-      },
-      "stop_conditions": [
-        "usable_evidence_threshold_met",
-        "source_diversity_threshold_met",
-        "candidate_gain_below_threshold",
-        "query_budget_exhausted",
-        "tool_budget_exhausted"
-      ],
-      "non_goals": [
-        "do_not_add_domain_specific_research_routes",
-        "do_not_force_user_visible_answer_format",
-        "do_not_make_browser_or_proxy_modes_default",
-        "do_not_scrape_provider_pages_as_a_default_search_strategy"
-      ]
-    }
-  },
   "contracts": [
     {
       "tool_id": "web_search",
@@ -321,41 +84,16 @@
         "include_content_excerpt": true,
         "include_source_url": true,
         "include_status": true,
-        "include_redirect_status": true,
         "include_fetch_mode": true,
         "include_extraction_type": true,
         "include_quality_flags": true,
-        "include_content_variants": true,
-        "include_structured_artifacts": true,
-        "include_discovery_artifacts": true,
-        "include_error_envelope": true,
-        "include_resource_metadata": false,
         "include_artifact_refs": false,
-        "allowed_artifact_kinds": [
-          "fit_markdown",
-          "markdown_with_citations",
-          "references_markdown",
-          "table_summary",
-          "link_summary",
-          "media_summary",
-          "page_metadata_summary"
-        ]
+        "allowed_artifact_kinds": []
       },
       "quality_classification": {
         "classifier": "tool_result_quality_v1",
         "status_fields": ["status", "status_code", "http_status"],
-        "content_fields": [
-          "content",
-          "text",
-          "summary",
-          "body",
-          "markdown",
-          "raw_markdown",
-          "markdown_with_citations",
-          "fit_markdown",
-          "extracted_content",
-          "excerpt"
-        ],
+        "content_fields": ["content", "text", "summary", "body", "markdown", "excerpt"],
         "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
         "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
         "blocked_error_fragments": [
@@ -506,42 +244,16 @@
         "include_content_excerpt": true,
         "include_source_url": true,
         "include_status": true,
-        "include_redirect_status": true,
         "include_fetch_mode": true,
         "include_extraction_type": true,
         "include_quality_flags": true,
-        "include_content_variants": true,
-        "include_structured_artifacts": true,
-        "include_discovery_artifacts": true,
-        "include_error_envelope": true,
-        "include_resource_metadata": true,
         "include_artifact_refs": false,
-        "allowed_artifact_kinds": [
-          "fit_markdown",
-          "markdown_with_citations",
-          "references_markdown",
-          "table_summary",
-          "link_summary",
-          "media_summary",
-          "page_metadata_summary",
-          "evidence_chunks"
-        ]
+        "allowed_artifact_kinds": []
       },
       "quality_classification": {
         "classifier": "tool_result_quality_v1",
         "status_fields": ["status", "status_code", "http_status"],
-        "content_fields": [
-          "content",
-          "text",
-          "summary",
-          "body",
-          "markdown",
-          "raw_markdown",
-          "markdown_with_citations",
-          "fit_markdown",
-          "extracted_content",
-          "excerpt"
-        ],
+        "content_fields": ["content", "text", "summary", "body", "markdown", "excerpt"],
         "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
         "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
         "blocked_error_fragments": [
@@ -705,44 +417,16 @@
         "include_content_excerpt": true,
         "include_source_url": true,
         "include_status": true,
-        "include_redirect_status": true,
         "include_fetch_mode": true,
         "include_extraction_type": true,
         "include_quality_flags": true,
-        "include_content_variants": true,
-        "include_structured_artifacts": true,
-        "include_discovery_artifacts": true,
-        "include_error_envelope": true,
-        "include_resource_metadata": true,
         "include_artifact_refs": true,
-        "allowed_artifact_kinds": [
-          "screenshot",
-          "image",
-          "fit_markdown",
-          "markdown_with_citations",
-          "references_markdown",
-          "table_summary",
-          "link_summary",
-          "media_summary",
-          "page_metadata_summary",
-          "evidence_chunks"
-        ]
+        "allowed_artifact_kinds": ["screenshot", "image"]
       },
       "quality_classification": {
         "classifier": "tool_result_quality_v1",
         "status_fields": ["status", "status_code", "http_status"],
-        "content_fields": [
-          "content",
-          "text",
-          "summary",
-          "body",
-          "markdown",
-          "raw_markdown",
-          "markdown_with_citations",
-          "fit_markdown",
-          "extracted_content",
-          "excerpt"
-        ],
+        "content_fields": ["content", "text", "summary", "body", "markdown", "excerpt"],
         "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
         "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
         "blocked_error_fragments": [

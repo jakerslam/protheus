@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 const WEB_RETRIEVAL_TOOL_CD: &str = include_str!("../tool_cds/web_retrieval_v0.tool.json");
@@ -8,8 +7,6 @@ const WEB_RETRIEVAL_TOOL_CD: &str = include_str!("../tool_cds/web_retrieval_v0.t
 pub struct ToolCdCatalog {
     pub version: String,
     pub source: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub diagnostic_projection_contract: Option<Value>,
     pub contracts: Vec<ToolCdContract>,
 }
 
@@ -207,38 +204,12 @@ pub fn validate_tool_cd_catalog(catalog: &ToolCdCatalog) -> Result<(), String> {
     if normalized_key(&catalog.version).is_empty() {
         return Err("version_required".to_string());
     }
-    validate_diagnostic_projection_contract(catalog.diagnostic_projection_contract.as_ref())?;
     let mut seen = BTreeSet::<String>::new();
     for contract in &catalog.contracts {
         validate_contract(contract)?;
         if !seen.insert(normalized_key(&contract.tool_id)) {
             return Err(format!("duplicate_tool_id:{}", contract.tool_id));
         }
-    }
-    Ok(())
-}
-
-fn validate_diagnostic_projection_contract(contract: Option<&Value>) -> Result<(), String> {
-    let Some(contract) = contract else {
-        return Ok(());
-    };
-    if normalized_key(
-        contract
-            .get("version")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-    )
-    .is_empty()
-    {
-        return Err("diagnostic_projection_contract_version_required".to_string());
-    }
-    if contract
-        .get("chat_visibility")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        != "hidden_until_synthesized"
-    {
-        return Err("diagnostic_projection_contract_visibility_required".to_string());
     }
     Ok(())
 }
@@ -572,30 +543,5 @@ mod tests {
         validate_tool_cd_catalog(&catalog).expect("valid Tool CD");
         assert_eq!(catalog.contracts.len(), 3);
         assert!(tool_cd_contract_index_v1().contains_key("web_fetch"));
-    }
-
-    #[test]
-    fn web_tool_cd_catalog_publishes_diagnostic_projection_contract() {
-        let catalog = published_tool_cd_catalog_v1();
-        let diagnostics = catalog
-            .diagnostic_projection_contract
-            .as_ref()
-            .expect("diagnostic projection contract");
-        assert_eq!(
-            diagnostics.get("chat_visibility").and_then(Value::as_str),
-            Some("hidden_until_synthesized")
-        );
-        assert_eq!(
-            diagnostics
-                .pointer("/recovery_semantics/authority")
-                .and_then(Value::as_str),
-            Some("agent_submitted_query_pack")
-        );
-        assert_eq!(
-            diagnostics
-                .pointer("/recovery_semantics/hidden_query_expansion_allowed")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
     }
 }

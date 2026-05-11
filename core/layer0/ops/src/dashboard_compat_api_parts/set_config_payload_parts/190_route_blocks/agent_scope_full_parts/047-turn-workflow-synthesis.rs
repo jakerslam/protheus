@@ -1218,77 +1218,6 @@ fn mark_workflow_pending_gate_without_final_synthesis(
     set_turn_workflow_final_stage_status(workflow, status);
 }
 
-fn workflow_json_terminal_invariant_enabled(workflow: &Value) -> bool {
-    workflow
-        .pointer("/selected_workflow/tool_menu_interface_contract/terminal_invariant_contract/enabled")
-        .and_then(Value::as_bool)
-        == Some(true)
-}
-
-fn workflow_tool_required_empty_terminal_invariant_broken(
-    workflow: &Value,
-    response_tools: &[Value],
-    pending_tool_request: Option<&Value>,
-) -> bool {
-    if !workflow_json_terminal_invariant_enabled(workflow)
-        || !response_tools.is_empty()
-        || pending_tool_request.is_some()
-        || workflow.get("structured_failure").filter(|value| value.is_object()).is_some()
-    {
-        return false;
-    }
-    let response_empty = workflow
-        .get("response")
-        .and_then(Value::as_str)
-        .map(|raw| clean_text(raw, 1_000).is_empty())
-        .unwrap_or(true);
-    if !response_empty {
-        return false;
-    }
-    let direct_response_path = workflow
-        .pointer("/workflow_control/direct_response_path")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let pending_gate_path = matches!(
-        direct_response_path,
-        "first_gate_pending_llm_tool_choice"
-            | "first_gate_pending_tool_confirmation"
-            | "gate_2_pending_llm_tool_request"
-    ) || direct_response_path.starts_with("gate_") && direct_response_path.contains("pending");
-    let unresolved_gate_reject = matches!(
-        workflow
-            .pointer("/final_llm_response/last_reject_reason")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        "invalid_manual_toolbox_gate_submission"
-            | "tool_category_without_tool_payload"
-            | "visible_gate_choice_reply"
-    );
-    pending_gate_path || unresolved_gate_reject
-}
-
-fn mark_workflow_tool_required_structured_failure(workflow: &mut Value, code: &str) {
-    let clean_code = clean_text(code, 120);
-    workflow["structured_failure"] = json!({
-        "code": clean_code,
-        "source": "terminal_invariant_contract",
-        "chat_injection_allowed": false,
-        "reason": "tool_required_path_reached_empty_terminal_state"
-    });
-    workflow["workflow_control"]["direct_response_path"] =
-        Value::String("tool_required_structured_failure".to_string());
-    workflow["final_llm_response"]["used"] = Value::Bool(false);
-    workflow["final_llm_response"]["status"] = Value::String("structured_failure".to_string());
-    workflow["final_llm_response"]["error"] = Value::String(clean_code);
-    workflow["final_llm_response"]["last_reject_reason"] =
-        Value::String("tool_required_terminal_invariant".to_string());
-    workflow["final_llm_response"]["runtime_interference_disabled"] = Value::Bool(true);
-    workflow["final_llm_response"]["visible_response_preserved"] = Value::Bool(false);
-    workflow["visible_response_source"] = Value::String("structured_failure_no_chat".to_string());
-    workflow["response"] = Value::String(String::new());
-    set_turn_workflow_final_stage_status(workflow, "structured_failure");
-}
-
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
@@ -1321,7 +1250,6 @@ fn run_turn_workflow_final_response(
     if response_tools.is_empty()
         && (response_is_manual_toolbox_gate_choice(draft_response)
             || response_is_visible_workflow_gate_choice(draft_response)
-            || response_has_declared_tool_invocation_markup(draft_response, message)
             || response_has_gate_choice_prefix_leakage(draft_response))
     {
         record_manual_toolbox_pending_request(&mut workflow, draft_response, message);
@@ -2280,82 +2208,6 @@ mod workflow_fallback_tests {
             Some("unit_test")
         );
     }
-
-    #[test]
-    fn manual_toolbox_repairs_declared_tool_markup_to_pending_request() {
-        let pending = manual_toolbox_pending_request_from_response(
-            "I'll research it. <tool>web_search</tool><query>agentic framework landscape 2026</query>",
-            "Compare current agentic frameworks.",
-        )
-        .expect("markup should be repaired into a private pending request");
-
-        assert_eq!(
-            pending.get("tool_name").and_then(Value::as_str),
-            Some("web_search")
-        );
-        assert_eq!(
-            pending.pointer("/input/query").and_then(Value::as_str),
-            Some("agentic framework landscape 2026")
-        );
-        assert_eq!(
-            pending.pointer("/input/aperture").and_then(Value::as_str),
-            Some("medium")
-        );
-        assert_eq!(
-            pending.get("source").and_then(Value::as_str),
-            Some("tool_invocation_markup_repair")
-        );
-        assert_eq!(
-            pending
-                .get("chat_injection_allowed")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
-    }
-
-    #[test]
-    fn manual_toolbox_repairs_repeated_query_markup_to_declared_query_pack() {
-        let pending = manual_toolbox_pending_request_from_response(
-            "<tool>web_search</tool><query>LangGraph official docs reliability deployment</query><tool>web_search</tool><query>CrewAI official docs reliability deployment</query>",
-            "Compare LangGraph vs CrewAI on reliability and deployment.",
-        )
-        .expect("repeated query markup should use the declared query-pack tool");
-
-        assert_eq!(
-            pending.get("tool_name").and_then(Value::as_str),
-            Some("batch_query")
-        );
-        assert_eq!(
-            pending.pointer("/input/source").and_then(Value::as_str),
-            Some("web")
-        );
-        assert_eq!(
-            pending.pointer("/input/query").and_then(Value::as_str),
-            Some("Compare LangGraph vs CrewAI on reliability and deployment.")
-        );
-        assert_eq!(
-            pending
-                .pointer("/input/queries")
-                .and_then(Value::as_array)
-                .map(Vec::len),
-            Some(2)
-        );
-    }
-
-    #[test]
-    fn manual_toolbox_markup_repair_rejects_unknown_or_ambiguous_tools() {
-        assert!(manual_toolbox_pending_request_from_response(
-            "<tool>unknown_search</tool><query>agentic framework landscape</query>",
-            "Compare current agentic frameworks.",
-        )
-        .is_none());
-        assert!(manual_toolbox_pending_request_from_response(
-            "I would use web search to compare the options.",
-            "Compare current agentic frameworks.",
-        )
-        .is_none());
-    }
-
     #[test]
     fn workflow_gate_stability_rows_score_direct_llm_response_as_final() {
         let workflow = json!({
@@ -3034,63 +2886,6 @@ mod workflow_fallback_tests {
         assert_eq!(
             workflow_final_visible_response_text("Plain natural language answer."),
             "Plain natural language answer."
-        );
-    }
-
-    #[test]
-    fn terminal_invariant_marks_tool_required_empty_terminal_as_structured_failure() {
-        let mut workflow = json!({
-            "selected_workflow": {
-                "tool_menu_interface_contract": {
-                    "terminal_invariant_contract": {
-                        "enabled": true
-                    }
-                }
-            },
-            "workflow_control": {
-                "direct_response_path": "gate_1_pending_llm_tool_choice"
-            },
-            "response": "",
-            "final_llm_response": {
-                "status": "empty_llm_response",
-                "last_reject_reason": "invalid_manual_toolbox_gate_submission"
-            }
-        });
-        let tools = Vec::<Value>::new();
-
-        assert!(workflow_tool_required_empty_terminal_invariant_broken(
-            &workflow,
-            &tools,
-            None,
-        ));
-        mark_workflow_tool_required_structured_failure(
-            &mut workflow,
-            "tool_required_empty_terminal_state",
-        );
-
-        assert_eq!(
-            workflow
-                .pointer("/final_llm_response/status")
-                .and_then(Value::as_str),
-            Some("structured_failure")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/structured_failure/source")
-                .and_then(Value::as_str),
-            Some("terminal_invariant_contract")
-        );
-        assert_eq!(
-            workflow
-                .pointer("/structured_failure/chat_injection_allowed")
-                .and_then(Value::as_bool),
-            Some(false)
-        );
-        assert_eq!(
-            workflow
-                .pointer("/workflow_control/direct_response_path")
-                .and_then(Value::as_str),
-            Some("tool_required_structured_failure")
         );
     }
 

@@ -44,7 +44,14 @@ if (!Array.isArray(state?.completed_phases)) violations.push("stage_runner_state
 if (!Array.isArray(state?.remaining_phases)) violations.push("stage_runner_state_missing_remaining_phases");
 
 const executed = Number(report?.executed_phase_count || 0);
-if (executed < 1) violations.push("stage_runner_executed_no_phases");
+const sampleOnlyComplete =
+  report?.sample_only === true &&
+  Number(report?.remaining_phase_count || 0) === 0 &&
+  Number(report?.completed_phase_count || 0) >= Number(policy?.required_phase_count || 0) &&
+  Array.isArray(report?.timing_sample_refs) &&
+  Array.isArray(report?.all_phase_results) &&
+  report.all_phase_results.length >= Number(policy?.required_phase_count || 0);
+if (executed < 1 && !sampleOnlyComplete) violations.push("stage_runner_executed_no_phases");
 
 const result = {
   trace_id: `validation:${new Date().toISOString()}:sentinel-stage-runner-guard`,

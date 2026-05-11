@@ -20,6 +20,7 @@ const DEFAULT_BROWSER_MEMORY_GUARD = 'core/local/artifacts/browser_shell_v2_memo
 const DEFAULT_BROWSER_AMPUTATION_GUARD = 'core/local/artifacts/browser_shell_v2_amputation_guard_current.json';
 const DEFAULT_BROWSER_ACCESSIBILITY_GUARD = 'core/local/artifacts/browser_shell_v2_accessibility_guard_current.json';
 const DEFAULT_BROWSER_VISUAL_PARITY_GUARD = 'core/local/artifacts/browser_shell_v2_visual_parity_guard_current.json';
+const DEFAULT_GATEWAY_SHELL_LAUNCH_GUARD = 'core/local/artifacts/gateway_shell_launch_guard_current.json';
 const DEFAULT_TERMINAL_GUARD = 'core/local/artifacts/terminal_shell_contract_guard_current.json';
 const DEFAULT_TERMINAL_RESPONSE_TEST = 'core/local/artifacts/terminal_shell_response_test_current.json';
 const DEFAULT_TERMINAL_INTERACTIVE_SMOKE = 'core/local/artifacts/terminal_shell_interactive_smoke_current.json';
@@ -167,7 +168,8 @@ function nextActions(checks: Check[]): string[] {
     failedIds.has('browser_v2_memory_surface') ||
     failedIds.has('browser_v2_amputation') ||
     failedIds.has('browser_v2_accessibility') ||
-    failedIds.has('browser_v2_visual_parity')
+    failedIds.has('browser_v2_visual_parity') ||
+    failedIds.has('gateway_shell_launch')
   ) {
     actions.push('Stabilize Browser Shell V2 against the socket contract before adding more visual parity.');
   }
@@ -220,6 +222,7 @@ const browserMemoryGuardPath = cleanText(readFlag(argv, 'browser-memory-guard') 
 const browserAmputationGuardPath = cleanText(readFlag(argv, 'browser-amputation-guard') || DEFAULT_BROWSER_AMPUTATION_GUARD, 600);
 const browserAccessibilityGuardPath = cleanText(readFlag(argv, 'browser-accessibility-guard') || DEFAULT_BROWSER_ACCESSIBILITY_GUARD, 600);
 const browserVisualParityGuardPath = cleanText(readFlag(argv, 'browser-visual-parity-guard') || DEFAULT_BROWSER_VISUAL_PARITY_GUARD, 600);
+const gatewayShellLaunchGuardPath = cleanText(readFlag(argv, 'gateway-shell-launch-guard') || DEFAULT_GATEWAY_SHELL_LAUNCH_GUARD, 600);
 const terminalGuardPath = cleanText(readFlag(argv, 'terminal-guard') || DEFAULT_TERMINAL_GUARD, 600);
 const terminalResponsePath = cleanText(readFlag(argv, 'terminal-response') || DEFAULT_TERMINAL_RESPONSE_TEST, 600);
 const terminalInteractivePath = cleanText(readFlag(argv, 'terminal-interactive') || DEFAULT_TERMINAL_INTERACTIVE_SMOKE, 600);
@@ -241,6 +244,7 @@ const checks = [
   checkArtifact('browser_v2_amputation', browserAmputationGuardPath, 'Browser Shell V2 amputation guard'),
   checkArtifact('browser_v2_accessibility', browserAccessibilityGuardPath, 'Browser Shell V2 accessibility guard'),
   checkArtifact('browser_v2_visual_parity', browserVisualParityGuardPath, 'Browser Shell V2 visual parity guard'),
+  checkArtifact('gateway_shell_launch', gatewayShellLaunchGuardPath, 'Gateway Shell launch guard'),
   checkArtifact('terminal_contract', terminalGuardPath, 'Terminal Shell contract'),
   checkArtifact('terminal_response_test', terminalResponsePath, 'Terminal Shell response test'),
   checkArtifact('terminal_interactive_smoke', terminalInteractivePath, 'Terminal Shell interactive smoke'),

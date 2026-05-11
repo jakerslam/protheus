@@ -28,6 +28,15 @@ fn string_field(row: &Value, key: &str) -> String {
         .to_string()
 }
 
+fn trace_id_from_report(report: &Value, generated_at: &str, suffix: &str) -> String {
+    report
+        .get("trace_id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("observability:{generated_at}:kernel-sentinel-{suffix}"))
+}
+
 fn usize_at(row: &Value, path: &[&str]) -> usize {
     let mut current = row;
     for key in path {
@@ -56,8 +65,11 @@ fn string_at(row: &Value, path: &[&str], fallback: &str) -> String {
 }
 
 fn trend_summary(report: &Value, generated_at: &str) -> Value {
+    let trace_id = trace_id_from_report(report, generated_at, "trend-summary");
     json!({
         "type": "kernel_sentinel_trend_summary",
+        "trace_id": trace_id,
+        "parent_span_id": report.get("trace_id").cloned().unwrap_or(Value::Null),
         "generated_at": generated_at,
         "ok": report["ok"].as_bool().unwrap_or(false),
         "finding_count": usize_at(report, &["verdict", "finding_count"]),
@@ -200,6 +212,8 @@ fn rsi_readiness(
     feedback_len: usize,
     trend_delta: &Value,
 ) -> Value {
+    let generated_at = crate::now_iso();
+    let trace_id = trace_id_from_report(report, &generated_at, "rsi-readiness");
     let mut missing = Vec::new();
     let evidence_record_count = {
         let count = usize_at(report, &["evidence_ingestion", "normalized_record_count"]);
@@ -323,7 +337,9 @@ fn rsi_readiness(
         .collect();
     json!({
         "type": "kernel_sentinel_rsi_readiness_summary",
-        "generated_at": crate::now_iso(),
+        "trace_id": trace_id,
+        "parent_span_id": report.get("trace_id").cloned().unwrap_or(Value::Null),
+        "generated_at": generated_at,
         "ready_for_observation": true,
         "ready_for_autonomous_rsi": missing.is_empty(),
         "trend_history_runs": history_len,
@@ -547,10 +563,15 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
 
     let feedback_rows = self_study_feedback::build_feedback_inbox(report, &generated_at);
     overwrite_jsonl(&feedback_path, &feedback_rows)?;
-    let top_holes = self_study_top_holes::top_holes(&feedback_rows, &generated_at);
+    let mut top_holes = self_study_top_holes::top_holes(&feedback_rows, &generated_at);
     let readiness = rsi_readiness(report, history_len, feedback_rows.len(), &delta);
+    let trace_id = trace_id_from_report(report, &generated_at, "self-study");
+    top_holes["trace_id"] = Value::String(trace_id.clone());
+    top_holes["parent_span_id"] = report.get("trace_id").cloned().unwrap_or(Value::Null);
     let trend_report = json!({
         "type": "kernel_sentinel_trend_report",
+        "trace_id": trace_id,
+        "parent_span_id": report.get("trace_id").cloned().unwrap_or(Value::Null),
         "generated_at": generated_at,
         "history_path": history_path,
         "current": current_summary,
@@ -571,6 +592,8 @@ pub(super) fn write_self_study_outputs(dir: &Path, report: &Value) -> Result<Val
 
     let mut manifest = json!({
         "type": "kernel_sentinel_self_study_outputs",
+        "trace_id": trend_report["trace_id"].clone(),
+        "parent_span_id": trend_report["parent_span_id"].clone(),
         "feedback_inbox_path": feedback_path,
         "trend_history_path": history_path,
         "trend_report_path": trend_report_path,

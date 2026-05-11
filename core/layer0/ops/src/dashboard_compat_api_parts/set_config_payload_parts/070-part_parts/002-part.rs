@@ -82,34 +82,13 @@ fn implicit_live_web_research_query(message: &str, workspace_hints: &[Value]) ->
     ]
     .iter()
     .any(|token| lowered.contains(token));
-    let external_info_signal = [
-        "search the web",
-        "web search",
-        "web research",
-        "online research",
-        "from the web",
-        "on the web",
-        "internet search",
-        "search online",
-        "public web",
-        "public evidence",
-        "public source",
-        "source-backed",
-        "external evidence",
-        "external source",
-    ]
-    .iter()
-    .any(|token| lowered.contains(token));
     let research_signal = lowered.starts_with("research ")
         || lowered.starts_with("find ")
-        || lowered.starts_with("look up ")
-        || lowered.starts_with("lookup ")
         || lowered.starts_with("which ")
         || lowered.starts_with("what ")
         || lowered.starts_with("who ")
         || lowered.starts_with("compare ")
         || lowered.starts_with("explain ")
-        || external_info_signal
         || lowered.contains('?')
         || lowered.contains(" strongest ")
         || lowered.contains(" strongest")

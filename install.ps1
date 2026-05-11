@@ -167,6 +167,67 @@ $script:InstallSummaryFinalized = $false
 $script:ResolvedInstallVersionForSummary = ""
 $script:ResolvedInstallTripleForSummary = ""
 
+$script:InstallScriptRoot = if ($PSScriptRoot) {
+  $PSScriptRoot
+} elseif ($MyInvocation.MyCommand.Path) {
+  Split-Path -Parent $MyInvocation.MyCommand.Path
+} else {
+  [string](Get-Location)
+}
+
+$script:InstallModuleDir = if (-not [string]::IsNullOrWhiteSpace([string]$env:INFRING_INSTALL_MODULE_DIR)) {
+  [string]$env:INFRING_INSTALL_MODULE_DIR
+} elseif (Test-Path -LiteralPath (Join-Path $script:InstallScriptRoot "install/modules")) {
+  Join-Path $script:InstallScriptRoot "install/modules"
+} else {
+  Join-Path $script:InstallScriptRoot "modules"
+}
+
+function Test-InstallerModuleDispatchEnabled {
+  $flag = [string]$env:INFRING_INSTALL_USE_MODULES
+  if ([string]::IsNullOrWhiteSpace($flag)) {
+    return $true
+  }
+  return @("1", "true", "yes", "on") -contains $flag.ToLowerInvariant()
+}
+
+function Import-InstallerModuleIfPresent {
+  param([Parameter(Mandatory=$true)][string]$ModuleName)
+  if (-not (Test-InstallerModuleDispatchEnabled)) {
+    return $false
+  }
+  $modulePath = Join-Path $script:InstallModuleDir $ModuleName
+  if (-not (Test-Path -LiteralPath $modulePath)) {
+    return $false
+  }
+  . $modulePath
+  return $true
+}
+
+$script:InstallerCompletionModuleLoaded = Import-InstallerModuleIfPresent -ModuleName "completion_card.ps1"
+$script:InstallerWindowsWrappersModuleLoaded = Import-InstallerModuleIfPresent -ModuleName "windows_wrappers.ps1"
+
+function Invoke-OptionalWindowsWrapperModule {
+  param(
+    [Parameter(Mandatory=$true)][string]$BinDir,
+    [Parameter(Mandatory=$true)][object[]]$WrapperSpecs
+  )
+  if (-not (Test-InstallerModuleDispatchEnabled)) {
+    return $false
+  }
+  $writer = Get-Command Write-InfringWindowsWrappers -ErrorAction SilentlyContinue
+  if (-not $writer) {
+    return $false
+  }
+  try {
+    Write-InfringWindowsWrappers -BinDir $BinDir -WrapperSpecs $WrapperSpecs | Out-Null
+    return $true
+  } catch {
+    Write-Host ("[infring install] installer module dispatch skipped: {0}" -f $_.Exception.Message)
+    return $false
+  }
+}
+
 function Write-InstallCompletionCard {
   param(
     [string]$Version,
@@ -176,6 +237,13 @@ function Write-InstallCompletionCard {
   $launcherPath = Join-Path $InstallDir "infring.cmd"
   if (-not (Test-Path -LiteralPath $launcherPath)) {
     $launcherPath = Join-Path $InstallDir "infring.ps1"
+  }
+
+  $completionWriter = Get-Command Write-InfringInstallCompletionCard -ErrorAction SilentlyContinue
+  if ((Test-InstallerModuleDispatchEnabled) -and $completionWriter) {
+    Write-Host ""
+    Write-InfringInstallCompletionCard -Version ("{0}." -f $Version) -Location $launcherPath -Command "infring --help"
+    return
   }
 
   Write-Host ""
@@ -2912,6 +2980,22 @@ exit $LASTEXITCODE
     @{ cmd = "infringctl.cmd"; ps1 = "infringctl.ps1" },
     @{ cmd = "infringd.cmd"; ps1 = "infringd.ps1" }
   )
+
+  $wrapperSpecs = @(
+    foreach ($wrapper in $wrapperNames) {
+      $wrapperName = [string]$wrapper.cmd
+      @{
+        cmd = $wrapperName
+        ps1 = [string]$wrapper.ps1
+        cmd_body = $cmdTemplate
+        ps1_body = $ps1Template.Replace("__TARGET__", $wrapperName)
+      }
+    }
+  )
+  if (Invoke-OptionalWindowsWrapperModule -BinDir $InstallDir -WrapperSpecs $wrapperSpecs) {
+    Remove-StaleWindowsCommandShims -ShimInstallDir $InstallDir
+    return
+  }
 
   foreach ($wrapper in $wrapperNames) {
     $wrapperName = [string]$wrapper.cmd

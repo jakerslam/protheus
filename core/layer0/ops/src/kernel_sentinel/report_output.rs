@@ -18,6 +18,14 @@ const DEFAULT_REPORT_RUNTIME_MS: usize = 120_000;
 const DEFAULT_REPORT_INDEX_BYTES: u64 = 1_048_576;
 const REPORT_TIMEOUT_EXIT_CODE: i32 = 124;
 
+fn trace_id_from_args(args: &[String], generated_at: &str, suffix: &str) -> String {
+    let prefix = "--trace-id=";
+    args.iter()
+        .find_map(|arg| arg.strip_prefix(prefix).map(str::to_string))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| format!("observability:{generated_at}:kernel-sentinel-{suffix}"))
+}
+
 struct StreamReportBundle {
     report: Value,
     final_report: Value,
@@ -38,6 +46,8 @@ pub(super) fn bounded_report_index(
     let mut index = json!({
         "ok": report["ok"].clone(),
         "type": "kernel_sentinel_report",
+        "trace_id": report["trace_id"].clone(),
+        "parent_span_id": report["parent_span_id"].clone(),
         "artifact_kind": "bounded_report_index",
         "generated_at": crate::now_iso(),
         "canonical_name": super::KERNEL_SENTINEL_NAME,
@@ -298,6 +308,8 @@ fn stream_report_bundle(
     let anti_entropy = super::anti_entropy::stream_anti_entropy_posture(&issues, &problem_reliability, &trend_report);
     let top_suggestions = suggestions.iter().take(suggestion_limit).map(compact_suggestion).collect::<Vec<_>>();
     let critical_count = issues.iter().filter(|row| text(row, "severity") == "critical").count();
+    let generated_at = crate::now_iso();
+    let trace_id = trace_id_from_args(args, &generated_at, "stream");
     let verdict_label = if critical_count > 0 {
         "release_fail"
     } else if issues.is_empty() {
@@ -308,6 +320,8 @@ fn stream_report_bundle(
     let mut verdict = json!({
         "ok": critical_count == 0,
         "type": "kernel_sentinel_verdict",
+        "trace_id": trace_id.clone(),
+        "parent_span_id": null,
         "verdict": verdict_label,
         "strict": bool_flag(args, "--strict"),
         "critical_open_count": critical_count,
@@ -319,8 +333,10 @@ fn stream_report_bundle(
     let mut final_report = json!({
         "ok": critical_count == 0,
         "type": "kernel_sentinel_final_report",
+        "trace_id": trace_id.clone(),
+        "parent_span_id": null,
         "artifact_kind": "stream_compacted_final_report",
-        "generated_at": crate::now_iso(),
+        "generated_at": generated_at,
         "top_findings": top_findings,
         "quality_gate": {
             "pass": critical_count == 0,
@@ -447,6 +463,8 @@ fn synthetic_stream_report(
     let mut report = json!({
         "ok": verdict["ok"].clone(),
         "type": "kernel_sentinel_report",
+        "trace_id": verdict["trace_id"].clone(),
+        "parent_span_id": verdict["parent_span_id"].clone(),
         "artifact_kind": "stream_compacted_report",
         "canonical_name": super::KERNEL_SENTINEL_NAME,
         "state_dir": dir,

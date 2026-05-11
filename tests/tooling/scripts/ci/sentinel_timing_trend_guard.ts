@@ -13,6 +13,13 @@ const violations = [];
 if (!report) violations.push({ kind: 'sentinel_timing_trend_report_missing', path: policy.report_path });
 if (report && Buffer.byteLength(JSON.stringify(report), 'utf8') > policy.budgets.max_report_bytes) violations.push({ kind: 'sentinel_timing_trend_report_too_large', bytes: Buffer.byteLength(JSON.stringify(report), 'utf8'), max: policy.budgets.max_report_bytes });
 if (report && !['trend_ready', 'insufficient_samples'].includes(report.status)) violations.push({ kind: 'sentinel_timing_trend_status_invalid', status: report.status });
+if (report && Array.isArray(policy.required_cadences)) {
+  const missing = Array.isArray(report.missing_required_cadences) ? report.missing_required_cadences : policy.required_cadences;
+  if (missing.length) violations.push({ kind: 'sentinel_timing_trend_missing_required_cadences', missing });
+}
+if (report && Number(report.full_sample_count || 0) < Number(policy.budgets?.min_full_samples || 0)) {
+  violations.push({ kind: 'sentinel_timing_trend_missing_full_samples', actual: Number(report.full_sample_count || 0), minimum: Number(policy.budgets?.min_full_samples || 0) });
+}
 const traceId = `observability:${new Date().toISOString()}:${process.pid}`;
 const payload = { trace_id: traceId, span_id: `span:${traceId}`, parent_span_id: null, source_domain: 'observability', ok: violations.length === 0, type: 'sentinel_timing_trend_guard', generated_at: new Date().toISOString(), policy_path: policyPath, report_path: policy.report_path, violations };
 fs.mkdirSync(path.join(root, 'core/local/artifacts'), { recursive: true });

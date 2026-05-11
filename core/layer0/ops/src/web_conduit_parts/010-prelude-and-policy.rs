@@ -50,7 +50,7 @@ fn usage() {
     println!("  infring-ops web-conduit status");
     println!("  infring-ops web-conduit receipts [--limit=<n>]");
     println!(
-        "  infring-ops web-conduit setup [--provider=<serperdev|duckduckgo|duckduckgo-lite|bing|gdelt>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
+        "  infring-ops web-conduit setup [--provider=<serperdev|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
     );
     println!(
         "  infring-ops web-conduit migrate-legacy-config [--source-path=<path>] [--apply=1] [--summary-only=1]"
@@ -100,7 +100,7 @@ fn usage() {
     );
     println!("  infring-ops web-conduit file-context --content='<text>' [--content-base64=<base64>] [--file-name=<name>] [--mime-type=<type>] [--fallback-name=<name>] [--compact=1]");
     println!(
-        "  infring-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing|gdelt] [--top-k=8|--count=8] [--timeout-ms=<n>] [--cache-ttl-minutes=<n>] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--country=<code>] [--language=<code>] [--freshness=<token>] [--date-after=<YYYY-MM-DD>] [--date-before=<YYYY-MM-DD>] [--human-approved=1] [--summary-only=1]"
+        "  infring-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8|--count=8] [--timeout-ms=<n>] [--cache-ttl-minutes=<n>] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--country=<code>] [--language=<code>] [--freshness=<token>] [--date-after=<YYYY-MM-DD>] [--date-before=<YYYY-MM-DD>] [--human-approved=1] [--summary-only=1]"
     );
     println!("  infring-ops web-conduit providers");
     println!("  infring-ops browse fetch --url=<https://...>");
@@ -222,17 +222,12 @@ fn default_policy() -> Value {
             "search_default_count": 8,
             "search_max_count": 12,
             "search_cache_ttl_minutes": 8,
-            "search_provider_order": ["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss", "gdelt_doc"],
+            "search_provider_order": ["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"],
             "fetch_provider_order": ["direct_http"],
             "provider_circuit_breaker": {
                 "enabled": true,
                 "failure_threshold": 3,
-                "open_for_secs": 300,
-                "soft_failure_errors": [
-                    "low_signal_search_payload",
-                    "no_usable_summary",
-                    "query_result_mismatch"
-                ]
+                "open_for_secs": 300
             },
             "native_codex_web_search": {
                 "enabled": false,

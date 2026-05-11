@@ -1786,12 +1786,13 @@
     },
     "ops:release:proof-pack": {
       "owner": "ops",
-      "description": "Release proof-pack assembly gate.",
+      "description": "Release proof-pack assembly gate with pre/post proof-pack size-budget enforcement.",
       "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
       "timeout_sec": 120,
       "script": "ops:release:proof-pack",
       "artifact_paths": [
-        "core/local/artifacts/release_proof_pack_current.json"
+        "core/local/artifacts/release_proof_pack_current.json",
+        "core/local/artifacts/proof_pack_artifact_size_guard_current.json"
       ]
     },
     "ops:benchmark:public-harness": {
@@ -1951,6 +1952,83 @@
       "artifact_paths": [
         "core/local/artifacts/shell_socket_live_probe_current.json",
         "local/workspace/reports/SHELL_SOCKET_LIVE_PROBE_CURRENT.md"
+      ]
+    },
+    "ops:browser-shell-v2:contract:guard": {
+      "owner": "ops",
+      "description": "Browser Shell V2 contract guard proving the clean browser plug uses Shell Socket only and avoids legacy dashboard dependencies.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:browser-shell-v2:contract:guard",
+      "canonical_definition_paths": [
+        "shell/browser-v2/browser_shell_v2.ts",
+        "shell/browser-v2/BrowserShellV2.svelte",
+        "shell/browser-v2/browser_shell_v2.css",
+        "shell/browser-v2/src/browser_shell_v2_runtime.ts",
+        "shell/browser-v2/browser_shell_v2_build.ts",
+        "shell/browser-v2/browser_shell_v2_server.ts",
+        "shell/browser-v2/index.html",
+        "shell/browser-v2/README.md",
+        "tests/tooling/scripts/ci/browser_shell_v2_contract_guard.ts",
+        "shell/socket/client/shell_socket_gateway_client.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_contract_guard_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_CONTRACT_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:browser-shell-v2:build": {
+      "owner": "ops",
+      "description": "Build proof that Browser Shell V2 can produce a standalone browser artifact without the legacy dashboard.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:browser-shell-v2:build",
+      "canonical_definition_paths": [
+        "shell/browser-v2/index.html",
+        "shell/browser-v2/src/browser_shell_v2_runtime.ts",
+        "shell/browser-v2/browser_shell_v2_build.ts",
+        "shell/browser-v2/browser_shell_v2_server.ts",
+        "shell/browser-v2/BrowserShellV2.svelte",
+        "shell/browser-v2/browser_shell_v2.css",
+        "shell/socket/client/shell_socket_gateway_client.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_app"
+      ]
+    },
+    "ops:browser-shell-v2:smoke": {
+      "owner": "ops",
+      "description": "Deterministic Browser Shell V2 smoke proving the new browser plug hydrates and submits input through Shell Socket projections.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:browser-shell-v2:smoke",
+      "canonical_definition_paths": [
+        "shell/browser-v2/browser_shell_v2.ts",
+        "shell/browser-v2/BrowserShellV2.svelte",
+        "shell/browser-v2/src/browser_shell_v2_runtime.ts",
+        "shell/socket/client/shell_socket_gateway_client.ts"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_smoke_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_SMOKE_CURRENT.md"
+      ]
+    },
+    "ops:browser-shell-v2:serve-smoke": {
+      "owner": "ops",
+      "description": "Serve smoke proving Browser Shell V2 can launch as an independent clean static plug outside the legacy dashboard host.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:browser-shell-v2:serve-smoke",
+      "canonical_definition_paths": [
+        "shell/browser-v2/browser_shell_v2_server.ts",
+        "shell/browser-v2/browser_shell_v2_build.ts",
+        "shell/browser-v2/browser_shell_v2.css",
+        "shell/browser-v2/src/browser_shell_v2_runtime.ts",
+        "shell/browser-v2/README.md"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/browser_shell_v2_serve_smoke_current.json",
+        "local/workspace/reports/BROWSER_SHELL_V2_SERVE_SMOKE_CURRENT.md"
       ]
     },
     "ops:terminal-shell:contract:guard": {
@@ -2775,6 +2853,93 @@
       "artifact_paths": [
         "core/local/artifacts/mlsys_chapter5_assimilation_guard_current.json",
         "local/workspace/reports/MLSYS_CHAPTER5_ASSIMILATION_GUARD_CURRENT.md"
+      ]
+    },
+    "ops:artifact-retention:guard": {
+      "owner": "validation",
+      "description": "Validate local assurance artifact retention budgets, cleanup candidates, and canonical latest-ref index coverage.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:artifact-retention:guard",
+      "artifact_paths": [
+        "core/local/artifacts/assurance_artifact_retention_report_current.json",
+        "core/local/artifacts/local_artifact_retention_latest_refs_current.json"
+      ]
+    },
+    "ops:proof-pack:artifact-size:guard": {
+      "owner": "validation.release_gates",
+      "description": "Validate proof-pack artifact and directory size budgets across checked-in and live release proof-pack roots.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:proof-pack:artifact-size:guard",
+      "artifact_paths": [
+        "core/local/artifacts/proof_pack_artifact_size_guard_current.json"
+      ]
+    },
+    "ops:memory-runtime:security-closure:guard": {
+      "owner": "validation",
+      "description": "Recurring memory-runtime CodeQL closure guard for hard-coded crypto/salt alert classes.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 60,
+      "script": "ops:memory-runtime:security-closure:guard",
+      "canonical_definition_paths": [
+        "validation/conformance/contracts/memory_runtime_security_closure_policy.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/memory_runtime_security_closure_guard_current.json"
+      ],
+      "code_scanning_rule_ids": [
+        "rust/hard-coded-cryptographic-value"
+      ],
+      "github_alert_ids": [
+        120,
+        121,
+        124
+      ]
+    },
+    "ops:repo-entropy:scorecard:guard": {
+      "owner": "validation",
+      "description": "Repo entropy scorecard guard covering churn, command surface, CI surface, artifacts, LOC growth, guard count, and duplicate surfaces.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:repo-entropy:scorecard:guard",
+      "canonical_definition_paths": [
+        "validation/scorecards/repo_entropy_scorecard_policy.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/repo_entropy_scorecard_current.json",
+        "core/local/artifacts/repo_entropy_scorecard_guard_current.json",
+        "local/workspace/reports/REPO_ENTROPY_SCORECARD_CURRENT.md"
+      ]
+    },
+    "ops:guard-registry:ownership:guard": {
+      "owner": "validation",
+      "description": "Guard-of-guards registry ownership report for duplicate, stale/unregistered, and orphan guard artifacts.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 90,
+      "script": "ops:guard-registry:ownership:guard",
+      "canonical_definition_paths": [
+        "validation/conformance/contracts/guard_registry_ownership_policy.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/guard_registry_ownership_current.json",
+        "core/local/artifacts/guard_registry_ownership_guard_current.json",
+        "local/workspace/reports/GUARD_REGISTRY_OWNERSHIP_CURRENT.md"
+      ]
+    },
+    "ops:real-work:workflow-proof:guard": {
+      "owner": "validation",
+      "description": "Real-work workflow proof guard requiring fresh passing evidence for useful user/operator work, live Gateway lifecycle, workspace tooling, installer recovery, and security remediation.",
+      "timeout_env": "VERIFY_NPM_TIMEOUT_SEC",
+      "timeout_sec": 120,
+      "script": "ops:real-work:workflow-proof:guard",
+      "canonical_definition_paths": [
+        "validation/proof_packs/real_work_workflow_proof_policy.json"
+      ],
+      "artifact_paths": [
+        "core/local/artifacts/real_work_workflow_proof_current.json",
+        "core/local/artifacts/real_work_workflow_proof_guard_current.json",
+        "local/workspace/reports/REAL_WORK_WORKFLOW_PROOF_CURRENT.md"
       ]
     }
   },

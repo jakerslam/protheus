@@ -1,96 +1,210 @@
 {
   "type": "real_work_workflow_proof_policy",
-  "schema_version": 1,
+  "schema_version": 2,
   "owner_domain": "validation.proof_packs",
   "report_path": "core/local/artifacts/real_work_workflow_proof_current.json",
-  "minimum_ready_lanes": 4,
+  "guard_result_path": "core/local/artifacts/real_work_workflow_proof_guard_current.json",
+  "markdown_report_path": "local/workspace/reports/REAL_WORK_WORKFLOW_PROOF_CURRENT.md",
+  "minimum_ready_lanes": 6,
+  "minimum_user_visible_lanes": 4,
+  "minimum_live_lanes": 1,
+  "default_max_age_hours": 360,
   "lanes": [
     {
       "id": "windows_installer_repair",
-      "purpose": "Prove the system can turn real user install failure output into a repaired installer surface.",
+      "work_class": "user_recovery",
+      "capability_domain": "installer",
+      "user_visible": true,
+      "live_proof": false,
+      "purpose": "Prove the system can turn real Windows install failure output into a repaired installer surface.",
       "evidence_paths_any": [
-        "core/local/artifacts/windows_locked_down_install_replay_current.json",
-        "core/local/artifacts/windows_locked_down_install_replay_guard_current.json",
         "core/local/artifacts/windows_installer_contract_guard_current.json",
-        "validation/reports/windows_locked_down_install_replay_2026-05-10.json"
+        "core/local/artifacts/windows_locked_down_install_replay_guard_current.json"
       ],
-      "guard_paths_any": [
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/windows_locked_down_install_replay_guard_current.json",
+        "core/local/artifacts/windows_installer_contract_guard_current.json"
+      ],
+      "source_guard_paths_any": [
         "tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts",
         "tests/tooling/scripts/ci/windows_installer_contract_guard.ts"
       ]
     },
     {
+      "id": "gateway_disposable_live_lifecycle",
+      "work_class": "gateway_runtime_operation",
+      "capability_domain": "gateway",
+      "user_visible": true,
+      "live_proof": true,
+      "purpose": "Prove the Gateway can start, status, restart, and clean up in a disposable live replay without disturbing the primary port.",
+      "evidence_paths_any": [
+        "core/local/artifacts/gateway_disposable_live_replay_current.json"
+      ],
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/gateway_disposable_live_replay_guard_current.json"
+      ],
+      "source_guard_paths_any": [
+        "tests/tooling/scripts/ci/gateway_disposable_live_replay_guard.ts",
+        "tests/tooling/scripts/ci/gateway_disposable_live_replay.ts"
+      ],
+      "required_evidence_fields": [
+        {
+          "path": "live_proof_complete",
+          "equals": true
+        },
+        {
+          "path": "apply",
+          "equals": true
+        }
+      ]
+    },
+    {
       "id": "gateway_status_diagnosis",
+      "work_class": "gateway_failure_diagnosis",
+      "capability_domain": "gateway",
+      "user_visible": true,
+      "live_proof": false,
       "purpose": "Prove the system can diagnose gateway status/start failures without mutating runtime state.",
       "evidence_paths_any": [
         "validation/reports/gateway_status_live_replay_2026-05-10.json",
         "core/local/artifacts/gateway_status_launcher_drift_current.json",
         "core/local/artifacts/gateway_supervisor_authority_drift_current.json"
       ],
-      "guard_paths_any": [
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/gateway_status_live_replay_guard_current.json"
+      ],
+      "source_guard_paths_any": [
         "tests/tooling/scripts/ci/gateway_status_live_replay_guard.ts",
         "tests/tooling/scripts/ci/gateway_status_launcher_drift_guard.ts",
         "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_guard.ts"
       ]
     },
     {
+      "id": "workspace_tooling_release_proof",
+      "work_class": "workspace_tooling",
+      "capability_domain": "tooling",
+      "user_visible": true,
+      "live_proof": false,
+      "purpose": "Prove workspace read/search/path targeting/mixed routing evidence is release-grade and replay-covered.",
+      "evidence_paths_any": [
+        "core/local/artifacts/workspace_tooling_release_proof_current.json"
+      ],
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/workspace_tooling_release_proof_current.json"
+      ],
+      "source_guard_paths_any": [
+        "tests/tooling/scripts/ci/workspace_tooling_release_proof.ts"
+      ],
+      "required_evidence_fields": [
+        {
+          "path": "summary.replay_missing_count",
+          "equals": 0
+        },
+        {
+          "path": "summary.replay_failed_count",
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "id": "safe_commit_workflow",
+      "work_class": "developer_workflow",
+      "capability_domain": "tooling",
+      "user_visible": true,
+      "live_proof": false,
+      "purpose": "Prove commit safety can be assessed before staging in a high-churn workspace.",
+      "evidence_paths_any": [
+        "core/local/artifacts/safe_commit_workspace_guard_current.json",
+        "validation/reports/safe_commit_workspace_report_2026-05-10.json"
+      ],
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/safe_commit_workspace_guard_current.json"
+      ],
+      "source_guard_paths_any": [
+        "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts"
+      ]
+    },
+    {
+      "id": "command_navigation",
+      "work_class": "operator_navigation",
+      "capability_domain": "tooling",
+      "user_visible": true,
+      "live_proof": false,
+      "purpose": "Prove agents have a compressed command entrypoint instead of relying on 1000+ package scripts.",
+      "evidence_paths_any": [
+        "core/local/artifacts/command_runner_first_guard_current.json",
+        "validation/reports/command_surface_compression_report_2026-05-10.json"
+      ],
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/command_runner_first_guard_current.json"
+      ],
+      "source_guard_paths_any": [
+        "tests/tooling/scripts/ci/command_runner_first_guard.ts"
+      ]
+    },
+    {
+      "id": "security_remediation",
+      "work_class": "security_repair",
+      "capability_domain": "validation",
+      "user_visible": false,
+      "live_proof": false,
+      "purpose": "Prove real security findings can be translated into source patches and recurring guard coverage.",
+      "evidence_paths_any": [
+        "core/local/artifacts/memory_runtime_security_closure_guard_current.json"
+      ],
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/memory_runtime_security_closure_guard_current.json"
+      ],
+      "source_guard_paths_any": [
+        "tests/tooling/scripts/ci/memory_runtime_security_closure_guard.ts"
+      ]
+    },
+    {
       "id": "sentinel_anti_entropy",
+      "work_class": "system_maintenance",
+      "capability_domain": "observability",
+      "user_visible": false,
+      "live_proof": false,
       "purpose": "Prove Sentinel can produce bounded staged evidence instead of hanging or flooding raw output.",
       "evidence_paths_any": [
         "observability/reports/sentinel_full_run_stage_runner_current.json",
         "observability/reports/sentinel_full_run_timeout_report_2026-05-10.json",
         "observability/reports/sentinel_timing_trend_report_2026-05-10.json"
       ],
-      "guard_paths_any": [
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/sentinel_full_run_stage_runner_guard_current.json",
+        "core/local/artifacts/sentinel_full_run_timeout_guard_current.json",
+        "core/local/artifacts/sentinel_timing_trend_guard_current.json"
+      ],
+      "source_guard_paths_any": [
         "tests/tooling/scripts/ci/sentinel_full_run_stage_runner_guard.ts",
         "tests/tooling/scripts/ci/sentinel_full_run_timeout_guard.ts",
         "tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts"
-      ]
-    },
-    {
-      "id": "safe_commit_workflow",
-      "purpose": "Prove commit safety can be assessed before staging in a high-churn workspace.",
-      "evidence_paths_any": [
-        "validation/reports/safe_commit_workspace_report_2026-05-10.json",
-        "core/local/artifacts/safe_commit_workspace_guard_current.json"
       ],
-      "guard_paths_any": [
-        "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts"
-      ]
-    },
-    {
-      "id": "command_navigation",
-      "purpose": "Prove agents have a compressed command entrypoint instead of relying on 1000+ package scripts.",
-      "evidence_paths_any": [
-        "core/local/artifacts/command_runner_first_guard_current.json",
-        "validation/reports/non_shell_roi_implementation_wave_2026-05-10.md"
-      ],
-      "guard_paths_any": [
-        "tests/tooling/scripts/ci/command_runner_first_guard.ts"
-      ]
-    },
-    {
-      "id": "security_remediation",
-      "purpose": "Prove real security findings can be translated into concrete source patches and recurring guard coverage.",
-      "evidence_paths_any": [
-        "core/local/artifacts/memory_runtime_security_closure_guard_current.json"
-      ],
-      "guard_paths_any": [
-        "tests/tooling/scripts/ci/memory_runtime_security_closure_guard.ts"
-      ]
+      "max_age_hours": 720
     }
   ],
   "required_lane_fields": [
     "id",
     "purpose",
+    "work_class",
+    "capability_domain",
     "ready",
     "evidence_path",
-    "guard_path"
+    "evidence_ok",
+    "guard_artifact_path",
+    "guard_artifact_ok",
+    "source_guard_path",
+    "fresh",
+    "next_action"
   ],
   "policy": {
     "proof_must_be_evidence_backed": true,
     "proof_must_cover_user_visible_work": true,
     "proof_must_include_operator_next_actions_when_incomplete": true,
-    "proof_report_must_be_compact": true
+    "proof_report_must_be_compact": true,
+    "proof_must_include_live_gateway_lane": true,
+    "proof_must_use_passing_guard_artifacts_not_only_source_files": true,
+    "strict_guard_blocks_when_minimums_not_met": true
   }
 }

@@ -307,13 +307,25 @@ fn normalize_vector(values: &[f32]) -> Vec<f32> {
     out
 }
 
-const EMBEDDING_SLOT_DOMAIN: u64 = 0;
-const EMBEDDING_SIGN_DOMAIN: u64 = 1;
+#[derive(Clone, Copy, Debug)]
+enum EmbeddingHashDomain {
+    Slot,
+    Sign,
+}
 
-fn hash_token_slot(token: &str, domain: u64, dims: usize) -> usize {
+impl EmbeddingHashDomain {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Slot => "embedding_slot_domain",
+            Self::Sign => "embedding_sign_domain",
+        }
+    }
+}
+
+fn hash_token_slot(token: &str, domain: EmbeddingHashDomain, dims: usize) -> usize {
     let mut hasher = DefaultHasher::new();
     token.hash(&mut hasher);
-    domain.hash(&mut hasher);
+    domain.label().hash(&mut hasher);
     (hasher.finish() as usize) % dims.max(1)
 }
 
@@ -327,8 +339,8 @@ fn vectorize_text(text: &str, dims: usize) -> Vec<f32> {
         return vec;
     }
     for token in tokens {
-        let idx = hash_token_slot(&token, EMBEDDING_SLOT_DOMAIN, dims);
-        let sign_idx = hash_token_slot(&token, EMBEDDING_SIGN_DOMAIN, dims);
+        let idx = hash_token_slot(&token, EmbeddingHashDomain::Slot, dims);
+        let sign_idx = hash_token_slot(&token, EmbeddingHashDomain::Sign, dims);
         let sign = if sign_idx.is_multiple_of(2) {
             1.0f32
         } else {

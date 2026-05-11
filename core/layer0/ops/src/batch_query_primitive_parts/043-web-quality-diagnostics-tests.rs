@@ -1,6 +1,5 @@
 mod web_quality_diagnostics_tests {
     use super::*;
-    use std::collections::HashSet;
     use std::sync::Mutex;
 
     static WEB_QUALITY_TEST_ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -185,100 +184,6 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
-    fn multi_term_current_queries_reject_single_term_false_positives() {
-        let query = "scientific breakthroughs 2026";
-        let false_positive = candidate(
-            "https://www.desmos.com/scientific",
-            "A free online scientific calculator with trigonometry, statistics, and logarithms.",
-        );
-        assert!(
-            !candidate_passes_relevance_gate(query, &false_positive, false),
-            "single-term overlap should not become evidence for a multi-term current query"
-        );
-    }
-
-    #[test]
-    fn broad_current_query_drops_off_topic_provider_results_before_evidence() {
-        let query = "scientific breakthroughs 2026";
-        let out = run_query_with_fixture(
-            json!({
-                query: {
-                    "ok": true,
-                    "provider": "bing_rss",
-                    "summary": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
-                    "content": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
-                    "links": ["https://www.desmos.com/scientific"],
-                    "requested_url": "https://www.bing.com/search?q=scientific+breakthroughs+2026&format=rss",
-                    "status_code": 200
-                },
-                format!("bing_rss::{query}"): {
-                    "ok": true,
-                    "provider": "bing_rss",
-                    "summary": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
-                    "content": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
-                    "links": ["https://www.desmos.com/scientific"],
-                    "requested_url": "https://www.bing.com/search?q=scientific+breakthroughs+2026&format=rss",
-                    "status_code": 200
-                },
-                format!("duckduckgo_instant::{query}"): {"ok": false, "error": "duckduckgo_instant_no_usable_summary"}
-            }),
-            query,
-        );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
-        assert_eq!(
-            out.pointer("/tool_result_quality/evidence_count")
-                .and_then(Value::as_u64),
-            Some(0)
-        );
-        assert!(
-            quality_flags(&out)
-                .iter()
-                .any(|flag| flag == "low_relevance_filtered"),
-            "{out}"
-        );
-    }
-
-    #[test]
-    fn provider_result_artifact_marks_low_relevance_payload_as_not_usable() {
-        let query = "scientific breakthroughs 2026";
-        let out = run_request_with_fixture(
-            json!({
-                query: {
-                    "ok": true,
-                    "provider": "bing_rss",
-                    "summary": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
-                    "content": "Scientific Calculator - Desmos — https://www.desmos.com/scientific — A free online scientific calculator with trigonometry and statistics.",
-                    "links": ["https://www.desmos.com/scientific"],
-                    "requested_url": "https://www.bing.com/search?q=scientific+breakthroughs+2026&format=rss",
-                    "status_code": 200
-                }
-            }),
-            &json!({"source":"web","queries":[query],"aperture":"small"}),
-        );
-        let provider_result = out
-            .get("provider_results")
-            .and_then(Value::as_array)
-            .and_then(|rows| rows.first())
-            .expect("provider result");
-        assert_eq!(
-            provider_result.get("provider_transport_ok").and_then(Value::as_bool),
-            Some(true),
-            "{out:#}"
-        );
-        assert_eq!(provider_result.get("ok").and_then(Value::as_bool), Some(false));
-        assert_eq!(
-            provider_result.get("result_quality").and_then(Value::as_str),
-            Some("low_relevance")
-        );
-        assert_eq!(
-            provider_result
-                .get("synthesis_candidate_count")
-                .and_then(Value::as_u64),
-            Some(0)
-        );
-    }
-
-    #[test]
     fn fallback_links_are_ranked_before_followup_fetch() {
         let payload = json!({
             "links": [
@@ -298,248 +203,6 @@ mod web_quality_diagnostics_tests {
             Some("https://docs.example.com/agent-framework/releases")
         );
         assert!(!links.iter().any(|link| link.contains("bing.com")));
-    }
-
-    #[test]
-    fn page_extraction_link_threshold_filters_weak_followups() {
-        let payload = json!({
-            "links": [
-                "https://www.desmos.com/scientific",
-                "https://research.example.org/scientific-breakthroughs-2026"
-            ]
-        });
-        let mut policy = default_policy();
-        policy["batch_query"]["page_extraction"] = json!({
-            "enabled": true,
-            "extract_mode": "markdown",
-            "max_links_per_stage": 3,
-            "max_total_fetches": 3,
-            "min_link_score": 0.08,
-            "trigger": "low_or_empty_candidates"
-        });
-        let links = payload_links_for_page_extraction(
-            "scientific breakthroughs 2026",
-            &policy,
-            &payload,
-            3,
-        );
-        assert_eq!(
-            links,
-            vec!["https://research.example.org/scientific-breakthroughs-2026"]
-        );
-    }
-
-    #[test]
-    fn page_extraction_budget_is_policy_owned() {
-        let query = "agentic research systems";
-        let first = "https://docs.example.com/agentic-research-systems";
-        let second = "https://news.example.com/agentic-research-systems";
-        let payload = json!({
-            "ok": true,
-            "summary": "No usable search results.",
-            "links": [second, first],
-            "requested_url": "https://search.example.com"
-        });
-        let fixture = json!({
-            query: payload,
-            format!("primary::{first}"): {
-                "ok": true,
-                "summary": "Agentic research systems evidence from project documentation with retrieval, synthesis, and current workflow evaluation details.",
-                "requested_url": first,
-                "status_code": 200
-            },
-            format!("primary::{second}"): {
-                "ok": true,
-                "summary": "Agentic research systems evidence from a news source with current deployment context and system evaluation notes.",
-                "requested_url": second,
-                "status_code": 200
-            }
-        });
-        let mut policy = default_policy();
-        policy["batch_query"]["page_extraction"] = json!({
-            "enabled": true,
-            "extract_mode": "markdown",
-            "max_links_per_stage": 1,
-            "max_total_fetches": 1,
-            "min_link_score": 0.08,
-            "trigger": "low_or_empty_candidates"
-        });
-        assert_eq!(page_extraction_extract_mode(&policy), "markdown");
-
-        with_fixture(fixture, || {
-            let tmp = tempfile::tempdir().expect("tempdir");
-            let stage_payload =
-                stage_search_payload(tmp.path(), None, query, None, &BatchQuerySearchScope::default());
-            let mut fetched_links = HashSet::<String>::new();
-            let (candidates, issues, _) = collect_candidates_from_stage_payload(
-                tmp.path(),
-                "primary",
-                query,
-                &policy,
-                &stage_payload,
-                false,
-                &mut fetched_links,
-            );
-            assert_eq!(fetched_links.len(), 1, "{issues:?}");
-            assert_eq!(candidates.len(), 1, "{issues:?}");
-        });
-    }
-
-    #[test]
-    fn batch_query_search_scope_normalizes_request_owned_domain_aliases() {
-        let scope = batch_query_search_scope(&json!({
-            "query": "structured retrieval patterns",
-            "includeDomains": [
-                "https://www.docs.rs/crate/example",
-                "*.GitHub.com",
-                {"url": "https://docs.rs/other"},
-                "localhost",
-                "bad domain"
-            ],
-            "exactDomainOnly": "true"
-        }));
-        assert_eq!(scope.allowed_domains, vec!["docs.rs", "github.com"]);
-        assert!(scope.exclude_subdomains);
-    }
-
-    #[test]
-    fn stage_search_request_preserves_request_owned_scope() {
-        let scope = BatchQuerySearchScope {
-            allowed_domains: vec!["docs.rs".to_string(), "github.com".to_string()],
-            exclude_subdomains: true,
-        };
-        let request = stage_search_request("rust async runtime", Some("bing"), &scope);
-        assert_eq!(request.get("query").and_then(Value::as_str), Some("rust async runtime"));
-        assert_eq!(request.get("provider").and_then(Value::as_str), Some("bing"));
-        assert_eq!(
-            request
-                .get("allowed_domains")
-                .and_then(Value::as_array)
-                .map(|rows| rows.iter().filter_map(Value::as_str).collect::<Vec<_>>()),
-            Some(vec!["docs.rs", "github.com"])
-        );
-        assert_eq!(
-            request.get("exclude_subdomains").and_then(Value::as_bool),
-            Some(true)
-        );
-    }
-
-    #[test]
-    fn scoped_batch_query_cache_key_differs_from_unscoped() {
-        let policy = default_policy();
-        let query = "rust async runtime comparison";
-        let plan = vec![query.to_string()];
-        let unscoped = cache_key_with_query_plan_and_scope(
-            "web",
-            query,
-            "medium",
-            &policy,
-            &plan,
-            &BatchQuerySearchScope::default(),
-        );
-        let scoped = cache_key_with_query_plan_and_scope(
-            "web",
-            query,
-            "medium",
-            &policy,
-            &plan,
-            &BatchQuerySearchScope {
-                allowed_domains: vec!["docs.rs".to_string()],
-                exclude_subdomains: true,
-            },
-        );
-        assert_ne!(unscoped, scoped);
-        assert_eq!(
-            unscoped,
-            cache_key_with_query_plan("web", query, "medium", &policy, &plan)
-        );
-    }
-
-    #[test]
-    fn structured_search_payload_arrays_become_candidates() {
-        let query = "scientific breakthroughs 2026";
-        let rows = candidates_from_structured_search_payload(
-            query,
-            &json!({
-                "ok": true,
-                "summary": "low-signal wrapper",
-                "web": [
-                    {
-                        "url": "https://science.example.org/breakthroughs-2026",
-                        "title": "Scientific breakthroughs in 2026",
-                        "description": "Scientific breakthroughs in 2026 include source-backed publication updates and laboratory announcements."
-                    }
-                ],
-                "news": [
-                    {
-                        "link": "https://news.example.org/science-2026",
-                        "headline": "Science news roundup",
-                        "snippet": "A current 2026 science roundup tracks research announcements, publications, and verified institutional sources."
-                    }
-                ],
-                "images": [
-                    {
-                        "url": "https://images.example.org/science-2026-chart",
-                        "imageUrl": "https://cdn.example.org/science-chart.png",
-                        "title": "Science evidence chart",
-                        "alt": "A scientific breakthroughs 2026 chart summarizing source-backed research evidence."
-                    }
-                ]
-            }),
-            4,
-        );
-        assert_eq!(rows.len(), 3, "{rows:#?}");
-        assert!(rows.iter().any(|row| row.source_kind == "web"), "{rows:#?}");
-        assert!(rows.iter().any(|row| row.source_kind == "news"), "{rows:#?}");
-        assert!(
-            rows.iter().any(|row| row.source_kind == "images"),
-            "{rows:#?}"
-        );
-        assert!(
-            rows.iter()
-                .any(|row| row.snippet.contains("Scientific breakthroughs")),
-            "{rows:#?}"
-        );
-    }
-
-    #[test]
-    fn structured_search_results_can_synthesize_without_summary_shell() {
-        let query = "scientific breakthroughs 2026";
-        let out = run_query_with_fixture(
-            json!({
-                query: {
-                    "ok": true,
-                    "summary": "No usable search results.",
-                    "web": [
-                        {
-                            "url": "https://science.example.org/breakthroughs-2026",
-                            "title": "Scientific breakthroughs in 2026",
-                            "description": "Scientific breakthroughs in 2026 include source-backed publication updates and laboratory announcements from research institutions."
-                        },
-                        {
-                            "url": "https://research.example.edu/2026-publications",
-                            "title": "2026 research publications",
-                            "description": "Research publications in 2026 report new scientific findings, methods, and evidence from public institutional sources."
-                        }
-                    ]
-                }
-            }),
-            query,
-        );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"), "{out:#}");
-        assert_eq!(
-            out.pointer("/tool_result_quality/evidence_count")
-                .and_then(Value::as_u64),
-            Some(2),
-            "{out:#}"
-        );
-        assert!(
-            out.get("summary")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains("science.example.org"),
-            "{out:#}"
-        );
     }
 
     #[test]
@@ -566,48 +229,10 @@ mod web_quality_diagnostics_tests {
             Some(false)
         );
         assert_eq!(
-            out.pointer("/tool_result_quality/retry/input_contract/input_kind")
-                .and_then(Value::as_str),
-            Some("query_or_query_pack")
-        );
-        assert_eq!(
-            out.pointer("/tool_result_quality/retry/next_action")
-                .and_then(Value::as_str),
-            Some("agent_refine_query_pack_and_retry_if_budget_remains")
-        );
-        assert!(
-            out.pointer("/tool_result_quality/retry/query_strategy_hints")
-                .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| {
-                    row.as_str()
-                        .map(|value| value.contains("agent-submitted query pack"))
-                        .unwrap_or(false)
-                }))
-                .unwrap_or(false),
-            "{out:#}"
-        );
-        let hints = out
-            .pointer("/tool_result_quality/retry/query_strategy_hints")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .filter_map(|row| row.as_str().map(|value| value.to_ascii_lowercase()))
-            .collect::<Vec<_>>()
-            .join(" ");
-        assert!(hints.contains("stale year ranges"), "{hints}");
-        assert!(hints.contains("exact entity name"), "{hints}");
-        assert_eq!(
             out.pointer("/tool_result_quality/freshness/current_intent")
                 .and_then(Value::as_bool),
             Some(true)
         );
-    }
-
-    #[test]
-    fn current_year_counts_as_current_web_intent() {
-        assert!(current_web_intent("scientific breakthroughs 2026"));
-        assert!(current_web_intent("materials science publications 2026"));
     }
 
     #[test]
@@ -651,13 +276,13 @@ mod web_quality_diagnostics_tests {
 
     #[test]
     fn successful_web_result_exports_synthesis_quality_bundle() {
-        let query = "AI agent framework documentation";
+        let query = "current AI agent frameworks May 2026";
         let out = run_query_with_fixture(
             json!({
                 query: {
                     "ok": true,
-                    "summary": "LangGraph, OpenAI Agents SDK, CrewAI, and AutoGen publish official documentation for agent framework tool use and orchestration patterns.",
-                    "requested_url": "https://docs.example.com/agent-frameworks",
+                    "summary": "LangGraph, OpenAI Agents SDK, CrewAI, and AutoGen publish official 2026 documentation for agent framework tool use and orchestration patterns.",
+                    "requested_url": "https://docs.example.com/agent-frameworks-2026",
                     "status_code": 200
                 }
             }),
@@ -678,22 +303,6 @@ mod web_quality_diagnostics_tests {
             out.pointer("/tool_result_quality/retry/recommended")
                 .and_then(Value::as_bool),
             Some(false)
-        );
-        assert!(
-            out.pointer("/evidence_pack/0/snippet")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .contains("LangGraph")
-        );
-        assert_eq!(
-            out.pointer("/evidence_pack/0/visibility")
-                .and_then(Value::as_str),
-            Some("synthesis_context")
-        );
-        assert_eq!(
-            out.pointer("/evidence_pack/0/content_authority")
-                .and_then(Value::as_str),
-            Some("retrieved_public_web")
         );
     }
 

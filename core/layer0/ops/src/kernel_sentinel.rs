@@ -102,6 +102,14 @@ pub const KERNEL_SENTINEL_CONTRACT_VERSION: u32 = 1;
 pub const KERNEL_SENTINEL_FINDING_SCHEMA_VERSION: u32 = 1;
 const DEFAULT_REPORT_FINDING_LIMIT: usize = 200;
 
+fn trace_id_from_args(args: &[String], generated_at: &str) -> String {
+    let prefix = "--trace-id=";
+    args.iter()
+        .find_map(|arg| arg.strip_prefix(prefix).map(str::to_string))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| format!("observability:{generated_at}:kernel-sentinel"))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum KernelSentinelEvidenceSource {
@@ -299,6 +307,8 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
         .to_string();
     let scheduler_running = scheduler_health["running"].as_bool().unwrap_or(false);
     let strict = bool_flag(args, "--strict");
+    let generated_at = crate::now_iso();
+    let trace_id = trace_id_from_args(args, &generated_at);
     let release_gate_pass = release_gate["pass"].as_bool().unwrap_or(false);
     let release_blockers = release_blockers(
         critical_open_count,
@@ -319,6 +329,8 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
             && release_gate_pass
             && !scheduler_stale,
         "type": "kernel_sentinel_verdict",
+        "trace_id": trace_id.clone(),
+        "parent_span_id": null,
         "contract_version": KERNEL_SENTINEL_CONTRACT_VERSION,
         "verdict": verdict_state,
         "strict": strict,
@@ -336,6 +348,9 @@ pub fn build_report(root: &Path, args: &[String]) -> (Value, Value, i32) {
     let mut report = json!({
         "ok": verdict["ok"],
         "type": "kernel_sentinel_report",
+        "trace_id": trace_id,
+        "parent_span_id": null,
+        "generated_at": generated_at,
         "canonical_name": KERNEL_SENTINEL_NAME,
         "state_dir": dir,
         "operator_summary": {

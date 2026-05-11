@@ -91,6 +91,19 @@ WORKSPACE_RELEASE_TAG_PREVIOUS=""
 WORKSPACE_RELEASE_TAG_CURRENT=""
 WORKSPACE_RELEASE_TAG_WRITTEN=0
 WORKSPACE_RELEASE_TAG_WRITE_VERIFIED=0
+INSTALL_SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" 2>/dev/null && pwd -P || pwd)"
+INSTALL_MODULE_DIR="${INFRING_INSTALL_MODULE_DIR:-}"
+if [ -z "$INSTALL_MODULE_DIR" ]; then
+  if [ -r "$INSTALL_SCRIPT_DIR/install/modules/bootstrap_common.sh" ]; then
+    INSTALL_MODULE_DIR="$INSTALL_SCRIPT_DIR/install/modules"
+  else
+    INSTALL_MODULE_DIR="$INSTALL_SCRIPT_DIR/modules"
+  fi
+fi
+if [ "${INFRING_INSTALL_USE_MODULES:-1}" != "0" ] && [ -r "$INSTALL_MODULE_DIR/bootstrap_common.sh" ]; then
+  # shellcheck disable=SC1090
+  . "$INSTALL_MODULE_DIR/bootstrap_common.sh"
+fi
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1067,6 +1080,10 @@ install_print_colored() {
 emit_install_completion_card() {
   version_tag="$1"
   install_location="$2"
+  if [ "${INFRING_INSTALL_USE_MODULES:-1}" != "0" ] && command -v infring_install_completion_card >/dev/null 2>&1; then
+    infring_install_completion_card "$version_tag." "$install_location" "infring --help"
+    return
+  fi
   printf '\nSetting up InfRing...\n\n'
   install_print_colored "32" "✔ InfRing successfully installed!"
   printf '\n'

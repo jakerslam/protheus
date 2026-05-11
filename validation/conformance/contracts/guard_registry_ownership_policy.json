@@ -1,10 +1,33 @@
 {
   "type": "guard_registry_ownership_policy",
-  "schema_version": 1,
+  "schema_version": 2,
   "owner_domain": "validation.conformance",
   "report_path": "core/local/artifacts/guard_registry_ownership_current.json",
+  "guard_result_path": "core/local/artifacts/guard_registry_ownership_guard_current.json",
+  "markdown_report_path": "local/workspace/reports/GUARD_REGISTRY_OWNERSHIP_CURRENT.md",
   "guard_roots": [
     "tests/tooling/scripts/ci"
+  ],
+  "artifact_roots": [
+    "core/local/artifacts"
+  ],
+  "registry_inputs": {
+    "package_json": "package.json",
+    "tooling_gate_registry": "tests/tooling/config/tooling_gate_registry.json",
+    "command_registry": "tools/commands/command_registry.json",
+    "release_proof_pack_manifest": "validation/release_gates/contracts/release_proof_pack_manifest.json"
+  },
+  "script_name_patterns": [
+    "guard",
+    "audit",
+    "gate",
+    "scorecard"
+  ],
+  "artifact_name_patterns": [
+    "_guard_current.json",
+    "_audit_current.json",
+    "_gate_current.json",
+    "_scorecard_current.json"
   ],
   "required_source_markers_any": [
     "source_domain",
@@ -15,11 +38,26 @@
   ],
   "duplicate_stem_suffixes": [
     "_guard",
-    "-guard"
+    "-guard",
+    "_audit",
+    "-audit",
+    "_gate",
+    "-gate",
+    "_scorecard",
+    "-scorecard",
+    "_report",
+    "-report"
   ],
+  "finding_limits": {
+    "max_rows_in_report": 500,
+    "max_findings_in_report": 250
+  },
   "policy": {
     "guards_must_have_ownership_or_policy_marker": true,
     "duplicate_guard_families_are_findings_not_immediate_failures": true,
-    "guard_registry_report_is_canonical_input_to_entropy_scorecard": true
+    "unregistered_guard_scripts_are_findings_not_immediate_failures": true,
+    "orphan_guard_artifacts_are_findings_not_immediate_failures": true,
+    "guard_registry_report_is_canonical_input_to_entropy_scorecard": true,
+    "guard_of_guards_must_not_mutate_worktree": true
   }
 }

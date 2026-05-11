@@ -1377,12 +1377,6 @@ fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -
         }
     }
 
-    if let Some(pending_request) =
-        manual_toolbox_pending_request_from_tool_invocation_markup(response, message)
-    {
-        return Some(pending_request);
-    }
-
     if !response_is_manual_toolbox_gate_choice(response) {
         return None;
     }
@@ -1634,10 +1628,9 @@ mod workflow_control_tests {
     fn workflow_final_answer_prompt_keeps_cd_synthesis_requirements() {
         let prompt = workflow_final_answer_prompt_context();
         assert!(prompt.contains("tradeoff"));
-        assert!(prompt.contains("no_tool_state"));
-        assert!(prompt.contains("recorded tool outcome exists"));
+        assert!(prompt.contains("regression test"));
         assert!(prompt.contains("source-backed"));
-        assert!(prompt.contains("bounded next search direction"));
+        assert!(prompt.contains("bounded next step"));
     }
 
     #[test]

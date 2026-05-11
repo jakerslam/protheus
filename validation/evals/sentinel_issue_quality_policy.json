@@ -3,10 +3,26 @@
   "schema_version": 1,
   "owner_domain": "validation.evals",
   "report_path": "core/local/artifacts/sentinel_issue_quality_score_current.json",
+  "guard_report_path": "core/local/artifacts/sentinel_issue_quality_score_guard_current.json",
+  "history_path": "local/state/kernel_sentinel/issue_quality_score_history.jsonl",
   "inputs": {
     "stage_runner_report": "observability/reports/sentinel_full_run_stage_runner_current.json",
+    "compact_report_glob": "observability/reports/sentinel_staged_compact_report_*.json",
+    "max_compact_report_count": 5,
     "compact_reports": [
       "observability/reports/sentinel_staged_compact_report_2026-05-10.json"
+    ],
+    "issue_streams": [
+      "local/state/kernel_sentinel/issues.jsonl",
+      "local/state/kernel_sentinel/feedback_inbox.jsonl",
+      "local/state/kernel_sentinel/causal_hypothesis_ledger_current.jsonl",
+      "local/state/kernel_sentinel/suggestions.jsonl",
+      "local/state/kernel_sentinel/automation_candidates.jsonl"
+    ],
+    "current_projection_reports": [
+      "local/state/kernel_sentinel/top_system_holes_current.json",
+      "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
+      "local/state/kernel_sentinel/kernel_sentinel_health_current.json"
     ],
     "supporting_evidence": [
       "core/local/artifacts/kernel_sentinel_auto_run_current.json",
@@ -24,6 +40,17 @@
   "freshness_budget_ms": 604800000,
   "promotion_threshold": 80,
   "review_threshold": 60,
+  "minimum_promotion_ready_score": 80,
+  "minimum_human_review_score": 60,
+  "history_retention_rows": 100,
+  "required_score_dimensions": [
+    "evidence",
+    "freshness",
+    "owner_guess",
+    "root_cause_hypothesis",
+    "next_action",
+    "recurrence"
+  ],
   "required_candidate_fields": [
     "id",
     "score",
@@ -31,12 +58,18 @@
     "evidence_refs",
     "owner_guess",
     "root_cause_hypothesis",
-    "next_action"
+    "next_action",
+    "recurrence_count",
+    "score_dimensions",
+    "quality_failure_reasons"
   ],
   "policy": {
     "sentinel_findings_must_be_scored_before_todo_promotion": true,
     "promotion_ready_findings_require_evidence_and_next_action": true,
     "low_quality_findings_remain_observations_not_todos": true,
-    "quality_report_must_be_compact_and_ref_only": true
+    "quality_report_must_be_compact_and_ref_only": true,
+    "quality_report_must_append_history": true,
+    "promotion_ready_findings_require_root_cause_and_owner": true,
+    "promotion_ready_findings_require_current_trace": true
   }
 }

@@ -15,7 +15,6 @@ fn render_serper_payload(
                 "summary": "",
                 "content": "",
                 "links": [],
-                "web": [],
                 "content_domains": [],
                 "provider_raw_count": 0,
                 "provider_filtered_count": 0
@@ -30,7 +29,6 @@ fn render_serper_payload(
         .unwrap_or_default();
     let mut lines = Vec::<String>::new();
     let mut links = Vec::<String>::new();
-    let mut web_rows = Vec::<Value>::new();
     let mut domains = Vec::<String>::new();
     for row in &organic {
         let link = normalize_search_result_link(
@@ -48,13 +46,6 @@ fn render_serper_payload(
         if rendered.is_empty() {
             continue;
         }
-        web_rows.push(json!({
-            "url": link,
-            "title": clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 240),
-            "description": clean_text(row.get("snippet").and_then(Value::as_str).unwrap_or(""), 1_200),
-            "position": row.get("position").and_then(Value::as_i64).unwrap_or((lines.len() + 1) as i64),
-            "provider": "serperdev"
-        }));
         lines.push(rendered);
         links.push(link.clone());
         push_unique_link_domain(&mut domains, &link);
@@ -73,7 +64,6 @@ fn render_serper_payload(
         },
         "content": content,
         "links": links,
-        "web": web_rows,
         "content_domains": domains,
         "provider_raw_count": organic.len(),
         "provider_filtered_count": lines.len(),
@@ -121,7 +111,6 @@ fn render_bing_rss_payload(
         ITEM_RE.get_or_init(|| Regex::new(r"(?is)<item\b[^>]*>(.*?)</item>").expect("item regex"));
     let mut lines = Vec::<String>::new();
     let mut links = Vec::<String>::new();
-    let mut web_rows = Vec::<Value>::new();
     let mut domains = Vec::<String>::new();
     let mut raw_count = 0usize;
     for captures in item_re.captures_iter(body) {
@@ -140,12 +129,6 @@ fn render_bing_rss_payload(
         if rendered.is_empty() {
             continue;
         }
-        web_rows.push(json!({
-            "url": link,
-            "title": extract_xml_tag_value(item, "title"),
-            "description": extract_xml_tag_value(item, "description"),
-            "provider": "bing_rss"
-        }));
         lines.push(rendered);
         links.push(link.clone());
         push_unique_link_domain(&mut domains, &link);
@@ -164,117 +147,8 @@ fn render_bing_rss_payload(
         },
         "content": content,
         "links": links,
-        "web": web_rows,
         "content_domains": domains,
         "provider_raw_count": raw_count,
-        "provider_filtered_count": lines.len(),
-        "error": if ok {
-            Value::Null
-        } else {
-            Value::String("no_relevant_results".to_string())
-        }
-    })
-}
-
-fn render_gdelt_doc_payload(
-    body: &str,
-    allowed_domains: &[String],
-    exclude_subdomains: bool,
-    top_k: usize,
-    max_response_bytes: usize,
-) -> Value {
-    let parsed = match serde_json::from_str::<Value>(body) {
-        Ok(value) => value,
-        Err(_) => {
-            return json!({
-                "ok": false,
-                "error": "gdelt_doc_decode_failed",
-                "summary": "",
-                "content": "",
-                "links": [],
-                "news": [],
-                "content_domains": [],
-                "provider_raw_count": 0,
-                "provider_filtered_count": 0
-            });
-        }
-    };
-    let articles = parsed
-        .get("articles")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    let mut lines = Vec::<String>::new();
-    let mut links = Vec::<String>::new();
-    let mut news_rows = Vec::<Value>::new();
-    let mut domains = Vec::<String>::new();
-    for row in &articles {
-        let link = normalize_search_result_link(
-            row.get("url").and_then(Value::as_str).unwrap_or(""),
-        );
-        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains)
-        {
-            continue;
-        }
-        let mut details = Vec::<String>::new();
-        let seen = clean_text(row.get("seendate").and_then(Value::as_str).unwrap_or(""), 80);
-        let domain = clean_text(row.get("domain").and_then(Value::as_str).unwrap_or(""), 180);
-        let language = clean_text(row.get("language").and_then(Value::as_str).unwrap_or(""), 80);
-        let country = clean_text(
-            row.get("sourcecountry").and_then(Value::as_str).unwrap_or(""),
-            120,
-        );
-        if !seen.is_empty() {
-            details.push(format!("seen {seen}"));
-        }
-        if !domain.is_empty() {
-            details.push(format!("source {domain}"));
-        }
-        if !language.is_empty() {
-            details.push(format!("language {language}"));
-        }
-        if !country.is_empty() {
-            details.push(format!("country {country}"));
-        }
-        let rendered = render_search_row(
-            row.get("title").and_then(Value::as_str).unwrap_or(""),
-            &details.join("; "),
-            &link,
-        );
-        if rendered.is_empty() {
-            continue;
-        }
-        news_rows.push(json!({
-            "url": link,
-            "title": clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 240),
-            "snippet": clean_text(&details.join("; "), 1_200),
-            "date": seen,
-            "domain": domain,
-            "language": language,
-            "source_country": country,
-            "provider": "gdelt_doc"
-        }));
-        lines.push(rendered);
-        links.push(link.clone());
-        push_unique_link_domain(&mut domains, &link);
-        if lines.len() >= top_k.max(1) {
-            break;
-        }
-    }
-    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
-    let ok = !content.is_empty();
-    json!({
-        "ok": ok,
-        "summary": if ok {
-            summarize_text(&content, 900)
-        } else {
-            crate::tool_output_match_filter::no_findings_user_copy().to_string()
-        },
-        "content": content,
-        "links": links,
-        "news": news_rows,
-        "content_domains": domains,
-        "provider_raw_count": articles.len(),
         "provider_filtered_count": lines.len(),
         "error": if ok {
             Value::Null
@@ -549,57 +423,6 @@ fn search_provider_failure_mode(
     } else {
         "provider_chain_exhausted"
     }
-}
-
-fn reject_unselected_search_payload(out: &mut Value, scoped_query: &str) -> bool {
-    if !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        return false;
-    }
-    let rejection_error = search_payload_error_for_query(out, scoped_query);
-    let Some(obj) = out.as_object_mut() else {
-        return false;
-    };
-    let rejected_summary = clean_text(
-        obj.get("summary").and_then(Value::as_str).unwrap_or(""),
-        900,
-    );
-    let rejected_content_preview = clean_text(
-        obj.get("content").and_then(Value::as_str).unwrap_or(""),
-        1_400,
-    );
-    obj.insert("ok".to_string(), Value::Bool(false));
-    obj.insert("error".to_string(), Value::String(rejection_error.clone()));
-    obj.insert("provider_payload_rejected".to_string(), json!(true));
-    obj.insert(
-        "provider_payload_rejection_reason".to_string(),
-        Value::String(rejection_error.clone()),
-    );
-    if !rejected_summary.is_empty() {
-        obj.insert(
-            "rejected_provider_summary".to_string(),
-            Value::String(rejected_summary),
-        );
-    }
-    if !rejected_content_preview.is_empty() {
-        obj.insert(
-            "rejected_provider_content_preview".to_string(),
-            Value::String(rejected_content_preview),
-        );
-    }
-    obj.insert("content".to_string(), Value::String(String::new()));
-    obj.insert(
-        "summary".to_string(),
-        Value::String(if rejection_error == "query_result_mismatch" {
-            "Search providers returned off-topic results for this query. Retry with narrower terms or explicit source URLs."
-                .to_string()
-        } else if rejection_error == "low_signal_search_payload" {
-            "Search providers returned only low-signal result pages for this query.".to_string()
-        } else {
-            "Search providers returned no payload that passed the search result quality checks."
-                .to_string()
-        }),
-    );
-    true
 }
 
 fn search_cache_skip_reason_from_failure_mode(search_provider_failure_mode: &str) -> &'static str {

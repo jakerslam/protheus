@@ -2,7 +2,10 @@
   "type": "proof_pack_artifact_size_policy",
   "schema_version": 1,
   "owner_domain": "validation.release_gates",
-  "scope": "validation/release_gates/proof_packs/**",
+  "scope": [
+    "validation/release_gates/proof_packs/**",
+    "releases/proof-packs/**"
+  ],
   "policy": {
     "max_single_artifact_bytes": 5242880,
     "max_single_json_lines": 100000,

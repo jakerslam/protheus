@@ -12,10 +12,11 @@
     "install/modules/windows_wrapper_contract.json"
   ],
   "size_policy": {
-    "max_install_sh_bytes": 194657,
-    "max_install_ps1_bytes": 178174,
+    "max_install_sh_bytes": 195453,
+    "max_install_ps1_bytes": 180938,
     "growth_allowed": false,
-    "max_install_ps1_bytes_reason": "2026-05-10 Windows bootstrap-only repair fix: added degraded-success fallback, LiteralPath/Force wrapper floor, and ps1-to-cmd continuity contracts; shrink target remains active.",
+    "max_install_sh_bytes_reason": "2026-05-10 installer module dispatch wiring: install.sh optionally sources install/modules/bootstrap_common.sh when available while preserving one-file curl fallback; shrink target remains active.",
+    "max_install_ps1_bytes_reason": "2026-05-10 installer module dispatch wiring plus Windows bootstrap-only repair fallback: install.ps1 optionally dot-sources installer modules when available while preserving one-file irm fallback; shrink target remains active.",
     "shrink_target_install_sh_bytes": 50000,
     "shrink_target_install_ps1_bytes": 50000
   },

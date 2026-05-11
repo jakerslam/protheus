@@ -6,10 +6,21 @@
   "purpose": "Prevent validation and observability artifacts from becoming entropy while preserving compact evidence needed for Sentinel, release gates, and human review.",
   "roots": [
     {
+      "path": "core/local/artifacts",
+      "max_total_bytes": 32000000,
+      "max_file_bytes": 8000000,
+      "retain_latest_per_prefix": 5,
+      "max_age_days": 30,
+      "raw_evidence_allowed": false,
+      "role": "mutable-local-evidence",
+      "cleanup_candidate_only": true
+    },
+    {
       "path": "validation/reports",
       "max_total_bytes": 25000000,
       "max_file_bytes": 2000000,
       "retain_latest_per_prefix": 3,
+      "max_age_days": 45,
       "raw_evidence_allowed": false
     },
     {
@@ -17,9 +28,20 @@
       "max_total_bytes": 15000000,
       "max_file_bytes": 1500000,
       "retain_latest_per_prefix": 5,
+      "max_age_days": 45,
       "raw_evidence_allowed": false
     }
   ],
+  "latest_ref_policy": {
+    "emit_index": true,
+    "index_path": "core/local/artifacts/local_artifact_retention_latest_refs_current.json",
+    "canonical_ref_suffixes": [
+      "_current",
+      "_latest"
+    ],
+    "index_owner_domain": "observability",
+    "index_purpose": "Canonical latest-file lookup for local validation and observability artifacts; raw evidence stays in source artifacts."
+  },
   "required_report_fields": [
     "type",
     "generated_at"

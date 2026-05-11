@@ -1,70 +1,90 @@
 {
   "type": "repo_entropy_scorecard_policy",
-  "schema_version": 1,
+  "schema_version": 2,
   "owner_domain": "validation.scorecards",
   "report_path": "core/local/artifacts/repo_entropy_scorecard_current.json",
-  "tracked_loc": {
-    "enabled": true,
-    "max_file_bytes": 2097152,
-    "extensions": [
-      ".rs",
-      ".ts",
-      ".tsx",
-      ".js",
-      ".jsx",
-      ".svelte",
-      ".sh",
-      ".ps1",
-      ".json",
-      ".md",
-      ".toml",
-      ".yml",
-      ".yaml"
-    ],
-    "exclude_prefixes": [
-      "target/",
-      "node_modules/",
-      "local/",
-      "core/local/",
-      ".git/",
-      "coverage/",
-      "dist/",
-      "build/"
-    ]
-  },
-  "thresholds": {
-    "red": {
-      "dirty_paths": 250,
-      "required_ci_checks": 30,
-      "npm_scripts": 900,
-      "compat_command_entries": 900,
-      "core_local_artifacts": 500,
-      "guard_scripts": 220,
-      "duplicate_surface_roots": 2
-    },
-    "yellow": {
-      "dirty_paths": 50,
-      "required_ci_checks": 18,
-      "npm_scripts": 300,
-      "compat_command_entries": 300,
-      "core_local_artifacts": 200,
-      "guard_scripts": 120,
-      "duplicate_surface_roots": 1
-    }
-  },
+  "markdown_report_path": "local/workspace/reports/REPO_ENTROPY_SCORECARD_CURRENT.md",
+  "history_path": "local/state/validation/repo_entropy_scorecard/history.jsonl",
+  "purpose": "Track whether repo growth is making InfRing harder to operate, reason about, or safely release.",
   "required_dimensions": [
     "worktree_churn",
     "command_surface",
     "ci_surface",
     "artifact_pressure",
+    "loc_growth",
     "guard_surface",
-    "duplicate_surfaces",
-    "tracked_loc"
+    "duplicate_surfaces"
   ],
+  "thresholds": {
+    "red": {
+      "dirty_paths": 250,
+      "command_entries": 1200,
+      "npm_scripts": 1000,
+      "required_ci_checks": 35,
+      "workflow_files": 65,
+      "core_local_artifacts": 800,
+      "core_local_artifact_bytes": 524288000,
+      "effective_loc_delta_pct": 10,
+      "guard_scripts": 240,
+      "gate_registry_entries": 220,
+      "duplicate_surface_roots": 2
+    },
+    "yellow": {
+      "dirty_paths": 50,
+      "command_entries": 900,
+      "npm_scripts": 700,
+      "required_ci_checks": 25,
+      "workflow_files": 45,
+      "core_local_artifacts": 400,
+      "core_local_artifact_bytes": 209715200,
+      "effective_loc_delta_pct": 3,
+      "guard_scripts": 160,
+      "gate_registry_entries": 150,
+      "duplicate_surface_roots": 1
+    }
+  },
+  "duplicate_surface_pairs": [
+    {
+      "id": "orchestration_root_transition",
+      "roots": [
+        "orchestration",
+        "surface/orchestration"
+      ],
+      "owner": "architecture_governance",
+      "next_action": "Declare one root canonical and give the compatibility root an expiry."
+    },
+    {
+      "id": "shell_root_transition",
+      "roots": [
+        "shell",
+        "client"
+      ],
+      "owner": "shell_governance",
+      "next_action": "Keep legacy shell isolated while new shell/gateway projections become canonical."
+    }
+  ],
+  "artifact_roots": [
+    "core/local/artifacts"
+  ],
+  "workflow_root": ".github/workflows",
+  "guard_roots": [
+    "tests/tooling/scripts/ci"
+  ],
+  "source_artifacts": {
+    "effective_loc": "core/local/artifacts/effective_loc_metric_current.json",
+    "churn_guard": "core/local/artifacts/churn_guard_current.json",
+    "guard_registry_ownership": "core/local/artifacts/guard_registry_ownership_current.json",
+    "ci_required_gate_reduction_plan": "validation/reports/ci_required_gate_reduction_plan_2026-05-10.json",
+    "ci_workflow_tier_manifest": "validation/conformance/contracts/ci_workflow_tier_manifest.json",
+    "command_registry": "tools/commands/command_registry.json",
+    "tooling_gate_registry": "tests/tooling/config/tooling_gate_registry.json"
+  },
   "policy": {
     "scorecard_is_observational_by_default": true,
+    "strict_guard_checks_schema_not_thresholds": true,
     "red_dimensions_require_next_actions": true,
     "scorecard_must_not_mutate_worktree": true,
-    "scorecard_must_not_read_shell_or_orchestration_internals": true
+    "scorecard_must_not_read_shell_or_orchestration_internals": true,
+    "loc_growth_uses_existing_effective_loc_artifact_when_available": true
   }
 }

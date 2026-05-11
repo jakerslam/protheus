@@ -299,17 +299,6 @@ fn is_relevance_stop_token(token: &str) -> bool {
             | "with"
             | "you"
             | "your"
-            | "current"
-            | "latest"
-            | "newest"
-            | "recent"
-            | "research"
-            | "source"
-            | "sources"
-            | "primary"
-            | "news"
-            | "summary"
-            | "summarize"
     )
 }
 
@@ -329,32 +318,6 @@ fn tokenize_relevance(raw: &str, cap: usize) -> HashSet<String> {
         }
     }
     out
-}
-
-fn query_has_temporal_relevance_marker(query: &str, query_tokens: &HashSet<String>) -> bool {
-    let lowered = clean_text(query, 600).to_ascii_lowercase();
-    query_tokens
-        .iter()
-        .any(|token| token.len() == 4 && token.chars().all(|ch| ch.is_ascii_digit()))
-        || [
-            "latest",
-            "current",
-            "newest",
-            "recent",
-            "today",
-            "this week",
-            "this month",
-            "as of",
-        ]
-        .iter()
-        .any(|marker| lowered.contains(marker))
-}
-
-fn query_requires_multi_term_evidence(query: &str, query_tokens: &HashSet<String>) -> bool {
-    if query_tokens.len() >= 3 {
-        return true;
-    }
-    query_tokens.len() >= 2 && query_has_temporal_relevance_marker(query, query_tokens)
 }
 
 fn looks_like_portal_noise_candidate(candidate: &Candidate) -> bool {
@@ -381,27 +344,6 @@ fn looks_like_portal_noise_candidate(candidate: &Candidate) -> bool {
     .any(|marker| lowered.contains(marker))
 }
 
-fn candidate_title_for_relevance(candidate: &Candidate) -> String {
-    if candidate
-        .title
-        .to_ascii_lowercase()
-        .starts_with("web result from ")
-    {
-        String::new()
-    } else {
-        candidate.title.clone()
-    }
-}
-
-fn candidate_relevance_text(candidate: &Candidate) -> String {
-    format!(
-        "{} {} {}",
-        candidate_title_for_relevance(candidate),
-        candidate.snippet,
-        candidate.locator
-    )
-}
-
 fn candidate_passes_relevance_gate(
     query: &str,
     candidate: &Candidate,
@@ -411,14 +353,22 @@ fn candidate_passes_relevance_gate(
     if query_tokens.is_empty() {
         return true;
     }
-    let candidate_relevance = candidate_relevance_text(candidate);
-    let candidate_tokens = tokenize_relevance(&candidate_relevance, 120);
+    let candidate_tokens = tokenize_relevance(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        120,
+    );
     if candidate_tokens.is_empty() {
         return false;
     }
     let overlap = query_tokens.intersection(&candidate_tokens).count();
     if is_framework_catalog_intent(query) && overlap == 0 {
-        let combined = candidate_relevance.clone();
+        let combined = format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        );
         let domain = candidate_domain_hint(candidate);
         if framework_name_hits(&combined) >= 1
             && looks_like_framework_overview_text(&combined)
@@ -428,9 +378,6 @@ fn candidate_passes_relevance_gate(
         }
     }
     if overlap == 0 {
-        return false;
-    }
-    if query_requires_multi_term_evidence(query, &query_tokens) && overlap < 2 {
         return false;
     }
     let overlap_ratio = overlap as f64 / query_tokens.len() as f64;

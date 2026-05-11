@@ -5,12 +5,16 @@ on:
   push:
     paths:
       - install.ps1
+      - install/modules/windows_wrappers.ps1
+      - install/modules/completion_card.ps1
       - .github/workflows/windows-locked-down-install-replay.yml
       - validation/release_gates/policies/windows_locked_down_install_replay_policy.json
       - tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts
   pull_request:
     paths:
       - install.ps1
+      - install/modules/windows_wrappers.ps1
+      - install/modules/completion_card.ps1
       - .github/workflows/windows-locked-down-install-replay.yml
       - validation/release_gates/policies/windows_locked_down_install_replay_policy.json
       - tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts
@@ -44,7 +48,106 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $lockedRoot = Join-Path $env:RUNNER_TEMP "infring-locked-down-replay"
+          $installDir = Join-Path $lockedRoot "bin"
+          $tmpDir = Join-Path $lockedRoot "tmp"
+          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+
           $tmp = Join-Path $env:TEMP "infring-install-replay.ps1"
           Copy-Item .\install.ps1 $tmp -Force
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full
+
+          $legacyShim = @'
+          param([Parameter(ValueFromRemainingArguments=$true)][string[]]$CommandArgs)
+          $target = Join-Path $PSScriptRoot "infring.cmd"
+          if (-not (Test-Path -LiteralPath $target)) {
+            throw "Missing command wrapper: $target"
+          }
+          & $target @CommandArgs
+          exit $LASTEXITCODE
+          '@
+          Set-Content -LiteralPath (Join-Path $installDir "infring.ps1") -Value $legacyShim -Encoding UTF8
+          Remove-Item -LiteralPath (Join-Path $installDir "infring.cmd") -Force -ErrorAction SilentlyContinue
+          $repairSeed = "repair_seed_missing_infring_cmd"
+
+          $lockedProbeOutput = & powershell.exe -NoProfile -ExecutionPolicy Restricted -Command "& '$tmp' -Repair -Full -InstallDir '$installDir' -TmpDir '$tmpDir'" 2>&1
+          $lockedProbeExit = $LASTEXITCODE
+          if ($lockedProbeExit -eq 0) {
+            throw "locked_down_policy_probe_failed: restricted execution unexpectedly ran downloaded installer"
+          }
+          $lockedDownAssertion = "locked_down_policy_probe_failed"
+
+          $env:INFRING_INSTALL_DIR = $installDir
+          $env:INFRING_TMP_DIR = $tmpDir
+          $env:PATH = "$installDir;$env:PATH"
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tmp -Repair -Full -InstallDir $installDir -TmpDir $tmpDir
+          if ($LASTEXITCODE -ne 0) {
+            throw "execution_policy_bypass_recovered: installer did not recover under bypass policy"
+          }
+          $bypassAssertion = "execution_policy_bypass_recovered"
+
+          $requiredWrappers = @(
+            "infring.cmd",
+            "infring.ps1",
+            "infringctl.cmd",
+            "infringctl.ps1",
+            "infringd.cmd",
+            "infringd.ps1"
+          )
+          foreach ($wrapper in $requiredWrappers) {
+            $wrapperPath = Join-Path $installDir $wrapper
+            if (-not (Test-Path -LiteralPath $wrapperPath)) {
+              throw "repair_recreated_infring_cmd: missing expected wrapper $wrapperPath"
+            }
+          }
+          $wrapperAssertion = "repair_recreated_infring_cmd"
+
+          $cmd = Get-Command infring -ErrorAction Stop
+          $expectedCmd = Join-Path $installDir "infring.cmd"
+          if ([System.IO.Path]::GetFullPath([string]$cmd.Source) -ne [System.IO.Path]::GetFullPath($expectedCmd)) {
+            throw "get_command_resolved_infring_cmd: Get-Command infring resolved to $($cmd.Source), expected $expectedCmd"
+          }
+          $commandAssertion = "get_command_resolved_infring_cmd"
+
+          $setupStatusOutput = & infring setup status --json 2>&1
+          $setupStatusExit = $LASTEXITCODE
+          if ($setupStatusExit -ne 0) {
+            throw "setup_status_invoked: infring setup status --json failed with exit $setupStatusExit"
+          }
+          if ([string]::IsNullOrWhiteSpace(($setupStatusOutput | Out-String))) {
+            throw "setup_status_invoked: infring setup status --json produced no output"
+          }
+          $setupAssertion = "setup_status_invoked"
+
+          $artifactDir = Join-Path $PWD "core/local/artifacts"
+          New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
+          $receiptPath = Join-Path $artifactDir "windows_locked_down_install_replay_current.json"
+          $receipt = [ordered]@{
+            type = "windows_locked_down_install_replay"
+            ok = $true
+            generated_at = (Get-Date).ToUniversalTime().ToString("o")
+            repair_seed = $repairSeed
+            install_dir = $installDir
+            locked_down_probe_exit = $lockedProbeExit
+            locked_down_probe_preview = (($lockedProbeOutput | Out-String).Trim() -replace "\s+", " ").Substring(0, [Math]::Min(400, (($lockedProbeOutput | Out-String).Trim() -replace "\s+", " ").Length))
+            command_source = [string]$cmd.Source
+            required_wrappers = $requiredWrappers
+            setup_status_exit = $setupStatusExit
+            setup_status_preview = (($setupStatusOutput | Out-String).Trim() -replace "\s+", " ").Substring(0, [Math]::Min(400, (($setupStatusOutput | Out-String).Trim() -replace "\s+", " ").Length))
+            assertions = @(
+              $lockedDownAssertion,
+              $bypassAssertion,
+              $wrapperAssertion,
+              $commandAssertion,
+              $setupAssertion
+            )
+          }
+          $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $receiptPath -Encoding UTF8
           Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+
+      - name: Upload locked-down replay receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-locked-down-install-replay
+          path: core/local/artifacts/windows_locked_down_install_replay_current.json

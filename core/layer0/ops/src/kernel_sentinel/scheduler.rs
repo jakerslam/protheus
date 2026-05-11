@@ -96,6 +96,14 @@ fn option_string(args: &[String], name: &str, fallback: &str) -> String {
         .unwrap_or_else(|| fallback.to_string())
 }
 
+fn trace_id_from_args(args: &[String], generated_at: &str, mode: SchedulerMode) -> String {
+    option_string(
+        args,
+        "--trace-id",
+        &format!("observability:{generated_at}:kernel-sentinel-{}", mode.mode_name()),
+    )
+}
+
 fn option_bool_default(args: &[String], name: &str, default: bool) -> bool {
     if has_option(args, name) {
         bool_flag(args, name)
@@ -797,6 +805,8 @@ fn build_scheduler_artifact(
     let command_mode = option_string_if_present(args, "--command-alias")
         .unwrap_or_else(|| mode.mode_name().to_string());
     let cadence = option_string(args, "--cadence", &command_mode);
+    let generated_at = crate::now_iso();
+    let trace_id = trace_id_from_args(args, &generated_at, mode);
     let auto_run_invoked = matches!(mode, SchedulerMode::Dream) && due;
     let next_due_epoch_secs = last_success_after
         .map(|last| last.saturating_add(interval_seconds as u64))
@@ -813,9 +823,11 @@ fn build_scheduler_artifact(
         } else {
             mode.artifact_type()
         },
+        "trace_id": trace_id,
+        "parent_span_id": null,
         "canonical_name": super::KERNEL_SENTINEL_NAME,
         "module_id": super::KERNEL_SENTINEL_MODULE_ID,
-        "generated_at": crate::now_iso(),
+        "generated_at": generated_at,
         "automatic": true,
         "scheduler": true,
         "mode": command_mode,
@@ -891,10 +903,14 @@ fn persist_schedule_state(
     stale: bool,
 ) -> Result<(), String> {
     let cadence = option_string(args, "--cadence", mode.default_cadence());
+    let generated_at = crate::now_iso();
+    let trace_id = trace_id_from_args(args, &generated_at, mode);
     let state = json!({
         "type": "kernel_sentinel_schedule_state",
+        "trace_id": trace_id,
+        "parent_span_id": null,
         "canonical_name": super::KERNEL_SENTINEL_NAME,
-        "generated_at": crate::now_iso(),
+        "generated_at": generated_at,
         "cadence": cadence,
         "mode": mode.mode_name(),
         "last_attempt_epoch_secs": now,

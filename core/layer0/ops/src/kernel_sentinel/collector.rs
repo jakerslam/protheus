@@ -19,6 +19,14 @@ const DEFAULT_MAX_FILES_PER_PRODUCER: usize = 200;
 const DEFAULT_STREAM_BYTE_BUDGET: usize = 8 * 1024 * 1024;
 const DEFAULT_KERNEL_RECEIPTS_BYTE_BUDGET: usize = 32 * 1024 * 1024;
 
+fn trace_id_from_args(args: &[String], generated_at: &str) -> String {
+    let prefix = "--trace-id=";
+    args.iter()
+        .find_map(|arg| arg.strip_prefix(prefix).map(str::to_string))
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| format!("observability:{generated_at}:kernel-sentinel-collector"))
+}
+
 struct ProducerSpec {
     id: &'static str,
     path: &'static str,
@@ -620,10 +628,14 @@ pub fn build_collector_report(root: &Path, args: &[String]) -> Result<Value, Str
             "compaction": compaction
         }));
     }
+    let generated_at = crate::now_iso();
+    let trace_id = trace_id_from_args(args, &generated_at);
     let mut report = json!({
         "ok": total_malformed == 0 && malformed_deterministic_guard_ok,
         "type": "kernel_sentinel_collector_run",
-        "generated_at": crate::now_iso(),
+        "trace_id": trace_id,
+        "parent_span_id": null,
+        "generated_at": generated_at,
         "evidence_dir": evidence_dir,
         "max_files_per_producer": max_files,
         "records_read": total_read,

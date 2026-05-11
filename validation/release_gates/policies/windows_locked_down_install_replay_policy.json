@@ -19,6 +19,23 @@
     "Repair",
     "Full"
   ],
+  "required_workflow_tokens": [
+    "powershell.exe -NoProfile -ExecutionPolicy Restricted",
+    "powershell.exe -NoProfile -ExecutionPolicy Bypass -File",
+    "repair_seed_missing_infring_cmd",
+    "requiredWrappers",
+    "Get-Command infring",
+    "infring setup status --json",
+    "windows_locked_down_install_replay_current.json"
+  ],
+  "required_replay_receipt": "core/local/artifacts/windows_locked_down_install_replay_current.json",
+  "required_replay_assertions": [
+    "locked_down_policy_probe_failed",
+    "execution_policy_bypass_recovered",
+    "repair_recreated_infring_cmd",
+    "get_command_resolved_infring_cmd",
+    "setup_status_invoked"
+  ],
   "policy": {
     "release_requires_locked_down_windows_replay": true,
     "installer_must_not_depend_on_parent_session_execution_policy": true

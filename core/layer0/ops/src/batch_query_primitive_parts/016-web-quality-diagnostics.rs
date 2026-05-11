@@ -1,8 +1,5 @@
 fn current_web_intent(query: &str) -> bool {
     let lowered = clean_text(query, 600).to_ascii_lowercase();
-    if lowered.contains(&current_year()) {
-        return true;
-    }
     [
         "latest",
         "current",
@@ -12,6 +9,8 @@ fn current_web_intent(query: &str) -> bool {
         "as of",
         "recent",
         "newest",
+        "april 2026",
+        "may 2026",
     ]
     .iter()
     .any(|marker| lowered.contains(marker))
@@ -166,68 +165,6 @@ fn select_diverse_ranked_candidates(
     selected
 }
 
-fn evidence_pack_enabled(policy: &Value) -> bool {
-    policy
-        .pointer("/batch_query/evidence_pack/enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(true)
-}
-
-fn evidence_pack_max_items(policy: &Value, max_evidence: usize) -> usize {
-    if !evidence_pack_enabled(policy) {
-        return 0;
-    }
-    policy
-        .pointer("/batch_query/evidence_pack/max_items")
-        .and_then(Value::as_u64)
-        .map(|value| value as usize)
-        .unwrap_or(max_evidence)
-        .clamp(1, max_evidence.max(1))
-}
-
-fn evidence_pack_max_snippet_words(policy: &Value) -> usize {
-    policy
-        .pointer("/batch_query/evidence_pack/max_snippet_words")
-        .and_then(Value::as_u64)
-        .map(|value| value as usize)
-        .unwrap_or(72)
-        .clamp(16, 160)
-}
-
-fn evidence_pack_from_ranked_candidates(
-    policy: &Value,
-    actionable_ranked: &[(Candidate, f64)],
-    max_evidence: usize,
-) -> Value {
-    let max_items = evidence_pack_max_items(policy, max_evidence);
-    if max_items == 0 {
-        return json!([]);
-    }
-    let max_snippet_words = evidence_pack_max_snippet_words(policy);
-    Value::Array(
-        actionable_ranked
-            .iter()
-            .take(max_items)
-            .map(|(candidate, score)| {
-                let domain = candidate_domain_hint(candidate);
-                json!({
-                    "source_kind": candidate.source_kind.clone(),
-                    "title": clean_text(&candidate.title, 240),
-                    "locator": clean_text(&candidate.locator, 2_200),
-                    "source_scope": domain,
-                    "snippet": trim_words(&clean_text(&candidate.snippet, 1_800), max_snippet_words),
-                    "excerpt_hash": candidate.excerpt_hash.clone(),
-                    "score": (*score * 100.0).round() / 100.0,
-                    "timestamp": candidate.timestamp.clone(),
-                    "permissions": candidate.permissions.clone(),
-                    "content_authority": "retrieved_public_web",
-                    "visibility": "synthesis_context"
-                })
-            })
-            .collect::<Vec<_>>(),
-    )
-}
-
 fn fallback_link_score(query: &str, link: &str) -> f64 {
     let cleaned = clean_text(link, 2_200);
     let lowered = cleaned.to_ascii_lowercase();
@@ -270,19 +207,14 @@ fn fallback_link_score(query: &str, link: &str) -> f64 {
     score
 }
 
-fn ranked_payload_links_for_fallback_with_min_score(
-    query: &str,
-    payload: &Value,
-    max_links: usize,
-    min_score: f64,
-) -> Vec<String> {
+fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
     let mut ranked = non_search_engine_links(payload, max_links.saturating_mul(4).max(max_links))
         .into_iter()
         .map(|link| {
             let score = fallback_link_score(query, &link);
             (link, score)
         })
-        .filter(|(_, score)| *score > -1.0 && *score >= min_score)
+        .filter(|(_, score)| *score > -1.0)
         .collect::<Vec<_>>();
     ranked.sort_by(|a, b| {
         b.1.partial_cmp(&a.1)
@@ -294,10 +226,6 @@ fn ranked_payload_links_for_fallback_with_min_score(
         .take(max_links.max(1))
         .map(|(link, _)| link)
         .collect::<Vec<_>>()
-}
-
-fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
-    ranked_payload_links_for_fallback_with_min_score(query, payload, max_links, -1.0)
 }
 
 fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
@@ -328,11 +256,6 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
         }
         if lowered.contains("query_result_mismatch") {
             flags.push("query_result_mismatch".to_string());
-        }
-        if lowered.contains("comparison_entity_coverage_gap")
-            || lowered.contains("source coverage to compare")
-        {
-            flags.push("comparison_evidence_insufficient".to_string());
         }
     }
     flags.sort();
@@ -487,24 +410,15 @@ fn web_tool_quality_report(
             "reason": retry_reason,
             "input_contract": {
                 "authority": "agent_submitted",
-                "input_kind": "query_or_query_pack",
+                "input_kind": "text",
                 "required_fields": ["query"],
-                "optional_fields": ["queries", "source_url"],
+                "optional_fields": ["source_url"],
                 "hidden_query_expansion": false
             },
-            "query_strategy_hints": [
-                "preserve the user's original research objective",
-                "split broad requests into entity-specific or aspect-specific searches",
-                "target primary, official, source-backed, or directly citable pages when possible",
-                "use partial snippets, failure reasons, and off-topic signals to remove weak terms",
-                "for current or recent research, prefer current/recent source-class searches such as changelog, release notes, repository, publication, announcement, security advisory, or methodology over broad stale year ranges",
-                "for one named entity, keep the exact entity name in every retry query and vary source class or decision aspect rather than replacing it with loose synonyms",
-                "prefer another agent-submitted query pack before asking the user to narrow"
-            ],
             "next_action": if retry_reason == "none" {
                 "synthesize_from_evidence"
             } else {
-                "agent_refine_query_pack_and_retry_if_budget_remains"
+                "ask_agent_for_narrower_query_or_specific_source_url"
             }
         }
     })
@@ -544,8 +458,7 @@ fn cached_web_tool_quality_report(
         }
         report["retry"]["recommended"] = json!(true);
         report["retry"]["reason"] = json!("weak_single_source");
-        report["retry"]["next_action"] =
-            json!("agent_refine_query_pack_and_retry_if_budget_remains");
+        report["retry"]["next_action"] = json!("ask_agent_for_narrower_query_or_specific_source_url");
     }
     report
 }

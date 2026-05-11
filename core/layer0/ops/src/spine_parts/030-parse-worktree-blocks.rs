@@ -338,21 +338,6 @@ fn execute_sleep_cleanup_with_mode(
         }
     }
 
-    let batch_query_cache_cleanup = if apply {
-        let cleanup = crate::batch_query_primitive::cleanup_cache(root);
-        if !cleanup.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-            errors.push("batch_query_cache_cleanup_failed".to_string());
-        }
-        cleanup
-    } else {
-        json!({
-            "ok": true,
-            "type": "batch_query_cache_cleanup",
-            "applied": false,
-            "reason": "sleep_cleanup_plan_only"
-        })
-    };
-
     let (available_after_bytes, total_after_bytes, free_after_percent) = if apply {
         disk_free_snapshot(root)
             .map(|(available, total, free, _)| (available, total, free))
@@ -442,7 +427,6 @@ fn execute_sleep_cleanup_with_mode(
             "pressure_bytes": pressure_reclaimed_bytes
         },
         "pressure_actions": pressure_applied,
-        "batch_query_cache_cleanup": batch_query_cache_cleanup,
         "errors": errors
     });
 

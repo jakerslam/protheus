@@ -137,7 +137,12 @@ async function run(argv = process.argv.slice(2)) {
   if (args.includeControlledViolation) {
     violations.push({ kind: 'controlled_release_bridge_repair_lane_violation', path: args.contractPath, detail: 'Controlled failure proves strict mode rejects incomplete release bridge repair lanes.' });
   }
+  const traceId = `observability:${new Date().toISOString()}:kernel-sentinel-release-bridge-repair-lane`;
   const payload = {
+    trace_id: traceId,
+    span_id: `span:${traceId}`,
+    parent_span_id: contract.trace_id || null,
+    source_domain: 'observability',
     ok: violations.length === 0,
     type: 'kernel_sentinel_release_bridge_repair_lane_guard',
     generated_at: new Date().toISOString(),

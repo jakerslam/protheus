@@ -72,25 +72,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 })
             }
         };
-    let query_plan = resolve_query_plan(&policy, request, &query, budget);
-    let search_scope = batch_query_search_scope(request);
-    let search_scope_value = search_scope.to_value();
-    let cache_control = batch_query_cache_control(&policy, request);
-    let cache_key_primary = cache_key_with_query_plan_and_scope(
-        &source,
-        &query,
-        &aperture,
-        &policy,
-        &query_plan.queries,
-        &search_scope,
-    );
+    let query_plan = resolve_query_plan(request, &query, budget);
+    let cache_key_primary =
+        cache_key_with_query_plan(&source, &query, &aperture, &policy, &query_plan.queries);
     let legacy_cache_key = cache_key(&source, &query, &aperture, &policy);
-    let (cached_response, cache_lookup_key) = if let Some(cached) =
-        load_cached_response(root, &cache_key_primary, &cache_control)
-    {
+    let (cached_response, cache_lookup_key) = if let Some(cached) = load_cached_response(root, &cache_key_primary) {
         (Some(cached), cache_key_primary.clone())
-    } else if search_scope.is_empty() && cache_key_primary != legacy_cache_key {
-        if let Some(cached) = load_cached_response(root, &legacy_cache_key, &cache_control) {
+    } else if cache_key_primary != legacy_cache_key {
+        if let Some(cached) = load_cached_response(root, &legacy_cache_key) {
             (Some(cached), legacy_cache_key.clone())
         } else {
             (None, cache_key_primary.clone())
@@ -132,13 +121,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .map(Value::Array)
             .unwrap_or_else(|| json!([]));
         let search_results = cached.get("search_results").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
-        let evidence_pack = cached.get("evidence_pack").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
-        let (provider_results_rows, provider_result_dedup_count) = dedup_provider_results(cached
+        let provider_results = cached
             .get("provider_results")
             .and_then(Value::as_array)
             .cloned()
-            .unwrap_or_default());
-        let provider_results = Value::Array(provider_results_rows);
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
         let rewrite_set = cached
             .get("rewrite_set")
             .and_then(Value::as_array)
@@ -192,7 +180,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .and_then(Value::as_bool)
             .unwrap_or(false);
         let provider_snapshot = json!({
-            "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_lookup_key, "search_scope": search_scope_value.clone()})),
+            "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_lookup_key})),
             "source": source,
             "adapter_version": "web_conduit_v1",
             "disposable": true
@@ -212,20 +200,15 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 "authority": "agent_submitted",
                 "query_used": query,
                 "hidden_query_expansion": false,
-                "query_plan_source": query_plan_source,
-                "search_scope": search_scope_value.clone()
+                "query_plan_source": query_plan_source
             },
             "adapter_version": "web_conduit_v1",
             "provider_snapshot": provider_snapshot,
             "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
             "candidate_count": 0,
             "dedup_count": 0,
-            "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
-            "provider_result_dedup_count": provider_result_dedup_count,
             "evidence_count": evidence_refs.as_array().map(|rows| rows.len()).unwrap_or(0),
-            "evidence_pack_count": evidence_pack.as_array().map(|rows| rows.len()).unwrap_or(0),
             "cache_status": "hit",
-            "cache_mode": cache_control.mode.as_str(),
             "latency_ms": started.elapsed().as_millis() as u64,
             "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
             "parallel_retrieval_used": parallel_retrieval_used,
@@ -263,20 +246,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 "authority": "agent_submitted",
                 "query_used": query,
                 "hidden_query_expansion": false,
-                "query_plan_source": query_plan_source,
-                "search_scope": search_scope_value.clone()
+                "query_plan_source": query_plan_source
             },
             "partial_failure_details": partial_failure_details,
             "tool_result_quality": tool_result_quality,
-            "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
-            "provider_result_dedup_count": provider_result_dedup_count,
-            "cache_status": "hit",
-            "cache_mode": cache_control.mode.as_str()
+            "cache_status": "hit"
         });
         if search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = search_results; }
-        if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
-            out["evidence_pack"] = evidence_pack;
-        }
         if provider_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
             out["provider_results"] = provider_results;
         }
@@ -313,17 +289,10 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 let tx_clone = tx.clone();
                 let query_item = q.clone();
                 let root_buf = root.to_path_buf();
-                let policy_buf = policy.clone();
-                let search_scope_buf = search_scope.clone();
                 let spawned = thread::Builder::new()
                     .name(format!("batch-query-{local_idx}"))
                     .spawn(move || {
-                        let out = retrieve_web_candidates_for_query(
-                            &root_buf,
-                            &query_item,
-                            &policy_buf,
-                            &search_scope_buf,
-                        );
+                        let out = retrieve_web_candidates_for_query(&root_buf, &query_item);
                         let _ = tx_clone.send((local_idx, query_item, out));
                     });
                 if spawned.is_err() {
@@ -392,13 +361,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     } else {
         for q in &queries {
-            let (mut rows, issues, artifacts) = retrieve_web_candidates_for_query_with_timeout(
-                root,
-                q,
-                &policy,
-                &search_scope,
-                query_timeout,
-            );
+            let (mut rows, issues, artifacts) =
+                retrieve_web_candidates_for_query_with_timeout(root, q, query_timeout);
             provider_results.extend(artifacts);
             let transport_only_issue = rows.is_empty()
                 && issues.iter().all(|issue| {
@@ -440,7 +404,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     });
     candidates.truncate(budget.max_candidates);
-    let (provider_results, provider_result_dedup_count) = dedup_provider_results(provider_results);
 
     let rerank_query = query_plan.rerank_query.clone();
     let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
@@ -485,17 +448,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             &comparison_entities,
             &actionable_ranked,
             &retained_ranked,
-            &provider_results,
             budget.max_evidence,
         );
-    let comparison_coverage_gap = comparison_guard_summary.is_some();
-    if let Some(summary) = comparison_guard_summary.as_ref() {
-        if !actionable_ranked.is_empty() {
-            partial_failures.push(format!(
-                "comparison_entity_coverage_gap:{}",
-                clean_text(summary, 320)
-            ));
-        }
+    if comparison_guard_summary.is_some() {
         actionable_ranked.clear();
     }
 
@@ -511,8 +466,6 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             permissions: row.permissions.clone(),
         })
         .collect::<Vec<_>>();
-    let evidence_pack =
-        evidence_pack_from_ranked_candidates(&policy, &actionable_ranked, budget.max_evidence);
 
     let hard_partial_failures = partial_failures
         .iter()
@@ -574,9 +527,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                     || comparison_haystack.contains("faster")
                     || comparison_haystack.contains("slower");
                 let benchmark_quality_ok = looks_like_metric_rich_text(&snippet_raw)
-                    || (comparison_entities.len() >= 2
-                        && entity_hits >= 1
-                        && (comparative_copy || comparison_coverage_gap));
+                    || (comparison_entities.len() >= 2 && entity_hits >= 1 && comparative_copy);
                 if !benchmark_quality_ok {
                     continue;
                 }
@@ -653,12 +604,11 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let tool_result_quality = web_tool_quality_report(&query, status, before_dedup, evidence_refs.len(), &partial_failures, &hard_partial_failures, &actionable_ranked);
 
     let provider_snapshot = json!({
-        "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": queries, "search_scope": search_scope_value.clone()})),
+        "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": queries})),
         "source": source,
         "adapter_version": "web_conduit_v1",
         "disposable": true
     });
-    let fresh_cache_status = cache_control.fresh_status();
     let receipt = json!({
         "type": "batch_query_receipt",
         "ts": crate::now_iso(),
@@ -674,20 +624,15 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "authority": "agent_submitted",
             "query_used": query,
             "hidden_query_expansion": false,
-            "query_plan_source": query_plan.query_plan_source,
-            "search_scope": search_scope_value.clone()
+            "query_plan_source": query_plan.query_plan_source
         },
         "adapter_version": "web_conduit_v1",
         "provider_snapshot": provider_snapshot,
         "snapshot_id": provider_snapshot.get("id").cloned().unwrap_or(Value::Null),
         "candidate_count": before_dedup,
         "dedup_count": before_dedup.saturating_sub(candidates.len()),
-        "provider_result_count": provider_results.len(),
-        "provider_result_dedup_count": provider_result_dedup_count,
         "evidence_count": evidence_refs.len(),
-        "evidence_pack_count": evidence_pack.as_array().map(|rows| rows.len()).unwrap_or(0),
-        "cache_status": fresh_cache_status,
-        "cache_mode": cache_control.mode.as_str(),
+        "cache_status": "miss",
         "latency_ms": started.elapsed().as_millis() as u64,
         "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
         "parallel_retrieval_used": parallel_allowed,
@@ -720,20 +665,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "authority": "agent_submitted",
             "query_used": query,
             "hidden_query_expansion": false,
-            "query_plan_source": query_plan.query_plan_source,
-            "search_scope": search_scope_value.clone()
+            "query_plan_source": query_plan.query_plan_source
         },
         "partial_failure_details": hard_partial_failures.clone(),
         "tool_result_quality": tool_result_quality.clone(),
-        "provider_result_count": provider_results.len(),
-        "provider_result_dedup_count": provider_result_dedup_count,
-        "cache_status": fresh_cache_status,
-        "cache_mode": cache_control.mode.as_str()
+        "cache_status": "miss"
     });
     if comparison_guard_search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = comparison_guard_search_results.clone(); }
-    if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
-        out["evidence_pack"] = evidence_pack.clone();
-    }
     if !provider_results.is_empty() {
         out["provider_results"] = Value::Array(provider_results.clone());
     }
@@ -744,19 +682,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "status": status,
             "summary": summary,
             "evidence_refs": evidence_refs,
-            "evidence_pack": evidence_pack,
             "search_results": comparison_guard_search_results,
             "provider_results": provider_results,
             "rewrite_set": rewrite_set,
             "query_plan": queries,
             "query_plan_source": query_plan.query_plan_source,
-            "search_scope": search_scope_value,
             "partial_failure_details": hard_partial_failures,
             "tool_result_quality": tool_result_quality,
             "parallel_retrieval_used": parallel_allowed
         }),
         status,
-        &cache_control,
     );
     if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
     if let Some(meta) = nexus_connection {
