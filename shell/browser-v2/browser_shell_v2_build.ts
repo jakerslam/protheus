@@ -8,6 +8,8 @@ const OUT_DIR = 'core/local/artifacts/browser_shell_v2_app';
 const COMPONENT_PATH = 'shell/browser-v2/BrowserShellV2.svelte';
 const CSS_PATH = 'shell/browser-v2/browser_shell_v2.css';
 const LEGACY_CSS_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'css'].join('/');
+const LEGACY_STATIC_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static'].join('/');
+const LEGACY_BOTTOM_DOCK_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'bottom_dock_shell.bundle.ts'].join('/');
 const LEGACY_CSS_PATHS = [
   'theme.css',
   ...fs.readdirSync(path.resolve(process.cwd(), LEGACY_CSS_DIR, 'layout.css.parts')).sort().map((name) => `layout.css.parts/${name}`),
@@ -43,10 +45,17 @@ function legacySurfaceCss(): string {
     .join('');
 }
 
+function legacyDockIconDefs(): string {
+  const bodyPart = fs.readFileSync(path.resolve(process.cwd(), LEGACY_STATIC_DIR, 'index_body.html.parts/0001-body-part.part03.html'), 'utf8');
+  return bodyPart.split('<infring-bottom-dock-shell')[0] || '';
+}
+
 function browserRuntimeSource(): string {
   return `const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:5173';
 const MESSAGE_WINDOW_LIMIT = 40;
 const EVENT_POLL_INTERVAL_MS = 5000;
+const DOCK_ICON_DEFS = ${JSON.stringify(legacyDockIconDefs())};
+const DOCK_ICON_DEFS_MARKER = 'dock-icon-defs';
 
 function clean(value, max = 1000) {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -58,14 +67,21 @@ function gatewayBaseUrl() {
 }
 
 async function socketRequest(capability, path, options = {}) {
-  const response = await fetch(gatewayBaseUrl() + path, {
+  const requestInit = {
     method: options.method || 'GET',
     headers: {
       accept: 'application/json',
       ...(options.body ? { 'content-type': 'application/json' } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  };
+  let response;
+  try {
+    response = await fetch(gatewayBaseUrl() + path, requestInit);
+  } catch (error) {
+    if (!gatewayBaseUrl()) throw error;
+    response = await fetch(path, requestInit);
+  }
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
   if (!response.ok) throw new Error('browser_shell_v2_socket_request_failed:' + capability + ':' + response.status);
@@ -202,6 +218,92 @@ function escapeHtml(value) {
   return clean(value, 12000).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 
+const dockTileRegistry = {
+  chat: { icon: 'messages', tone: 'message', tooltip: 'Messages', label: 'Messages' },
+  overview: { icon: 'home', tone: 'bright', tooltip: 'Home', label: 'Home' },
+  agents: { icon: 'agents', tone: 'bright', tooltip: 'Agents', label: 'Agents' },
+  scheduler: { icon: 'automation', tone: 'muted', tooltip: 'Automation', label: 'Automation', animation: ['automation-gears', 1200] },
+  skills: { icon: 'apps', tone: 'default', tooltip: 'Apps', label: 'Apps' },
+  runtime: { icon: 'system', tone: 'bright', tooltip: 'System', label: 'System', animation: ['system-terminal', 2000] },
+  settings: { icon: 'settings', tone: 'muted', tooltip: 'Settings', label: 'Settings', animation: ['spin', 4000] },
+};
+const browserShellV2DisplayState = {
+  page: 'chat',
+  bottomDockOrder: Object.keys(dockTileRegistry),
+  bottomDockHoverId: '',
+  bottomDockClickAnimatingId: '',
+};
+
+function installDisplayOnlyShellServices() {
+  const services = window.InfringSharedShellServices || {};
+  const orderIndex = (id) => Math.max(0, browserShellV2DisplayState.bottomDockOrder.indexOf(id));
+  services.appStore = {
+    root: () => browserShellV2DisplayState,
+    current: () => browserShellV2DisplayState,
+    set: (key, value) => { browserShellV2DisplayState[key] = value; },
+    method: (name) => {
+      const methods = {
+        normalizeBottomDockOrder: (order) => {
+          const defaults = Object.keys(dockTileRegistry);
+          const seen = new Set();
+          return (Array.isArray(order) ? order : []).concat(defaults)
+            .map((id) => clean(id, 80))
+            .filter((id) => dockTileRegistry[id] && !seen.has(id) && seen.add(id));
+        },
+        bottomDockTileData: (id, field, fallback) => (dockTileRegistry[id] && dockTileRegistry[id][field]) || fallback || '',
+        bottomDockActiveSide: () => 'bottom',
+        bottomDockOpenSide: () => 'top',
+        bottomDockWallLockNormalized: () => '',
+        bottomDockTaskbarContained: () => false,
+        bottomDockHoverExpansionDisabled: () => false,
+        bottomDockContainerStyle: () => '',
+        bottomDockSlotStyle: (id) => {
+          const hoverIndex = orderIndex(browserShellV2DisplayState.bottomDockHoverId);
+          const index = orderIndex(id);
+          const distance = browserShellV2DisplayState.bottomDockHoverId ? Math.abs(index - hoverIndex) : 99;
+          const weight = distance === 0 ? 1 : distance === 1 ? 0.62 : distance === 2 ? 0.34 : 0;
+          return 'order:' + index + ';--bottom-dock-hover-weight:' + weight.toFixed(4);
+        },
+        bottomDockTileStyle: () => '',
+        bottomDockIsNeighbor: (id) => {
+          if (!browserShellV2DisplayState.bottomDockHoverId) return false;
+          return Math.abs(orderIndex(id) - orderIndex(browserShellV2DisplayState.bottomDockHoverId)) === 1;
+        },
+        bottomDockIsSecondNeighbor: (id) => {
+          if (!browserShellV2DisplayState.bottomDockHoverId) return false;
+          return Math.abs(orderIndex(id) - orderIndex(browserShellV2DisplayState.bottomDockHoverId)) === 2;
+        },
+        bottomDockIsDraggingVisual: () => false,
+        bottomDockIsClickAnimating: (id) => browserShellV2DisplayState.bottomDockClickAnimatingId === id,
+        bottomDockTileAnimationName: (id) => (dockTileRegistry[id]?.animation || [])[0] || '',
+        bottomDockTileAnimationDurationAttr: (id) => String((dockTileRegistry[id]?.animation || [])[1] || ''),
+        appsIconBottomRowFill: (index) => ['#22c55e', '#06b6d4', '#f97316'][Number(index) || 0] || '#22c55e',
+        setBottomDockHover: (id) => { browserShellV2DisplayState.bottomDockHoverId = clean(id, 80); },
+        clearBottomDockHover: (id) => {
+          if (!id || browserShellV2DisplayState.bottomDockHoverId === id) browserShellV2DisplayState.bottomDockHoverId = '';
+        },
+        updateBottomDockPointer: () => {},
+        startBottomDockContainerPointerDrag: () => {},
+        startBottomDockPointerDrag: () => {},
+        handleBottomDockTileClick: (id) => {
+          browserShellV2DisplayState.page = clean(id, 80) || 'chat';
+          browserShellV2DisplayState.bottomDockClickAnimatingId = clean(id, 80);
+          window.setTimeout(() => {
+            if (browserShellV2DisplayState.bottomDockClickAnimatingId === id) browserShellV2DisplayState.bottomDockClickAnimatingId = '';
+          }, 900);
+        },
+        showDashboardPopup: () => {},
+        hideDashboardPopup: () => {},
+        hideDashboardPopupBySource: () => {},
+      };
+      return methods[name] || null;
+    },
+  };
+  window.InfringSharedShellServices = services;
+}
+
+installDisplayOnlyShellServices();
+
 let selectedAgentId = '';
 let selectedSessionId = '';
 let agentRows = [];
@@ -238,10 +340,12 @@ function render(state) {
   const selectedAgentLabel = selectedAgentId || 'No agent selected';
   const runtimeBadge = clean(state.runtimeState || 'unknown', 80);
   root.innerHTML = \`
-    <div class="app-layout" data-shell-plug="browser-v2" aria-label="Browser Shell V2">
-      <aside class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic" aria-label="Legacy dashboard conversation rail">
+    <div class="app-layout" data-shell-plug="browser-v2" data-event-cursor="\${escapeHtml(eventCursor)}" data-receipt-ref="\${escapeHtml(issueReceiptRef || approvalReceiptRef || modelReceiptRef || gitTreeReceiptRef)}" aria-label="Browser Shell V2">
+      <div class="main-pointer-fx-layer" aria-hidden="true"></div>
+      <infring-sidebar-rail-shell class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic" dragbarsurface="chat-sidebar" parentownedmechanics="true" aria-label="Legacy dashboard conversation rail">
         <div class="sidebar-nav-shell">
           <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
+            <div class="sidebar-top-ghost" aria-hidden="true"></div>
             <div class="nav-section" aria-label="Agent conversations">
               <a class="nav-item sidebar-tab-item active" aria-current="page">
                 <span class="nav-icon">
@@ -267,6 +371,7 @@ function render(state) {
                   </button>
                 </div>
               </div>
+              <infring-sidebar-agent-list-shell>
               <div class="chat-sidebar-list" aria-label="Agent selector">
                 \${agentRows.map((agent) => \`
                   <button type="button" data-agent-id="\${escapeHtml(agent.id)}" class="chat-sidebar-item \${agent.id === selectedAgentId ? 'active' : ''}" \${state.disabled ? 'disabled' : ''}>
@@ -278,10 +383,59 @@ function render(state) {
                   </button>
                 \`).join('')}
               </div>
+              </infring-sidebar-agent-list-shell>
+              <div class="chat-sidebar-list" aria-label="Session selector">
+                \${sessionRows.map((session) => \`
+                  <button type="button" data-session-id="\${escapeHtml(session.id)}" class="chat-sidebar-item \${session.id === selectedSessionId ? 'active' : ''}" \${state.disabled ? 'disabled' : ''}>
+                    <span class="chat-sidebar-item-avatar agent-mark infring-logo"><span class="infring-logo-glyph">S</span></span>
+                    <span class="chat-sidebar-item-main">
+                      <span class="chat-sidebar-item-name">\${escapeHtml(session.label || session.id)}</span>
+                      <span class="chat-sidebar-item-preview">\${escapeHtml(session.message_count ? String(session.message_count) + ' messages' : 'Window projection')}</span>
+                    </span>
+                  </button>
+                \`).join('')}
+              </div>
+              <a class="nav-item sidebar-tab-item" aria-current="false">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                <span class="nav-label">Agents</span>
+              </a>
+            </div>
+            <div class="nav-section sidebar-tab-section" aria-label="Automation">
+              <a class="nav-item sidebar-tab-item" aria-current="false">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+                <span class="nav-label">Automation</span>
+              </a>
+            </div>
+            <div class="nav-section sidebar-tab-section" aria-label="Apps">
+              <a class="nav-item sidebar-tab-item" aria-current="false">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></span>
+                <span class="nav-label">Apps</span>
+              </a>
+            </div>
+            <div class="nav-section sidebar-tab-section" aria-label="System">
+              <a class="nav-item sidebar-tab-item" aria-current="false">
+                <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+                <span class="nav-label">System</span>
+              </a>
             </div>
           </div>
         </div>
-      </aside>
+        <button
+          class="overlay-pulltab-object sidebar-pulltab drag-bar drag-bar-pulltab overlay-shared-surface pulltab-border-top-active pulltab-border-right-active pulltab-border-bottom-active pulltab-border-left-inactive"
+          data-dragbar-pulltab="chat-sidebar"
+          type="button"
+          aria-label="Toggle sidebar"
+        >
+          <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-top-left" aria-hidden="true"></span>
+          <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-top-right" aria-hidden="true"></span>
+          <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-bottom-left" aria-hidden="true"></span>
+          <span class="overlay-pulltab-object-joint sidebar-pulltab-joint sidebar-pulltab-joint-bottom-right" aria-hidden="true"></span>
+          <svg class="overlay-pulltab-object-icon sidebar-pulltab-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 6-6 6 6 6"></path>
+          </svg>
+        </button>
+      </infring-sidebar-rail-shell>
+      <div class="sidebar-overlay"></div>
       <main class="main-content" aria-label="Legacy dashboard main surface">
         <div class="global-taskbar is-docked-top" data-shell-primitive="taskbar-dock">
           <div class="global-taskbar-left">
@@ -309,26 +463,69 @@ function render(state) {
             </div>
           </div>
           <div class="global-taskbar-right">
+            <infring-taskbar-system-items-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-system-items" parentownedmechanics="true">
             <div class="taskbar-visual-group taskbar-visual-group-right" aria-label="System taskbar items">
-              <div class="taskbar-agent-indicator">
-                <span class="taskbar-agent-indicator-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle></svg></span>
-                <span class="taskbar-agent-indicator-text">\${escapeHtml(runtimeBadge)}</span>
+              <div class="taskbar-reorder-box taskbar-reorder-box-right">
+                <div class="taskbar-reorder-item" data-taskbar-item="connectivity">
+                  <div class="global-taskbar-controls">
+                    <button class="health-indicator taskbar-agent-indicator \${state.runtimeState === 'connected' ? 'health-ok' : 'health-connecting'}" type="button" aria-label="Open agents" title="\${escapeHtml(state.runtimeLabel)}">
+                      <span class="taskbar-agent-indicator-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+                      <span class="taskbar-agent-indicator-text">\${escapeHtml(runtimeBadge)}</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="taskbar-reorder-item" data-taskbar-item="theme">
+                  <div class="theme-switcher toggle-pill" data-mode="system" data-resolved="light" role="group" aria-label="Theme">
+                    <button class="theme-opt" type="button" title="Light" aria-label="Light theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></button>
+                    <button class="theme-opt active" type="button" title="System" aria-label="System theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg></button>
+                    <button class="theme-opt" type="button" title="Dark" aria-label="Dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3c0 0 0 0 0 0A7 7 0 0 0 21 12.79z"></path></svg></button>
+                  </div>
+                </div>
+                <div class="taskbar-reorder-item" data-taskbar-item="notifications">
+                  <div id="taskbar-notification-menu-anchor" class="notif-wrap">
+                    <button class="btn btn-ghost btn-sm taskbar-icon-btn notif-btn" type="button" title="Notifications" aria-label="Notifications">
+                      <svg class="notif-bell-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path><path d="M9 17a3 3 0 0 0 6 0"></path></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="taskbar-reorder-item" data-taskbar-item="search">
+                  <button class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-search-btn" type="button" aria-label="Search" aria-disabled="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="m20 20-3.7-3.7"></path></svg></button>
+                </div>
+                <div class="taskbar-reorder-item" data-taskbar-item="auth">
+                  <button class="btn btn-ghost btn-sm taskbar-icon-btn auth-key-btn" type="button" aria-label="Authentication"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path><circle cx="12" cy="16" r="1"></circle></svg></button>
+                </div>
+                <div class="taskbar-reorder-item" data-taskbar-item="clock">
+                  <span class="taskbar-clock" aria-label="Clock">\${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
               </div>
-              <button class="btn btn-ghost btn-sm taskbar-icon-btn" type="button" aria-label="Theme">◐</button>
-              <span class="conn-badge">\${escapeHtml(state.runtimeLabel)}</span>
             </div>
+            </infring-taskbar-system-items-shell>
           </div>
         </div>
         <div class="chat-wrapper">
+          <infring-chat-header-shell>
           <div class="chat-thread-topline">
-            <button class="chat-thread-profile chat-thread-profile-disabled" type="button" aria-label="Current agent">
-              <span class="chat-thread-profile-avatar agent-mark infring-logo"><span class="infring-logo-glyph">&infin;</span></span>
-              <span class="chat-thread-profile-copy">
-                <span class="chat-thread-profile-name">\${escapeHtml(selectedAgentLabel)}</span>
-                <span class="chat-thread-profile-subtitle">\${escapeHtml(selectedSessionId || 'No session selected')}</span>
-              </span>
-            </button>
+            <div class="chat-thread-profile-center">
+              <div class="chat-thread-profile warped-glass chat-thread-profile-disabled" role="button" tabindex="-1" title="Agent details">
+                <div class="chat-thread-profile-avatar">
+                  <span class="infring-logo infring-logo--agent-default" aria-hidden="true"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span>
+                </div>
+                <div class="chat-thread-profile-info-pill">
+                  <div class="chat-thread-profile-meta">
+                    <span class="agent-status-dot chat-title-status-dot \${state.runtimeState === 'connected' ? 'status-connected' : ''}" aria-hidden="true"></span>
+                    <div class="chat-thread-profile-name">\${escapeHtml(selectedAgentLabel)}</div>
+                  </div>
+                  <div class="chat-thread-heart-meter" title="\${escapeHtml(selectedSessionId || 'No session selected')}">
+                    <span class="chat-thread-heart" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.2-9-8.4C1.5 9.5 3.3 6 6.4 6c2.2 0 3.4 1.2 3.9 2.1.5-.9 1.7-2.1 3.9-2.1 3.1 0 4.9 3.5 3.4 6.6-2 4.2-9 8.4-9 8.4z"></path></svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+          </infring-chat-header-shell>
+          <infring-messages-surface-shell>
           <div class="messages" id="messages" aria-label="Message window">
             <div class="chat-reflection-overlay" aria-hidden="true"></div>
             <div class="chat-grid-overlay" aria-hidden="true"></div>
@@ -346,6 +543,7 @@ function render(state) {
               </article>
             \`).join('') : '<div class="empty-state"><h4>No bounded message projection loaded yet.</h4><p class="hint">Select an agent from the legacy-style rail or send a message through the composer.</p></div>'}
           </div>
+          </infring-messages-surface-shell>
           <div class="chat-map" aria-label="Message map">
             <div class="chat-map-surface drag-bar overlay-shared-surface">
               <div class="chat-map-rail">
@@ -359,197 +557,62 @@ function render(state) {
               </div>
             </div>
           </div>
-          <form class="input-area browser-shell-v2__input">
+          <infring-chat-input-footer-shell>
+          <form class="input-area">
             <div class="chat-input-lane">
-              <div class="composer-display-pill">
+              <div class="composer-stack">
+              <div class="input-row">
                 <div class="composer-shell">
                   <div class="composer-main-row">
-                    <button class="composer-menu-pill composer-shared-input-pill" type="button" aria-label="Menu">☰</button>
-                    <div class="composer-input-pill composer-shared-input-pill">
-                      <input name="message" \${state.disabled ? 'disabled' : ''} placeholder="Message Infring..." aria-label="Shell input" />
-                    </div>
-                    <div class="composer-controls-pill">
-                      <button class="btn btn-primary btn-send" \${state.disabled ? 'disabled' : ''} type="submit">Send</button>
+                    <div class="composer-display-pill" aria-label="Message input controls">
+                      <div class="composer-menu-pill composer-shared-input-pill">
+                        <div class="composer-plus-wrap composer-icon-left">
+                          <button class="composer-icon-btn composer-hamburger-btn" type="button" aria-label="Add files and more">
+                            <svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="composer-input-pill composer-shared-input-pill">
+                        <textarea id="msg-input" name="message" rows="1" \${state.disabled ? 'disabled' : ''} placeholder="Message Infring..." aria-label="Shell input"></textarea>
+                      </div>
+                      <div class="composer-controls-pill composer-shared-input-pill">
+                        <div class="composer-actions-right">
+                          <div class="toggle-pill toggle-pill--triple input-toggle-wrapper" data-mode="text" role="group" aria-label="Voice and send controls">
+                            <button type="button" class="composer-send-voice-opt composer-send-voice-opt-attach" aria-label="Add files"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+                            <button type="button" class="composer-send-voice-opt composer-send-voice-opt-voice" aria-label="Toggle voice recording"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button>
+                            <button class="composer-send-voice-opt composer-send-voice-opt-send" \${state.disabled ? 'disabled' : ''} type="submit" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg></button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+              </div>
             </div>
           </form>
+          </infring-chat-input-footer-shell>
         </div>
         \${activeDetailRef ? \`
-          <div class="popup-window dashboard-popup-surface browser-shell-v2__detail" aria-label="Lazy message detail">
+          <div class="popup-window dashboard-popup-surface" aria-label="Lazy message detail">
             <div class="popup-window-header"><h3 class="popup-window-title">\${escapeHtml(activeDetailPanel?.title || activeDetailRef)}</h3></div>
-            <div class="popup-window-body"><p>\${escapeHtml(activeDetailPanel?.summary || activeDetailPreview || 'Detail projection loaded.')}</p></div>
+            <div class="popup-window-body">
+              <p>\${escapeHtml(activeDetailPanel?.summary || activeDetailPreview || 'Detail projection loaded.')}</p>
+              \${activeDetailPanel?.rows?.length ? \`<div>\${activeDetailPanel.rows.map((row) => \`<p><strong>\${escapeHtml(row.label)}</strong>\${row.meta ? \` <span>\${escapeHtml(row.meta)}</span>\` : ''}</p>\`).join('')}</div>\` : ''}
+            </div>
           </div>
         \` : ''}
       </main>
-      \${activeDetailRef ? \`
-        <template data-v2-detail-shadow>
-        <section class="browser-shell-v2__detail" aria-label="Lazy message detail" hidden>
-          <div class="browser-shell-v2__detail-header">
-            <div>
-              <p class="browser-shell-v2__label">Lazy Detail</p>
-              <strong>\${escapeHtml(activeDetailPanel?.title || activeDetailRef)}</strong>
-            </div>
-            \${activeDetailPanel?.kind ? \`<small>\${escapeHtml(activeDetailPanel.kind)}</small>\` : ''}
-          </div>
-          <p>\${escapeHtml(activeDetailPanel?.summary || activeDetailPreview || 'Detail projection loaded.')}</p>
-          \${activeDetailPanel?.rows?.length ? \`
-            <div class="browser-shell-v2__detail-grid" aria-label="Detail projection rows">
-              \${activeDetailPanel.rows.map((row) => \`
-                <article><span>\${escapeHtml(row.label)}</span>\${row.meta ? \`<small>\${escapeHtml(row.meta)}</small>\` : ''}</article>
-              \`).join('')}
-            </div>
-          \` : ''}
-          \${activeDetailPanel?.refs?.length || activeDetailPanel?.cursor || activeDetailPanel?.receipt_ref ? \`
-            <div class="browser-shell-v2__detail-refs" aria-label="Detail refs">
-              \${(activeDetailPanel.refs || []).map((ref) => \`<code>\${escapeHtml(ref)}</code>\`).join('')}
-              \${activeDetailPanel.cursor ? \`<code>\${escapeHtml(activeDetailPanel.cursor)}</code>\` : ''}
-              \${activeDetailPanel.receipt_ref ? \`<code>\${escapeHtml(activeDetailPanel.receipt_ref)}</code>\` : ''}
-            </div>
-          \` : ''}
-        </section>
-        </template>
-      \` : ''}
-      <section class="browser-shell-v2__events" aria-label="Gateway event projection" hidden>
-        <div class="browser-shell-v2__events-header">
-          <div>
-            <p class="browser-shell-v2__label">Event Projection</p>
-            <small>\${escapeHtml(eventCursor || 'no cursor')}</small>
-          </div>
-          <button type="button" data-refresh-events="1" \${state.disabled || !selectedSessionId ? 'disabled' : ''}>Refresh</button>
-        </div>
-        <div class="browser-shell-v2__event-list">
-          \${eventRows.length ? eventRows.map((event) => \`
-            <article>
-              <span>\${escapeHtml(event.label)}</span>\${event.status ? \`<small>\${escapeHtml(event.status)}</small>\` : ''}
-            </article>
-          \`).join('') : '<article><span>No event projection loaded yet.</span></article>'}
-        </div>
-      </section>
-      <section class="browser-shell-v2__search" aria-label="Bounded Gateway search" hidden>
-        <form class="browser-shell-v2__search-form">
-          <label>
-            <span class="browser-shell-v2__label">Bounded Search</span>
-            <input name="search" value="\${escapeHtml(searchQuery)}" \${state.disabled ? 'disabled' : ''} placeholder="Search via Gateway..." aria-label="Search query" />
-          </label>
-          <button type="submit" \${state.disabled ? 'disabled' : ''}>Search</button>
-        </form>
-        <div class="browser-shell-v2__search-results">
-          \${searchRows.length ? searchRows.map((result) => \`
-            <article>
-              <strong>\${escapeHtml(result.label)}</strong>
-              \${result.snippet ? \`<p>\${escapeHtml(result.snippet)}</p>\` : ''}
-              \${result.detail_ref ? \`<button type="button" data-detail-ref="\${escapeHtml(result.detail_ref)}" \${state.disabled ? 'disabled' : ''}>View detail</button>\` : ''}
-            </article>
-          \`).join('') : '<article><strong>No search projection loaded.</strong></article>'}
-        </div>
-      </section>
-      <section class="browser-shell-v2__issue" aria-label="Gateway issue evaluation request" hidden>
-        <form class="browser-shell-v2__issue-form">
-          <label>
-            <span class="browser-shell-v2__label">Issue / Eval Request</span>
-            <input name="issue" value="\${escapeHtml(issueNote)}" \${state.disabled ? 'disabled' : ''} placeholder="Ask Gateway to inspect this context..." aria-label="Issue note" />
-          </label>
-          <button type="submit" \${state.disabled || !selectedSessionId ? 'disabled' : ''}>Submit</button>
-        </form>
-        \${issueStatus || issueReceiptRef ? \`<p class="browser-shell-v2__issue-status"><strong>\${escapeHtml(issueStatus || 'submitted')}</strong>\${issueReceiptRef ? \`<span>\${escapeHtml(issueReceiptRef)}</span>\` : ''}</p>\` : ''}
-      </section>
-      <section class="browser-shell-v2__approval" aria-label="Gateway approval decision request" hidden>
-        <form class="browser-shell-v2__approval-form">
-          <label>
-            <span class="browser-shell-v2__label">Approval Decision</span>
-            <input name="approval-id" value="\${escapeHtml(approvalId)}" \${state.disabled ? 'disabled' : ''} placeholder="approval ref..." aria-label="Approval ID" />
-          </label>
-          <label>
-            <span class="browser-shell-v2__label">Decision</span>
-            <select name="approval-decision" \${state.disabled ? 'disabled' : ''} aria-label="Approval decision">
-              \${['approve', 'deny', 'defer'].map((decision) => \`<option value="\${escapeHtml(decision)}" \${decision === approvalDecision ? 'selected' : ''}>\${escapeHtml(decision)}</option>\`).join('')}
-            </select>
-          </label>
-          <button type="submit" \${state.disabled ? 'disabled' : ''}>Submit</button>
-        </form>
-        \${approvalStatus || approvalReceiptRef ? \`<p class="browser-shell-v2__approval-status"><strong>\${escapeHtml(approvalStatus || 'submitted')}</strong>\${approvalReceiptRef ? \`<span>\${escapeHtml(approvalReceiptRef)}</span>\` : ''}</p>\` : ''}
-      </section>
-      <section class="browser-shell-v2__controls" aria-label="Gateway selection requests" hidden>
-        <form class="browser-shell-v2__control-form" data-control-form="model">
-          <label>
-            <span class="browser-shell-v2__label">Model Request</span>
-            <input name="model" value="\${escapeHtml(modelSelection)}" \${state.disabled ? 'disabled' : ''} placeholder="auto, gpt-5.4, ..." aria-label="Model selection" />
-          </label>
-          <button type="submit" \${state.disabled || !selectedAgentId ? 'disabled' : ''}>Submit</button>
-        </form>
-        <div class="browser-shell-v2__control-menu" aria-label="Model selector">
-          \${modelRows.length ? modelRows.map((model) => \`
-            <button type="button" data-model-id="\${escapeHtml(model.id)}" class="\${model.id === modelSelection ? 'active' : ''}" \${state.disabled || !selectedAgentId ? 'disabled' : ''}>
-              <span>\${escapeHtml(model.label || model.id)}</span>\${model.meta ? \`<small>\${escapeHtml(model.meta)}</small>\` : ''}
-            </button>
-          \`).join('') : '<span class="browser-shell-v2__control-empty">No model projection loaded.</span>'}
-        </div>
-        \${modelStatus || modelReceiptRef ? \`<p class="browser-shell-v2__control-status"><strong>\${escapeHtml(modelStatus || 'submitted')}</strong>\${modelReceiptRef ? \`<span>\${escapeHtml(modelReceiptRef)}</span>\` : ''}</p>\` : ''}
-        <form class="browser-shell-v2__control-form" data-control-form="git-tree">
-          <label>
-            <span class="browser-shell-v2__label">Git Tree Request</span>
-            <input name="git-tree" value="\${escapeHtml(gitTreeSelection)}" \${state.disabled ? 'disabled' : ''} placeholder="workspace, branch, tree ref..." aria-label="Git tree selection" />
-          </label>
-          <button type="submit" \${state.disabled || !selectedAgentId ? 'disabled' : ''}>Submit</button>
-        </form>
-        <div class="browser-shell-v2__control-menu" aria-label="Git tree selector">
-          \${gitTreeRows.length ? gitTreeRows.map((tree) => \`
-            <button type="button" data-git-tree-id="\${escapeHtml(tree.id)}" class="\${tree.id === gitTreeSelection ? 'active' : ''}" \${state.disabled || !selectedAgentId ? 'disabled' : ''}>
-              <span>\${escapeHtml(tree.label || tree.id)}</span>\${tree.meta ? \`<small>\${escapeHtml(tree.meta)}</small>\` : ''}
-            </button>
-          \`).join('') : '<span class="browser-shell-v2__control-empty">No git tree projection loaded.</span>'}
-        </div>
-        \${gitTreeStatus || gitTreeReceiptRef ? \`<p class="browser-shell-v2__control-status"><strong>\${escapeHtml(gitTreeStatus || 'submitted')}</strong>\${gitTreeReceiptRef ? \`<span>\${escapeHtml(gitTreeReceiptRef)}</span>\` : ''}</p>\` : ''}
-      </section>
-      <form class="browser-shell-v2__input" hidden>
-        <input name="message" \${state.disabled ? 'disabled' : ''} placeholder="Send through Shell Socket..." aria-label="Shell input" />
-        <button \${state.disabled ? 'disabled' : ''} type="submit">Send</button>
-      </form>
+      \${DOCK_ICON_DEFS}
+      <infring-bottom-dock-shell shellprimitive="taskbar-dock" parentownedmechanics="true"></infring-bottom-dock-shell>
     </div>\`;
-  const form = root.querySelector('.browser-shell-v2__input');
-  const searchForm = root.querySelector('.browser-shell-v2__search-form');
-  const issueForm = root.querySelector('.browser-shell-v2__issue-form');
-  const approvalForm = root.querySelector('.browser-shell-v2__approval-form');
-  const modelForm = root.querySelector('[data-control-form="model"]');
-  const gitTreeForm = root.querySelector('[data-control-form="git-tree"]');
+  const form = root.querySelector('.input-area');
   root.querySelectorAll('[data-agent-id]').forEach((button) => button.addEventListener('click', () => selectAgent(button.getAttribute('data-agent-id') || '')));
   root.querySelectorAll('[data-session-id]').forEach((button) => button.addEventListener('click', () => selectSession(button.getAttribute('data-session-id') || '')));
   root.querySelectorAll('[data-detail-ref]').forEach((button) => button.addEventListener('click', () => openMessageDetail(button.getAttribute('data-detail-ref') || '', state)));
-  root.querySelectorAll('[data-refresh-events]').forEach((button) => button.addEventListener('click', () => refreshEvents(state)));
-  root.querySelectorAll('[data-model-id]').forEach((button) => button.addEventListener('click', () => setModel(button.getAttribute('data-model-id') || '', state)));
-  root.querySelectorAll('[data-git-tree-id]').forEach((button) => button.addEventListener('click', () => setGitTree(button.getAttribute('data-git-tree-id') || '', state)));
-  searchForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const input = searchForm.querySelector('input');
-    await search(input?.value || '', state);
-  });
-  issueForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const input = issueForm.querySelector('input');
-    await submitIssue(input?.value || '', state);
-  });
-  approvalForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const idInput = approvalForm.querySelector('input[name="approval-id"]');
-    const decisionInput = approvalForm.querySelector('select[name="approval-decision"]');
-    await submitApprovalDecision(idInput?.value || '', decisionInput?.value || 'approve', state);
-  });
-  modelForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const input = modelForm.querySelector('input');
-    await setModel(input?.value || '', state);
-  });
-  gitTreeForm?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const input = gitTreeForm.querySelector('input');
-    await setGitTree(input?.value || '', state);
-  });
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const input = form.querySelector('input');
+    const input = form.querySelector('textarea, input');
     const message = clean(input?.value || '', 24000);
     if (!message || !selectedAgentId) return;
     render({ ...state, disabled: true, runtimeLabel: 'Submitting through Shell Socket...' });
@@ -775,13 +838,15 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
     <title>Infring Browser Shell V2</title>
     <link rel="stylesheet" href="./browser_shell_v2.css" />
   </head>
-  <body data-theme="light" class="browser-shell-v2-body">
+  <body data-theme="light">
     <div id="browser-shell-v2-root"></div>
+    <script src="./bottom_dock_shell.bundle.js"></script>
     <script type="module" src="./browser_shell_v2_app.js"></script>
   </body>
 </html>
 `);
   write(path.join(outDir, 'browser_shell_v2.css'), css);
+  write(path.join(outDir, 'bottom_dock_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_BOTTOM_DOCK_BUNDLE), 'utf8'));
   write(path.join(outDir, 'browser_shell_v2_app.js'), browserRuntimeSource());
   write(path.join(outDir, 'svelte_component_preflight.js'), compiled.js.code);
   return {

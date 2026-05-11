@@ -8,6 +8,7 @@ import { buildBrowserShellV2App } from './browser_shell_v2_build.ts';
 const DEFAULT_ARTIFACT_DIR = 'core/local/artifacts/browser_shell_v2_app';
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 5273;
+const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:5173';
 
 type BrowserShellV2Server = {
   close: () => Promise<void>;
@@ -54,6 +55,38 @@ function waitForever(): Promise<void> {
   return new Promise(() => {});
 }
 
+function normalizeGatewayUrl(value: unknown): URL {
+  const raw = clean(value || DEFAULT_GATEWAY_URL, 500).replace(/\/+$/, '');
+  return new URL(raw || DEFAULT_GATEWAY_URL);
+}
+
+function proxyToGateway(request: http.IncomingMessage, response: http.ServerResponse, gatewayUrl: URL): void {
+  const target = new URL(request.url || '/', gatewayUrl);
+  target.protocol = gatewayUrl.protocol;
+  target.hostname = gatewayUrl.hostname;
+  target.port = gatewayUrl.port;
+  const headers = { ...(request.headers || {}) };
+  headers.host = gatewayUrl.host;
+  const upstream = http.request({
+    host: gatewayUrl.hostname,
+    port: Number(gatewayUrl.port || 80),
+    method: request.method || 'GET',
+    path: `${target.pathname}${target.search}`,
+    headers,
+  }, (upstreamResponse) => {
+    response.writeHead(upstreamResponse.statusCode || 502, {
+      ...(upstreamResponse.headers || {}),
+      'access-control-allow-origin': '*',
+    });
+    upstreamResponse.pipe(response);
+  });
+  upstream.on('error', () => {
+    response.writeHead(502, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    response.end(JSON.stringify({ ok: false, error: 'browser_shell_v2_gateway_proxy_failed' }));
+  });
+  request.pipe(upstream);
+}
+
 function safeArtifactPath(artifactDir: string, requestUrl = '/'): string {
   const url = new URL(requestUrl, 'http://browser-shell-v2.local');
   const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
@@ -68,12 +101,18 @@ export async function startBrowserShellV2Server(options: {
   host?: string;
   port?: number;
   buildFirst?: boolean;
+  gatewayUrl?: string;
 } = {}): Promise<BrowserShellV2Server> {
   const artifactDir = options.artifactDir || DEFAULT_ARTIFACT_DIR;
   const host = options.host || DEFAULT_HOST;
   const port = Number.isFinite(options.port) ? Number(options.port) : DEFAULT_PORT;
+  const gatewayUrl = normalizeGatewayUrl(options.gatewayUrl);
   if (options.buildFirst !== false) buildBrowserShellV2App(artifactDir);
   const server = http.createServer((request, response) => {
+    if (String(request.url || '').startsWith('/api/shell-socket/')) {
+      proxyToGateway(request, response, gatewayUrl);
+      return;
+    }
     const filePath = safeArtifactPath(artifactDir, request.url || '/');
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
       response.writeHead(404, { 'content-type': 'application/json; charset=utf-8' });
@@ -101,8 +140,9 @@ export async function startBrowserShellV2Server(options: {
 }
 
 async function smoke(argv: string[]): Promise<Record<string, unknown>> {
-  const artifactDir = readFlag(argv, 'artifact-dir', DEFAULT_ARTIFACT_DIR);
-  const server = await startBrowserShellV2Server({ artifactDir, port: 0 });
+    const artifactDir = readFlag(argv, 'artifact-dir', DEFAULT_ARTIFACT_DIR);
+    const gatewayUrl = readFlag(argv, 'gateway', DEFAULT_GATEWAY_URL);
+    const server = await startBrowserShellV2Server({ artifactDir, port: 0, gatewayUrl });
   try {
     const [indexResponse, runtimeResponse] = await Promise.all([
       fetch(server.url),
@@ -145,8 +185,9 @@ async function main(): Promise<void> {
     const artifactDir = readFlag(argv, 'artifact-dir', DEFAULT_ARTIFACT_DIR);
     const host = readFlag(argv, 'host', DEFAULT_HOST);
     const port = Number(readFlag(argv, 'port', String(DEFAULT_PORT)));
-    const server = await startBrowserShellV2Server({ artifactDir, host, port });
-    process.stdout.write(`[browser-shell-v2] serving ${server.url}?gateway=http://127.0.0.1:5173\n`);
+    const gatewayUrl = readFlag(argv, 'gateway', DEFAULT_GATEWAY_URL);
+    const server = await startBrowserShellV2Server({ artifactDir, host, port, gatewayUrl });
+    process.stdout.write(`[browser-shell-v2] serving ${server.url}?gateway=${server.url.replace(/\/+$/, '')}\n`);
     const shutdown = async () => {
       await server.close();
       process.exit(0);
