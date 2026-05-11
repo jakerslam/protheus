@@ -11,8 +11,23 @@ use std::path::{Path, PathBuf};
 const LANE_ID: &str = "health_status";
 const REPLACEMENT: &str = "infring-ops health-status";
 const CRON_JOBS_REL: &str = "client/runtime/config/cron_jobs.json";
+const SECRET_BROKER_POLICY_REL: &str = "core/layer0/ops/config/secret_broker_policy.json";
+const LEGACY_SECRET_BROKER_POLICY_REL: &str = "client/runtime/config/secret_broker_policy.json";
 const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
     "client/runtime/config/rust_source_of_truth_policy.json";
+
+fn preferred_secret_broker_policy_path(root: &Path) -> PathBuf {
+    let canonical = root.join(SECRET_BROKER_POLICY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(LEGACY_SECRET_BROKER_POLICY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
+}
 const JSONL_TAIL_MAX_BYTES: usize = 2 * 1024 * 1024;
 const SPINE_RUN_FILES_MAX: usize = 7;
 const SPINE_METRICS_FRESH_WINDOW_SECONDS: i64 = 24 * 60 * 60;
@@ -419,4 +434,3 @@ fn audit_rust_source_of_truth(root: &Path) -> Value {
 fn allowed_delivery_channel(channel: &str) -> bool {
     ALLOWED_DELIVERY_CHANNELS.contains(&channel)
 }
-

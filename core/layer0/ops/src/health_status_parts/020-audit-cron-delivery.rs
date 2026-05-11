@@ -328,7 +328,7 @@ fn collect_moltbook_credentials_dashboard_metric(root: &Path) -> Value {
         }
     }
 
-    let policy_path = root.join("client/runtime/config/secret_broker_policy.json");
+    let policy_path = preferred_secret_broker_policy_path(root);
     let policy = read_json(&policy_path).ok();
     let providers = policy
         .as_ref()
@@ -433,7 +433,7 @@ fn collect_moltbook_credentials_dashboard_metric(root: &Path) -> Value {
             "json_file_hits": json_hits,
             "command_providers_enabled": command_enabled,
             "availability_sources": availability_sources,
-            "source": format!("{CRON_JOBS_REL} + client/runtime/config/secret_broker_policy.json")
+            "source": format!("{CRON_JOBS_REL} + {SECRET_BROKER_POLICY_REL}")
         }
     })
 }
