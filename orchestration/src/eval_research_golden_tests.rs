@@ -121,6 +121,18 @@ fn research_golden_scores_evidenced_final_answer() {
         report.pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint"),
         Some(&Value::Null)
     );
+    assert_eq!(
+        report.pointer("/cases/0/failure_classification"),
+        Some(&Value::String("none".to_string()))
+    );
+    assert_eq!(
+        report.pointer("/measurement_split/deterministic_workflow_path/ok"),
+        Some(&Value::Bool(true))
+    );
+    assert_eq!(
+        report.pointer("/measurement_split/end_to_end_golden/mode"),
+        Some(&Value::String("recorded_replay".to_string()))
+    );
 }
 
 #[test]
@@ -187,6 +199,16 @@ fn research_golden_separates_gate_progress_from_research_success() {
             .pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint")
             .and_then(Value::as_str),
         Some("5a_tool_execution_recorded")
+    );
+    assert_eq!(
+        report.pointer("/cases/0/failure_classification"),
+        Some(&Value::String("hard".to_string()))
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/failure_classification/hard_failure_cases")
+            .and_then(Value::as_u64),
+        Some(1)
     );
 }
 

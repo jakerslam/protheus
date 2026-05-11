@@ -249,9 +249,51 @@
         "do_not_hide_query_expansion_from_tool_payload_or_trace"
       ]
     },
+    "site_mapping_and_crawl": {
+      "enabled": true,
+      "source_pattern": "tavily_map_before_crawl",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "purpose": "treat site mapping as URL discovery and crawling as selected content extraction",
+      "map_before_crawl_when": [
+        "the user supplies a site or URL and asks for coverage",
+        "search identifies a promising source site but not enough specific pages",
+        "documentation structure or site organization is part of the research target",
+        "evidence coverage is weak and same-site candidate URLs may fill the gap"
+      ],
+      "controls": [
+        "root_url",
+        "max_depth",
+        "max_breadth",
+        "limit",
+        "instructions",
+        "select_paths",
+        "select_domains",
+        "allow_external",
+        "extract_depth_profile",
+        "output_content_format"
+      ],
+      "projection_fields": [
+        "base_url",
+        "mapped_url_count",
+        "crawled_page_count",
+        "selected_path_patterns",
+        "selected_domain_patterns",
+        "external_link_policy",
+        "crawl_depth",
+        "crawl_breadth",
+        "crawl_limit",
+        "instruction_ref"
+      ],
+      "non_goals": [
+        "do_not_make_site_crawl_default_for_all_web_research",
+        "do_not_select_by_hardcoded_domain",
+        "do_not_hide_map_or_crawl_filters_from_trace_metadata"
+      ]
+    },
     "strategy_menu": [
       "one_shot_search_pack",
       "prefetch_then_rank",
+      "site_map_then_crawl",
       "breadth_first_site_slice",
       "depth_first_path_probe",
       "best_first_candidate_expansion"
@@ -281,7 +323,11 @@
       "freshness_when_relevant",
       "candidate_gain",
       "query_angle_diversity",
-      "source_quality_signal"
+      "source_quality_signal",
+      "provider_answer_candidate_present",
+      "follow_up_question_gap_signal",
+      "map_candidate_count",
+      "crawl_page_count"
     ],
     "state_projection": {
       "enabled": true,
@@ -492,7 +538,10 @@
       "updated_at",
       "expires_at",
       "result_ref",
-      "error_summary"
+      "error_summary",
+      "poll_interval_ms",
+      "poll_backoff_factor",
+      "poll_duration_budget_ms"
     ],
     "payload_policy": {
       "return_handle_before_large_payload": true,
@@ -515,6 +564,8 @@
       "references",
       "references_markdown",
       "source_excerpt",
+      "provider_raw_content_excerpt",
+      "query_reranked_extract_excerpt",
       "cleaned_html",
       "fit_html",
       "table_summary",
@@ -554,6 +605,11 @@
         "resolved_search_type",
         "auto_prompt",
         "auto_date",
+        "query",
+        "provider_answer_candidate",
+        "follow_up_questions",
+        "image_results",
+        "image_descriptions",
         "search_time_ms",
         "cost_summary",
         "provider_statuses"
@@ -567,6 +623,9 @@
         "author",
         "summary",
         "text_excerpt",
+        "raw_content_available",
+        "raw_content_excerpt",
+        "favicon",
         "highlights",
         "highlight_scores",
         "entities",
@@ -605,6 +664,55 @@
         "access_policy_or_budget_blocks_fetch"
       ],
       "partial_failure_policy": "retain_successful_pages_and_record_per_url_errors"
+    },
+    "reader_content_artifacts": {
+      "enabled": true,
+      "source_pattern": "jina_reader_search_plus_read",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "purpose": "let synthesis see content-bearing artifacts from selected search results instead of only SERP snippets",
+      "artifact_variants": [
+        "reader_content",
+        "reader_markdown",
+        "reader_text",
+        "reader_html_excerpt",
+        "reader_links_summary",
+        "reader_images_summary",
+        "reader_heading_chunks",
+        "reader_screenshot_ref",
+        "document_page_artifact"
+      ],
+      "readiness_states": [
+        "html_ready",
+        "visible_content_ready",
+        "mutation_idle",
+        "resource_idle",
+        "media_idle",
+        "network_idle",
+        "intermediate_snapshot"
+      ],
+      "conversion_guidance": [
+        "prefer page-read artifacts when snippets are relevant but thin",
+        "preserve per-url failure and cache state separately from evidence usefulness",
+        "use selector or readiness controls only from content/evidence state or explicit user constraints",
+        "prefer final or most complete artifacts for synthesis while keeping streaming/intermediate chunks telemetry-only"
+      ],
+      "quality_fields": [
+        "reader_artifact_count",
+        "read_success_count",
+        "read_partial_failure_count",
+        "readiness_status",
+        "cache_status",
+        "cache_freshness_status",
+        "selector_applied",
+        "representation_variant",
+        "token_budget_status"
+      ],
+      "non_goals": [
+        "do_not_force_a_specific_reader_provider",
+        "do_not_make_reader_artifacts_chat_visible_before_synthesis",
+        "do_not_force_final_answer_format",
+        "do_not_select_by_hardcoded_domain_or_prompt_phrase"
+      ]
     },
     "source_quality_signals": {
       "enabled": true,
@@ -761,7 +869,12 @@
         "safe_response_header_summary",
         "coverage_buckets",
         "missing_coverage_buckets",
-        "coverage_gap_reasons"
+        "coverage_gap_reasons",
+        "reader_artifact_status",
+        "readiness_status",
+        "representation_variant",
+        "selector_applied",
+        "token_budget_status"
       ],
       "resource_fields": [
         "task_id",
@@ -777,6 +890,7 @@
       "purpose": "make large or noisy pages usable by synthesis through ranked evidence chunks instead of whole-page dumps",
       "strategies": [
         "paragraph_or_heading_boundary",
+        "heading_boundary_with_parent_context",
         "fixed_window",
         "sliding_window_with_overlap",
         "semantic_or_similarity_ranked_when_available"
