@@ -16,6 +16,7 @@ const LEGACY_CHAT_MAP_SHELL_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'inf
 const LEGACY_CHAT_MAP_RAIL_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_rail_shell.bundle.ts'].join('/');
 const LEGACY_CHAT_MAP_VIEWPORT_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_viewport_shell.bundle.ts'].join('/');
 const LEGACY_CHAT_INPUT_FOOTER_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_input_footer_shell.bundle.ts'].join('/');
+const LEGACY_MESSAGE_META_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'message_meta_shell.bundle.ts'].join('/');
 const LEGACY_CSS_PATHS = [
   'theme.css',
   ...fs.readdirSync(path.resolve(process.cwd(), LEGACY_CSS_DIR, 'layout.css.parts')).sort().map((name) => `layout.css.parts/${name}`),
@@ -101,6 +102,9 @@ function rowsFromMessageWindow(payload) {
     role: clean(row?.role || 'assistant', 40),
     text: clean(row?.text || row?.preview || '', 12000),
     status: clean(row?.status || '', 80),
+    timestamp: clean(row?.timestamp || row?.ts || row?.created_at || row?.createdAt || '', 80),
+    response_time: clean(row?.response_time || row?.responseTime || row?.duration || '', 80),
+    burn_label: clean(row?.burn_label || row?.burnLabel || row?.tokens || '', 80),
     detail_ref: clean(row?.detail_ref || row?.detailRef || '', 240),
   }));
 }
@@ -239,6 +243,9 @@ const browserShellV2DisplayState = {
   bottomDockHoverId: '',
   bottomDockClickAnimatingId: '',
   bottomDockDragActive: false,
+  bottomDockDragId: '',
+  bottomDockContainerDragActive: false,
+  bottomDockContainerSettling: false,
   bottomDockSide: 'bottom',
   bottomDockAnchorX: 0,
   bottomDockAnchorY: 0,
@@ -429,6 +436,35 @@ function messageHasTail(messages, index) {
   const next = messages[index + 1] || null;
   if (!next) return true;
   return clean(next.role || 'agent', 40) !== clean(current.role || 'agent', 40);
+}
+
+function latestAgentMessageIndex(messages) {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if ((messages[index]?.role || 'assistant') !== 'user') return index;
+  }
+  return -1;
+}
+
+function messageMetadataShellState(message, index, messages) {
+  const isUser = message.role === 'user';
+  const latestAgentIndex = latestAgentMessageIndex(messages);
+  const timestamp = clean(message.timestamp || '', 80);
+  const responseTime = clean(message.response_time || message.status || '', 80);
+  const burnLabel = clean(message.burn_label || '', 80);
+  return JSON.stringify({
+    shouldRender: true,
+    visible: true,
+    copied: false,
+    hasTools: false,
+    toolsCollapsed: false,
+    canReportIssue: false,
+    canRetry: !isUser && index === latestAgentIndex,
+    canReply: !isUser,
+    canFork: !isUser,
+    timestamp,
+    responseTime,
+    burnLabel,
+  }).replace(/'/g, '&#39;');
 }
 
 function installProjectionStores() {
@@ -781,7 +817,10 @@ function installDisplayOnlyShellServices() {
         },
         startBottomDockContainerPointerDrag: (event) => {
           if (!event || event.button > 0) return;
+          const target = event.target;
+          if (target && typeof target.closest === 'function' && target.closest('.dock-tile,.dock-tile-slot,button,a,input,textarea,select,[role="button"]')) return;
           browserShellV2DisplayState.bottomDockDragActive = true;
+          browserShellV2DisplayState.bottomDockContainerDragActive = true;
           const move = (ev) => {
             const x = Number(ev.clientX || 0);
             const y = Number(ev.clientY || 0);
@@ -790,6 +829,7 @@ function installDisplayOnlyShellServices() {
           const end = (ev) => {
             move(ev || event);
             browserShellV2DisplayState.bottomDockDragActive = false;
+            browserShellV2DisplayState.bottomDockContainerDragActive = false;
             window.removeEventListener('pointermove', move, true);
             window.removeEventListener('pointerup', end, true);
             window.removeEventListener('pointercancel', end, true);
@@ -799,9 +839,46 @@ function installDisplayOnlyShellServices() {
           window.addEventListener('pointercancel', end, true);
         },
         startBottomDockPointerDrag: (_id, event) => {
-          const target = event?.target;
-          if (target && typeof target.closest === 'function' && target.closest('.dock-tile')) return;
-          methods.startBottomDockContainerPointerDrag(event);
+          const id = clean(_id, 80);
+          if (!id || !event || event.button > 0) return;
+          browserShellV2DisplayState.bottomDockDragId = id;
+          browserShellV2DisplayState.bottomDockDragActive = true;
+          const startX = Number(event.clientX || 0);
+          const startY = Number(event.clientY || 0);
+          let moved = false;
+          const move = (ev) => {
+            if (Math.abs(Number(ev.clientX || 0) - startX) > 4 || Math.abs(Number(ev.clientY || 0) - startY) > 4) moved = true;
+            browserShellV2DisplayState.bottomDockPointerX = Number(ev.clientX || 0);
+            browserShellV2DisplayState.bottomDockPointerY = Number(ev.clientY || 0);
+          };
+          const end = (ev) => {
+            move(ev || event);
+            if (moved) {
+              const slots = Array.from(document.querySelectorAll('[data-dock-slot-id]'));
+              const x = Number((ev || event).clientX || 0);
+              const targetSlot = slots
+                .map((slot) => {
+                  const rect = slot.getBoundingClientRect();
+                  return { id: clean(slot.getAttribute('data-dock-slot-id') || '', 80), distance: Math.abs((rect.left + rect.width / 2) - x) };
+                })
+                .filter((slot) => slot.id && slot.id !== id)
+                .sort((a, b) => a.distance - b.distance)[0];
+              if (targetSlot) {
+                const order = browserShellV2DisplayState.bottomDockOrder.filter((item) => item !== id);
+                const insertAt = Math.max(0, order.indexOf(targetSlot.id));
+                order.splice(insertAt, 0, id);
+                browserShellV2DisplayState.bottomDockOrder = methods.normalizeBottomDockOrder(order);
+              }
+            }
+            browserShellV2DisplayState.bottomDockDragId = '';
+            browserShellV2DisplayState.bottomDockDragActive = false;
+            window.removeEventListener('pointermove', move, true);
+            window.removeEventListener('pointerup', end, true);
+            window.removeEventListener('pointercancel', end, true);
+          };
+          window.addEventListener('pointermove', move, true);
+          window.addEventListener('pointerup', end, true);
+          window.addEventListener('pointercancel', end, true);
         },
         handleBottomDockTileClick: (id) => {
           browserShellV2DisplayState.page = clean(id, 80) || 'chat';
@@ -850,7 +927,7 @@ applyDisplayTheme('system');
 function startSidebarDrag(event, state) {
   if (!event || event.button > 0) return;
   const target = event.target;
-  if (target && typeof target.closest === 'function' && target.closest('button,input,textarea,select,a,[role="button"]') && !target.closest('[data-dragbar-pulltab="chat-sidebar"]')) return;
+  if (target && typeof target.closest === 'function' && target.closest('button,input,textarea,select,a,[role="button"]')) return;
   event.preventDefault();
   browserShellV2DisplayState.chatSidebarDragActive = true;
   const startX = Number(event.clientX || 0);
@@ -1127,7 +1204,7 @@ function render(state) {
                     <span class="message-agent-name"><span class="message-agent-name-label">\${escapeHtml(message.role === 'user' ? 'You' : selectedAgentLabel)}</span></span>
                     <p class="message-bubble-content">\${escapeHtml(message.text)}</p>
                     \${message.detail_ref ? \`<button class="message-stat-btn" type="button" data-detail-ref="\${escapeHtml(message.detail_ref)}" \${state.disabled ? 'disabled' : ''}>View detail</button>\` : ''}
-                    \${message.status ? \`<div class="message-stats-row"><span class="message-stat-meta">\${escapeHtml(message.status)}</span></div>\` : ''}
+                    <infring-message-meta-shell state='\${messageMetadataShellState(message, index, messages)}'></infring-message-meta-shell>
                   </div>
                 </div>
               </article>
@@ -1164,6 +1241,19 @@ function render(state) {
     applyDisplayTheme(button.getAttribute('data-theme-mode') || 'system');
     render(state);
   }));
+  [
+    ['.taskbar-brand-trigger', 'System actions', 'Gateway-only Browser Shell V2 system menu', 'taskbar-brand'],
+    ['.taskbar-text-menu-btn', 'Help', 'Browser Shell V2 help menu', 'taskbar-help'],
+    ['.notif-btn', 'Notifications', 'No notification projection loaded.', 'taskbar-notifications'],
+    ['.taskbar-search-btn', 'Search', 'Use Gateway bounded search from Shell Socket.', 'taskbar-search'],
+    ['.auth-key-btn', 'Authentication', 'Authentication status is handled by Gateway.', 'taskbar-auth'],
+    ['.taskbar-agent-indicator', 'Runtime connectivity', state.runtimeLabel || runtimeBadge, 'taskbar-connectivity'],
+  ].forEach(([selector, title, body, source]) => {
+    root.querySelector(selector)?.addEventListener('click', (event) => {
+      const method = window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup');
+      if (method) method('browser-v2:' + source, title, event, { source, side: 'bottom', body, meta_origin: 'Taskbar' });
+    });
+  });
   root.querySelector('[data-dragbar-pulltab="chat-sidebar"]')?.addEventListener('click', () => {
     browserShellV2DisplayState.sidebarCollapsed = !browserShellV2DisplayState.sidebarCollapsed;
     render(state);
@@ -1426,6 +1516,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
     <script src="./chat_map_viewport_shell.bundle.js"></script>
     <script src="./chat_map_shell.bundle.js"></script>
     <script src="./chat_input_footer_shell.bundle.js"></script>
+    <script src="./message_meta_shell.bundle.js"></script>
     <script src="./bottom_dock_shell.bundle.js"></script>
     <script src="./dashboard_popup_overlay_shell.bundle.js"></script>
     <script type="module" src="./browser_shell_v2_app.js"></script>
@@ -1438,6 +1529,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   write(path.join(outDir, 'chat_map_rail_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_RAIL_BUNDLE), 'utf8'));
   write(path.join(outDir, 'chat_map_viewport_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_VIEWPORT_BUNDLE), 'utf8'));
   write(path.join(outDir, 'chat_input_footer_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_INPUT_FOOTER_BUNDLE), 'utf8'));
+  write(path.join(outDir, 'message_meta_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_MESSAGE_META_BUNDLE), 'utf8'));
   write(path.join(outDir, 'bottom_dock_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_BOTTOM_DOCK_BUNDLE), 'utf8'));
   write(path.join(outDir, 'dashboard_popup_overlay_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE), 'utf8'));
   write(path.join(outDir, 'browser_shell_v2_app.js'), browserRuntimeSource());
@@ -1446,7 +1538,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
     ok: warnings.length === 0,
     type: 'browser_shell_v2_build',
     out_dir: outDir,
-    files: ['index.html', 'browser_shell_v2.css', 'sidebar_agent_list_shell.bundle.js', 'chat_map_rail_shell.bundle.js', 'chat_map_viewport_shell.bundle.js', 'chat_map_shell.bundle.js', 'chat_input_footer_shell.bundle.js', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
+    files: ['index.html', 'browser_shell_v2.css', 'sidebar_agent_list_shell.bundle.js', 'chat_map_rail_shell.bundle.js', 'chat_map_viewport_shell.bundle.js', 'chat_map_shell.bundle.js', 'chat_input_footer_shell.bundle.js', 'message_meta_shell.bundle.js', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
     svelte_warnings: warnings,
   };
 }
