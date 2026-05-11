@@ -12,6 +12,7 @@
   export let searchRows = [];
   export let activeDetailRef = '';
   export let activeDetailPreview = '';
+  export let activeDetailPanel = null;
   export let issueNote = '';
   export let issueStatus = '';
   export let issueReceiptRef = '';
@@ -20,9 +21,11 @@
   export let approvalStatus = '';
   export let approvalReceiptRef = '';
   export let modelSelection = '';
+  export let modelRows = [];
   export let modelStatus = '';
   export let modelReceiptRef = '';
   export let gitTreeSelection = '';
+  export let gitTreeRows = [];
   export let gitTreeStatus = '';
   export let gitTreeReceiptRef = '';
   export let receiptRefs = [];
@@ -72,79 +75,170 @@
   }
 </script>
 
-<main class="browser-shell-v2" aria-label="Browser Shell V2">
-  <section class="browser-shell-v2__topbar" aria-label="Runtime status">
-    <div>
-      <p class="browser-shell-v2__eyebrow">Infring Shell V2</p>
-      <h1>Gateway Projection</h1>
-    </div>
-    <div class="browser-shell-v2__status" data-state={runtimeState}>
-      <span>{runtimeState}</span>
-      <small>{runtimeLabel}</small>
-    </div>
-  </section>
-
-  <section class="browser-shell-v2__workspace" aria-label="Selected session">
-    <aside class="browser-shell-v2__rail">
-      <p class="browser-shell-v2__label">Agent</p>
-      <strong>{selectedAgentId || 'none selected'}</strong>
-      <div class="browser-shell-v2__selector-list" aria-label="Agent selector">
-        {#each agentRows as agent (agent.id)}
-          <button
-            type="button"
-            class:active={agent.id === selectedAgentId}
-            disabled={disabled}
-            on:click={() => onSelectAgent(agent.id)}
-          >
-            <span>{agent.label || agent.id}</span>
-            {#if agent.state}<small>{agent.state}</small>{/if}
+<div class="app-layout browser-shell-v2 browser-shell-v2--legacy-surface" aria-label="Browser Shell V2">
+  <aside class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic" aria-label="Agent conversations">
+    <div class="sidebar-nav-shell">
+      <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
+        <div class="nav-section">
+          <button class="nav-item sidebar-tab-item active" type="button" aria-current="page">
+            <span class="nav-icon" aria-hidden="true">∞</span>
+            <span class="nav-label">Conversations</span>
           </button>
-        {/each}
+          <div class="chat-sidebar-list" aria-label="Agent selector">
+            {#each agentRows as agent (agent.id)}
+              <button
+                type="button"
+                class:active={agent.id === selectedAgentId}
+                class="chat-sidebar-item"
+                disabled={disabled}
+                on:click={() => onSelectAgent(agent.id)}
+              >
+                <span class="chat-sidebar-item-avatar agent-mark infring-logo">{(agent.label || agent.id || 'A').slice(0, 1)}</span>
+                <span class="chat-sidebar-item-main">
+                  <span class="chat-sidebar-item-name">{agent.label || agent.id}</span>
+                  {#if agent.state}<span class="chat-sidebar-item-preview">{agent.state}</span>{/if}
+                </span>
+              </button>
+            {/each}
+          </div>
+          <div class="chat-sidebar-list" aria-label="Session selector">
+            {#each sessionRows as session (session.id)}
+              <button
+                type="button"
+                class:active={session.id === selectedSessionId}
+                class="chat-sidebar-item"
+                disabled={disabled}
+                on:click={() => onSelectSession(session.id)}
+              >
+                <span class="chat-sidebar-item-avatar agent-mark infring-logo">S</span>
+                <span class="chat-sidebar-item-main">
+                  <span class="chat-sidebar-item-name">{session.label || session.id}</span>
+                  {#if session.message_count}<span class="chat-sidebar-item-preview">{session.message_count} messages</span>{/if}
+                </span>
+              </button>
+            {/each}
+          </div>
+        </div>
       </div>
-      <p class="browser-shell-v2__label">Session</p>
-      <strong>{selectedSessionId || 'none selected'}</strong>
-      <div class="browser-shell-v2__selector-list" aria-label="Session selector">
-        {#each sessionRows as session (session.id)}
-          <button
-            type="button"
-            class:active={session.id === selectedSessionId}
-            disabled={disabled}
-            on:click={() => onSelectSession(session.id)}
-          >
-            <span>{session.label || session.id}</span>
-            {#if session.message_count}<small>{session.message_count} msgs</small>{/if}
-          </button>
-        {/each}
-      </div>
-    </aside>
+    </div>
+  </aside>
 
-    <section class="browser-shell-v2__messages" aria-label="Message window">
-      {#each messages as message (message.id)}
-        <article class:browser-shell-v2__message--user={message.role === 'user'} class="browser-shell-v2__message">
-          <header>
-            <span>{message.role}</span>
-            {#if message.status}<small>{message.status}</small>{/if}
-          </header>
-          <p>{message.text}</p>
-          {#if message.detail_ref}
-            <button class="browser-shell-v2__detail-button" type="button" disabled={disabled} on:click={() => onOpenMessageDetail(message.detail_ref)}>
-              View detail
-            </button>
-          {/if}
-        </article>
-      {:else}
-        <article class="browser-shell-v2__empty">
-          No bounded message projection loaded yet.
-        </article>
-      {/each}
-    </section>
-  </section>
+  <main class="main-content" aria-label="Dashboard main surface">
+    <div class="global-taskbar is-docked-top" data-shell-primitive="taskbar-dock">
+      <div class="global-taskbar-left">
+        <div class="taskbar-visual-group taskbar-visual-group-left">
+          <button class="taskbar-brand taskbar-brand-trigger" type="button">
+            <span class="brand-mark infring-logo" aria-hidden="true">∞</span>
+            <span class="taskbar-brand-title">INFRING</span>
+          </button>
+          <div class="taskbar-reorder-item taskbar-reorder-nav-cluster taskbar-nav-pill">
+            <button class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-nav-btn" type="button" aria-label="Back">‹</button>
+            <button class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-nav-btn" type="button" aria-label="Forward">›</button>
+          </div>
+          <button class="taskbar-text-menu-btn" type="button">Help</button>
+        </div>
+      </div>
+      <div class="global-taskbar-right">
+        <div class="taskbar-visual-group taskbar-visual-group-right">
+          <span class="taskbar-agent-indicator"><span class="taskbar-agent-indicator-text">{runtimeState}</span></span>
+          <span class="conn-badge">{runtimeLabel}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-wrapper">
+      <div class="chat-thread-topline">
+        <button class="chat-thread-profile chat-thread-profile-disabled" type="button">
+          <span class="chat-thread-profile-avatar agent-mark infring-logo">∞</span>
+          <span class="chat-thread-profile-copy">
+            <span class="chat-thread-profile-name">{selectedAgentId || 'No agent selected'}</span>
+            <span class="chat-thread-profile-subtitle">{selectedSessionId || 'No session selected'}</span>
+          </span>
+        </button>
+      </div>
+
+      <section class="messages" aria-label="Message window">
+        <div class="chat-reflection-overlay" aria-hidden="true"></div>
+        <div class="chat-grid-overlay" aria-hidden="true"></div>
+        {#each messages as message (message.id)}
+          <article class:user={message.role === 'user'} class:agent={message.role !== 'user'} class="message meta-collapsed">
+            <div class="message-avatar agent-mark infring-logo" aria-hidden="true">{message.role === 'user' ? 'Y' : '∞'}</div>
+            <div class="message-body">
+              <div class="message-bubble markdown-body">
+                <span class="message-agent-name">
+                  <span class="message-agent-name-label">{message.role === 'user' ? 'You' : selectedAgentId}</span>
+                </span>
+                <p class="message-bubble-content">{message.text}</p>
+                {#if message.detail_ref}
+                  <button class="message-stat-btn" type="button" disabled={disabled} on:click={() => onOpenMessageDetail(message.detail_ref)}>
+                    View detail
+                  </button>
+                {/if}
+                {#if message.status}
+                  <div class="message-stats-row"><span class="message-stat-meta">{message.status}</span></div>
+                {/if}
+              </div>
+            </div>
+          </article>
+        {:else}
+          <article class="empty-state">
+            No bounded message projection loaded yet.
+          </article>
+        {/each}
+      </section>
+
+      <div class="chat-map" aria-label="Message map">
+        <div class="chat-map-surface drag-bar overlay-shared-surface">
+          <div class="chat-map-rail">
+            <button class="chat-map-jump chat-map-jump-up" type="button" aria-label="Previous message">⌃</button>
+            <div class="chat-map-items-wrap">
+              <div class="chat-map-viewport">
+                <div class="chat-map-scroll">
+                  {#each messages as message (message.id)}
+                    <div class="chat-map-entry">
+                      <button class:role-user={message.role === 'user'} class:role-agent={message.role !== 'user'} class="chat-map-item" type="button">
+                        <span class="chat-map-item-main"><span class="chat-map-bar"></span></span>
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            </div>
+            <button class="chat-map-jump chat-map-jump-down" type="button" aria-label="Next message">⌄</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   {#if activeDetailRef}
-    <section class="browser-shell-v2__detail" aria-label="Lazy message detail">
-      <p class="browser-shell-v2__label">Lazy Detail</p>
-      <strong>{activeDetailRef}</strong>
-      <p>{activeDetailPreview || 'Detail projection loaded.'}</p>
+    <section class="popup-window dashboard-popup-surface browser-shell-v2__detail" aria-label="Lazy message detail">
+      <div class="browser-shell-v2__detail-header">
+        <div>
+          <p class="browser-shell-v2__label">Lazy Detail</p>
+          <strong>{activeDetailPanel?.title || activeDetailRef}</strong>
+        </div>
+        {#if activeDetailPanel?.kind}<small>{activeDetailPanel.kind}</small>{/if}
+      </div>
+      <p>{activeDetailPanel?.summary || activeDetailPreview || 'Detail projection loaded.'}</p>
+      {#if activeDetailPanel?.rows?.length}
+        <div class="browser-shell-v2__detail-grid" aria-label="Detail projection rows">
+          {#each activeDetailPanel.rows as row (row.id)}
+            <article>
+              <span>{row.label}</span>
+              {#if row.meta}<small>{row.meta}</small>{/if}
+            </article>
+          {/each}
+        </div>
+      {/if}
+      {#if activeDetailPanel?.refs?.length || activeDetailPanel?.cursor || activeDetailPanel?.receipt_ref}
+        <div class="browser-shell-v2__detail-refs" aria-label="Detail refs">
+          {#each activeDetailPanel.refs || [] as ref (ref)}
+            <code>{ref}</code>
+          {/each}
+          {#if activeDetailPanel?.cursor}<code>{activeDetailPanel.cursor}</code>{/if}
+          {#if activeDetailPanel?.receipt_ref}<code>{activeDetailPanel.receipt_ref}</code>{/if}
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -247,6 +341,21 @@
       </label>
       <button type="submit" disabled={disabled || !selectedAgentId}>Submit</button>
     </form>
+    <div class="browser-shell-v2__control-menu" aria-label="Model selector">
+      {#each modelRows as model (model.id)}
+        <button
+          type="button"
+          class:active={model.id === modelSelection}
+          disabled={disabled || !selectedAgentId}
+          on:click={() => onSetModel(model.id)}
+        >
+          <span>{model.label || model.id}</span>
+          {#if model.meta}<small>{model.meta}</small>{/if}
+        </button>
+      {:else}
+        <span class="browser-shell-v2__control-empty">No model projection loaded.</span>
+      {/each}
+    </div>
     {#if modelStatus || modelReceiptRef}
       <p class="browser-shell-v2__control-status">
         <strong>{modelStatus || 'submitted'}</strong>
@@ -260,6 +369,21 @@
       </label>
       <button type="submit" disabled={disabled || !selectedAgentId}>Submit</button>
     </form>
+    <div class="browser-shell-v2__control-menu" aria-label="Git tree selector">
+      {#each gitTreeRows as tree (tree.id)}
+        <button
+          type="button"
+          class:active={tree.id === gitTreeSelection}
+          disabled={disabled || !selectedAgentId}
+          on:click={() => onSetGitTree(tree.id)}
+        >
+          <span>{tree.label || tree.id}</span>
+          {#if tree.meta}<small>{tree.meta}</small>{/if}
+        </button>
+      {:else}
+        <span class="browser-shell-v2__control-empty">No git tree projection loaded.</span>
+      {/each}
+    </div>
     {#if gitTreeStatus || gitTreeReceiptRef}
       <p class="browser-shell-v2__control-status">
         <strong>{gitTreeStatus || 'submitted'}</strong>
@@ -282,8 +406,22 @@
     </div>
   </section>
 
-  <form class="browser-shell-v2__input" on:submit|preventDefault={submit}>
-    <input bind:value={inputValue} disabled={disabled} placeholder="Send through Shell Socket..." aria-label="Shell input" />
-    <button disabled={disabled || !inputValue.trim()} type="submit">Send</button>
-  </form>
-</main>
+    <form class="input-area browser-shell-v2__input" on:submit|preventDefault={submit}>
+      <div class="chat-input-lane">
+        <div class="composer-display-pill">
+          <div class="composer-shell">
+            <div class="composer-main-row">
+              <button class="composer-menu-pill composer-shared-input-pill" type="button" aria-label="Menu">☰</button>
+              <div class="composer-input-pill composer-shared-input-pill">
+                <input bind:value={inputValue} disabled={disabled} placeholder="Message Infring..." aria-label="Shell input" />
+              </div>
+              <div class="composer-controls-pill">
+                <button class="btn btn-primary btn-send" disabled={disabled || !inputValue.trim()} type="submit">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </main>
+</div>

@@ -8,14 +8,19 @@ Status: initial clean browser Shell plug foundation
 
 Browser Shell V2 is a replaceable presentation/input plug. It implements the
 Shell Socket contract by calling Gateway routes through
-`ShellSocketGatewayClient`; it must not import the legacy dashboard, own runtime
-truth, mirror full conversations, or bypass Gateway.
+`ShellSocketGatewayClient`; it must not own runtime truth, mirror full
+conversations, or bypass Gateway.
+
+The surface contract is strict: Browser Shell V2 must look like Shell 1.0 on the
+outside unless a deliberate product/design migration is approved separately. V2
+may inherit legacy CSS and legacy DOM class names as a visual skin, but it must
+not import legacy scripts, Alpine stores, legacy caches, or dashboard authority.
 
 ## Current Scope
 
 - Svelte component source for the first browser surface shell.
-- Static artifact build that produces a standalone browser artifact without
-  importing legacy dashboard assets.
+- Static artifact build that produces a standalone browser artifact with the
+  legacy dashboard visual skin and V2-only socket/runtime code.
 - Independent static server for Browser Shell V2 local launch/smoke testing.
 - Socket-only controller for runtime status, agent roster, session list,
   bounded message window, and input submission.
@@ -23,7 +28,11 @@ truth, mirror full conversations, or bypass Gateway.
   than storing canonical runtime state in the browser.
 - Lazy message detail expansion by `detail_ref`, keeping default message rows
   projection-only.
+- Rich bounded lazy detail drawers with kind, title, summary, up to 12
+  projection rows, refs, cursor, and receipt refs.
 - Bounded event projection refresh through the Shell Socket event route.
+- Live bounded event projection polling through the Shell Socket event route,
+  with an in-flight guard and a 20-row retained tail.
 - Bounded Gateway search projection; the browser does not search full local
   conversation trees.
 - Issue/eval submission through Gateway with a bounded context window and
@@ -32,6 +41,8 @@ truth, mirror full conversations, or bypass Gateway.
   V2 collects intent but does not own approval authority.
 - Model and git tree selection requests through Gateway with receipt display
   only; Browser V2 does not own model or repository authority.
+- Bounded model and git-tree selector rows from Gateway runtime projections,
+  with local fallbacks treated only as request presets.
 - Gateway audit receipt ledger for recent Shell Socket calls, displayed as
   bounded refs instead of retained route payloads.
 - Memory-surface guard that fails if Browser V2 starts retaining legacy caches,
@@ -40,8 +51,12 @@ truth, mirror full conversations, or bypass Gateway.
   dashboard, Alpine bridge, or `4173` dashboard host.
 - Accessibility guard that enforces baseline landmarks, labels, typed buttons,
   and disabled-state wiring on the clean Svelte plug.
-- Visual parity guard that enforces the familiar skin/new substrate rule with
-  clean V2 classes, shared tokens, responsive layout, and glass-style surfaces.
+- Visual parity guard that enforces the familiar skin/new substrate rule:
+  legacy dashboard CSS/class skeleton on the surface, V2-only socket/runtime
+  code underneath.
+- Gateway launch routing through `infring gateway --shell=ui-v2`, which starts
+  the independent Browser Shell V2 static server on port `5273` and points it at
+  the canonical Shell Socket Gateway target.
 - Deterministic fixture smoke proving the V2 plug can hydrate and submit input
   through the Shell Socket shape without legacy dashboard assets.
 - Contract guard proving the V2 plug is separate from `client/**`, Alpine, and
@@ -49,11 +64,9 @@ truth, mirror full conversations, or bypass Gateway.
 
 ## Not In Scope Yet
 
-- Full visual parity with Shell 1.0.
-- Browser launch routing from `infring gateway`.
-- Live event streaming.
-- Rich lazy detail drawers beyond the current bounded summary panel.
-- Model/git-tree menus.
+- Pixel-level parity is still being filled in feature-by-feature, but arbitrary
+  new dashboard styles, invented page chrome, or replacement visual objects are
+  not allowed.
 
 ## Local Build
 
@@ -72,14 +85,28 @@ defaults to the canonical local Shell Socket Gateway target at
 npm run -s ops:browser-shell-v2:serve
 ```
 
-The V2 server defaults to `http://127.0.0.1:5273/` and serves only the clean
-Browser Shell V2 artifact. It does not proxy, import, or depend on the legacy
-dashboard at `4173`; the browser runtime talks to Gateway through the Shell
-Socket contract.
+The V2 server defaults to `http://127.0.0.1:5273/` and serves only the Browser
+Shell V2 artifact. It does not proxy or depend on the legacy dashboard host at
+`4173`; the browser runtime talks to Gateway through the Shell Socket contract.
+The artifact may bundle legacy dashboard CSS as a visual-only skin.
 
 ```text
 npm run -s ops:browser-shell-v2:serve-smoke
 ```
+
+## Gateway Launch
+
+```text
+infring gateway --shell=ui-v2
+```
+
+`--shell=ui-v2` launches the clean Browser Shell V2 server separately from the
+legacy dashboard host. The launched page defaults to the Gateway Shell Socket
+target at `http://127.0.0.1:5173` and may be overridden with:
+
+- `INFRING_BROWSER_SHELL_V2_HOST`
+- `INFRING_BROWSER_SHELL_V2_PORT`
+- `INFRING_SHELL_SOCKET_URL`
 
 ## Presentation Contract
 
@@ -103,9 +130,17 @@ Browser Shell V2 must not own:
 
 ## Visual Direction
 
-The first V2 component borrows the legacy visual language through clean CSS
-tokens and component classes. It does not import legacy scripts, Alpine stores,
-legacy chat caches, or dashboard hydration code.
+The first V2 surface must reuse the legacy dashboard skin directly. That means
+legacy CSS variables, legacy layout classes, and legacy visible object names such
+as `app-layout`, `global-taskbar`, `sidebar`, `chat-wrapper`, `messages`,
+`message-bubble`, `chat-map`, and `input-area`.
 
-The goal is a new substrate with a familiar skin: Shell V2 displays bounded
-projections and collects input; Gateway and downstream owners keep authority.
+V2 must not invent a replacement dashboard chrome, alternate page structure, or
+new visual language while it is intended to replace Shell 1.0. It does not
+import legacy scripts, Alpine stores, legacy chat caches, or dashboard hydration
+code.
+
+The goal is a new substrate with a familiar skin: the legacy dashboard skin on
+the surface, Shell Socket/Gateway-only data flow underneath. Shell V2 displays
+bounded projections and collects input; Gateway and downstream owners keep
+authority.

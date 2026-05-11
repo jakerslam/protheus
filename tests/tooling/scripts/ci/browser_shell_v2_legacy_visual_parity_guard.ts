@@ -3,8 +3,12 @@ import path from "node:path";
 
 const root = process.cwd();
 const styleRel = "shell/browser-v2/browser_shell_v2.css";
+const buildRel = "shell/browser-v2/browser_shell_v2_build.ts";
+const artifactCssRel = "core/local/artifacts/browser_shell_v2_app/browser_shell_v2.css";
 const outRel = "core/local/artifacts/browser_shell_v2_legacy_visual_parity_guard_current.json";
 const stylePath = path.join(root, styleRel);
+const buildPath = path.join(root, buildRel);
+const artifactCssPath = path.join(root, artifactCssRel);
 const outPath = path.join(root, outRel);
 
 const maxCssLines = 500;
@@ -37,7 +41,6 @@ const forbiddenCustomSkinMarkers = [
   "#ffe3b8",
   "#dcecff",
   "#d8ebff",
-  "backdrop-filter",
 ];
 const requiredLegacyLayoutMarkers = [
   "var(--sidebar-width",
@@ -46,12 +49,35 @@ const requiredLegacyLayoutMarkers = [
   "var(--agent-bg",
   "var(--user-bg",
 ];
+const requiredLegacySurfaceMarkers = [
+  "legacySurfaceCss",
+  "theme.css",
+  "layout.css.parts",
+  "components.css.parts",
+  "app-layout",
+  "global-taskbar",
+  "sidebar drag-bar overlay-shared-surface",
+  "chat-wrapper",
+  "messages",
+  "message-bubble markdown-body",
+  "chat-map",
+  "input-area",
+];
+const forbiddenInventedSurfaceMarkers = [
+  "browser-shell-v2__topbar",
+  "browser-shell-v2__workspace",
+  "browser-shell-v2__rail",
+  "Gateway Projection",
+];
 
 function countLines(text: string): number {
   return text.split(/\r?\n/).length;
 }
 
 const css = fs.readFileSync(stylePath, "utf8");
+const build = fs.readFileSync(buildPath, "utf8");
+const artifactCss = fs.existsSync(artifactCssPath) ? fs.readFileSync(artifactCssPath, "utf8") : "";
+const visualSurface = `${css}\n${build}\n${artifactCss}`;
 const lineCount = countLines(css);
 const violations: string[] = [];
 
@@ -59,13 +85,20 @@ if (lineCount > maxCssLines) {
   violations.push(`css_file_over_cap:${lineCount}>${maxCssLines}`);
 }
 for (const token of requiredLegacyTokens) {
-  if (!css.includes(`var(${token}`)) violations.push(`missing_legacy_token:${token}`);
+  if (!visualSurface.includes(`var(${token}`) && !visualSurface.includes(`${token}:`)) violations.push(`missing_legacy_token:${token}`);
 }
 for (const marker of forbiddenCustomSkinMarkers) {
-  if (css.includes(marker)) violations.push(`forbidden_custom_skin_marker:${marker}`);
+  if (visualSurface.includes(marker)) violations.push(`forbidden_custom_skin_marker:${marker}`);
 }
 for (const marker of requiredLegacyLayoutMarkers) {
-  if (!css.includes(marker)) violations.push(`missing_legacy_layout_marker:${marker}`);
+  const cssVariableName = marker.match(/var\((--[^,)]+)/)?.[1];
+  if (!visualSurface.includes(marker) && !(cssVariableName && visualSurface.includes(`${cssVariableName}:`))) violations.push(`missing_legacy_layout_marker:${marker}`);
+}
+for (const marker of requiredLegacySurfaceMarkers) {
+  if (!visualSurface.includes(marker)) violations.push(`missing_legacy_surface_marker:${marker}`);
+}
+for (const marker of forbiddenInventedSurfaceMarkers) {
+  if (build.includes(marker)) violations.push(`forbidden_invented_surface_marker:${marker}`);
 }
 
 const payload = {
@@ -75,6 +108,8 @@ const payload = {
   type: "browser_shell_v2_legacy_visual_parity_guard",
   generated_at: new Date().toISOString(),
   style_path: styleRel,
+  build_path: buildRel,
+  artifact_css_path: artifactCssRel,
   css_line_count: lineCount,
   max_css_lines: maxCssLines,
   violations,

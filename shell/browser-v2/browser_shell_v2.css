@@ -1,427 +1,87 @@
-:root {
-  --browser-shell-v2-bg: var(--bg, #F5F4F2);
-  --browser-shell-v2-bg-primary: var(--bg-primary, #EDECEB);
-  --browser-shell-v2-chrome: var(--chrome-bg, #EAE7E4);
-  --browser-shell-v2-sidebar: var(--sidebar-bg, #F0EFED);
-  --browser-shell-v2-surface: var(--surface, #FFFFFF);
-  --browser-shell-v2-surface-2: var(--surface2, #F0EEEC);
-  --browser-shell-v2-surface-3: var(--surface3, #E8E6E3);
-  --browser-shell-v2-border: var(--border, #D5D2CF);
-  --browser-shell-v2-border-light: var(--border-light, #C8C4C0);
-  --browser-shell-v2-text: var(--text, #1A1817);
-  --browser-shell-v2-text-secondary: var(--text-secondary, #3D3935);
-  --browser-shell-v2-muted: var(--text-dim, #6B6560);
-  --browser-shell-v2-faint: var(--text-muted, #9A958F);
-  --browser-shell-v2-accent: var(--accent, #2563EB);
-  --browser-shell-v2-accent-subtle: var(--accent-subtle, rgba(37, 99, 235, 0.08));
-  --browser-shell-v2-agent-bg: var(--agent-bg, #F5F4F2);
-  --browser-shell-v2-user-bg: var(--user-bg, #EAF2FF);
-  --browser-shell-v2-radius-sm: var(--radius-sm, 6px);
-  --browser-shell-v2-radius-md: var(--radius-md, 8px);
-  --browser-shell-v2-radius-lg: var(--radius-lg, 12px);
-  --browser-shell-v2-shadow-sm: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
-  --browser-shell-v2-shadow-md: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.07));
-  --browser-shell-v2-font-sans: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif);
-  --browser-shell-v2-font-mono: var(--font-mono, 'Geist Mono', 'SF Mono', monospace);
-}
+/* Browser Shell V2 must visually inherit Shell 1.0. This file is only a thin
+   parity adapter for V2-specific gateway/socket wiring, not a new design. */
 
-.browser-shell-v2,
-.browser-shell-v2 * {
-  box-sizing: border-box;
-}
-
-.browser-shell-v2 {
-  min-height: 100vh;
-  display: grid;
-  grid-template-rows: 48px minmax(0, 1fr) auto;
-  gap: 0;
-  color: var(--browser-shell-v2-text);
-  background: transparent;
-  font-family: var(--browser-shell-v2-font-sans);
-  font-size: 14px;
-  line-height: 1.5;
-  letter-spacing: -0.01em;
-}
-
-.browser-shell-v2__topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+.browser-shell-v2--legacy-surface {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 48px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--browser-shell-v2-border);
-  background: color-mix(in srgb, var(--browser-shell-v2-chrome) 94%, transparent);
-  box-shadow: var(--browser-shell-v2-shadow-sm);
-}
-
-.browser-shell-v2__eyebrow,
-.browser-shell-v2__label {
-  margin: 0;
-  color: var(--browser-shell-v2-faint);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.browser-shell-v2 h1 {
-  margin: 0;
-  color: var(--browser-shell-v2-text);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.browser-shell-v2__status,
-.browser-shell-v2__events-header button,
-.browser-shell-v2__detail-button,
-.browser-shell-v2 button,
-.browser-shell-v2 input,
-.browser-shell-v2 select {
-  font: inherit;
-}
-
-.browser-shell-v2__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 24px;
-  max-width: min(50vw, 520px);
-  padding: 0 10px;
-  border: 1px solid var(--browser-shell-v2-border);
-  border-radius: 999px;
-  color: var(--browser-shell-v2-text-secondary);
-  background: var(--browser-shell-v2-surface);
-  font-size: 12px;
-  box-shadow: var(--browser-shell-v2-shadow-sm);
-}
-
-.browser-shell-v2__status span {
-  font-family: var(--browser-shell-v2-font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.browser-shell-v2__status small {
-  min-width: 0;
+  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
-  color: var(--browser-shell-v2-muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  background: var(--bg);
+  color: var(--text);
 }
 
-.browser-shell-v2__workspace {
+.browser-shell-v2--legacy-surface .main-content {
   min-height: 0;
-  display: grid;
-  grid-template-columns: var(--sidebar-width, 240px) minmax(0, 1fr);
-  border-bottom: 1px solid var(--browser-shell-v2-border);
-  background: transparent;
 }
 
-.browser-shell-v2__rail {
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding: 12px;
-  overflow: auto;
-  border-right: 1px solid var(--browser-shell-v2-border);
-  background: color-mix(in srgb, var(--browser-shell-v2-sidebar) 92%, transparent);
+.browser-shell-v2--legacy-surface .global-taskbar {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  right: 12px;
+  z-index: 12000;
 }
 
-.browser-shell-v2__rail strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--browser-shell-v2-text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.browser-shell-v2--legacy-surface .chat-wrapper {
+  padding-top: 56px;
 }
 
-.browser-shell-v2__selector-list,
-.browser-shell-v2__control-menu,
-.browser-shell-v2__event-list,
-.browser-shell-v2__search-results,
-.browser-shell-v2__detail-grid {
-  display: grid;
-  gap: 6px;
+.browser-shell-v2--legacy-surface .sidebar {
+  position: relative;
+  z-index: 20;
 }
 
-.browser-shell-v2__selector-list {
-  margin-bottom: 10px;
-}
-
-.browser-shell-v2__selector-list button,
-.browser-shell-v2__control-menu button,
-.browser-shell-v2__event-list article,
-.browser-shell-v2__search-results article,
-.browser-shell-v2__detail-grid article {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-height: 32px;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--browser-shell-v2-radius-md);
-  color: var(--browser-shell-v2-text-secondary);
-  background: transparent;
-}
-
-.browser-shell-v2__selector-list button:hover,
-.browser-shell-v2__control-menu button:hover {
-  border-color: color-mix(in srgb, var(--browser-shell-v2-border) 84%, transparent);
-  background: color-mix(in srgb, var(--browser-shell-v2-surface-2) 78%, transparent);
-}
-
-.browser-shell-v2__selector-list button.active,
-.browser-shell-v2__control-menu button.active {
-  border-color: color-mix(in srgb, var(--browser-shell-v2-accent) 48%, transparent);
-  color: var(--browser-shell-v2-text);
-  background: color-mix(in srgb, var(--browser-shell-v2-user-bg) 74%, transparent);
-}
-
-.browser-shell-v2__selector-list span,
-.browser-shell-v2__control-menu span,
-.browser-shell-v2__detail-grid span,
-.browser-shell-v2__event-list span {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.browser-shell-v2 small,
-.browser-shell-v2__control-empty {
-  color: var(--browser-shell-v2-muted);
-  font-size: 12px;
-}
-
-.browser-shell-v2__messages {
-  min-height: 0;
+.browser-shell-v2--legacy-surface .chat-sidebar-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  justify-content: flex-end;
-  padding: 20px clamp(16px, 3vw, 40px);
-  overflow: auto;
-  background: transparent;
+  gap: 4px;
+  padding: 8px 0 16px;
 }
 
-.browser-shell-v2__message,
-.browser-shell-v2__empty {
-  width: fit-content;
-  max-width: min(820px, 78%);
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--browser-shell-v2-border) 86%, transparent);
-  border-radius: 18px;
-  color: var(--browser-shell-v2-text);
-  background: color-mix(in srgb, var(--browser-shell-v2-surface-2) 94%, transparent);
-  box-shadow:
-    0 14px 30px -18px rgba(15, 23, 42, 0.34),
-    0 4px 12px -8px rgba(15, 23, 42, 0.22),
-    0 0 0 1px color-mix(in srgb, #fff 30%, transparent);
+.browser-shell-v2--legacy-surface .chat-sidebar-item {
+  width: 100%;
+  border: 0;
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
 }
 
-.browser-shell-v2__message--user {
-  align-self: flex-end;
-  background: color-mix(in srgb, var(--browser-shell-v2-user-bg) 78%, transparent);
-}
-
-.browser-shell-v2__message:not(.browser-shell-v2__message--user) {
-  align-self: flex-start;
-}
-
-.browser-shell-v2__message header {
-  display: flex;
-  gap: 8px;
+.browser-shell-v2--legacy-surface .chat-sidebar-item-avatar {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 5px;
-  color: var(--browser-shell-v2-muted);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
+  justify-content: center;
 }
 
-.browser-shell-v2__message p,
-.browser-shell-v2__detail p,
-.browser-shell-v2__search-results p,
-.browser-shell-v2__issue-status,
-.browser-shell-v2__approval-status,
-.browser-shell-v2__control-status {
+.browser-shell-v2--legacy-surface .message-bubble-content {
   margin: 0;
   white-space: pre-wrap;
 }
 
-.browser-shell-v2__detail,
-.browser-shell-v2__events,
-.browser-shell-v2__search,
-.browser-shell-v2__issue,
-.browser-shell-v2__approval,
-.browser-shell-v2__controls,
-.browser-shell-v2__receipts,
-.browser-shell-v2__input {
-  display: grid;
-  gap: 10px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--browser-shell-v2-border);
-  background: color-mix(in srgb, var(--browser-shell-v2-bg-elevated, var(--browser-shell-v2-surface)) 86%, transparent);
+.browser-shell-v2--legacy-surface .chat-map {
+  display: block;
 }
 
-.browser-shell-v2__detail-header,
-.browser-shell-v2__events-header,
-.browser-shell-v2__issue-status,
-.browser-shell-v2__approval-status,
-.browser-shell-v2__control-status,
-.browser-shell-v2__receipt-list,
-.browser-shell-v2__detail-refs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
+.browser-shell-v2--legacy-surface .input-area input[name='message'] {
+  width: 100%;
+  min-height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
 }
 
-.browser-shell-v2__search-form,
-.browser-shell-v2__issue-form,
-.browser-shell-v2__approval-form,
-.browser-shell-v2__control-form,
-.browser-shell-v2__input {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: end;
+.browser-shell-v2--legacy-surface .composer-display-pill,
+.browser-shell-v2--legacy-surface .composer-shell,
+.browser-shell-v2--legacy-surface .composer-main-row {
+  width: 100%;
 }
 
-.browser-shell-v2__approval-form {
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 160px) auto;
-}
-
-.browser-shell-v2 label {
-  display: grid;
-  gap: 6px;
-}
-
-.browser-shell-v2 input,
-.browser-shell-v2 select {
-  min-height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--browser-shell-v2-border);
-  border-radius: var(--browser-shell-v2-radius-md);
-  color: var(--browser-shell-v2-text);
-  background: var(--browser-shell-v2-surface);
-}
-
-.browser-shell-v2 button,
-.browser-shell-v2__detail-button {
-  min-height: 30px;
-  padding: 0 12px;
-  border: 1px solid var(--browser-shell-v2-border);
-  border-radius: var(--browser-shell-v2-radius-md);
-  color: var(--browser-shell-v2-text-secondary);
-  background: var(--browser-shell-v2-surface);
-  cursor: pointer;
-  transition: color var(--transition-fast, 0.15s ease), border-color var(--transition-fast, 0.15s ease), background var(--transition-fast, 0.15s ease);
-}
-
-.browser-shell-v2 button:hover:not(:disabled) {
-  color: var(--browser-shell-v2-text);
-  border-color: color-mix(in srgb, var(--browser-shell-v2-accent) 44%, var(--browser-shell-v2-border));
-  background: color-mix(in srgb, var(--browser-shell-v2-user-bg) 62%, transparent);
-}
-
-.browser-shell-v2 button:disabled,
-.browser-shell-v2 input:disabled,
-.browser-shell-v2 select:disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.browser-shell-v2__input {
-  position: sticky;
-  bottom: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--browser-shell-v2-chrome) 94%, transparent);
-  box-shadow: 0 -1px 0 var(--browser-shell-v2-border);
-}
-
-.browser-shell-v2__input input {
-  min-height: 40px;
-  border-radius: var(--browser-shell-v2-radius-lg);
-}
-
-.browser-shell-v2__input button {
-  min-height: 40px;
-  color: #fff;
-  border-color: var(--browser-shell-v2-accent);
-  background: var(--browser-shell-v2-accent);
-  font-weight: 700;
-}
-
-.browser-shell-v2 code,
-.browser-shell-v2__receipt-list code,
-.browser-shell-v2__detail-refs code {
-  max-width: 100%;
-  padding: 4px 7px;
-  overflow: hidden;
-  border: 1px solid var(--browser-shell-v2-border);
-  border-radius: 999px;
-  color: var(--browser-shell-v2-muted);
-  background: var(--browser-shell-v2-surface-2);
-  font-family: var(--browser-shell-v2-font-mono);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.browser-shell-v2__search-results article,
-.browser-shell-v2__event-list article,
-.browser-shell-v2__detail-grid article {
-  border-color: color-mix(in srgb, var(--browser-shell-v2-border) 70%, transparent);
-  background: color-mix(in srgb, var(--browser-shell-v2-surface-2) 70%, transparent);
-}
-
-body[data-theme='dark'] .browser-shell-v2__message,
-body[data-theme='dark'] .browser-shell-v2__empty {
-  box-shadow:
-    0 12px 28px -18px rgba(0, 0, 0, 0.78),
-    0 0 24px -10px color-mix(in srgb, #fff 72%, transparent),
-    0 0 8px -4px color-mix(in srgb, #fff 52%, transparent),
-    0 0 0 1px color-mix(in srgb, #fff 12%, transparent);
-}
-
-@media (max-width: 760px) {
-  .browser-shell-v2 {
-    grid-template-rows: auto minmax(0, 1fr) auto;
-  }
-
-  .browser-shell-v2__topbar,
-  .browser-shell-v2__workspace,
-  .browser-shell-v2__search-form,
-  .browser-shell-v2__issue-form,
-  .browser-shell-v2__approval-form,
-  .browser-shell-v2__control-form,
-  .browser-shell-v2__input {
-    grid-template-columns: 1fr;
-  }
-
-  .browser-shell-v2__topbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .browser-shell-v2__message,
-  .browser-shell-v2__empty {
-    max-width: 100%;
-  }
+.browser-shell-v2--legacy-surface .browser-shell-v2__events,
+.browser-shell-v2--legacy-surface .browser-shell-v2__search,
+.browser-shell-v2--legacy-surface .browser-shell-v2__issue,
+.browser-shell-v2--legacy-surface .browser-shell-v2__approval,
+.browser-shell-v2--legacy-surface .browser-shell-v2__controls,
+.browser-shell-v2--legacy-surface .browser-shell-v2__input[hidden] {
+  display: none !important;
 }
