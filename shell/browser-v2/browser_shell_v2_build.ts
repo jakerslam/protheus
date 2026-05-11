@@ -9,6 +9,7 @@ const COMPONENT_PATH = 'shell/browser-v2/BrowserShellV2.svelte';
 const CSS_PATH = 'shell/browser-v2/browser_shell_v2.css';
 const LEGACY_CSS_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'css'].join('/');
 const LEGACY_STATIC_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static'].join('/');
+const LEGACY_SVELTE_BUNDLE_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte'].join('/');
 const LEGACY_BOTTOM_DOCK_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'bottom_dock_shell.bundle.ts'].join('/');
 const LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'dashboard_popup_overlay_shell.bundle.ts'].join('/');
 const LEGACY_SIDEBAR_AGENT_LIST_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'sidebar_agent_list_shell.bundle.ts'].join('/');
@@ -22,6 +23,11 @@ const LEGACY_CSS_PATHS = [
   ...fs.readdirSync(path.resolve(process.cwd(), LEGACY_CSS_DIR, 'layout.css.parts')).sort().map((name) => `layout.css.parts/${name}`),
   ...fs.readdirSync(path.resolve(process.cwd(), LEGACY_CSS_DIR, 'components.css.parts')).sort().map((name) => `components.css.parts/${name}`),
 ];
+
+const LEGACY_SHELL_BUNDLE_NAMES = fs
+  .readdirSync(path.resolve(process.cwd(), LEGACY_SVELTE_BUNDLE_DIR))
+  .filter((name) => name.endsWith('.bundle.ts'))
+  .sort();
 
 function clean(value: unknown, max = 1000): string {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -63,6 +69,7 @@ const MESSAGE_WINDOW_LIMIT = 40;
 const EVENT_POLL_INTERVAL_MS = 5000;
 const DOCK_ICON_DEFS = ${JSON.stringify(legacyDockIconDefs())};
 const DOCK_ICON_DEFS_MARKER = 'dock-icon-defs';
+const LEGACY_CHAT_THREAD_SURFACE_MARKER = 'message-bubble markdown-body';
 
 function clean(value, max = 1000) {
   return String(value == null ? '' : value).trim().slice(0, max);
@@ -99,7 +106,7 @@ function rowsFromMessageWindow(payload) {
   const rows = Array.isArray(payload?.message_window?.rows) ? payload.message_window.rows : [];
   return rows.slice(0, MESSAGE_WINDOW_LIMIT).map((row, index) => ({
     id: clean(row?.id || 'row-' + index, 160),
-    role: clean(row?.role || 'assistant', 40),
+    role: clean(row?.role || 'agent', 40) === 'assistant' ? 'agent' : clean(row?.role || 'agent', 40),
     text: clean(row?.text || row?.preview || '', 12000),
     status: clean(row?.status || '', 80),
     timestamp: clean(row?.timestamp || row?.ts || row?.created_at || row?.createdAt || '', 80),
@@ -255,9 +262,19 @@ const browserShellV2DisplayState = {
   chatSidebarDragActive: false,
   chatSidebarLeft: 16,
   chatSidebarTop: 96,
+  chatMapDragActive: false,
+  chatMapRight: 18,
+  chatMapTop: 0,
   taskbarDockDragActive: false,
   taskbarDockEdge: 'top',
   taskbarDockY: 0,
+  taskbarHeroMenuOpen: false,
+  taskbarTextMenuOpen: '',
+  taskbarReorderLeft: ['nav_cluster'],
+  taskbarReorderRight: ['connectivity', 'theme', 'notifications', 'search', 'auth'],
+  notifications: [],
+  unreadNotifications: 0,
+  notificationsOpen: false,
   bootSplashVisible: true,
   bootProgressPercent: 8,
   themeMode: 'system',
@@ -323,14 +340,16 @@ function sidebarPulltabStyle() {
 }
 
 function chatMapStyle() {
+  const top = Number(browserShellV2DisplayState.chatMapTop || 0);
+  const right = Number(browserShellV2DisplayState.chatMapRight || 18);
   return [
     'position:fixed',
-    'right:18px',
-    'top:50%',
+    'right:' + Math.max(8, Math.round(right)) + 'px',
+    'top:' + (top > 0 ? Math.round(top) + 'px' : '50%'),
     'bottom:auto',
-    'transform:translateY(-50%)',
+    'transform:' + (top > 0 ? 'none' : 'translateY(-50%)'),
     'max-height:70vh',
-    '--chat-map-position-transition:280ms',
+    '--chat-map-position-transition:' + (browserShellV2DisplayState.chatMapDragActive ? '0ms' : '280ms'),
   ].join(';');
 }
 
@@ -471,6 +490,9 @@ function messageMetadataShellState(message, index, messages) {
 
 function installProjectionStores() {
   const existingStore = window.InfringChatStore || {};
+  if (!existingStore.messages) existingStore.messages = createProjectionStore([]);
+  if (!existingStore.filteredMessages) existingStore.filteredMessages = createProjectionStore([]);
+  if (!existingStore.renderWindowVersion) existingStore.renderWindowVersion = createProjectionStore(0);
   if (!existingStore.sidebarAgents) existingStore.sidebarAgents = createProjectionStore([]);
   if (!existingStore.currentAgent) existingStore.currentAgent = createProjectionStore(null);
   if (!existingStore.agents) existingStore.agents = createProjectionStore([]);
@@ -502,6 +524,9 @@ function installProjectionStores() {
     promptSuggestions: [],
     filteredSlashCommands: [],
     filteredModelPicker: [],
+    showSlashMenu: false,
+    slashIdx: 0,
+    modelPickerIdx: 0,
     gitTreeMenuItems: [],
     renderedSwitcherModels: [],
     switcherProviders: [],
@@ -512,6 +537,71 @@ function installProjectionStores() {
     contextRingTooltip: '',
     contextRingProgressStyle: '',
     tokenCount: 0,
+    shouldRenderMessageContent: () => true,
+    messageRoleClass: (message) => clean(message?.role || '', 40) === 'user' ? 'user' : 'agent',
+    isGrouped: (index, messages) => {
+      const current = messages[index] || {};
+      const previous = messages[index - 1] || null;
+      return !!previous && clean(previous.role || '', 40) === clean(current.role || '', 40);
+    },
+    showMessageTail: (message, index, messages) => messageHasTail(messages, index),
+    isLastInSourceRun: (index, messages) => messageHasTail(messages, index),
+    isMessageMetaCollapsed: () => true,
+    isMessageMetaReserveSpace: () => false,
+    isErrorMessage: (message) => clean(message?.status || '', 80).toLowerCase() === 'error',
+    messageHasTools: (message) => Array.isArray(message?.tools) && message.tools.length > 0,
+    messageHasSourceChips: (message) => Array.isArray(message?.source_chips) && message.source_chips.length > 0,
+    messageSourceChips: (message) => Array.isArray(message?.source_chips) ? message.source_chips : [],
+    messageToolTraceSummary: () => ({ visible: false, label: '', detail: '' }),
+    messageProgress: () => null,
+    progressFillStyle: (message) => 'width:' + Math.max(0, Math.min(100, Number(message?.progress_percent || 0))) + '%',
+    messageRenderKey: (message, index) => clean(message?.id || 'message-' + index, 180) + '-' + index,
+    messageDomId: (_message, index) => 'browser-v2-message-' + index,
+    messageOriginKind: (message) => clean(message?.origin_kind || message?.role || '', 80),
+    showMessageTitle: () => true,
+    messageTitleClass: (message) => clean(message?.role || '', 40) === 'user' ? 'message-agent-name-user' : 'message-agent-name-agent',
+    messageTitleLabel: (message) => clean(message?.role || '', 40) === 'user' ? 'You' : clean(window.InfringChatPage?.currentAgent?.name || selectedAgentId || 'Agent', 160),
+    messageBubbleHtml: (message) => escapeHtml(message?.text || '').replace(/\\n/g, '<br>'),
+    isNewMessageDay: (_messages, index) => Number(index) === 0,
+    messageDayDomId: () => 'browser-v2-current-session-day',
+    messageDayKey: () => 'current-session',
+    messageDayLabel: () => 'Current session',
+    thinkingBubbleLineText: (message) => clean(message?.thinking_label || 'Thinking', 160),
+    terminalMessageCollapsed: () => false,
+    terminalToolboxPreview: (message) => clean(message?.text || '', 160),
+    terminalToolboxSideClass: () => '',
+    messagePlaceholderLineIndices: () => [0],
+    messagePlaceholderResolvedLineCount: () => 1,
+    messagePlaceholderStyle: () => '',
+    noticeActionVisible: () => false,
+    noticeActionBusy: () => false,
+    noticeActionLabel: () => '',
+    isRenameNotice: () => false,
+    isBlockedTool: (tool) => !!tool?.blocked,
+    isToolSuccessful: (tool) => clean(tool?.status || '', 80).toLowerCase() === 'done' || clean(tool?.status || '', 80).toLowerCase() === 'success',
+    isThoughtTool: (tool) => clean(tool?.type || tool?.name || '', 80).toLowerCase().includes('thought'),
+    thoughtToolLabel: (tool) => clean(tool?.label || tool?.name || 'Thinking', 160),
+    toolDisplayName: (tool) => clean(tool?.label || tool?.name || 'Tool', 160),
+    toolStatusText: (tool) => clean(tool?.status || '', 80),
+    toolIcon: () => '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+    toolProjectionSections: (tool) => {
+      const rows = [];
+      if (tool?.summary) rows.push({ id: 'summary', label: 'Summary', text: clean(tool.summary, 2000) });
+      if (tool?.input_preview) rows.push({ id: 'input', label: 'Input', text: clean(tool.input_preview, 2000) });
+      if (tool?.result_preview) rows.push({ id: 'result', label: 'Result', text: clean(tool.result_preview, 2000) });
+      return rows;
+    },
+    messageMetadataShellState: (message, index, messages) => messageMetadataShellState(message, index, messages),
+    handleMessageMetaAction: (event, message) => {
+      const action = clean(event?.detail?.action || '', 80);
+      if (action === 'copy' && navigator.clipboard) void navigator.clipboard.writeText(clean(message?.text || '', 24000));
+    },
+    setHoveredMessage: () => {},
+    clearHoveredMessage: () => {},
+    expandTerminalMessage: () => {},
+    triggerNoticeAction: () => {},
+    expandDisplayedMessages: () => {},
+    canExpandDisplayedMessages: false,
     chatSidebarPreview: (agent) => agent?.sidebar_preview || { text: clean(agent?.state || 'Gateway projection', 240), ts: Date.now() },
     formatChatSidebarTime: () => '',
     agentStatusState: (agent) => clean(agent?.sidebar_status_state || agent?.state || 'unknown', 80).toLowerCase() || 'unknown',
@@ -574,9 +664,41 @@ function installProjectionStores() {
     startRecording: () => { if (window.InfringChatPage) window.InfringChatPage.recording = true; },
     stopRecording: () => { if (window.InfringChatPage) window.InfringChatPage.recording = false; },
     stopAgent: () => {},
-    toggleTerminalMode: () => {},
+    toggleTerminalMode: () => { if (window.InfringChatPage) window.InfringChatPage.terminalMode = !window.InfringChatPage.terminalMode; },
     togglePromptSuggestionsEnabled: () => {},
-    refreshChatInputOverlayMetrics: () => {},
+    refreshChatInputOverlayMetrics: () => {
+      const page = window.InfringChatPage;
+      if (!page) return;
+      const value = clean(page.inputText || '', 240);
+      const slashRows = [
+        { cmd: '/status', desc: 'Show Gateway/runtime status' },
+        { cmd: '/agents', desc: 'Open agent list' },
+        { cmd: '/chat', desc: 'Return to chat' },
+        { cmd: '/clear', desc: 'Clear the composer input' },
+      ];
+      page.filteredSlashCommands = value.startsWith('/')
+        ? slashRows.filter((row) => row.cmd.startsWith(value.split(/\\s+/)[0] || '/'))
+        : [];
+      page.showSlashMenu = value.startsWith('/') && page.filteredSlashCommands.length > 0;
+    },
+    executeSlashCommand: (command) => {
+      const page = window.InfringChatPage;
+      const cmd = clean(command || page?.inputText || '', 80).split(/\\s+/)[0];
+      if (!page) return;
+      page.showSlashMenu = false;
+      if (cmd === '/agents') browserShellV2DisplayState.page = 'agents';
+      else if (cmd === '/chat') browserShellV2DisplayState.page = 'chat';
+      else if (cmd === '/clear') page.inputText = '';
+      else if (cmd === '/status') {
+        browserShellV2DisplayState.dashboardPopup = popupFromEvent('slash-status', 'Gateway status', null, {
+          source: 'slash-command',
+          body: clean(lastRenderedState?.runtimeLabel || 'Runtime projection loaded.', 400),
+          meta_origin: 'Slash command',
+        });
+      }
+      page.inputText = cmd === '/clear' ? '' : page.inputText;
+      if (lastRenderedState) render(lastRenderedState);
+    },
     updateTerminalCursor: () => {},
     setTerminalCursorFocus: () => {},
     scrollToBottom: () => document.querySelector('#messages')?.scrollTo?.({ top: 999999, behavior: 'smooth' }),
@@ -594,7 +716,7 @@ function installProjectionStores() {
       page.sending = false;
       await hydrate();
     },
-    startChatMapPointerDrag: () => {},
+    startChatMapPointerDrag: (event) => startChatMapDrag(event, lastRenderedState || { messages: window.InfringChatPage?.messages || [], disabled: false }),
     stepMessageMap: (messages, direction) => {
       const store = window.InfringChatStore;
       const current = Number(store?.mapStepIndex?.get?.() || 0);
@@ -630,6 +752,9 @@ function syncLegacyDisplayProjection(state) {
   browserShellV2DisplayState.chatSidebarVisibleRows = sidebarRows;
   const store = window.InfringChatStore;
   if (store) {
+    store.messages?.set?.(messages);
+    store.filteredMessages?.set?.(messages);
+    store.renderWindowVersion?.update?.((value) => Number(value || 0) + 1);
     store.sidebarAgents?.set?.(sidebarRows);
     store.agents?.set?.(sidebarRows);
     store.currentAgent?.set?.(currentAgent);
@@ -807,6 +932,49 @@ function installDisplayOnlyShellServices() {
         bottomDockTileAnimationName: (id) => (dockTileRegistry[id]?.animation || [])[0] || '',
         bottomDockTileAnimationDurationAttr: (id) => String((dockTileRegistry[id]?.animation || [])[1] || ''),
         appsIconBottomRowFill: (index) => ['#22c55e', '#06b6d4', '#f97316'][Number(index) || 0] || '#22c55e',
+        normalizeTaskbarReorder: (group, order) => {
+          const defaults = group === 'right'
+            ? ['connectivity', 'theme', 'notifications', 'search', 'auth']
+            : ['nav_cluster'];
+          const seen = new Set();
+          return (Array.isArray(order) ? order : []).concat(defaults)
+            .map((id) => clean(id, 80))
+            .filter((id) => defaults.includes(id) && !seen.has(id) && seen.add(id));
+        },
+        taskbarReorderItemStyle: (group, item) => {
+          const order = methods.normalizeTaskbarReorder(group, group === 'right' ? browserShellV2DisplayState.taskbarReorderRight : browserShellV2DisplayState.taskbarReorderLeft);
+          return 'order:' + Math.max(0, order.indexOf(clean(item, 80)));
+        },
+        handleTaskbarReorderPointerDown: () => {},
+        cancelTaskbarDragHold: () => {},
+        handleTaskbarReorderDragStart: () => {},
+        handleTaskbarReorderDragMove: () => {},
+        handleTaskbarReorderDragEnter: () => {},
+        handleTaskbarReorderDragOver: (_group, event) => { if (event?.preventDefault) event.preventDefault(); },
+        handleTaskbarReorderDrop: (_group, event) => { if (event?.preventDefault) event.preventDefault(); },
+        handleTaskbarDragEnd: () => {},
+        runtimeFacadeClass: () => lastRenderedState?.runtimeState === 'connected' ? 'health-ok' : 'health-connecting',
+        runtimeFacadeTitle: () => clean(lastRenderedState?.runtimeLabel || 'Gateway runtime projection', 240),
+        runtimeFacadeDisplayLabel: () => clean(lastRenderedState?.runtimeState || 'ready', 40),
+        setTheme: (mode) => {
+          applyDisplayTheme(mode);
+          if (lastRenderedState) render(lastRenderedState);
+        },
+        toggleNotifications: () => { browserShellV2DisplayState.notificationsOpen = !browserShellV2DisplayState.notificationsOpen; },
+        clearNotifications: () => {
+          browserShellV2DisplayState.notifications = [];
+          browserShellV2DisplayState.unreadNotifications = 0;
+        },
+        reopenNotification: () => {},
+        dismissNotification: () => {},
+        dismissNotificationBubble: () => {},
+        formatNotificationTime: () => '',
+        taskbarClockLabel: () => new Date().toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' }),
+        taskbarClockMainLabel: () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\\s?[AP]M$/i, ''),
+        taskbarClockMeridiemLabel: () => (new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).match(/([AP]M)$/i)?.[1] || '').toUpperCase(),
+        showTaskbarUtilityPopup: (title, body, event) => {
+          browserShellV2DisplayState.dashboardPopup = popupFromEvent('taskbar-utility:' + clean(title, 80).toLowerCase(), title, event, { source: 'taskbar-utility', side: 'bottom', body, meta_origin: 'Taskbar' });
+        },
         setBottomDockHover: (id) => { browserShellV2DisplayState.bottomDockHoverId = clean(id, 80); },
         clearBottomDockHover: (id) => {
           if (!id || browserShellV2DisplayState.bottomDockHoverId === id) browserShellV2DisplayState.bottomDockHoverId = '';
@@ -979,6 +1147,36 @@ function startTaskbarDrag(event, state) {
   window.addEventListener('pointercancel', end, true);
 }
 
+function startChatMapDrag(event, state) {
+  if (!event || event.button > 0) return;
+  const target = event.target;
+  if (target && typeof target.closest === 'function' && target.closest('button,input,textarea,select,a,[role="button"]')) return;
+  event.preventDefault();
+  browserShellV2DisplayState.chatMapDragActive = true;
+  const startX = Number(event.clientX || 0);
+  const startY = Number(event.clientY || 0);
+  const originRight = Number(browserShellV2DisplayState.chatMapRight || 18);
+  const originTop = Number(browserShellV2DisplayState.chatMapTop || (window.innerHeight / 2));
+  const move = (ev) => {
+    const maxRight = Math.max(8, window.innerWidth - 80);
+    const maxTop = Math.max(8, window.innerHeight - 120);
+    browserShellV2DisplayState.chatMapRight = Math.max(8, Math.min(maxRight, originRight - (Number(ev.clientX || 0) - startX)));
+    browserShellV2DisplayState.chatMapTop = Math.max(8, Math.min(maxTop, originTop + Number(ev.clientY || 0) - startY));
+    render(state);
+  };
+  const end = (ev) => {
+    move(ev || event);
+    browserShellV2DisplayState.chatMapDragActive = false;
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', end, true);
+    window.removeEventListener('pointercancel', end, true);
+    render(state);
+  };
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', end, true);
+  window.addEventListener('pointercancel', end, true);
+}
+
 let selectedAgentId = '';
 let selectedSessionId = '';
 let agentRows = [];
@@ -1133,12 +1331,20 @@ function render(state) {
         <div class="global-taskbar \${browserShellV2DisplayState.taskbarDockDragActive ? 'is-dock-dragging' : ''} \${browserShellV2DisplayState.taskbarDockEdge === 'bottom' ? 'is-docked-bottom' : 'is-docked-top'}" data-shell-primitive="taskbar-dock" style="\${taskbarDockStyle()}">
           <div class="global-taskbar-left">
             <div class="taskbar-visual-group taskbar-visual-group-left" aria-label="Primary taskbar items">
-              <div class="taskbar-hero-menu-anchor">
-                <button class="taskbar-brand taskbar-brand-trigger" type="button" title="System actions">
+              <infring-taskbar-hero-menu-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-hero" parentownedmechanics="true">
+              <div id="taskbar-hero-menu-anchor" class="taskbar-hero-menu-anchor">
+                <button class="taskbar-brand taskbar-brand-trigger" type="button" title="System actions" aria-haspopup="menu" aria-expanded="\${browserShellV2DisplayState.taskbarHeroMenuOpen ? 'true' : 'false'}">
                   <div class="brand-mark infring-logo" aria-hidden="true"><span class="brand-mark-glyph infring-logo-glyph">&infin;</span></div>
                   <div><div class="taskbar-brand-title">INFRING</div></div>
                 </button>
+                <infring-taskbar-menu-shell class="taskbar-hero-menu dashboard-dropdown-surface" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" anchorid="taskbar-hero-menu-anchor" fallbackside="bottom" layoutkey="taskbar-hero-menu" style="\${browserShellV2DisplayState.taskbarHeroMenuOpen ? '' : 'display:none'}">
+                  <button class="taskbar-hero-menu-item" type="button" data-taskbar-command="restart"><svg class="taskbar-refresh-icon taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg><span>Restart</span></button>
+                  <button class="taskbar-hero-menu-item" type="button" data-taskbar-command="update"><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v8"></path><path d="m8.5 12.5 3.5 3.5 3.5-3.5"></path></svg><span>Update</span></button>
+                  <button class="taskbar-hero-menu-item" type="button" data-taskbar-command="shutdown"><svg class="taskbar-hero-menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v8"></path><path d="M8.2 5.8A8 8 0 1 0 15.8 5.8"></path></svg><span>Shut down</span></button>
+                  <div class="taskbar-hero-menu-version">Browser Shell V2</div>
+                </infring-taskbar-menu-shell>
               </div>
+              </infring-taskbar-hero-menu-shell>
               <div class="taskbar-reorder-box taskbar-reorder-box-left">
                 <div class="taskbar-reorder-item taskbar-reorder-nav-cluster taskbar-nav-pill">
                   <button class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-nav-btn taskbar-back-btn" type="button" aria-label="Back">
@@ -1149,50 +1355,22 @@ function render(state) {
                   </button>
                 </div>
               </div>
-              <div class="taskbar-text-menus">
-                <button class="taskbar-text-menu-btn" type="button" aria-label="Help menu">Help</button>
-              </div>
+              <infring-taskbar-dropdown-cluster-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-dropdowns" parentownedmechanics="true">
+                <infring-taskbar-menu-shell class="taskbar-text-menus" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" menu="help">
+                  <div id="taskbar-help-menu-anchor" class="taskbar-text-menu-anchor">
+                    <button class="taskbar-text-menu-btn" type="button" aria-label="Help menu" aria-haspopup="menu" aria-expanded="\${browserShellV2DisplayState.taskbarTextMenuOpen === 'help' ? 'true' : 'false'}">Help</button>
+                    <infring-taskbar-menu-shell class="taskbar-text-menu-dropdown dashboard-dropdown-surface" shellprimitive="taskbar-dock" wrapperrole="taskbar-menu" parentownedmechanics="true" anchorid="taskbar-help-menu-anchor" fallbackside="bottom" layoutkey="taskbar-help-menu" style="\${browserShellV2DisplayState.taskbarTextMenuOpen === 'help' ? '' : 'display:none'}">
+                      <button class="taskbar-text-menu-item" type="button" data-taskbar-help="manual">Manual</button>
+                      <button class="taskbar-text-menu-item" type="button" data-taskbar-help="report">Report an issue</button>
+                    </infring-taskbar-menu-shell>
+                  </div>
+                </infring-taskbar-menu-shell>
+              </infring-taskbar-dropdown-cluster-shell>
               <div class="global-taskbar-page-slot"></div>
             </div>
           </div>
           <div class="global-taskbar-right">
-            <infring-taskbar-system-items-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-system-items" parentownedmechanics="true">
-            <div class="taskbar-visual-group taskbar-visual-group-right" aria-label="System taskbar items">
-              <div class="taskbar-reorder-box taskbar-reorder-box-right">
-                <div class="taskbar-reorder-item" data-taskbar-item="connectivity">
-                  <div class="global-taskbar-controls">
-                    <button class="health-indicator taskbar-agent-indicator \${state.runtimeState === 'connected' ? 'health-ok' : 'health-connecting'}" type="button" aria-label="Open agents" title="\${escapeHtml(state.runtimeLabel)}">
-                      <span class="taskbar-agent-indicator-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
-                      <span class="taskbar-agent-indicator-text">\${escapeHtml(runtimeBadge)}</span>
-                    </button>
-                  </div>
-                </div>
-                <div class="taskbar-reorder-item" data-taskbar-item="theme">
-                  <div class="theme-switcher toggle-pill" data-mode="\${escapeHtml(browserShellV2DisplayState.themeMode)}" data-resolved="\${escapeHtml(browserShellV2DisplayState.resolvedTheme)}" role="group" aria-label="Theme">
-                    <button class="theme-opt \${browserShellV2DisplayState.themeMode === 'light' ? 'active' : ''}" data-theme-mode="light" type="button" title="Light" aria-label="Light theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></button>
-                    <button class="theme-opt \${browserShellV2DisplayState.themeMode === 'system' ? 'active' : ''}" data-theme-mode="system" type="button" title="System" aria-label="System theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg></button>
-                    <button class="theme-opt \${browserShellV2DisplayState.themeMode === 'dark' ? 'active' : ''}" data-theme-mode="dark" type="button" title="Dark" aria-label="Dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3A7 7 0 0 0 21 12.79z"></path></svg></button>
-                  </div>
-                </div>
-                <div class="taskbar-reorder-item" data-taskbar-item="notifications">
-                  <div id="taskbar-notification-menu-anchor" class="notif-wrap">
-                    <button class="btn btn-ghost btn-sm taskbar-icon-btn notif-btn" type="button" title="Notifications" aria-label="Notifications">
-                      <svg class="notif-bell-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path><path d="M9 17a3 3 0 0 0 6 0"></path></svg>
-                    </button>
-                  </div>
-                </div>
-                <div class="taskbar-reorder-item" data-taskbar-item="search">
-                  <button class="btn btn-ghost btn-sm taskbar-icon-btn taskbar-search-btn" type="button" aria-label="Search" aria-disabled="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="m20 20-3.7-3.7"></path></svg></button>
-                </div>
-                <div class="taskbar-reorder-item" data-taskbar-item="auth">
-                  <button class="btn btn-ghost btn-sm taskbar-icon-btn auth-key-btn" type="button" aria-label="Authentication"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path><circle cx="12" cy="16" r="1"></circle></svg></button>
-                </div>
-                <div class="taskbar-reorder-item" data-taskbar-item="clock">
-                  <span class="taskbar-clock" aria-label="Clock">\${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              </div>
-            </div>
-            </infring-taskbar-system-items-shell>
+            <infring-taskbar-system-items-shell shellprimitive="taskbar-dock" wrapperrole="taskbar-system-items" parentownedmechanics="true"></infring-taskbar-system-items-shell>
           </div>
         </div>
         \${isChatPage ? \`
@@ -1240,21 +1418,7 @@ function render(state) {
                 </infring-chat-loading-content-shell>
               </div>
               </infring-chat-loading-overlay-shell>
-              <div class="chat-thread">
-                \${messages.length ? messages.map((message, index) => \`
-                  <article id="browser-v2-message-\${index}" class="message \${message.role === 'user' ? 'user' : 'agent'} \${messageHasTail(messages, index) ? 'has-tail' : ''} meta-collapsed" data-msg-index="\${index}">
-                    <div class="message-avatar agent-mark infring-logo" aria-hidden="true"><span class="infring-logo-glyph">\${message.role === 'user' ? 'Y' : '∞'}</span></div>
-                    <div class="message-body">
-                      <div class="message-bubble markdown-body">
-                        <span class="message-agent-name"><span class="message-agent-name-label">\${escapeHtml(message.role === 'user' ? 'You' : selectedAgentLabel)}</span></span>
-                        <p class="message-bubble-content">\${escapeHtml(message.text)}</p>
-                        \${message.detail_ref ? \`<button class="message-stat-btn" type="button" data-detail-ref="\${escapeHtml(message.detail_ref)}" \${state.disabled ? 'disabled' : ''}>View detail</button>\` : ''}
-                        <infring-message-meta-shell state='\${messageMetadataShellState(message, index, messages)}'></infring-message-meta-shell>
-                      </div>
-                    </div>
-                  </article>
-                \`).join('') : (hasCurrentAgent && !isLoading ? '<infring-chat-stream-shell class="empty-state"><h4>No messages yet</h4><p class="hint">Start chatting or initialize this agent.</p></infring-chat-stream-shell>' : '')}
-              </div>
+              \${messages.length ? '<infring-chat-thread-shell></infring-chat-thread-shell>' : (hasCurrentAgent && !isLoading ? '<infring-chat-stream-shell class="empty-state"><h4>No messages yet</h4><p class="hint">Start chatting or initialize this agent.</p></infring-chat-stream-shell>' : '')}
             </div>
           </div>
           </infring-messages-surface-shell>
@@ -1282,6 +1446,10 @@ function render(state) {
     browserShellV2DisplayState.page = clean(button.getAttribute('data-page-id') || 'chat', 80) || 'chat';
     render(state);
   }));
+  root.querySelectorAll('[data-dock-id]').forEach((button) => button.addEventListener('click', () => {
+    const method = window.InfringSharedShellServices?.appStore?.method?.('handleBottomDockTileClick');
+    if (method) method(clean(button.getAttribute('data-dock-id') || 'chat', 80), clean(button.getAttribute('data-dock-id') || 'chat', 80));
+  }));
   root.querySelectorAll('[data-agent-id]').forEach((button) => button.addEventListener('click', () => selectAgent(button.getAttribute('data-agent-id') || '')));
   root.querySelectorAll('[data-session-id]').forEach((button) => button.addEventListener('click', () => selectSession(button.getAttribute('data-session-id') || '')));
   root.querySelectorAll('[data-detail-ref]').forEach((button) => button.addEventListener('click', () => openMessageDetail(button.getAttribute('data-detail-ref') || '', state)));
@@ -1289,9 +1457,25 @@ function render(state) {
     applyDisplayTheme(button.getAttribute('data-theme-mode') || 'system');
     render(state);
   }));
+  root.querySelector('.taskbar-brand-trigger')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    browserShellV2DisplayState.taskbarHeroMenuOpen = !browserShellV2DisplayState.taskbarHeroMenuOpen;
+    browserShellV2DisplayState.taskbarTextMenuOpen = '';
+    render(state);
+  });
+  root.querySelector('.taskbar-text-menu-btn')?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    browserShellV2DisplayState.taskbarTextMenuOpen = browserShellV2DisplayState.taskbarTextMenuOpen === 'help' ? '' : 'help';
+    browserShellV2DisplayState.taskbarHeroMenuOpen = false;
+    render(state);
+  });
+  root.querySelectorAll('[data-taskbar-command],[data-taskbar-help]').forEach((button) => button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const title = button.getAttribute('data-taskbar-command') || button.getAttribute('data-taskbar-help') || 'menu';
+    const method = window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup');
+    if (method) method('taskbar-menu:' + title, title, event, { source: 'taskbar-menu', side: 'bottom', body: 'Gateway action projection only in Browser Shell V2.', meta_origin: 'Taskbar' });
+  }));
   [
-    ['.taskbar-brand-trigger', 'System actions', 'Gateway-only Browser Shell V2 system menu', 'taskbar-brand'],
-    ['.taskbar-text-menu-btn', 'Help', 'Browser Shell V2 help menu', 'taskbar-help'],
     ['.notif-btn', 'Notifications', 'No notification projection loaded.', 'taskbar-notifications'],
     ['.taskbar-search-btn', 'Search', 'Use Gateway bounded search from Shell Socket.', 'taskbar-search'],
     ['.auth-key-btn', 'Authentication', 'Authentication status is handled by Gateway.', 'taskbar-auth'],
@@ -1557,6 +1741,9 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   const warnings = compiled.warnings.map((warning) => warning.message);
   // No V2 CSS is appended. Visual parity means the artifact CSS is exactly the legacy dashboard CSS bundle.
   const css = legacySurfaceCss();
+  const legacyBundleScriptTags = LEGACY_SHELL_BUNDLE_NAMES
+    .map((name) => `<script src="./${name.replace(/\.ts$/, '.js')}"></script>`)
+    .join('\n    ');
   const targetDir = path.resolve(process.cwd(), outDir);
   fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
@@ -1570,34 +1757,24 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   </head>
   <body data-theme="light">
     <div id="browser-shell-v2-root"></div>
-    <script src="./sidebar_agent_list_shell.bundle.js"></script>
-    <script src="./chat_map_rail_shell.bundle.js"></script>
-    <script src="./chat_map_viewport_shell.bundle.js"></script>
-    <script src="./chat_map_shell.bundle.js"></script>
-    <script src="./chat_input_footer_shell.bundle.js"></script>
-    <script src="./message_meta_shell.bundle.js"></script>
-    <script src="./bottom_dock_shell.bundle.js"></script>
-    <script src="./dashboard_popup_overlay_shell.bundle.js"></script>
+    ${legacyBundleScriptTags}
     <script type="module" src="./browser_shell_v2_app.js"></script>
   </body>
 </html>
 `);
   write(path.join(outDir, 'browser_shell_v2.css'), css);
-  write(path.join(outDir, 'sidebar_agent_list_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_SIDEBAR_AGENT_LIST_BUNDLE), 'utf8'));
-  write(path.join(outDir, 'chat_map_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_SHELL_BUNDLE), 'utf8'));
-  write(path.join(outDir, 'chat_map_rail_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_RAIL_BUNDLE), 'utf8'));
-  write(path.join(outDir, 'chat_map_viewport_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_VIEWPORT_BUNDLE), 'utf8'));
-  write(path.join(outDir, 'chat_input_footer_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_INPUT_FOOTER_BUNDLE), 'utf8'));
-  write(path.join(outDir, 'message_meta_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_MESSAGE_META_BUNDLE), 'utf8'));
-  write(path.join(outDir, 'bottom_dock_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_BOTTOM_DOCK_BUNDLE), 'utf8'));
-  write(path.join(outDir, 'dashboard_popup_overlay_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE), 'utf8'));
+  for (const bundleName of LEGACY_SHELL_BUNDLE_NAMES) {
+    const outName = bundleName.replace(/\.ts$/, '.js');
+    write(path.join(outDir, outName), fs.readFileSync(path.resolve(process.cwd(), LEGACY_SVELTE_BUNDLE_DIR, bundleName), 'utf8'));
+  }
   write(path.join(outDir, 'browser_shell_v2_app.js'), browserRuntimeSource());
   write(path.join(outDir, 'svelte_component_preflight.js'), compiled.js.code);
+  const files = ['index.html', 'browser_shell_v2.css', ...LEGACY_SHELL_BUNDLE_NAMES.map((name) => name.replace(/\.ts$/, '.js')), 'browser_shell_v2_app.js', 'svelte_component_preflight.js'];
   return {
     ok: warnings.length === 0,
     type: 'browser_shell_v2_build',
     out_dir: outDir,
-    files: ['index.html', 'browser_shell_v2.css', 'sidebar_agent_list_shell.bundle.js', 'chat_map_rail_shell.bundle.js', 'chat_map_viewport_shell.bundle.js', 'chat_map_shell.bundle.js', 'chat_input_footer_shell.bundle.js', 'message_meta_shell.bundle.js', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
+    files,
     svelte_warnings: warnings,
   };
 }
