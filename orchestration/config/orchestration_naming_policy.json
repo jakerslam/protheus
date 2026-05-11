@@ -1,7 +1,5 @@
 {
-  "canonical_path": "orchestration/config/orchestration_naming_policy.json",
   "canonical_owner": "orchestration",
-  "compatibility_mirror": true,
   "include_prefixes": [
     "orchestration/src",
     "orchestration/tests",

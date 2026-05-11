@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_POLICY = 'client/runtime/config/orchestration_ts_boundary_policy.json';
+const DEFAULT_POLICY = 'orchestration/config/orchestration_ts_boundary_policy.json';
 const DEFAULT_OUT = 'core/local/artifacts/orchestration_ts_boundary_audit_current.json';
 
 type Policy = {
