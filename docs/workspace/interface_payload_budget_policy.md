@@ -140,7 +140,7 @@ Route inventory command: `npm run -s ops:nexus:route-inventory:guard`.
 
 Architecture policy governance command: `npm run -s ops:policy-refinement:governance`.
 
-The guard validates `client/runtime/config/interface_payload_budget_contract.json`,
+The guard validates `validation/conformance/contracts/interface_payload_budget_contract.json`,
 cross-checks the Shell message/detail and Gateway contracts, and fails closed if
 default Shell-facing endpoints admit oversized responses, excessive nesting,
 unbounded arrays, raw traces, full tool outputs, full histories, or missing

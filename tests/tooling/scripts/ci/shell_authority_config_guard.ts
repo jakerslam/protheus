@@ -41,6 +41,11 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/child_organ_runtime_policy.json', 'orchestration/config/child_organ_runtime_policy.json', 'orchestration'],
   ['client/runtime/config/orchestron_policy.json', 'orchestration/config/orchestron_policy.json', 'orchestration'],
   ['client/runtime/config/guard_check_registry.json', 'validation/release_gates/contracts/guard_check_registry.json', 'validation/release_gates'],
+  ['client/runtime/config/gateway_ingress_egress_contract.json', 'validation/conformance/contracts/gateway_ingress_egress_contract.json', 'validation/conformance'],
+  ['client/runtime/config/interface_payload_budget_contract.json', 'validation/conformance/contracts/interface_payload_budget_contract.json', 'validation/conformance'],
+  ['client/runtime/config/conduit_scrambler_posture_contract.json', 'validation/conformance/contracts/conduit_scrambler_posture_contract.json', 'validation/conformance'],
+  ['client/runtime/config/cross_domain_nexus_route_inventory.json', 'validation/conformance/contracts/cross_domain_nexus_route_inventory.json', 'validation/conformance'],
+  ['client/runtime/config/shell_ui_message_detail_contract.json', 'validation/conformance/contracts/shell_ui_message_detail_contract.json', 'validation/conformance'],
 ];
 
 const AUTHORITY_CONFIG_NAME = /(?:policy|rules|manifest|gate|executor|routing|abac|permission|security|workflow|provider|tool|gateway|conduit|research|batch|memory|command|authority)/i;

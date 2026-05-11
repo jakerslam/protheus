@@ -1,7 +1,7 @@
 {
   "version": "2026-04-29",
   "policy_doc_path": "docs/workspace/conduit_scrambler_posture_policy.md",
-  "gateway_contract_path": "client/runtime/config/gateway_ingress_egress_contract.json",
+  "gateway_contract_path": "validation/conformance/contracts/gateway_ingress_egress_contract.json",
   "related_policy_paths": [
     "docs/workspace/nexus_conduit_checkpoint_policy.md",
     "docs/workspace/gateway_ingress_egress_policy.md",
@@ -110,7 +110,7 @@
       "route_class": "detail_fetch_sensitive",
       "source_domain": "gateway",
       "target_domain": "kernel_core",
-      "source_checkpoint": "client/runtime/config/gateway_ingress_egress_contract.json",
+      "source_checkpoint": "validation/conformance/contracts/gateway_ingress_egress_contract.json",
       "target_checkpoint": "core/layer0/ops/src/dashboard_compat_api.rs",
       "conduit_path": "core/layer2/nexus/src/conduit_manager.rs",
       "conduit_security_posture": "strong_scrambler",
@@ -159,5 +159,8 @@
       "downgrade_replacement_plan": "",
       "quantum_resistant_reserved": false
     }
-  ]
+  ],
+  "canonical_path": "validation/conformance/contracts/conduit_scrambler_posture_contract.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

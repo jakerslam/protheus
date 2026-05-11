@@ -285,5 +285,8 @@
       "window_start_id",
       "window_end_id"
     ]
-  }
+  },
+  "canonical_path": "validation/conformance/contracts/shell_ui_message_detail_contract.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

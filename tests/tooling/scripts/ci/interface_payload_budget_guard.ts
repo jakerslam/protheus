@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_CONTRACT = 'client/runtime/config/interface_payload_budget_contract.json';
+const DEFAULT_CONTRACT = 'validation/conformance/contracts/interface_payload_budget_contract.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/interface_payload_budget_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/INTERFACE_PAYLOAD_BUDGET_GUARD_CURRENT.md';
 

@@ -192,7 +192,7 @@ The current repo has a real Layer 2 Nexus primitive at `core/layer2/nexus`.
 
 The old exact Core/Orchestration/Shell federation runtime shape is retired by `docs/workspace/layered_nexus_federation_resolution_policy.md`. Layered federation now means auditable cross-domain route relationships, not a separate central raw-payload broker runtime.
 
-The initial cross-domain route inventory lives in `client/runtime/config/cross_domain_nexus_route_inventory.json` and is guarded by `ops:nexus:route-inventory:guard`.
+The initial cross-domain route inventory lives in `validation/conformance/contracts/cross_domain_nexus_route_inventory.json` and is guarded by `ops:nexus:route-inventory:guard`.
 
 The current repo has partial enforcement through Nexus coupling, import/export boundary, architecture boundary, and Sentinel evidence guards.
 

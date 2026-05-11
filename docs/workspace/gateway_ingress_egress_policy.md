@@ -215,4 +215,4 @@ Payload budget command: `npm run -s ops:interface:payload-budget:guard`.
 
 Route inventory command: `npm run -s ops:nexus:route-inventory:guard`.
 
-The guard validates `client/runtime/config/gateway_ingress_egress_contract.json`, verifies this policy document contains the canonical route-class and external ambiguity firewall language, and fails closed if required route classes are missing, if required Gateway enforcement responsibilities are missing, if a route class allows full-state/default raw payloads, or if detail/search/status classes lack bounded/capability/audit/Nexus constraints.
+The guard validates `validation/conformance/contracts/gateway_ingress_egress_contract.json`, verifies this policy document contains the canonical route-class and external ambiguity firewall language, and fails closed if required route classes are missing, if required Gateway enforcement responsibilities are missing, if a route class allows full-state/default raw payloads, or if detail/search/status classes lack bounded/capability/audit/Nexus constraints.

@@ -64,7 +64,7 @@ Layered Nexus Federation closure is satisfied by:
 5. Conduit/Scrambler posture declarations for sensitive routes.
 6. A cross-domain route inventory that enumerates real routes and proves each one enters and exits through checkpoint surfaces.
 
-The cross-domain route inventory lives in `docs/workspace/cross_domain_nexus_route_inventory.md` with the machine-readable contract at `client/runtime/config/cross_domain_nexus_route_inventory.json`.
+The cross-domain route inventory lives in `docs/workspace/cross_domain_nexus_route_inventory.md` with the machine-readable contract at `validation/conformance/contracts/cross_domain_nexus_route_inventory.json`.
 
 ## Evidence Rules
 

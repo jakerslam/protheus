@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_CONTRACT = 'client/runtime/config/conduit_scrambler_posture_contract.json';
+const DEFAULT_CONTRACT = 'validation/conformance/contracts/conduit_scrambler_posture_contract.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/conduit_scrambler_posture_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/CONDUIT_SCRAMBLER_POSTURE_GUARD_CURRENT.md';
 

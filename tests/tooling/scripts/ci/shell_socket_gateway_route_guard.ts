@@ -9,7 +9,7 @@ import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 const ROOT = process.cwd();
 const DEFAULT_SOCKET_CONTRACT = 'shell/socket/contract/shell_socket_contract.json';
 const DEFAULT_ROUTE_CONTRACT = 'validation/conformance/contracts/shell_socket_gateway_contract.json';
-const DEFAULT_GATEWAY_CONTRACT = 'client/runtime/config/gateway_ingress_egress_contract.json';
+const DEFAULT_GATEWAY_CONTRACT = 'validation/conformance/contracts/gateway_ingress_egress_contract.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_socket_gateway_route_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_SOCKET_GATEWAY_ROUTE_GUARD_CURRENT.md';
 

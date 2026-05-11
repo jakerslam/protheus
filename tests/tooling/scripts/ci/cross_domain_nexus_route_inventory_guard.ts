@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_CONTRACT = 'client/runtime/config/cross_domain_nexus_route_inventory.json';
+const DEFAULT_CONTRACT = 'validation/conformance/contracts/cross_domain_nexus_route_inventory.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/cross_domain_nexus_route_inventory_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/CROSS_DOMAIN_NEXUS_ROUTE_INVENTORY_GUARD_CURRENT.md';
 

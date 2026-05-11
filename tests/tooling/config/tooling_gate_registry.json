@@ -2738,7 +2738,7 @@
       "canonical_definition_paths": [
         "validation/regression/contracts/shell_runtime_payload_budget_contract.json",
         "tests/tooling/scripts/ci/shell_runtime_payload_budget_guard.ts",
-        "client/runtime/config/interface_payload_budget_contract.json"
+        "validation/conformance/contracts/interface_payload_budget_contract.json"
       ],
       "artifact_paths": [
         "core/local/artifacts/shell_runtime_payload_budget_guard_current.json",

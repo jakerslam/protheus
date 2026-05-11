@@ -148,4 +148,4 @@ Search hits should return IDs, snippets, counts, and refs. Caches should retain 
 
 Enforcement command: `npm run -s ops:shell:ui-message-contract:guard`.
 
-The guard validates the structured contract in `client/runtime/config/shell_ui_message_detail_contract.json`, verifies this policy document contains the canonical contract language, and fails closed if default projections admit prohibited heavy fields or if lazy-only data classes lack explicit detail routes.
+The guard validates the structured contract in `validation/conformance/contracts/shell_ui_message_detail_contract.json`, verifies this policy document contains the canonical contract language, and fails closed if default projections admit prohibited heavy fields or if lazy-only data classes lack explicit detail routes.
