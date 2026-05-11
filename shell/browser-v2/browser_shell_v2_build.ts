@@ -15,6 +15,7 @@ const LEGACY_SIDEBAR_AGENT_LIST_BUNDLE = ['client', 'runtime', 'systems', 'ui', 
 const LEGACY_CHAT_MAP_SHELL_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_shell.bundle.ts'].join('/');
 const LEGACY_CHAT_MAP_RAIL_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_rail_shell.bundle.ts'].join('/');
 const LEGACY_CHAT_MAP_VIEWPORT_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_viewport_shell.bundle.ts'].join('/');
+const LEGACY_CHAT_INPUT_FOOTER_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_input_footer_shell.bundle.ts'].join('/');
 const LEGACY_CSS_PATHS = [
   'theme.css',
   ...fs.readdirSync(path.resolve(process.cwd(), LEGACY_CSS_DIR, 'layout.css.parts')).sort().map((name) => `layout.css.parts/${name}`),
@@ -450,6 +451,29 @@ function installProjectionStores() {
     currentAgent: null,
     chatMapDragActive: false,
     page: 'chat',
+    inputText: '',
+    locked: true,
+    sending: false,
+    recording: false,
+    terminalMode: false,
+    showAttachMenu: false,
+    showGitTreeMenu: false,
+    showModelSwitcher: false,
+    attachments: [],
+    promptQueueItems: [],
+    promptSuggestions: [],
+    filteredSlashCommands: [],
+    filteredModelPicker: [],
+    gitTreeMenuItems: [],
+    renderedSwitcherModels: [],
+    switcherProviders: [],
+    activeGitBranchMenuLabel: 'Git tree',
+    menuModelLabel: 'Auto',
+    modelDisplayName: 'Auto',
+    contextRingCompactLabel: '',
+    contextRingTooltip: '',
+    contextRingProgressStyle: '',
+    tokenCount: 0,
     chatSidebarPreview: (agent) => agent?.sidebar_preview || { text: clean(agent?.state || 'Gateway projection', 240), ts: Date.now() },
     formatChatSidebarTime: () => '',
     agentStatusState: (agent) => clean(agent?.sidebar_status_state || agent?.state || 'unknown', 80).toLowerCase() || 'unknown',
@@ -470,6 +494,68 @@ function installProjectionStores() {
     hideDashboardPopupBySource: (source) => window.InfringSharedShellServices?.appStore?.method?.('hideDashboardPopupBySource')?.(source),
     showDashboardPopup: (id, title, event, overrides) => window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup')?.(id, title, event, overrides),
     hideDashboardPopup: (id) => window.InfringSharedShellServices?.appStore?.method?.('hideDashboardPopup')?.(id),
+    composerPlaceholder: () => selectedAgentId ? 'Message Infring...' : 'Select an agent to begin...',
+    currentInputToggleMode: () => 'send',
+    isFreshInitComposerLocked: () => !selectedAgentId || !!window.InfringChatPage?.locked,
+    isSystemThreadActive: () => false,
+    closeComposerMenus: () => {
+      const page = window.InfringChatPage;
+      if (!page) return;
+      page.showAttachMenu = false;
+      page.showGitTreeMenu = false;
+      page.showModelSwitcher = false;
+    },
+    closeGitTreeMenu: () => { if (window.InfringChatPage) window.InfringChatPage.showGitTreeMenu = false; },
+    toggleGitTreeMenu: () => {
+      const page = window.InfringChatPage;
+      if (!page) return;
+      page.showGitTreeMenu = !page.showGitTreeMenu;
+      page.showAttachMenu = false;
+      page.showModelSwitcher = false;
+    },
+    toggleModelSwitcher: () => {
+      const page = window.InfringChatPage;
+      if (!page) return;
+      page.showModelSwitcher = !page.showModelSwitcher;
+      page.showAttachMenu = false;
+      page.showGitTreeMenu = false;
+    },
+    fallbackModelCatalogRows: () => modelRows,
+    modelSwitcherItemName: (row) => clean(row?.display_name || row?.label || row?.id || 'model', 160),
+    modelDeploymentLabel: (row) => clean(row?.deployment_kind || row?.deployment || '', 80),
+    modelContextWindowLabel: (row) => clean(row?.context || row?.context_window || '', 80),
+    modelParamLabel: (row) => clean(row?.params || row?.parameter_count || '', 80),
+    modelSpecialtyLabel: (row) => clean(row?.specialty || row?.tier || '', 80),
+    modelPowerIcons: () => '',
+    modelCostIcons: () => '',
+    isSwitcherModelActive: (row) => clean(row?.id || '', 160) === modelSelection,
+    switchModel: (row) => setModel(clean(row?.id || row, 160), lastRenderedState || { messages: [], disabled: false }),
+    switchAgentGitTree: (row) => setGitTree(clean(row?.id || row?.branch || row, 160), lastRenderedState || { messages: [], disabled: false }),
+    createAndCheckoutGitBranch: () => {},
+    removeAttachment: () => {},
+    startRecording: () => { if (window.InfringChatPage) window.InfringChatPage.recording = true; },
+    stopRecording: () => { if (window.InfringChatPage) window.InfringChatPage.recording = false; },
+    stopAgent: () => {},
+    toggleTerminalMode: () => {},
+    togglePromptSuggestionsEnabled: () => {},
+    refreshChatInputOverlayMetrics: () => {},
+    updateTerminalCursor: () => {},
+    setTerminalCursorFocus: () => {},
+    scrollToBottom: () => document.querySelector('#messages')?.scrollTo?.({ top: 999999, behavior: 'smooth' }),
+    sendMessage: async () => {
+      const page = window.InfringChatPage;
+      const message = clean(page?.inputText || '', 24000);
+      if (!message || !selectedAgentId) return;
+      page.sending = true;
+      page.locked = true;
+      await socketRequest('submit_input', '/api/shell-socket/input', {
+        method: 'POST',
+        body: { agent_id: selectedAgentId, message, source: 'browser_shell_v2', medium: 'browser' },
+      });
+      page.inputText = '';
+      page.sending = false;
+      await hydrate();
+    },
     startChatMapPointerDrag: () => {},
     stepMessageMap: (messages, direction) => {
       const store = window.InfringChatStore;
@@ -512,11 +598,21 @@ function syncLegacyDisplayProjection(state) {
     store.mapRows?.set?.(legacyChatMapRows(messages));
   }
   if (window.InfringChatPage) {
+    const previousInput = typeof window.InfringChatPage.inputText === 'string' ? window.InfringChatPage.inputText : '';
     window.InfringChatPage.page = browserShellV2DisplayState.page;
     window.InfringChatPage.messages = messages;
     window.InfringChatPage.filteredMessages = messages;
     window.InfringChatPage.currentAgent = currentAgent;
     window.InfringChatPage.activeAgentId = selectedAgentId;
+    window.InfringChatPage.inputText = previousInput;
+    window.InfringChatPage.locked = !selectedAgentId || !!state.disabled;
+    window.InfringChatPage.sending = !!state.disabled;
+    window.InfringChatPage.renderedSwitcherModels = modelRows;
+    window.InfringChatPage.filteredModelPicker = modelRows;
+    window.InfringChatPage.gitTreeMenuItems = gitTreeRows;
+    window.InfringChatPage.modelDisplayName = clean(modelSelection || 'Auto', 120);
+    window.InfringChatPage.menuModelLabel = clean(modelSelection || 'Auto', 120);
+    window.InfringChatPage.activeGitBranchMenuLabel = clean(gitTreeSelection || 'Git tree', 120);
   }
 }
 
@@ -1039,41 +1135,7 @@ function render(state) {
           </div>
           </infring-messages-surface-shell>
           <infring-chat-map-shell class="chat-map" dragbarsurface="chat-map" parentownedmechanics="true" style="\${chatMapStyle()}" aria-label="Message map"></infring-chat-map-shell>
-          <infring-chat-input-footer-shell>
-          <form class="input-area">
-            <div class="chat-input-lane">
-              <div class="composer-stack">
-              <div class="input-row">
-                <div class="composer-shell">
-                  <div class="composer-main-row">
-                    <div class="composer-display-pill" aria-label="Message input controls">
-                      <div class="composer-menu-pill composer-shared-input-pill">
-                        <div class="composer-plus-wrap composer-icon-left">
-                          <button class="composer-icon-btn composer-hamburger-btn" type="button" aria-label="Add files and more">
-                            <svg class="composer-hamburger-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
-                          </button>
-                        </div>
-                      </div>
-                      <div class="composer-input-pill composer-shared-input-pill">
-                        <textarea id="msg-input" name="message" rows="1" \${state.disabled ? 'disabled' : ''} placeholder="Message Infring..." aria-label="Shell input"></textarea>
-                      </div>
-                      <div class="composer-controls-pill composer-shared-input-pill">
-                        <div class="composer-actions-right">
-                          <div class="toggle-pill toggle-pill--triple input-toggle-wrapper" data-mode="text" role="group" aria-label="Voice and send controls">
-                            <button type="button" class="composer-send-voice-opt composer-send-voice-opt-attach" aria-label="Add files"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-                            <button type="button" class="composer-send-voice-opt composer-send-voice-opt-voice" aria-label="Toggle voice recording"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></button>
-                            <button class="composer-send-voice-opt composer-send-voice-opt-send" \${state.disabled ? 'disabled' : ''} type="submit" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg></button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              </div>
-            </div>
-          </form>
-          </infring-chat-input-footer-shell>
+          <infring-chat-input-footer-shell></infring-chat-input-footer-shell>
         </div>
         \` : renderCurrentPageShell()}
         \${activeDetailRef ? \`
@@ -1363,6 +1425,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
     <script src="./chat_map_rail_shell.bundle.js"></script>
     <script src="./chat_map_viewport_shell.bundle.js"></script>
     <script src="./chat_map_shell.bundle.js"></script>
+    <script src="./chat_input_footer_shell.bundle.js"></script>
     <script src="./bottom_dock_shell.bundle.js"></script>
     <script src="./dashboard_popup_overlay_shell.bundle.js"></script>
     <script type="module" src="./browser_shell_v2_app.js"></script>
@@ -1374,6 +1437,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   write(path.join(outDir, 'chat_map_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_SHELL_BUNDLE), 'utf8'));
   write(path.join(outDir, 'chat_map_rail_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_RAIL_BUNDLE), 'utf8'));
   write(path.join(outDir, 'chat_map_viewport_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_VIEWPORT_BUNDLE), 'utf8'));
+  write(path.join(outDir, 'chat_input_footer_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_INPUT_FOOTER_BUNDLE), 'utf8'));
   write(path.join(outDir, 'bottom_dock_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_BOTTOM_DOCK_BUNDLE), 'utf8'));
   write(path.join(outDir, 'dashboard_popup_overlay_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE), 'utf8'));
   write(path.join(outDir, 'browser_shell_v2_app.js'), browserRuntimeSource());
@@ -1382,7 +1446,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
     ok: warnings.length === 0,
     type: 'browser_shell_v2_build',
     out_dir: outDir,
-    files: ['index.html', 'browser_shell_v2.css', 'sidebar_agent_list_shell.bundle.js', 'chat_map_rail_shell.bundle.js', 'chat_map_viewport_shell.bundle.js', 'chat_map_shell.bundle.js', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
+    files: ['index.html', 'browser_shell_v2.css', 'sidebar_agent_list_shell.bundle.js', 'chat_map_rail_shell.bundle.js', 'chat_map_viewport_shell.bundle.js', 'chat_map_shell.bundle.js', 'chat_input_footer_shell.bundle.js', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
     svelte_warnings: warnings,
   };
 }
