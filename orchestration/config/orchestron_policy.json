@@ -1,7 +1,5 @@
 {
-  "canonical_path": "orchestration/config/orchestron_policy.json",
   "canonical_owner": "orchestration",
-  "compatibility_mirror": true,
   "version": "1.0",
   "enabled": true,
   "shadow_only": false,
@@ -81,10 +79,6 @@
     "min_safety_score": 0.48,
     "max_regression_risk": 0.56,
     "min_composite_score": 0.45,
-    "max_predicted_drift_delta": 0.008,
-    "min_predicted_yield_delta": -0.005,
-    "min_trit_alignment": -0.6,
-    "max_candidate_red_team_pressure": 0.72,
-    "max_promotions_per_run": 4
+    "auto_register_green": true
   }
 }

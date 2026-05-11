@@ -335,14 +335,24 @@ fn enforce_tool_capability_tier(
 }
 
 fn spawn_guard_policy(root: &Path) -> Value {
-    let spawn_policy = read_json_loose(&root.join("client/runtime/config/spawn_policy.json"))
+    let spawn_policy = read_json_loose(&canonical_or_legacy_config_path(
+        root,
+        "orchestration/config/spawn_policy.json",
+        "client/runtime/config/spawn_policy.json",
+    ))
         .unwrap_or_else(|| json!({}));
-    let child_policy =
-        read_json_loose(&root.join("client/runtime/config/child_organ_runtime_policy.json"))
-            .unwrap_or_else(|| json!({}));
-    let orchestron_policy =
-        read_json_loose(&root.join("client/runtime/config/orchestron_policy.json"))
-            .unwrap_or_else(|| json!({}));
+    let child_policy = read_json_loose(&canonical_or_legacy_config_path(
+        root,
+        "orchestration/config/child_organ_runtime_policy.json",
+        "client/runtime/config/child_organ_runtime_policy.json",
+    ))
+    .unwrap_or_else(|| json!({}));
+    let orchestron_policy = read_json_loose(&canonical_or_legacy_config_path(
+        root,
+        "orchestration/config/orchestron_policy.json",
+        "client/runtime/config/orchestron_policy.json",
+    ))
+    .unwrap_or_else(|| json!({}));
     let max_per_spawn = spawn_policy
         .pointer("/pool/max_cells")
         .and_then(Value::as_i64)

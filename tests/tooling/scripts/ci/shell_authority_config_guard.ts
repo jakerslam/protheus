@@ -25,6 +25,9 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/workflow_executor_policy.json', 'orchestration/config/workflow_executor_policy.json', 'orchestration'],
   ['client/runtime/config/provider_onboarding_manifest.json', 'orchestration/config/provider_onboarding_manifest.json', 'orchestration'],
   ['client/runtime/config/research_plane_policy.json', 'orchestration/config/research_plane_policy.json', 'orchestration'],
+  ['client/runtime/config/spawn_policy.json', 'orchestration/config/spawn_policy.json', 'orchestration'],
+  ['client/runtime/config/child_organ_runtime_policy.json', 'orchestration/config/child_organ_runtime_policy.json', 'orchestration'],
+  ['client/runtime/config/orchestron_policy.json', 'orchestration/config/orchestron_policy.json', 'orchestration'],
 ];
 
 const AUTHORITY_CONFIG_NAME = /(?:policy|rules|manifest|gate|executor|routing|abac|permission|security|workflow|provider|tool|gateway|conduit|research|batch|memory|command|authority)/i;
