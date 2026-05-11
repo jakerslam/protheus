@@ -905,6 +905,68 @@ mod workflow_reader_tests {
     }
 
     #[test]
+    fn workflow_reader_projects_retrieval_recovery_contract_from_json_spec() {
+        let selected = selected_turn_workflow("");
+        let recovery = selected
+            .pointer("/tool_menu_interface_contract/retrieval_recovery_contract")
+            .expect("retrieval recovery contract");
+        assert_eq!(
+            recovery.get("authority").and_then(Value::as_str),
+            Some("agent_submitted_tool_inputs")
+        );
+        assert_eq!(
+            recovery
+                .get("default_recovery_budget")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        let behavior = recovery
+            .get("recovery_behavior")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            behavior.contains("submit a more specific query or query pack before final synthesis"),
+            "{behavior}"
+        );
+        assert!(
+            behavior.contains("Do not ask the user to narrow"),
+            "{behavior}"
+        );
+        let coverage_behavior = recovery
+            .get("coverage_behavior")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            coverage_behavior.contains("retrieval coverage lane"),
+            "{coverage_behavior}"
+        );
+        let two_phase_behavior = recovery
+            .get("two_phase_retrieval_behavior")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(
+            two_phase_behavior.contains("initial discovery pass"),
+            "{two_phase_behavior}"
+        );
+        assert!(
+            two_phase_behavior.contains("targeted follow-up queries"),
+            "{two_phase_behavior}"
+        );
+        assert!(
+            recovery
+                .get("query_refinement_axes")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.as_str()
+                        .map(|value| value.contains("avoid hidden query expansion"))
+                        .unwrap_or(false)
+                }))
+                .unwrap_or(false),
+            "{recovery}"
+        );
+    }
+
+    #[test]
     fn workflow_reader_payload_instruction_requires_batch_query_top_level_query() {
         let selected = selected_turn_workflow("");
         let payload_instruction = selected
@@ -914,6 +976,42 @@ mod workflow_reader_tests {
 
         assert!(
             payload_instruction.contains("top-level `query` field is mandatory"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("A single broad query may be used as an initial discovery pass"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("must not finish from that pass unless the returned evidence already covers the request"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("4-8 concrete follow-up searches"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("omitting `queries` is also invalid unless this is explicitly a narrow lookup or an initial discovery pass"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("submit targeted follow-up queries rather than finalizing"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("keep the exact entity name in the query pack"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("allocate query coverage fairly"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("If a prior tool result quality diagnostic is available and recommends retry"),
+            "{payload_instruction}"
+        );
+        assert!(
+            payload_instruction.contains("do not ask the user to narrow while the workflow still has internal recovery budget"),
             "{payload_instruction}"
         );
         assert!(

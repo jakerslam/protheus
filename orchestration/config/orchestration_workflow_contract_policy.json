@@ -1,0 +1,93 @@
+{
+  "version": "2026-04-21",
+  "canonical_owner": "orchestration",
+  "required_docs": [
+    {
+      "path": "docs/workspace/control_plane_api_contract.md",
+      "required_phrases": [
+        "Default Workflow Templates (Control-Plane Authority)",
+        "clarify_then_coordinate",
+        "research_synthesize_verify",
+        "plan_execute_review",
+        "diagnose_retry_escalate",
+        "codex_tooling_synthesis",
+        "Template definitions are cataloged by `control_plane::templates::workflow_template_definition(...)`",
+        "codex_wave_preflight",
+        "codex_disjoint_wave_execution",
+        "codex_tool_route_misdirection",
+        "codex_multi_provider_synthesis_recovery",
+        "codex_route_probe_dry_run",
+        "codex_environment_diagnose_parallel",
+        "codex_worktree_isolated_setup",
+        "codex_worktree_cleanup_safety_modes",
+        "codex_review_fix_loop",
+        "Lifecycle Loop (Required Stages)",
+        "verification_closure",
+        "Feedback Loop Contract",
+        "handoff chain ownership",
+        "No-reroute invariant"
+      ]
+    },
+    {
+      "path": "orchestration/src/control_plane/workflows/lab/frameworks/codex/codex_tooling_synthesis.workflow.json",
+      "required_phrases": [
+        "subtemplates",
+        "source_refs",
+        "codex_wave_preflight",
+        "codex_tool_route_misdirection",
+        "codex_multi_provider_synthesis_recovery",
+        "codex_route_probe_dry_run",
+        "codex_environment_diagnose_parallel",
+        "codex_worktree_isolated_setup",
+        "codex_worktree_cleanup_safety_modes",
+        "codex_review_fix_loop"
+      ]
+    }
+  ],
+  "required_rust_files": [
+    {
+      "path": "orchestration/src/control_plane/lifecycle.rs",
+      "required_phrases": [
+        "pub fn select_workflow_template(",
+        "pub fn build_lifecycle_state(",
+        "surface_orchestration_control_plane",
+        "WorkflowTemplate::DiagnoseRetryEscalate",
+        "WorkflowTemplate::CodexToolingSynthesis",
+        "handoff_user_request_to_decomposition",
+        "handoff_verification_to_memory_packaging"
+      ]
+    },
+    {
+      "path": "orchestration/src/sequencing.rs",
+      "required_phrases": [
+        "pub fn apply_retry_reroute_feedback(",
+        "feedback_reroute:",
+        "control plane feedback rerouted",
+        "feedback_no_viable_reroute",
+        "feedback_escalate_no_viable_reroute"
+      ]
+    },
+    {
+      "path": "orchestration/src/contracts.rs",
+      "required_phrases": [
+        "pub enum WorkflowTemplate",
+        "pub enum WorkflowStage",
+        "pub struct ControlPlaneHandoff",
+        "pub struct ControlPlaneLifecycleState",
+        "pub handoff_chain: Vec<ControlPlaneHandoff>",
+        "pub workflow_template: WorkflowTemplate",
+        "pub control_plane_lifecycle: ControlPlaneLifecycleState"
+      ]
+    },
+    {
+      "path": "orchestration/src/control_plane/templates.rs",
+      "required_phrases": [
+        "pub struct WorkflowSubtemplate",
+        "pub struct WorkflowTemplateDefinition",
+        "pub fn workflow_template_definition(",
+        "WorkflowTemplate::CodexToolingSynthesis",
+        "source_refs"
+      ]
+    }
+  ]
+}

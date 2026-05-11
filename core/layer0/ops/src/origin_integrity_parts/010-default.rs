@@ -34,7 +34,7 @@ impl Default for OriginIntegrityPolicy {
             safety_plane_paths: vec![
                 "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
                 "client/runtime/config/dependency_boundary_manifest.json".to_string(),
-                "client/runtime/config/rust_source_of_truth_policy.json".to_string(),
+                "core/layer0/ops/config/rust_source_of_truth_policy.json".to_string(),
                 "client/runtime/config/constitution_guardian_policy.json".to_string(),
                 "client/runtime/config/rsi_bootstrap_policy.json".to_string(),
                 "core/layer0/ops/src/main.rs".to_string(),
@@ -45,7 +45,7 @@ impl Default for OriginIntegrityPolicy {
                 "core/layer0/ops/src/web_conduit_provider_runtime_parts/019-fetch-runtime-resolution.rs".to_string(),
                 "core/layer0/ops/src/web_conduit_provider_runtime_parts/021-search-runtime-resolution.rs".to_string(),
                 "core/layer0/ops/src/daemon_control_parts/020-dashboard-health-ok.rs".to_string(),
-                "client/runtime/config/secret_broker_policy.json".to_string(),
+                "core/layer0/ops/config/secret_broker_policy.json".to_string(),
             ],
             constitution: ConstitutionContract::default(),
             paths: OriginIntegrityPaths::default(),

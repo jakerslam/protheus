@@ -41,7 +41,7 @@ The guard applies to:
 ## Automation
 
 - Guard script: `tests/tooling/scripts/ci/naming_policy_guard.ts`
-- Policy config (canonical): `client/runtime/config/kernel_naming_policy.json`
+- Policy config (canonical): `core/layer0/ops/config/kernel_naming_policy.json`
 - npm command (canonical, advisory/yellow flag): `npm run -s ops:kernel-naming:guard`
 - npm command (canonical, strict/blocking): `npm run -s ops:kernel-naming:guard:strict`
 - tooling registry gate id: `ops:kernel-naming:guard`

@@ -10,7 +10,7 @@ import { appendJsonLine, emitStructuredResult, writeJsonArtifact, writeTextArtif
 const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_gateway_fallback_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_GATEWAY_FALLBACK_GUARD_CURRENT.md';
-const DEFAULT_POLICY_PATH = 'client/runtime/config/orchestration_quality_policy.json';
+const DEFAULT_POLICY_PATH = 'orchestration/config/orchestration_quality_policy.json';
 const TEST_NAMES = [
   'planning_execution::non_legacy_surface_fixture_fallback_rate_stays_below_threshold',
   'quality_surface::non_legacy_surface_fixture_quality_stays_within_surface_thresholds',

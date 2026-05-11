@@ -80,7 +80,7 @@
     "authorization_state"
   ],
   "default_payload_budget": {
-    "inherits": "client/runtime/config/interface_payload_budget_contract.json#/global_default_payload_budget",
+    "inherits": "validation/conformance/contracts/interface_payload_budget_contract.json#/global_default_payload_budget",
     "max_response_bytes": 65536,
     "max_array_items": 100,
     "max_object_depth": 4,

@@ -170,7 +170,7 @@
       "id": "f100_rust_source_of_truth_contract",
       "title": "Rust source-of-truth constraints are encoded",
       "type": "json_fields",
-      "path": "client/runtime/config/rust_source_of_truth_policy.json",
+      "path": "core/layer0/ops/config/rust_source_of_truth_policy.json",
       "required_fields": [
         "rust_entrypoint_gate.path",
         "conduit_strict_gate.path",

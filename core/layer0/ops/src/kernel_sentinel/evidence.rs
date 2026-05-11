@@ -17,10 +17,10 @@ mod advisory_bridge;
 mod artifact_states;
 mod boundedness;
 mod capability_grants;
+mod evidence_decode;
 mod failure_citations;
 mod gateway_isolation;
 mod guard_consistency;
-mod helpers;
 mod nexus_boundaries;
 mod receipt_completeness;
 mod source_catalog;
@@ -35,7 +35,7 @@ use gateway_isolation::build_gateway_isolation_report;
 use guard_consistency::{
     build_guard_consistency_report, cap_uncorroborated_critical_findings_against_authoritative_pass,
 };
-use helpers::{
+use evidence_decode::{
     bool_flag, deserialize_optional_category, deserialize_optional_severity,
     malformed_count_by_key, normalize_key, option_path, option_u64, record_freshness_age_seconds,
 };

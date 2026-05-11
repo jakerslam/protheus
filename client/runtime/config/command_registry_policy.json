@@ -1,10 +1,13 @@
 {
   "version": "1.0",
+  "canonical_path": "tests/tooling/config/command_registry_policy.json",
+  "canonical_owner": "tests/tooling",
+  "compatibility_mirror": true,
   "enabled": true,
   "strict_default": true,
   "paths": {
     "package_json_path": "package.json",
-    "registry_path": "client/runtime/config/command_registry.json",
+    "registry_path": "tests/tooling/config/command_registry.json",
     "generated_registry_path": "local/state/ops/command_registry/generated_registry.json",
     "docs_path": "docs/client/ops/COMMAND_REGISTRY.md",
     "latest_path": "local/state/ops/command_registry/latest.json",

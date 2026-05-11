@@ -4,7 +4,7 @@
   "owner": "assurance.validation",
   "status": "enforced",
   "updated_at": "2026-05-01",
-  "interface_payload_budget_contract_path": "client/runtime/config/interface_payload_budget_contract.json",
+  "interface_payload_budget_contract_path": "validation/conformance/contracts/interface_payload_budget_contract.json",
   "policy_refs": [
     "docs/workspace/interface_payload_budget_policy.md",
     "docs/workspace/gateway_ingress_egress_policy.md",

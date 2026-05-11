@@ -1,0 +1,159 @@
+{
+  "version": "2026-04-10",
+  "code_roots": [
+    "adapters",
+    "apps",
+    "client",
+    "core",
+    "orchestration",
+    "packages",
+    "shell",
+    "tests"
+  ],
+  "root_rules": {
+    "adapters": {
+      "allowed_extensions": [
+        "rs",
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "sh",
+        "toml",
+        "json",
+        "yaml",
+        "yml"
+      ],
+      "notes": "Polyglot integration shims for external systems."
+    },
+    "apps": {
+      "allowed_extensions": [
+        "rs",
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "html",
+        "css",
+        "scss",
+        "sh",
+        "toml",
+        "json",
+        "yaml",
+        "yml"
+      ],
+      "notes": "Standalone app surfaces that remain deletable without changing system authority behavior."
+    },
+    "client": {
+      "target_extensions": [
+        "ts",
+        "tsx",
+        "html",
+        "css",
+        "scss"
+      ],
+      "legacy_debt_extensions": [
+        "js",
+        "py",
+        "sh",
+        "ps1"
+      ],
+      "notes": "Presentation/runtime wrappers and UX only."
+    },
+    "core": {
+      "allowed_extensions": [
+        "rs",
+        "c",
+        "cc",
+        "cpp",
+        "h",
+        "hpp",
+        "sh"
+      ],
+      "notes": "Rust-first authority substrate. C/C++ only for low-level and hardware-adjacent paths."
+    },
+    "orchestration": {
+      "target_extensions": [
+        "rs",
+        "ts",
+        "tsx"
+      ],
+      "legacy_debt_extensions": [
+        "js",
+        "py",
+        "sh"
+      ],
+      "notes": "Rust-first Orchestration Control Plane. TS/TSX is allowed only for thin ingress/packaging shims."
+    },
+    "packages": {
+      "allowed_extensions": [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "sh",
+        "html",
+        "css",
+        "scss"
+      ],
+      "notes": "Public SDK/package distribution surfaces; non-authoritative."
+    },
+    "shell": {
+      "allowed_extensions": [
+        "json",
+        "md",
+        "ts"
+      ],
+      "notes": "Canonical Shell Socket contracts, thin socket clients, and headless plug probes. No legacy dashboard substrate or runtime authority."
+    },
+    "tests": {
+      "allowed_extensions": [
+        "ts",
+        "tsx",
+        "js",
+        "jsx",
+        "py",
+        "rs",
+        "sh"
+      ],
+      "notes": "Integration, regression, and CI tooling verification surfaces."
+    }
+  },
+  "runtime_exceptions": [
+    "scripts/",
+    "examples/",
+    "setup/",
+    "benchmarks/",
+    "docs/",
+    "local/",
+    "tools/",
+    "core/local/",
+    "client/local/",
+    "core/local/artifacts/",
+    "local/state/",
+    "planes/",
+    "proofs/",
+    "xtask/",
+    "core/layer1/memory_runtime/adaptive/",
+    "node_modules/"
+  ],
+  "ignore_path_prefixes": [
+    "client/runtime/local/",
+    "client/cognition/habits/scripts/",
+    "core/layer1/memory_runtime/adaptive/",
+    "client/pure-workspace/"
+  ],
+  "ignore_exact_paths": [
+    "install.ps1",
+    "install.sh",
+    "verify.sh",
+    "vitest.config.ts"
+  ],
+  "forbidden_path_prefixes": [
+    "client/cli/apps/"
+  ],
+  "canonical_owner": "validation/conformance"
+}

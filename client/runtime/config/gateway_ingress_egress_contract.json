@@ -208,5 +208,8 @@
     "execution_observation",
     "authorization_state",
     "policy_decision"
-  ]
+  ],
+  "canonical_path": "validation/conformance/contracts/gateway_ingress_egress_contract.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

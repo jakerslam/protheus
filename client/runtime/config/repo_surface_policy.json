@@ -154,5 +154,8 @@
   ],
   "forbidden_path_prefixes": [
     "client/cli/apps/"
-  ]
+  ],
+  "canonical_path": "validation/conformance/contracts/repo_surface_policy.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

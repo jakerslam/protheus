@@ -1,5 +1,8 @@
 {
   "version": "2026-04-25",
+  "canonical_path": "validation/release_gates/contracts/ownership_drift_policy.json",
+  "canonical_owner": "validation/release_gates",
+  "compatibility_mirror": true,
   "placement_policy": "docs/workspace/orchestration_ownership_policy.md",
   "required_policy_tests": [
     "placement-test:kernel",

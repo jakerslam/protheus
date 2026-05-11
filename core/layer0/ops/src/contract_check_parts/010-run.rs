@@ -7,15 +7,18 @@ use crate::foundation_hook_enforcer_bridge::{
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use walkdir::WalkDir;
 
 const CHECK_IDS_FLAG_PREFIX: &str = "--rust-contract-check-ids=";
-const GUARD_REGISTRY_REL: &str = "client/runtime/config/guard_check_registry.json";
+const GUARD_REGISTRY_REL: &str = "validation/release_gates/contracts/guard_check_registry.json";
+const GUARD_REGISTRY_LEGACY_REL: &str = "client/runtime/config/guard_check_registry.json";
 const CONTRACT_CHECK_SOURCE_REL: &str = "core/layer0/ops/src/contract_check.rs";
 const RUNTIME_MODE_STATE_REL: &str = "local/state/ops/runtime_mode.json";
 const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
+    "core/layer0/ops/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_LEGACY_REL: &str =
     "client/runtime/config/rust_source_of_truth_policy.json";
 const PROBE_EYES_INTAKE_HELP_TOKENS: &[&str] =
     &["eyes_intake.js", "create", "validate", "list-directives"];
@@ -69,6 +72,32 @@ pub const FOUNDATION_HOOK_REQUIRED_TOKENS: &[&str] = &[
     "economic_entity_manager.js",
     "drift_aware_revenue_optimizer.js",
 ];
+
+fn preferred_guard_registry_path(root: &Path) -> PathBuf {
+    let canonical = root.join(GUARD_REGISTRY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(GUARD_REGISTRY_LEGACY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
+}
+
+fn preferred_rust_source_of_truth_policy_path(root: &Path) -> PathBuf {
+    let canonical = root.join(RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(RUST_SOURCE_OF_TRUTH_POLICY_LEGACY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
+}
 
 pub fn run(root: &Path, args: &[String]) -> i32 {
     let args = with_contract_check_ids(args);

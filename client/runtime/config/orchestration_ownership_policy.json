@@ -1,11 +1,14 @@
 {
   "version": "2026-04-20",
+  "canonical_path": "orchestration/config/orchestration_ownership_policy.json",
+  "canonical_owner": "orchestration",
+  "compatibility_mirror": true,
   "required_docs": [
     {
       "path": "docs/workspace/orchestration_ownership_policy.md",
       "required_phrases": [
         "Boundary Axiom",
-        "Core decides what is true and allowed.",
+        "Kernel decides what is true and allowed.",
         "Orchestration decides what should happen next.",
         "Shell decides how it is shown and collected."
       ]

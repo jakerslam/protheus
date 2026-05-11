@@ -1,0 +1,91 @@
+{
+  "version": "2026-04-20",
+  "canonical_owner": "orchestration",
+  "required_docs": [
+    {
+      "path": "docs/workspace/orchestration_ownership_policy.md",
+      "required_phrases": [
+        "Boundary Axiom",
+        "Kernel decides what is true and allowed.",
+        "Orchestration decides what should happen next.",
+        "Shell decides how it is shown and collected."
+      ]
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "required_phrases": [
+        "Ownership Placement Rationale",
+        "placement-test:core",
+        "placement-test:control-plane",
+        "placement-test:shell",
+        "placement-test:gateway"
+      ]
+    }
+  ],
+  "client_wrapper_contract": {
+    "include_paths": [
+      "client/cognition/orchestration/cli_shared.ts",
+      "client/cognition/orchestration/core_bridge.ts",
+      "client/cognition/orchestration/coordinator.ts",
+      "client/cognition/orchestration/coordinator_cli.ts",
+      "client/cognition/orchestration/checkpoint.ts",
+      "client/cognition/orchestration/completion.ts",
+      "client/cognition/orchestration/partial.ts",
+      "client/cognition/orchestration/schema_runtime.ts",
+      "client/cognition/orchestration/scope.ts",
+      "client/cognition/orchestration/scratchpad.ts",
+      "client/cognition/orchestration/taskgroup.ts",
+      "client/cognition/orchestration/taskgroup_cli.ts"
+    ],
+    "required_markers": [
+      "TypeScript compatibility shim only.",
+      "Layer ownership: orchestration (control-plane cognition); this file is a thin bridge."
+    ],
+    "required_delegate_markers_any": [
+      "'orchestration', 'scripts', 'cognition'"
+    ],
+    "require_self_filename_delegate_marker": true,
+    "forbidden_markers": [
+      "invokeOrchestration(",
+      "runTaskGroupCli(",
+      "runCoordinatorCli(",
+      "parseArgs(",
+      "readFileSync(",
+      "readdirSync(",
+      "spawnSync(",
+      "JSON.parse("
+    ],
+    "max_noncomment_lines": 12
+  },
+  "cognition_surface_parity_contract": {
+    "client_root": "client/cognition/orchestration",
+    "surface_root": "orchestration/scripts/cognition",
+    "extensions": [
+      ".ts",
+      ".json"
+    ],
+    "ignored_paths": [],
+    "require_relative_path_match": true,
+    "exact_match_extensions": [
+      ".json"
+    ]
+  },
+  "surface_script_import_boundary": {
+    "scan_root": "orchestration/scripts",
+    "extensions": [
+      ".ts"
+    ],
+    "forbidden_import_prefixes": [
+      "client/",
+      "../client",
+      "../../client",
+      "../../../client",
+      "../../../../client",
+      "/client/",
+      "core/layer0/ops/src/",
+      "core/layer1/",
+      "core/layer2/"
+    ],
+    "allow_violations": []
+  }
+}

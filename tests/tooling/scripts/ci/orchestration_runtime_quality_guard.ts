@@ -10,7 +10,7 @@ import { appendJsonLine, emitStructuredResult, writeJsonArtifact, writeTextArtif
 const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_runtime_quality_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_RUNTIME_QUALITY_GUARD_CURRENT.md';
-const DEFAULT_POLICY_PATH = 'client/runtime/config/orchestration_quality_policy.json';
+const DEFAULT_POLICY_PATH = 'orchestration/config/orchestration_quality_policy.json';
 const DEFAULT_CANDIDATE_SELECTION_DIAGNOSTICS_PATH =
   'core/local/artifacts/candidate_selection_diagnostics_current.json';
 const DEFAULT_CANDIDATE_SELECTION_DIAGNOSTICS_ALIAS =

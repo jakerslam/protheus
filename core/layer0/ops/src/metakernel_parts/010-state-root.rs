@@ -29,7 +29,8 @@ const TOP1_SURFACE_REGISTRY_PATH: &str = "proofs/layer0/core_formal_coverage_map
 const CONDUIT_SCHEMA_PATH: &str = "planes/contracts/conduit_envelope.schema.json";
 const TLA_BOUNDARY_PATH: &str = "planes/spec/tla/three_plane_boundary.tla";
 const DEP_BOUNDARY_MANIFEST: &str = "client/runtime/config/dependency_boundary_manifest.json";
-const RUST_SOURCE_OF_TRUTH_POLICY: &str = "client/runtime/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY: &str =
+    "core/layer0/ops/config/rust_source_of_truth_policy.json";
 
 const EXPECTED_PRIMITIVES: &[&str] = &[
     "node",

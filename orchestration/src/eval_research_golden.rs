@@ -127,6 +127,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             match create_live_agent(
                 &base_url,
                 case_id.as_str(),
+                &agent_id,
                 fresh_agent_model.as_deref(),
                 timeout_seconds,
             ) {
@@ -195,6 +196,15 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             grade.pass && lifecycle_gate_path_complete && case_setup_failures.is_empty();
         let case_excellent =
             grade.excellent && lifecycle_gate_path_complete && case_setup_failures.is_empty();
+        let failure_classification = case_failure_classification(
+            case_pass,
+            &case_failures,
+            &case_setup_failures,
+            &transition_diagnostics,
+            grade.empty_response,
+            grade.raw_tool_leak,
+            grade.tool_choice_final_response,
+        );
         let initial_response_text = assistant_text(&initial_payload);
         record_gate_counts(&grade.gates, &mut gate_total_counts, &mut gate_pass_counts);
         record_checkpoint_counts(
@@ -247,6 +257,8 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "gates": grade.gates,
             "dimension_scores": grade.dimension_scores,
             "failures": case_failures,
+            "failure_classification": failure_classification,
+            "setup_failures": case_setup_failures,
             "response_preview": clean_text(&grade.response_text, 500),
             "response_diagnostics": response_diagnostics(&payload, &grade.response_text),
             "gate_transition_diagnostics": transition_diagnostics,
@@ -304,6 +316,16 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         && gate_transition_path_ok
         && research_success_rate >= research_success_min
         && safety_ok;
+    let measurement_split = measurement_split_report(
+        &rows,
+        &gate_rates,
+        &gate_transition_rates,
+        live,
+        workflow_gate_pass_min,
+        research_success_rate,
+        research_success_min,
+        safety_ok,
+    );
     let report = json!({
         "type": "research_golden_eval",
         "schema_version": 1,
@@ -345,6 +367,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "unsupported_claims": unsupported_claims,
             "failure_count": failure_events.len()
         },
+        "measurement_split": measurement_split,
         "workflow_gate_pass_rates": gate_rates,
         "gate_transition_pass_rates": gate_transition_rates,
         "dimension_averages": dimension_averages,
@@ -419,6 +442,224 @@ fn record_checkpoint_counts(
             *pass_counts.entry(name.to_string()).or_insert(0) += 1;
         }
     }
+}
+
+fn case_failure_classification(
+    case_pass: bool,
+    case_failures: &[String],
+    setup_failures: &[String],
+    transition_diagnostics: &Value,
+    empty_response: bool,
+    raw_tool_leak: bool,
+    tool_choice_final_response: bool,
+) -> &'static str {
+    if case_pass {
+        return "none";
+    }
+    if !setup_failures.is_empty()
+        || empty_response
+        || raw_tool_leak
+        || tool_choice_final_response
+        || case_failures.iter().any(|failure| {
+            matches!(
+                failure.as_str(),
+                "raw_tool_payload_leaked"
+                    | "internal_workflow_state_leaked"
+                    | "tool_choice_visible_as_final_response"
+            )
+        })
+    {
+        return "hard";
+    }
+    let checkpoint = transition_first_failed_checkpoint(transition_diagnostics).unwrap_or_default();
+    if checkpoint.starts_with('4')
+        || checkpoint.starts_with('5')
+        || checkpoint == "terminal_artifact_present"
+    {
+        return "hard";
+    }
+    if transition_diagnostics
+        .get("synthesis_failure_hardness")
+        .and_then(Value::as_str)
+        == Some("hard")
+    {
+        return "hard";
+    }
+    "soft"
+}
+
+fn measurement_split_report(
+    rows: &[Value],
+    gate_rates: &[Value],
+    gate_transition_rates: &[Value],
+    live: bool,
+    workflow_gate_pass_min: f64,
+    research_success_rate: f64,
+    research_success_min: f64,
+    safety_ok: bool,
+) -> Value {
+    let total_cases = rows.len() as u64;
+    let hard_failure_cases = rows
+        .iter()
+        .filter(|row| str_at(row, &["failure_classification"], "") == "hard")
+        .count() as u64;
+    let soft_failure_cases = rows
+        .iter()
+        .filter(|row| str_at(row, &["failure_classification"], "") == "soft")
+        .count() as u64;
+    let pass_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["pass"], false))
+        .count() as u64;
+    let workflow_path_ok = gate_rates
+        .iter()
+        .all(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false));
+    let transition_path_ok = gate_transition_rates
+        .iter()
+        .all(|row| f64_at(row, &["pass_rate"], 0.0) >= workflow_gate_pass_min);
+    let tool_execution_rate = checkpoint_rate(gate_transition_rates, "5a_tool_execution_recorded");
+    let raw_provider_rate =
+        checkpoint_rate(gate_transition_rates, "5b_raw_provider_result_present");
+    let packaged_result_rate =
+        checkpoint_rate(gate_transition_rates, "5c_packaged_tool_result_present");
+    let evidence_rate = checkpoint_rate(gate_transition_rates, "5d_evidence_refs_extracted");
+    let evidence_context_rate =
+        checkpoint_rate(gate_transition_rates, "5e_agent_received_evidence_context");
+    let synthesis_rate = checkpoint_rate(
+        gate_transition_rates,
+        "6a_synthesis_uses_evidence_or_low_evidence_fallback",
+    );
+    let hard_rows = failure_rows_for_classification(rows, "hard");
+    let soft_rows = failure_rows_for_classification(rows, "soft");
+    let retrieval_soft_cases = rows
+        .iter()
+        .filter(|row| {
+            str_at(row, &["failure_classification"], "") == "soft"
+                && case_has_retrieval_quality_signal(row)
+        })
+        .count() as u64;
+    let retrieval_status = if !live {
+        "not_live"
+    } else if tool_execution_rate < workflow_gate_pass_min || hard_failure_cases > 0 {
+        "blocked_by_upstream_path"
+    } else if raw_provider_rate < workflow_gate_pass_min
+        || packaged_result_rate < workflow_gate_pass_min
+        || evidence_rate < workflow_gate_pass_min
+        || evidence_context_rate < workflow_gate_pass_min
+    {
+        "degraded_pipeline"
+    } else if retrieval_soft_cases > 0 {
+        "noisy_retrieval_or_coverage"
+    } else {
+        "healthy"
+    };
+    json!({
+        "schema_version": 1,
+        "purpose": "split deterministic workflow health from live retrieval variance and end-to-end research quality",
+        "deterministic_workflow_path": {
+            "ok": workflow_path_ok && transition_path_ok && safety_ok && hard_failure_cases == 0,
+            "workflow_gate_path_ok": workflow_path_ok,
+            "transition_path_ok": transition_path_ok,
+            "safety_ok": safety_ok,
+            "hard_failure_cases": hard_failure_cases,
+            "min_rate": workflow_gate_pass_min,
+            "note": if live {
+                "computed from deterministic gates over live payloads; compare with offline recorded replay for non-network stability"
+            } else {
+                "computed from recorded responses; suitable for deterministic replay stability"
+            }
+        },
+        "live_retrieval_health": {
+            "status": retrieval_status,
+            "live": live,
+            "tool_execution_rate": tool_execution_rate,
+            "raw_provider_result_rate": raw_provider_rate,
+            "packaged_result_rate": packaged_result_rate,
+            "evidence_extraction_rate": evidence_rate,
+            "evidence_context_rate": evidence_context_rate,
+            "soft_retrieval_or_coverage_cases": retrieval_soft_cases,
+            "note": "this lane measures evidence availability and coverage; it should move with provider/data quality and cache state"
+        },
+        "end_to_end_golden": {
+            "ok": research_success_rate >= research_success_min,
+            "mode": if live { "live_noisy_single_run" } else { "recorded_replay" },
+            "passed_cases": pass_cases,
+            "total_cases": total_cases,
+            "research_success_rate": research_success_rate,
+            "research_success_min": research_success_min,
+            "synthesis_gate_rate": synthesis_rate,
+            "note": if live {
+                "treat one-run movement as noisy unless deterministic gates or hard failures move with it"
+            } else {
+                "recorded replay should be stable and is the better signal for workflow contract regressions"
+            }
+        },
+        "failure_classification": {
+            "hard_failure_cases": hard_failure_cases,
+            "soft_failure_cases": soft_failure_cases,
+            "hard_failures": hard_rows,
+            "soft_failures": soft_rows
+        }
+    })
+}
+
+fn checkpoint_rate(rows: &[Value], checkpoint: &str) -> f64 {
+    rows.iter()
+        .find(|row| row.get("checkpoint").and_then(Value::as_str) == Some(checkpoint))
+        .map(|row| f64_at(row, &["pass_rate"], 0.0))
+        .unwrap_or(0.0)
+}
+
+fn failure_rows_for_classification(rows: &[Value], classification: &str) -> Vec<Value> {
+    rows.iter()
+        .filter(|row| str_at(row, &["failure_classification"], "") == classification)
+        .map(|row| {
+            json!({
+                "case_id": str_at(row, &["case_id"], "unknown"),
+                "score": u64_at(row, &["score"], 0),
+                "first_failed_checkpoint": row.pointer("/gate_transition_diagnostics/first_failed_checkpoint").cloned().unwrap_or(Value::Null),
+                "failure_boundary": str_at(row, &["gate_transition_diagnostics", "inferred_failure_boundary"], ""),
+                "synthesis_failure_class": str_at(row, &["gate_transition_diagnostics", "synthesis_failure_class"], ""),
+                "failures": row.get("failures").cloned().unwrap_or_else(|| json!([]))
+            })
+        })
+        .collect()
+}
+
+fn case_has_retrieval_quality_signal(row: &Value) -> bool {
+    let failures = row
+        .get("failures")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let failure_text = failures
+        .iter()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let synthesis_class = str_at(
+        row,
+        &["gate_transition_diagnostics", "synthesis_failure_class"],
+        "",
+    );
+    let response = normalize_for_compare(&str_at(row, &["response_preview"], ""));
+    [
+        "entity_coverage_low",
+        "low_signal",
+        "coverage",
+        "retrieval",
+        "no usable",
+        "no results",
+        "zero",
+        "provider",
+        "source",
+    ]
+    .iter()
+    .any(|needle| {
+        failure_text.contains(needle)
+            || synthesis_class.contains(needle)
+            || response.contains(needle)
+    })
 }
 
 fn gate_transition_diagnostics_for_sequence(

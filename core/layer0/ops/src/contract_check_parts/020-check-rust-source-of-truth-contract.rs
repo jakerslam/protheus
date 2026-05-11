@@ -25,7 +25,7 @@ fn check_rust_source_of_truth_contract(
     root: &Path,
     selected: &HashSet<String>,
 ) -> Result<Value, String> {
-    let policy_path = root.join(RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    let policy_path = preferred_rust_source_of_truth_policy_path(root);
     let raw = fs::read_to_string(&policy_path).map_err(|err| {
         format!(
             "read_rust_source_of_truth_policy_failed:{}:{err}",

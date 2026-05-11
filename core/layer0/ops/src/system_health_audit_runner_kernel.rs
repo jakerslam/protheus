@@ -12,7 +12,10 @@ use crate::now_iso;
 const DEFAULT_POLICY_REL: &str = "client/runtime/config/system_health_audit_runner_policy.json";
 const DEFAULT_LATEST_REL: &str = "local/state/ops/system_health_audit/latest.json";
 const DEFAULT_RECEIPTS_REL: &str = "local/state/ops/system_health_audit/receipts.jsonl";
-const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str = "client/runtime/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
+    "core/layer0/ops/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_LEGACY_REL: &str =
+    "client/runtime/config/rust_source_of_truth_policy.json";
 const WEB_PROVIDER_CONTRACT_TARGETS: &[&str] = &[
     "brave",
     "duckduckgo",
@@ -196,7 +199,11 @@ fn run_ops_capture(domain: &str, args: &[&str], timeout_ms: u64) -> CheckRun {
 }
 
 fn web_tooling_contract_check(root: &Path) -> Value {
-    let policy_path = resolve_path(root, RUST_SOURCE_OF_TRUTH_POLICY_REL, RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    let policy_path = resolve_path(
+        root,
+        RUST_SOURCE_OF_TRUTH_POLICY_REL,
+        RUST_SOURCE_OF_TRUTH_POLICY_LEGACY_REL,
+    );
     let policy = read_json(&policy_path).unwrap_or_else(|| json!({}));
     let entries = policy
         .pointer("/web_tooling_contract_targets_gate/entries")

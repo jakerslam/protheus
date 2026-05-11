@@ -1,5 +1,8 @@
 {
   "version": "2026-04-24",
+  "canonical_path": "orchestration/config/orchestration_quality_policy.json",
+  "canonical_owner": "orchestration",
+  "compatibility_mirror": true,
   "adapter_fallback": {
     "required_surface_fields": [
       "total",

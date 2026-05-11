@@ -1,4 +1,7 @@
 {
+  "canonical_path": "core/layer0/ops/config/provider_network_policy.json",
+  "canonical_owner": "core/layer0/ops",
+  "compatibility_mirror": true,
   "allow_provider_ids": [],
   "deny_domains": [
     "metadata.google.internal",

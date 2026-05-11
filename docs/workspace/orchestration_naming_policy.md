@@ -31,7 +31,7 @@ The guard applies to:
 ## Automation
 
 - Guard script: `tests/tooling/scripts/ci/naming_policy_guard.ts`
-- Policy config: `client/runtime/config/orchestration_naming_policy.json`
+- Policy config: `orchestration/config/orchestration_naming_policy.json`
 - npm command (advisory/yellow flag): `npm run -s ops:orchestration-naming:guard`
 - npm command (strict/blocking): `npm run -s ops:orchestration-naming:guard:strict`
 - tooling registry gate id: `ops:orchestration-naming:guard`

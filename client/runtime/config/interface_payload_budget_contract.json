@@ -1,8 +1,8 @@
 {
   "version": "2026-04-28",
   "policy_doc_path": "docs/workspace/interface_payload_budget_policy.md",
-  "gateway_contract_path": "client/runtime/config/gateway_ingress_egress_contract.json",
-  "shell_message_contract_path": "client/runtime/config/shell_ui_message_detail_contract.json",
+  "gateway_contract_path": "validation/conformance/contracts/gateway_ingress_egress_contract.json",
+  "shell_message_contract_path": "validation/conformance/contracts/shell_ui_message_detail_contract.json",
   "related_policy_paths": [
     "docs/workspace/gateway_ingress_egress_policy.md",
     "docs/workspace/shell_ui_projection_policy.md",
@@ -264,5 +264,8 @@
       "audit_receipt": true,
       "nexus_checkpoint": true
     }
-  ]
+  ],
+  "canonical_path": "validation/conformance/contracts/interface_payload_budget_contract.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

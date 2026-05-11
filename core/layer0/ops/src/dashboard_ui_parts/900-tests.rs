@@ -61,7 +61,7 @@ mod tests {
     include!("900-tests_parts/130-dashboard-troubleshooting-summary-pressure-decision-lane-token-alias-rou.rs");
     include!("900-tests_parts/140-dashboard-troubleshooting-summary-pressure-contract-runbook-alias-routes.rs");
     include!("900-tests_parts/150-dashboard-troubleshooting-summary-pressure-contract-next-action-after-se.rs");
-    include!("900-tests_parts/160-dashboard-troubleshooting-summary-pressure-contract-decision-lane-token-.rs");
+    include!("900-tests_parts/160-dashboard-troubleshooting-summary-pressure-contract-decision-lane-token.rs");
     include!("900-tests_parts/170-dashboard-troubleshooting-summary-window-filter-excludes-old-entries.rs");
     include!("900-tests_parts/180-dashboard-agent-task-history-favorites-feedback-and-ui-controller-con.rs");
     include!("900-tests_parts/190-dashboard-agent-task-aliases-and-worktree-extended-controls-contract.rs");

@@ -71,6 +71,37 @@ pub(super) fn markdown_report(report: &Value) -> String {
             ));
         }
     }
+    let split = report.get("measurement_split").unwrap_or(&Value::Null);
+    out.push_str("\n## Measurement Split\n\n");
+    out.push_str(&format!(
+        "- deterministic_workflow_path: ok={} hard_failure_cases={}\n",
+        bool_at(split, &["deterministic_workflow_path", "ok"], false),
+        u64_at(
+            split,
+            &["deterministic_workflow_path", "hard_failure_cases"],
+            0
+        )
+    ));
+    out.push_str(&format!(
+        "- live_retrieval_health: status={} tool_execution_rate={:.3} evidence_context_rate={:.3}\n",
+        str_at(split, &["live_retrieval_health", "status"], "unknown"),
+        f64_at(
+            split,
+            &["live_retrieval_health", "tool_execution_rate"],
+            0.0
+        ),
+        f64_at(
+            split,
+            &["live_retrieval_health", "evidence_context_rate"],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
+        "- end_to_end_golden: mode={} success_rate={:.3} soft_failure_cases={}\n",
+        str_at(split, &["end_to_end_golden", "mode"], "unknown"),
+        f64_at(split, &["end_to_end_golden", "research_success_rate"], 0.0),
+        u64_at(split, &["failure_classification", "soft_failure_cases"], 0)
+    ));
     out.push_str("\n## Lowest Cases\n\n");
     let mut case_rows = report
         .get("cases")

@@ -234,7 +234,7 @@
     - `core/layer0/ops/src/contract_check_parts/020-check-rust-source-of-truth-contract.rs`
     - `core/layer0/ops/src/contract_check_parts/030-is-ts-bootstrap-wrapper.rs`
     - `core/layer0/ops/src/company_plane_parts/010-usage.rs`
-    - `client/runtime/config/rust_source_of_truth_policy.json`
+    - `core/layer0/ops/config/rust_source_of_truth_policy.json`
 
 - `OPENCLAW-TOOLING-WEB-048`:
   - Re-assimilated bundled provider fast-path matrix semantics from:

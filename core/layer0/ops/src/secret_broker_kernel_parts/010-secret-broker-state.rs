@@ -19,6 +19,9 @@ use crate::now_iso;
 
 type HmacSha256 = Hmac<Sha256>;
 
+const SECRET_BROKER_POLICY_REL: &str = "core/layer0/ops/config/secret_broker_policy.json";
+const LEGACY_SECRET_BROKER_POLICY_REL: &str = "client/runtime/config/secret_broker_policy.json";
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct SecretBrokerState {
     version: String,
@@ -255,9 +258,16 @@ fn runtime_root(root: &Path) -> PathBuf {
 }
 
 fn default_policy_path(root: &Path) -> PathBuf {
-    runtime_root(root)
-        .join("config")
-        .join("secret_broker_policy.json")
+    let canonical = root.join(SECRET_BROKER_POLICY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(LEGACY_SECRET_BROKER_POLICY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
 }
 
 fn default_state_path(root: &Path) -> PathBuf {

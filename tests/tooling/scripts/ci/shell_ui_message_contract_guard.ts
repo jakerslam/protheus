@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_CONTRACT = 'client/runtime/config/shell_ui_message_detail_contract.json';
+const DEFAULT_CONTRACT = 'validation/conformance/contracts/shell_ui_message_detail_contract.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_ui_message_contract_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_UI_MESSAGE_CONTRACT_GUARD_CURRENT.md';
 

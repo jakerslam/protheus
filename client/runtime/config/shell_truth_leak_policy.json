@@ -305,5 +305,8 @@
       "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts",
       "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts"
     ]
-  }
+  },
+  "canonical_path": "validation/conformance/contracts/shell_truth_leak_policy.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

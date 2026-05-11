@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const DEFAULT_ACTIONABLE_MAP = 'core/local/artifacts/srs_actionable_map_current.json';
-const LANE_REGISTRY_PATH = 'client/runtime/config/lane_command_registry.json';
+const LANE_REGISTRY_PATH = 'tests/tooling/config/lane_command_registry.json';
 
 function readJson(path) {
   return JSON.parse(readFileSync(resolve(path), 'utf8'));

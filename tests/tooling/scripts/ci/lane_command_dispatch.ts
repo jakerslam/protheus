@@ -23,7 +23,7 @@ function parseArgs(argv: string[]) {
   const mode = cleanText(argv[0] || 'list', 32).toLowerCase();
   const out = {
     mode: ['run', 'test', 'list'].includes(mode) ? mode : 'list',
-    registry: cleanText(readFlag(argv.slice(1), 'registry') || 'client/runtime/config/lane_command_registry.json', 260),
+    registry: cleanText(readFlag(argv.slice(1), 'registry') || 'tests/tooling/config/lane_command_registry.json', 260),
     id: cleanText(readFlag(argv.slice(1), 'id') || '', 120).toUpperCase(),
     listMode: cleanText(readFlag(argv.slice(1), 'mode') || 'all', 16).toLowerCase(),
     json: argv.slice(1).includes('--json') || parseBool(readFlag(argv.slice(1), 'json'), false),

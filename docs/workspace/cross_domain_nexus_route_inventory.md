@@ -33,7 +33,7 @@ If a route cannot name those fields, it is not inventory-compliant.
 
 ## Inventory Contract
 
-The machine-readable inventory lives at `client/runtime/config/cross_domain_nexus_route_inventory.json`.
+The machine-readable inventory lives at `validation/conformance/contracts/cross_domain_nexus_route_inventory.json`.
 
 The inventory is intentionally a route contract, not a payload mirror. It records route metadata and checkpoint evidence only. It must not include raw payloads, trace bodies, plan graphs, tool results, policy decisions, authorization state, or runtime state snapshots.
 

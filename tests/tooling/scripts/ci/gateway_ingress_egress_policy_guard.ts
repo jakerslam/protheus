@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_CONTRACT = 'client/runtime/config/gateway_ingress_egress_contract.json';
+const DEFAULT_CONTRACT = 'validation/conformance/contracts/gateway_ingress_egress_contract.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/gateway_ingress_egress_policy_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/GATEWAY_INGRESS_EGRESS_POLICY_GUARD_CURRENT.md';
 

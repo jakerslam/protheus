@@ -54,7 +54,7 @@ TS surface-only allowlist:
 - Added shared bridge helper:
   - `client/runtime/lib/rust_lane_bridge.ts`
 - Updated governance policy:
-  - `client/runtime/config/rust_source_of_truth_policy.json`
+  - `core/layer0/ops/config/rust_source_of_truth_policy.json`
   - `docs/workspace/codex_enforcer.md`
 
 ## Remaining Work

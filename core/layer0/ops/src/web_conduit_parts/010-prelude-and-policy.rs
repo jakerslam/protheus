@@ -31,7 +31,8 @@ use crate::web_conduit_provider_runtime::{
     web_tool_catalog_snapshot, WebProviderFamily,
 };
 
-const POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
+const POLICY_REL: &str = "core/layer0/ops/config/web_conduit_policy.json";
+const LEGACY_POLICY_REL: &str = "client/runtime/config/web_conduit_policy.json";
 const RECEIPTS_REL: &str = "client/runtime/local/state/web_conduit/receipts.jsonl";
 const APPROVALS_REL: &str = "client/runtime/local/state/ui/infring_dashboard/approvals.json";
 const ARTIFACTS_DIR_REL: &str = "client/runtime/local/state/web_conduit/artifacts";
@@ -173,14 +174,25 @@ fn parse_u64(value: Option<&String>, fallback: u64, min: u64, max: u64) -> u64 {
         .clamp(min, max)
 }
 
-fn policy_path(root: &Path) -> PathBuf {
+fn env_policy_path() -> Option<PathBuf> {
     if let Ok(raw) = std::env::var("INFRING_WEB_CONDUIT_POLICY_PATH") {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
-            return PathBuf::from(trimmed);
+            return Some(PathBuf::from(trimmed));
         }
     }
+    None
+}
+
+fn policy_path(root: &Path) -> PathBuf {
+    if let Some(path) = env_policy_path() {
+        return path;
+    }
     root.join(POLICY_REL)
+}
+
+fn legacy_policy_path(root: &Path) -> PathBuf {
+    root.join(LEGACY_POLICY_REL)
 }
 
 fn receipts_path(root: &Path) -> PathBuf {
@@ -250,10 +262,21 @@ fn default_policy() -> Value {
 }
 
 fn load_policy(root: &Path) -> (Value, PathBuf) {
-    let path = policy_path(root);
-    if !path.exists() {
-        let _ = write_json_atomic(&path, &default_policy());
+    if let Some(path) = env_policy_path() {
+        if !path.exists() {
+            let _ = write_json_atomic(&path, &default_policy());
+        }
+        return (read_json_or(&path, default_policy()), path);
     }
+    let path = policy_path(root);
+    if path.exists() {
+        return (read_json_or(&path, default_policy()), path);
+    }
+    let legacy_path = legacy_policy_path(root);
+    if legacy_path.exists() {
+        return (read_json_or(&legacy_path, default_policy()), legacy_path);
+    }
+    let _ = write_json_atomic(&path, &default_policy());
     (read_json_or(&path, default_policy()), path)
 }
 

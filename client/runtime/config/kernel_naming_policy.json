@@ -1,4 +1,7 @@
 {
+  "canonical_path": "core/layer0/ops/config/kernel_naming_policy.json",
+  "canonical_owner": "core/layer0/ops",
+  "compatibility_mirror": true,
   "include_prefixes": [
     "core/layer0",
     "core/layer1",

@@ -1,4 +1,7 @@
 {
+  "canonical_path": "orchestration/config/orchestron_policy.json",
+  "canonical_owner": "orchestration",
+  "compatibility_mirror": true,
   "version": "1.0",
   "enabled": true,
   "shadow_only": false,

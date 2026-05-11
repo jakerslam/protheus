@@ -23,7 +23,8 @@ const STATE_ENV: &str = "RESEARCH_PLANE_STATE_ROOT";
 const STATE_SCOPE: &str = "research_plane";
 
 const CONTRACT_PATH: &str = "planes/contracts/research/research_plane_v1.json";
-const POLICY_PATH: &str = "client/runtime/config/research_plane_policy.json";
+const POLICY_PATH: &str = "orchestration/config/research_plane_policy.json";
+const LEGACY_POLICY_PATH: &str = "client/runtime/config/research_plane_policy.json";
 
 fn usage() {
     println!("Usage:");
@@ -160,7 +161,25 @@ fn attach_conduit_if_missing(payload: Value, conduit: Option<&Value>) -> Value {
     }
 }
 
+fn load_policy_json(root: &Path, fallback: Value) -> (Value, &'static str) {
+    let path = root.join(POLICY_PATH);
+    if path.exists() {
+        return (read_json(&path).unwrap_or(fallback), POLICY_PATH);
+    }
+    let legacy_path = root.join(LEGACY_POLICY_PATH);
+    if legacy_path.exists() {
+        return (
+            read_json(&legacy_path).unwrap_or(fallback),
+            LEGACY_POLICY_PATH,
+        );
+    }
+    (fallback, POLICY_PATH)
+}
+
 fn load_json_or(root: &Path, rel: &str, fallback: Value) -> Value {
+    if rel == POLICY_PATH || rel == LEGACY_POLICY_PATH {
+        return load_policy_json(root, fallback).0;
+    }
     read_json(&root.join(rel)).unwrap_or(fallback)
 }
 
@@ -177,9 +196,8 @@ fn status(root: &Path) -> Value {
 }
 
 fn diagnostics(root: &Path) -> Value {
-    let policy = load_json_or(
+    let (policy, policy_path) = load_policy_json(
         root,
-        POLICY_PATH,
         json!({
             "version": "v1",
             "kind": "research_plane_policy",
@@ -197,7 +215,7 @@ fn diagnostics(root: &Path) -> Value {
         "ok": true,
         "type": "research_plane_diagnostics",
         "lane": "core/layer0/ops",
-        "policy_path": POLICY_PATH,
+        "policy_path": policy_path,
         "contract_path": CONTRACT_PATH,
         "safety_plane_policy": policy.get("safety_plane").cloned().unwrap_or(Value::Null),
         "safety_plane_counters": safety,

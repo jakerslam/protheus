@@ -1,4 +1,7 @@
 {
+  "canonical_path": "core/layer0/ops/config/web_conduit_policy.json",
+  "canonical_owner": "core/layer0/ops",
+  "compatibility_mirror": true,
   "mode": "production",
   "version": "v1",
   "web_conduit": {

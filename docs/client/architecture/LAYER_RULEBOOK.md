@@ -183,10 +183,10 @@ Apps and gateways should build against the contract, not against private impleme
   - policy: `client/runtime/config/shell_layer_boundary_policy.json`
 - Repo surface audit:
   - `npm run -s ops:repo-surface:audit`
-  - policy: `client/runtime/config/repo_surface_policy.json`
+  - policy: `validation/conformance/contracts/repo_surface_policy.json`
 - Public platform contract audit:
   - `npm run -s ops:public-platform:contract`
-  - policy: `client/runtime/config/public_platform_contract_policy.json`
+  - policy: `validation/conformance/contracts/public_platform_contract_policy.json`
 - Shell legacy debt inventory:
   - `npm run -s ops:client-legacy-debt:report`
   - emits a path-classified migration ledger for non-TS client debt

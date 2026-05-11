@@ -10,7 +10,7 @@ import { appendJsonLine, emitStructuredResult, writeJsonArtifact, writeTextArtif
 const ROOT = process.cwd();
 const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_planner_quality_guard_current.json';
 const DEFAULT_OUT_MD = 'local/workspace/reports/ORCHESTRATION_PLANNER_QUALITY_GUARD_CURRENT.md';
-const DEFAULT_POLICY_PATH = 'client/runtime/config/orchestration_quality_policy.json';
+const DEFAULT_POLICY_PATH = 'orchestration/config/orchestration_quality_policy.json';
 const TEST_NAME = 'quality_planner_runtime::planner_quality_fixture_metrics_stay_within_thresholds';
 
 type ScriptArgs = {

@@ -210,6 +210,19 @@ fn trim_text(value: &str, max_chars: usize) -> String {
     value.chars().take(max_chars.max(1)).collect::<String>()
 }
 
+fn canonical_or_legacy_config_path(root: &Path, canonical_rel: &str, legacy_rel: &str) -> PathBuf {
+    let canonical = root.join(canonical_rel);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(legacy_rel);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
+}
+
 fn tool_governance_policy(root: &Path) -> Value {
     let path = root.join("client/runtime/config/tool_governance_policy.json");
     let default = json!({

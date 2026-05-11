@@ -9,7 +9,7 @@ const SOURCE_RE = /\.(rs|c|cc|cpp|h|hpp|ts|tsx|js|jsx|py|sh|ps1|html|css|scss)$/
 
 function parseArgs(argv) {
   const out = {
-    policy: 'client/runtime/config/repo_surface_policy.json',
+    policy: 'validation/conformance/contracts/repo_surface_policy.json',
     out: '',
     rootContract: '',
     skipRepo: false,

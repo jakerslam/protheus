@@ -7,7 +7,7 @@ import { currentRevision } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_POLICY = 'client/runtime/config/orchestration_workflow_contract_policy.json';
+const DEFAULT_POLICY = 'orchestration/config/orchestration_workflow_contract_policy.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/orchestration_workflow_contract_guard_current.json';
 const DEFAULT_OUT_MARKDOWN =
   'local/workspace/reports/ORCHESTRATION_WORKFLOW_CONTRACT_GUARD_CURRENT.md';

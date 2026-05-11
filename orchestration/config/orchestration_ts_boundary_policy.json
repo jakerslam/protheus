@@ -1,0 +1,25 @@
+{
+  "version": "2026-04-21",
+  "canonical_owner": "orchestration",
+  "surface_root": "orchestration",
+  "script_root": "orchestration/scripts",
+  "min_rust_pct": 95,
+  "max_nonempty_lines_per_script": 4,
+  "script_constraint_exempt_prefixes": [],
+  "rust_ratio_exempt_prefixes": [],
+  "required_markers": [
+    "module.exports = require(",
+    "adapters/runtime/"
+  ],
+  "forbidden_markers": [
+    "createOpsLaneBridge",
+    "const SYSTEM_ID =",
+    "function run(",
+    "process.stdout.write(",
+    "process.stderr.write(",
+    "bridge.run(",
+    "writeBridgeOutput(",
+    "bindRuntimeSystemModule(",
+    "bindSwarmOrchestrationRuntimeModule("
+  ]
+}

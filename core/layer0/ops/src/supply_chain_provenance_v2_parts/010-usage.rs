@@ -134,7 +134,7 @@ fn default_required_artifacts(root: &Path) -> Vec<ArtifactRequirement> {
         },
         ArtifactRequirement {
             id: "provider-family-contract-matrix".to_string(),
-            artifact_path: root.join("client/runtime/config/rust_source_of_truth_policy.json"),
+            artifact_path: root.join("core/layer0/ops/config/rust_source_of_truth_policy.json"),
             sbom_path: root
                 .join("local/state/release/provenance/sbom/provider_family_contract_matrix.cdx.json"),
             signature_path: root

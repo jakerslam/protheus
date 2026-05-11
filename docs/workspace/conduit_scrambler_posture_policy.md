@@ -162,7 +162,7 @@ Enforcement command: `npm run -s ops:conduit:scrambler-posture:guard`.
 
 Architecture policy governance command: `npm run -s ops:policy-refinement:governance`.
 
-The audit checks `client/runtime/config/conduit_scrambler_posture_contract.json` so sensitive Core/Orchestration routes declare the required posture and do not silently downgrade to standard transport.
+The audit checks `validation/conformance/contracts/conduit_scrambler_posture_contract.json` so sensitive Core/Orchestration routes declare the required posture and do not silently downgrade to standard transport.
 
 The audit fails closed when:
 

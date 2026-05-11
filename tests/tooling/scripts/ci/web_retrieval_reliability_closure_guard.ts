@@ -36,7 +36,7 @@ const SOURCE_PATHS = {
   pdfCli: 'core/layer0/ops/src/web_conduit_parts/083-cli-document-commands.rs',
   mediaHelpers: 'core/layer0/ops/src/web_conduit_parts/068-media-helpers.rs',
   providerRuntime: 'core/layer0/ops/src/web_conduit_provider_runtime.rs',
-  webPolicy: 'client/runtime/config/web_conduit_policy.json',
+  webPolicy: 'core/layer0/ops/config/web_conduit_policy.json',
   batchQuery: 'core/layer0/ops/src/batch_query_primitive_parts',
 };
 

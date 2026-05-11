@@ -37,7 +37,7 @@ Path note:
 ## Automation
 
 - Guard script: `tests/tooling/scripts/ci/naming_policy_guard.ts`
-- Policy config: `client/runtime/config/shell_naming_policy.json`
+- Policy config: `validation/conformance/contracts/shell_naming_policy.json`
 - npm command advisory/yellow flag: `npm run -s ops:shell-naming:guard`
 - npm command strict/blocking: `npm run -s ops:shell-naming:guard:strict`
 - tooling registry gate id: `ops:shell-naming:guard`

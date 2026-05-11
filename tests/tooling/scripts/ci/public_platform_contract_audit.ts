@@ -8,7 +8,7 @@ import { emitStructuredResult } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
 const SOURCE_RE = /\.(js|jsx|ts|tsx|py|sh|rs)$/;
-const DEFAULT_POLICY_PATH = 'client/runtime/config/public_platform_contract_policy.json';
+const DEFAULT_POLICY_PATH = 'validation/conformance/contracts/public_platform_contract_policy.json';
 const DEFAULT_OUT_PATH = 'core/local/artifacts/public_platform_contract_audit_current.json';
 
 function parseArgs(argv: string[]) {
