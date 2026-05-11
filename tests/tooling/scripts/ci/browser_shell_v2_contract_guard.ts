@@ -115,10 +115,10 @@ function validate(sourcePath: string, componentPath: string, stylesPath: string,
   if (!source.includes('MESSAGE_WINDOW_LIMIT') || !source.includes('40')) {
     push(violations, 'missing_bounded_window', sourcePath, 'Browser Shell V2 must keep message windows bounded.');
   }
-  if (!component.includes('<script') || !component.includes('onSubmitInput') || !component.includes('{#each messages as message') || !component.includes('{#each agentRows as agent') || !component.includes('{#each sessionRows as session') || !component.includes('onOpenMessageDetail') || !component.includes('{#each eventRows as event') || !component.includes('{#each searchRows as result') || !component.includes('onSubmitIssue') || !component.includes('onSubmitApprovalDecision') || !component.includes('onSetModel') || !component.includes('onSetGitTree') || !component.includes('receiptRefs')) {
-    push(violations, 'missing_svelte_projection_component', componentPath, 'Browser Shell V2 must expose a Svelte projection/input component with agent/session selection, lazy details, event projection, bounded search, issue submission, and selection request controls.');
+  if (!component.includes('<script') || !component.includes('onSubmitInput') || !component.includes('{#each messages as message') || !component.includes('{#each agentRows as agent') || !component.includes('{#each sessionRows as session') || !component.includes('onOpenMessageDetail') || !component.includes('{#each eventRows as event') || !component.includes('{#each searchRows as result') || !component.includes('onSubmitIssue') || !component.includes('onSubmitApprovalDecision') || !component.includes('onSetModel') || !component.includes('onSetGitTree') || !component.includes('{#each modelRows as model') || !component.includes('{#each gitTreeRows as tree') || !component.includes('activeDetailPanel') || !component.includes('browser-shell-v2__detail-grid') || !component.includes('receiptRefs')) {
+    push(violations, 'missing_svelte_projection_component', componentPath, 'Browser Shell V2 must expose a Svelte projection/input component with agent/session selection, lazy details, event projection, bounded search, issue submission, bounded model/git selectors, and selection request controls.');
   }
-  if (!runtime.includes("from '../BrowserShellV2.svelte'") || !runtime.includes('ShellSocketGatewayClient') || !runtime.includes('submitInput') || !runtime.includes('selectAgent') || !runtime.includes('selectSession') || !runtime.includes('openMessageDetail') || !runtime.includes('refreshEvents') || !runtime.includes('client.search') || !runtime.includes('submitIssue') || !runtime.includes('client.submitApprovalDecision') || !runtime.includes('client.setModel') || !runtime.includes('client.setGitTree') || !runtime.includes('rememberReceiptRefs')) {
+  if (!runtime.includes("from '../BrowserShellV2.svelte'") || !runtime.includes('ShellSocketGatewayClient') || !runtime.includes('submitInput') || !runtime.includes('selectAgent') || !runtime.includes('selectSession') || !runtime.includes('openMessageDetail') || !runtime.includes('refreshEvents') || !runtime.includes('client.search') || !runtime.includes('submitIssue') || !runtime.includes('client.submitApprovalDecision') || !runtime.includes('client.setModel') || !runtime.includes('client.setGitTree') || !runtime.includes('rowsFromSelectorOptions') || !runtime.includes('detailPanelFromProjection') || !runtime.includes('rowsFromDetailProjection') || !runtime.includes('slice(0, 12)') || !runtime.includes("['model_options', 'models', 'model_rows']") || !runtime.includes("['git_tree_options', 'git_trees', 'workspace_trees']") || !runtime.includes('EVENT_POLL_INTERVAL_MS') || !runtime.includes('eventRefreshInFlight') || !runtime.includes('startEventProjectionStream') || !runtime.includes('rememberReceiptRefs')) {
     push(violations, 'missing_browser_runtime_mount', runtimePath, 'Browser runtime must mount Svelte and use Shell Socket submitInput plus bounded selection/detail/event/search/issue/model/git-tree handlers.');
   }
   if (!build.includes('core/local/artifacts/browser_shell_v2_app') || !build.includes("from 'svelte/compiler'") || !build.includes('browser_shell_v2_app.js')) {
@@ -130,8 +130,17 @@ function validate(sourcePath: string, componentPath: string, stylesPath: string,
   if (!build.includes('socketRequest') || !build.includes('/api/shell-socket/input') || !build.includes('/api/shell-socket/search')) {
     push(violations, 'missing_browser_v2_socket_artifact_paths', buildPath, 'Standalone Browser V2 artifact must submit input and bounded search through Shell Socket routes.');
   }
-  if (!server.includes('startBrowserShellV2Server') || !server.includes('browser_shell_v2_app') || !server.includes('serve-smoke') || !server.includes('127.0.0.1:5173')) {
-    push(violations, 'missing_browser_v2_static_server', serverPath, 'Server must serve the Browser Shell V2 artifact independently and point clients at Gateway 5173.');
+  if (!build.includes('rowsFromSelectorOptions') || !build.includes('data-model-id') || !build.includes('data-git-tree-id')) {
+    push(violations, 'missing_browser_v2_selector_artifact_path', buildPath, 'Standalone Browser V2 artifact must render bounded model/git selector rows from projections.');
+  }
+  if (!build.includes('EVENT_POLL_INTERVAL_MS') || !build.includes('eventRefreshInFlight') || !build.includes('startEventProjectionStream')) {
+    push(violations, 'missing_browser_v2_live_event_artifact_path', buildPath, 'Standalone Browser V2 artifact must keep live event updates bounded through Shell Socket polling.');
+  }
+  if (!build.includes('detailPanelFromProjection') || !build.includes('browser-shell-v2__detail-grid') || !build.includes('slice(0, 12)')) {
+    push(violations, 'missing_browser_v2_detail_drawer_artifact_path', buildPath, 'Standalone Browser V2 artifact must render rich bounded detail drawers from detail projections.');
+  }
+  if (!server.includes('startBrowserShellV2Server') || !server.includes('browser_shell_v2_app') || !server.includes('serve-smoke') || !server.includes('127.0.0.1:5173') || !server.includes('waitForever') || !server.includes("process.on('SIGTERM'")) {
+    push(violations, 'missing_browser_v2_static_server', serverPath, 'Server must serve the Browser Shell V2 artifact independently, stay resident in serve mode, shut down cleanly, and point clients at Gateway 5173.');
   }
   if (!styles.includes('.browser-shell-v2') || !styles.includes('var(--')) {
     push(violations, 'missing_clean_style_tokens', stylesPath, 'Browser Shell V2 styles must use clean component classes and reusable tokens.');

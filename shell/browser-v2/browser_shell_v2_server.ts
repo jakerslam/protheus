@@ -50,6 +50,10 @@ function contentType(filePath: string): string {
   return 'application/octet-stream';
 }
 
+function waitForever(): Promise<void> {
+  return new Promise(() => {});
+}
+
 function safeArtifactPath(artifactDir: string, requestUrl = '/'): string {
   const url = new URL(requestUrl, 'http://browser-shell-v2.local');
   const pathname = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
@@ -143,6 +147,13 @@ async function main(): Promise<void> {
     const port = Number(readFlag(argv, 'port', String(DEFAULT_PORT)));
     const server = await startBrowserShellV2Server({ artifactDir, host, port });
     process.stdout.write(`[browser-shell-v2] serving ${server.url}?gateway=http://127.0.0.1:5173\n`);
+    const shutdown = async () => {
+      await server.close();
+      process.exit(0);
+    };
+    process.on('SIGINT', () => { void shutdown(); });
+    process.on('SIGTERM', () => { void shutdown(); });
+    await waitForever();
   }
 }
 
