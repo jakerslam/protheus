@@ -22,6 +22,7 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/secret_broker_policy.json', 'core/layer0/ops/config/secret_broker_policy.json', 'core/layer0/ops'],
   ['client/runtime/config/rust_source_of_truth_policy.json', 'core/layer0/ops/config/rust_source_of_truth_policy.json', 'core/layer0/ops'],
   ['client/runtime/config/abac_policy_plane.json', 'core/layer1/security/config/abac_policy_plane.json', 'core/layer1/security'],
+  ['client/runtime/config/security_layer_inventory.json', 'validation/release_gates/contracts/security_layer_inventory.json', 'validation/release_gates'],
   ['client/runtime/config/agent_routing_rules.json', 'orchestration/config/agent_routing_rules.json', 'orchestration'],
   ['client/runtime/config/workflow_executor_policy.json', 'orchestration/config/workflow_executor_policy.json', 'orchestration'],
   ['client/runtime/config/provider_onboarding_manifest.json', 'orchestration/config/provider_onboarding_manifest.json', 'orchestration'],

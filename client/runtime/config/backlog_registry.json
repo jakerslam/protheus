@@ -12614,7 +12614,7 @@
       "wave": "V6"
     },
     {
-      "acceptance": "Implemented `REQ-13-005` via `client/runtime/config/security_layer_inventory.json`, runtime verifier `client/runtime/systems/ops/security_layer_inventory_gate.ts`, generated inventory doc `docs/client/security/SECURITY_LAYER_INVENTORY.md`, state receipt under `state/ops/security_layer_inventory_gate/latest.json`, and regression test `tests/client-memory-tools/security_layer_inventory_gate.test.ts`.",
+      "acceptance": "Implemented `REQ-13-005` via `validation/release_gates/contracts/security_layer_inventory.json`, runtime verifier `client/runtime/systems/ops/security_layer_inventory_gate.ts`, generated inventory doc `docs/client/security/SECURITY_LAYER_INVENTORY.md`, state receipt under `state/ops/security_layer_inventory_gate/latest.json`, and regression test `tests/client-memory-tools/security_layer_inventory_gate.test.ts`.",
       "class": "backlog",
       "dependencies": [],
       "id": "V6-COMP-004",

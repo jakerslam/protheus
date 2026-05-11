@@ -1,9 +1,7 @@
 {
   "schema_id": "security_layer_inventory",
   "schema_version": "1.0.0",
-  "canonical_path": "validation/release_gates/contracts/security_layer_inventory.json",
   "canonical_owner": "validation/release_gates",
-  "compatibility_mirror": true,
   "owner": "core-security",
   "layers": [
     {

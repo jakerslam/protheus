@@ -45,7 +45,7 @@ Apply these labels to each issue:
 6. **Security inventory: add ownership metadata per layer**
 - Area: `area/security`
 - Acceptance:
-  - Add `owner` field per layer in `client/runtime/config/security_layer_inventory.json`.
+  - Add `owner` field per layer in `validation/release_gates/contracts/security_layer_inventory.json`.
   - Update gate + markdown renderer to include owner column.
 
 7. **Terraform module: add optional image pull secret support**
