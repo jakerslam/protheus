@@ -11,6 +11,8 @@ const bump = fs.readFileSync(path.join(ROOT, '.github/workflows/version-bump.yml
 if (!release.includes('softprops/action-gh-release')) violations.push({ kind: 'release_workflow_missing_github_release_publish' });
 if (!release.includes('release-windows-prebuilt')) violations.push({ kind: 'release_workflow_missing_windows_prebuilt_dependency' });
 if (!bump.includes('chore(release):')) violations.push({ kind: 'version_bump_missing_conventional_release_commit' });
+if (!bump.includes('gh release create')) violations.push({ kind: 'version_bump_missing_github_release_publish' });
+if (!bump.includes('git push origin "refs/tags/${RELEASE_TAG}"')) violations.push({ kind: 'version_bump_missing_tag_push' });
 if (!release.includes('release_ready')) violations.push({ kind: 'release_workflow_missing_semver_readiness' });
 const traceId = `validation:${new Date().toISOString()}:${process.pid}`;
 const payload = { trace_id: traceId, span_id: `span:${traceId}`, parent_span_id: null, source_domain: 'validation', ok: violations.length === 0, type: 'release_version_convergence_guard', generated_at: new Date().toISOString(), policy_path: policyPath, violations };

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+message_file="${1:-}"
+if [ -z "$message_file" ]; then
+  echo "[infring commit-msg] missing commit message file" >&2
+  exit 1
+fi
+
+case "$(sed -n '1{/^[[:space:]]*#/d;p;q;}' "$message_file" | tr -d '\r')" in
+  Merge*|Revert*)
+    exit 0
+    ;;
+esac
+
+node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts \
+  --message-file="$message_file" \
+  --strict=1 \
+  --out=core/local/artifacts/conventional_commit_gate_current.json >/dev/null || {
+    echo "[infring commit-msg] rejected non-conventional commit subject." >&2
+    echo "[infring commit-msg] use: feat(scope): message, fix(scope): message, chore(scope): message, docs(scope): message, ci(scope): message" >&2
+    exit 1
+  }

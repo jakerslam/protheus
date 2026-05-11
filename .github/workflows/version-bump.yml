@@ -132,3 +132,33 @@ jobs:
           fi
           git commit -m "chore(release): ${{ steps.semver.outputs.tag }} [skip ci]"
           git push origin HEAD:main
+
+      - name: Create tag and GitHub release
+        if: steps.semver.outputs.release_ready == '1' && steps.semver.outputs.dry_run != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.semver.outputs.tag }}
+          NEXT_VERSION: ${{ steps.semver.outputs.next_version }}
+          RELEASE_CHANNEL: ${{ steps.channel.outputs.release_channel }}
+          BUMP_KIND: ${{ steps.semver.outputs.bump }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+          if git rev-parse -q --verify "refs/tags/${RELEASE_TAG}" >/dev/null; then
+            echo "Tag ${RELEASE_TAG} already exists."
+          else
+            git tag -a "${RELEASE_TAG}" -m "${RELEASE_TAG}"
+            git push origin "refs/tags/${RELEASE_TAG}"
+          fi
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "GitHub release ${RELEASE_TAG} already exists."
+            exit 0
+          fi
+          prerelease_args=()
+          if [ "${RELEASE_CHANNEL}" != "stable" ]; then
+            prerelease_args=(--prerelease)
+          fi
+          gh release create "${RELEASE_TAG}" \
+            --title "${RELEASE_TAG}" \
+            --notes "Automated ${BUMP_KIND} release for version ${NEXT_VERSION} from conventional commit prefixes." \
+            "${prerelease_args[@]}"

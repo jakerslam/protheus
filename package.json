@@ -1191,7 +1191,10 @@
     "ops:guard-registry:ownership:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/guard_registry_ownership_report.ts",
     "ops:guard-registry:ownership:guard": "npm run -s ops:guard-registry:ownership:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/guard_registry_ownership_guard.ts",
     "ops:real-work:workflow-proof": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/real_work_workflow_proof_report.ts --out-json=core/local/artifacts/real_work_workflow_proof_current.json --out-markdown=local/workspace/reports/REAL_WORK_WORKFLOW_PROOF_CURRENT.md",
-    "ops:real-work:workflow-proof:guard": "npm run -s ops:real-work:workflow-proof && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/real_work_workflow_proof_guard.ts"
+    "ops:real-work:workflow-proof:guard": "npm run -s ops:real-work:workflow-proof && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/real_work_workflow_proof_guard.ts",
+    "ops:ci-branch-protection:apply": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_branch_protection_apply.ts",
+    "ops:githooks:install": "git config core.hooksPath .githooks",
+    "ops:commit-message:check-file": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --message-file"
   },
   "version": "0.4.0"
 }

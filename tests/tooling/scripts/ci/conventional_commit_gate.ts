@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+// source_domain: validation; owner_domain: validation.conformance
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -52,6 +53,7 @@ function parseArgs(argv: string[]) {
     to: 'HEAD',
     strict: false,
     outPath: '',
+    messageFile: '',
   };
   for (const tokenRaw of argv) {
     const token = cleanText(tokenRaw, 400);
@@ -60,6 +62,8 @@ function parseArgs(argv: string[]) {
     else if (token.startsWith('--to=')) out.to = cleanText(token.slice(5), 120) || 'HEAD';
     else if (token.startsWith('--strict=')) out.strict = parseBool(token.slice(9), false);
     else if (token.startsWith('--out=')) out.outPath = cleanText(token.slice(6), 400);
+    else if (token.startsWith('--message-file=')) out.messageFile = cleanText(token.slice(15), 600);
+    else if (token === '--message-file') out.messageFile = cleanText(argv[argv.indexOf(token) + 1] ?? '', 600);
   }
   return out;
 }
@@ -111,12 +115,19 @@ function reasonForInvalid(subject: string): string {
 function main() {
   const root = path.resolve(__dirname, '../../../..');
   const args = parseArgs(process.argv.slice(2));
-  const range = args.from ? `${args.from}..${args.to}` : `${args.to}~30..${args.to}`;
+  const range = args.messageFile ? `message-file:${args.messageFile}` : args.from ? `${args.from}..${args.to}` : `${args.to}~30..${args.to}`;
   let rows: CommitRow[] = [];
-  try {
-    rows = readCommits(root, range);
-  } catch {
-    rows = [];
+  if (args.messageFile) {
+    const messagePath = path.resolve(root, args.messageFile);
+    const raw = fs.readFileSync(messagePath, 'utf8');
+    const subject = cleanText(raw.split(/\r?\n/).find((line) => line.trim() && !line.trim().startsWith('#')) || '', 400);
+    rows = [{ sha: 'COMMIT_MSG', subject, body: raw }];
+  } else {
+    try {
+      rows = readCommits(root, range);
+    } catch {
+      rows = [];
+    }
   }
   const invalid = rows
     .filter((row) => !isConventionalSubject(row.subject))
