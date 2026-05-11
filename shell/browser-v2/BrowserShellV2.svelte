@@ -75,7 +75,7 @@
   }
 </script>
 
-<div class="app-layout browser-shell-v2 browser-shell-v2--legacy-surface" aria-label="Browser Shell V2">
+<div class="app-layout" data-shell-plug="browser-v2" aria-label="Browser Shell V2">
   <aside class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic" aria-label="Agent conversations">
     <div class="sidebar-nav-shell">
       <div class="sidebar-nav" role="navigation" aria-label="Main navigation">

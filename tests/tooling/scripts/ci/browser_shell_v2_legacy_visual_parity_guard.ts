@@ -11,7 +11,7 @@ const buildPath = path.join(root, buildRel);
 const artifactCssPath = path.join(root, artifactCssRel);
 const outPath = path.join(root, outRel);
 
-const maxCssLines = 500;
+const maxCssLines = 5;
 const requiredLegacyTokens = [
   "--bg",
   "--bg-primary",
@@ -67,6 +67,7 @@ const forbiddenInventedSurfaceMarkers = [
   "browser-shell-v2__topbar",
   "browser-shell-v2__workspace",
   "browser-shell-v2__rail",
+  "browser-shell-v2--legacy-surface",
   "Gateway Projection",
 ];
 
@@ -80,9 +81,24 @@ const artifactCss = fs.existsSync(artifactCssPath) ? fs.readFileSync(artifactCss
 const visualSurface = `${css}\n${build}\n${artifactCss}`;
 const lineCount = countLines(css);
 const violations: string[] = [];
+const legacyCssDir = ["client", "runtime", "systems", "ui", "infring" + "_static", "css"].join("/");
+const legacyCssPaths = [
+  "theme.css",
+  ...fs.readdirSync(path.join(root, legacyCssDir, "layout.css.parts")).sort().map((name) => `layout.css.parts/${name}`),
+  ...fs.readdirSync(path.join(root, legacyCssDir, "components.css.parts")).sort().map((name) => `components.css.parts/${name}`),
+];
+const expectedArtifactCss = legacyCssPaths
+  .map((relPath) => fs.readFileSync(path.join(root, legacyCssDir, relPath), "utf8"))
+  .join("");
 
 if (lineCount > maxCssLines) {
   violations.push(`css_file_over_cap:${lineCount}>${maxCssLines}`);
+}
+if (!css.includes("Intentionally empty") || css.includes("{") || css.includes("}")) {
+  violations.push("v2_css_must_not_define_visual_rules");
+}
+if (artifactCss !== expectedArtifactCss) {
+  violations.push("artifact_css_not_exact_legacy_bundle");
 }
 for (const token of requiredLegacyTokens) {
   if (!visualSurface.includes(`var(${token}`) && !visualSurface.includes(`${token}:`)) violations.push(`missing_legacy_token:${token}`);
@@ -98,7 +114,7 @@ for (const marker of requiredLegacySurfaceMarkers) {
   if (!visualSurface.includes(marker)) violations.push(`missing_legacy_surface_marker:${marker}`);
 }
 for (const marker of forbiddenInventedSurfaceMarkers) {
-  if (build.includes(marker)) violations.push(`forbidden_invented_surface_marker:${marker}`);
+  if (build.includes(marker) || css.includes(marker)) violations.push(`forbidden_invented_surface_marker:${marker}`);
 }
 
 const payload = {

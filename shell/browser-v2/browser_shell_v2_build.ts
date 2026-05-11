@@ -38,9 +38,9 @@ function legacySurfaceCss(): string {
   return LEGACY_CSS_PATHS
     .map((relPath) => {
       const absPath = path.resolve(process.cwd(), LEGACY_CSS_DIR, relPath);
-      return `\n/* legacy surface: ${relPath} */\n${fs.readFileSync(absPath, 'utf8')}\n`;
+      return fs.readFileSync(absPath, 'utf8');
     })
-    .join('\n');
+    .join('');
 }
 
 function browserRuntimeSource(): string {
@@ -238,7 +238,7 @@ function render(state) {
   const selectedAgentLabel = selectedAgentId || 'No agent selected';
   const runtimeBadge = clean(state.runtimeState || 'unknown', 80);
   root.innerHTML = \`
-    <div class="app-layout browser-shell-v2 browser-shell-v2--legacy-surface" aria-label="Browser Shell V2">
+    <div class="app-layout" data-shell-plug="browser-v2" aria-label="Browser Shell V2">
       <aside class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic" aria-label="Legacy dashboard conversation rail">
         <div class="sidebar-nav-shell">
           <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
@@ -762,7 +762,8 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   const componentSource = fs.readFileSync(path.resolve(process.cwd(), COMPONENT_PATH), 'utf8');
   const compiled = compile(componentSource, { generate: 'client', dev: false, css: 'external' });
   const warnings = compiled.warnings.map((warning) => warning.message);
-  const css = `${legacySurfaceCss()}\n\n/* Browser Shell V2 surface parity adapter */\n${fs.readFileSync(path.resolve(process.cwd(), CSS_PATH), 'utf8')}`;
+  // No V2 CSS is appended. Visual parity means the artifact CSS is exactly the legacy dashboard CSS bundle.
+  const css = legacySurfaceCss();
   const targetDir = path.resolve(process.cwd(), outDir);
   fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });

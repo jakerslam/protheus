@@ -61,6 +61,7 @@ const FORBIDDEN_INVENTED_SURFACES = [
   'browser-shell-v2__topbar',
   'browser-shell-v2__workspace',
   'browser-shell-v2__rail',
+  'browser-shell-v2--legacy-surface',
   'Gateway Projection',
 ];
 
@@ -84,6 +85,9 @@ function validate(componentPath: string, stylesPath: string, buildPath: string, 
   const artifactCss = fs.existsSync(abs(artifactCssPath)) ? read(artifactCssPath) : '';
   const visualSurface = `${component}\n${styles}\n${build}\n${artifactCss}`;
   const readme = read(readmePath);
+  if (!styles.includes('Intentionally empty') || styles.includes('{') || styles.includes('}')) {
+    push(violations, 'v2_css_defines_visual_rules', stylesPath, 'Browser V2 must not define its own CSS rules; artifact CSS must come from the legacy dashboard bundle.');
+  }
   for (const surface of REQUIRED_COMPONENT_SURFACES) {
     if (!visualSurface.includes(surface)) {
       push(violations, 'missing_legacy_visual_surface', buildPath, `Missing legacy dashboard visual surface ${surface}.`);

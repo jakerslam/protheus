@@ -142,8 +142,8 @@ function validate(sourcePath: string, componentPath: string, stylesPath: string,
   if (!server.includes('startBrowserShellV2Server') || !server.includes('browser_shell_v2_app') || !server.includes('serve-smoke') || !server.includes('127.0.0.1:5173') || !server.includes('waitForever') || !server.includes("process.on('SIGTERM'")) {
     push(violations, 'missing_browser_v2_static_server', serverPath, 'Server must serve the Browser Shell V2 artifact independently, stay resident in serve mode, shut down cleanly, and point clients at Gateway 5173.');
   }
-  if (!styles.includes('.browser-shell-v2') || !styles.includes('var(--')) {
-    push(violations, 'missing_clean_style_tokens', stylesPath, 'Browser Shell V2 styles must use clean component classes and reusable tokens.');
+  if (!styles.includes('Intentionally empty') || styles.includes('{') || styles.includes('}')) {
+    push(violations, 'browser_v2_css_not_empty', stylesPath, 'Browser Shell V2 must not define its own visual CSS; the built artifact must use the legacy dashboard CSS bundle.');
   }
   for (const token of FORBIDDEN_TOKENS) {
     if (combined.includes(token)) push(violations, 'browser_shell_v2_forbidden_dependency', sourcePath, `Forbidden token ${token}.`);
