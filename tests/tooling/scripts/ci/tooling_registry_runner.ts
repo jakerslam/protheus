@@ -14,7 +14,7 @@ const ROOT = process.cwd();
 const DEFAULT_REPO_HEALTH_ARTIFACT_PATH = 'core/local/artifacts/repo_health_gate_current.json';
 const DEFAULT_PACKAGE_JSON_PATH = 'package.json';
 const DEFAULT_COMMAND_REGISTRY_POLICY_PATH = 'tests/tooling/config/command_registry_policy.json';
-const DEFAULT_ROOT_SURFACE_CONTRACT_PATH = 'client/runtime/config/root_surface_contract.json';
+const DEFAULT_ROOT_SURFACE_CONTRACT_PATH = 'validation/conformance/contracts/root_surface_contract.json';
 const DEFAULT_FILE_SIZE_POLICY_PATH = 'docs/workspace/repo_file_size_policy.json';
 
 type Mode = 'list' | 'gate' | 'profile' | 'health';

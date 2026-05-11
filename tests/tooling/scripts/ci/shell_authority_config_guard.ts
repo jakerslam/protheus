@@ -49,6 +49,10 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/shell_truth_leak_policy.json', 'validation/conformance/contracts/shell_truth_leak_policy.json', 'validation/conformance'],
   ['client/runtime/config/shell_backend_state_contract.json', 'validation/conformance/contracts/shell_backend_state_contract.json', 'validation/conformance'],
   ['client/runtime/config/shell_naming_policy.json', 'validation/conformance/contracts/shell_naming_policy.json', 'validation/conformance'],
+  ['client/runtime/config/root_surface_contract.json', 'validation/conformance/contracts/root_surface_contract.json', 'validation/conformance'],
+  ['client/runtime/config/repo_surface_policy.json', 'validation/conformance/contracts/repo_surface_policy.json', 'validation/conformance'],
+  ['client/runtime/config/docs_surface_contract_policy.json', 'validation/conformance/contracts/docs_surface_contract_policy.json', 'validation/conformance'],
+  ['client/runtime/config/public_platform_contract_policy.json', 'validation/conformance/contracts/public_platform_contract_policy.json', 'validation/conformance'],
 ];
 
 const AUTHORITY_CONFIG_NAME = /(?:policy|rules|manifest|gate|executor|routing|abac|permission|security|workflow|provider|tool|gateway|conduit|research|batch|memory|command|authority)/i;

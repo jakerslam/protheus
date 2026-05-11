@@ -157,8 +157,8 @@ function main() {
   const orchestrationSeq = read('orchestration/src/sequencing.rs');
   const orchestrationContracts = read('orchestration/src/contracts.rs');
   const orchestrationTransient = read('orchestration/src/transient_context.rs');
-  const rootSurfaceContract = JSON.parse(read('client/runtime/config/root_surface_contract.json'));
-  const repoSurfacePolicy = JSON.parse(read('client/runtime/config/repo_surface_policy.json'));
+  const rootSurfaceContract = JSON.parse(read('validation/conformance/contracts/root_surface_contract.json'));
+  const repoSurfacePolicy = JSON.parse(read('validation/conformance/contracts/repo_surface_policy.json'));
   const clientSwarmWrapper = read('client/runtime/systems/autonomy/swarm_orchestration_runtime.ts');
   const surfaceSwarmRuntime = read('orchestration/scripts/swarm_orchestration_runtime.ts');
   const clientSelfImproveWrapper = read('client/runtime/systems/autonomy/self_improvement_cadence_orchestrator.ts');

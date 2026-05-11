@@ -17,5 +17,8 @@
   "ignore_path_prefixes": [
     "apps/README.md",
     "adapters/README.md"
-  ]
+  ],
+  "canonical_path": "validation/conformance/contracts/public_platform_contract_policy.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

@@ -40,5 +40,8 @@
   "paths": {
     "latest_path": "local/state/ops/docs_surface_contract/latest.json",
     "receipts_path": "local/state/ops/docs_surface_contract/receipts.jsonl"
-  }
+  },
+  "canonical_path": "validation/conformance/contracts/docs_surface_contract_policy.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }
