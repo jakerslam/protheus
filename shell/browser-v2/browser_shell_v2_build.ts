@@ -10,6 +10,7 @@ const CSS_PATH = 'shell/browser-v2/browser_shell_v2.css';
 const LEGACY_CSS_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'css'].join('/');
 const LEGACY_STATIC_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static'].join('/');
 const LEGACY_BOTTOM_DOCK_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'bottom_dock_shell.bundle.ts'].join('/');
+const LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'dashboard_popup_overlay_shell.bundle.ts'].join('/');
 const LEGACY_CSS_PATHS = [
   'theme.css',
   ...fs.readdirSync(path.resolve(process.cwd(), LEGACY_CSS_DIR, 'layout.css.parts')).sort().map((name) => `layout.css.parts/${name}`),
@@ -232,11 +233,134 @@ const browserShellV2DisplayState = {
   bottomDockOrder: Object.keys(dockTileRegistry),
   bottomDockHoverId: '',
   bottomDockClickAnimatingId: '',
+  bottomDockDragActive: false,
+  bottomDockSide: 'bottom',
+  bottomDockAnchorX: 0,
+  bottomDockAnchorY: 0,
+  bottomDockPointerMoveHandler: null,
+  bottomDockPointerUpHandler: null,
+  sidebarCollapsed: false,
+  themeMode: 'system',
+  resolvedTheme: 'light',
+  dashboardPopup: {
+    id: '',
+    source: '',
+    active: false,
+    ready: false,
+    side: 'top',
+    inline_away: 'center',
+    block_away: 'center',
+    left: -9999,
+    top: -9999,
+    title: '',
+    body: '',
+    meta_origin: '',
+    meta_time: '',
+    unread: false,
+  },
 };
 
 function installDisplayOnlyShellServices() {
   const services = window.InfringSharedShellServices || {};
   const orderIndex = (id) => Math.max(0, browserShellV2DisplayState.bottomDockOrder.indexOf(id));
+  const viewportSide = (x, y) => {
+    const width = Math.max(1, window.innerWidth || 1);
+    const height = Math.max(1, window.innerHeight || 1);
+    const distances = [
+      ['top', y],
+      ['bottom', height - y],
+      ['left', x],
+      ['right', width - x],
+    ].sort((a, b) => Number(a[1]) - Number(b[1]));
+    return distances[0][0] || 'bottom';
+  };
+  const openSideForDockSide = (side) => ({ top: 'bottom', bottom: 'top', left: 'right', right: 'left' }[side] || 'top');
+  const anchorForSide = (side, x, y) => {
+    const width = Math.max(1, window.innerWidth || 1);
+    const height = Math.max(1, window.innerHeight || 1);
+    if (side === 'top') return { x: Math.max(80, Math.min(width - 80, x || width / 2)), y: 4 };
+    if (side === 'left') return { x: 4, y: Math.max(80, Math.min(height - 80, y || height / 2)) };
+    if (side === 'right') return { x: width - 4, y: Math.max(80, Math.min(height - 80, y || height / 2)) };
+    return { x: Math.max(80, Math.min(width - 80, x || width / 2)), y: height - 4 };
+  };
+  const setDockAnchor = (side, x, y) => {
+    const anchor = anchorForSide(side, x, y);
+    browserShellV2DisplayState.bottomDockSide = side;
+    browserShellV2DisplayState.bottomDockAnchorX = anchor.x;
+    browserShellV2DisplayState.bottomDockAnchorY = anchor.y;
+  };
+  const defaultPopup = () => ({
+    id: '',
+    source: '',
+    active: false,
+    ready: false,
+    side: 'top',
+    inline_away: 'center',
+    block_away: 'center',
+    left: -9999,
+    top: -9999,
+    title: '',
+    body: '',
+    meta_origin: '',
+    meta_time: '',
+    unread: false,
+  });
+  const popupFromEvent = (id, title, event, overrides = {}) => {
+    const target = event?.currentTarget || event?.target;
+    const rect = target && typeof target.getBoundingClientRect === 'function'
+      ? target.getBoundingClientRect()
+      : { left: Number(event?.clientX || 0), right: Number(event?.clientX || 0), top: Number(event?.clientY || 0), bottom: Number(event?.clientY || 0), width: 0, height: 0 };
+    const centerX = rect.left + (rect.width || 0) / 2;
+    const centerY = rect.top + (rect.height || 0) / 2;
+    const width = Math.max(1, window.innerWidth || 1);
+    const height = Math.max(1, window.innerHeight || 1);
+    const inlineAway = centerX < width / 2 ? 'right' : 'left';
+    const blockAway = centerY < height / 2 ? 'bottom' : 'top';
+    const side = overrides.side || (Math.min(centerY, height - centerY) < Math.min(centerX, width - centerX) ? blockAway : inlineAway);
+    const left = side === 'left' ? rect.left : side === 'right' ? rect.right : centerX;
+    const top = side === 'top' ? rect.top : side === 'bottom' ? rect.bottom : centerY;
+    return {
+      ...defaultPopup(),
+      id: clean(id, 220),
+      source: clean(overrides.source || id, 120),
+      active: true,
+      ready: true,
+      side,
+      inline_away: inlineAway,
+      block_away: blockAway,
+      left,
+      top,
+      title: clean(title, 220),
+      body: clean(overrides.body || '', 1000),
+      meta_origin: clean(overrides.meta_origin || '', 160),
+      meta_time: clean(overrides.meta_time || '', 160),
+      unread: !!overrides.unread,
+    };
+  };
+  setDockAnchor(browserShellV2DisplayState.bottomDockSide);
+  services.popup = {
+    origin: (overrides) => ({ ...defaultPopup(), ...(overrides || {}) }),
+    stateOrigin: (popup) => ({ ...defaultPopup(), ...(popup || {}) }),
+    overlayClass: (popup, glassKind) => ({
+      [glassKind || 'fogged-glass']: true,
+      'is-visible': !!(popup && popup.active && popup.ready && popup.title),
+      'is-side-top': popup?.side === 'top',
+      'is-side-bottom': popup?.side === 'bottom',
+      'is-side-left': popup?.side === 'left',
+      'is-side-right': popup?.side === 'right',
+      'is-inline-away-left': popup?.inline_away === 'left',
+      'is-inline-away-right': popup?.inline_away === 'right',
+      'is-inline-away-center': popup?.inline_away !== 'left' && popup?.inline_away !== 'right',
+      'is-block-away-top': popup?.block_away === 'top',
+      'is-block-away-bottom': popup?.block_away === 'bottom',
+      'is-block-away-center': popup?.block_away !== 'top' && popup?.block_away !== 'bottom',
+      'is-unread': !!popup?.unread,
+    }),
+    overlayStyle: (popup) => {
+      if (!popup || !popup.active || !popup.ready) return 'left:-9999px;top:-9999px;';
+      return 'left:' + Math.round(Number(popup.left || 0)) + 'px;top:' + Math.round(Number(popup.top || 0)) + 'px;';
+    },
+  };
   services.appStore = {
     root: () => browserShellV2DisplayState,
     current: () => browserShellV2DisplayState,
@@ -251,12 +375,23 @@ function installDisplayOnlyShellServices() {
             .filter((id) => dockTileRegistry[id] && !seen.has(id) && seen.add(id));
         },
         bottomDockTileData: (id, field, fallback) => (dockTileRegistry[id] && dockTileRegistry[id][field]) || fallback || '',
-        bottomDockActiveSide: () => 'bottom',
-        bottomDockOpenSide: () => 'top',
+        bottomDockActiveSide: () => browserShellV2DisplayState.bottomDockSide,
+        bottomDockOpenSide: () => openSideForDockSide(browserShellV2DisplayState.bottomDockSide),
         bottomDockWallLockNormalized: () => '',
         bottomDockTaskbarContained: () => false,
         bottomDockHoverExpansionDisabled: () => false,
-        bottomDockContainerStyle: () => '',
+        bottomDockContainerStyle: () => {
+          const anchor = anchorForSide(
+            browserShellV2DisplayState.bottomDockSide,
+            browserShellV2DisplayState.bottomDockAnchorX,
+            browserShellV2DisplayState.bottomDockAnchorY,
+          );
+          return [
+            '--bottom-dock-anchor-x:' + Math.round(anchor.x) + 'px',
+            '--bottom-dock-anchor-y:' + Math.round(anchor.y) + 'px',
+            '--bottom-dock-position-transition:' + (browserShellV2DisplayState.bottomDockDragActive ? '0ms' : '220ms'),
+          ].join(';');
+        },
         bottomDockSlotStyle: (id) => {
           const hoverIndex = orderIndex(browserShellV2DisplayState.bottomDockHoverId);
           const index = orderIndex(id);
@@ -273,7 +408,7 @@ function installDisplayOnlyShellServices() {
           if (!browserShellV2DisplayState.bottomDockHoverId) return false;
           return Math.abs(orderIndex(id) - orderIndex(browserShellV2DisplayState.bottomDockHoverId)) === 2;
         },
-        bottomDockIsDraggingVisual: () => false,
+        bottomDockIsDraggingVisual: () => browserShellV2DisplayState.bottomDockDragActive,
         bottomDockIsClickAnimating: (id) => browserShellV2DisplayState.bottomDockClickAnimatingId === id,
         bottomDockTileAnimationName: (id) => (dockTileRegistry[id]?.animation || [])[0] || '',
         bottomDockTileAnimationDurationAttr: (id) => String((dockTileRegistry[id]?.animation || [])[1] || ''),
@@ -282,9 +417,36 @@ function installDisplayOnlyShellServices() {
         clearBottomDockHover: (id) => {
           if (!id || browserShellV2DisplayState.bottomDockHoverId === id) browserShellV2DisplayState.bottomDockHoverId = '';
         },
-        updateBottomDockPointer: () => {},
-        startBottomDockContainerPointerDrag: () => {},
-        startBottomDockPointerDrag: () => {},
+        updateBottomDockPointer: (event) => {
+          if (!browserShellV2DisplayState.bottomDockDragActive || !event) return;
+          const x = Number(event.clientX || 0);
+          const y = Number(event.clientY || 0);
+          setDockAnchor(viewportSide(x, y), x, y);
+        },
+        startBottomDockContainerPointerDrag: (event) => {
+          if (!event || event.button > 0) return;
+          browserShellV2DisplayState.bottomDockDragActive = true;
+          const move = (ev) => {
+            const x = Number(ev.clientX || 0);
+            const y = Number(ev.clientY || 0);
+            setDockAnchor(viewportSide(x, y), x, y);
+          };
+          const end = (ev) => {
+            move(ev || event);
+            browserShellV2DisplayState.bottomDockDragActive = false;
+            window.removeEventListener('pointermove', move, true);
+            window.removeEventListener('pointerup', end, true);
+            window.removeEventListener('pointercancel', end, true);
+          };
+          window.addEventListener('pointermove', move, true);
+          window.addEventListener('pointerup', end, true);
+          window.addEventListener('pointercancel', end, true);
+        },
+        startBottomDockPointerDrag: (_id, event) => {
+          const target = event?.target;
+          if (target && typeof target.closest === 'function' && target.closest('.dock-tile')) return;
+          methods.startBottomDockContainerPointerDrag(event);
+        },
         handleBottomDockTileClick: (id) => {
           browserShellV2DisplayState.page = clean(id, 80) || 'chat';
           browserShellV2DisplayState.bottomDockClickAnimatingId = clean(id, 80);
@@ -292,9 +454,15 @@ function installDisplayOnlyShellServices() {
             if (browserShellV2DisplayState.bottomDockClickAnimatingId === id) browserShellV2DisplayState.bottomDockClickAnimatingId = '';
           }, 900);
         },
-        showDashboardPopup: () => {},
-        hideDashboardPopup: () => {},
-        hideDashboardPopupBySource: () => {},
+        showDashboardPopup: (id, title, event, overrides) => {
+          browserShellV2DisplayState.dashboardPopup = popupFromEvent(id, title, event, overrides || {});
+        },
+        hideDashboardPopup: (id) => {
+          if (!id || browserShellV2DisplayState.dashboardPopup.id === id) browserShellV2DisplayState.dashboardPopup = defaultPopup();
+        },
+        hideDashboardPopupBySource: (source) => {
+          if (!source || browserShellV2DisplayState.dashboardPopup.source === source) browserShellV2DisplayState.dashboardPopup = defaultPopup();
+        },
       };
       return methods[name] || null;
     },
@@ -303,6 +471,22 @@ function installDisplayOnlyShellServices() {
 }
 
 installDisplayOnlyShellServices();
+
+function resolveTheme(mode) {
+  const cleanMode = clean(mode || browserShellV2DisplayState.themeMode || 'system', 40);
+  if (cleanMode === 'light' || cleanMode === 'dark') return cleanMode;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyDisplayTheme(mode) {
+  const nextMode = ['light', 'dark', 'system'].includes(clean(mode, 40)) ? clean(mode, 40) : 'system';
+  browserShellV2DisplayState.themeMode = nextMode;
+  browserShellV2DisplayState.resolvedTheme = resolveTheme(nextMode);
+  document.body.setAttribute('data-theme', browserShellV2DisplayState.resolvedTheme);
+  document.documentElement.setAttribute('data-theme', browserShellV2DisplayState.resolvedTheme);
+}
+
+applyDisplayTheme('system');
 
 let selectedAgentId = '';
 let selectedSessionId = '';
@@ -342,7 +526,7 @@ function render(state) {
   root.innerHTML = \`
     <div class="app-layout" data-shell-plug="browser-v2" data-event-cursor="\${escapeHtml(eventCursor)}" data-receipt-ref="\${escapeHtml(issueReceiptRef || approvalReceiptRef || modelReceiptRef || gitTreeReceiptRef)}" aria-label="Browser Shell V2">
       <div class="main-pointer-fx-layer" aria-hidden="true"></div>
-      <infring-sidebar-rail-shell class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic" dragbarsurface="chat-sidebar" parentownedmechanics="true" aria-label="Legacy dashboard conversation rail">
+      <infring-sidebar-rail-shell class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic \${browserShellV2DisplayState.sidebarCollapsed ? 'collapsed' : ''}" dragbarsurface="chat-sidebar" parentownedmechanics="true" aria-label="Legacy dashboard conversation rail">
         <div class="sidebar-nav-shell">
           <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
             <div class="sidebar-top-ghost" aria-hidden="true"></div>
@@ -475,10 +659,10 @@ function render(state) {
                   </div>
                 </div>
                 <div class="taskbar-reorder-item" data-taskbar-item="theme">
-                  <div class="theme-switcher toggle-pill" data-mode="system" data-resolved="light" role="group" aria-label="Theme">
-                    <button class="theme-opt" type="button" title="Light" aria-label="Light theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></button>
-                    <button class="theme-opt active" type="button" title="System" aria-label="System theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg></button>
-                    <button class="theme-opt" type="button" title="Dark" aria-label="Dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3c0 0 0 0 0 0A7 7 0 0 0 21 12.79z"></path></svg></button>
+                  <div class="theme-switcher toggle-pill" data-mode="\${escapeHtml(browserShellV2DisplayState.themeMode)}" data-resolved="\${escapeHtml(browserShellV2DisplayState.resolvedTheme)}" role="group" aria-label="Theme">
+                    <button class="theme-opt \${browserShellV2DisplayState.themeMode === 'light' ? 'active' : ''}" data-theme-mode="light" type="button" title="Light" aria-label="Light theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg></button>
+                    <button class="theme-opt \${browserShellV2DisplayState.themeMode === 'system' ? 'active' : ''}" data-theme-mode="system" type="button" title="System" aria-label="System theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg></button>
+                    <button class="theme-opt \${browserShellV2DisplayState.themeMode === 'dark' ? 'active' : ''}" data-theme-mode="dark" type="button" title="Dark" aria-label="Dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3A7 7 0 0 0 21 12.79z"></path></svg></button>
                   </div>
                 </div>
                 <div class="taskbar-reorder-item" data-taskbar-item="notifications">
@@ -530,7 +714,7 @@ function render(state) {
             <div class="chat-reflection-overlay" aria-hidden="true"></div>
             <div class="chat-grid-overlay" aria-hidden="true"></div>
             \${messages.length ? messages.map((message) => \`
-              <article class="message \${message.role === 'user' ? 'user' : 'agent'} meta-collapsed">
+              <article class="message \${message.role === 'user' ? 'user' : 'agent'} meta-collapsed" data-msg-index="\${messages.indexOf(message)}">
                 <div class="message-avatar agent-mark infring-logo" aria-hidden="true"><span class="infring-logo-glyph">\${message.role === 'user' ? 'Y' : '∞'}</span></div>
                 <div class="message-body">
                   <div class="message-bubble markdown-body">
@@ -544,19 +728,21 @@ function render(state) {
             \`).join('') : '<div class="empty-state"><h4>No bounded message projection loaded yet.</h4><p class="hint">Select an agent from the legacy-style rail or send a message through the composer.</p></div>'}
           </div>
           </infring-messages-surface-shell>
-          <div class="chat-map" aria-label="Message map">
+          <infring-chat-map-shell class="chat-map" dragbarsurface="chat-map" parentownedmechanics="true" aria-label="Message map">
             <div class="chat-map-surface drag-bar overlay-shared-surface">
+              <infring-chat-map-rail-shell>
               <div class="chat-map-rail">
                 <button class="chat-map-jump chat-map-jump-up" type="button" aria-label="Previous message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m18 15-6-6-6 6"></path></svg></button>
-                <div class="chat-map-items-wrap"><div class="chat-map-viewport"><div class="chat-map-scroll">
+                <div class="chat-map-items-wrap"><infring-chat-map-viewport-shell><div class="chat-map-viewport"><div class="chat-map-scroll">
                   <div class="chat-map-spacer" aria-hidden="true"></div>
-                  \${messages.map((message, index) => \`<div class="chat-map-entry"><button class="chat-map-item role-\${escapeHtml(message.role === 'user' ? 'user' : 'agent')}" type="button" aria-label="Message \${index + 1}"><span class="chat-map-item-main"><span class="chat-map-bar"></span></span></button></div>\`).join('')}
+                  \${messages.map((message, index) => \`<div class="chat-map-entry"><button class="chat-map-item role-\${escapeHtml(message.role === 'user' ? 'user' : 'agent')}" data-map-index="\${index}" type="button" aria-label="Message \${index + 1}"><span class="chat-map-item-main"><span class="chat-map-bar"></span></span></button></div>\`).join('')}
                   <div class="chat-map-spacer" aria-hidden="true"></div>
-                </div></div></div>
+                </div></div></infring-chat-map-viewport-shell></div>
                 <button class="chat-map-jump chat-map-jump-down" type="button" aria-label="Next message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"></path></svg></button>
               </div>
+              </infring-chat-map-rail-shell>
             </div>
-          </div>
+          </infring-chat-map-shell>
           <infring-chat-input-footer-shell>
           <form class="input-area">
             <div class="chat-input-lane">
@@ -605,11 +791,41 @@ function render(state) {
       </main>
       \${DOCK_ICON_DEFS}
       <infring-bottom-dock-shell shellprimitive="taskbar-dock" parentownedmechanics="true"></infring-bottom-dock-shell>
+      <infring-dashboard-popup-overlay-shell></infring-dashboard-popup-overlay-shell>
     </div>\`;
   const form = root.querySelector('.input-area');
   root.querySelectorAll('[data-agent-id]').forEach((button) => button.addEventListener('click', () => selectAgent(button.getAttribute('data-agent-id') || '')));
   root.querySelectorAll('[data-session-id]').forEach((button) => button.addEventListener('click', () => selectSession(button.getAttribute('data-session-id') || '')));
   root.querySelectorAll('[data-detail-ref]').forEach((button) => button.addEventListener('click', () => openMessageDetail(button.getAttribute('data-detail-ref') || '', state)));
+  root.querySelectorAll('[data-theme-mode]').forEach((button) => button.addEventListener('click', () => {
+    applyDisplayTheme(button.getAttribute('data-theme-mode') || 'system');
+    render(state);
+  }));
+  root.querySelector('[data-dragbar-pulltab="chat-sidebar"]')?.addEventListener('click', () => {
+    browserShellV2DisplayState.sidebarCollapsed = !browserShellV2DisplayState.sidebarCollapsed;
+    render(state);
+  });
+  root.querySelectorAll('[data-map-index]').forEach((button) => button.addEventListener('click', () => {
+    const index = Number(button.getAttribute('data-map-index'));
+    const target = Number.isFinite(index) ? root.querySelector('[data-msg-index="' + index + '"]') : null;
+    if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }));
+  root.querySelector('.chat-map-jump-up')?.addEventListener('click', () => root.querySelector('.messages')?.scrollBy({ top: -260, behavior: 'smooth' }));
+  root.querySelector('.chat-map-jump-down')?.addEventListener('click', () => root.querySelector('.messages')?.scrollBy({ top: 260, behavior: 'smooth' }));
+  root.querySelectorAll('[title], [aria-label]').forEach((node) => {
+    if (!node.closest('.bottom-dock')) {
+      node.addEventListener('mouseenter', (event) => {
+        const title = node.getAttribute('title') || node.getAttribute('aria-label') || '';
+        if (!title) return;
+        const method = window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup');
+        if (method) method('browser-v2:' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-'), title, event, { source: 'browser-v2', meta_origin: 'Browser Shell V2' });
+      });
+      node.addEventListener('mouseleave', () => {
+        const method = window.InfringSharedShellServices?.appStore?.method?.('hideDashboardPopupBySource');
+        if (method) method('browser-v2');
+      });
+    }
+  });
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const input = form.querySelector('textarea, input');
@@ -841,19 +1057,21 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   <body data-theme="light">
     <div id="browser-shell-v2-root"></div>
     <script src="./bottom_dock_shell.bundle.js"></script>
+    <script src="./dashboard_popup_overlay_shell.bundle.js"></script>
     <script type="module" src="./browser_shell_v2_app.js"></script>
   </body>
 </html>
 `);
   write(path.join(outDir, 'browser_shell_v2.css'), css);
   write(path.join(outDir, 'bottom_dock_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_BOTTOM_DOCK_BUNDLE), 'utf8'));
+  write(path.join(outDir, 'dashboard_popup_overlay_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE), 'utf8'));
   write(path.join(outDir, 'browser_shell_v2_app.js'), browserRuntimeSource());
   write(path.join(outDir, 'svelte_component_preflight.js'), compiled.js.code);
   return {
     ok: warnings.length === 0,
     type: 'browser_shell_v2_build',
     out_dir: outDir,
-    files: ['index.html', 'browser_shell_v2.css', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
+    files: ['index.html', 'browser_shell_v2.css', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
     svelte_warnings: warnings,
   };
 }
