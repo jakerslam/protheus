@@ -1,0 +1,921 @@
+{
+  "version": "v1",
+  "kind": "research_plane_policy",
+  "default_mode": "auto",
+  "timeouts": {
+    "fetch_ms": 12000,
+    "crawl_fetch_ms": 8000
+  },
+  "headers": {
+    "http": {
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    },
+    "stealth": {
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "DNT": "1",
+      "Upgrade-Insecure-Requests": "1"
+    },
+    "browser": {
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "DNT": "1",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none"
+    }
+  },
+  "crawler": {
+    "max_concurrency": 100,
+    "per_domain_qps": 2,
+    "max_retries": 3,
+    "checkpoint_every": 10,
+    "rate_limit": {
+      "backoff_status_codes": [
+        429,
+        503,
+        504
+      ],
+      "base_delay_ms": [
+        1000,
+        3000
+      ],
+      "max_delay_ms": 60000,
+      "jitter": true,
+      "per_domain_state": true
+    },
+    "resource_guard": {
+      "memory_pressure_mode": true,
+      "max_parallel_dynamic_pages": 4,
+      "requeue_on_pressure": true,
+      "record_wait_time": true
+    },
+    "browser_lifecycle": {
+      "enabled_for_dynamic_capability_only": true,
+      "context_signature_axes": [
+        "proxy",
+        "locale",
+        "timezone",
+        "geolocation",
+        "navigator_override",
+        "storage_state"
+      ],
+      "ignore_non_context_axes": [
+        "word_count_threshold",
+        "css_selector",
+        "screenshot",
+        "pdf",
+        "scan_full_page",
+        "only_text",
+        "wait_until",
+        "page_timeout",
+        "capture_network_requests"
+      ],
+      "eviction": {
+        "policy": "lru_idle_context_only",
+        "preserve_active_refcounts": true,
+        "cleanup_page_mappings": true
+      },
+      "recycle": {
+        "policy": "threshold_or_memory_pressure_when_no_active_sessions",
+        "clear_tracking_state": true,
+        "record_recycle_count": true
+      },
+      "resource_filtering": {
+        "default": "off",
+        "opt_in_flags": [
+          "text_mode",
+          "avoid_css",
+          "avoid_ads"
+        ],
+        "must_not_block_first_party_content": true,
+        "record_blocked_resource_counts": true
+      }
+    }
+  },
+  "safety_plane": {
+    "enabled": true,
+    "required_modes": [
+      "stealth",
+      "browser"
+    ],
+    "allow_actions": [
+      "research_fetch:*",
+      "research_crawl:*",
+      "research:*"
+    ],
+    "max_requests_per_mode": {
+      "stealth": 20000,
+      "browser": 5000,
+      "http": 50000,
+      "auto": 50000
+    }
+  },
+  "blocked_recovery": {
+    "enabled": true,
+    "default": "diagnose_only",
+    "escalate_only_from_quality_flags": [
+      "blocked",
+      "needs_js",
+      "needs_dynamic",
+      "rate_limited"
+    ],
+    "detection_signals": [
+      "status_code",
+      "structural_block_marker",
+      "captcha_marker",
+      "minimal_visible_text",
+      "script_heavy_shell",
+      "provider_error"
+    ],
+    "attempt_trace_fields": [
+      "attempts",
+      "retries",
+      "fetch_mode",
+      "status_code",
+      "blocked",
+      "reason",
+      "resolved_by"
+    ],
+    "non_goals": [
+      "do_not_enable_stealth_by_default",
+      "do_not_rotate_proxy_without_permission",
+      "do_not_hide_blocked_state_from_synthesis"
+    ]
+  },
+  "conduit_enforcement": {
+    "reject_bypass_flags": [
+      "bypass",
+      "direct",
+      "unsafe-client-route",
+      "client-bypass"
+    ],
+    "strict_fail_closed": true,
+    "url_scheme_policy": {
+      "allowed_for_remote_fetch": [
+        "http",
+        "https"
+      ],
+      "allowed_for_internal_processing": [
+        "raw"
+      ],
+      "blocked": [
+        "file",
+        "javascript",
+        "data"
+      ]
+    },
+    "user_supplied_executable_hooks": "disabled_unless_explicit_trusted_local_capability"
+  },
+  "goal_crawl": {
+    "default_max_pages": 5,
+    "default_max_discovery": 10
+  },
+  "adaptive_retrieval": {
+    "enabled": true,
+    "authority": "policy_owned_research_primitive",
+    "default_strategy": "best_first_when_candidates_are_scored",
+    "confidence_threshold": 0.7,
+    "max_pages": 20,
+    "top_k_links": 3,
+    "min_gain_threshold": 0.08,
+    "semantic_query_planning": {
+      "enabled": true,
+      "source_pattern": "exa_semantic_search_guidance",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "authority": "agent_or_policy_may_plan_queries_from_user_intent_and_evidence_state",
+      "planning_goal": "describe the target source, page, evidence type, or practitioner signal the retrieval should find",
+      "diversify_by": [
+        "angle",
+        "source_class",
+        "aspect",
+        "time_window",
+        "entity",
+        "failure_mode",
+        "implementation_detail",
+        "quality_signal"
+      ],
+      "avoid": [
+        "synonym_only_query_packs",
+        "one_large_result_window_as_a_substitute_for_coverage_lanes",
+        "provider_specific_category_syntax_as_a_required_workflow_behavior",
+        "hidden_query_rewrites"
+      ],
+      "result_count_guidance": "prefer bounded result windows per distinct angle over one oversized query",
+      "trace_fields": [
+        "query_intent",
+        "target_source_description",
+        "diversity_axis",
+        "expected_evidence_type",
+        "result_window",
+        "coverage_bucket_ref"
+      ]
+    },
+    "coverage_aware_fanout": {
+      "enabled": true,
+      "purpose": "increase useful evidence volume by splitting retrieval across user-visible coverage lanes before filtering and synthesis",
+      "authority": "agent_or_policy_may_plan_lanes_from_user_request_and_evidence_state",
+      "max_parallel_lanes": 4,
+      "default_max_lanes": 8,
+      "two_phase_retrieval": {
+        "enabled": true,
+        "phase_order": [
+          "initial_discovery",
+          "coverage_assessment",
+          "targeted_followup",
+          "synthesis_or_bounded_gap"
+        ],
+        "initial_discovery": "one broad pass may discover vocabulary, candidates, source classes, and gaps, but should not be treated as enough for broad research unless sufficiency signals are already met",
+        "coverage_assessment": "compare discovered evidence against the user's requested entities, aspects, time windows, and source constraints",
+        "targeted_followup": "when coverage is weak, submit specific follow-up lanes based on the user request plus discovery signals before final synthesis",
+        "synthesis_or_bounded_gap": "finish only after enough coverage exists or bounded follow-up has recorded explicit gap reasons"
+      },
+      "lane_types": [
+        "overall_objective",
+        "entity_or_candidate",
+        "user_stated_aspect_or_criterion",
+        "source_class",
+        "time_window",
+        "cross_comparison",
+        "coverage_gap_recovery"
+      ],
+      "fairness_policy": "do_not_complete_multi-entity_or_multi-aspect_retrieval_until_each_major_lane_has_evidence_or_an_explicit_gap",
+      "single_query_finish_policy": "single_query_discovery_is_not_sufficient_for_broad_comparative_evaluative_or_multi_lane_research_without_sufficiency_or_recorded_gap_reasons",
+      "filter_after_collection": true,
+      "record_rejection_reasons": true,
+      "non_goals": [
+        "do_not_seed_domain_specific_candidates_from_golden_cases",
+        "do_not_force_final_answer_format",
+        "do_not_hide_query_expansion_from_tool_payload_or_trace"
+      ]
+    },
+    "strategy_menu": [
+      "one_shot_search_pack",
+      "prefetch_then_rank",
+      "breadth_first_site_slice",
+      "depth_first_path_probe",
+      "best_first_candidate_expansion"
+    ],
+    "strategy_selection": {
+      "authority": "agent_or_policy_may_select_by_task_and_evidence_state",
+      "non_goal": "do_not_select_by_hardcoded_user_prompt_phrases",
+      "prefer_best_first_when": [
+        "candidate_scores_available",
+        "budget_is_limited",
+        "evidence_coverage_is_partial"
+      ],
+      "prefer_prefetch_then_rank_when": [
+        "search_rows_are_thin",
+        "source_pages_have_many_links",
+        "tool_needs_candidate_pool_before_fetch"
+      ]
+    },
+    "signals": [
+      "coverage",
+      "coverage_bucket_balance",
+      "missing_coverage_buckets",
+      "consistency",
+      "saturation",
+      "confidence_delta",
+      "source_diversity",
+      "freshness_when_relevant",
+      "candidate_gain",
+      "query_angle_diversity",
+      "source_quality_signal"
+    ],
+    "state_projection": {
+      "enabled": true,
+      "purpose": "make adaptive retrieval progress resumable and diagnosable without exposing raw crawl state to chat",
+      "fields": [
+        "confidence",
+        "previous_confidence",
+        "confidence_delta",
+        "confidence_components",
+        "coverage",
+        "consistency",
+        "saturation",
+        "crawled_url_count",
+        "pending_candidate_count",
+        "source_domain_count",
+        "coverage_bucket_count",
+        "covered_bucket_count",
+        "weak_bucket_count",
+        "missing_coverage_buckets",
+        "coverage_gap_reasons",
+        "crawl_order",
+        "new_terms_history",
+        "checkpoint_ref",
+        "resume_state_ref",
+        "cancelled",
+        "relevant_content_refs",
+        "stop_reason"
+      ],
+      "export_policy": "telemetry_or_evidence_metadata_only"
+    },
+    "stop_conditions": [
+      "confidence_threshold_met",
+      "saturation_threshold_met",
+      "candidate_gain_below_threshold",
+      "max_pages_reached",
+      "cancelled_by_user_or_policy",
+      "budget_exhausted"
+    ]
+  },
+  "url_seeding": {
+    "enabled": true,
+    "sources": [
+      "search_provider_rows",
+      "sitemap",
+      "robots_sitemap",
+      "common_crawl_when_available"
+    ],
+    "mode_guidance": {
+      "deep_crawl": "fresh_real_time_discovery",
+      "url_seeding": "bulk_discovery_before_fetch",
+      "combined": "seed_for_candidate_pool_then_deep_crawl_promising_sections"
+    },
+    "head_preview": {
+      "enabled": true,
+      "scoring": "bm25_or_equivalent",
+      "include_fields": [
+        "title",
+        "description",
+        "keywords",
+        "canonical",
+        "lang",
+        "open_graph",
+        "jsonld_schema_types",
+        "jsonld"
+      ]
+    },
+    "scoring_report": {
+      "enabled": true,
+      "normalize_scores": true,
+      "record_threshold": true,
+      "record_score_distribution": true,
+      "record_top_candidate_terms": true,
+      "handle_empty_query_as_unscored_discovery": true,
+      "preserve_query_unicode_and_symbols": true,
+      "deterministic_for_same_cached_inputs": true
+    },
+    "source_combination": {
+      "explicit_only": true,
+      "record_sources_used": true,
+      "do_not_hit_unrequested_sources": true
+    },
+    "cache": {
+      "ttl_hours": 24,
+      "validate_lastmod": true,
+      "cleanup_bound": "system_cache_cleanup"
+    },
+    "sitemap_parsing": {
+      "namespace_tolerant": true,
+      "support_sitemap_index_children": true,
+      "normalize_relative_locations": true,
+      "record_sitemap_source": true,
+      "record_parse_error": true
+    },
+    "queue": {
+      "bounded": true,
+      "dedupe_urls": true,
+      "rate_limit_by_domain": true,
+      "record_parent_url": true,
+      "record_depth": true,
+      "record_strategy": true,
+      "record_checkpoint_ref": true,
+      "record_cancelled_state": true,
+      "record_candidate_score": true,
+      "record_rejection_reason": true,
+      "stream_progress_to_telemetry": true
+    },
+    "link_normalization": {
+      "resolve_relative_urls": true,
+      "dedupe_canonical_urls": true,
+      "ignore_non_fetchable_schemes": [
+        "javascript",
+        "mailto",
+        "tel",
+        "file",
+        "data"
+      ],
+      "ignore_anchor_only_links": true,
+      "trim_href_whitespace": true,
+      "preserve_query_strings": true,
+      "preserve_fragments_unless_anchor_only": true,
+      "preserve_https_for_internal_links_after_redirect": true,
+      "reject_invalid_base_urls": true,
+      "classify_internal_external": true
+    }
+  },
+  "source_access": {
+    "robots_policy": "respect_and_record",
+    "robots_cache": {
+      "ttl_hours": 24,
+      "handle_empty_or_malformed_as": "unknown_access_state",
+      "handle_timeout_as": "unknown_access_state",
+      "max_robots_bytes": "bounded_by_tool_budget"
+    },
+    "redirect_policy": {
+      "record_chain": true,
+      "preserve_original_scheme_for_internal_link_resolution": true,
+      "classify_http_downgrade": true
+    },
+    "diagnostic_fields": [
+      "robots_status",
+      "robots_allowed",
+      "robots_error",
+      "redirect_chain",
+      "final_url",
+      "content_type",
+      "document_type"
+    ],
+    "chat_visibility": "hidden_until_synthesized"
+  },
+  "retrieval_profiles": {
+    "enabled": true,
+    "authority": "cd_policy_selects_by_content_and_evidence_state_not_domain_routes",
+    "match_axes": [
+      "content_type",
+      "document_type",
+      "quality_flags",
+      "evidence_gap",
+      "explicit_user_constraints",
+      "available_capabilities"
+    ],
+    "profile_names": [
+      "default_markdown_fetch",
+      "fit_content_fetch",
+      "pdf_document_fetch",
+      "structured_artifact_fetch",
+      "dynamic_readiness_probe",
+      "prefetch_only_discovery"
+    ],
+    "fallback_profile": "default_markdown_fetch",
+    "record_selected_profile": true,
+    "non_goals": [
+      "do_not_select_profiles_by_hardcoded_domain",
+      "do_not_select_profiles_by_example_prompt_phrase",
+      "do_not_silently_enable_browser_or_proxy_modes"
+    ]
+  },
+  "session_reuse": {
+    "default": "stateless",
+    "allowed_for": [
+      "sequential_dynamic_steps",
+      "explicit_session_handle",
+      "capability_admitted_stateful_fetch"
+    ],
+    "parallel_reuse_allowed": false,
+    "cleanup_required": true,
+    "projection_fields": [
+      "session_state",
+      "session_reused",
+      "session_closed",
+      "session_error"
+    ],
+    "raw_session_state_chat_visible": false
+  },
+  "async_result_lifecycle": {
+    "enabled_for_high_volume_retrieval": true,
+    "status_values": [
+      "queued",
+      "processing",
+      "completed",
+      "failed",
+      "expired",
+      "cancelled"
+    ],
+    "handle_fields": [
+      "task_id",
+      "status",
+      "created_at",
+      "updated_at",
+      "expires_at",
+      "result_ref",
+      "error_summary"
+    ],
+    "payload_policy": {
+      "return_handle_before_large_payload": true,
+      "raw_result_payload_chat_visible": false,
+      "callback_payload_includes_data_default": false,
+      "callback_delivery_status_is_telemetry_only": true
+    },
+    "cleanup": {
+      "ttl_bound": "system_state_cleanup",
+      "active_request_refcount_required_before_resource_close": true,
+      "record_cleanup_reason": true
+    }
+  },
+  "evidence_extraction": {
+    "default_output": "markdown",
+    "variants": [
+      "raw_markdown",
+      "markdown_with_citations",
+      "fit_markdown",
+      "references",
+      "references_markdown",
+      "source_excerpt",
+      "cleaned_html",
+      "fit_html",
+      "table_summary",
+      "page_metadata_summary",
+      "link_summary",
+      "media_summary",
+      "document_metadata_summary",
+      "pdf_text_excerpt",
+      "pdf_page_summary",
+      "pdf_link_summary",
+      "error_summary",
+      "dispatch_summary"
+    ],
+    "source_selection": {
+      "default": "cleaned_content",
+      "allowed_sources": [
+        "raw_content",
+        "cleaned_content",
+        "fit_content",
+        "structured_artifact_summary"
+      ],
+      "fallback_order": [
+        "fit_content",
+        "markdown_with_citations",
+        "cleaned_content",
+        "structured_artifact_summary",
+        "raw_content_excerpt"
+      ]
+    },
+    "provider_result_envelope": {
+      "enabled": true,
+      "purpose": "preserve safe provider metadata for ranking and synthesis without exposing raw payloads to chat",
+      "source_pattern": "exa_sanitized_result_envelope",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "top_level_fields": [
+        "request_id",
+        "resolved_search_type",
+        "auto_prompt",
+        "auto_date",
+        "search_time_ms",
+        "cost_summary",
+        "provider_statuses"
+      ],
+      "result_fields": [
+        "provider_score",
+        "provider_rank",
+        "title",
+        "url",
+        "published_date",
+        "author",
+        "summary",
+        "text_excerpt",
+        "highlights",
+        "highlight_scores",
+        "entities",
+        "links",
+        "image_links",
+        "subpages"
+      ],
+      "status_fields": [
+        "id",
+        "status",
+        "source",
+        "error_tag",
+        "http_status_code"
+      ],
+      "input_sources": [
+        "batch_query_policy.provider_result_envelope",
+        "web_retrieval_v0.tool_cd.provider_result_envelope"
+      ],
+      "sensitive_key_policy": "strip_known_sensitive_keys_recursively_and_quarantine_raw_payload",
+      "chat_visibility": "hidden_until_synthesized"
+    },
+    "search_result_followup": {
+      "enabled": true,
+      "purpose": "decide whether search snippets are enough or whether promising URLs need full-content extraction",
+      "fetch_when": [
+        "snippet_mentions_requested_information_without_enough_detail",
+        "source_quality_judgment_requires_body_text",
+        "soft_filter_or_negation_requires_reading_content",
+        "multi_field_extraction_requires_page_context",
+        "highlight_coverage_is_thin_but_source_score_or_authority_is_promising"
+      ],
+      "skip_fetch_when": [
+        "narrow_lookup_answer_is_already_directly_supported",
+        "result_is_duplicate",
+        "result_is_off_topic",
+        "access_policy_or_budget_blocks_fetch"
+      ],
+      "partial_failure_policy": "retain_successful_pages_and_record_per_url_errors"
+    },
+    "source_quality_signals": {
+      "enabled": true,
+      "source_pattern": "exa_source_quality_guidance",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "purpose": "weight evidence by observed source quality without forcing a final-answer format",
+      "signals": [
+        "practitioner_or_primary_source",
+        "commentary_or_roundup",
+        "vendor_or_marketing_incentive",
+        "case_study_with_specifics",
+        "methodology_or_reproducibility",
+        "recency_for_fast_moving_topics",
+        "independent_convergence",
+        "tradeoffs_or_failure_modes_present"
+      ],
+      "record_fields": [
+        "source_quality_note",
+        "source_incentive_note",
+        "validation_needed",
+        "confidence_label"
+      ],
+      "non_goals": [
+        "do_not_reject_all_vendor_sources_by_default",
+        "do_not_treat_search_rank_or_similarity_score_as_validation",
+        "do_not_force_ranked_list_output"
+      ]
+    },
+    "retrieval_status_classification": {
+      "enabled": true,
+      "source_pattern": "exa_error_and_empty_result_handling",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "purpose": "separate hard retrieval/runtime states from soft evidence-quality states before final synthesis",
+      "input_status_values": [
+        "usable",
+        "low_signal",
+        "irrelevant",
+        "empty_success",
+        "partial_success",
+        "bad_request_shape",
+        "auth_required",
+        "rate_limited",
+        "transient_provider_failure",
+        "permanent_provider_failure"
+      ],
+      "classification_values": [
+        "usable_evidence",
+        "low_signal_evidence",
+        "irrelevant_evidence",
+        "empty_success",
+        "partial_success",
+        "bad_request_shape",
+        "auth_or_permission_blocked",
+        "rate_limited",
+        "transient_provider_failure",
+        "permanent_provider_failure"
+      ],
+      "normalization_map": {
+        "usable": "usable_evidence",
+        "low_signal": "low_signal_evidence",
+        "irrelevant": "irrelevant_evidence",
+        "empty_success": "empty_success",
+        "partial_success": "partial_success",
+        "bad_request_shape": "bad_request_shape",
+        "auth_required": "auth_or_permission_blocked",
+        "rate_limited": "rate_limited",
+        "transient_provider_failure": "transient_provider_failure",
+        "permanent_provider_failure": "permanent_provider_failure"
+      },
+      "hard_failure_values": [
+        "bad_request_shape",
+        "auth_or_permission_blocked",
+        "transient_provider_failure",
+        "permanent_provider_failure"
+      ],
+      "soft_failure_values": [
+        "low_signal_evidence",
+        "irrelevant_evidence",
+        "empty_success",
+        "partial_success",
+        "rate_limited"
+      ],
+      "synthesis_implication": "artifact_presence_is_not_evidence_usefulness; synthesize normally only from usable evidence, otherwise do bounded low-evidence synthesis after recorded recovery",
+      "record_fields": [
+        "tool_result_quality",
+        "evidence_usefulness",
+        "coverage_gap_reasons",
+        "provider_statuses",
+        "per_url_errors",
+        "retry_after",
+        "request_shape_hint",
+        "recovery_attempt_refs"
+      ],
+      "non_goals": [
+        "do_not_force_final_answer_format",
+        "do_not_turn_soft_failure_into_silent_success",
+        "do_not_hide_hard_failure_from_telemetry"
+      ]
+    },
+    "structured_extraction": {
+      "enabled": true,
+      "purpose": "create deterministic evidence artifacts from repeatable page structure before falling back to semantic extraction",
+      "strategy_ladder": [
+        "css_or_xpath_schema_when_repeating_structure_detected",
+        "regex_entity_extraction_for_known_low-risk_patterns",
+        "semantic_extraction_when_structure_is_inconsistent_or_inferential"
+      ],
+      "schema_features": [
+        "base_selector",
+        "base_fields",
+        "nested",
+        "list",
+        "nested_list",
+        "attribute",
+        "text",
+        "html",
+        "default_value",
+        "transform"
+      ],
+      "quality_fields": [
+        "strategy",
+        "base_selector",
+        "element_count",
+        "field_count",
+        "extracted_row_count",
+        "schema_confidence",
+        "fallback_reason"
+      ],
+      "non_goals": [
+        "do_not_force_final_answer_json",
+        "do_not_generate_site_specific_schema_from_prompt_examples",
+        "do_not_expose_raw_schema_to_chat"
+      ]
+    },
+    "result_envelope": {
+      "purpose": "preserve retrieval state for synthesis without exposing raw payloads to chat",
+      "fields": [
+        "source_url",
+        "final_url",
+        "canonical_url",
+        "success",
+        "status_code",
+        "redirected_status_code",
+        "fetch_mode",
+        "cache_status",
+        "cache_freshness_status",
+        "head_fingerprint",
+        "robots_status",
+        "robots_allowed",
+        "content_type",
+        "document_type",
+        "quality_flags",
+        "error_message",
+        "safe_response_header_summary",
+        "coverage_buckets",
+        "missing_coverage_buckets",
+        "coverage_gap_reasons"
+      ],
+      "resource_fields": [
+        "task_id",
+        "duration_ms",
+        "memory_usage_mb",
+        "peak_memory_mb",
+        "dispatcher_error"
+      ],
+      "network_console_capture": "diagnostic_only_and_hidden_from_chat"
+    },
+    "chunking": {
+      "enabled": true,
+      "purpose": "make large or noisy pages usable by synthesis through ranked evidence chunks instead of whole-page dumps",
+      "strategies": [
+        "paragraph_or_heading_boundary",
+        "fixed_window",
+        "sliding_window_with_overlap",
+        "semantic_or_similarity_ranked_when_available"
+      ],
+      "selection": {
+        "prefer_query_relevant_fit_chunks": true,
+        "retain_adjacent_context": true,
+        "avoid_single_chunk_overconfidence": true
+      },
+      "metadata_fields": [
+        "chunk_id",
+        "source_url",
+        "parent_artifact",
+        "heading_path",
+        "relevance_score",
+        "token_estimate",
+        "rejection_reason"
+      ]
+    },
+    "structured_artifacts": {
+      "enabled": true,
+      "purpose": "retain non-prose evidence signals without forcing a final answer shape",
+      "artifact_kinds": [
+        "tables",
+        "links",
+        "media",
+        "metadata",
+        "documents",
+        "citations",
+        "extracted_content",
+        "structured_extract_summary",
+        "regex_extract_summary"
+      ],
+      "table_quality_fields": [
+        "caption",
+        "summary",
+        "headers",
+        "row_count",
+        "column_count",
+        "has_headers",
+        "data_table_score",
+        "rejection_reason"
+      ],
+      "link_quality_fields": [
+        "href",
+        "text",
+        "title",
+        "context",
+        "domain",
+        "intrinsic_score",
+        "contextual_score",
+        "total_score"
+      ],
+      "media_quality_fields": [
+        "src",
+        "alt",
+        "title",
+        "score",
+        "surrounding_context"
+      ],
+      "document_quality_fields": [
+        "document_type",
+        "page_count",
+        "page_span",
+        "metadata_title",
+        "metadata_author",
+        "text_extracted",
+        "link_count",
+        "image_count",
+        "image_only_without_ocr",
+        "rejection_reason"
+      ],
+      "structured_extract_quality_fields": [
+        "strategy",
+        "base_selector",
+        "element_count",
+        "field_count",
+        "extracted_row_count",
+        "schema_confidence",
+        "fallback_reason"
+      ]
+    },
+    "dynamic_readiness_diagnostics": {
+      "enabled": true,
+      "purpose": "diagnose pages where static retrieval misses content without making browser behavior the default",
+      "signals": [
+        "wait_condition_timeout",
+        "lazy_load_required",
+        "virtual_scroll_required",
+        "scroll_behavior_static",
+        "scroll_behavior_appended",
+        "scroll_behavior_replaced",
+        "network_request_counts",
+        "failed_request_counts",
+        "console_error_counts"
+      ],
+      "scroll_probe": {
+        "bounded": true,
+        "distinguish_append_vs_replace": true,
+        "requires_dynamic_capability_for_full_capture": true
+      },
+      "raw_network_and_console_payloads_chat_visible": false
+    },
+    "content_filters": [
+      "query_relevance",
+      "text_density",
+      "low_link_density",
+      "source_provenance",
+      "attribute_pruning",
+      "script_style_noise_removal",
+      "media_quality_signal"
+    ],
+    "raw_payload_chat_visible": false
+  },
+  "site_map": {
+    "default_depth": 2,
+    "default_max_nodes": 256
+  },
+  "monitor": {
+    "notify_on_change": true
+  },
+  "js_scrape": {
+    "max_wait_ms": 15000,
+    "default_mode": "js-render"
+  },
+  "parallel_workers": {
+    "default_max_concurrency": 8,
+    "default_max_retries": 1
+  },
+  "decode": {
+    "allowed_proxy_modes": [
+      "none",
+      "http",
+      "https",
+      "socks"
+    ],
+    "default_proxy_mode": "none",
+    "default_interval_ms": 250,
+    "default_backoff_ms": 500,
+    "default_max_attempts": 2
+  }
+}

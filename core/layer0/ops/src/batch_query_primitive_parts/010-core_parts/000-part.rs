@@ -11,7 +11,8 @@ use std::time::{Duration, Instant};
 
 use crate::parse_args;
 
-const POLICY_REL: &str = "client/runtime/config/batch_query_policy.json";
+const POLICY_REL: &str = "core/layer0/ops/config/batch_query_policy.json";
+const LEGACY_POLICY_REL: &str = "client/runtime/config/batch_query_policy.json";
 const RECEIPTS_REL: &str = "client/runtime/local/state/batch_query/receipts.jsonl";
 
 #[derive(Clone, Copy, Debug)]
@@ -129,15 +130,24 @@ fn policy_path(root: &Path) -> PathBuf {
     root.join(POLICY_REL)
 }
 
+fn legacy_policy_path(root: &Path) -> PathBuf {
+    root.join(LEGACY_POLICY_REL)
+}
+
 fn receipts_path(root: &Path) -> PathBuf {
     root.join(RECEIPTS_REL)
 }
 
 fn load_policy(root: &Path) -> Value {
     let path = policy_path(root);
-    if !path.exists() {
-        let _ = write_json_atomic(&path, &default_policy());
+    if path.exists() {
+        return read_json_or(&path, default_policy());
     }
+    let legacy_path = legacy_policy_path(root);
+    if legacy_path.exists() {
+        return read_json_or(&legacy_path, default_policy());
+    }
+    let _ = write_json_atomic(&path, &default_policy());
     read_json_or(&path, default_policy())
 }
 

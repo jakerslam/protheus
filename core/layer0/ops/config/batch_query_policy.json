@@ -1,0 +1,795 @@
+{
+  "version": "v1",
+  "batch_query": {
+    "enabled_sources": [
+      "web"
+    ],
+    "allow_large": false,
+    "max_parallel_subqueries": 4,
+    "query_timeout_ms": 20000,
+    "cache": {
+      "mode": "enabled",
+      "ttl_success_seconds": 1800,
+      "ttl_no_results_seconds": 120,
+      "max_entries": 240,
+      "lifecycle": {
+        "cleanup_bound": "state_cleanup_policy:local/state/batch_query",
+        "validation_metadata": [
+          "etag",
+          "last_modified",
+          "head_fingerprint",
+          "source_timestamp"
+        ],
+        "freshness_check": "conditional_headers_or_head_fingerprint_when_available"
+      }
+    },
+    "coverage_aware_query_planning": {
+      "enabled": true,
+      "authority": "agent_submitted_query_pack_with_policy_scoring",
+      "trigger": "multi_entity_or_multi_aspect_or_open_ended_research",
+      "budget": {
+        "min_lanes_for_multi_entity": 4,
+        "default_max_lanes": 8,
+        "reserve_recovery_lanes": 2,
+        "parallel_lane_limit": 4
+      },
+      "two_phase_retrieval": {
+        "enabled": true,
+        "initial_discovery_pass": {
+          "allowed": true,
+          "purpose": "learn vocabulary, candidate entities, source classes, and likely coverage gaps from a cheap broad pass",
+          "completion_status": "non_terminal_for_research_shaped_requests_unless_sufficiency_signals_are_met"
+        },
+        "targeted_followup_pass": {
+          "required_when": [
+            "broad_or_open_ended_research",
+            "comparative_or_evaluative_research",
+            "multi_entity_or_multi_aspect_research",
+            "initial_results_are_low_signal_or_off_topic",
+            "named_entities_or_user_stated_aspects_are_missing_from_results"
+          ],
+          "query_source": "combine_user_request_with_discovery_terms_and_gap_signals",
+          "minimum_followup_lanes": 3,
+          "maximum_followup_lanes": 8,
+          "lane_allocation": "cover_major_entities_user_stated_aspects_source_classes_time_windows_and_cross_comparison_before_repeating_broad_topic_queries"
+        },
+        "finish_rule": "synthesis may proceed only after coverage is sufficient or after bounded followup records explicit gap reasons for missing lanes"
+      },
+      "lane_types": [
+        "overall_objective",
+        "entity_or_candidate",
+        "user_stated_aspect_or_criterion",
+        "cross_comparison_or_source_diversity",
+        "coverage_gap_recovery"
+      ],
+      "planning_rules": [
+        "preserve the user's original research objective as the top-level query",
+        "a single broad query may start discovery, but it is not enough to finish broad, comparative, current, evaluative, multi-entity, or multi-aspect research unless evidence sufficiency is already met",
+        "after a weak discovery pass, use the observed snippets, off-topic terms, and missing buckets to submit targeted follow-up queries instead of asking the user to narrow",
+        "when the prompt names multiple entities or candidates, allocate at least one retrieval lane to each major entity before synthesis",
+        "when the prompt names aspects, criteria, risks, time windows, or source constraints, allocate retrieval lanes to those dimensions instead of using only generic topic searches",
+        "when the prompt is open-ended, use discovery lanes for category, source class, and decision criteria before relying on prior-memory candidates",
+        "do not drop a major entity, criterion, or requested scope without recording a coverage gap"
+      ],
+      "coverage_buckets": {
+        "enabled": true,
+        "bucket_kinds": [
+          "entity",
+          "aspect",
+          "source_class",
+          "time_window",
+          "cross_comparison"
+        ],
+        "status_values": [
+          "covered",
+          "weak",
+          "missing",
+          "not_applicable"
+        ],
+        "record_fields": [
+          "bucket_id",
+          "bucket_kind",
+          "requested_text",
+          "query_refs",
+          "evidence_count",
+          "source_domain_count",
+          "quality_flags",
+          "gap_reason"
+        ]
+      },
+      "non_goals": [
+        "do_not_hardcode_domain_candidates",
+        "do_not_force_user_visible_answer_format",
+        "do_not_expand_queries_hidden_from_submitted_payload"
+      ]
+    },
+    "semantic_query_planning": {
+      "enabled": true,
+      "source_pattern": "exa_semantic_search_guidance",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "authority": "agent_submitted_query_pack_visible_to_trace",
+      "query_style": "describe_target_sources_pages_or_evidence_not_keywords_only",
+      "diversity_axes": [
+        "entity_or_candidate",
+        "user_stated_aspect_or_criterion",
+        "source_class",
+        "time_window",
+        "stance_or_failure_mode",
+        "implementation_or_methodology",
+        "cross_comparison"
+      ],
+      "anti_patterns": [
+        "synonym_only_rewrites",
+        "single_word_or_two_word_broad_queries",
+        "boolean_operator_assumptions",
+        "quoted_phrase_assumptions",
+        "provider_specific_category_syntax_as_required_behavior"
+      ],
+      "sizing_policy": {
+        "precise_named_entity": {
+          "suggested_result_window": [
+            5,
+            8
+          ]
+        },
+        "narrow_constrained_research": {
+          "suggested_result_window": [
+            8,
+            12
+          ]
+        },
+        "broad_discovery": {
+          "suggested_result_window": [
+            12,
+            16
+          ],
+          "prefer_more_distinct_queries_over_one_large_query": true
+        }
+      },
+      "record_fields": [
+        "query_intent",
+        "target_source_description",
+        "diversity_axis",
+        "expected_evidence_type",
+        "coverage_bucket_ref",
+        "provider_filter_hints"
+      ],
+      "non_goals": [
+        "do_not_make_provider_specific_query_syntax_required",
+        "do_not_force_subagent_or_parallel_agent_usage",
+        "do_not_force_user_visible_output_format"
+      ]
+    },
+    "page_extraction": {
+      "enabled": true,
+      "extract_mode": "markdown",
+      "max_links_per_stage": 3,
+      "max_total_fetches": 8,
+      "min_link_score": 0.0,
+      "trigger": "low_or_empty_candidates",
+      "prefetch": {
+        "enabled": true,
+        "goal": "discover_and_rank_links_before_full_fetch",
+        "mode": "fast_link_and_head_discovery_before_selected_full_fetch",
+        "skip_heavy_processing_during_discovery": true,
+        "max_prefetch_links": 24,
+        "include_link_text": true,
+        "include_parent_context": true,
+        "artifact_contract": "html_links_metadata_only_until_selected_for_full_processing",
+        "skip_outputs": [
+          "cleaned_html",
+          "markdown",
+          "extracted_content",
+          "screenshots",
+          "pdf"
+        ],
+        "can_reprocess_raw_html_with_base_url": true,
+        "link_normalization": {
+          "resolve_relative_urls": true,
+          "dedupe_canonical_urls": true,
+          "ignore_schemes": [
+            "javascript",
+            "mailto",
+            "tel",
+            "file",
+            "data"
+          ],
+          "ignore_anchor_only_links": true,
+          "trim_href_whitespace": true,
+          "preserve_query_strings": true,
+          "preserve_fragments_unless_anchor_only": true,
+          "preserve_https_for_internal_links_after_redirect": true,
+          "reject_invalid_base_urls": true,
+          "truncate_link_text_chars": 200,
+          "record_internal_external_classification": true,
+          "handle_protocol_relative_urls": true,
+          "treat_subdomains_as_configurable_same_site": true,
+          "return_empty_links_on_malformed_html": true
+        }
+      },
+      "source_access": {
+        "robots_policy": "respect_and_record",
+        "robots_cache_ttl_seconds": 86400,
+        "robots_failure_lane": "unknown_or_error_not_success",
+        "record_access_fields": [
+          "robots_status",
+          "robots_allowed",
+          "robots_error",
+          "redirect_chain",
+          "content_type",
+          "document_type"
+        ]
+      },
+      "document_extraction": {
+        "enabled": true,
+        "handled_types": [
+          "html",
+          "pdf",
+          "text"
+        ],
+        "pdf": {
+          "extract_text": true,
+          "extract_metadata": true,
+          "extract_links": true,
+          "extract_images_default": false,
+          "page_batching": true,
+          "scanned_pdf_without_ocr_quality_flag": "image_only_pdf"
+        }
+      },
+      "head_preview": {
+        "enabled": true,
+        "max_candidates": 16,
+        "timeout_ms": 5000,
+        "fields": [
+          "title",
+          "description",
+          "canonical",
+          "lang",
+          "jsonld",
+          "open_graph",
+          "jsonld_schema_types",
+          "head_fingerprint",
+          "status"
+        ]
+      },
+      "candidate_selection": {
+        "strategy": "score_then_fetch_best_available",
+        "score_axes": [
+          "query_relevance",
+          "link_text_signal",
+          "head_metadata_signal",
+          "source_diversity",
+          "freshness_when_relevant",
+          "content_density",
+          "low_junk_signal"
+        ],
+        "record_rejection_reasons": true,
+        "score_report": {
+          "record_threshold": true,
+          "record_min_max_avg": true,
+          "record_top_matched_terms": true,
+          "normalize_scores": true,
+          "deterministic_for_same_cached_inputs": true,
+          "empty_query_returns_unscored_discovery": true
+        }
+      },
+      "search_result_followup": {
+        "enabled": true,
+        "source_pattern": "exa_search_then_fetch",
+        "provider_binding": "none_source_pattern_is_attribution_only",
+        "fetch_when": [
+          "highlights_are_thin_but_source_is_promising",
+          "snippet_mentions_requested_value_without_value",
+          "soft_filter_requires_body_context",
+          "requested_fields_are_missing_from_snippet",
+          "source_quality_or_claim_validation_is_needed"
+        ],
+        "do_not_fetch_when": [
+          "snippet_is_sufficient_for_narrow_lookup",
+          "result_is_off_topic",
+          "source_is_duplicate",
+          "source_access_policy_blocks_fetch"
+        ],
+        "batching": {
+          "preferred_url_batch_min": 3,
+          "preferred_url_batch_max": 8,
+          "respect_max_total_fetches": true
+        },
+        "record_fields": [
+          "followup_reason",
+          "source_url",
+          "snippet_signal",
+          "missing_field",
+          "fetch_status",
+          "per_url_error"
+        ]
+      },
+      "retrieval_profile_selection": {
+        "enabled": true,
+        "authority": "content_and_evidence_state_not_domain_routes",
+        "match_axes": [
+          "content_type",
+          "document_type",
+          "quality_flags",
+          "evidence_gap",
+          "explicit_user_constraints"
+        ],
+        "fallback_profile": "default_markdown_fetch",
+        "first_match_wins": true,
+        "record_selected_profile": true,
+        "disallow_match_axes": [
+          "hardcoded_domain_name",
+          "golden_case_id",
+          "example_prompt_phrase"
+        ]
+      },
+      "dynamic_escalation": {
+        "enabled": true,
+        "default": "off",
+        "allowed_when_quality_flags_include": [
+          "needs_js",
+          "needs_dynamic",
+          "blocked_but_retryable"
+        ],
+        "requires_capability": "web_fetch.dynamic_page_allowed"
+      },
+      "session_reuse": {
+        "default": "stateless",
+        "allowed_when": [
+          "sequential_dynamic_steps_required",
+          "explicit_session_handle_supplied",
+          "capability_policy_admits_session_state"
+        ],
+        "parallel_session_reuse_allowed": false,
+        "close_or_expire_on_completion": true,
+        "record_session_state": "handle_only"
+      }
+    },
+    "structured_results": {
+      "enabled": true,
+      "max_rows_per_stage": 16,
+      "deterministic_extraction_first": true,
+      "strategy_ladder": [
+        "schema_selector_when_repeating_structure_detected",
+        "regex_entity_extraction_for_known_low-risk_patterns",
+        "semantic_extraction_when_structure_is_inconsistent"
+      ],
+      "record_fields": [
+        "strategy",
+        "base_selector",
+        "element_count",
+        "schema_confidence",
+        "field_count",
+        "extracted_row_count",
+        "fallback_reason"
+      ],
+      "schema_safety": {
+        "sample_before_full_extract": true,
+        "validate_parent_selector_not_singleton_when_list_expected": true,
+        "retain_base_attributes": true,
+        "support_nested_and_list_fields": true,
+        "raw_schema_chat_visible": false
+      }
+    },
+    "provider_result_envelope": {
+      "enabled": true,
+      "source_pattern": "exa_safe_provider_fields",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "raw_payload_chat_visible": false,
+      "sensitive_keys_removed": [
+        "requestTags",
+        "authorization",
+        "cookie",
+        "set-cookie"
+      ],
+      "search_metadata_fields": [
+        "request_id",
+        "resolved_search_type",
+        "auto_prompt",
+        "auto_date",
+        "search_time_ms",
+        "cost_summary",
+        "provider_statuses"
+      ],
+      "result_metadata_fields": [
+        "provider_score",
+        "provider_rank",
+        "title",
+        "url",
+        "published_date",
+        "author",
+        "summary",
+        "highlights",
+        "highlight_scores",
+        "entities",
+        "links",
+        "image_links",
+        "subpages"
+      ],
+      "status_fields": [
+        "id",
+        "status",
+        "source",
+        "error_tag",
+        "http_status_code"
+      ],
+      "grounding_fields": [
+        "field",
+        "confidence",
+        "citation_url",
+        "citation_title"
+      ],
+      "consumed_by": [
+        "research_plane_policy.evidence_extraction.provider_result_envelope",
+        "web_retrieval_v0.tool_cd.diagnostic_projection_contract.progressive_retrieval_contract.provider_result_envelope"
+      ],
+      "retention_policy": "metadata_and_evidence_excerpts_only_until_synthesized"
+    },
+    "advanced_search_controls": {
+      "enabled": true,
+      "source_pattern": "exa_advanced_search_surface",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "authority": "adapter_owned_optional_request_fields",
+      "controls": [
+        "source_class_or_category_hint",
+        "include_domains",
+        "exclude_domains",
+        "start_published_date",
+        "end_published_date",
+        "start_crawl_date",
+        "end_crawl_date",
+        "include_text",
+        "exclude_text",
+        "user_location",
+        "moderation",
+        "additional_queries",
+        "text_max_characters",
+        "context_max_characters",
+        "summary_query",
+        "highlights_query",
+        "highlights_max_characters",
+        "freshness_max_age",
+        "live_fetch_preference",
+        "live_fetch_timeout_ms",
+        "subpage_limit",
+        "subpage_target_terms"
+      ],
+      "use_when": [
+        "user_explicitly_requests_source_scope",
+        "time_window_or_freshness_is_part_of_task",
+        "evidence_state_requires_more_body_context",
+        "known_promising_result_needs_subpage_expansion",
+        "retrieval_quality_needs_source_class_balance"
+      ],
+      "non_goals": [
+        "do_not_make_provider_specific_category_syntax_required",
+        "do_not_add_domain_specific_defaults",
+        "do_not_hide_filters_from_query_contract"
+      ]
+    },
+    "provider_request_lifecycle": {
+      "enabled": true,
+      "source_pattern": "exa_mcp_auth_rate_error_lifecycle",
+      "provider_binding": "none_source_pattern_is_attribution_only",
+      "purpose": "classify provider and transport states before synthesis so retrieval failures do not look like empty successful evidence",
+      "status_values": [
+        "usable",
+        "low_signal",
+        "irrelevant",
+        "empty_success",
+        "partial_success",
+        "bad_request_shape",
+        "auth_required",
+        "rate_limited",
+        "transient_provider_failure",
+        "permanent_provider_failure"
+      ],
+      "retry_policy": {
+        "retry_transient_statuses": [
+          500,
+          502,
+          503,
+          504
+        ],
+        "do_not_retry_without_request_change": [
+          "bad_request_shape",
+          "auth_required",
+          "permanent_provider_failure"
+        ],
+        "rate_limit_handling": "record_retry_after_and_budget_status_without_turning_it_into_final_chat"
+      },
+      "record_fields": [
+        "request_status",
+        "auth_state",
+        "rate_limit_state",
+        "retry_after",
+        "provider_error_code",
+        "provider_error_message_ref",
+        "bad_request_shape_hint",
+        "request_sanitized",
+        "partial_success_count",
+        "partial_error_count"
+      ],
+      "feeds": [
+        "tool_result_quality.status",
+        "research_plane_policy.evidence_extraction.retrieval_status_classification",
+        "web_retrieval_v0.tool_cd.diagnostic_projection_contract.progressive_retrieval_contract.provider_error_contract"
+      ],
+      "research_status_normalization": {
+        "usable": "usable_evidence",
+        "low_signal": "low_signal_evidence",
+        "irrelevant": "irrelevant_evidence",
+        "empty_success": "empty_success",
+        "partial_success": "partial_success",
+        "bad_request_shape": "bad_request_shape",
+        "auth_required": "auth_or_permission_blocked",
+        "rate_limited": "rate_limited",
+        "transient_provider_failure": "transient_provider_failure",
+        "permanent_provider_failure": "permanent_provider_failure"
+      },
+      "non_goals": [
+        "do_not_expose_credentials_or_raw_provider_errors_to_chat",
+        "do_not_treat_protocol_success_as_evidence_usefulness",
+        "do_not_require_provider_specific_routes"
+      ]
+    },
+    "adaptive_sufficiency": {
+      "enabled": true,
+      "authority": "policy_owned_retrieval_primitive",
+      "min_evidence_items": 4,
+      "min_source_domains": 3,
+      "candidate_gain_threshold": 0.08,
+      "stop_when": [
+        "evidence_threshold_met",
+        "source_diversity_threshold_met",
+        "candidate_gain_below_threshold",
+        "query_budget_exhausted",
+        "tool_budget_exhausted"
+      ],
+      "diagnostics": [
+        "candidate_count",
+        "evidence_count",
+        "source_domain_count",
+        "quality_flags",
+        "partial_failures",
+        "query_plan_source",
+        "candidate_rejection_reasons",
+        "cache_status",
+        "cache_freshness_status",
+        "structured_artifact_counts",
+        "chunk_relevance_scores",
+        "coverage_bucket_count",
+        "covered_bucket_count",
+        "missing_coverage_buckets",
+        "bucket_evidence_counts",
+        "result_envelope_quality",
+        "confidence_components",
+        "previous_confidence",
+        "confidence_delta",
+        "score_distribution",
+        "score_threshold",
+        "query_diversity_axes",
+        "provider_result_statuses",
+        "highlight_coverage",
+        "subpage_candidate_count",
+        "checkpoint_ref",
+        "resume_state_ref",
+        "cancelled",
+        "stop_reason"
+      ]
+    },
+    "evidence_pack": {
+      "enabled": true,
+      "max_items": 6,
+      "max_snippet_words": 72,
+      "result_envelope": {
+        "include_source_url": true,
+        "include_final_url": true,
+        "include_status_code": true,
+        "include_redirect_status": true,
+        "include_fetch_mode": true,
+        "include_cache_status": true,
+        "include_cache_freshness_status": true,
+        "include_head_fingerprint": true,
+        "include_quality_flags": true,
+        "include_access_status": true,
+        "include_document_type": true,
+        "include_error_summary": true,
+        "include_provider_score": true,
+        "include_highlight_scores": true,
+        "include_provider_status": true,
+        "include_resolved_search_type": true
+      },
+      "content_variants": [
+        "source_excerpt",
+        "search_highlight_excerpt",
+        "provider_context_excerpt",
+        "fit_markdown",
+        "markdown_with_citations",
+        "references_markdown",
+        "cleaned_content_excerpt",
+        "pdf_text_excerpt",
+        "pdf_page_summary"
+      ],
+      "chunking": {
+        "enabled": true,
+        "selection": "rank_query_relevant_chunks_with_adjacent_context",
+        "metadata_fields": [
+          "chunk_id",
+          "source_url",
+          "parent_artifact",
+          "heading_path",
+          "relevance_score",
+          "token_estimate",
+          "rejection_reason"
+        ]
+      },
+      "structured_artifacts": {
+        "enabled": true,
+        "artifact_kinds": [
+          "table_summary",
+          "link_summary",
+          "media_summary",
+          "page_metadata_summary",
+          "document_metadata_summary",
+          "pdf_link_summary",
+          "structured_extract_summary",
+          "regex_extract_summary"
+        ],
+        "summaries_only": true,
+        "raw_payload_chat_visible": false
+      },
+      "coverage_buckets": {
+        "enabled": true,
+        "max_buckets": 12,
+        "include_bucket_status": true,
+        "include_gap_reasons": true,
+        "include_best_evidence_refs": true,
+        "raw_bucket_payload_chat_visible": false
+      }
+    },
+    "streaming_progress": {
+      "enabled": true,
+      "visibility": "telemetry_only_until_synthesized",
+      "fields": [
+        "queued",
+        "active",
+        "completed",
+        "failed",
+        "urls_per_second",
+        "memory_pressure",
+        "wait_time_ms",
+        "rate_limit_backoff_ms",
+        "checkpoint_ref",
+        "cancelled",
+        "active_context_count",
+        "recycle_count"
+      ]
+    },
+    "async_result_lifecycle": {
+      "enabled": true,
+      "use_for_large_or_long_running_batches": true,
+      "status_values": [
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "expired",
+        "cancelled"
+      ],
+      "handle_fields": [
+        "task_id",
+        "status",
+        "created_at",
+        "updated_at",
+        "expires_at",
+        "result_ref",
+        "error_summary"
+      ],
+      "cleanup_bound": "state_cleanup_policy:local/state/batch_query",
+      "callback_payload_includes_data_default": false,
+      "raw_result_payload_chat_visible": false
+    },
+    "quality_gate": {
+      "enabled": true,
+      "provider_recovery": {
+        "enabled": true,
+        "max_providers": 2,
+        "providers": [
+          "gdelt_doc"
+        ],
+        "current_intent_providers": [
+          "gdelt_doc"
+        ]
+      }
+    },
+    "query_recovery": {
+      "broad_current_research": {
+        "enabled": true,
+        "max_queries": 10,
+        "intent_markers": [
+          "breakthrough",
+          "breakthroughs",
+          "changes",
+          "current state",
+          "developments",
+          "landscape",
+          "milestone",
+          "milestones",
+          "news",
+          "overview",
+          "state of",
+          "trend",
+          "trends"
+        ],
+        "templates": [
+          "{query}",
+          "{query} primary evidence",
+          "{query} primary sources",
+          "{query} official sources",
+          "{query} recent publications",
+          "{query} institution announcements",
+          "{query} research publications",
+          "{query} official announcements",
+          "{query} technical reports",
+          "{query} datasets",
+          "{query} methodology evidence",
+          "{query} peer reviewed evidence",
+          "{query} source list"
+        ]
+      },
+      "general_research": {
+        "enabled": true,
+        "max_queries": 10,
+        "intent_markers": [
+          "assess",
+          "avoid",
+          "benchmark",
+          "best ",
+          "choose",
+          "compare",
+          "comparison",
+          "current state",
+          "ecosystem",
+          "evaluate",
+          "evaluation",
+          "fit ",
+          "landscape",
+          "limitation",
+          "limitations",
+          "mature",
+          "maturity",
+          "production",
+          "recommend",
+          "recommendation",
+          "reliability",
+          "risk",
+          "risks",
+          "security",
+          "strength",
+          "strengths",
+          "versus",
+          " vs ",
+          "weakness",
+          "weaknesses",
+          "which "
+        ],
+        "templates": [
+          "{query}",
+          "{query} primary source evidence",
+          "{query} official documentation project sources",
+          "{query} independent analysis comparison evidence",
+          "{query} risks limitations security reliability evidence",
+          "{query} production usage examples case studies",
+          "{query} methodology evidence",
+          "{query} technical report",
+          "{query} source diversity evidence",
+          "{query} changelog release notes",
+          "{query} repository issues adoption evidence",
+          "{query} benchmark methodology evidence",
+          "{query} security advisory evidence"
+        ]
+      }
+    }
+  }
+}
