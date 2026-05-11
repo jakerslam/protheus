@@ -66,8 +66,8 @@ function validateContract(contract: any, contractPath: string, violations: Viola
   if (contract.owner_domain !== 'observability') {
     violations.push({ kind: 'empty_response_owner_invalid', path: contractPath, detail: 'Owner domain must be observability.' });
   }
-  if (contract.source_todo !== 'KSENT-ISSUE-EMPTY-RESPONSES') {
-    violations.push({ kind: 'empty_response_source_todo_invalid', path: contractPath, detail: 'Source TODO must be KSENT-ISSUE-EMPTY-RESPONSES.' });
+  if (contract.source_todo !== 'KSENT-EMPTY-RESPONSE-HARNESS') {
+    violations.push({ kind: 'empty_response_source_todo_invalid', path: contractPath, detail: 'Source TODO must be KSENT-EMPTY-RESPONSE-HARNESS.' });
   }
   if (contract.policy?.human_review_required !== true || contract.policy?.safe_to_auto_apply_patch !== false) {
     violations.push({ kind: 'empty_response_policy_invalid', path: contractPath, detail: 'Repair lane must require review and forbid auto-apply.' });

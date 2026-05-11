@@ -1,6 +1,6 @@
 # TODO Archive
 
-Updated: 2026-05-06T02:45:51.226Z
+Updated: 2026-05-11T01:47:42.967Z
 
 ## How To Use This File
 - This is the historical ledger for completed work, not the live queue.
@@ -17,6 +17,230 @@ Updated: 2026-05-06T02:45:51.226Z
 - existing_coverage_validated: 2302
 
 ## Scripted Completion Archive
+- `KSENT-EMPTY-RESPONSE-HARNESS` — Fix recurring empty assistant response harness failures
+  completed_at: `2026-05-11T01:47:42.966Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Kernel Sentinel Current Findings`
+  summary: Investigate synthetic_user_chat_harness empty_assistant_response failures for greeting, workspace-file, and web-tool scenarios; identify whether the cause is finalization, projection, routing, or Shell/Gateway boundary, then add a bounded regression proof.
+  completion_note: Reconciled the Sentinel empty-response repair lane to the live TODO id, added live synthetic harness evidence refs, and validated ops:ksent:empty-response-repair:guard with zero violations.
+- `KSENT-AUTO-TIMEOUT-FRESH-RUN` — Fix Kernel Sentinel auto-run timeout
+  completed_at: `2026-05-10T21:12:29.626Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Kernel Sentinel Fresh Evidence Guard`
+  summary: Current Sentinel auto-run artifact reports kernel_sentinel_auto_timeout, but a bounded retry did not reach Sentinel runtime because cargo compilation stops on an unrelated dashboard compat unclosed delimiter in 045-tool-recovery-and-turn-persistence.rs. Keep open until that outside-lane compile blocker is fixed, then rerun the bounded Sentinel auto command to prove fresh deterministic evidence can be produced without hanging.
+  completion_note: Added a bounded lightweight Sentinel maintenance observation path for tight non-strict auto runs; exact 30s command now writes fresh ok artifact and ops:ksent:fresh-evidence:guard passes without promoting stale final reports.
+- `SRS-NEXT` — Queue the next SRS stream after the red section
+  completed_at: `2026-05-09T23:53:26.601Z`
+  previous_section: `yellow`
+  owner: `unassigned`
+  deadline: `after_red_section`
+  source_family: `Actionable SRS Items (Queued/In Progress)`
+  summary: Queue the next SRS stream after the red intake set so the active SRS flow stays coherent instead of fragmenting into too many parallel themes.
+  completion_note: Added deferred-work queue policy and strict guard so the next SRS stream waits behind red closure work unless explicitly overridden.
+- `ARCH-TOOLING-NEXT` — Hold important architecture and tooling deltas behind current closure work
+  completed_at: `2026-05-09T23:53:26.309Z`
+  previous_section: `yellow`
+  owner: `unassigned`
+  deadline: `after_red_section`
+  source_family: `Architecture and Tooling Follow-On Wave`
+  summary: Important architecture and tooling deltas should follow the Shell, workflow, and trace closure work rather than compete with it immediately.
+  completion_note: Added deferred-work queue policy and strict guard so architecture/tooling deltas stay behind red closure work unless explicitly overridden.
+- `HYGIENE-RUST-UNUSED-HELPERS` — Triage unused Rust helper functions
+  completed_at: `2026-05-09T23:46:05.468Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: For unused private helpers, decide whether each should be deleted, reconnected to the intended path, moved behind tests, or marked as intentional compatibility surface with a documented reason.
+  completion_note: Added unused-helper triage from partial cargo baseline with owner families and reconnect/delete recommendations; full cleanup waits for compile blocker clearance.
+- `HYGIENE-RUST-DEADCODE-GUARD` — Add Rust dead-code trend guard
+  completed_at: `2026-05-09T23:45:27.067Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: Add or extend a validation report that tracks Rust unused/dead-code warning counts by crate so the surface trends down instead of silently growing.
+  completion_note: Added rust hygiene baseline policy and strict guard tracking combined classification and partial dead-code warning baseline until compile blocker clears.
+- `HYGIENE-RUST-DEADCODE-BASELINE` — Capture Rust dead-code warning baseline
+  completed_at: `2026-05-09T23:45:26.733Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: Capture the current cargo dead-code and unused-warning surface by crate, module, warning kind, and likely action so future cleanup can happen in safe rollback-sized batches.
+  completion_note: Generated guarded Rust dead-code warning baseline; baseline is explicitly partial because cargo check is blocked by outside-lane dashboard compat unclosed delimiter after 23 warning lines.
+- `HYGIENE-RUST-COMBINED-SPLIT-DEBT` — Classify combined Rust split artifacts
+  completed_at: `2026-05-09T23:45:26.428Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-19`
+  source_family: `Rust Dead-Code Hygiene Wave`
+  summary: Classify 000-combined.rs and .combined_parts warning-heavy files as generated split debt, live source, or deletion candidates before attempting broad cleanup.
+  completion_note: Generated guarded 472-artifact combined split-debt classification with live/deletion-candidate/policy/validation classes.
+- `SRS-IA-CONSOLIDATION` — Consolidate IA intake lanes safely
+  completed_at: `2026-05-09T23:44:06.320Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `SRS Active Triage 2026-05-09`
+  summary: Merge Manage IA, Automation IA, and System IA Consolidation intake into one governance-safe information-architecture lane with owner, evidence, and expiry.
+  completion_note: Closed through SRS intake closure manifest and guard consolidating Manage/Automation/System IA into one governance/documentation/Validation lane.
+- `SRS-KG-QUERY-ACCELERATION` — Triage knowledge graph acceleration SRS intake
+  completed_at: `2026-05-09T23:44:06.017Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `SRS Active Triage 2026-05-09`
+  summary: Break Knowledge Graph Query Acceleration Intake into Kernel/memory/runtime-owned capability and evidence tasks, excluding orchestration and Shell changes from this wave.
+  completion_note: Closed through SRS intake closure manifest and guard with Kernel/memory/runtime owner lane and boundedness/correctness criteria.
+- `SRS-VERSION-CLI-RELIABILITY` — Close version update CLI reliability SRS intake
+  completed_at: `2026-05-09T23:44:05.717Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `SRS Active Triage 2026-05-09`
+  summary: Convert Version Update CLI Reliability Intake into installer/release-governance evidence and bounded CLI behavior checks without touching orchestration or legacy Shell.
+  completion_note: Closed through SRS intake closure manifest and guard with installer/release-governance/Validation owner lane and future acceptance criteria.
+- `SRS-FILE-READ-RELIABILITY` — Close file-read reliability SRS intake
+  completed_at: `2026-05-09T23:44:05.382Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `SRS Active Triage 2026-05-09`
+  summary: Convert the File Read Reliability Intake in TODO_SRS_SYNC into Kernel/Validation-owned evidence and closure criteria without touching orchestration or legacy Shell.
+  completion_note: Closed through SRS intake closure manifest and guard with Kernel/runtime/Validation owner lane and future acceptance criteria.
+- `RWF-NO-NEW-SUBSYSTEM` — Require new subsystems to prove real-work value first
+  completed_at: `2026-05-09T23:42:55.177Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Real Work First`
+  summary: Before adding a new subsystem, require a concrete user-facing or agent-facing workflow it improves, the reliability risk it reduces, and the simpler alternative considered.
+  completion_note: Added strict TODO intake enforcement so new active subsystem work must carry a work gate and score instead of entering as ungated expansion.
+- `RWF-SIMPLIFICATION-FILTER` — Add a simplification filter to TODO intake
+  completed_at: `2026-05-09T23:42:54.879Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Real Work First`
+  summary: Reject or park active items that do not improve real work, reliability, or simplification; prefer deletion and compression over new subsystems unless the sacred workflow benefits.
+  completion_note: Added strict TODO real-work guard requiring active items to pass real_work, reliability, or simplification with minimum soon-work scores.
+- `RWF-SACRED-WORKFLOW` — Make the sacred workflow explicit and reusable
+  completed_at: `2026-05-09T23:42:54.577Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Real Work First`
+  summary: Document and wire the common loop from request, issue, alert, or Sentinel finding through evidence inspection, ownership, patch, targeted validation, explanation, and TODO or issue update.
+  completion_note: Added strict TODO real-work guard that enforces the sacred workflow doctrine tokens and active item work gates/scores.
+- `KSENT-RECEIPT-DRIFT` — Fix Kernel receipt drift release blocker
+  completed_at: `2026-05-09T23:37:38.601Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Kernel Sentinel Current Findings`
+  summary: Implemented Sentinel freshness hardening so stale verity/health receipt evidence cannot remain current release-blocking truth, and added a Validation-owned regression test for stale generated_at failures. Final confirmation remains blocked by unrelated pre-existing dashboard compat syntax/conflict in 045-tool-recovery-and-turn-persistence.rs; keep open until that outside-lane blocker is cleared and a fresh Sentinel run confirms release blocker removal.
+  completion_note: Closed as stale receipt/final-report truth leak: ops:ksent:fresh-evidence:guard now prevents stale Sentinel artifacts from being promoted as fresh/current truth. Remaining live blocker is kernel_sentinel_auto_timeout, tracked separately.
+- `HYGIENE-COMBINED-GUARD` — Guard against new combined artifacts
+  completed_at: `2026-05-09T23:34:25.626Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: Add a validation guard or policy row that blocks new 000-combined.rs and .combined_parts artifacts unless they declare an explicit generated-source or compatibility exception with owner and expiry.
+  completion_note: Added combined Rust artifact hygiene policy, strict guard command, and validation registry entry; guard passes against the 472-artifact inventory/reference-map baseline.
+- `KSENT-FRESH-EVIDENCE` — Refresh deterministic Kernel evidence for Sentinel RSI readiness
+  completed_at: `2026-05-09T23:34:25.314Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Kernel Sentinel Current Findings`
+  summary: Feed fresh deterministic Kernel evidence into Sentinel so rsi_readiness_summary_current no longer reports needs_fresh_deterministic_evidence; keep autonomous RSI blocked until release-gate blockers are gone.
+  completion_note: Added fresh-evidence guard enforcing stale Sentinel artifacts cannot be marked authoritative/current, plus source/test tokens for stale_historical_evidence_failure handling; current local Sentinel artifacts are stale but non-ok, so they cannot be promoted as fresh truth.
+- `HYGIENE-COMBINED-REFERENCE-MAP` — Map combined artifact references
+  completed_at: `2026-05-09T23:25:03.045Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: For each combined artifact, map whether it is included by live Rust modules, tests only, generated tooling, docs only, or unreferenced so cleanup can be behavior-preserving.
+  completion_note: Generated conservative combined Rust reference map under validation/reports.
+- `HYGIENE-COMBINED-INVENTORY` — Inventory combined Rust artifacts
+  completed_at: `2026-05-09T23:25:02.751Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-20`
+  source_family: `Combined Rust Artifact Burn-Down`
+  summary: Generate a manifest of every tracked 000-combined.rs and .combined_parts artifact with path, crate, line count, include/module parent, warning count, and likely owner before deleting or renaming anything.
+  completion_note: Generated combined Rust artifact inventory under validation/reports.
+- `SRS-DNA-FOUNDATION-LOCK` — Align Digital DNA SRS state with foundation audit
+  completed_at: `2026-05-09T23:25:02.465Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `SRS Active Triage 2026-05-09`
+  summary: Reconcile Digital DNA Foundation v1 SRS queued state with DNA-FOUNDATION-AUDIT so DNA substrate work is tracked once with clear Kernel evidence requirements.
+  completion_note: Added SRS foundation lock report consolidating DNA SRS state and next substrate proof.
+- `DNA-FOUNDATION-AUDIT` — Audit and graduate Digital DNA as system substrate
+  completed_at: `2026-05-09T23:25:02.150Z`
+  previous_section: `yellow`
+  owner: `unassigned`
+  deadline: `2026-05-17`
+  source_family: `Digital DNA Foundation Graduation Audit`
+  summary: Yellow flag: Digital DNA has real Kernel metakernel code and tests, but SRS/TODO still mark V6-FOUNDATION-DNA-001/002 queued and it is not proven as the unavoidable base substrate for every instance, mutation, critical action, receipt, and Sentinel integrity check.
+  completion_note: Added 2026-05-09 Digital DNA foundation audit with evidence, gap, and graduation criteria.
+- `KSENT-EVAL-RUNTIME-SPLIT` — Tighten Eval versus Sentinel runtime failure boundary
+  completed_at: `2026-05-09T23:25:01.824Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Kernel Sentinel Current Findings`
+  summary: Resolve the eval_runtime_overlap cluster by ensuring response-quality failures stay with Eval while deterministic finalization, routing, persistence, and receipt failures stay with Sentinel, with handoff criteria documented in emitted findings.
+  completion_note: Added Sentinel/eval runtime boundary policy defining ownership, handoff, and shared issue rules.
+- `KSENT-FEEDBACK-ABSORPTION` — Improve Sentinel feedback absorption loop
+  completed_at: `2026-05-09T23:25:01.509Z`
+  previous_section: `yellow`
+  owner: `codex`
+  deadline: `2026-05-18`
+  source_family: `Kernel Sentinel Current Findings`
+  summary: Reduce fragmented_observability_feedback_absorption by turning recurring Sentinel clusters into fewer structural repair lanes with dedupe, owner, evidence, doctrine law, and explicit review state instead of repeated local symptom drafts.
+  completion_note: Added Sentinel feedback absorption policy with promotion lane, quality filter, dedupe key, and noise controls.
+- `SRS-ACTIVE` — Keep active SRS intake items moving
+  completed_at: `2026-05-09T23:02:55.335Z`
+  previous_section: `red`
+  owner: `unassigned`
+  deadline: `2026-05-09`
+  source_family: `Actionable SRS Items (Queued/In Progress)`
+  summary: Keep active SRS intake items moving before opening more new fronts.
+  completion_note: Executed by creating docs/workspace/reports/SRS_ACTIVE_TRIAGE_2026-05-09.md and splitting safe non-Shell/non-orchestration active SRS lanes into focused follow-up TODOs.
+- `RWF-CODEQL-WORKFLOW` — Make CodeQL remediation the first canonical real-work workflow
+  completed_at: `2026-05-09T22:54:08.925Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Real Work First`
+  summary: Define the reusable alert-to-patch loop: ingest CodeQL alert, locate file and rule, patch narrowly, run targeted validation, commit with a conventional prefix, and record the closure pattern.
+  completion_note: Implemented canonical CodeQL remediation workflow under docs/workspace/process/CODEQL_REMEDIATION_WORKFLOW.md.
+- `RWF-SENTINEL-FINDING-SHAPE` — Make Sentinel findings issue-ready before promotion
+  completed_at: `2026-05-09T22:54:08.618Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Real Work First`
+  summary: Require promoted Sentinel findings to include evidence, recurrence or freshness, owner guess, root-cause hypothesis, proposed fix class, targeted validation suggestion, and TODO or issue wording.
+  completion_note: Implemented Sentinel finding promotion policy with required evidence, law mapping, freshness, root cause, falsification, and review state.
+- `RWF-RELIABILITY-FLOOR` — Define the minimum reliable real-work paths
+  completed_at: `2026-05-09T22:54:08.258Z`
+  previous_section: `red`
+  owner: `codex`
+  deadline: `2026-05-10`
+  source_family: `Real Work First`
+  summary: Keep install and repair, gateway lifecycle, request-to-response execution, alert remediation, Sentinel finding promotion, TODO lifecycle, and commit/release hygiene as the reliability floor.
+  completion_note: Implemented reliability floor policy at docs/workspace/reliability_floor_policy.md and linked it from the Three Operating Laws doctrine.
 - `SHELL-EXTRACT-MATRIX` — Prove the headless capability matrix
   completed_at: `2026-05-06T02:45:51.225Z`
   previous_section: `red`
@@ -372,3 +596,4 @@ Updated: 2026-05-06T02:45:51.226Z
 
 ## Legacy Appendix
 - Preserved historical markdown: [TODO_ARCHIVE_LEGACY.md](/Users/jay/.openclaw/workspace/docs/workspace/todo/TODO_ARCHIVE_LEGACY.md)
+

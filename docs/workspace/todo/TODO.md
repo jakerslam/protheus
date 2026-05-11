@@ -1,6 +1,6 @@
 # TODO
 
-Updated: 2026-05-09T19:01:19.935Z
+Updated: 2026-05-11T01:47:42.967Z
 
 ## How To Use This File
 - This is the live operating board, not the historical ledger.
@@ -14,9 +14,9 @@ Updated: 2026-05-09T19:01:19.935Z
 - Deadline promotion policy: items due in <= 7 days belong in Red; items due in <= 14 days belong in Yellow; everything later stays in White unless manually escalated.
 
 ## Rollup
-- active_items: 40
-- red: 10
-- yellow: 22
+- active_items: 23
+- red: 6
+- yellow: 9
 - white: 8
 
 ## Red Section (Do Immediately)
@@ -24,217 +24,166 @@ Updated: 2026-05-09T19:01:19.935Z
   owner: `unassigned`
   deadline: `2026-05-07`
   source_family: `Shell Cleanup Wave`
-  summary: Finish the Shell source-of-truth cleanup by closing the duplicate TS inventory and breaking chat.ts into canonical modules instead of mirrored artifacts.
+  work_gate: `reliability`
+  real_work_score: `5`
+  summary: Extract remaining authority and source-of-truth responsibilities into Orchestration/Gateway-owned paths while preserving the fragile legacy Shell files until headless replacement paths are proven; do not delete or refactor legacy Shell behavior in this lane.
 - `SHELL-EXTRACT-CHAT` — Move chat and session projections behind Gateway
   owner: `unassigned`
   deadline: `2026-05-07`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
-  summary: Make chat/session list and message-window loading available as bounded Gateway projections with CLI/headless proof, so the Shell no longer needs full conversation ownership.
+  work_gate: `reliability`
+  real_work_score: `5`
+  summary: Make chat/session list and message-window loading available as bounded Gateway projections backed by Orchestration/headless proof, so the system can run without the legacy Shell while leaving existing Shell behavior untouched.
 - `SHELL-EXTRACT-COMMANDS` — Move interactive command authority out of Shell
   owner: `unassigned`
   deadline: `2026-05-07`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
-  summary: Route slash commands, model switching, model failover, prompt queue execution, and terminal execution through typed Gateway ingress receipts instead of browser-owned helpers.
+  work_gate: `reliability`
+  real_work_score: `5`
+  summary: Route slash commands, model switching, model failover, prompt queue execution, and terminal execution through typed Orchestration/Gateway ingress receipts; preserve legacy Shell helpers as compatibility callers until the new path is proven.
 - `SHELL-EXTRACT-DETAILS` — Move message and tool details behind lazy routes
   owner: `unassigned`
   deadline: `2026-05-07`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
-  summary: Expose message, tool, artifact, trace, and workflow detail fetches by stable refs through bounded audited Gateway routes instead of default Shell payloads.
+  work_gate: `reliability`
+  real_work_score: `5`
+  summary: Expose message, tool, artifact, trace, and workflow detail fetches by stable refs through bounded audited Gateway/Orchestration routes, without removing legacy Shell rendering or local compatibility paths yet.
 - `SHPURGE` — Finish the Shell authority purge
   owner: `unassigned`
   deadline: `2026-05-07`
   source_family: `Shell Authority Purge Completion Backlog`
+  work_gate: `reliability`
+  real_work_score: `5`
   summary: Finish the Shell authority purge so the Shell becomes projection/input only and stops acting like a shadow runtime.
-- `SRS-ACTIVE` — Keep active SRS intake items moving
-  owner: `unassigned`
-  deadline: `2026-05-09`
-  source_family: `Actionable SRS Items (Queued/In Progress)`
-  summary: Keep active SRS intake items moving before opening more new fronts.
 - `ALPINE-PURGE` — Remove the remaining Alpine boot/runtime dependency
   owner: `unassigned`
   deadline: `2026-05-10`
   source_family: `Shell Alpine Purge Wave`
+  work_gate: `reliability`
+  real_work_score: `5`
   summary: Remove the remaining Alpine boot/runtime dependency once the retirement guard is green.
-- `RWF-CODEQL-WORKFLOW` — Make CodeQL remediation the first canonical real-work workflow
-  owner: `codex`
-  deadline: `2026-05-10`
-  source_family: `Real Work First`
-  work_gate: `real_work`
-  real_work_score: `5`
-  summary: Define the reusable alert-to-patch loop: ingest CodeQL alert, locate file and rule, patch narrowly, run targeted validation, commit with a conventional prefix, and record the closure pattern.
-- `RWF-RELIABILITY-FLOOR` — Define the minimum reliable real-work paths
-  owner: `codex`
-  deadline: `2026-05-10`
-  source_family: `Real Work First`
-  work_gate: `reliability`
-  real_work_score: `5`
-  summary: Keep install and repair, gateway lifecycle, request-to-response execution, alert remediation, Sentinel finding promotion, TODO lifecycle, and commit/release hygiene as the reliability floor.
-- `RWF-SENTINEL-FINDING-SHAPE` — Make Sentinel findings issue-ready before promotion
-  owner: `codex`
-  deadline: `2026-05-10`
-  source_family: `Real Work First`
-  work_gate: `reliability`
-  real_work_score: `5`
-  summary: Require promoted Sentinel findings to include evidence, recurrence or freshness, owner guess, root-cause hypothesis, proposed fix class, targeted validation suggestion, and TODO or issue wording.
 
 ## Yellow Section (Do Soon)
 - `SHELL-EXTRACT-CACHE` — Replace Shell conversation cache and search with projections
   owner: `unassigned`
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
+  work_gate: `reliability`
+  real_work_score: `4`
   summary: Move conversation cache/search to bounded preview/index routes so the browser keeps only cursors, previews, counts, and refs rather than cloned full messages or raw tool payloads.
 - `SHELL-EXTRACT-EVAL` — Move report/eval issue flow behind Gateway ingress
   owner: `unassigned`
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
+  work_gate: `reliability`
+  real_work_score: `4`
   summary: Make chat-local report issue send bounded refs/context through Gateway to Orchestration eval without Shell-owned policy, GitHub submission, or raw context upload.
 - `SHELL-EXTRACT-HEALTH` — Make health and connectivity purely Gateway projected
   owner: `unassigned`
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
+  work_gate: `reliability`
+  real_work_score: `4`
   summary: Make runtime health, connectivity, release status, and degraded-state labels come from bounded Gateway status projections so Shell does not infer readiness or failure truth.
 - `SHELL-EXTRACT-LIFECYCLE` — Move agent and session lifecycle to receipts
   owner: `unassigned`
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
+  work_gate: `reliability`
+  real_work_score: `4`
   summary: Ensure create, select, archive, reset, retry, and new-agent initialization flows work through Gateway/Core/Orchestration receipts with headless proof.
 - `SHELL-EXTRACT-WORKFLOW` — Project workflow stage and thought status from Orchestration
   owner: `unassigned`
   deadline: `2026-05-14`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
+  work_gate: `reliability`
+  real_work_score: `4`
   summary: Make Orchestration emit workflow_stage_label and workflow_thought_preview projections so thinking bubbles render owner-provided status instead of Shell-authored fallback text.
-- `DNA-FOUNDATION-AUDIT` — Audit and graduate Digital DNA as system substrate
-  owner: `unassigned`
-  deadline: `2026-05-17`
-  source_family: `Digital DNA Foundation Graduation Audit`
-  summary: Yellow flag: Digital DNA has real Kernel metakernel code and tests, but SRS/TODO still mark V6-FOUNDATION-DNA-001/002 queued and it is not proven as the unavoidable base substrate for every instance, mutation, critical action, receipt, and Sentinel integrity check.
-- `RWF-NO-NEW-SUBSYSTEM` — Require new subsystems to prove real-work value first
-  owner: `codex`
-  deadline: `2026-05-18`
-  source_family: `Real Work First`
-  work_gate: `simplification`
-  real_work_score: `4`
-  summary: Before adding a new subsystem, require a concrete user-facing or agent-facing workflow it improves, the reliability risk it reduces, and the simpler alternative considered.
-- `RWF-SACRED-WORKFLOW` — Make the sacred workflow explicit and reusable
-  owner: `codex`
-  deadline: `2026-05-18`
-  source_family: `Real Work First`
-  work_gate: `real_work`
-  real_work_score: `4`
-  summary: Document and wire the common loop from request, issue, alert, or Sentinel finding through evidence inspection, ownership, patch, targeted validation, explanation, and TODO or issue update.
-- `RWF-SIMPLIFICATION-FILTER` — Add a simplification filter to TODO intake
-  owner: `codex`
-  deadline: `2026-05-18`
-  source_family: `Real Work First`
-  work_gate: `simplification`
-  real_work_score: `4`
-  summary: Reject or park active items that do not improve real work, reliability, or simplification; prefer deletion and compression over new subsystems unless the sacred workflow benefits.
-- `HYGIENE-RUST-COMBINED-SPLIT-DEBT` — Classify combined Rust split artifacts
-  owner: `codex`
-  deadline: `2026-05-19`
-  source_family: `Rust Dead-Code Hygiene Wave`
-  summary: Classify 000-combined.rs and .combined_parts warning-heavy files as generated split debt, live source, or deletion candidates before attempting broad cleanup.
-- `HYGIENE-RUST-DEADCODE-BASELINE` — Capture Rust dead-code warning baseline
-  owner: `codex`
-  deadline: `2026-05-19`
-  source_family: `Rust Dead-Code Hygiene Wave`
-  summary: Capture the current cargo dead-code and unused-warning surface by crate, module, warning kind, and likely action so future cleanup can happen in safe rollback-sized batches.
-- `HYGIENE-RUST-DEADCODE-GUARD` — Add Rust dead-code trend guard
-  owner: `codex`
-  deadline: `2026-05-19`
-  source_family: `Rust Dead-Code Hygiene Wave`
-  summary: Add or extend a validation report that tracks Rust unused/dead-code warning counts by crate so the surface trends down instead of silently growing.
-- `HYGIENE-RUST-UNUSED-HELPERS` — Triage unused Rust helper functions
-  owner: `codex`
-  deadline: `2026-05-19`
-  source_family: `Rust Dead-Code Hygiene Wave`
-  summary: For unused private helpers, decide whether each should be deleted, reconnected to the intended path, moved behind tests, or marked as intentional compatibility surface with a documented reason.
 - `HYGIENE-RUST-UNUSED-IMPORTS` — Remove unused Rust imports in narrow batches
   owner: `codex`
   deadline: `2026-05-19`
   source_family: `Rust Dead-Code Hygiene Wave`
-  summary: Work through unused import warnings in Kernel and runtime crates in small scoped commits, preserving behavior and validating each touched crate with cargo check or cargo test.
+  work_gate: `simplification`
+  real_work_score: `3`
+  summary: No unused-import warnings were observed before cargo check stopped on the outside-lane dashboard compat unclosed delimiter. This item is blocked until that compile blocker clears and a complete warning surface can be captured.
 - `HYGIENE-COMBINED-DEAD-DELETE` — Delete dead combined artifacts in safe batches
   owner: `codex`
   deadline: `2026-05-20`
   source_family: `Combined Rust Artifact Burn-Down`
-  summary: Delete only artifacts classified as dead_artifact or unreferenced, in narrow rollback-sized commits with cargo check or targeted tests for the owning crate.
+  work_gate: `simplification`
+  real_work_score: `3`
+  summary: Deletion candidates exist in the combined artifact classification, but deletion is blocked until the outside-lane dashboard compat compile blocker is fixed so domain batches can be validated.
 - `HYGIENE-COMBINED-DECOMPOSE-LIVE` — Decompose live combined artifact debt
   owner: `codex`
   deadline: `2026-05-20`
   source_family: `Combined Rust Artifact Burn-Down`
-  summary: For live split_debt artifacts, replace generic 000-combined.rs and .combined_parts names with logical module names over time, prioritizing non-shell, non-orchestration Kernel/ops areas with targeted validation.
-- `HYGIENE-COMBINED-GUARD` — Guard against new combined artifacts
-  owner: `codex`
-  deadline: `2026-05-20`
-  source_family: `Combined Rust Artifact Burn-Down`
-  summary: Add a validation guard or policy row that blocks new 000-combined.rs and .combined_parts artifacts unless they declare an explicit generated-source or compatibility exception with owner and expiry.
-- `HYGIENE-COMBINED-INVENTORY` — Inventory combined Rust artifacts
-  owner: `codex`
-  deadline: `2026-05-20`
-  source_family: `Combined Rust Artifact Burn-Down`
-  summary: Generate a manifest of every tracked 000-combined.rs and .combined_parts artifact with path, crate, line count, include/module parent, warning count, and likely owner before deleting or renaming anything.
-- `HYGIENE-COMBINED-REFERENCE-MAP` — Map combined artifact references
-  owner: `codex`
-  deadline: `2026-05-20`
-  source_family: `Combined Rust Artifact Burn-Down`
-  summary: For each combined artifact, map whether it is included by live Rust modules, tests only, generated tooling, docs only, or unreferenced so cleanup can be behavior-preserving.
+  work_gate: `simplification`
+  real_work_score: `3`
+  summary: Live split-debt artifacts are classified, but decomposition is blocked until the outside-lane dashboard compat compile blocker is fixed so owner-scoped renames can be validated.
 - `WF-UTILITY` — Build the workflow utility spine
   owner: `unassigned`
   deadline: `2026-05-20`
   source_family: `Workflow Utility Spine After Shell Purge`
+  work_gate: `real_work`
+  real_work_score: `5`
   summary: Build the workflow utility spine so the system is useful for real work after Shell de-authority.
-- `ARCH-TOOLING-NEXT` — Hold important architecture and tooling deltas behind current closure work
-  owner: `unassigned`
-  deadline: `after_red_section`
-  source_family: `Architecture and Tooling Follow-On Wave`
-  summary: Important architecture and tooling deltas should follow the Shell, workflow, and trace closure work rather than compete with it immediately.
-- `SRS-NEXT` — Queue the next SRS stream after the red section
-  owner: `unassigned`
-  deadline: `after_red_section`
-  source_family: `Actionable SRS Items (Queued/In Progress)`
-  summary: Queue the next SRS stream after the red intake set so the active SRS flow stays coherent instead of fragmenting into too many parallel themes.
 
 ## White Section (Do At Leisure)
 - `TRACE-IMPL` — Implement end-to-end unified trace_id propagation
   owner: `unassigned`
   deadline: `2026-05-23`
   source_family: `Universal Trace Runtime Implementation Checklist`
+  work_gate: `reliability`
+  real_work_score: `4`
   summary: Implement end-to-end unified trace_id propagation from initial request through Orchestration, workflows, tools, Kernel receipts, Sentinel, and final response.
 - `SHELL-NEXT` — Build Shell-next only after authority extraction proofs
   owner: `unassigned`
   deadline: `after_red_section`
   source_family: `Shell Authority Extraction Without Legacy Shell Mutation`
+  work_gate: `real_work`
+  real_work_score: `3`
   summary: Start the clean Shell-next route as a projection/input-only UI after the headless capability matrix and high-risk authority extraction routes are proven.
 - `SVELTE` — Keep remaining Svelte migration subordinate to Shell authority purge
   owner: `unassigned`
   deadline: `after_red_section`
   source_family: `Chat Dashboard Alpine to Svelte Migration Wave`
+  work_gate: `simplification`
+  real_work_score: `2`
   summary: Remaining Svelte migration and memory profiling items are worth doing, but they are subordinate to the broader Shell authority purge.
 - `EXTERNAL-BLOCKERS` — Keep externally blocked work parked in the archive
   owner: `unassigned`
   deadline: `external`
   source_family: `External Blockers`
+  work_gate: `reliability`
+  real_work_score: `1`
   summary: External blockers from the previous ledger remain parked in the archive until the required evidence packets or human approvals exist.
 - `ASSIMILATION-LONGHORIZON` — Park longer-horizon assimilation and runtime work
   owner: `unassigned`
   deadline: `none`
   source_family: `Long-Horizon Assimilation and Runtime Work`
+  work_gate: `real_work`
+  real_work_score: `2`
   summary: Assimilation and longer-horizon runtime work can stay parked here until the red and yellow closure work is materially better.
 - `BACKLOG-PARKED` — Keep lower-pressure valid backlog items parked
   owner: `unassigned`
   deadline: `none`
   source_family: `Parked Valid Backlog Items`
+  work_gate: `simplification`
+  real_work_score: `1`
   summary: These are still valid backlog items, but they are not the current forcing function.
 - `OS` — Keep Layer 3 and OS-readiness work parked behind current closure work
   owner: `unassigned`
   deadline: `none`
   source_family: `OS-Readiness Wave - Layer 3 to True OS Migration`
+  work_gate: `real_work`
+  real_work_score: `2`
   summary: Layer 3 and OS-readiness work remains important, but it should stay behind the current Shell, workflow, and trace closure push.
 - `TAURI-UI` — Keep Tauri migration strategically queued
   owner: `unassigned`
   deadline: `none`
   source_family: `Tauri Desktop App Migration + Memory Fix Wave`
+  work_gate: `real_work`
+  real_work_score: `2`
   summary: Tauri migration remains strategically valuable, but it should not outrun the deeper architecture cleanup already underway.
 
 ## Archive Rule

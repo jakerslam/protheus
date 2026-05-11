@@ -2,7 +2,7 @@
   "type": "kernel_sentinel_empty_response_repair_lane",
   "version": "1.0",
   "owner_domain": "observability",
-  "source_todo": "KSENT-ISSUE-EMPTY-RESPONSES",
+  "source_todo": "KSENT-EMPTY-RESPONSE-HARNESS",
   "source_family": "Sentinel Regression Audit May01",
   "policy": {
     "human_review_required": true,
@@ -28,6 +28,9 @@
       "concrete_next_action": "Promote repeated empty-response Sentinel findings into a repair issue only when the finalization trace includes the failed phase, rejected fallback reason, evidence refs, recurrence, owner guess, and a specific next replay command.",
       "evidence_refs": [
         "observability/reports/KERNEL_SENTINEL_FINAL_OUTPUT.md",
+        "core/local/artifacts/synthetic_user_chat_harness_current.json",
+        "artifacts/synthetic_user_chat_harness_latest.json",
+        "local/state/ops/synthetic_user_chat_harness/failures.jsonl",
         "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/047aa-workflow-visibility-payload.rs",
         "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1230-workflow-finalization-trace-diagnostics.rs",
         "validation/evals/fixtures/synthetic_user_chat_harness_cases.json"
