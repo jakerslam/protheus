@@ -11,6 +11,10 @@ const LEGACY_CSS_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_stat
 const LEGACY_STATIC_DIR = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static'].join('/');
 const LEGACY_BOTTOM_DOCK_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'bottom_dock_shell.bundle.ts'].join('/');
 const LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'dashboard_popup_overlay_shell.bundle.ts'].join('/');
+const LEGACY_SIDEBAR_AGENT_LIST_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'sidebar_agent_list_shell.bundle.ts'].join('/');
+const LEGACY_CHAT_MAP_SHELL_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_shell.bundle.ts'].join('/');
+const LEGACY_CHAT_MAP_RAIL_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_rail_shell.bundle.ts'].join('/');
+const LEGACY_CHAT_MAP_VIEWPORT_BUNDLE = ['client', 'runtime', 'systems', 'ui', 'infring' + '_static', 'js', 'svelte', 'chat_map_viewport_shell.bundle.ts'].join('/');
 const LEGACY_CSS_PATHS = [
   'theme.css',
   ...fs.readdirSync(path.resolve(process.cwd(), LEGACY_CSS_DIR, 'layout.css.parts')).sort().map((name) => `layout.css.parts/${name}`),
@@ -240,6 +244,12 @@ const browserShellV2DisplayState = {
   bottomDockPointerMoveHandler: null,
   bottomDockPointerUpHandler: null,
   sidebarCollapsed: false,
+  chatSidebarDragActive: false,
+  chatSidebarLeft: 16,
+  chatSidebarTop: 96,
+  taskbarDockDragActive: false,
+  taskbarDockEdge: 'top',
+  taskbarDockY: 0,
   themeMode: 'system',
   resolvedTheme: 'light',
   dashboardPopup: {
@@ -259,6 +269,256 @@ const browserShellV2DisplayState = {
     unread: false,
   },
 };
+
+let lastRenderedState = null;
+
+function overlayWallGapPx() {
+  return 16;
+}
+
+function chatSidebarStyle() {
+  const left = Math.round(Number(browserShellV2DisplayState.chatSidebarLeft || overlayWallGapPx()));
+  const top = Math.round(Number(browserShellV2DisplayState.chatSidebarTop || 96));
+  return [
+    'position:fixed',
+    'left:' + left + 'px',
+    'top:' + top + 'px',
+    'right:auto',
+    'bottom:auto',
+    'height:fit-content',
+    'min-height:calc(56px * 3)',
+    'max-height:80vh',
+    'transform:none',
+    '--sidebar-position-transition:' + (browserShellV2DisplayState.chatSidebarDragActive ? '0ms' : '280ms'),
+  ].join(';');
+}
+
+function chatSidebarNavShellStyle() {
+  return 'flex:0 1 auto;min-height:0;max-height:calc(80vh - 16px);';
+}
+
+function chatSidebarNavStyle() {
+  return 'height:auto;flex:0 1 auto;max-height:calc(80vh - 16px);';
+}
+
+function sidebarPulltabStyle() {
+  return [
+    'position:absolute',
+    'left:100%',
+    'right:auto',
+    'top:50%',
+    'transform:translateY(-50%)',
+    '--sidebar-position-transition:' + (browserShellV2DisplayState.chatSidebarDragActive ? '0ms' : '280ms'),
+  ].join(';');
+}
+
+function chatMapStyle() {
+  return [
+    'position:fixed',
+    'right:18px',
+    'top:50%',
+    'bottom:auto',
+    'transform:translateY(-50%)',
+    'max-height:70vh',
+    '--chat-map-position-transition:280ms',
+  ].join(';');
+}
+
+function taskbarDockStyle() {
+  const edge = browserShellV2DisplayState.taskbarDockEdge === 'bottom' ? 'bottom' : 'top';
+  const y = edge === 'bottom' ? Math.max(0, window.innerHeight - 46) : 0;
+  browserShellV2DisplayState.taskbarDockY = y;
+  return [
+    '--taskbar-dock-drag-y:' + Math.round(y) + 'px',
+    '--taskbar-dock-position-transition:' + (browserShellV2DisplayState.taskbarDockDragActive ? '0ms' : '220ms'),
+  ].join(';');
+}
+
+function pageTitle(page) {
+  return ({
+    overview: 'Overview',
+    agents: 'Agents',
+    scheduler: 'Scheduler',
+    skills: 'Apps',
+    runtime: 'Runtime',
+    settings: 'Settings',
+  })[page] || 'Shell';
+}
+
+function renderCurrentPageShell() {
+  const page = clean(browserShellV2DisplayState.page || 'chat', 80);
+  if (page === 'chat') return '';
+  const title = pageTitle(page);
+  return \`
+    <section class="chat-wrapper shell-v2-page-shell" aria-label="\${escapeHtml(title)}">
+      <div class="page-header">
+        <div>
+          <div class="text-xs text-muted font-mono">Browser Shell V2</div>
+          <h2>\${escapeHtml(title)}</h2>
+        </div>
+      </div>
+      <div class="empty-state">
+        <h4>\${escapeHtml(title)}</h4>
+        <p class="hint">This page slot is wired to the shell navigation contract. The next pass should fill it with Gateway projection data only.</p>
+      </div>
+    </section>
+  \`;
+}
+
+function createProjectionStore(initial) {
+  let value = initial;
+  const subscribers = new Set();
+  return {
+    get: () => value,
+    set: (next) => {
+      value = next;
+      subscribers.forEach((subscriber) => {
+        try { subscriber(value); } catch (_error) {}
+      });
+    },
+    update: (updater) => {
+      value = typeof updater === 'function' ? updater(value) : value;
+      subscribers.forEach((subscriber) => {
+        try { subscriber(value); } catch (_error) {}
+      });
+    },
+    subscribe: (subscriber) => {
+      subscribers.add(subscriber);
+      try { subscriber(value); } catch (_error) {}
+      return () => subscribers.delete(subscriber);
+    },
+  };
+}
+
+function legacySidebarAgentRows() {
+  return agentRows.map((agent) => {
+    const preview = clean(agent.state || 'Gateway projection', 240);
+    return {
+      ...agent,
+      name: clean(agent.label || agent.id, 160),
+      active: agent.id === selectedAgentId,
+      sidebar_status_state: agent.state === 'connected' ? 'connected' : agent.state || 'unknown',
+      sidebar_preview: {
+        text: preview,
+        ts: Date.now(),
+        unread_response: false,
+      },
+    };
+  });
+}
+
+function legacyChatMapRows(messages) {
+  return messages.map((message, index) => ({
+    key: clean(message.id || 'message-' + index, 180) + '-' + index,
+    domId: 'browser-v2-message-' + index,
+    index,
+    role: message.role === 'user' ? 'user' : 'agent',
+    longMessage: clean(message.text || '', 12000).length > 900,
+    markerType: '',
+    markerTitle: '',
+    toolOutcome: '',
+    newDay: index === 0,
+    dayLabel: 'Current session',
+    dayCollapsed: false,
+  }));
+}
+
+function messageHasTail(messages, index) {
+  const current = messages[index] || {};
+  const next = messages[index + 1] || null;
+  if (!next) return true;
+  return clean(next.role || 'agent', 40) !== clean(current.role || 'agent', 40);
+}
+
+function installProjectionStores() {
+  const existingStore = window.InfringChatStore || {};
+  if (!existingStore.sidebarAgents) existingStore.sidebarAgents = createProjectionStore([]);
+  if (!existingStore.currentAgent) existingStore.currentAgent = createProjectionStore(null);
+  if (!existingStore.agents) existingStore.agents = createProjectionStore([]);
+  if (!existingStore.mapRows) existingStore.mapRows = createProjectionStore([]);
+  if (!existingStore.mapStepIndex) existingStore.mapStepIndex = createProjectionStore(-1);
+  existingStore.refreshMapRows = (messages) => {
+    existingStore.mapRows.set(legacyChatMapRows(Array.isArray(messages) ? messages : []));
+  };
+  window.InfringChatStore = existingStore;
+
+  const existingPage = window.InfringChatPage || {};
+  window.InfringChatPage = {
+    ...existingPage,
+    messages: [],
+    filteredMessages: [],
+    currentAgent: null,
+    chatMapDragActive: false,
+    page: 'chat',
+    chatSidebarPreview: (agent) => agent?.sidebar_preview || { text: clean(agent?.state || 'Gateway projection', 240), ts: Date.now() },
+    formatChatSidebarTime: () => '',
+    agentStatusState: (agent) => clean(agent?.sidebar_status_state || agent?.state || 'unknown', 80).toLowerCase() || 'unknown',
+    agentStatusLabel: (agent) => clean(agent?.state || 'Gateway projection', 200),
+    sidebarDisplayEmoji: () => '',
+    isAgentLiveBusy: () => false,
+    shouldShowExpiryCountdown: () => false,
+    shouldShowInfinityLifespan: () => false,
+    chatSidebarCanReorderTopology: () => false,
+    isSidebarArchivedAgent: () => false,
+    normalizeSidebarPopupText: (text) => clean(text, 400),
+    sidebarPopupMetaOrigin: () => 'Gateway projection',
+    selectAgentChatFromSidebar: (agent) => selectAgent(clean(agent?.id || '', 160)),
+    showCollapsedSidebarAgentPopup: (agent, event) => {
+      const method = window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup');
+      if (method) method('sidebar-agent:' + clean(agent?.id || '', 120), clean(agent?.name || agent?.id || 'Agent', 160), event, { source: 'sidebar', side: 'right', body: clean(agent?.sidebar_preview?.text || '', 400), meta_origin: 'Gateway projection' });
+    },
+    hideDashboardPopupBySource: (source) => window.InfringSharedShellServices?.appStore?.method?.('hideDashboardPopupBySource')?.(source),
+    showDashboardPopup: (id, title, event, overrides) => window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup')?.(id, title, event, overrides),
+    hideDashboardPopup: (id) => window.InfringSharedShellServices?.appStore?.method?.('hideDashboardPopup')?.(id),
+    startChatMapPointerDrag: () => {},
+    stepMessageMap: (messages, direction) => {
+      const store = window.InfringChatStore;
+      const current = Number(store?.mapStepIndex?.get?.() || 0);
+      const length = Array.isArray(messages) ? messages.length : 0;
+      const next = Math.max(0, Math.min(length - 1, current + Number(direction || 0)));
+      store?.mapStepIndex?.set?.(next);
+      const target = document.querySelector('[data-msg-index="' + next + '"]');
+      if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    },
+    showMapItemPopup: (message, index, event) => {
+      const title = (message?.role === 'user' ? 'You' : selectedAgentId || 'Agent') + ' message';
+      const body = clean(message?.text || '', 400);
+      window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup')?.('chat-map:' + index, title, event, { source: 'chat-map', side: 'left', body, meta_origin: 'Message map' });
+    },
+    hideMapItemPopup: () => window.InfringSharedShellServices?.appStore?.method?.('hideDashboardPopupBySource')?.('chat-map'),
+    jumpToMessage: (_message, index) => {
+      const target = document.querySelector('[data-msg-index="' + Number(index) + '"]');
+      if (target && typeof target.scrollIntoView === 'function') target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    },
+    toggleMessageDayCollapse: () => {},
+    showMapDayPopup: (_message, event) => window.InfringSharedShellServices?.appStore?.method?.('showDashboardPopup')?.('chat-map-day', 'Current session', event, { source: 'chat-map', side: 'left', body: 'Gateway message window projection', meta_origin: 'Message map' }),
+    hideMapDayPopup: () => window.InfringSharedShellServices?.appStore?.method?.('hideDashboardPopupBySource')?.('chat-map'),
+  };
+}
+
+function syncLegacyDisplayProjection(state) {
+  const sidebarRows = legacySidebarAgentRows();
+  const currentAgent = sidebarRows.find((agent) => agent.id === selectedAgentId) || sidebarRows[0] || null;
+  const messages = Array.isArray(state.messages) ? state.messages : [];
+  browserShellV2DisplayState.page = clean(browserShellV2DisplayState.page || 'chat', 80);
+  browserShellV2DisplayState.activeAgentId = selectedAgentId;
+  browserShellV2DisplayState.chatSidebarRows = sidebarRows;
+  browserShellV2DisplayState.chatSidebarVisibleRows = sidebarRows;
+  const store = window.InfringChatStore;
+  if (store) {
+    store.sidebarAgents?.set?.(sidebarRows);
+    store.agents?.set?.(sidebarRows);
+    store.currentAgent?.set?.(currentAgent);
+    store.mapRows?.set?.(legacyChatMapRows(messages));
+  }
+  if (window.InfringChatPage) {
+    window.InfringChatPage.page = browserShellV2DisplayState.page;
+    window.InfringChatPage.messages = messages;
+    window.InfringChatPage.filteredMessages = messages;
+    window.InfringChatPage.currentAgent = currentAgent;
+    window.InfringChatPage.activeAgentId = selectedAgentId;
+  }
+}
 
 function installDisplayOnlyShellServices() {
   const services = window.InfringSharedShellServices || {};
@@ -450,6 +710,7 @@ function installDisplayOnlyShellServices() {
         handleBottomDockTileClick: (id) => {
           browserShellV2DisplayState.page = clean(id, 80) || 'chat';
           browserShellV2DisplayState.bottomDockClickAnimatingId = clean(id, 80);
+          if (lastRenderedState) render(lastRenderedState);
           window.setTimeout(() => {
             if (browserShellV2DisplayState.bottomDockClickAnimatingId === id) browserShellV2DisplayState.bottomDockClickAnimatingId = '';
           }, 900);
@@ -470,6 +731,7 @@ function installDisplayOnlyShellServices() {
   window.InfringSharedShellServices = services;
 }
 
+installProjectionStores();
 installDisplayOnlyShellServices();
 
 function resolveTheme(mode) {
@@ -484,9 +746,63 @@ function applyDisplayTheme(mode) {
   browserShellV2DisplayState.resolvedTheme = resolveTheme(nextMode);
   document.body.setAttribute('data-theme', browserShellV2DisplayState.resolvedTheme);
   document.documentElement.setAttribute('data-theme', browserShellV2DisplayState.resolvedTheme);
+  document.documentElement.dataset.uiBackgroundTemplate = clean(document.documentElement.dataset.uiBackgroundTemplate || 'default-grid', 80);
 }
 
 applyDisplayTheme('system');
+
+function startSidebarDrag(event, state) {
+  if (!event || event.button > 0) return;
+  const target = event.target;
+  if (target && typeof target.closest === 'function' && target.closest('button,input,textarea,select,a,[role="button"]') && !target.closest('[data-dragbar-pulltab="chat-sidebar"]')) return;
+  event.preventDefault();
+  browserShellV2DisplayState.chatSidebarDragActive = true;
+  const startX = Number(event.clientX || 0);
+  const startY = Number(event.clientY || 0);
+  const originLeft = Number(browserShellV2DisplayState.chatSidebarLeft || overlayWallGapPx());
+  const originTop = Number(browserShellV2DisplayState.chatSidebarTop || 96);
+  const move = (ev) => {
+    const maxLeft = Math.max(overlayWallGapPx(), window.innerWidth - 280);
+    const maxTop = Math.max(overlayWallGapPx(), window.innerHeight - 160);
+    browserShellV2DisplayState.chatSidebarLeft = Math.max(overlayWallGapPx(), Math.min(maxLeft, originLeft + Number(ev.clientX || 0) - startX));
+    browserShellV2DisplayState.chatSidebarTop = Math.max(overlayWallGapPx(), Math.min(maxTop, originTop + Number(ev.clientY || 0) - startY));
+    render(state);
+  };
+  const end = (ev) => {
+    move(ev || event);
+    browserShellV2DisplayState.chatSidebarDragActive = false;
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', end, true);
+    window.removeEventListener('pointercancel', end, true);
+    render(state);
+  };
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', end, true);
+  window.addEventListener('pointercancel', end, true);
+}
+
+function startTaskbarDrag(event, state) {
+  if (!event || event.button > 0) return;
+  const target = event.target;
+  if (target && typeof target.closest === 'function' && target.closest('button,input,textarea,select,a,[role="button"]')) return;
+  event.preventDefault();
+  browserShellV2DisplayState.taskbarDockDragActive = true;
+  const move = (ev) => {
+    browserShellV2DisplayState.taskbarDockEdge = Number(ev.clientY || 0) > (window.innerHeight / 2) ? 'bottom' : 'top';
+    render(state);
+  };
+  const end = (ev) => {
+    move(ev || event);
+    browserShellV2DisplayState.taskbarDockDragActive = false;
+    window.removeEventListener('pointermove', move, true);
+    window.removeEventListener('pointerup', end, true);
+    window.removeEventListener('pointercancel', end, true);
+    render(state);
+  };
+  window.addEventListener('pointermove', move, true);
+  window.addEventListener('pointerup', end, true);
+  window.addEventListener('pointercancel', end, true);
+}
 
 let selectedAgentId = '';
 let selectedSessionId = '';
@@ -518,20 +834,24 @@ let eventRefreshInFlight = false;
 let eventPollTimer = 0;
 
 function render(state) {
+  lastRenderedState = state;
+  syncLegacyDisplayProjection(state);
   const root = document.querySelector('#browser-shell-v2-root');
   if (!root) throw new Error('browser_shell_v2_root_missing');
   const messages = state.messages || [];
   const selectedAgentLabel = selectedAgentId || 'No agent selected';
   const runtimeBadge = clean(state.runtimeState || 'unknown', 80);
+  const page = clean(browserShellV2DisplayState.page || 'chat', 80);
+  const isChatPage = page === 'chat';
   root.innerHTML = \`
-    <div class="app-layout" data-shell-plug="browser-v2" data-event-cursor="\${escapeHtml(eventCursor)}" data-receipt-ref="\${escapeHtml(issueReceiptRef || approvalReceiptRef || modelReceiptRef || gitTreeReceiptRef)}" aria-label="Browser Shell V2">
+    <div class="app-layout \${browserShellV2DisplayState.taskbarDockEdge === 'bottom' ? 'taskbar-bottom' : ''}" data-shell-plug="browser-v2" data-event-cursor="\${escapeHtml(eventCursor)}" data-receipt-ref="\${escapeHtml(issueReceiptRef || approvalReceiptRef || modelReceiptRef || gitTreeReceiptRef)}" aria-label="Browser Shell V2">
       <div class="main-pointer-fx-layer" aria-hidden="true"></div>
-      <infring-sidebar-rail-shell class="sidebar drag-bar overlay-shared-surface chat-sidebar-dynamic \${browserShellV2DisplayState.sidebarCollapsed ? 'collapsed' : ''}" dragbarsurface="chat-sidebar" parentownedmechanics="true" aria-label="Legacy dashboard conversation rail">
-        <div class="sidebar-nav-shell">
-          <div class="sidebar-nav" role="navigation" aria-label="Main navigation">
+      <infring-sidebar-rail-shell class="sidebar drag-bar overlay-shared-surface \${isChatPage ? 'chat-sidebar-dynamic' : 'chat-only-hidden'} \${browserShellV2DisplayState.sidebarCollapsed ? 'collapsed' : ''} \${browserShellV2DisplayState.chatSidebarDragActive ? 'is-container-dragging' : ''}" dragbarsurface="chat-sidebar" parentownedmechanics="true" style="\${isChatPage ? chatSidebarStyle() : ''}" aria-label="Legacy dashboard conversation rail">
+        <div class="sidebar-nav-shell" style="\${chatSidebarNavShellStyle()}">
+          <div class="sidebar-nav" role="navigation" aria-label="Main navigation" style="\${chatSidebarNavStyle()}">
             <div class="sidebar-top-ghost" aria-hidden="true"></div>
             <div class="nav-section" aria-label="Agent conversations">
-              <a class="nav-item sidebar-tab-item active" aria-current="page">
+              <a class="nav-item sidebar-tab-item \${page === 'chat' ? 'active' : ''}" data-page-id="chat" aria-current="\${page === 'chat' ? 'page' : 'false'}">
                 <span class="nav-icon">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                 </span>
@@ -555,19 +875,7 @@ function render(state) {
                   </button>
                 </div>
               </div>
-              <infring-sidebar-agent-list-shell>
-              <div class="chat-sidebar-list" aria-label="Agent selector">
-                \${agentRows.map((agent) => \`
-                  <button type="button" data-agent-id="\${escapeHtml(agent.id)}" class="chat-sidebar-item \${agent.id === selectedAgentId ? 'active' : ''}" \${state.disabled ? 'disabled' : ''}>
-                    <span class="chat-sidebar-item-avatar agent-mark infring-logo"><span class="infring-logo-glyph">\${escapeHtml((agent.label || agent.id || 'A').slice(0, 1).toUpperCase())}</span></span>
-                    <span class="chat-sidebar-item-main">
-                      <span class="chat-sidebar-item-name">\${escapeHtml(agent.label || agent.id)}</span>
-                      <span class="chat-sidebar-item-preview">\${escapeHtml(agent.state || 'Gateway projection')}</span>
-                    </span>
-                  </button>
-                \`).join('')}
-              </div>
-              </infring-sidebar-agent-list-shell>
+              <infring-sidebar-agent-list-shell></infring-sidebar-agent-list-shell>
               <div class="chat-sidebar-list" aria-label="Session selector">
                 \${sessionRows.map((session) => \`
                   <button type="button" data-session-id="\${escapeHtml(session.id)}" class="chat-sidebar-item \${session.id === selectedSessionId ? 'active' : ''}" \${state.disabled ? 'disabled' : ''}>
@@ -579,25 +887,25 @@ function render(state) {
                   </button>
                 \`).join('')}
               </div>
-              <a class="nav-item sidebar-tab-item" aria-current="false">
+              <a class="nav-item sidebar-tab-item \${['agents','sessions','approvals'].includes(page) ? 'active' : ''}" data-page-id="agents" aria-current="\${['agents','sessions','approvals'].includes(page) ? 'page' : 'false'}">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                 <span class="nav-label">Agents</span>
               </a>
             </div>
             <div class="nav-section sidebar-tab-section" aria-label="Automation">
-              <a class="nav-item sidebar-tab-item" aria-current="false">
+              <a class="nav-item sidebar-tab-item \${['scheduler','workflows'].includes(page) ? 'active' : ''}" data-page-id="scheduler" aria-current="\${['scheduler','workflows'].includes(page) ? 'page' : 'false'}">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
                 <span class="nav-label">Automation</span>
               </a>
             </div>
             <div class="nav-section sidebar-tab-section" aria-label="Apps">
-              <a class="nav-item sidebar-tab-item" aria-current="false">
+              <a class="nav-item sidebar-tab-item \${['skills','channels','eyes','hands'].includes(page) ? 'active' : ''}" data-page-id="skills" aria-current="\${['skills','channels','eyes','hands'].includes(page) ? 'page' : 'false'}">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></span>
                 <span class="nav-label">Apps</span>
               </a>
             </div>
             <div class="nav-section sidebar-tab-section" aria-label="System">
-              <a class="nav-item sidebar-tab-item" aria-current="false">
+              <a class="nav-item sidebar-tab-item \${['runtime','analytics','logs'].includes(page) ? 'active' : ''}" data-page-id="runtime" aria-current="\${['runtime','analytics','logs'].includes(page) ? 'page' : 'false'}">
                 <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
                 <span class="nav-label">System</span>
               </a>
@@ -607,6 +915,7 @@ function render(state) {
         <button
           class="overlay-pulltab-object sidebar-pulltab drag-bar drag-bar-pulltab overlay-shared-surface pulltab-border-top-active pulltab-border-right-active pulltab-border-bottom-active pulltab-border-left-inactive"
           data-dragbar-pulltab="chat-sidebar"
+          style="\${sidebarPulltabStyle()}"
           type="button"
           aria-label="Toggle sidebar"
         >
@@ -621,7 +930,7 @@ function render(state) {
       </infring-sidebar-rail-shell>
       <div class="sidebar-overlay"></div>
       <main class="main-content" aria-label="Legacy dashboard main surface">
-        <div class="global-taskbar is-docked-top" data-shell-primitive="taskbar-dock">
+        <div class="global-taskbar \${browserShellV2DisplayState.taskbarDockDragActive ? 'is-dock-dragging' : ''} \${browserShellV2DisplayState.taskbarDockEdge === 'bottom' ? 'is-docked-bottom' : 'is-docked-top'}" data-shell-primitive="taskbar-dock" style="\${taskbarDockStyle()}">
           <div class="global-taskbar-left">
             <div class="taskbar-visual-group taskbar-visual-group-left" aria-label="Primary taskbar items">
               <div class="taskbar-hero-menu-anchor">
@@ -686,6 +995,7 @@ function render(state) {
             </infring-taskbar-system-items-shell>
           </div>
         </div>
+        \${isChatPage ? \`
         <div class="chat-wrapper">
           <infring-chat-header-shell>
           <div class="chat-thread-topline">
@@ -713,8 +1023,8 @@ function render(state) {
           <div class="messages" id="messages" aria-label="Message window">
             <div class="chat-reflection-overlay" aria-hidden="true"></div>
             <div class="chat-grid-overlay" aria-hidden="true"></div>
-            \${messages.length ? messages.map((message) => \`
-              <article class="message \${message.role === 'user' ? 'user' : 'agent'} meta-collapsed" data-msg-index="\${messages.indexOf(message)}">
+            \${messages.length ? messages.map((message, index) => \`
+              <article id="browser-v2-message-\${index}" class="message \${message.role === 'user' ? 'user' : 'agent'} \${messageHasTail(messages, index) ? 'has-tail' : ''} meta-collapsed" data-msg-index="\${index}">
                 <div class="message-avatar agent-mark infring-logo" aria-hidden="true"><span class="infring-logo-glyph">\${message.role === 'user' ? 'Y' : '∞'}</span></div>
                 <div class="message-body">
                   <div class="message-bubble markdown-body">
@@ -728,21 +1038,7 @@ function render(state) {
             \`).join('') : '<div class="empty-state"><h4>No bounded message projection loaded yet.</h4><p class="hint">Select an agent from the legacy-style rail or send a message through the composer.</p></div>'}
           </div>
           </infring-messages-surface-shell>
-          <infring-chat-map-shell class="chat-map" dragbarsurface="chat-map" parentownedmechanics="true" aria-label="Message map">
-            <div class="chat-map-surface drag-bar overlay-shared-surface">
-              <infring-chat-map-rail-shell>
-              <div class="chat-map-rail">
-                <button class="chat-map-jump chat-map-jump-up" type="button" aria-label="Previous message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m18 15-6-6-6 6"></path></svg></button>
-                <div class="chat-map-items-wrap"><infring-chat-map-viewport-shell><div class="chat-map-viewport"><div class="chat-map-scroll">
-                  <div class="chat-map-spacer" aria-hidden="true"></div>
-                  \${messages.map((message, index) => \`<div class="chat-map-entry"><button class="chat-map-item role-\${escapeHtml(message.role === 'user' ? 'user' : 'agent')}" data-map-index="\${index}" type="button" aria-label="Message \${index + 1}"><span class="chat-map-item-main"><span class="chat-map-bar"></span></span></button></div>\`).join('')}
-                  <div class="chat-map-spacer" aria-hidden="true"></div>
-                </div></div></infring-chat-map-viewport-shell></div>
-                <button class="chat-map-jump chat-map-jump-down" type="button" aria-label="Next message"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"></path></svg></button>
-              </div>
-              </infring-chat-map-rail-shell>
-            </div>
-          </infring-chat-map-shell>
+          <infring-chat-map-shell class="chat-map" dragbarsurface="chat-map" parentownedmechanics="true" style="\${chatMapStyle()}" aria-label="Message map"></infring-chat-map-shell>
           <infring-chat-input-footer-shell>
           <form class="input-area">
             <div class="chat-input-lane">
@@ -779,6 +1075,7 @@ function render(state) {
           </form>
           </infring-chat-input-footer-shell>
         </div>
+        \` : renderCurrentPageShell()}
         \${activeDetailRef ? \`
           <div class="popup-window dashboard-popup-surface" aria-label="Lazy message detail">
             <div class="popup-window-header"><h3 class="popup-window-title">\${escapeHtml(activeDetailPanel?.title || activeDetailRef)}</h3></div>
@@ -794,6 +1091,10 @@ function render(state) {
       <infring-dashboard-popup-overlay-shell></infring-dashboard-popup-overlay-shell>
     </div>\`;
   const form = root.querySelector('.input-area');
+  root.querySelectorAll('[data-page-id]').forEach((button) => button.addEventListener('click', () => {
+    browserShellV2DisplayState.page = clean(button.getAttribute('data-page-id') || 'chat', 80) || 'chat';
+    render(state);
+  }));
   root.querySelectorAll('[data-agent-id]').forEach((button) => button.addEventListener('click', () => selectAgent(button.getAttribute('data-agent-id') || '')));
   root.querySelectorAll('[data-session-id]').forEach((button) => button.addEventListener('click', () => selectSession(button.getAttribute('data-session-id') || '')));
   root.querySelectorAll('[data-detail-ref]').forEach((button) => button.addEventListener('click', () => openMessageDetail(button.getAttribute('data-detail-ref') || '', state)));
@@ -805,6 +1106,8 @@ function render(state) {
     browserShellV2DisplayState.sidebarCollapsed = !browserShellV2DisplayState.sidebarCollapsed;
     render(state);
   });
+  root.querySelector('.sidebar')?.addEventListener('pointerdown', (event) => startSidebarDrag(event, state), true);
+  root.querySelector('.global-taskbar')?.addEventListener('pointerdown', (event) => startTaskbarDrag(event, state), true);
   root.querySelectorAll('[data-map-index]').forEach((button) => button.addEventListener('click', () => {
     const index = Number(button.getAttribute('data-map-index'));
     const target = Number.isFinite(index) ? root.querySelector('[data-msg-index="' + index + '"]') : null;
@@ -1047,7 +1350,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   fs.rmSync(targetDir, { recursive: true, force: true });
   fs.mkdirSync(targetDir, { recursive: true });
   write(path.join(outDir, 'index.html'), `<!doctype html>
-<html lang="en">
+<html lang="en" data-ui-background-template="default-grid">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -1056,6 +1359,10 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
   </head>
   <body data-theme="light">
     <div id="browser-shell-v2-root"></div>
+    <script src="./sidebar_agent_list_shell.bundle.js"></script>
+    <script src="./chat_map_rail_shell.bundle.js"></script>
+    <script src="./chat_map_viewport_shell.bundle.js"></script>
+    <script src="./chat_map_shell.bundle.js"></script>
     <script src="./bottom_dock_shell.bundle.js"></script>
     <script src="./dashboard_popup_overlay_shell.bundle.js"></script>
     <script type="module" src="./browser_shell_v2_app.js"></script>
@@ -1063,6 +1370,10 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
 </html>
 `);
   write(path.join(outDir, 'browser_shell_v2.css'), css);
+  write(path.join(outDir, 'sidebar_agent_list_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_SIDEBAR_AGENT_LIST_BUNDLE), 'utf8'));
+  write(path.join(outDir, 'chat_map_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_SHELL_BUNDLE), 'utf8'));
+  write(path.join(outDir, 'chat_map_rail_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_RAIL_BUNDLE), 'utf8'));
+  write(path.join(outDir, 'chat_map_viewport_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_CHAT_MAP_VIEWPORT_BUNDLE), 'utf8'));
   write(path.join(outDir, 'bottom_dock_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_BOTTOM_DOCK_BUNDLE), 'utf8'));
   write(path.join(outDir, 'dashboard_popup_overlay_shell.bundle.js'), fs.readFileSync(path.resolve(process.cwd(), LEGACY_DASHBOARD_POPUP_OVERLAY_BUNDLE), 'utf8'));
   write(path.join(outDir, 'browser_shell_v2_app.js'), browserRuntimeSource());
@@ -1071,7 +1382,7 @@ export function buildBrowserShellV2App(outDir = OUT_DIR): Record<string, unknown
     ok: warnings.length === 0,
     type: 'browser_shell_v2_build',
     out_dir: outDir,
-    files: ['index.html', 'browser_shell_v2.css', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
+    files: ['index.html', 'browser_shell_v2.css', 'sidebar_agent_list_shell.bundle.js', 'chat_map_rail_shell.bundle.js', 'chat_map_viewport_shell.bundle.js', 'chat_map_shell.bundle.js', 'bottom_dock_shell.bundle.js', 'dashboard_popup_overlay_shell.bundle.js', 'browser_shell_v2_app.js', 'svelte_component_preflight.js'],
     svelte_warnings: warnings,
   };
 }
