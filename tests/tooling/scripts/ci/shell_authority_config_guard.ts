@@ -46,6 +46,9 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/conduit_scrambler_posture_contract.json', 'validation/conformance/contracts/conduit_scrambler_posture_contract.json', 'validation/conformance'],
   ['client/runtime/config/cross_domain_nexus_route_inventory.json', 'validation/conformance/contracts/cross_domain_nexus_route_inventory.json', 'validation/conformance'],
   ['client/runtime/config/shell_ui_message_detail_contract.json', 'validation/conformance/contracts/shell_ui_message_detail_contract.json', 'validation/conformance'],
+  ['client/runtime/config/shell_truth_leak_policy.json', 'validation/conformance/contracts/shell_truth_leak_policy.json', 'validation/conformance'],
+  ['client/runtime/config/shell_backend_state_contract.json', 'validation/conformance/contracts/shell_backend_state_contract.json', 'validation/conformance'],
+  ['client/runtime/config/shell_naming_policy.json', 'validation/conformance/contracts/shell_naming_policy.json', 'validation/conformance'],
 ];
 
 const AUTHORITY_CONFIG_NAME = /(?:policy|rules|manifest|gate|executor|routing|abac|permission|security|workflow|provider|tool|gateway|conduit|research|batch|memory|command|authority)/i;

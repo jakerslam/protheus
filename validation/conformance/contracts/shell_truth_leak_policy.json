@@ -1,0 +1,310 @@
+{
+  "version": "2026-04-23",
+  "scan_roots": [
+    "client/runtime/systems/ui",
+    "client/runtime/systems/ui/infring_static/js",
+    "client/runtime/systems/ui/infring_static/index_body.html.parts"
+  ],
+  "scan_extensions": [
+    ".ts",
+    ".js",
+    ".svelte",
+    ".html"
+  ],
+  "ignore_path_contains": [
+    "/tests/",
+    "__tests__",
+    "/dist/",
+    "/build/",
+    "node_modules",
+    "/infring_static/js/svelte/"
+  ],
+  "required_pattern_ids": [
+    "workflow_unexpected_state_retry_loop",
+    "workflow_gate_unexpected_state_retry_boilerplate",
+    "workflow_gate_unexpected_state_short_boilerplate",
+    "workflow_final_reply_not_rendered_retry_boilerplate",
+    "workflow_retry_loop_rerun_chain_template",
+    "automatic_tool_trigger_admission",
+    "automatic_tool_trigger_backend_automation_admission",
+    "automatic_tool_trigger_still_active_admission",
+    "backend_automation_overrides_semantic_intent_admission",
+    "workflow_route_info_task_classification_boilerplate",
+    "workflow_route_task_classification_path_boilerplate",
+    "workflow_internal_source_tag_leak_extended",
+    "conversation_bypass_tool_restriction_boilerplate",
+    "file_list_raw_lease_denied_echo",
+    "file_list_raw_lease_denied_echo_unquoted",
+    "workflow_retry_loop_next_actions_unordered_boilerplate",
+    "file_list_policy_gate_trace_blocked_template_generic",
+    "workflow_final_reply_not_rendered_short_boilerplate",
+    "workflow_retry_loop_next_actions_boilerplate",
+    "file_list_policy_gate_trace_blocked_template",
+    "workspace_file_policy_gate_template_loop",
+    "file_tooling_validation_drift_template"
+  ],
+  "error_on_warning_pattern_ids": [
+    "workflow_final_reply_not_rendered_short_boilerplate",
+    "workflow_retry_loop_next_actions_boilerplate",
+    "workspace_file_policy_gate_template_loop",
+    "file_list_policy_gate_trace_blocked_template",
+    "file_list_policy_gate_trace_blocked_template_generic",
+    "file_tooling_validation_drift_template",
+    "file_list_policy_gate_template",
+    "file_list_raw_lease_denied_echo",
+    "file_list_raw_lease_denied_echo_unquoted",
+    "workflow_retry_loop_next_actions_unordered_boilerplate",
+    "client_retry_policy_branching",
+    "client_lane_selection_heuristic",
+    "client_tool_route_selection",
+    "client_runtime_state_policy_branching"
+  ],
+  "forbidden_patterns": [
+    {
+      "id": "sidebar_status_state_literal_assignment",
+      "severity": "error",
+      "description": "Shell must not hardcode sidebar_status_state; it must consume backend-authoritative state.",
+      "regex": "\\bsidebar_status_state\\s*=\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_label_literal_assignment",
+      "severity": "error",
+      "description": "Shell must not hardcode sidebar_status_label; it must consume backend-authoritative labels.",
+      "regex": "\\bsidebar_status_label\\s*=\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_state_object_literal",
+      "severity": "error",
+      "description": "Shell must not synthesize sidebar_status_state via object literals.",
+      "regex": "\\bsidebar_status_state\\s*:\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_label_object_literal",
+      "severity": "error",
+      "description": "Shell must not synthesize sidebar_status_label via object literals.",
+      "regex": "\\bsidebar_status_label\\s*:\\s*['\"][^'\"]+['\"]"
+    },
+    {
+      "id": "sidebar_status_pending_fallback",
+      "severity": "error",
+      "description": "Shell must not inject synthetic pending status fallbacks for sidebar authority state.",
+      "regex": "\\bsidebar_status_(state|label)\\b[^\\n]{0,120}\\|\\|\\s*['\"]pending['\"]"
+    },
+    {
+      "id": "sidebar_status_state_fallback",
+      "severity": "warn",
+      "description": "Fallback defaults for sidebar_status_state should be minimized and justified.",
+      "regex": "\\bsidebar_status_state\\s*\\|\\|"
+    },
+    {
+      "id": "sidebar_status_label_fallback",
+      "severity": "warn",
+      "description": "Fallback defaults for sidebar_status_label should be minimized and justified.",
+      "regex": "\\bsidebar_status_label\\s*\\|\\|"
+    },
+    {
+      "id": "client_retry_policy_branching",
+      "severity": "warn",
+      "description": "Shell retry/backoff policy branching should stay non-authoritative and observable only.",
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,220}\\b(retry|backoff|quarantine|defer)\\b"
+    },
+    {
+      "id": "client_lane_selection_heuristic",
+      "severity": "warn",
+      "description": "Shell lane-selection heuristics indicate shell truth leakage risk.",
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,220}\\b(lane|lane_id|selectedLane|resolveLane|chooseLane)\\b"
+    },
+    {
+      "id": "client_tool_route_selection",
+      "severity": "warn",
+      "description": "Shell must not select workspace/web/tool routes locally; routing decisions must come from orchestration/kernel contracts.",
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,260}\\b(tool_route|toolRoute|routeTool|selectedTool|workspace_read|workspace_search|web_search|web_fetch)\\b"
+    },
+    {
+      "id": "client_runtime_state_policy_branching",
+      "severity": "warn",
+      "description": "Shell must not branch local authority policy from runtime status fields; consume backend-authoritative state/freshness directly.",
+      "regex": "\\b(if|switch)\\s*\\([^\\n]{0,260}\\b(sidebar_status_state|sidebar_status_label|sidebar_status_freshness)\\b"
+    },
+    {
+      "id": "workflow_unexpected_state_retry_loop",
+      "severity": "error",
+      "description": "Shell must not emit repeated workflow-state retry-loop boilerplate instead of a direct user answer.",
+      "regex": "workflow state was unexpected\\. Please retry so I can rerun the chain cleanly\\."
+    },
+    {
+      "id": "automatic_tool_trigger_admission",
+      "severity": "error",
+      "description": "Shell must not admit automatic tool triggering as a normal path; tool selection must stay LLM-controlled.",
+      "regex": "automatically triggering tool calls without (my|the model'?s) conscious selection"
+    },
+    {
+      "id": "web_search_misdirection_on_local_request",
+      "severity": "warn",
+      "description": "Shell should not route local file/workspace intents into web search fallback copy.",
+      "regex": "(web search tool triggered incorrectly|defaulted to external search instead of internal file tools)"
+    },
+    {
+      "id": "workflow_gate_unexpected_state_retry_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit repeated workflow-gate unexpected-state retry boilerplate instead of directly answering.",
+      "regex": "I completed the workflow gate, but the final workflow state was unexpected\\. Please retry so I can rerun the chain cleanly\\."
+    },
+    {
+      "id": "workflow_gate_unexpected_state_short_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit repeated workflow-gate unexpected-state boilerplate even when retry suffix is omitted.",
+      "regex": "I completed the workflow gate, but the final workflow state was unexpected\\."
+    },
+    {
+      "id": "workflow_final_reply_not_rendered_retry_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit repeated final-reply-not-rendered boilerplate loops.",
+      "regex": "I completed the run, but the final reply did not render\\. Ask me to continue and I will synthesize from (?:the\\s+)?recorded workflow state\\."
+    },
+    {
+      "id": "workflow_final_reply_not_rendered_short_boilerplate",
+      "severity": "warn",
+      "description": "Shell should avoid short final-reply-not-rendered templates that suppress direct user answers.",
+      "regex": "final reply did not render"
+    },
+    {
+      "id": "workflow_retry_loop_next_actions_boilerplate",
+      "severity": "warn",
+      "description": "Shell should avoid repeating canned next-actions boilerplate when direct user answers are available.",
+      "regex": "Next actions:\\s*1\\) clarify the exact outcome you want\\s*2\\) run one targeted tool call\\s*3\\) return a concise answer from current context"
+    },
+    {
+      "id": "workflow_retry_loop_next_actions_unordered_boilerplate",
+      "severity": "warn",
+      "description": "Shell should avoid unnumbered next-actions retry boilerplate and provide direct synthesized guidance instead.",
+      "regex": "final workflow state was unexpected\\.\\s*Next actions:\\s*run one targeted tool call,\\s*then return a concise answer from current context\\."
+    },
+    {
+      "id": "workflow_route_info_task_classification_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit internal route-classification boilerplate instead of a direct user answer.",
+      "regex": "The first gate \\(\"(?:workflow_route|task_or_info_route)\"\\) is still classifying this as an \"info\" route rather than a \"task\" route\\."
+    },
+    {
+      "id": "workflow_route_task_classification_path_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit task-classification-path diagnostic boilerplate instead of direct guidance.",
+      "regex": "(?:needs explicit tool-related phrasing to trigger the task classification path|still seeing this as a conversational exchange rather than a tool operation request)"
+    },
+    {
+      "id": "workflow_route_binary_classifier_boilerplate",
+      "severity": "error",
+      "description": "Shell must not emit automated binary route-classifier internals in user-facing output.",
+      "regex": "(?:workflow_route|task_or_info_route).{0,220}(?:binary classification|automated classification based on semantic analysis|defaults to info)"
+    },
+    {
+      "id": "workflow_decision_tree_autoclassifier_boilerplate",
+      "severity": "error",
+      "description": "Shell must not claim the decision tree auto-classifies requests into info/task routes.",
+      "regex": "decision tree.{0,140}automatically classifies requests as either \"info\".{0,80}\"task\".{0,180}semantic analysis"
+    },
+    {
+      "id": "workflow_gate_source_tag_leak",
+      "severity": "error",
+      "description": "Shell must not leak internal workflow gate source tags in user-facing output.",
+      "regex": "\\[source:workflow_gate\\]"
+    },
+    {
+      "id": "workflow_decision_tree_source_tag_leak",
+      "severity": "error",
+      "description": "Shell must not leak internal tool decision-tree source tags in user-facing output.",
+      "regex": "\\[source:tool_decision_tree_v3\\]"
+    },
+    {
+      "id": "workflow_internal_source_tag_leak_extended",
+      "severity": "error",
+      "description": "Shell must not leak extended internal workflow source tags in user-facing output.",
+      "regex": "\\[source:(?:workflow_route_classification|gate_enforcement_mode|tool_decision_policy|conversation_bypass_control|agent_framework_analysis|tool_gate)\\]"
+    },
+    {
+      "id": "conversation_bypass_tool_restriction_boilerplate",
+      "severity": "error",
+      "description": "Shell must not claim conversation-bypass internals are restricting normal tool use in user-facing output.",
+      "regex": "(?:conversation bypass mode is currently active|restricted from running web searches|can'?t autonomously decide to use web tools|requires manual step-by-step authorization for tool usage)"
+    },
+    {
+      "id": "automatic_tool_trigger_backend_automation_admission",
+      "severity": "error",
+      "description": "Shell must not admit backend automation is auto-triggering tool calls outside LLM routing control.",
+      "regex": "automatically triggering web searches through some backend automation that bypasses my conscious tool selection process"
+    },
+    {
+      "id": "workspace_file_policy_gate_template_loop",
+      "severity": "warn",
+      "description": "Shell should avoid repeating static policy-gate templates for file-list failures and instead provide direct, actionable routing guidance.",
+      "regex": "The File List step was blocked before I could finish the answer:\\s*This is a policy gate, not a web-provider outage\\."
+    },
+    {
+      "id": "file_list_policy_gate_trace_blocked_template",
+      "severity": "warn",
+      "description": "Shell should not surface raw tool trace blocked templates instead of synthesized operator guidance.",
+      "regex": "Tool trace complete1 done\\s*·\\s*1 blocked"
+    },
+    {
+      "id": "file_list_policy_gate_trace_blocked_template_generic",
+      "severity": "warn",
+      "description": "Shell should not surface generic blocked tool-trace templates instead of synthesized operator guidance.",
+      "regex": "Tool trace complete\\d*\\s*done\\s*[·•]\\s*\\d+\\s*blocked"
+    },
+    {
+      "id": "file_tooling_validation_drift_template",
+      "severity": "warn",
+      "description": "Shell should not return generic capability-surface boilerplate when user intent asks for a concrete local file tooling check.",
+      "regex": "I can access runtime telemetry, persistent memory, workspace files, channels, and approved command surfaces in this session\\."
+    },
+    {
+      "id": "file_list_policy_gate_template",
+      "severity": "warn",
+      "description": "Shell should avoid repeating static file_list policy-gate templates and instead return direct lane-aware guidance.",
+      "regex": "File List step was blocked before I could finish the answer:\\s*This is a policy gate, not a web-provider outage\\."
+    },
+    {
+      "id": "workflow_retry_loop_rerun_chain_template",
+      "severity": "error",
+      "description": "Shell must not fall back to rerun-chain retry templates on repeated workflow finalization edges.",
+      "regex": "Please retry so I can rerun the chain cleanly\\."
+    },
+    {
+      "id": "file_list_raw_lease_denied_echo",
+      "severity": "warn",
+      "description": "Shell should not echo raw lease_denied tool errors; it should synthesize direct policy-aware guidance.",
+      "regex": "`file_list` was blocked by ingress delivery policy in this runtime lane \\(lease_denied:client_ingress_domain_boundary\\)"
+    },
+    {
+      "id": "file_list_raw_lease_denied_echo_unquoted",
+      "severity": "warn",
+      "description": "Shell should not echo raw ingress lease_denied policy strings even when backticks are omitted.",
+      "regex": "file_list\\s+was blocked by ingress delivery policy in this runtime lane \\(lease_denied:client_ingress_domain_boundary\\)"
+    },
+    {
+      "id": "automatic_tool_trigger_still_active_admission",
+      "severity": "error",
+      "description": "Shell must not normalize repeated admissions that automatic tool triggering is still active instead of returning direct synthesized answers.",
+      "regex": "system is still automatically triggering tool calls without (my|the model'?s) conscious selection"
+    },
+    {
+      "id": "backend_automation_overrides_semantic_intent_admission",
+      "severity": "error",
+      "description": "Shell must not admit backend automation overrides semantic intent routing as a normal user-facing response path.",
+      "regex": "backend automation.*overrides semantic understanding"
+    }
+  ],
+  "allowed_pattern_paths": {
+    "client_retry_policy_branching": [
+      "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part02.ts",
+      "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/200-send-pipeline.part02.ts",
+      "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/215-rendering-and-metadata-upgrades.ts"
+    ],
+    "client_lane_selection_heuristic": [
+      "client/runtime/systems/ui/infring_static/js/app.ts.parts/040-events-and-actions.part02.ts",
+      "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/070-init-sequences-and-pointer.part01.ts"
+    ]
+  },
+  "canonical_owner": "validation/conformance"
+}

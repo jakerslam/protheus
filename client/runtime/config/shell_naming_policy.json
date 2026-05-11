@@ -41,5 +41,8 @@
     "js",
     "jsx",
     "svelte"
-  ]
+  ],
+  "canonical_path": "validation/conformance/contracts/shell_naming_policy.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

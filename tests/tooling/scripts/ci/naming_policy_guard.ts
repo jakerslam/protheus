@@ -7,7 +7,7 @@ import { cleanText, parseStrictOutArgs, readFlag } from '../../lib/cli.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_POLICY_PATH = 'client/runtime/config/shell_naming_policy.json';
+const DEFAULT_POLICY_PATH = 'validation/conformance/contracts/shell_naming_policy.json';
 const DEFAULT_OUT_JSON_PATH = 'core/local/artifacts/shell_naming_policy_guard_current.json';
 const DEFAULT_OUT_MARKDOWN_PATH = 'local/workspace/reports/SHELL_NAMING_POLICY_GUARD_CURRENT.md';
 

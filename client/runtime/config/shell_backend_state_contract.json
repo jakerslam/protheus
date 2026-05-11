@@ -52,5 +52,8 @@
         "stale"
       ]
     }
-  ]
+  ],
+  "canonical_path": "validation/conformance/contracts/shell_backend_state_contract.json",
+  "canonical_owner": "validation/conformance",
+  "compatibility_mirror": true
 }

@@ -7,8 +7,8 @@ import { currentRevision, trackedFiles } from '../../lib/git.ts';
 import { emitStructuredResult, writeTextArtifact } from '../../lib/result.ts';
 
 const ROOT = process.cwd();
-const DEFAULT_POLICY_PATH = 'client/runtime/config/shell_truth_leak_policy.json';
-const DEFAULT_CONTRACT_PATH = 'client/runtime/config/shell_backend_state_contract.json';
+const DEFAULT_POLICY_PATH = 'validation/conformance/contracts/shell_truth_leak_policy.json';
+const DEFAULT_CONTRACT_PATH = 'validation/conformance/contracts/shell_backend_state_contract.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/shell_truth_leak_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/SHELL_TRUTH_LEAK_GUARD_CURRENT.md';
 
