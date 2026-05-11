@@ -1,4 +1,5 @@
 {
+  "canonical_owner": "core/layer0/ops",
   "version": "v1",
   "batch_query": {
     "enabled_sources": [

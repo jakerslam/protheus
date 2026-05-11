@@ -27,6 +27,7 @@ This wave does not delete client files yet. It creates canonical non-client copi
 | `core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | `core/layer0/ops/config/web_conduit_policy.json` | `client/runtime/config/web_conduit_policy.json` | flipped |
 | `core/layer0/ops/src/research_plane_parts/010-usage.rs` | `orchestration/config/research_plane_policy.json` | `client/runtime/config/research_plane_policy.json` | flipped |
 | `tests/tooling/scripts/ci/web_retrieval_reliability_closure_guard.ts` | `core/layer0/ops/config/web_conduit_policy.json` | none needed for proof guard | flipped |
+| `tests/tooling/scripts/ci/shell_authority_config_guard.ts` | mirror declarations for batch query, web conduit, and research plane policies | branch-diff check rejects new authority-shaped client config JSON unless explicitly mirror-marked | guarded |
 
 ## Runtime Inventory Snapshot
 
@@ -73,14 +74,13 @@ The keyword counts are triage hints only. Final ownership must follow behavior a
 
 ## Next Action Queue
 
-1. Add a guard that prevents new authority policy additions under `client/runtime/config` unless they are explicitly marked `legacy_mirror`.
-2. Triage already-duplicated files that differ between client and canonical homes:
-   - `workflow_executor_policy.json`
-   - `agent_routing_rules.json`
-   - `provider_onboarding_manifest.json`
-   - `abac_policy_plane.json`
-3. Classify and rehome high-risk security, memory, command, gateway/conduit, workflow, and routing configs in small batches.
-4. Triage `client/runtime/systems/*` for Shell wrappers versus authority implementations, prioritizing `security`, `memory`, `workflow`, `routing`, `tools`, and `ops`.
+1. Classify and rehome high-risk security, memory, command, gateway/conduit, workflow, and routing configs in small batches.
+2. Triage `client/runtime/systems/*` for Shell wrappers versus authority implementations, prioritizing `security`, `memory`, `workflow`, `routing`, `tools`, and `ops`.
+
+Completed queue item:
+
+- Guard against new client-runtime authority configs: `ops:shell:authority-config:guard` now checks the branch diff for new authority-shaped JSON under `client/runtime/config` and requires explicit mirror metadata (`compatibility_mirror` or `legacy_mirror` plus canonical path/owner).
+- Existing duplicate policy mirrors triaged: `workflow_executor_policy.json`, `agent_routing_rules.json`, `provider_onboarding_manifest.json`, and `abac_policy_plane.json` normalize identically against their canonical homes after mirror metadata is removed. No behavioral drift found.
 
 ## Guardrails
 

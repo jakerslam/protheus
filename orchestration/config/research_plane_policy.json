@@ -1,4 +1,5 @@
 {
+  "canonical_owner": "orchestration",
   "version": "v1",
   "kind": "research_plane_policy",
   "default_mode": "auto",

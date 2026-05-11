@@ -1,4 +1,5 @@
 {
+  "canonical_owner": "core/layer0/ops",
   "mode": "production",
   "version": "v1",
   "web_conduit": {

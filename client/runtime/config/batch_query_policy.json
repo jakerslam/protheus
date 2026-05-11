@@ -1,4 +1,7 @@
 {
+  "canonical_path": "core/layer0/ops/config/batch_query_policy.json",
+  "canonical_owner": "core/layer0/ops",
+  "compatibility_mirror": true,
   "version": "v1",
   "batch_query": {
     "enabled_sources": [
