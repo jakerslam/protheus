@@ -69,9 +69,9 @@ This ledger is intentionally about portable patterns, not copied source, provide
 
 | Change | File | Pattern |
 | --- | --- | --- |
-| Added Tavily-derived provider metadata fields for provider answers, follow-up questions, images, favicons, raw-content availability, and published dates. | `client/runtime/config/batch_query_policy.json`, `client/runtime/config/research_plane_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `TAVILY-PATTERN-007` |
-| Added optional search controls for depth profile, exact-match, country/time/domain filters, raw content, image descriptions, and favicon metadata. | `client/runtime/config/batch_query_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `TAVILY-PATTERN-002`, `TAVILY-PATTERN-003`, `TAVILY-PATTERN-004` |
-| Added site map and crawl controls as discovery/extraction primitives with bounded depth, breadth, limit, instructions, path/domain selection, and external-link policy. | `client/runtime/config/batch_query_policy.json`, `client/runtime/config/research_plane_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `TAVILY-PATTERN-001`, `TAVILY-PATTERN-005`, `TAVILY-PATTERN-006` |
+| Added Tavily-derived provider metadata fields for provider answers, follow-up questions, images, favicons, raw-content availability, and published dates. | `orchestration/config/web_research_retrieval_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `TAVILY-PATTERN-007` |
+| Added optional search controls for depth profile, exact-match, country/time/domain filters, raw content, image descriptions, and favicon metadata. | `orchestration/config/web_research_retrieval_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `TAVILY-PATTERN-002`, `TAVILY-PATTERN-003`, `TAVILY-PATTERN-004` |
+| Added site map and crawl controls as discovery/extraction primitives with bounded depth, breadth, limit, instructions, path/domain selection, and external-link policy. | `orchestration/config/web_research_retrieval_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `TAVILY-PATTERN-001`, `TAVILY-PATTERN-005`, `TAVILY-PATTERN-006` |
 | Added adapter request-hygiene and async research polling lifecycle fields without hardcoding Tavily as a runtime provider. | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | `TAVILY-PATTERN-008`, `TAVILY-PATTERN-009`, `TAVILY-PATTERN-010` |
 
 ## Remaining Assimilation Estimate
@@ -87,11 +87,13 @@ This ledger is intentionally about portable patterns, not copied source, provide
 
 | Pattern | Primary home | Secondary home | Integration status |
 | --- | --- | --- | --- |
-| Search/extract/map/crawl capability split | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.site_mapping_and_crawl_controls` | `client/runtime/config/research_plane_policy.json:site_mapping_and_crawl` | wired |
-| Depth/time/domain/exact-match controls | `client/runtime/config/batch_query_policy.json:batch_query.advanced_search_controls` | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.advanced_search_controls` | wired |
-| Provider result metadata | `client/runtime/config/batch_query_policy.json:batch_query.provider_result_envelope` | `client/runtime/config/research_plane_policy.json:evidence_extraction.provider_result_envelope` | wired |
-| Query-reranked extraction | `client/runtime/config/batch_query_policy.json:batch_query.evidence_pack` | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.retrieval_primitives.chunk_ranked_evidence` | wired |
-| Async polling lifecycle | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.async_result_lifecycle` | `client/runtime/config/batch_query_policy.json:batch_query.async_result_lifecycle` | wired |
-| Request hygiene and error docs refs | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:provider_error_contract` | `client/runtime/config/batch_query_policy.json:batch_query.provider_request_lifecycle` | wired |
+| Search/extract/map/crawl capability split | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.site_mapping_and_crawl_controls` | `orchestration/config/web_research_retrieval_policy.json:site_mapping_and_crawl` | wired |
+| Depth/time/domain/exact-match controls | `orchestration/config/web_research_retrieval_policy.json:advanced_search_controls` | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.advanced_search_controls` | wired |
+| Provider result metadata | `orchestration/config/web_research_retrieval_policy.json:provider_result_envelope` | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.provider_result_envelope` | wired |
+| Query-reranked extraction | `orchestration/config/web_research_retrieval_policy.json:evidence_pack` | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.retrieval_primitives.chunk_ranked_evidence` | wired |
+| Async polling lifecycle | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:progressive_retrieval_contract.async_result_lifecycle` | `orchestration/config/web_research_retrieval_policy.json:async_result_lifecycle` | wired |
+| Request hygiene and error docs refs | `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json:provider_error_contract` | `orchestration/config/web_research_retrieval_policy.json:retrieval_status_classification` | wired |
 
 Provider-specific names in `source_pattern` are provenance labels only. Selection remains based on user intent, evidence state, capability availability, and tool-result quality.
+
+Client runtime note: client/runtime remains compatibility/projection only for this assimilation. The Tavily-derived authority was moved out of client config after checkpoint `a299d49d6`.

@@ -32,7 +32,7 @@ Improve our web retrieval primitive for real research questions by making search
 
 1. Search-plus-read as a primitive
    - Pattern: search returns candidate rows, then selected top URLs are read into content-bearing artifacts.
-   - Integration target: `batch_query_policy.page_extraction.reader_page_conversion`, `web_retrieval_v0.tool_cd.retrieval_primitives.search_plus_read`.
+   - Integration target: `orchestration/config/web_research_retrieval_policy.json:reader_page_conversion`, `web_retrieval_v0.tool_cd.retrieval_primitives.search_plus_read`.
    - Why: addresses low-value SERP-only outputs without requiring domain-specific queries.
 
 2. Response representation negotiation
@@ -83,12 +83,12 @@ Improve our web retrieval primitive for real research questions by making search
 
 ## Integration Targets Updated
 
-- `client/runtime/config/batch_query_policy.json`
-  - Added reader page-conversion policy, representation/readiness/selector/cache/link-image/chunking controls, broader document artifact types.
-- `client/runtime/config/research_plane_policy.json`
-  - Added reader content artifact handling for synthesis-visible evidence, not chat-visible raw payload.
+- `orchestration/config/web_research_retrieval_policy.json`
+  - Added reader page-conversion policy, synthesis-visible reader artifacts, representation/readiness/selector/cache controls, and broader document artifact types.
 - `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
   - Added search-plus-read and reader representation primitives to the Tool CD.
+
+Client runtime note: client/runtime remains compatibility/projection only for this assimilation. The Jina Reader authority was moved out of client config after checkpoint `a299d49d6`.
 
 ## Follow-Up Candidates
 

@@ -225,12 +225,7 @@
         "handled_types": [
           "html",
           "pdf",
-          "text",
-          "office_document",
-          "spreadsheet",
-          "presentation",
-          "image",
-          "xml"
+          "text"
         ],
         "pdf": {
           "extract_text": true,
@@ -307,94 +302,6 @@
           "missing_field",
           "fetch_status",
           "per_url_error"
-        ]
-      },
-      "reader_page_conversion": {
-        "enabled": true,
-        "source_pattern": "jina_reader_search_plus_read",
-        "provider_binding": "none_source_pattern_is_attribution_only",
-        "authority": "cd_policy_declares_reader_artifacts_adapter_executes",
-        "purpose": "turn promising search rows into processible page or document artifacts before synthesis when snippets are not enough",
-        "convert_when": [
-          "search_result_followup.fetch_when_matches",
-          "broad_research_needs_body_evidence",
-          "source_quality_or_claim_validation_requires_page_context",
-          "search_rows_are_relevant_but_low_detail",
-          "the_user_supplied_url_or_site_needs_content_not_just_structure"
-        ],
-        "skip_when": [
-          "narrow_lookup_is_directly_supported_by_result_metadata",
-          "candidate_is_duplicate_or_off_topic",
-          "source_access_policy_or_budget_blocks_fetch"
-        ],
-        "representation_variants": [
-          "content",
-          "markdown",
-          "text",
-          "html_excerpt",
-          "screenshot_ref",
-          "page_image_ref",
-          "links_summary",
-          "images_summary",
-          "heading_chunks"
-        ],
-        "readiness_controls": [
-          "html_ready",
-          "visible_content_ready",
-          "mutation_idle",
-          "resource_idle",
-          "media_idle",
-          "network_idle"
-        ],
-        "selector_controls": [
-          "target_selector",
-          "wait_for_selector",
-          "remove_selector"
-        ],
-        "cache_admission": {
-          "allow_cache_for_public_repeatable_reads": true,
-          "disable_cache_when": [
-            "cookies_or_private_state_present",
-            "script_injection_or_viewport_override_present",
-            "instructional_or_schema_transform_present",
-            "explicit_no_cache_or_zero_tolerance",
-            "intermediate_snapshot_without_final_readiness",
-            "captcha_or_low_content_block_signal"
-          ],
-          "record_fields": [
-            "cache_status",
-            "cache_freshness_status",
-            "cache_tolerance_ms",
-            "cache_rejection_reason"
-          ]
-        },
-        "link_and_image_retention": {
-          "retain_links_modes": [
-            "none",
-            "text",
-            "safe_refs",
-            "all_metadata"
-          ],
-          "retain_images_modes": [
-            "none",
-            "alt_text",
-            "safe_refs",
-            "generated_alt_when_capability_available"
-          ],
-          "normalize_urls": true,
-          "reject_non_fetchable_schemes": true
-        },
-        "chunking": {
-          "heading_aware": true,
-          "include_parent_headings_when_contextual": true,
-          "respect_token_budget": true,
-          "record_chunk_separator": true
-        },
-        "non_goals": [
-          "do_not_route_to_a_specific_reader_provider",
-          "do_not_make_browser_rendering_default_for_all_pages",
-          "do_not_force_user_visible_answer_format",
-          "do_not_hardcode_topic_or_domain_defaults"
         ]
       },
       "retrieval_profile_selection": {
@@ -480,11 +387,6 @@
         "resolved_search_type",
         "auto_prompt",
         "auto_date",
-        "query",
-        "provider_answer_candidate",
-        "follow_up_questions",
-        "image_results",
-        "image_descriptions",
         "search_time_ms",
         "cost_summary",
         "provider_statuses"
@@ -497,9 +399,6 @@
         "published_date",
         "author",
         "summary",
-        "raw_content_available",
-        "raw_content_excerpt",
-        "favicon",
         "highlights",
         "highlight_scores",
         "entities",
@@ -533,23 +432,12 @@
       "authority": "adapter_owned_optional_request_fields",
       "controls": [
         "source_class_or_category_hint",
-        "search_depth_profile",
         "include_domains",
         "exclude_domains",
-        "country_boost",
-        "time_range",
         "start_published_date",
         "end_published_date",
         "start_crawl_date",
         "end_crawl_date",
-        "exact_match",
-        "include_images",
-        "include_image_descriptions",
-        "include_favicon",
-        "include_raw_content",
-        "extract_depth_profile",
-        "extract_query_rerank",
-        "output_content_format",
         "include_text",
         "exclude_text",
         "user_location",
@@ -577,48 +465,6 @@
         "do_not_make_provider_specific_category_syntax_required",
         "do_not_add_domain_specific_defaults",
         "do_not_hide_filters_from_query_contract"
-      ]
-    },
-    "site_mapping_and_crawl_controls": {
-      "enabled": true,
-      "source_pattern": "tavily_map_crawl_capability_split",
-      "provider_binding": "none_source_pattern_is_attribution_only",
-      "authority": "adapter_owned_optional_request_fields",
-      "purpose": "support cheap site-structure discovery before selected content crawl or extraction",
-      "controls": [
-        "root_url",
-        "max_depth",
-        "max_breadth",
-        "limit",
-        "instructions",
-        "select_paths",
-        "select_domains",
-        "allow_external",
-        "extract_depth_profile",
-        "output_content_format"
-      ],
-      "use_when": [
-        "user_supplies_a_site_or_url_and_asks_for_coverage",
-        "search_results_identify_a_promising_source_site_but_not_the_right_page",
-        "evidence_state_needs_more_urls_from_the_same_source_before_fetch",
-        "documentation_or_site_structure_is_the_retrieval_target"
-      ],
-      "artifact_fields": [
-        "mapped_url_count",
-        "crawled_page_count",
-        "base_url",
-        "selected_path_patterns",
-        "selected_domain_patterns",
-        "external_link_policy",
-        "crawl_depth",
-        "crawl_breadth",
-        "crawl_limit",
-        "crawl_instructions_ref"
-      ],
-      "non_goals": [
-        "do_not_make_site_crawl_the_default_for_all_research",
-        "do_not_select_by_hardcoded_domain",
-        "do_not_hide_path_or_domain_filters_from_tool_metadata"
       ]
     },
     "provider_request_lifecycle": {
@@ -659,11 +505,8 @@
         "retry_after",
         "provider_error_code",
         "provider_error_message_ref",
-        "provider_docs_ref",
         "bad_request_shape_hint",
         "request_sanitized",
-        "empty_value_fields_pruned",
-        "default_parameters_applied",
         "partial_success_count",
         "partial_error_count"
       ],
@@ -728,14 +571,6 @@
         "query_diversity_axes",
         "provider_result_statuses",
         "highlight_coverage",
-        "provider_answer_present",
-        "follow_up_questions_count",
-        "image_result_count",
-        "map_candidate_count",
-        "crawl_page_count",
-        "exact_match_applied",
-        "domain_filter_applied",
-        "time_filter_applied",
         "subpage_candidate_count",
         "checkpoint_ref",
         "resume_state_ref",
@@ -763,24 +598,12 @@
         "include_provider_score": true,
         "include_highlight_scores": true,
         "include_provider_status": true,
-        "include_resolved_search_type": true,
-        "include_reader_artifact_status": true,
-        "include_readiness_status": true
+        "include_resolved_search_type": true
       },
       "content_variants": [
         "source_excerpt",
         "search_highlight_excerpt",
         "provider_context_excerpt",
-        "provider_raw_content_excerpt",
-        "query_reranked_extract_excerpt",
-        "reader_content",
-        "reader_markdown",
-        "reader_text",
-        "reader_html_excerpt",
-        "reader_links_summary",
-        "reader_images_summary",
-        "reader_heading_chunks",
-        "reader_screenshot_ref",
         "fit_markdown",
         "markdown_with_citations",
         "references_markdown",

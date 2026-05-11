@@ -561,9 +561,8 @@
           "citation_title"
         ],
         "exports_to": [
-          "batch_query_policy.provider_result_envelope",
-          "research_plane_policy.evidence_extraction.provider_result_envelope",
-          "research_plane_policy.evidence_extraction.retrieval_status_classification"
+          "orchestration_web_research_retrieval_policy.provider_result_envelope",
+          "orchestration_web_research_retrieval_policy.retrieval_status_classification"
         ],
         "non_goals": [
           "do_not_treat_provider_similarity_as_validation",
@@ -641,8 +640,8 @@
         "auth_or_permission_gates": "record_as_tool_capability_status_and_permission_state",
         "consumed_by": [
           "tool_registry_admission",
-          "batch_query_policy.advanced_search_controls",
-          "research_plane_policy.adaptive_retrieval.semantic_query_planning"
+          "orchestration_web_research_retrieval_policy.advanced_search_controls",
+          "orchestration_web_research_retrieval_policy.strategy_menu"
         ],
         "non_goals": [
           "do_not_force_exa_or_any_provider_as_the_only_web_path",
@@ -690,8 +689,7 @@
           "permanent_provider_failure": "permanent_provider_failure"
         },
         "exports_to": [
-          "batch_query_policy.provider_request_lifecycle",
-          "research_plane_policy.evidence_extraction.retrieval_status_classification"
+          "orchestration_web_research_retrieval_policy.retrieval_status_classification"
         ],
         "sanitization": [
           "strip_credentials_from_forwarded_requests",
