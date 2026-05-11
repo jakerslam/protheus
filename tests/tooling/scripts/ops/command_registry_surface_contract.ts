@@ -62,8 +62,8 @@ function parseArgs(argv: string[]) {
     command: clean(argv[0] || 'check', 32).toLowerCase(),
     strict: false,
     json: false,
-    policy: 'client/runtime/config/command_registry_policy.json',
-    laneRegistry: 'client/runtime/config/lane_command_registry.json',
+    policy: 'tests/tooling/config/command_registry_policy.json',
+    laneRegistry: 'tests/tooling/config/lane_command_registry.json',
   };
   for (const token of argv.slice(1)) {
     const value = clean(token, 600);

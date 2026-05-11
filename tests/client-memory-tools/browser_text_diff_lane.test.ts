@@ -10,7 +10,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const ENTRYPOINT = path.join(ROOT, 'client', 'runtime', 'lib', 'ts_entrypoint.ts');
 const RUNNER = path.join(ROOT, 'tests', 'tooling', 'scripts', 'ci', 'srs_repair_lane_runner.ts');
 const SYSTEM_MAP = JSON.parse(fs.readFileSync(path.join(ROOT, 'client', 'runtime', 'config', 'system_map_registry.json'), 'utf8'));
-const LANE_REGISTRY = JSON.parse(fs.readFileSync(path.join(ROOT, 'client', 'runtime', 'config', 'lane_command_registry.json'), 'utf8'));
+const LANE_REGISTRY = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests', 'tooling', 'config', 'lane_command_registry.json'), 'utf8'));
 const POLICY = JSON.parse(fs.readFileSync(path.join(ROOT, 'client', 'runtime', 'config', 'browser', 'browser_text_diff_policy.json'), 'utf8'));
 const RECEIPT = path.join(ROOT, 'local', 'state', 'ops', 'srs_contract_runtime', 'V6-BROWSER-007', 'latest.json');
 

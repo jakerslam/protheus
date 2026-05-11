@@ -1,5 +1,8 @@
 {
   "version": "1.0",
+  "canonical_path": "tests/tooling/config/lane_command_registry.json",
+  "canonical_owner": "tests/tooling",
+  "compatibility_mirror": true,
   "run": {
     "V6-TOOLS-001": {
       "id": "V6-TOOLS-001",

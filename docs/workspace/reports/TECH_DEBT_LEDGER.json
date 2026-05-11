@@ -126,7 +126,7 @@
         "package.json",
         "client/runtime/systems/ops",
         "tests/tooling/scripts/ci",
-        "client/runtime/config/command_registry_policy.json"
+        "tests/tooling/config/command_registry_policy.json"
       ]
     },
     {

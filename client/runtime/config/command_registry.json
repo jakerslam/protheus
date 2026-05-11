@@ -1,6 +1,9 @@
 {
   "schema_id": "command_registry",
   "schema_version": "1.0",
+  "canonical_path": "tests/tooling/config/command_registry.json",
+  "canonical_owner": "tests/tooling",
+  "compatibility_mirror": true,
   "updated_at": "2026-04-15T00:00:00.000Z",
   "owners": {
     "platform": "Core runtime + entrypoint contracts",
