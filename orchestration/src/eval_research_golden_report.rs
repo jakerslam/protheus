@@ -71,6 +71,34 @@ pub(super) fn markdown_report(report: &Value) -> String {
             ));
         }
     }
+    out.push_str("\n## Category Pass Rates\n\n");
+    if let Some(rows) = report.get("category_pass_rates").and_then(Value::as_array) {
+        for row in rows {
+            out.push_str(&format!(
+                "- {}: {}/{} ({:.3}) excellent={}/{}\n",
+                str_at(row, &["category"], "unknown"),
+                u64_at(row, &["passed"], 0),
+                u64_at(row, &["total"], 0),
+                f64_at(row, &["pass_rate"], 0.0),
+                u64_at(row, &["excellent"], 0),
+                u64_at(row, &["total"], 0),
+            ));
+        }
+    }
+    out.push_str("\n## Tag Pass Rates\n\n");
+    if let Some(rows) = report.get("tag_pass_rates").and_then(Value::as_array) {
+        for row in rows {
+            out.push_str(&format!(
+                "- {}: {}/{} ({:.3}) excellent={}/{}\n",
+                str_at(row, &["tag"], "unknown"),
+                u64_at(row, &["passed"], 0),
+                u64_at(row, &["total"], 0),
+                f64_at(row, &["pass_rate"], 0.0),
+                u64_at(row, &["excellent"], 0),
+                u64_at(row, &["total"], 0),
+            ));
+        }
+    }
     let split = report.get("measurement_split").unwrap_or(&Value::Null);
     out.push_str("\n## Measurement Split\n\n");
     out.push_str(&format!(

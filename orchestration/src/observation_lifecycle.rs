@@ -151,6 +151,7 @@ pub fn research_golden_observation_events(report: &Value, meta: &Value) -> Vec<V
                 "workflow_id": workflow_id,
                 "case_id": case_id,
                 "category": str_at(row, &["category"], "unknown"),
+                "tags": string_array_at(row, &["tags"]),
                 "subject_key": subject_key,
                 "run": {
                     "run_id": run_id,

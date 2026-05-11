@@ -292,6 +292,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         rows.push(json!({
             "case_id": case_id,
             "category": str_at(case, &["category"], "unknown"),
+            "tags": string_array_at(case, &["tags"]),
             "prompt_preview": clean_text(&prompt, 320),
             "score": grade.score,
             "score_pass": grade.pass,
@@ -344,6 +345,8 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         .iter()
         .all(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false));
     let dimension_averages = dimension_average_rows(&dimension_totals, total_cases);
+    let category_pass_rates = category_pass_rate_rows(&rows);
+    let tag_pass_rates = tag_pass_rate_rows(&rows);
     let gate_transition_rates =
         gate_transition_rate_rows(&transition_total_counts, &transition_pass_counts);
     let gate_transition_path_ok = gate_transition_rates
@@ -428,6 +431,8 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         "workflow_gate_pass_rates": gate_rates,
         "gate_transition_pass_rates": gate_transition_rates,
         "dimension_averages": dimension_averages,
+        "category_pass_rates": category_pass_rates,
+        "tag_pass_rates": tag_pass_rates,
         "setup_failures": setup_failures,
         "cases": rows,
         "failure_events": failure_events,
@@ -519,6 +524,65 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     } else {
         0
     }
+}
+
+fn category_pass_rate_rows(rows: &[Value]) -> Vec<Value> {
+    grouped_pass_rate_rows(rows, "category", |row| {
+        vec![str_at(row, &["category"], "unknown")]
+    })
+}
+
+fn tag_pass_rate_rows(rows: &[Value]) -> Vec<Value> {
+    grouped_pass_rate_rows(rows, "tag", |row| {
+        let tags = string_array_at(row, &["tags"]);
+        if tags.is_empty() {
+            vec!["untagged".to_string()]
+        } else {
+            tags
+        }
+    })
+}
+
+fn grouped_pass_rate_rows<F>(rows: &[Value], key_name: &str, mut keys_for_row: F) -> Vec<Value>
+where
+    F: FnMut(&Value) -> Vec<String>,
+{
+    let mut totals: BTreeMap<String, u64> = BTreeMap::new();
+    let mut passes: BTreeMap<String, u64> = BTreeMap::new();
+    let mut excellent: BTreeMap<String, u64> = BTreeMap::new();
+    for row in rows {
+        for key in keys_for_row(row)
+            .into_iter()
+            .map(|raw| clean_text(&raw, 120))
+            .filter(|raw| !raw.is_empty())
+        {
+            *totals.entry(key.clone()).or_insert(0) += 1;
+            if bool_at(row, &["pass"], false) {
+                *passes.entry(key.clone()).or_insert(0) += 1;
+            }
+            if bool_at(row, &["excellent"], false) {
+                *excellent.entry(key.clone()).or_insert(0) += 1;
+            }
+        }
+    }
+    totals
+        .into_iter()
+        .map(|(key, total)| {
+            let passed = *passes.get(&key).unwrap_or(&0);
+            let excellent_count = *excellent.get(&key).unwrap_or(&0);
+            let mut row = serde_json::Map::new();
+            row.insert(key_name.to_string(), Value::String(key));
+            row.insert("passed".to_string(), json!(passed));
+            row.insert("excellent".to_string(), json!(excellent_count));
+            row.insert("total".to_string(), json!(total));
+            row.insert("pass_rate".to_string(), json!(ratio(passed, total)));
+            row.insert(
+                "excellent_rate".to_string(),
+                json!(ratio(excellent_count, total)),
+            );
+            Value::Object(row)
+        })
+        .collect()
 }
 
 fn record_gate_counts(

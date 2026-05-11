@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -35,6 +36,7 @@ fn dataset() -> Value {
         "cases": [{
             "id": "research_gold_test",
             "category": "comparison",
+            "tags": ["comparison", "source_sensitive"],
             "prompt": "Use web research to compare Infring with LangGraph.",
             "expected_gate_path": {
                 "gate_1": "tool_required",
@@ -73,6 +75,70 @@ fn runner_args(root: &Path, cases: &Path, responses: &Path, strict: bool) -> Vec
         ),
         format!("--strict={}", if strict { "1" } else { "0" }),
     ]
+}
+
+#[test]
+fn research_cross_domain_fixture_declares_general_other_and_shape_tags() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../validation/evals/fixtures/research_cross_domain_dataset_v1.json");
+    let dataset = read_json(path.to_str().unwrap());
+    let cases = dataset
+        .get("cases")
+        .and_then(Value::as_array)
+        .expect("cases");
+    assert_eq!(cases.len(), 20);
+    let expected_categories = [
+        "software_technical",
+        "science_academic",
+        "business_market",
+        "policy_legal_civic",
+        "consumer_product",
+        "local_travel",
+        "history_culture",
+        "health_medical",
+        "news_current_events",
+        "general_other",
+    ]
+    .into_iter()
+    .map(ToString::to_string)
+    .collect::<BTreeSet<_>>();
+    let declared_categories = string_array_at(&dataset, &["domain_taxonomy"])
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    assert_eq!(declared_categories, expected_categories);
+    let seen_categories = cases
+        .iter()
+        .map(|case| str_at(case, &["category"], ""))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(seen_categories, expected_categories);
+    assert!(seen_categories.contains("general_other"));
+
+    let allowed_tags = string_array_at(&dataset, &["shape_tag_taxonomy"])
+        .into_iter()
+        .collect::<BTreeSet<_>>();
+    let mut ids = BTreeSet::new();
+    for case in cases {
+        let case_id = str_at(case, &["id"], "");
+        assert!(!case_id.is_empty());
+        assert!(ids.insert(case_id.clone()), "duplicate case id: {case_id}");
+        let tags = string_array_at(case, &["tags"]);
+        assert!(!tags.is_empty(), "missing tags: {case_id}");
+        for tag in tags {
+            assert!(
+                allowed_tags.contains(&tag),
+                "unknown tag {tag} in {case_id}"
+            );
+        }
+        assert_eq!(
+            str_at(case, &["expected_gate_path", "gate_2"], ""),
+            "web_research"
+        );
+        assert!(
+            string_array_at(case, &["expected_gate_path", "gate_4_required_fields"])
+                .contains(&"query".to_string()),
+            "missing query gate field: {case_id}"
+        );
+    }
 }
 
 #[test]
@@ -149,6 +215,16 @@ fn research_golden_scores_evidenced_final_answer() {
         report.pointer("/measurement_split/end_to_end_golden/mode"),
         Some(&Value::String("recorded_replay".to_string()))
     );
+    assert_eq!(
+        report.pointer("/category_pass_rates/0/category"),
+        Some(&Value::String("comparison".to_string()))
+    );
+    assert!(report
+        .get("tag_pass_rates")
+        .and_then(Value::as_array)
+        .unwrap()
+        .iter()
+        .any(|row| row.get("tag").and_then(Value::as_str) == Some("source_sensitive")));
 }
 
 #[test]
