@@ -17,6 +17,8 @@ const GUARD_REGISTRY_LEGACY_REL: &str = "client/runtime/config/guard_check_regis
 const CONTRACT_CHECK_SOURCE_REL: &str = "core/layer0/ops/src/contract_check.rs";
 const RUNTIME_MODE_STATE_REL: &str = "local/state/ops/runtime_mode.json";
 const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
+    "core/layer0/ops/config/rust_source_of_truth_policy.json";
+const RUST_SOURCE_OF_TRUTH_POLICY_LEGACY_REL: &str =
     "client/runtime/config/rust_source_of_truth_policy.json";
 const PROBE_EYES_INTAKE_HELP_TOKENS: &[&str] =
     &["eyes_intake.js", "create", "validate", "list-directives"];
@@ -77,6 +79,19 @@ fn preferred_guard_registry_path(root: &Path) -> PathBuf {
         return canonical;
     }
     let legacy = root.join(GUARD_REGISTRY_LEGACY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
+}
+
+fn preferred_rust_source_of_truth_policy_path(root: &Path) -> PathBuf {
+    let canonical = root.join(RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(RUST_SOURCE_OF_TRUTH_POLICY_LEGACY_REL);
     if legacy.exists() {
         legacy
     } else {

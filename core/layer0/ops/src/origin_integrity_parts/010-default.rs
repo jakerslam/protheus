@@ -34,7 +34,7 @@ impl Default for OriginIntegrityPolicy {
             safety_plane_paths: vec![
                 "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
                 "client/runtime/config/dependency_boundary_manifest.json".to_string(),
-                "client/runtime/config/rust_source_of_truth_policy.json".to_string(),
+                "core/layer0/ops/config/rust_source_of_truth_policy.json".to_string(),
                 "client/runtime/config/constitution_guardian_policy.json".to_string(),
                 "client/runtime/config/rsi_bootstrap_policy.json".to_string(),
                 "core/layer0/ops/src/main.rs".to_string(),

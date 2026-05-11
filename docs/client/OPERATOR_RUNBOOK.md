@@ -515,7 +515,7 @@ Diagnose:
 1. `infring-ops contract-check`
 2. `infring-ops status --dashboard`
 3. Inspect policy:
-`cat client/runtime/config/rust_source_of_truth_policy.json`
+`cat core/layer0/ops/config/rust_source_of_truth_policy.json`
 
 Containment / Recovery:
 

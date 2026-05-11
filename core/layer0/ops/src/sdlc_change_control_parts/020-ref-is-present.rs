@@ -62,7 +62,7 @@ fn load_policy(root: &Path, policy_override: Option<&String>) -> Policy {
                 "core/layer2/conduit/".to_string(),
                 "client/runtime/systems/security/".to_string(),
                 "client/runtime/config/infring_conduit_policy.json".to_string(),
-                "client/runtime/config/rust_source_of_truth_policy.json".to_string(),
+                "core/layer0/ops/config/rust_source_of_truth_policy.json".to_string(),
             ]
         });
 

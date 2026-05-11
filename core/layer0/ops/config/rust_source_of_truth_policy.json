@@ -1,7 +1,5 @@
 {
-  "canonical_path": "core/layer0/ops/config/rust_source_of_truth_policy.json",
   "canonical_owner": "core/layer0/ops",
-  "compatibility_mirror": true,
   "version": "1.0",
   "description": "Rust-authoritative kernel policy. TS is allowed for conduit/client and non-kernel UX surfaces only.",
   "rust_entrypoint_gate": {

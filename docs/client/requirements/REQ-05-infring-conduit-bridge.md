@@ -126,7 +126,7 @@ Delivered:
 - `client/runtime/systems/ops/infringd.ts` now defaults lifecycle commands (`start`, `stop`, `status`) to strict conduit routing.
   - strict failure path: `conduit_required_strict:*`
   - explicit temporary escape hatch only via `--allow-legacy-fallback` or `INFRING_ALLOW_LEGACY_FALLBACK=1`
-- `client/runtime/config/rust_source_of_truth_policy.json` defines source-of-truth contract checks for:
+- `core/layer0/ops/config/rust_source_of_truth_policy.json` defines source-of-truth contract checks for:
   - Rust kernel entrypoints in `core/layer0/ops/src/main.rs`
   - strict conduit enforcement tokens in `client/runtime/systems/ops/infringd.ts`
   - conduit message-budget enforcement tokens in `core/layer2/conduit/src/lib.rs`

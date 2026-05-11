@@ -14,6 +14,8 @@ const CRON_JOBS_REL: &str = "client/runtime/config/cron_jobs.json";
 const SECRET_BROKER_POLICY_REL: &str = "core/layer0/ops/config/secret_broker_policy.json";
 const LEGACY_SECRET_BROKER_POLICY_REL: &str = "client/runtime/config/secret_broker_policy.json";
 const RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
+    "core/layer0/ops/config/rust_source_of_truth_policy.json";
+const LEGACY_RUST_SOURCE_OF_TRUTH_POLICY_REL: &str =
     "client/runtime/config/rust_source_of_truth_policy.json";
 
 fn preferred_secret_broker_policy_path(root: &Path) -> PathBuf {
@@ -22,6 +24,19 @@ fn preferred_secret_broker_policy_path(root: &Path) -> PathBuf {
         return canonical;
     }
     let legacy = root.join(LEGACY_SECRET_BROKER_POLICY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
+}
+
+fn preferred_rust_source_of_truth_policy_path(root: &Path) -> PathBuf {
+    let canonical = root.join(RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(LEGACY_RUST_SOURCE_OF_TRUTH_POLICY_REL);
     if legacy.exists() {
         legacy
     } else {
@@ -194,7 +209,7 @@ fn path_has_allowed_prefix(path: &str, prefixes: &[String]) -> bool {
 }
 
 fn audit_rust_source_of_truth(root: &Path) -> Value {
-    let policy_path = root.join(RUST_SOURCE_OF_TRUTH_POLICY_REL);
+    let policy_path = preferred_rust_source_of_truth_policy_path(root);
     let policy = match read_json(&policy_path) {
         Ok(v) => v,
         Err(err) => {
