@@ -1,6 +1,9 @@
 const IMAGE_TOOL_PROVIDER_SECRETS_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_secrets.json";
-const IMAGE_TOOL_PROVIDER_NETWORK_POLICY_REL: &str = "client/runtime/config/provider_network_policy.json";
+const IMAGE_TOOL_PROVIDER_NETWORK_POLICY_REL: &str =
+    "core/layer0/ops/config/provider_network_policy.json";
+const IMAGE_TOOL_PROVIDER_NETWORK_POLICY_LEGACY_REL: &str =
+    "client/runtime/config/provider_network_policy.json";
 const IMAGE_TOOL_DEFAULT_MAX_TOKENS: u64 = 4096;
 const IMAGE_TOOL_DEFAULT_TELEMETRY_BLOCKLIST: &[&str] = &[
     "segment.io",
@@ -38,7 +41,16 @@ fn image_tool_provider_secrets_path(root: &Path) -> PathBuf {
 }
 
 fn image_tool_provider_network_policy_path(root: &Path) -> PathBuf {
-    root.join(IMAGE_TOOL_PROVIDER_NETWORK_POLICY_REL)
+    let canonical = root.join(IMAGE_TOOL_PROVIDER_NETWORK_POLICY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(IMAGE_TOOL_PROVIDER_NETWORK_POLICY_LEGACY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
 }
 
 fn image_tool_provider_key(root: &Path, provider: &str) -> Option<String> {

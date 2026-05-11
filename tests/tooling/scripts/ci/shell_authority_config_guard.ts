@@ -18,6 +18,7 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/egress_gateway_policy.json', 'core/layer0/ops/config/egress_gateway_policy.json', 'core/layer0/ops'],
   ['client/runtime/config/batch_query_policy.json', 'core/layer0/ops/config/batch_query_policy.json', 'core/layer0/ops'],
   ['client/runtime/config/web_conduit_policy.json', 'core/layer0/ops/config/web_conduit_policy.json', 'core/layer0/ops'],
+  ['client/runtime/config/provider_network_policy.json', 'core/layer0/ops/config/provider_network_policy.json', 'core/layer0/ops'],
   ['client/runtime/config/abac_policy_plane.json', 'core/layer1/security/config/abac_policy_plane.json', 'core/layer1/security'],
   ['client/runtime/config/agent_routing_rules.json', 'orchestration/config/agent_routing_rules.json', 'orchestration'],
   ['client/runtime/config/workflow_executor_policy.json', 'orchestration/config/workflow_executor_policy.json', 'orchestration'],

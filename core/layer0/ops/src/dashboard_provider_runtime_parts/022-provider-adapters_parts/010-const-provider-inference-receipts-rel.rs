@@ -2,7 +2,8 @@ const PROVIDER_INFERENCE_RECEIPTS_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_inference_receipts.jsonl";
 const PROVIDER_OUTBOUND_GUARD_RECEIPTS_REL: &str =
     "client/runtime/local/state/ui/infring_dashboard/provider_outbound_guard_receipts.jsonl";
-const PROVIDER_NETWORK_POLICY_REL: &str = "client/runtime/config/provider_network_policy.json";
+const PROVIDER_NETWORK_POLICY_REL: &str = "core/layer0/ops/config/provider_network_policy.json";
+const LEGACY_PROVIDER_NETWORK_POLICY_REL: &str = "client/runtime/config/provider_network_policy.json";
 const DEFAULT_TELEMETRY_BLOCKLIST: &[&str] = &[
     "segment.io",
     "sentry.io",
@@ -17,7 +18,16 @@ const DEFAULT_DENY_DOMAINS: &[&str] = &[
 ];
 
 fn provider_network_policy_path(root: &Path) -> PathBuf {
-    root.join(PROVIDER_NETWORK_POLICY_REL)
+    let canonical = root.join(PROVIDER_NETWORK_POLICY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(LEGACY_PROVIDER_NETWORK_POLICY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
 }
 
 fn web_tooling_relaxed_test_mode_env_enabled() -> bool {

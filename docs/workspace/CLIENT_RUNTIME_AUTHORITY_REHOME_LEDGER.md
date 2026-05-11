@@ -16,6 +16,7 @@ This wave does not delete client files yet. It creates canonical non-client copi
 | `client/runtime/config/batch_query_policy.json` | `core/layer0/ops/config/batch_query_policy.json` | Core ops | loader prefers canonical | Batch query primitive execution already lives in Core; the Core loader now prefers this policy and falls back to the client mirror only for compatibility. |
 | `client/runtime/config/web_conduit_policy.json` | `core/layer0/ops/config/web_conduit_policy.json` | Core ops | loader prefers canonical | Web conduit mechanics and gateway-like fetch behavior belong with Core ops authority; env override remains supported, then canonical Core policy, then legacy mirror. |
 | `client/runtime/config/research_plane_policy.json` | `orchestration/config/research_plane_policy.json` | Orchestration | loader prefers canonical | Research strategy/evidence lifecycle belongs to Orchestration; diagnostics now report the path actually loaded. |
+| `client/runtime/config/provider_network_policy.json` | `core/layer0/ops/config/provider_network_policy.json` | Core ops | loader prefers canonical | Provider outbound network policy is Core execution/egress authority; provider runtime and image-tool provider paths now prefer the Core policy and fall back to the client mirror only for compatibility. |
 | Tavily/Jina web retrieval additions | `orchestration/config/web_research_retrieval_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Orchestration + Core Tooling | rehomed | Added after checkpoint `a299d49d6`; moved out of client in commit `4c355921b`. |
 
 ## Loader Flip Wave
@@ -25,6 +26,8 @@ This wave does not delete client files yet. It creates canonical non-client copi
 | `core/layer0/ops/src/batch_query_primitive_parts/010-core_parts/000-part.rs` | `core/layer0/ops/config/batch_query_policy.json` | `client/runtime/config/batch_query_policy.json` | flipped |
 | `core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/020-policy-rel-to-instruction-tail-regex.rs` | `core/layer0/ops/config/batch_query_policy.json` | `client/runtime/config/batch_query_policy.json` | flipped |
 | `core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | `core/layer0/ops/config/web_conduit_policy.json` | `client/runtime/config/web_conduit_policy.json` | flipped |
+| `core/layer0/ops/src/dashboard_provider_runtime_parts/022-provider-adapters_parts/010-const-provider-inference-receipts-rel.rs` | `core/layer0/ops/config/provider_network_policy.json` | `client/runtime/config/provider_network_policy.json` | flipped |
+| `core/layer0/ops/src/web_conduit_parts/091-image-tool-provider-execution.rs` | `core/layer0/ops/config/provider_network_policy.json` | `client/runtime/config/provider_network_policy.json` | flipped |
 | `core/layer0/ops/src/research_plane_parts/010-usage.rs` | `orchestration/config/research_plane_policy.json` | `client/runtime/config/research_plane_policy.json` | flipped |
 | `tests/tooling/scripts/ci/web_retrieval_reliability_closure_guard.ts` | `core/layer0/ops/config/web_conduit_policy.json` | none needed for proof guard | flipped |
 | `tests/tooling/scripts/ci/shell_authority_config_guard.ts` | mirror declarations for batch query, web conduit, and research plane policies | branch-diff check rejects new authority-shaped client config JSON unless explicitly mirror-marked | guarded |
