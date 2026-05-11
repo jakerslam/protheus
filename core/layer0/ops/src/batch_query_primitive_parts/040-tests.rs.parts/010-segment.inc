@@ -179,7 +179,7 @@ mod tests {
         );
         assert_eq!(
             query_timeout(&json!({"batch_query":{"query_timeout_ms":999999}})).as_millis() as u64,
-            20_000
+            60_000
         );
     }
 

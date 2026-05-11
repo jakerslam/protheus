@@ -125,6 +125,9 @@ fn candidate_is_substantive(query: &str, candidate: &Candidate, benchmark_intent
     if contains_web_junk_marker(&snippet) || contains_web_junk_marker(&candidate.title) {
         return false;
     }
+    if looks_like_off_intent_noise_candidate(query, candidate) {
+        return false;
+    }
     if looks_like_domain_list_noise(&snippet) {
         return false;
     }

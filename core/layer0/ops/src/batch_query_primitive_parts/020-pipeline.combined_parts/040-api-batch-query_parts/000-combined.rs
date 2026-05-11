@@ -133,6 +133,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .unwrap_or_else(|| json!([]));
         let search_results = cached.get("search_results").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
         let evidence_pack = cached.get("evidence_pack").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
+        let evidence_coverage = cached.get("evidence_coverage").and_then(Value::as_array).cloned().map(Value::Array).unwrap_or_else(|| json!([]));
+        let retrieval_telemetry = cached
+            .get("retrieval_telemetry")
+            .and_then(Value::as_array)
+            .cloned()
+            .map(Value::Array)
+            .unwrap_or_else(|| json!([]));
         let (provider_results_rows, provider_result_dedup_count) = dedup_provider_results(cached
             .get("provider_results")
             .and_then(Value::as_array)
@@ -229,6 +236,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "latency_ms": started.elapsed().as_millis() as u64,
             "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
             "parallel_retrieval_used": parallel_retrieval_used,
+            "retrieval_telemetry": retrieval_telemetry.clone(),
+            "evidence_coverage": evidence_coverage.clone(),
             "partial_failure_details": [],
             "tool_result_quality": tool_result_quality.clone(),
             "status": status
@@ -267,6 +276,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 "search_scope": search_scope_value.clone()
             },
             "partial_failure_details": partial_failure_details,
+            "retrieval_telemetry": retrieval_telemetry.clone(),
             "tool_result_quality": tool_result_quality,
             "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
             "provider_result_dedup_count": provider_result_dedup_count,
@@ -277,8 +287,18 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
             out["evidence_pack"] = evidence_pack;
         }
+        if evidence_coverage.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
+            out["evidence_coverage"] = evidence_coverage;
+        }
         if provider_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
             out["provider_results"] = provider_results;
+        }
+        if retrieval_telemetry
+            .as_array()
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false)
+        {
+            out["retrieval_telemetry"] = retrieval_telemetry;
         }
         if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
         if let Some(meta) = nexus_connection {
@@ -291,6 +311,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let queries = query_plan.queries.clone();
     let rewrite_set = query_plan.rewrite_set.clone();
     let parallel_allowed = source == "web" && query_plan.rewrite_applied && queries.len() > 1;
+    let mut executed_queries = queries.clone();
+    let mut second_pass_queries = Vec::<String>::new();
+    let mut retrieval_telemetry = Vec::<Value>::new();
     let mut candidates = Vec::<Candidate>::new();
     let mut partial_failures = Vec::<String>::new();
     let mut provider_results = Vec::<Value>::new();
@@ -355,6 +378,15 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 let fallback_query = clean_text(&queries[offset + local_idx], 120);
                 match chunk_rows[local_idx].take() {
                     Some((q, (mut rows, issues, artifacts))) => {
+                        if retrieval_telemetry_enabled(&policy) {
+                            retrieval_telemetry.push(retrieval_telemetry_row(
+                                &q,
+                                "initial",
+                                &rows,
+                                &issues,
+                                &artifacts,
+                            ));
+                        }
                         provider_results.extend(artifacts);
                         let transport_only_issue = rows.is_empty()
                             && issues.iter().all(|issue| {
@@ -399,6 +431,15 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 &search_scope,
                 query_timeout,
             );
+            if retrieval_telemetry_enabled(&policy) {
+                retrieval_telemetry.push(retrieval_telemetry_row(
+                    q,
+                    "initial",
+                    &rows,
+                    &issues,
+                    &artifacts,
+                ));
+            }
             provider_results.extend(artifacts);
             let transport_only_issue = rows.is_empty()
                 && issues.iter().all(|issue| {
@@ -423,6 +464,92 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     }
 
+    let first_pass_lacked_usable = !has_usable_synthesis_candidate(&candidates);
+    let mut second_pass_reason = "none";
+    let first_pass_research_facets = infer_research_facets(&query, &executed_queries, &policy, budget);
+    let mut planned_second_pass_queries = Vec::<String>::new();
+    if source == "web"
+        && second_pass_recovery_enabled(&policy)
+        && (first_pass_lacked_usable || provider_results.is_empty())
+    {
+        planned_second_pass_queries =
+            second_pass_recovery_queries(&policy, &query, &executed_queries, budget);
+        if !planned_second_pass_queries.is_empty() {
+            second_pass_reason = if first_pass_lacked_usable {
+                "no_usable_synthesis_candidates"
+            } else {
+                "no_raw_provider_artifacts"
+            };
+        }
+    }
+    if source == "web"
+        && planned_second_pass_queries.is_empty()
+        && coverage_gap_recovery_enabled(&policy)
+        && !matches!(
+            query_plan.query_plan_source,
+            "policy_general_research_recovery" | "policy_broad_current_research_recovery"
+        )
+    {
+        planned_second_pass_queries = coverage_gap_recovery_queries(
+            &policy,
+            &query,
+            &executed_queries,
+            &first_pass_research_facets,
+            &candidates,
+            budget,
+        );
+        if !planned_second_pass_queries.is_empty() {
+            second_pass_reason = "coverage_gap";
+        }
+    }
+    if source == "web" && !planned_second_pass_queries.is_empty() {
+        for recovery_query in planned_second_pass_queries {
+            let (mut rows, issues, artifacts) = retrieve_web_candidates_for_query_with_timeout(
+                root,
+                &recovery_query,
+                &policy,
+                &search_scope,
+                query_timeout,
+            );
+            if retrieval_telemetry_enabled(&policy) {
+                retrieval_telemetry.push(retrieval_telemetry_row(
+                    &recovery_query,
+                    "second_pass_recovery",
+                    &rows,
+                    &issues,
+                    &artifacts,
+                ));
+            }
+            provider_results.extend(artifacts);
+            let transport_only_issue = rows.is_empty()
+                && issues.iter().all(|issue| {
+                    issue.starts_with("query_timeout_ms_")
+                        || issue == "query_worker_spawn_failed"
+                        || issue == "query_worker_disconnected"
+                });
+            if rows.is_empty() && issues.is_empty() {
+                partial_failures.push(format!(
+                    "{}:no_usable_summary",
+                    clean_text(&recovery_query, 120)
+                ));
+            } else {
+                if rows.is_empty() && !transport_only_issue {
+                    partial_failures.push(format!(
+                        "{}:no_usable_summary",
+                        clean_text(&recovery_query, 120)
+                    ));
+                } else {
+                    candidates.append(&mut rows);
+                }
+                partial_failures.extend(issues.into_iter().map(|issue| {
+                    format!("{}:{issue}", clean_text(&recovery_query, 120))
+                }));
+            }
+            executed_queries.push(recovery_query.clone());
+            second_pass_queries.push(recovery_query);
+        }
+    }
+
     let before_dedup = candidates.len();
     let mut seen = HashSet::<String>::new();
     candidates.retain(|row| {
@@ -444,24 +571,40 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
 
     let rerank_query = query_plan.rerank_query.clone();
     let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
-    let ranked = candidates
+    let research_facets = infer_research_facets(&query, &executed_queries, &policy, budget);
+    let facet_min_terms = facet_aware_min_terms(&policy);
+    let ranked_pool = candidates
         .iter()
-        .map(|row| (row.clone(), rerank_score(&rerank_query, row)))
+        .map(|row| {
+            let score = if research_facets.is_empty() {
+                rerank_score(&rerank_query, row)
+            } else {
+                coverage_aware_score(&rerank_query, &research_facets, row, facet_min_terms)
+            };
+            (row.clone(), score)
+        })
         .collect::<Vec<_>>();
-    let ranked = select_diverse_ranked_candidates(ranked, budget.max_evidence);
-    let retained_ranked = ranked
+    let retained_ranked_pool = ranked_pool
         .iter()
         .filter(|(row, score)| candidate_retention_preview_eligible(&rerank_query, row, *score))
         .cloned()
         .collect::<Vec<_>>();
+    let retained_ranked = select_facet_covered_ranked_candidates(
+        retained_ranked_pool,
+        &research_facets,
+        budget.max_evidence.max(low_confidence_retention_max_items(&policy, budget)),
+        facet_min_terms,
+    );
 
     let min_synthesis_score = minimum_synthesis_score(benchmark_intent);
-    let mut actionable_ranked = ranked
-        .into_iter()
+    let actionable_ranked_pool = ranked_pool
+        .iter()
+        .cloned()
         .filter(|(row, score)| {
             let snippet = clean_text(&row.snippet, 1_200);
             let domain = candidate_domain_hint(row);
             !snippet.is_empty()
+                && !candidate_is_low_confidence_retained(row)
                 && *score >= min_synthesis_score
                 && !looks_like_ack_only(&snippet)
                 && !looks_like_low_signal_search_summary(&snippet)
@@ -473,6 +616,12 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 && !(benchmark_intent && looks_like_comparison_noise_candidate(row))
         })
         .collect::<Vec<_>>();
+    let mut actionable_ranked = select_facet_covered_ranked_candidates(
+        actionable_ranked_pool,
+        &research_facets,
+        budget.max_evidence,
+        facet_min_terms,
+    );
 
     let comparison_entities = if benchmark_intent {
         comparison_entities_from_query(&query)
@@ -499,7 +648,35 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         actionable_ranked.clear();
     }
 
-    let evidence_refs = actionable_ranked
+    let mut evidence_ranked = actionable_ranked.clone();
+    let mut low_confidence_evidence_used = false;
+    if evidence_ranked.is_empty() && low_confidence_retention_enabled(&policy) {
+        let mut low_confidence_ranked = retained_ranked
+            .iter()
+            .filter(|(row, _)| candidate_is_low_confidence_retained(row))
+            .cloned()
+            .collect::<Vec<_>>();
+        if low_confidence_ranked.is_empty() {
+            low_confidence_ranked = ranked_pool
+                .iter()
+                .filter(|(row, _)| candidate_is_low_confidence_retained(row))
+                .cloned()
+                .collect::<Vec<_>>();
+        }
+        low_confidence_ranked = select_facet_covered_ranked_candidates(
+            low_confidence_ranked,
+            &research_facets,
+            low_confidence_retention_max_items(&policy, budget),
+            facet_min_terms,
+        );
+        if !low_confidence_ranked.is_empty() {
+            low_confidence_evidence_used = true;
+            partial_failures.push("low_confidence_raw_evidence_used_after_recovery".to_string());
+            evidence_ranked = low_confidence_ranked;
+        }
+    }
+
+    let evidence_refs = evidence_ranked
         .iter()
         .map(|(row, score)| EvidenceRef {
             source_kind: row.source_kind.clone(),
@@ -509,10 +686,23 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             score: (*score * 100.0).round() / 100.0,
             timestamp: row.timestamp.clone(),
             permissions: row.permissions.clone(),
+            confidence: if candidate_is_low_confidence_retained(row) {
+                "low_confidence_raw".to_string()
+            } else {
+                "usable".to_string()
+            },
+            quality_flags: if candidate_is_low_confidence_retained(row) {
+                vec!["low_confidence_raw".to_string()]
+            } else {
+                candidate_quality_flags(&rerank_query, row, *score)
+            },
+            coverage_facets: candidate_coverage_facets(&research_facets, row, facet_min_terms),
         })
         .collect::<Vec<_>>();
     let evidence_pack =
-        evidence_pack_from_ranked_candidates(&policy, &actionable_ranked, budget.max_evidence);
+        evidence_pack_from_ranked_candidates(&policy, &evidence_ranked, budget.max_evidence);
+    let evidence_coverage =
+        evidence_coverage_from_ranked_candidates(&research_facets, &evidence_ranked, facet_min_terms);
 
     let hard_partial_failures = partial_failures
         .iter()
@@ -521,6 +711,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         .collect::<Vec<_>>();
     let status = if evidence_refs.is_empty() {
         "no_results"
+    } else if low_confidence_evidence_used {
+        "low_signal"
     } else if hard_partial_failures.is_empty() {
         "ok"
     } else {
@@ -543,7 +735,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     } else {
         let mut synthesized_insights = Vec::<String>::new();
         let mut seen_domains = HashSet::<String>::new();
-        for (candidate, _) in &actionable_ranked {
+        for (candidate, _) in &evidence_ranked {
             let snippet_raw = if benchmark_intent {
                 extract_metric_focused_fragment(&candidate.snippet)
             } else {
@@ -605,7 +797,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
         if is_framework_catalog_intent(&query) {
             let fallback_insights =
-                framework_catalog_fallback_insights(&actionable_ranked, budget.max_evidence);
+                framework_catalog_fallback_insights(&evidence_ranked, budget.max_evidence);
             let synthesized_joined = synthesized_insights.join(" ");
             let fallback_joined = fallback_insights.join(" ");
             if framework_name_hits(&synthesized_joined) < 2
@@ -630,7 +822,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         } else {
             let comparison_intent = comparison_entities.len() >= 2;
             let prefix = if source == "web" {
-                if comparison_intent {
+                if low_confidence_evidence_used {
+                    "Low-confidence web retrieval:"
+                } else if comparison_intent {
                     "Comparison findings:"
                 } else if benchmark_intent {
                     "Web benchmark synthesis:"
@@ -650,10 +844,10 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             )
         }
     };
-    let tool_result_quality = web_tool_quality_report(&query, status, before_dedup, evidence_refs.len(), &partial_failures, &hard_partial_failures, &actionable_ranked);
+    let tool_result_quality = web_tool_quality_report(&query, status, before_dedup, evidence_refs.len(), &partial_failures, &hard_partial_failures, &evidence_ranked);
 
     let provider_snapshot = json!({
-        "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": queries, "search_scope": search_scope_value.clone()})),
+        "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": executed_queries, "search_scope": search_scope_value.clone()})),
         "source": source,
         "adapter_version": "web_conduit_v1",
         "disposable": true
@@ -668,7 +862,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "query_timeout_ms": query_timeout.as_millis() as u64,
         "parallel_window": parallel_window,
         "rewrite_set": rewrite_set,
-        "query_plan": queries,
+        "query_plan": executed_queries,
+        "submitted_query_plan": queries,
+        "second_pass_recovery": {
+            "enabled": second_pass_recovery_enabled(&policy),
+            "used": !second_pass_queries.is_empty(),
+            "reason": second_pass_reason,
+            "queries": second_pass_queries
+        },
         "query_plan_source": query_plan.query_plan_source,
         "query_contract": {
             "authority": "agent_submitted",
@@ -691,6 +892,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "latency_ms": started.elapsed().as_millis() as u64,
         "token_usage": {"summary_tokens_estimate": summary.split_whitespace().count()},
         "parallel_retrieval_used": parallel_allowed,
+        "retrieval_telemetry": retrieval_telemetry,
+        "evidence_coverage": evidence_coverage.clone(),
         "partial_failure_details": hard_partial_failures,
         "tool_result_quality": tool_result_quality.clone(),
         "status": status
@@ -714,7 +917,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "query_timeout_ms": query_timeout.as_millis() as u64,
         "parallel_window": parallel_window,
         "rewrite_set": rewrite_set.clone(),
-        "query_plan": queries.clone(),
+        "query_plan": executed_queries.clone(),
+        "submitted_query_plan": queries.clone(),
+        "second_pass_recovery": {
+            "enabled": second_pass_recovery_enabled(&policy),
+            "used": !second_pass_queries.is_empty(),
+            "reason": second_pass_reason,
+            "queries": second_pass_queries.clone()
+        },
         "query_plan_source": query_plan.query_plan_source,
         "query_contract": {
             "authority": "agent_submitted",
@@ -724,6 +934,8 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "search_scope": search_scope_value.clone()
         },
         "partial_failure_details": hard_partial_failures.clone(),
+        "retrieval_telemetry": retrieval_telemetry.clone(),
+        "evidence_coverage": evidence_coverage.clone(),
         "tool_result_quality": tool_result_quality.clone(),
         "provider_result_count": provider_results.len(),
         "provider_result_dedup_count": provider_result_dedup_count,
@@ -733,6 +945,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     if comparison_guard_search_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) { out["search_results"] = comparison_guard_search_results.clone(); }
     if evidence_pack.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
         out["evidence_pack"] = evidence_pack.clone();
+    }
+    if evidence_coverage.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
+        out["evidence_coverage"] = evidence_coverage.clone();
     }
     if !provider_results.is_empty() {
         out["provider_results"] = Value::Array(provider_results.clone());
@@ -745,13 +960,22 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "summary": summary,
             "evidence_refs": evidence_refs,
             "evidence_pack": evidence_pack,
+            "evidence_coverage": evidence_coverage,
             "search_results": comparison_guard_search_results,
             "provider_results": provider_results,
             "rewrite_set": rewrite_set,
-            "query_plan": queries,
+            "query_plan": executed_queries,
+            "submitted_query_plan": queries,
+            "second_pass_recovery": {
+                "enabled": second_pass_recovery_enabled(&policy),
+                "used": !second_pass_queries.is_empty(),
+                "reason": second_pass_reason,
+                "queries": second_pass_queries
+            },
             "query_plan_source": query_plan.query_plan_source,
             "search_scope": search_scope_value,
             "partial_failure_details": hard_partial_failures,
+            "retrieval_telemetry": retrieval_telemetry,
             "tool_result_quality": tool_result_quality,
             "parallel_retrieval_used": parallel_allowed
         }),

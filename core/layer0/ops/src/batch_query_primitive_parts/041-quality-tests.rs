@@ -39,6 +39,55 @@ mod quality_tests {
         api_batch_query(root, request)
     }
 
+    fn write_test_batch_policy(root: &Path, second_pass_enabled: bool) {
+        write_json_atomic(
+            &root.join(POLICY_REL),
+            &json!({
+                "version": "test",
+                "batch_query": {
+                    "enabled_sources": ["web"],
+                    "allow_large": false,
+                    "max_parallel_subqueries": 2,
+                    "query_timeout_ms": 1000,
+                    "cache": {"mode": "disabled"},
+                    "page_extraction": {"enabled": false},
+                    "structured_results": {"enabled": true, "max_rows_per_stage": 4},
+                    "evidence_pack": {"enabled": true, "max_items": 4, "max_snippet_words": 48},
+                    "coverage_aware_evidence": {
+                        "enabled": true,
+                        "max_facets": 6,
+                        "min_facet_terms": 2,
+                        "record_coverage": true
+                    },
+                    "retrieval_telemetry": {"enabled": true},
+                    "result_retention": {
+                        "enabled": true,
+                        "retain_low_confidence_raw_results": true,
+                        "max_low_confidence_items": 4
+                    },
+                    "second_pass_recovery": {
+                        "enabled": second_pass_enabled,
+                        "max_queries": 1,
+                        "templates": ["{query} source-backed evidence"]
+                    },
+                    "coverage_gap_recovery": {
+                        "enabled": second_pass_enabled,
+                        "max_queries": 2,
+                        "min_usable_evidence": 2,
+                        "min_covered_facets": 3,
+                        "min_covered_facet_ratio": 1.0,
+                        "templates": ["{facet} source-backed evidence"]
+                    },
+                    "quality_gate": {
+                        "enabled": true,
+                        "provider_recovery": {"enabled": false}
+                    }
+                }
+            }),
+        )
+        .expect("write policy");
+    }
+
     fn run_query(root: &Path, query: &str, aperture: &str) -> Value {
         run_request(
             root,
@@ -1167,5 +1216,335 @@ mod quality_tests {
         let lowered = summary_lowered(&out);
         assert!(lowered.contains("source-backed snippets"), "{lowered}");
         assert!(!lowered.contains("text compare"), "{lowered}");
+    }
+
+    #[test]
+    fn second_pass_recovery_records_queries_and_promotes_usable_evidence() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), true);
+        let query = "ambiguous research target";
+        let recovery_query = "ambiguous research target source-backed evidence";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Garden irrigation guide with seasonal watering tips and soil moisture reminders.",
+                    "requested_url": "https://example.org/garden-irrigation",
+                    "status_code": 200
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": false,
+                    "provider": "bing_rss",
+                    "error": "bing_rss_search_failed"
+                },
+                recovery_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Ambiguous research target evidence shows source-backed recovery queries can promote usable synthesis evidence after a weak first pass.",
+                    "requested_url": "https://example.org/ambiguous-research-target-evidence",
+                    "status_code": 200
+                }
+            }),
+            || run_query(tmp.path(), query, "medium"),
+        );
+        assert_ne!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.pointer("/second_pass_recovery/used").and_then(Value::as_bool),
+            Some(true),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/second_pass_recovery/queries")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| row.as_str() == Some(recovery_query)))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("retrieval_telemetry")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("phase").and_then(Value::as_str)
+                            == Some("second_pass_recovery")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("confidence").and_then(Value::as_str) == Some("usable")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn low_confidence_raw_rows_are_retained_without_becoming_usable_evidence() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), false);
+        let query = "narrow research target";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Garden irrigation guide with seasonal watering tips and soil moisture reminders.",
+                    "requested_url": "https://example.org/garden-irrigation",
+                    "status_code": 200
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": false,
+                    "provider": "bing_rss",
+                    "error": "bing_rss_search_failed"
+                }
+            }),
+            || run_query(tmp.path(), query, "medium"),
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("low_signal"));
+        assert!(
+            out.get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("confidence").and_then(Value::as_str)
+                            == Some("low_confidence_raw")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/tool_result_quality/flags")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| row.as_str() == Some("low_confidence_raw_evidence")))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn evidence_promotion_preserves_user_research_facets() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), false);
+        let query =
+            "Research a public policy question and cover cost, safety risks, and adoption signals.";
+        let cost_query = "public policy question cost evidence";
+        let safety_query = "public policy question safety risks evidence";
+        let adoption_query = "public policy question adoption signals evidence";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Public policy question overview with general background and context.",
+                    "requested_url": "https://example.org/policy-overview",
+                    "status_code": 200
+                },
+                cost_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Cost evidence for the public policy question describes budget impact, implementation cost, and fiscal tradeoffs.",
+                    "requested_url": "https://example.org/policy-cost",
+                    "status_code": 200
+                },
+                safety_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Safety risks evidence for the public policy question identifies operational hazards, failure modes, and safeguards.",
+                    "requested_url": "https://example.org/policy-safety",
+                    "status_code": 200
+                },
+                adoption_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Adoption signals evidence for the public policy question reports pilot uptake, stakeholder participation, and deployment indicators.",
+                    "requested_url": "https://example.org/policy-adoption",
+                    "status_code": 200
+                }
+            }),
+            || {
+                run_request(
+                    tmp.path(),
+                    &json!({
+                        "source": "web",
+                        "query": query,
+                        "aperture": "medium",
+                        "queries": [query, cost_query, safety_query, adoption_query]
+                    }),
+                )
+            },
+        );
+        let coverage = out
+            .get("evidence_coverage")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            coverage
+                .iter()
+                .filter(|row| row.get("status").and_then(Value::as_str) == Some("covered"))
+                .count()
+                >= 3,
+            "{out:#?}"
+        );
+        let covered_refs = out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .map(|rows| {
+                rows.iter()
+                    .filter(|row| {
+                        row.get("coverage_facets")
+                            .and_then(Value::as_array)
+                            .map(|facets| !facets.is_empty())
+                            .unwrap_or(false)
+                    })
+                    .count()
+            })
+            .unwrap_or(0);
+        assert!(covered_refs >= 3, "{out:#?}");
+    }
+
+    #[test]
+    fn coverage_gap_recovery_runs_when_candidate_volume_misses_facets() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), true);
+        let query =
+            "Research a public policy question and cover cost evidence and safety risks evidence.";
+        let cost_query = "public policy question cost evidence";
+        let safety_query = "public policy question safety risks evidence";
+        let safety_recovery_query = "public policy question safety risks evidence source-backed evidence";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Public policy question cost evidence describes implementation cost, budget impact, and fiscal tradeoffs.",
+                    "requested_url": "https://example.org/policy-cost",
+                    "status_code": 200
+                },
+                cost_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Public policy question cost evidence reports budget impact and implementation cost details.",
+                    "requested_url": "https://example.org/policy-cost-detail",
+                    "status_code": 200
+                },
+                safety_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Garden irrigation guide with seasonal watering tips and soil moisture reminders.",
+                    "requested_url": "https://example.org/garden-irrigation",
+                    "status_code": 200
+                },
+                safety_recovery_query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Public policy question safety risks evidence identifies operational hazards, failure modes, and safeguards.",
+                    "requested_url": "https://example.org/policy-safety",
+                    "status_code": 200
+                }
+            }),
+            || {
+                run_request(
+                    tmp.path(),
+                    &json!({
+                        "source": "web",
+                        "query": query,
+                        "aperture": "medium",
+                        "queries": [cost_query, safety_query]
+                    }),
+                )
+            },
+        );
+        assert_eq!(
+            out.pointer("/second_pass_recovery/used").and_then(Value::as_bool),
+            Some(true),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/second_pass_recovery/reason").and_then(Value::as_str),
+            Some("coverage_gap"),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/second_pass_recovery/queries")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| row.as_str() == Some(safety_recovery_query)))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("locator")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .contains("policy-safety")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn off_intent_lexical_noise_is_rejected_before_fallback_evidence() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), false);
+        let query = "agentic framework evidence";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "provider": "duckduckgo",
+                    "summary": "Framework definition and meaning from an online dictionary with word usage examples.",
+                    "requested_url": "https://dictionary.example/framework",
+                    "status_code": 200
+                },
+                format!("bing_rss::{query}"): {
+                    "ok": true,
+                    "provider": "bing_rss",
+                    "summary": "Agentic framework evidence compares production reliability, adoption signals, and implementation tradeoffs.",
+                    "requested_url": "https://example.org/agentic-framework-evidence",
+                    "status_code": 200
+                }
+            }),
+            || run_query(tmp.path(), query, "medium"),
+        );
+        let evidence_refs = out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            evidence_refs.iter().any(|row| {
+                row.get("locator")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .contains("agentic-framework-evidence")
+                    && row.get("confidence").and_then(Value::as_str) == Some("usable")
+            }),
+            "{out:#?}"
+        );
+        assert!(
+            evidence_refs.iter().all(|row| {
+                !row
+                    .get("locator")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .contains("dictionary")
+            }),
+            "{out:#?}"
+        );
     }
 }

@@ -129,6 +129,50 @@
         "low_junk_signal",
         "novelty_against_retained_evidence"
       ],
+      "raw_result_retention_contract": {
+        "authority": "tool_cd_declares_evidence_confidence_runtime_records_without_domain_routes",
+        "purpose": "retain weak raw provider evidence long enough for diagnostics, recovery planning, and bounded low-evidence synthesis",
+        "confidence_values": [
+          "usable",
+          "low_confidence_raw"
+        ],
+        "telemetry_fields": [
+          "attempted_query",
+          "provider",
+          "provider_raw_count",
+          "provider_filtered_count",
+          "failure_reasons",
+          "result_quality"
+        ],
+        "synthesis_boundary": "low_confidence_raw evidence is weaker than usable evidence and retrieval telemetry is not source evidence"
+      },
+      "bounded_second_pass_recovery": {
+        "authority": "tool_cd_declares_recovery_shape_runtime_records_executed_queries",
+        "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass",
+        "non_goals": [
+          "do_not_hide_query_expansion_from_trace",
+          "do_not_bind_to_a_specific_research_domain",
+          "do_not_force_user_visible_answer_format"
+        ]
+      },
+      "coverage_gap_recovery": {
+        "authority": "tool_cd_declares_recovery_shape_runtime_records_executed_queries",
+        "trigger": "candidate_volume_exists_but_usable_evidence_or_facet_coverage_is_low",
+        "purpose": "recover from high-volume low-yield retrieval by targeting uncovered research facets instead of asking the user to narrow",
+        "sufficiency_target": "prefer at least three usable evidence refs and roughly three quarters of requested facets before treating high-volume retrieval as sufficient",
+        "query_shape_examples": [
+          "{facet} source-backed evidence",
+          "{facet} primary or official source",
+          "{facet} independent analysis evidence",
+          "{facet} examples reports data"
+        ],
+        "non_goals": [
+          "do_not_hide_query_expansion_from_trace",
+          "do_not_bind_to_a_specific_research_domain",
+          "do_not_force_user_visible_answer_format",
+          "do_not_treat_high_candidate_count_as_evidence_sufficiency"
+        ]
+      },
       "candidate_enrichment_order": [
         "search_provider_rows",
         "prefetch_link_discovery",
@@ -224,6 +268,26 @@
           "quality_flags",
           "gap_reason"
         ],
+        "coverage_aware_evidence_promotion": {
+          "purpose": "promote evidence across the facets implied by the user request and submitted query pack before truncating to the final evidence window",
+          "inputs": [
+            "user_research_objective",
+            "submitted_query_pack",
+            "candidate_scores",
+            "candidate_source_domains",
+            "candidate_quality_flags"
+          ],
+          "outputs": [
+            "evidence_refs.coverage_facets",
+            "evidence_coverage"
+          ],
+          "rule": "facet-specific evidence should not be discarded solely because it ranks lower than globally broad evidence when it covers a requested research dimension",
+          "non_goals": [
+            "do_not_hardcode_research_domains",
+            "do_not_force_final_answer_shape",
+            "do_not_upgrade_low_confidence_raw_to_usable_evidence"
+          ]
+        },
         "non_goals": [
           "do_not_hardcode_topic_candidates",
           "do_not_force_final_answer_shape",

@@ -48,6 +48,103 @@ fn looks_like_comparison_noise_candidate(candidate: &Candidate) -> bool {
     low_quality_domain || noisy_compare_form
 }
 
+fn query_asks_for_word_meaning(query: &str) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    [
+        "definition of",
+        "meaning of",
+        "define ",
+        "dictionary",
+        "what does",
+        "what is the meaning",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn query_asks_for_shopping_or_products(query: &str) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    [
+        "buy ",
+        "price",
+        "pricing",
+        "deal",
+        "discount",
+        "where can i buy",
+        "shopping",
+        "retailer",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn query_asks_for_music_or_lyrics(query: &str) -> bool {
+    let lowered = clean_text(query, 600).to_ascii_lowercase();
+    [
+        "lyrics",
+        "song",
+        "album",
+        "music",
+        "artist",
+        "track",
+        "chords",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn looks_like_shopping_candidate(candidate: &Candidate) -> bool {
+    let lowered = clean_text(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        2_400,
+    )
+    .to_ascii_lowercase();
+    [
+        "bestbuy.",
+        "best buy",
+        "add to cart",
+        "shopping cart",
+        "free shipping",
+        "coupon",
+        "store pickup",
+        "shop now",
+        "product reviews",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn looks_like_lyrics_candidate(candidate: &Candidate) -> bool {
+    let lowered = clean_text(
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
+        2_400,
+    )
+    .to_ascii_lowercase();
+    [
+        "lyrics",
+        "song lyrics",
+        "genius.com",
+        "azlyrics",
+        "musixmatch",
+        "chords",
+        "official audio",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn looks_like_off_intent_noise_candidate(query: &str, candidate: &Candidate) -> bool {
+    (looks_like_definition_candidate(candidate) && !query_asks_for_word_meaning(query))
+        || (looks_like_shopping_candidate(candidate) && !query_asks_for_shopping_or_products(query))
+        || (looks_like_lyrics_candidate(candidate) && !query_asks_for_music_or_lyrics(query))
+}
+
 fn is_relevance_stop_token(token: &str) -> bool {
     matches!(
         token,
@@ -98,6 +195,15 @@ fn is_relevance_stop_token(token: &str) -> bool {
             | "report"
             | "web"
             | "top"
+            | "best"
+            | "better"
+            | "strongest"
+            | "stronger"
+            | "weakest"
+            | "worst"
+            | "right"
+            | "now"
+            | "useful"
             | "benchmark"
             | "benchmarks"
             | "metric"

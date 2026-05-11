@@ -77,9 +77,12 @@
       "cross_comparison",
       "coverage_gap_recovery"
     ],
-    "before_synthesis": "each major requested lane should have usable evidence, weak evidence, or an explicit coverage gap",
+    "before_synthesis": "each major requested lane should have usable evidence, weak evidence, or an explicit coverage gap; use evidence_coverage when present to understand facet coverage across the user's actual research objective",
     "two_phase_retrieval": "a broad discovery query may start research, but broad, comparative, current, evaluative, multi-entity, or multi-aspect research should continue through targeted follow-up based on discovery results and missing lanes before synthesis unless sufficiency is already met",
-    "low_evidence_finalization": "when retrieval remains weak after bounded recovery, produce a useful bounded synthesis that separates evidence, uncertainty, coverage gaps, and decision value without forcing a format",
+    "coverage_gap_recovery": "many raw candidates are not enough by themselves; when usable evidence or facet coverage remains thin, use bounded recovery lanes for uncovered facets and record the gap reasons that remain",
+    "facet_aware_evidence": "evidence_refs may include coverage_facets and the tool result may include evidence_coverage; synthesize from covered facets, use weak facets only with uncertainty, and call out missing facets as coverage gaps without forcing any response format",
+    "low_evidence_finalization": "when retrieval remains weak after bounded recovery, use tool_result_quality, provider_results, retrieval_telemetry, evidence_coverage, and evidence_refs to distinguish usable evidence from weak or irrelevant raw evidence; produce a useful bounded synthesis that separates evidence, uncertainty, coverage gaps, and decision value without forcing a format",
+    "weak_evidence_handling": "low_confidence_raw evidence may inform a bounded answer or coverage-gap explanation, but it must not be presented as equally source-backed as usable evidence; retrieval telemetry is diagnostic context, not a cited source",
     "non_goals": [
       "do_not_hardcode_research_domains",
       "do_not_force_output_tables_or_lists",

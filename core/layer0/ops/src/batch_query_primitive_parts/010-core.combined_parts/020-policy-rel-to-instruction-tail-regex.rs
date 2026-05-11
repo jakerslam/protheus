@@ -21,6 +21,9 @@ struct EvidenceRef {
     score: f64,
     timestamp: Option<String>,
     permissions: Option<String>,
+    confidence: String,
+    quality_flags: Vec<String>,
+    coverage_facets: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -105,6 +108,25 @@ fn default_policy() -> Value {
                 "enabled": true,
                 "max_items": 6,
                 "max_snippet_words": 72
+            },
+            "coverage_aware_evidence": {
+                "enabled": true,
+                "max_facets": 8,
+                "min_facet_terms": 2,
+                "record_coverage": true
+            },
+            "coverage_gap_recovery": {
+                "enabled": true,
+                "max_queries": 4,
+                "min_usable_evidence": 3,
+                "min_covered_facets": 3,
+                "min_covered_facet_ratio": 0.75,
+                "templates": [
+                    "{facet} source-backed evidence",
+                    "{facet} primary or official source",
+                    "{facet} independent analysis evidence",
+                    "{facet} examples reports data"
+                ]
             },
             "quality_gate": {
                 "enabled": true,
@@ -295,7 +317,7 @@ fn query_timeout(policy: &Value) -> Duration {
         .pointer("/batch_query/query_timeout_ms")
         .and_then(Value::as_u64)
         .unwrap_or(5000)
-        .clamp(500, 20_000);
+        .clamp(500, 60_000);
     Duration::from_millis(timeout_ms)
 }
 

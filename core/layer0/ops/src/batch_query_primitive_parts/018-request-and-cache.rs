@@ -1016,6 +1016,234 @@ fn provider_recovery_providers(policy: &Value, query: &str) -> Vec<String> {
     providers
 }
 
+fn low_confidence_retention_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/result_retention/retain_low_confidence_raw_results")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn low_confidence_retention_max_items(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/result_retention/max_low_confidence_items")
+        .and_then(Value::as_u64)
+        .unwrap_or(budget.max_evidence as u64)
+        .clamp(1, budget.max_candidates.max(1) as u64) as usize
+}
+
+fn facet_aware_evidence_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/coverage_aware_evidence/enabled")
+        .and_then(Value::as_bool)
+        .or_else(|| {
+            policy
+                .pointer("/batch_query/coverage_aware_query_planning/coverage_buckets/enabled")
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false)
+}
+
+fn facet_aware_max_facets(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/coverage_aware_evidence/max_facets")
+        .or_else(|| policy.pointer("/batch_query/coverage_aware_query_planning/budget/default_max_lanes"))
+        .and_then(Value::as_u64)
+        .unwrap_or(8)
+        .clamp(1, budget.max_candidates.clamp(1, 16) as u64) as usize
+}
+
+fn facet_aware_min_terms(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/coverage_aware_evidence/min_facet_terms")
+        .and_then(Value::as_u64)
+        .unwrap_or(2)
+        .clamp(1, 6) as usize
+}
+
+fn second_pass_recovery_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/second_pass_recovery/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn second_pass_recovery_max_queries(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/second_pass_recovery/max_queries")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(1, budget.max_candidates.clamp(1, 8) as u64) as usize
+}
+
+fn second_pass_recovery_templates(policy: &Value) -> Vec<String> {
+    policy
+        .pointer("/batch_query/second_pass_recovery/templates")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 240))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                "{query} source-backed evidence".to_string(),
+                "{query} primary or official source".to_string(),
+                "{query} independent evaluation or source-backed analysis".to_string(),
+            ]
+        })
+}
+
+fn coverage_gap_recovery_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/coverage_gap_recovery/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn coverage_gap_recovery_min_usable_evidence(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/coverage_gap_recovery/min_usable_evidence")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(1, budget.max_evidence.max(1) as u64) as usize
+}
+
+fn coverage_gap_recovery_min_covered_facets(policy: &Value, facet_count: usize, budget: ApertureBudget) -> usize {
+    if facet_count == 0 {
+        return 0;
+    }
+    let configured_ratio = policy
+        .pointer("/batch_query/coverage_gap_recovery/min_covered_facet_ratio")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.5)
+        .clamp(0.0, 1.0);
+    let ratio_target = ((facet_count as f64) * configured_ratio).ceil() as usize;
+    let configured_min = policy
+        .pointer("/batch_query/coverage_gap_recovery/min_covered_facets")
+        .and_then(Value::as_u64)
+        .unwrap_or(2) as usize;
+    ratio_target
+        .max(configured_min)
+        .min(facet_count)
+        .min(budget.max_evidence.max(1))
+}
+
+fn coverage_gap_recovery_max_queries(policy: &Value, budget: ApertureBudget) -> usize {
+    policy
+        .pointer("/batch_query/coverage_gap_recovery/max_queries")
+        .and_then(Value::as_u64)
+        .unwrap_or_else(|| second_pass_recovery_max_queries(policy, budget) as u64)
+        .clamp(1, budget.max_candidates.clamp(1, 8) as u64) as usize
+}
+
+fn coverage_gap_recovery_templates(policy: &Value) -> Vec<String> {
+    policy
+        .pointer("/batch_query/coverage_gap_recovery/templates")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 320))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .filter(|rows| !rows.is_empty())
+        .unwrap_or_else(|| {
+            vec![
+                "{facet} source-backed evidence".to_string(),
+                "{facet} primary or official source".to_string(),
+                "{facet} independent analysis evidence".to_string(),
+                "{facet} examples reports data".to_string(),
+            ]
+        })
+}
+
+fn second_pass_recovery_queries(
+    policy: &Value,
+    query: &str,
+    existing_queries: &[String],
+    budget: ApertureBudget,
+) -> Vec<String> {
+    if !second_pass_recovery_enabled(policy) {
+        return Vec::new();
+    }
+    let base = clean_text(query, 600);
+    if base.is_empty() {
+        return Vec::new();
+    }
+    let mut seen = existing_queries
+        .iter()
+        .map(|row| clean_text(row, 600).to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    let mut out = Vec::<String>::new();
+    for template in second_pass_recovery_templates(policy) {
+        let candidate = clean_text(&template.replace("{query}", &base), 600);
+        if candidate.is_empty() {
+            continue;
+        }
+        if seen.insert(candidate.to_ascii_lowercase()) {
+            out.push(candidate);
+        }
+        if out.len() >= second_pass_recovery_max_queries(policy, budget) {
+            break;
+        }
+    }
+    out
+}
+
+fn retrieval_telemetry_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/retrieval_telemetry/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn provider_artifact_count_field(artifact: &Value, key: &str) -> usize {
+    artifact.get(key).and_then(Value::as_u64).unwrap_or(0) as usize
+}
+
+fn retrieval_telemetry_row(
+    query: &str,
+    phase: &str,
+    rows: &[Candidate],
+    issues: &[String],
+    artifacts: &[Value],
+) -> Value {
+    let provider_raw_rows = artifacts
+        .iter()
+        .map(|artifact| {
+            provider_artifact_count_field(artifact, "provider_raw_count").max(
+                provider_artifact_count_field(artifact, "provider_candidate_count")
+                    .max(provider_artifact_count_field(artifact, "synthesis_candidate_count")),
+            )
+        })
+        .sum::<usize>();
+    let synthesis_rows = rows
+        .iter()
+        .filter(|row| !candidate_is_low_confidence_retained(row))
+        .count();
+    let low_confidence_rows = rows.len().saturating_sub(synthesis_rows);
+    let failure_reasons = issues
+        .iter()
+        .map(|issue| clean_text(issue, 180))
+        .filter(|issue| !issue.is_empty())
+        .take(12)
+        .collect::<Vec<_>>();
+    json!({
+        "query": clean_text(query, 600),
+        "phase": clean_text(phase, 80),
+        "provider_count": artifacts.len(),
+        "provider_raw_rows": provider_raw_rows,
+        "candidate_rows": rows.len(),
+        "synthesis_candidate_rows": synthesis_rows,
+        "low_confidence_raw_rows": low_confidence_rows,
+        "filtered_or_rejected_rows": issues.len(),
+        "failure_reasons": failure_reasons
+    })
+}
+
 fn resolve_query_plan(
     policy: &Value,
     request: &Value,

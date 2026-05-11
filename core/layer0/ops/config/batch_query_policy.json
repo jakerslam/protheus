@@ -7,7 +7,7 @@
     ],
     "allow_large": false,
     "max_parallel_subqueries": 4,
-    "query_timeout_ms": 20000,
+    "query_timeout_ms": 30000,
     "cache": {
       "mode": "enabled",
       "ttl_success_seconds": 1800,
@@ -23,6 +23,74 @@
         ],
         "freshness_check": "conditional_headers_or_head_fingerprint_when_available"
       }
+    },
+    "retrieval_telemetry": {
+      "enabled": true,
+      "include_per_query": true,
+      "record_attempted_queries": true,
+      "record_provider_raw_rows": true,
+      "record_filtered_rows": true,
+      "record_failure_reasons": true,
+      "chat_visible": false
+    },
+    "result_retention": {
+      "enabled": true,
+      "retain_low_confidence_raw_results": true,
+      "max_low_confidence_items": 6,
+      "confidence_label": "low_confidence_raw",
+      "record_rejection_reasons": true,
+      "chat_visible_as_source_backing": false
+    },
+    "coverage_aware_evidence": {
+      "enabled": true,
+      "purpose": "promote retrieved evidence across the research facets implied by the user request and submitted query pack instead of keeping only the globally highest-ranked rows",
+      "max_facets": 8,
+      "min_facet_terms": 2,
+      "record_coverage": true,
+      "authority": "generic_research_facet_coverage_no_domain_specific_lanes",
+      "non_goals": [
+        "do_not_hardcode_research_domains",
+        "do_not_force_user_visible_output_format",
+        "do_not_treat_weak_raw_rows_as_strong_source_backing"
+      ]
+    },
+    "second_pass_recovery": {
+      "enabled": true,
+      "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass",
+      "max_queries": 4,
+      "record_recovery_queries": true,
+      "templates": [
+        "{query} source-backed evidence",
+        "{query} primary or official source",
+        "{query} independent evaluation or source-backed analysis",
+        "{query} examples evidence primary reports"
+      ],
+      "non_goals": [
+        "do_not_hide_query_expansion_from_trace",
+        "do_not_hardcode_domains_or_topic_candidates",
+        "do_not_force_user_visible_output_format"
+      ]
+    },
+    "coverage_gap_recovery": {
+      "enabled": true,
+      "trigger": "candidate_volume_exists_but_usable_evidence_or_facet_coverage_is_low",
+      "max_queries": 4,
+      "min_usable_evidence": 3,
+      "min_covered_facets": 3,
+      "min_covered_facet_ratio": 0.75,
+      "record_recovery_queries": true,
+      "templates": [
+        "{facet} source-backed evidence",
+        "{facet} primary or official source",
+        "{facet} independent analysis evidence",
+        "{facet} examples reports data"
+      ],
+      "non_goals": [
+        "do_not_hide_query_expansion_from_trace",
+        "do_not_hardcode_domains_or_topic_candidates",
+        "do_not_force_user_visible_output_format",
+        "do_not_treat_high_candidate_count_as_evidence_sufficiency"
+      ]
     },
     "coverage_aware_query_planning": {
       "enabled": true,
@@ -695,11 +763,16 @@
       "enabled": true,
       "provider_recovery": {
         "enabled": true,
-        "max_providers": 2,
+        "max_providers": 4,
         "providers": [
+          "duckduckgo_lite",
+          "bing_rss",
+          "serperdev",
           "gdelt_doc"
         ],
         "current_intent_providers": [
+          "bing_rss",
+          "serperdev",
           "gdelt_doc"
         ]
       }

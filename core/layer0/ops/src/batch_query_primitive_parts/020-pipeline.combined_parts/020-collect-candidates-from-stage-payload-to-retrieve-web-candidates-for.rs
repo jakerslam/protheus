@@ -10,6 +10,7 @@ fn collect_candidates_from_stage_payload(
 ) -> (Vec<Candidate>, Vec<String>, Option<Value>) {
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
+    let mut retained_low_confidence = 0usize;
     let low_relevance_issue = |candidate: &Candidate, suffix: &str| {
         if looks_like_competitive_programming_dump(&format!(
             "{} {} {}",
@@ -28,6 +29,14 @@ fn collect_candidates_from_stage_payload(
         ) {
             if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
                 candidates.push(candidate);
+            } else if let Some(candidate) =
+                retain_low_confidence_candidate(policy, &candidate, &mut retained_low_confidence)
+            {
+                issues.push(low_relevance_issue(
+                    &candidate,
+                    "candidate_low_relevance_retained_low_confidence",
+                ));
+                candidates.push(candidate);
             } else {
                 issues.push(low_relevance_issue(&candidate, "candidate_low_relevance"));
             }
@@ -41,6 +50,14 @@ fn collect_candidates_from_stage_payload(
     for candidate in rendered_rows {
         if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
             candidates.push(candidate);
+        } else if let Some(candidate) =
+            retain_low_confidence_candidate(policy, &candidate, &mut retained_low_confidence)
+        {
+            issues.push(low_relevance_issue(
+                &candidate,
+                "candidate_low_relevance_retained_low_confidence",
+            ));
+            candidates.push(candidate);
         } else {
             issues.push(low_relevance_issue(&candidate, "candidate_low_relevance"));
         }
@@ -50,6 +67,14 @@ fn collect_candidates_from_stage_payload(
         match candidate_from_search_payload(query, payload) {
             Ok(candidate) => {
                 if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                    candidates.push(candidate);
+                } else if let Some(candidate) =
+                    retain_low_confidence_candidate(policy, &candidate, &mut retained_low_confidence)
+                {
+                    issues.push(low_relevance_issue(
+                        &candidate,
+                        "candidate_low_relevance_retained_low_confidence",
+                    ));
                     candidates.push(candidate);
                 } else {
                     issues.push(low_relevance_issue(&candidate, "candidate_low_relevance"));
@@ -79,7 +104,7 @@ fn collect_candidates_from_stage_payload(
     let should_fetch_links = page_extraction_enabled(policy)
         && page_extraction_max_links_per_stage(policy) > 0
         && page_extraction_max_total_fetches(policy) > fetched_links.len()
-        && (candidates.is_empty()
+        && (!has_usable_synthesis_candidate(&candidates)
             || looks_like_low_signal_search_summary(&summary)
             || candidates
                 .iter()
@@ -120,6 +145,16 @@ fn collect_candidates_from_stage_payload(
                     }
                     if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
                         candidates.push(candidate);
+                    } else if let Some(candidate) = retain_low_confidence_candidate(
+                        policy,
+                        &candidate,
+                        &mut retained_low_confidence,
+                    ) {
+                        issues.push(low_relevance_issue(
+                            &candidate,
+                            "fetch_candidate_low_relevance_retained_low_confidence",
+                        ));
+                        candidates.push(candidate);
                     } else {
                         issues.push(low_relevance_issue(
                             &candidate,
@@ -131,8 +166,73 @@ fn collect_candidates_from_stage_payload(
             }
         }
     }
-    let provider_result = hidden_provider_result_artifact(stage, query, payload, candidates.len(), &issues);
+    let synthesis_candidate_count = candidates
+        .iter()
+        .filter(|candidate| !candidate_is_low_confidence_retained(candidate))
+        .count();
+    let provider_result =
+        hidden_provider_result_artifact(stage, query, payload, synthesis_candidate_count, &issues);
     (candidates, issues, provider_result)
+}
+
+fn candidate_is_low_confidence_retained(candidate: &Candidate) -> bool {
+    candidate
+        .source_kind
+        .to_ascii_lowercase()
+        .contains("low_confidence")
+        || candidate
+            .permissions
+            .as_deref()
+            .unwrap_or("")
+            .to_ascii_lowercase()
+            .contains("low_confidence_raw")
+}
+
+fn retain_low_confidence_candidate(
+    policy: &Value,
+    candidate: &Candidate,
+    retained_count: &mut usize,
+) -> Option<Candidate> {
+    if !low_confidence_retention_enabled(policy) {
+        return None;
+    }
+    let max_retained = policy
+        .pointer("/batch_query/result_retention/max_low_confidence_items")
+        .and_then(Value::as_u64)
+        .unwrap_or(6)
+        .clamp(1, 24) as usize;
+    if *retained_count >= max_retained {
+        return None;
+    }
+    let domain = candidate_domain_hint(candidate);
+    if candidate.locator.is_empty()
+        || is_search_engine_domain(&domain)
+        || looks_like_low_signal_search_summary(&candidate.snippet)
+        || contains_web_junk_marker(&candidate.snippet)
+        || looks_like_ack_only(&candidate.snippet)
+    {
+        return None;
+    }
+    let mut candidate = candidate.clone();
+    if !candidate.source_kind.contains("low_confidence") {
+        candidate.source_kind = format!("{}_low_confidence_raw", candidate.source_kind);
+    }
+    let permissions = candidate.permissions.clone().unwrap_or_default();
+    candidate.permissions = Some(if permissions.is_empty() {
+        "public_web;low_confidence_raw".to_string()
+    } else if permissions.contains("low_confidence_raw") {
+        permissions
+    } else {
+        format!("{permissions};low_confidence_raw")
+    });
+    *retained_count += 1;
+    Some(candidate)
+}
+
+fn has_usable_synthesis_candidate(candidates: &[Candidate]) -> bool {
+    candidates
+        .iter()
+        .any(|candidate| !candidate_is_low_confidence_retained(candidate))
 }
 
 fn hidden_provider_result_quality(
@@ -194,16 +294,8 @@ fn hidden_provider_result_artifact(
         payload.get("requested_url").and_then(Value::as_str).unwrap_or(""),
         2_200,
     );
-    let error = clean_text(payload.get("error").and_then(Value::as_str).unwrap_or(""), 240);
+    let error = hidden_provider_error(payload);
     let links = payload_links_for_fallback(query, payload, 3);
-    if summary.is_empty()
-        && content_preview.is_empty()
-        && locator.is_empty()
-        && error.is_empty()
-        && links.is_empty()
-    {
-        return None;
-    }
     let payload_ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false)
         || payload
             .get("provider_payload_rejected")
@@ -238,6 +330,26 @@ fn hidden_provider_result_artifact(
         "synthesis_candidate_count".to_string(),
         json!(candidate_count),
     );
+    let provider_raw_count = hidden_provider_raw_count(payload, links.len(), &summary, &content_preview, &locator, &error);
+    out.insert(
+        "provider_raw_count".to_string(),
+        json!(provider_raw_count),
+    );
+    out.insert(
+        "provider_filtered_count".to_string(),
+        json!(issues.len()),
+    );
+    if !issues.is_empty() {
+        out.insert(
+            "failure_reasons".to_string(),
+            Value::Array(
+                issues
+                    .iter()
+                    .map(|issue| Value::String(clean_text(issue, 180)))
+                    .collect::<Vec<_>>(),
+            ),
+        );
+    }
     if !status.is_empty() {
         out.insert("status".to_string(), Value::String(status));
     }
@@ -270,6 +382,73 @@ fn hidden_provider_result_artifact(
     Some(Value::Object(out))
 }
 
+fn hidden_provider_error(payload: &Value) -> String {
+    for pointer in [
+        "/error",
+        "/retry/reason",
+        "/policy_decision/reason",
+        "/tool_execution_gate/reason",
+        "/result/error",
+        "/provider_errors/0/error",
+        "/provider_errors/0/reason",
+    ] {
+        let value = clean_text(payload.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 240);
+        if !value.is_empty() {
+            return value;
+        }
+    }
+    String::new()
+}
+
+fn hidden_provider_array_count(value: &Value, depth: usize) -> usize {
+    if depth > 5 {
+        return 0;
+    }
+    match value {
+        Value::Array(rows) => rows.len(),
+        Value::Object(map) => map
+            .iter()
+            .filter(|(key, _)| {
+                matches!(
+                    key.to_ascii_lowercase().as_str(),
+                    "web"
+                        | "news"
+                        | "results"
+                        | "items"
+                        | "organic"
+                        | "documents"
+                        | "data"
+                        | "links"
+                        | "sources"
+                )
+            })
+            .map(|(_, row)| hidden_provider_array_count(row, depth + 1))
+            .sum(),
+        _ => 0,
+    }
+}
+
+fn hidden_provider_raw_count(
+    payload: &Value,
+    fallback_link_count: usize,
+    summary: &str,
+    content_preview: &str,
+    locator: &str,
+    error: &str,
+) -> usize {
+    let structured_count = hidden_provider_array_count(payload, 0);
+    if structured_count > 0 {
+        return structured_count;
+    }
+    if fallback_link_count > 0 {
+        return fallback_link_count;
+    }
+    if !summary.is_empty() || !content_preview.is_empty() || !locator.is_empty() || !error.is_empty() {
+        return 1;
+    }
+    0
+}
+
 fn retrieve_web_candidates_for_query(
     root: &Path,
     query: &str,
@@ -299,7 +478,7 @@ fn retrieve_web_candidates_for_query(
     candidates.extend(primary_candidates);
     issues.extend(primary_issues);
 
-    if candidates.is_empty()
+    if !has_usable_synthesis_candidate(&candidates)
         && issues
             .iter()
             .any(|issue| skip_duckduckgo_fallback_for_error(issue))
@@ -307,7 +486,7 @@ fn retrieve_web_candidates_for_query(
         return (Vec::new(), issues, provider_results);
     }
 
-    if candidates.is_empty() {
+    if !has_usable_synthesis_candidate(&candidates) {
         let bing_payload =
             stage_search_payload(root, Some("bing_rss"), query, Some("bing"), search_scope);
         let (bing_candidates, bing_issues, bing_provider_result) =
@@ -327,7 +506,7 @@ fn retrieve_web_candidates_for_query(
         issues.extend(bing_issues);
     }
 
-    if candidates.is_empty() {
+    if !has_usable_synthesis_candidate(&candidates) {
         let fallback_url = duckduckgo_instant_answer_url(query);
         let fallback_payload =
             if let Some(payload) = fixture_payload_for_stage_query("duckduckgo_instant", query) {
@@ -345,7 +524,19 @@ fn retrieve_web_candidates_for_query(
                     duckduckgo_candidate_count = 1;
                     candidates.push(candidate);
                 } else {
-                    duckduckgo_issues.push("duckduckgo_instant:candidate_low_relevance".to_string());
+                    let mut retained_count = 0usize;
+                    if let Some(candidate) =
+                        retain_low_confidence_candidate(policy, &candidate, &mut retained_count)
+                    {
+                        duckduckgo_issues.push(
+                            "duckduckgo_instant:candidate_low_relevance_retained_low_confidence"
+                                .to_string(),
+                        );
+                        candidates.push(candidate);
+                    } else {
+                        duckduckgo_issues
+                            .push("duckduckgo_instant:candidate_low_relevance".to_string());
+                    }
                 }
             }
             Err(err) => duckduckgo_issues.push(format!("duckduckgo_instant:{err}")),
@@ -362,7 +553,7 @@ fn retrieve_web_candidates_for_query(
         issues.extend(duckduckgo_issues);
     }
 
-    if candidates.is_empty() {
+    if !has_usable_synthesis_candidate(&candidates) {
         for provider in provider_recovery_providers(policy, query) {
             let provider_payload =
                 stage_search_payload(root, Some(&provider), query, Some(&provider), search_scope);
@@ -380,9 +571,11 @@ fn retrieve_web_candidates_for_query(
                 provider_results.push(value);
             }
             issues.extend(provider_issues);
-            if !provider_candidates.is_empty() {
+            if has_usable_synthesis_candidate(&provider_candidates) {
                 candidates.append(&mut provider_candidates);
                 break;
+            } else if !provider_candidates.is_empty() {
+                candidates.append(&mut provider_candidates);
             }
         }
     }
