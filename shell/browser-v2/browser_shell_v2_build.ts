@@ -258,6 +258,8 @@ const browserShellV2DisplayState = {
   taskbarDockDragActive: false,
   taskbarDockEdge: 'top',
   taskbarDockY: 0,
+  bootSplashVisible: true,
+  bootProgressPercent: 8,
   themeMode: 'system',
   resolvedTheme: 'light',
   dashboardPopup: {
@@ -1016,7 +1018,32 @@ function render(state) {
   const runtimeBadge = clean(state.runtimeState || 'unknown', 80);
   const page = clean(browserShellV2DisplayState.page || 'chat', 80);
   const isChatPage = page === 'chat';
+  const isLoading = runtimeBadge === 'loading' || !!state.disabled;
+  const hasCurrentAgent = !!selectedAgentId;
   root.innerHTML = \`
+    <div
+      class="boot-splash"
+      style="\${browserShellV2DisplayState.bootSplashVisible ? '' : 'display:none'}"
+      aria-hidden="\${browserShellV2DisplayState.bootSplashVisible ? 'false' : 'true'}"
+    >
+      <div class="boot-splash-inner">
+        <div class="brand-mark boot-splash-mark infring-logo"><span class="brand-mark-glyph infring-logo-glyph">&infin;</span></div>
+        <div class="boot-splash-wordmark">INFRING</div>
+        <div
+          class="boot-splash-progress"
+          role="progressbar"
+          aria-label="Loading progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="\${Math.max(0, Math.min(100, Math.round(Number(browserShellV2DisplayState.bootProgressPercent || 0))))}"
+        >
+          <span
+            class="boot-splash-progress-fill"
+            style="width:\${Math.max(0, Math.min(100, Number(browserShellV2DisplayState.bootProgressPercent || 0)))}%"
+          ></span>
+        </div>
+      </div>
+    </div>
     <div class="app-layout \${browserShellV2DisplayState.taskbarDockEdge === 'bottom' ? 'taskbar-bottom' : ''}" data-shell-plug="browser-v2" data-event-cursor="\${escapeHtml(eventCursor)}" data-receipt-ref="\${escapeHtml(issueReceiptRef || approvalReceiptRef || modelReceiptRef || gitTreeReceiptRef)}" aria-label="Browser Shell V2">
       <div class="main-pointer-fx-layer" aria-hidden="true"></div>
       <infring-sidebar-rail-shell class="sidebar drag-bar overlay-shared-surface \${isChatPage ? 'chat-sidebar-dynamic' : 'chat-only-hidden'} \${browserShellV2DisplayState.sidebarCollapsed ? 'collapsed' : ''} \${browserShellV2DisplayState.chatSidebarDragActive ? 'is-container-dragging' : ''}" dragbarsurface="chat-sidebar" parentownedmechanics="true" style="\${isChatPage ? chatSidebarStyle() : ''}" aria-label="Legacy dashboard conversation rail">
@@ -1169,7 +1196,9 @@ function render(state) {
           </div>
         </div>
         \${isChatPage ? \`
-        <div class="chat-wrapper">
+        <infring-chat-page-shell>
+        <div class="chat-wrapper \${isLoading ? 'animate-entry' : ''}">
+          \${hasCurrentAgent ? \`
           <infring-chat-header-shell>
           <div class="chat-thread-topline">
             <div class="chat-thread-profile-center">
@@ -1192,28 +1221,47 @@ function render(state) {
             </div>
           </div>
           </infring-chat-header-shell>
+          \` : ''}
           <infring-messages-surface-shell>
           <div class="messages" id="messages" aria-label="Message window">
             <div class="chat-reflection-overlay" aria-hidden="true"></div>
             <div class="chat-grid-overlay" aria-hidden="true"></div>
-            \${messages.length ? messages.map((message, index) => \`
-              <article id="browser-v2-message-\${index}" class="message \${message.role === 'user' ? 'user' : 'agent'} \${messageHasTail(messages, index) ? 'has-tail' : ''} meta-collapsed" data-msg-index="\${index}">
-                <div class="message-avatar agent-mark infring-logo" aria-hidden="true"><span class="infring-logo-glyph">\${message.role === 'user' ? 'Y' : '∞'}</span></div>
-                <div class="message-body">
-                  <div class="message-bubble markdown-body">
-                    <span class="message-agent-name"><span class="message-agent-name-label">\${escapeHtml(message.role === 'user' ? 'You' : selectedAgentLabel)}</span></span>
-                    <p class="message-bubble-content">\${escapeHtml(message.text)}</p>
-                    \${message.detail_ref ? \`<button class="message-stat-btn" type="button" data-detail-ref="\${escapeHtml(message.detail_ref)}" \${state.disabled ? 'disabled' : ''}>View detail</button>\` : ''}
-                    <infring-message-meta-shell state='\${messageMetadataShellState(message, index, messages)}'></infring-message-meta-shell>
+            \${!hasCurrentAgent && !isLoading ? '<infring-chat-stream-shell class="empty-state"><h4>No agent selected</h4><p class="hint">Create or select an agent to start chatting.</p><button class="btn btn-primary btn-sm" data-page-id="agents" type="button">Open agents</button></infring-chat-stream-shell>' : ''}
+            <div class="chat-thread-shell">
+              <infring-chat-loading-overlay-shell>
+              <div class="chat-loading-overlay" \${isLoading ? '' : 'style="display:none"'}>
+                <infring-chat-loading-content-shell>
+                <div class="chat-loading-overlay-content">
+                  <div class="chat-loading-fairy" aria-hidden="true">
+                    <span class="chat-loading-fairy-avatar agent-working-pulse"><span class="agent-mark infring-logo infring-logo--agent-default"><span class="infring-logo-glyph" aria-hidden="true">&infin;</span></span></span>
                   </div>
+                  <span>\${escapeHtml(state.runtimeLabel || 'Loading...')}</span>
                 </div>
-              </article>
-            \`).join('') : '<div class="empty-state"><h4>No bounded message projection loaded yet.</h4><p class="hint">Select an agent from the legacy-style rail or send a message through the composer.</p></div>'}
+                </infring-chat-loading-content-shell>
+              </div>
+              </infring-chat-loading-overlay-shell>
+              <div class="chat-thread">
+                \${messages.length ? messages.map((message, index) => \`
+                  <article id="browser-v2-message-\${index}" class="message \${message.role === 'user' ? 'user' : 'agent'} \${messageHasTail(messages, index) ? 'has-tail' : ''} meta-collapsed" data-msg-index="\${index}">
+                    <div class="message-avatar agent-mark infring-logo" aria-hidden="true"><span class="infring-logo-glyph">\${message.role === 'user' ? 'Y' : '∞'}</span></div>
+                    <div class="message-body">
+                      <div class="message-bubble markdown-body">
+                        <span class="message-agent-name"><span class="message-agent-name-label">\${escapeHtml(message.role === 'user' ? 'You' : selectedAgentLabel)}</span></span>
+                        <p class="message-bubble-content">\${escapeHtml(message.text)}</p>
+                        \${message.detail_ref ? \`<button class="message-stat-btn" type="button" data-detail-ref="\${escapeHtml(message.detail_ref)}" \${state.disabled ? 'disabled' : ''}>View detail</button>\` : ''}
+                        <infring-message-meta-shell state='\${messageMetadataShellState(message, index, messages)}'></infring-message-meta-shell>
+                      </div>
+                    </div>
+                  </article>
+                \`).join('') : (hasCurrentAgent && !isLoading ? '<infring-chat-stream-shell class="empty-state"><h4>No messages yet</h4><p class="hint">Start chatting or initialize this agent.</p></infring-chat-stream-shell>' : '')}
+              </div>
+            </div>
           </div>
           </infring-messages-surface-shell>
           <infring-chat-map-shell class="chat-map" dragbarsurface="chat-map" parentownedmechanics="true" style="\${chatMapStyle()}" aria-label="Message map"></infring-chat-map-shell>
           <infring-chat-input-footer-shell></infring-chat-input-footer-shell>
         </div>
+        </infring-chat-page-shell>
         \` : renderCurrentPageShell()}
         \${activeDetailRef ? \`
           <div class="popup-window dashboard-popup-surface" aria-label="Lazy message detail">
@@ -1430,6 +1478,8 @@ async function openMessageDetail(detailRef, state) {
 async function selectAgent(agentId) {
   const cleanAgentId = clean(agentId, 160);
   if (!cleanAgentId) return;
+  browserShellV2DisplayState.bootSplashVisible = false;
+  browserShellV2DisplayState.bootProgressPercent = 72;
   render({ runtimeState: 'loading', runtimeLabel: 'Loading selected agent projection...', messages: [], disabled: true });
   selectedAgentId = cleanAgentId;
   const sessions = await socketRequest('list_sessions', '/api/shell-socket/agents/' + encodeURIComponent(selectedAgentId) + '/sessions?limit=40');
@@ -1445,6 +1495,8 @@ async function selectAgent(agentId) {
 async function selectSession(sessionId) {
   const cleanSessionId = clean(sessionId, 240);
   if (!cleanSessionId) return;
+  browserShellV2DisplayState.bootSplashVisible = false;
+  browserShellV2DisplayState.bootProgressPercent = 72;
   render({ runtimeState: 'loading', runtimeLabel: 'Loading selected session projection...', messages: [], disabled: true });
   selectedSessionId = cleanSessionId;
   const messages = await socketRequest('get_message_window', '/api/shell-socket/sessions/' + encodeURIComponent(selectedSessionId) + '/messages?limit=' + MESSAGE_WINDOW_LIMIT);
@@ -1455,9 +1507,12 @@ async function selectSession(sessionId) {
 }
 
 async function hydrate() {
+  browserShellV2DisplayState.bootSplashVisible = true;
+  browserShellV2DisplayState.bootProgressPercent = 18;
   render({ runtimeState: 'loading', runtimeLabel: 'Hydrating from Shell Socket Gateway projection...', messages: [], disabled: true });
   try {
     const runtime = await socketRequest('get_runtime_status', '/api/shell-socket/runtime-status');
+    browserShellV2DisplayState.bootProgressPercent = 42;
     modelRows = rowsFromSelectorOptions(runtime, ['model_options', 'models', 'model_rows'], [
       { id: 'auto', label: 'Auto', meta: 'Gateway chooses the admitted model.' },
     ]);
@@ -1467,6 +1522,7 @@ async function hydrate() {
     modelSelection = clean(runtime.selected_model || runtime.model_id || modelSelection || modelRows[0]?.id || '', 160);
     gitTreeSelection = clean(runtime.selected_git_tree || runtime.tree_id || gitTreeSelection || gitTreeRows[0]?.id || '', 240);
     const agents = await socketRequest('list_agents', '/api/shell-socket/agents?limit=40');
+    browserShellV2DisplayState.bootProgressPercent = 68;
     agentRows = rowsFromAgents(agents);
     selectedAgentId = firstAgentId(agents) || agentRows[0]?.id || '';
     const sessions = selectedAgentId ? await socketRequest('list_sessions', '/api/shell-socket/agents/' + encodeURIComponent(selectedAgentId) + '/sessions?limit=40') : {};
@@ -1481,9 +1537,12 @@ async function hydrate() {
       messages: rowsFromMessageWindow(messages),
       disabled: !selectedAgentId,
     };
+    browserShellV2DisplayState.bootProgressPercent = 100;
+    browserShellV2DisplayState.bootSplashVisible = false;
     if (selectedSessionId) startEventProjectionStream(nextState);
     render(nextState);
   } catch (error) {
+    browserShellV2DisplayState.bootSplashVisible = false;
     render({ runtimeState: 'unavailable', runtimeLabel: clean(error instanceof Error ? error.message : error, 240), messages: [], disabled: true });
   }
 }
