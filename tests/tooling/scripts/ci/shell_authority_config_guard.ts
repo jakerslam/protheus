@@ -28,6 +28,7 @@ const MIRROR_CONFIGS = [
   ['client/runtime/config/lane_command_registry.json', 'tests/tooling/config/lane_command_registry.json', 'tests/tooling'],
   ['client/runtime/config/agent_routing_rules.json', 'orchestration/config/agent_routing_rules.json', 'orchestration'],
   ['client/runtime/config/workflow_executor_policy.json', 'orchestration/config/workflow_executor_policy.json', 'orchestration'],
+  ['client/runtime/config/orchestration_workflow_contract_policy.json', 'orchestration/config/orchestration_workflow_contract_policy.json', 'orchestration'],
   ['client/runtime/config/provider_onboarding_manifest.json', 'orchestration/config/provider_onboarding_manifest.json', 'orchestration'],
   ['client/runtime/config/research_plane_policy.json', 'orchestration/config/research_plane_policy.json', 'orchestration'],
   ['client/runtime/config/spawn_policy.json', 'orchestration/config/spawn_policy.json', 'orchestration'],
