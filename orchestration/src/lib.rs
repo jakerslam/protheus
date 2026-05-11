@@ -13,6 +13,7 @@ pub mod eval_feedback_router;
 pub mod eval_issue_authority;
 pub mod ingress;
 pub mod legacy_ingress_budget;
+pub mod observation_lifecycle;
 pub mod orchestration_stability_guard;
 pub mod planner;
 pub mod posture;

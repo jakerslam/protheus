@@ -1,6 +1,22 @@
 {
   "version": "tool_cd_web_retrieval_v0",
   "source": "web_tooling_pattern_assimilation_v0",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact retrieval quality observations for candidate volume, usable evidence, coverage gaps, provider status, and synthesis handoff without storing raw provider payloads.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_force_response_formats"
+    ]
+  },
   "diagnostic_projection_contract": {
     "version": "web_retrieval_quality_diagnostics_v1",
     "chat_visibility": "hidden_until_synthesized",

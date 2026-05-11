@@ -55,6 +55,22 @@ fn runner_args(root: &Path, cases: &Path, responses: &Path, strict: bool) -> Vec
         format!("--out-latest={}", root.join("latest.json").display()),
         format!("--out-markdown={}", root.join("report.md").display()),
         format!("--failures-out={}", root.join("failures.jsonl").display()),
+        format!(
+            "--observation-ledger-out={}",
+            root.join("observation_events.jsonl").display()
+        ),
+        format!(
+            "--observation-hot-out={}",
+            root.join("observation_hot.json").display()
+        ),
+        format!(
+            "--observation-archive-out={}",
+            root.join("observation_archive.json").display()
+        ),
+        format!(
+            "--observation-summary-out={}",
+            root.join("observation_summary.json").display()
+        ),
         format!("--strict={}", if strict { "1" } else { "0" }),
     ]
 }

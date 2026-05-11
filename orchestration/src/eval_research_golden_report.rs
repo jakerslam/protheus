@@ -102,6 +102,20 @@ pub(super) fn markdown_report(report: &Value) -> String {
         f64_at(split, &["end_to_end_golden", "research_success_rate"], 0.0),
         u64_at(split, &["failure_classification", "soft_failure_cases"], 0)
     ));
+    let lifecycle = report.get("observation_lifecycle").unwrap_or(&Value::Null);
+    out.push_str("\n## Observation Lifecycle\n\n");
+    out.push_str(&format!(
+        "- enabled={} ok={} events_recorded={}\n",
+        bool_at(lifecycle, &["enabled"], false),
+        bool_at(lifecycle, &["ok"], false),
+        u64_at(lifecycle, &["events_recorded"], 0)
+    ));
+    out.push_str(&format!(
+        "- archive: open_subjects={} archived_subjects={} reemerged_subjects={}\n",
+        u64_at(lifecycle, &["summary", "archive", "open_subjects"], 0),
+        u64_at(lifecycle, &["summary", "archive", "archived_subjects"], 0),
+        u64_at(lifecycle, &["summary", "archive", "reemerged_subjects"], 0)
+    ));
     out.push_str("\n## Lowest Cases\n\n");
     let mut case_rows = report
         .get("cases")

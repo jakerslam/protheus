@@ -18,6 +18,12 @@ use eval_research_golden_scoring::{
     dimension_average_rows, gate_rate_rows, grade_case, response_diagnostics,
 };
 use eval_research_golden_utils::*;
+use infring_orchestration_v1::observation_lifecycle::{
+    load_policy_or_default, persist_lifecycle_observations, policy_path_string,
+    research_golden_observation_events, stable_hash_hex, ObservationLifecyclePaths,
+    DEFAULT_ARCHIVE_PATH, DEFAULT_HOT_WINDOW_PATH, DEFAULT_LEDGER_PATH, DEFAULT_POLICY_PATH,
+    DEFAULT_SUMMARY_PATH,
+};
 use std::env;
 
 const DEFAULT_CASES_PATH: &str = "validation/evals/fixtures/research_golden_dataset_v1.json";
@@ -41,6 +47,45 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         parse_flag(args, "out-markdown").unwrap_or_else(|| DEFAULT_MARKDOWN_PATH.to_string());
     let failures_path =
         parse_flag(args, "failures-out").unwrap_or_else(|| DEFAULT_FAILURES_PATH.to_string());
+    let observation_lifecycle_enabled = parse_bool_flag(args, "observation-lifecycle", true);
+    let observation_policy_path =
+        parse_flag(args, "observation-policy").unwrap_or_else(|| DEFAULT_POLICY_PATH.to_string());
+    let observation_policy = load_policy_or_default(&observation_policy_path);
+    let observation_paths = ObservationLifecyclePaths {
+        ledger_path: parse_flag(args, "observation-ledger-out").unwrap_or_else(|| {
+            policy_path_string(
+                &observation_policy,
+                &["paths", "compact_ledger"],
+                DEFAULT_LEDGER_PATH,
+            )
+        }),
+        hot_window_path: parse_flag(args, "observation-hot-out").unwrap_or_else(|| {
+            policy_path_string(
+                &observation_policy,
+                &["paths", "hot_ring_buffer"],
+                DEFAULT_HOT_WINDOW_PATH,
+            )
+        }),
+        archive_path: parse_flag(args, "observation-archive-out").unwrap_or_else(|| {
+            policy_path_string(
+                &observation_policy,
+                &["paths", "failure_lifecycle_archive"],
+                DEFAULT_ARCHIVE_PATH,
+            )
+        }),
+        summary_path: parse_flag(args, "observation-summary-out").unwrap_or_else(|| {
+            policy_path_string(
+                &observation_policy,
+                &["paths", "current_summary"],
+                DEFAULT_SUMMARY_PATH,
+            )
+        }),
+    };
+    let commit_sha = parse_flag(args, "commit-sha")
+        .or_else(|| env::var("INFRING_COMMIT_SHA").ok())
+        .map(|raw| clean_text(&raw, 120))
+        .filter(|raw| !raw.is_empty())
+        .unwrap_or_else(|| "unknown".to_string());
     let agent_id = normalize_agent_id(
         &parse_flag(args, "agent-id").unwrap_or_else(|| DEFAULT_AGENT_ID.to_string()),
     );
@@ -326,10 +371,22 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         research_success_min,
         safety_ok,
     );
-    let report = json!({
+    let generated_at = now_iso_like();
+    let run_id = parse_flag(args, "run-id").unwrap_or_else(|| {
+        let seed = json!({
+            "generated_at": generated_at.clone(),
+            "mode": if live { "live_dashboard" } else { "offline_responses" },
+            "cases_path": cases_path.clone(),
+            "out_path": out_path.clone(),
+            "commit_sha": commit_sha.clone()
+        });
+        format!("research_golden:{}", stable_hash_hex(&seed.to_string()))
+    });
+    let mut report = json!({
         "type": "research_golden_eval",
         "schema_version": 1,
-        "generated_at": now_iso_like(),
+        "generated_at": generated_at,
+        "run_id": run_id,
         "ok": ok,
         "mode": if live { "live_dashboard" } else { "offline_responses" },
         "live_options": {
@@ -381,6 +438,63 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "agent_id": if live { Some(agent_id) } else { None }
         }
     });
+    let observation_lifecycle_summary = if observation_lifecycle_enabled {
+        let cache_mode = if live && isolate_tool_cache {
+            "isolated_tool_cache"
+        } else if live {
+            "shared_tool_cache"
+        } else {
+            "recorded_responses"
+        };
+        let model_ref = fresh_agent_model
+            .clone()
+            .unwrap_or_else(|| "selected_chat_model_or_fixture".to_string());
+        let observation_meta = json!({
+            "run_id": report.get("run_id").and_then(Value::as_str).unwrap_or(""),
+            "commit_sha": commit_sha.clone(),
+            "model_ref": model_ref,
+            "cache_mode": cache_mode,
+            "artifact_refs": [
+                out_path.clone(),
+                out_latest_path.clone(),
+                markdown_path.clone(),
+                failures_path.clone()
+            ]
+        });
+        let observations = research_golden_observation_events(&report, &observation_meta);
+        match persist_lifecycle_observations(
+            &observation_policy,
+            &observation_paths,
+            &observations,
+            report
+                .get("generated_at")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+        ) {
+            Ok(summary) => json!({
+                "enabled": true,
+                "ok": true,
+                "events_recorded": observations.len(),
+                "summary": summary
+            }),
+            Err(err) => json!({
+                "enabled": true,
+                "ok": false,
+                "error": err
+            }),
+        }
+    } else {
+        json!({
+            "enabled": false,
+            "ok": true
+        })
+    };
+    if let Some(object) = report.as_object_mut() {
+        object.insert(
+            "observation_lifecycle".to_string(),
+            observation_lifecycle_summary.clone(),
+        );
+    }
     let markdown = markdown_report(&report);
     let failure_rows = report
         .get("failure_events")
@@ -390,7 +504,11 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let writes_ok = write_json(&out_path, &report).is_ok()
         && write_json(&out_latest_path, &report).is_ok()
         && write_text(&markdown_path, &markdown).is_ok()
-        && append_jsonl(&failures_path, &failure_rows).is_ok();
+        && append_jsonl(&failures_path, &failure_rows).is_ok()
+        && observation_lifecycle_summary
+            .get("ok")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
     if !writes_ok {
         eprintln!("eval_runtime: failed to write one or more research golden outputs");
         return 2;
