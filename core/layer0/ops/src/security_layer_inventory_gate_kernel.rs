@@ -19,7 +19,8 @@ use security_layer_inventory_gate_types::{
 };
 
 const INVENTORY_CONFIG_REL: &str = "client/runtime/config/security_layer_inventory.json";
-const GUARD_REGISTRY_REL: &str = "client/runtime/config/guard_check_registry.json";
+const GUARD_REGISTRY_REL: &str = "validation/release_gates/contracts/guard_check_registry.json";
+const GUARD_REGISTRY_LEGACY_REL: &str = "client/runtime/config/guard_check_registry.json";
 const LATEST_REL: &str = "client/runtime/local/state/ops/security_layer_inventory_gate/latest.json";
 const HISTORY_REL: &str =
     "client/runtime/local/state/ops/security_layer_inventory_gate/history.jsonl";
@@ -112,6 +113,19 @@ fn ops_binary(root: &Path) -> PathBuf {
         return release;
     }
     std::env::current_exe().unwrap_or_else(|_| PathBuf::from("infring-ops"))
+}
+
+fn preferred_guard_registry_path(root: &Path) -> PathBuf {
+    let canonical = root.join(GUARD_REGISTRY_REL);
+    if canonical.exists() {
+        return canonical;
+    }
+    let legacy = root.join(GUARD_REGISTRY_LEGACY_REL);
+    if legacy.exists() {
+        legacy
+    } else {
+        canonical
+    }
 }
 
 fn run_runtime_check(root: &Path, spec: &RuntimeCheckSpec) -> RuntimeCheckResult {
@@ -285,7 +299,7 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     );
 
     let inventory_path = root.join(INVENTORY_CONFIG_REL);
-    let guard_registry_path = root.join(GUARD_REGISTRY_REL);
+    let guard_registry_path = preferred_guard_registry_path(root);
     let latest_path = root.join(LATEST_REL);
     let history_path = root.join(HISTORY_REL);
     let doc_path = root.join(DOC_REL);

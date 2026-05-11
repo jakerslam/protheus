@@ -65,7 +65,7 @@
     {
       "id": "guard_registry_profile_compat_hook",
       "type": "file_contains_all",
-      "path": "client/runtime/config/guard_check_registry.json",
+      "path": "validation/release_gates/contracts/guard_check_registry.json",
       "patterns": [
         "\"id\": \"profile_compatibility_gate\"",
         "client/runtime/systems/ops/profile_compatibility_gate.ts",

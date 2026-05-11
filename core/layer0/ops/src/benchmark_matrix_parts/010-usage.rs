@@ -35,7 +35,8 @@ const BENCHMARK_PREFLIGHT_MAX_LOAD_PER_CORE_DEFAULT: f64 = 0.90;
 const BENCHMARK_PREFLIGHT_MAX_NOISE_CV_PCT_DEFAULT: f64 = 12.5;
 const BENCHMARK_PREFLIGHT_NOISE_SAMPLE_MS_DEFAULT: u64 = 250;
 const BENCHMARK_PREFLIGHT_NOISE_ROUNDS_DEFAULT: usize = 3;
-const SECURITY_MERGE_GUARD_SOURCE_REL: &str = "client/runtime/config/guard_check_registry.json";
+const SECURITY_MERGE_GUARD_SOURCE_REL: &str =
+    "validation/release_gates/contracts/guard_check_registry.json";
 const PLATFORM_ADAPTER_SOURCE_REL: &str = "client/runtime/config/platform_adaptation_channels.json";
 const PROVIDER_ONBOARDING_SOURCE_REL: &str = "orchestration/config/provider_onboarding_manifest.json";
 const MODEL_RECOVERY_SOURCE_REL: &str = "client/runtime/config/model_health_auto_recovery_policy.json";

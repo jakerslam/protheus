@@ -136,7 +136,7 @@ fn check_dist_runtime_guardrails(root: &Path) -> Result<Value, String> {
 }
 
 fn check_guard_registry_contracts(root: &Path) -> Result<Value, String> {
-    let path = root.join(GUARD_REGISTRY_REL);
+    let path = preferred_guard_registry_path(root);
     let raw = fs::read_to_string(&path)
         .map_err(|err| format!("read_guard_registry_failed:{}:{err}", path.display()))?;
     let parsed = serde_json::from_str::<Value>(&raw)

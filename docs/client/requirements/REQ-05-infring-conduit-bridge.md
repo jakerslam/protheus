@@ -82,7 +82,7 @@ Delivered:
 
 - `RegistryPolicyGate` in `core/layer2/conduit` binds command validation to:
   - `docs/workspace/AGENT-CONSTITUTION.md` required markers
-  - `client/runtime/config/guard_check_registry.json` required runtime checks
+  - `validation/release_gates/contracts/guard_check_registry.json` required runtime checks
 - deny-by-default capability mapping via `ConduitPolicy.command_required_capabilities`
 - deterministic `policy_receipt_hash` emitted on every request
 

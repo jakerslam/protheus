@@ -292,7 +292,8 @@ impl Default for ConduitPolicy {
 
         Self {
             constitution_path: "docs/workspace/AGENT-CONSTITUTION.md".to_string(),
-            guard_registry_path: "client/runtime/config/guard_check_registry.json".to_string(),
+            guard_registry_path: "validation/release_gates/contracts/guard_check_registry.json"
+                .to_string(),
             required_constitution_markers: vec![
                 "Mind Sovereignty Covenant".to_string(),
                 "RSI Guardrails".to_string(),

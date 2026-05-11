@@ -21,6 +21,7 @@ This wave does not delete client files yet. It creates canonical non-client copi
 | `client/runtime/config/spawn_policy.json` | `orchestration/config/spawn_policy.json` | Orchestration | loader prefers canonical | Spawn pool and quota settings are orchestration-control policy; dashboard compatibility helpers now read the orchestration copy first. |
 | `client/runtime/config/child_organ_runtime_policy.json` | `orchestration/config/child_organ_runtime_policy.json` | Orchestration | loader prefers canonical | Child-lane bounds and rollback rules are orchestration-control policy; the client copy is a compatibility mirror. |
 | `client/runtime/config/orchestron_policy.json` | `orchestration/config/orchestron_policy.json` | Orchestration | loader prefers canonical | Orchestron promotion/evolution gates are orchestration-control policy; dashboard compatibility helpers now read the orchestration copy first. |
+| `client/runtime/config/guard_check_registry.json` | `validation/release_gates/contracts/guard_check_registry.json` | Validation release gates | loader prefers canonical | Merge/release guard check registry is Validation authority; Core/Conduit defaults now point at the release-gate contract while the client copy remains a compatibility mirror. |
 | Tavily/Jina web retrieval additions | `orchestration/config/web_research_retrieval_policy.json`, `core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Orchestration + Core Tooling | rehomed | Added after checkpoint `a299d49d6`; moved out of client in commit `4c355921b`. |
 
 ## Loader Flip Wave
@@ -35,6 +36,7 @@ This wave does not delete client files yet. It creates canonical non-client copi
 | `core/layer0/ops/src/secret_broker_kernel_parts/010-secret-broker-state.rs` | `core/layer0/ops/config/secret_broker_policy.json` | `client/runtime/config/secret_broker_policy.json` | flipped |
 | `core/layer0/ops/src/health_status_parts/010-receipt-hash.rs` / `020-audit-cron-delivery.rs` | `core/layer0/ops/config/secret_broker_policy.json` | `client/runtime/config/secret_broker_policy.json` | flipped |
 | `core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/120-part.rs` | `orchestration/config/spawn_policy.json`, `orchestration/config/child_organ_runtime_policy.json`, `orchestration/config/orchestron_policy.json` | matching `client/runtime/config/*.json` mirrors | flipped |
+| Core/Conduit guard-registry defaults | `validation/release_gates/contracts/guard_check_registry.json` | `client/runtime/config/guard_check_registry.json` mirror kept for legacy callers | partial |
 | `core/layer0/ops/src/research_plane_parts/010-usage.rs` | `orchestration/config/research_plane_policy.json` | `client/runtime/config/research_plane_policy.json` | flipped |
 | `tests/tooling/scripts/ci/web_retrieval_reliability_closure_guard.ts` | `core/layer0/ops/config/web_conduit_policy.json` | none needed for proof guard | flipped |
 | `tests/tooling/scripts/ci/shell_authority_config_guard.ts` | mirror declarations for batch query, web conduit, and research plane policies | branch-diff check rejects new authority-shaped client config JSON unless explicitly mirror-marked | guarded |

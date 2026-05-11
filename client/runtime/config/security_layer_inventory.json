@@ -11,7 +11,7 @@
         "core/layer0/ops/src/contract_check.rs"
       ],
       "policy_paths": [
-        "client/runtime/config/guard_check_registry.json",
+        "validation/release_gates/contracts/guard_check_registry.json",
         "client/runtime/config/directives/T0_invariants.yaml"
       ],
       "guard_check_ids": [
@@ -44,7 +44,7 @@
         "core/layer2/conduit-security/src/lib.rs"
       ],
       "policy_paths": [
-        "client/runtime/config/guard_check_registry.json",
+        "validation/release_gates/contracts/guard_check_registry.json",
         "client/runtime/config/runtime_scheduler_policy.json"
       ],
       "guard_check_ids": [

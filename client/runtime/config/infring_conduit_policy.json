@@ -1,6 +1,6 @@
 {
   "constitution_path": "docs/workspace/AGENT-CONSTITUTION.md",
-  "guard_registry_path": "client/runtime/config/guard_check_registry.json",
+  "guard_registry_path": "validation/release_gates/contracts/guard_check_registry.json",
   "required_constitution_markers": [
     "Mind Sovereignty Covenant",
     "RSI Guardrails"
