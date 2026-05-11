@@ -56,7 +56,7 @@ type Args = {
 };
 
 const ROOT = process.cwd();
-const DEFAULT_POLICY_PATH = 'client/runtime/config/ownership_drift_policy.json';
+const DEFAULT_POLICY_PATH = 'validation/release_gates/contracts/ownership_drift_policy.json';
 const DEFAULT_OUT_JSON = 'core/local/artifacts/ownership_drift_guard_current.json';
 const DEFAULT_OUT_MARKDOWN = 'local/workspace/reports/OWNERSHIP_DRIFT_GUARD_CURRENT.md';
 const PLACEMENT_POLICY_PATH = 'docs/workspace/orchestration_ownership_policy.md';
