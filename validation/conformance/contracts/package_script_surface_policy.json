@@ -1,0 +1,21 @@
+{
+  "type": "package_script_surface_policy",
+  "schema_version": 1,
+  "owner_domain": "validation",
+  "registry_path": "tools/commands/command_registry.json",
+  "runner_path": "tools/commands/command_runner.ts",
+  "baseline_script_count": 1140,
+  "required_entrypoints": [
+    "cmd",
+    "commands:list",
+    "commands:groups",
+    "ops:command-surface:guard"
+  ],
+  "policy": {
+    "new_package_scripts_require_policy_update": true,
+    "registry_must_cover_all_package_scripts": true,
+    "runner_must_execute_registry_entries": true,
+    "compatibility_aliases_are_allowed_during_transition": true,
+    "long_term_goal": "compress package.json to a small command-runner surface after compatibility callers migrate"
+  }
+}

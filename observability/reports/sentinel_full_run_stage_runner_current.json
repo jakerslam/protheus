@@ -1,0 +1,138 @@
+{
+  "trace_id": "observability:2026-05-10T23:59:08.164Z:sentinel-stage-runner",
+  "source_domain": "observability",
+  "ok": true,
+  "type": "sentinel_full_run_stage_runner",
+  "generated_at": "2026-05-10T23:59:08.164Z",
+  "policy_path": "observability/sentinel/sentinel_full_run_stage_split_policy.json",
+  "state_path": "local/state/observability/sentinel/full_run_stage_state_current.json",
+  "phase_mode": "all",
+  "selected_phases": [
+    "evidence_collect",
+    "freshness_filter",
+    "root_cause_cluster",
+    "report_synthesis",
+    "self_study"
+  ],
+  "executed_phase_count": 5,
+  "completed_phase_count": 5,
+  "remaining_phase_count": 0,
+  "phase_results": [
+    {
+      "id": "evidence_collect",
+      "ok": true,
+      "started_at": "2026-05-10T23:59:08.159Z",
+      "finished_at": "2026-05-10T23:59:08.159Z",
+      "duration_ms": 0,
+      "input_refs": [
+        "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+        "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "evidence_collect",
+      "summary": {
+        "evidence_refs": [
+          {
+            "rel": "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+            "exists": true,
+            "size_bytes": 1640
+          },
+          {
+            "rel": "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
+            "exists": true,
+            "size_bytes": 5459
+          }
+        ],
+        "timeout_observed": true,
+        "final_report_age_ms": 206361350.27368164
+      }
+    },
+    {
+      "id": "freshness_filter",
+      "ok": true,
+      "started_at": "2026-05-10T23:59:08.159Z",
+      "finished_at": "2026-05-10T23:59:08.161Z",
+      "duration_ms": 2,
+      "input_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "freshness_filter",
+      "summary": {
+        "retained_signals": [
+          "sentinel_auto_timeout",
+          "final_report_stale"
+        ],
+        "dropped_reason": "raw evidence remains in source streams; phase output keeps refs only"
+      }
+    },
+    {
+      "id": "root_cause_cluster",
+      "ok": true,
+      "started_at": "2026-05-10T23:59:08.161Z",
+      "finished_at": "2026-05-10T23:59:08.161Z",
+      "duration_ms": 0,
+      "input_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "root_cause_cluster",
+      "summary": {
+        "clusters": [
+          {
+            "id": "sentinel_monolithic_full_run_timeout",
+            "owner_guess": "observability/sentinel",
+            "hypothesis": "Full Sentinel dream/self-study is too monolithic for bounded automation and needs resumable phase checkpoints.",
+            "next_action": "Run staged phases and persist timing after each phase."
+          }
+        ]
+      }
+    },
+    {
+      "id": "report_synthesis",
+      "ok": true,
+      "started_at": "2026-05-10T23:59:08.161Z",
+      "finished_at": "2026-05-10T23:59:08.163Z",
+      "duration_ms": 2,
+      "input_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json",
+        "observability/reports/sentinel_staged_compact_report_2026-05-10.json"
+      ],
+      "resume_cursor": "report_synthesis",
+      "summary": {
+        "compact_report": "observability/reports/sentinel_staged_compact_report_2026-05-10.json",
+        "finding_count": 1
+      }
+    },
+    {
+      "id": "self_study",
+      "ok": true,
+      "started_at": "2026-05-10T23:59:08.163Z",
+      "finished_at": "2026-05-10T23:59:08.163Z",
+      "duration_ms": 0,
+      "input_refs": [
+        "observability/reports/sentinel_staged_compact_report_2026-05-10.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "self_study",
+      "summary": {
+        "recommendations": [
+          "Keep heartbeat Sentinel checks lightweight.",
+          "Reserve full self-study for dream/release cadence.",
+          "Prefer compact findings with evidence refs over raw evidence dumps."
+        ]
+      }
+    }
+  ]
+}

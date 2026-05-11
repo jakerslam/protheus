@@ -1,0 +1,42 @@
+{
+  "type": "sentinel_issue_quality_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.evals",
+  "report_path": "core/local/artifacts/sentinel_issue_quality_score_current.json",
+  "inputs": {
+    "stage_runner_report": "observability/reports/sentinel_full_run_stage_runner_current.json",
+    "compact_reports": [
+      "observability/reports/sentinel_staged_compact_report_2026-05-10.json"
+    ],
+    "supporting_evidence": [
+      "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+      "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json"
+    ]
+  },
+  "score_weights": {
+    "evidence": 25,
+    "freshness": 15,
+    "owner_guess": 15,
+    "root_cause_hypothesis": 20,
+    "next_action": 20,
+    "recurrence": 5
+  },
+  "freshness_budget_ms": 604800000,
+  "promotion_threshold": 80,
+  "review_threshold": 60,
+  "required_candidate_fields": [
+    "id",
+    "score",
+    "promotion_state",
+    "evidence_refs",
+    "owner_guess",
+    "root_cause_hypothesis",
+    "next_action"
+  ],
+  "policy": {
+    "sentinel_findings_must_be_scored_before_todo_promotion": true,
+    "promotion_ready_findings_require_evidence_and_next_action": true,
+    "low_quality_findings_remain_observations_not_todos": true,
+    "quality_report_must_be_compact_and_ref_only": true
+  }
+}

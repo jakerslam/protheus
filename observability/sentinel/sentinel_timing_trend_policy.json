@@ -8,6 +8,8 @@
     "core/local/state/kernel_sentinel/kernel_sentinel_auto_run_current.json",
     "validation/release_gates/proof_packs/**/kernel_sentinel_auto_run_current.json"
   ],
+  "sample_store_path": "local/state/observability/sentinel/timing_samples.jsonl",
+  "latest_sample_path": "core/local/artifacts/sentinel_timing_sample_capture_current.json",
   "policy": {
     "stage_timing_samples_should_accumulate_across_dream_and_release_runs": true,
     "full_runs_should_emit_stage_timings": true,

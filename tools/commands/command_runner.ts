@@ -15,6 +15,9 @@ type Entry = {
   domain?: string;
   work_gate?: string;
   description?: string;
+  operator_surface?: boolean;
+  operator_surface_rank?: number;
+  operator_surface_reason?: string;
 };
 function registry(): { entries: Entry[]; script_count: number; group_counts: Record<string, number> } {
   return JSON.parse(fs.readFileSync(path.join(ROOT, REGISTRY_PATH), 'utf8'));
@@ -37,7 +40,7 @@ function includesText(entry: Entry, needle: string): boolean {
 }
 function usage(): void {
   console.error('Usage: npm run -s cmd -- <command-id> [args...]');
-  console.error('       npm run -s cmd -- list [--group=<group>] [--domain=<domain>] [--work-gate=<gate>] [--lifecycle=<state>] [--search=<text>]');
+  console.error('       npm run -s cmd -- list [--group=<group>] [--domain=<domain>] [--work-gate=<gate>] [--lifecycle=<state>] [--search=<text>] [--include-compat=1] [--operator-surface=0]');
   console.error('       npm run -s cmd -- info <command-id>');
   console.error('       npm run -s cmd -- groups');
 }
@@ -50,6 +53,9 @@ function publicEntry(entry: Entry): Partial<Entry> {
     domain: entry.domain,
     work_gate: entry.work_gate,
     description: entry.description,
+    operator_surface: entry.operator_surface,
+    operator_surface_rank: entry.operator_surface_rank,
+    operator_surface_reason: entry.operator_surface_reason,
   };
 }
 function main(): void {
@@ -64,14 +70,18 @@ function main(): void {
       workGate: flag(args, '--work-gate'),
       lifecycle: flag(args, '--lifecycle'),
       search: flag(args, '--search'),
+      includeCompat: flag(args, '--include-compat') === '1',
+      operatorSurface: flag(args, '--operator-surface') !== '0',
     };
     const rows = data.entries.filter((entry) => {
+      if (!filters.includeCompat && filters.operatorSurface && entry.lifecycle === 'compatibility_alias' && !entry.operator_surface) return false;
+      if (!filters.includeCompat && !filters.operatorSurface && entry.lifecycle === 'compatibility_alias') return false;
       if (filters.group && entry.group !== filters.group) return false;
       if (filters.domain && entry.domain !== filters.domain) return false;
       if (filters.workGate && entry.work_gate !== filters.workGate) return false;
       if (filters.lifecycle && entry.lifecycle !== filters.lifecycle) return false;
       return includesText(entry, filters.search);
-    });
+    }).sort((a, b) => (a.operator_surface_rank || 999999) - (b.operator_surface_rank || 999999) || a.id.localeCompare(b.id));
     console.log(JSON.stringify({ ok: true, type: 'command_registry_list', count: rows.length, filters, entries: rows.map(publicEntry) }, null, 2));
     return;
   }

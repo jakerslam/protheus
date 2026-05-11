@@ -24,6 +24,25 @@ const candidates = new Set([
   ...walk(path.join(root, 'validation/release_gates/proof_packs')),
 ]);
 const samples = [];
+const sampleStorePath = policy.sample_store_path ? path.join(root, policy.sample_store_path) : '';
+if (sampleStorePath && fs.existsSync(sampleStorePath)) {
+  for (const line of fs.readFileSync(sampleStorePath, 'utf8').split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      const sample = JSON.parse(line);
+      const stages = Array.isArray(sample.stage_timings) ? sample.stage_timings : [];
+      if (!stages.length) continue;
+      samples.push({
+        path: policy.sample_store_path,
+        generated_at: sample.generated_at || '',
+        trace_id: sample.trace_id || '',
+        cadence: sample.cadence || '',
+        artifact_kind: sample.artifact_kind || 'staged_sample',
+        stage_timings: stages.map((stage) => ({ stage: stage.stage || 'unknown', elapsed_ms: Number(stage.elapsed_ms) || 0 }))
+      });
+    } catch {}
+  }
+}
 for (const file of candidates) {
   if (!fs.existsSync(file)) continue;
   try {

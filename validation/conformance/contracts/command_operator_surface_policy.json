@@ -1,0 +1,21 @@
+{
+  "type": "command_operator_surface_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "registry_path": "tools/commands/command_registry.json",
+  "runner_path": "tools/commands/command_runner.ts",
+  "report_path": "core/local/artifacts/command_operator_surface_guard_current.json",
+  "required_operator_surface_count": 100,
+  "maximum_default_command_count": 120,
+  "minimum_curated_canonical_count": 20,
+  "forbidden_promoted_terms": [
+    "shell",
+    "orchestration"
+  ],
+  "policy": {
+    "default_command_list_must_be_bounded": true,
+    "compatibility_aliases_may_be_promoted_only_with_rank_and_reason": true,
+    "full_compatibility_surface_requires_explicit_include_compat": true,
+    "canonical_curated_commands_remain_in_default_surface": true
+  }
+}

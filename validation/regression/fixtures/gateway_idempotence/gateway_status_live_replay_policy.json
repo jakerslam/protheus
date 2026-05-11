@@ -1,0 +1,35 @@
+{
+  "type": "gateway_status_live_replay_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.regression",
+  "report_path": "validation/reports/gateway_status_live_replay_2026-05-10.json",
+  "command": [
+    "npm",
+    "run",
+    "-s",
+    "gateway:status",
+    "--",
+    "--dashboard-host=127.0.0.1",
+    "--dashboard-port=4173"
+  ],
+  "timeout_ms": 15000,
+  "policy": {
+    "status_replay_is_read_only": true,
+    "status_replay_must_be_bounded": true,
+    "status_replay_failure_is_diagnostic_not_mutating": true,
+    "status_replay_should_surface_active_or_actionable_failure": true,
+    "security_gate_blocking_status_is_actionable_failure": true
+  },
+  "required_output_tokens_any": [
+    "active",
+    "gateway",
+    "health",
+    "failed",
+    "not ready",
+    "next-action",
+    "diagnostics",
+    "security_gate_blocked",
+    "embedded_security_checker_not_linked_use_cargo",
+    "cargo_fallback_disabled"
+  ]
+}

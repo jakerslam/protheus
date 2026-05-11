@@ -1,0 +1,26 @@
+{
+  "type": "blocked_hygiene_mutation_policy",
+  "schema_version": 1,
+  "owner_domain": "validation",
+  "blocked_todos": [
+    "HYGIENE-RUST-UNUSED-IMPORTS",
+    "HYGIENE-COMBINED-DEAD-DELETE",
+    "HYGIENE-COMBINED-DECOMPOSE-LIVE"
+  ],
+  "blocker": {
+    "kind": "outside_lane_compile_blocker",
+    "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/045-tool-recovery-and-turn-persistence.rs",
+    "error": "unclosed delimiter"
+  },
+  "policy": {
+    "forbid_mutating_cleanup_while_compile_blocked": true,
+    "require_complete_warning_surface_before_unused_import_cleanup": true,
+    "require_targeted_compile_validation_before_combined_delete": true,
+    "require_targeted_compile_validation_before_combined_decompose": true
+  },
+  "evidence_refs": [
+    "validation/reports/rust_deadcode_warning_baseline_2026-05-09.json",
+    "validation/reports/yellow_hygiene_blockers_2026-05-09.md",
+    "validation/reports/rust_combined_split_debt_classification_2026-05-09.json"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "type": "rust_deadcode_warning_baseline",
+  "generated_at": "2026-05-09T23:45:17.138Z",
+  "command": "cargo check --manifest-path core/layer0/ops/Cargo.toml",
+  "exit_code": 101,
+  "complete": false,
+  "complete_reason": "compile_blocked_before_full_warning_surface",
+  "warning_count_seen_before_blocker": 23,
+  "error_count": 2,
+  "compile_blocker": {
+    "kind": "unclosed_delimiter",
+    "detail": "error: this file contains an unclosed delimiter",
+    "path_hint": "   --> core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/045-tool-recovery-and-turn-persistence.rs:627:3"
+  },
+  "warning_samples": [
+    "warning: constant `RETENTION_WARN_BELOW` is never used",
+    "warning: constant `RETENTION_BLOCK_BELOW` is never used",
+    "warning: function `evaluate_retention_guard` is never used",
+    "warning: function `retention_health_label` is never used",
+    "warning: `infring-memory-core-v6` (lib) generated 4 warnings",
+    "warning: constant `MAX_SECURITY_PLANES` is never used",
+    "warning: function `strip_invisible_unicode` is never used",
+    "warning: function `normalize_security_plane_name` is never used",
+    "warning: function `normalize_security_plane_list` is never used",
+    "warning: function `normalize_security_plane_list_with_contract` is never used",
+    "warning: function `security_planes_fail_closed` is never used",
+    "warning: constant `MAX_SECURITY_SUBJECTS` is never used",
+    "warning: function `strip_invisible_unicode` is never used",
+    "warning: function `normalize_security_subject` is never used",
+    "warning: function `normalize_subject_list` is never used",
+    "warning: function `normalize_subject_list_with_contract` is never used",
+    "warning: function `fail_closed_subject_gate` is never used",
+    "warning: `infring-layer1-security` (lib) generated 12 warnings",
+    "warning: function `extract_mode_literals` is never used",
+    "warning: function `extract_bridge_modes` is never used",
+    "warning: function `extract_dispatch_modes` is never used",
+    "warning: function `read_optional_autonomy_surface` is never used",
+    "warning: `execution_core` (lib) generated 4 warnings"
+  ]
+}

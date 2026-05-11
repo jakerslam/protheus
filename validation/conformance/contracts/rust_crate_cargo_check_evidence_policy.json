@@ -1,0 +1,47 @@
+{
+  "type": "rust_crate_cargo_check_evidence_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "report_path": "core/local/artifacts/rust_crate_cargo_check_evidence_current.json",
+  "timeout_ms": 120000,
+  "sample_manifests": [
+    {
+      "path": "core/layer1/primitives/Cargo.toml",
+      "reason": "Layer 1 primitive substrate should stay cargo-checkable before production promotion."
+    },
+    {
+      "path": "core/layer1/provenance/Cargo.toml",
+      "reason": "Receipt/provenance substrate is central to release confidence."
+    },
+    {
+      "path": "core/layer2/nexus/Cargo.toml",
+      "reason": "Nexus is the cross-domain connection substrate and should have direct compile evidence."
+    },
+    {
+      "path": "core/layer1/security/Cargo.toml",
+      "reason": "Security substrate should stay cargo-checkable before production promotion."
+    },
+    {
+      "path": "core/layer1/resource/Cargo.toml",
+      "reason": "Resource governance is central to boundedness and release confidence."
+    },
+    {
+      "path": "core/layer2/conduit/Cargo.toml",
+      "reason": "Conduit is the internal delivery substrate and should have direct compile evidence."
+    },
+    {
+      "path": "core/layer2/conduit-security/Cargo.toml",
+      "reason": "Gateway/conduit security enforcement should stay cargo-checkable."
+    }
+  ],
+  "accepted_evidence_statuses": [
+    "cargo_check_passed",
+    "cargo_check_failed"
+  ],
+  "policy": {
+    "production_candidate_sample_requires_cargo_check_observation": true,
+    "failed_cargo_check_is_evidence_but_blocks_promotion": true,
+    "cargo_check_evidence_must_include_command_and_duration": true,
+    "full_58_crate_sweep_is_not_required_for_daily_iteration": true
+  }
+}

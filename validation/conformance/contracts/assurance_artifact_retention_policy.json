@@ -1,0 +1,40 @@
+{
+  "id": "assurance_artifact_retention_policy",
+  "version": 1,
+  "owner": "validation + observability",
+  "status": "active",
+  "purpose": "Prevent validation and observability artifacts from becoming entropy while preserving compact evidence needed for Sentinel, release gates, and human review.",
+  "roots": [
+    {
+      "path": "validation/reports",
+      "max_total_bytes": 25000000,
+      "max_file_bytes": 2000000,
+      "retain_latest_per_prefix": 3,
+      "raw_evidence_allowed": false
+    },
+    {
+      "path": "observability/reports",
+      "max_total_bytes": 15000000,
+      "max_file_bytes": 1500000,
+      "retain_latest_per_prefix": 5,
+      "raw_evidence_allowed": false
+    }
+  ],
+  "required_report_fields": [
+    "type",
+    "generated_at"
+  ],
+  "raw_evidence_markers": [
+    "\"raw_evidence\":",
+    "\"stdout_full\":",
+    "\"stderr_full\":",
+    "\"trace_body\":",
+    "\"all_messages\":",
+    "\"conversation_tree\":"
+  ],
+  "actions": {
+    "guard_only": true,
+    "delete_automatically": false,
+    "emit_cleanup_candidates": true
+  }
+}

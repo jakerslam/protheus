@@ -1,0 +1,17 @@
+{
+  "type": "rust_hygiene_baseline_policy",
+  "schema_version": 1,
+  "owner_domain": "validation",
+  "classification_artifact": "validation/reports/rust_combined_split_debt_classification_2026-05-09.json",
+  "deadcode_baseline_artifact": "validation/reports/rust_deadcode_warning_baseline_2026-05-09.json",
+  "source_artifacts": [
+    "validation/reports/combined_rust_artifact_inventory_2026-05-09.json",
+    "validation/reports/combined_rust_reference_map_2026-05-09.json"
+  ],
+  "policy": {
+    "classification_must_cover_all_combined_artifacts": true,
+    "deletion_requires_targeted_validation": true,
+    "partial_deadcode_baseline_allowed_only_when_compile_blocker_recorded": true,
+    "full_deadcode_baseline_required_after_compile_blocker_clears": true
+  }
+}

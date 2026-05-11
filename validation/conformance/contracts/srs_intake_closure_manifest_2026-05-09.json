@@ -1,0 +1,68 @@
+{
+  "type": "srs_intake_closure_manifest",
+  "schema_version": 1,
+  "owner_domain": "validation",
+  "generated_for": "2026-05-09",
+  "policy": {
+    "forbid_shell_or_orchestration_implementation_in_this_wave": true,
+    "requires_owner_lane": true,
+    "requires_evidence_path": true,
+    "requires_future_acceptance_criteria": true
+  },
+  "report_path": "docs/workspace/reports/SRS_INTAKE_CLOSURE_2026-05-09.md",
+  "closures": [
+    {
+      "todo_id": "SRS-FILE-READ-RELIABILITY",
+      "srs_heading": "File Read Reliability Intake (2026-04-06)",
+      "owner_lane": "validation + kernel/runtime evidence",
+      "allowed_domains": ["validation", "kernel", "runtime"],
+      "evidence_path": "docs/workspace/reports/SRS_INTAKE_CLOSURE_2026-05-09.md#file-read-reliability-intake",
+      "future_acceptance_criteria": [
+        "bounded file read behavior is validated",
+        "file read failures include actionable error shape",
+        "regression artifact exists outside Shell and orchestration"
+      ]
+    },
+    {
+      "todo_id": "SRS-VERSION-CLI-RELIABILITY",
+      "srs_heading": "Version Update CLI Reliability Intake (2026-04-05)",
+      "owner_lane": "installer + release governance + validation",
+      "allowed_domains": ["installer", "release_governance", "validation"],
+      "evidence_path": "docs/workspace/reports/SRS_INTAKE_CLOSURE_2026-05-09.md#version-update-cli-reliability-intake",
+      "future_acceptance_criteria": [
+        "version source of truth is explicit",
+        "update command failures are actionable",
+        "release/version check is validation-owned"
+      ]
+    },
+    {
+      "todo_id": "SRS-KG-QUERY-ACCELERATION",
+      "srs_heading": "Knowledge Graph Query Acceleration Intake (2026-04-14)",
+      "owner_lane": "kernel/memory/runtime + validation",
+      "allowed_domains": ["kernel", "memory", "runtime", "validation"],
+      "evidence_path": "docs/workspace/reports/SRS_INTAKE_CLOSURE_2026-05-09.md#knowledge-graph-query-acceleration-intake",
+      "future_acceptance_criteria": [
+        "query latency budget exists",
+        "boundedness proof exists",
+        "result correctness fixture exists"
+      ]
+    },
+    {
+      "todo_id": "SRS-IA-CONSOLIDATION",
+      "srs_heading": "IA Consolidation Intake",
+      "owner_lane": "governance + documentation + validation",
+      "allowed_domains": ["governance", "documentation", "validation"],
+      "source_headings": [
+        "Manage IA Consolidation Intake (2026-04-05)",
+        "Automation IA Consolidation Intake (2026-04-05)",
+        "System IA Consolidation Intake (2026-04-05)"
+      ],
+      "evidence_path": "docs/workspace/reports/SRS_INTAKE_CLOSURE_2026-05-09.md#ia-consolidation-intake",
+      "future_acceptance_criteria": [
+        "duplicated IA concepts are reduced",
+        "single owner lane exists",
+        "expiry or consolidation review exists"
+      ]
+    }
+  ]
+}

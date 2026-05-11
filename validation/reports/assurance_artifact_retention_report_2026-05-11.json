@@ -1,0 +1,46 @@
+{
+  "trace_id": "validation:2026-05-11T00:00:47.000Z:assurance-artifact-retention",
+  "source_domain": "validation",
+  "ok": true,
+  "type": "assurance_artifact_retention_report",
+  "generated_at": "2026-05-11T00:00:47.001Z",
+  "policy_path": "validation/conformance/contracts/assurance_artifact_retention_policy.json",
+  "roots": [
+    {
+      "path": "validation/reports",
+      "file_count": 62,
+      "total_bytes": 1470201,
+      "max_total_bytes": 25000000,
+      "over_total_budget": false,
+      "oversize_files": [],
+      "raw_marker_files": [],
+      "cleanup_candidates": [
+        {
+          "rel": "validation/reports/client_archive/runtime_snapshots/ops/proof_pack/latest.json",
+          "bytes": 40174,
+          "prefix": "latest"
+        },
+        {
+          "rel": "validation/reports/client_archive/runtime_snapshots/ops/mech_suit_benchmark/latest.json",
+          "bytes": 10546,
+          "prefix": "latest"
+        },
+        {
+          "rel": "validation/reports/client_archive/runtime_snapshots/ops/js_holdout_audit/latest.json",
+          "bytes": 28664,
+          "prefix": "latest"
+        }
+      ]
+    },
+    {
+      "path": "observability/reports",
+      "file_count": 23,
+      "total_bytes": 32364,
+      "max_total_bytes": 15000000,
+      "over_total_budget": false,
+      "oversize_files": [],
+      "raw_marker_files": [],
+      "cleanup_candidates": []
+    }
+  ]
+}

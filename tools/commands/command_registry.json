@@ -1111,7 +1111,10 @@
       "work_gate": "real_work",
       "description": "Run a command by registry id through the metadata-aware command runner; preferred agent entrypoint over raw package-script spelunking.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 1,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "commands:groups",
@@ -1124,7 +1127,10 @@
       "work_gate": "simplification",
       "description": "Summarize command registry groups, domains, and three-commandment work gates for surface compression.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 2,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "commands:list",
@@ -1137,7 +1143,10 @@
       "work_gate": "simplification",
       "description": "List command registry entries with metadata filters for domain, work gate, lifecycle, group, and search text.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 3,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "compliance:posture",
@@ -1964,7 +1973,10 @@
       "work_gate": "real_work",
       "description": "Start or attach to the Gateway runtime surface without treating Shell state as authority.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 4,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "gateway:status",
@@ -1977,7 +1989,10 @@
       "work_gate": "reliability",
       "description": "Read Gateway status and health projection for operator diagnostics without mutating runtime state.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 5,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "gateway:stop",
@@ -1990,7 +2005,10 @@
       "work_gate": "reliability",
       "description": "Stop the Gateway runtime through the governed command path while preserving diagnostic output.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 6,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "git:add:code",
@@ -2353,7 +2371,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command infring:verify:proof-pack in group infring; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command infring:verify:proof-pack in group infring; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 84,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "infring:verify:public-benchmark",
@@ -2421,7 +2442,10 @@
       "work_gate": "real_work",
       "description": "Run the personal installation path for local operator setup using the public installer compatibility surface.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 7,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "integrity:assist",
@@ -2742,7 +2766,10 @@
       "work_gate": "simplification",
       "description": "Run memory efficiency analysis to find retention, compaction, and representation-collapse opportunities.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 8,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "memory:fallback-gate:disable-emergency",
@@ -2810,7 +2837,10 @@
       "work_gate": "reliability",
       "description": "Read memory matrix status as a kernel-owned diagnostic rather than a Shell-owned cache mirror.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 9,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "memory:offdevice:restore-drill",
@@ -3052,7 +3082,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:agent-surface:status:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:agent-surface:status:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 86,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:alert-transport",
@@ -3140,7 +3173,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:architecture:transition-residue:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:architecture:transition-residue:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 87,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:assimilation:authority:guard",
@@ -3173,7 +3209,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assimilation:v1:support:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:assimilation:v1:support:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 88,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:assurance:envelope:guard",
@@ -3184,7 +3223,10 @@
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:envelope:guard in group ops; domain=observability; three-laws gate=reliability."
+      "description": "Registry command ops:assurance:envelope:guard in group ops; domain=observability; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 89,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:assurance:governance",
@@ -3206,7 +3248,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:physical-domain-completion:audit in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:assurance:physical-domain-completion:audit in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 79,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:assurance:physical-domain-placement:guard",
@@ -3217,7 +3262,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:physical-domain-placement:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:assurance:physical-domain-placement:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 90,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:assurance:placement:guard",
@@ -3228,7 +3276,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:placement:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:assurance:placement:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 91,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:assurance:scorecard-derivation:guard",
@@ -3239,7 +3290,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:assurance:scorecard-derivation:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:assurance:scorecard-derivation:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 92,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:assurance:shell-truth-leak:guard",
@@ -3615,7 +3669,10 @@
       "work_gate": "reliability",
       "description": "Gate release confidence on boundedness evidence such as memory, queue, stale-surface, and recovery budgets.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 10,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:browser-shell-v2:build",
@@ -3703,7 +3760,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:capability-proof-burden:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:capability-proof-burden:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 33,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:capacity-forecast:run",
@@ -3890,7 +3950,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
-      "description": "Registry command ops:combined-artifacts:hygiene:guard in group ops; domain=validation; three-laws gate=simplification."
+      "description": "Registry command ops:combined-artifacts:hygiene:guard in group ops; domain=validation; three-laws gate=simplification.",
+      "operator_surface": true,
+      "operator_surface_rank": 41,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:command-registry:check",
@@ -3934,7 +3997,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:commit-message:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:commit-message:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 93,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:compat-tail:run",
@@ -4022,7 +4088,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:conduit:scrambler-posture:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:conduit:scrambler-posture:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 53,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:config-registry",
@@ -4066,7 +4135,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:cross-layer-import:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:cross-layer-import:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 94,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:dashboard:segment-ghost:guard",
@@ -4077,7 +4149,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:dashboard:segment-ghost:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:dashboard:segment-ghost:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 95,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:dashboard:surface:guard",
@@ -4088,7 +4163,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:dashboard:surface:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:dashboard:surface:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 96,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:dashboard:svelte-shell-contract:guard",
@@ -4165,7 +4243,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:docs-surface:check in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:docs-surface:check in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 97,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:dod:gate",
@@ -4297,7 +4378,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval-agent:chat-monitor:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval-agent:chat-monitor:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 66,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval-feedback:lifecycle:guard",
@@ -4308,7 +4392,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval-feedback:lifecycle:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval-feedback:lifecycle:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 42,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:adversarial:guard",
@@ -4319,7 +4406,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:adversarial:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:adversarial:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 67,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:agent-capability:l1",
@@ -4385,7 +4475,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:autopilot:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:autopilot:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 68,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:continuous:guard",
@@ -4451,7 +4544,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:issue:filing:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:issue:filing:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 69,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:issue:resolution:guard",
@@ -4462,7 +4558,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:issue:resolution:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:issue:resolution:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 70,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:judge-human:agreement:guard",
@@ -4473,7 +4572,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:judge-human:agreement:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:judge-human:agreement:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 71,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:judge-lane:guard",
@@ -4506,7 +4608,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:monitor:slo:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:monitor:slo:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 72,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:quality:gate:v1",
@@ -4528,7 +4633,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:quality:metrics:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:quality:metrics:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 73,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:regression:guard",
@@ -4539,7 +4647,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:regression:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:regression:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 74,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:reviewer:weekly:ingest",
@@ -4561,7 +4672,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:eval:runtime:authority:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:eval:runtime:authority:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 75,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:eval:synthetic-user-chat:harness",
@@ -4838,7 +4952,10 @@
       "work_gate": "reliability",
       "description": "Guard the Gateway boundary membrane so external clients cannot bypass typed, bounded, auditable ingress.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 11,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:gateway-boundary:report",
@@ -4849,7 +4966,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:gateway-boundary:report in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:gateway-boundary:report in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 26,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:gateway-runtime-chaos:gate",
@@ -4882,7 +5002,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:gateway-support:matrix:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:gateway-support:matrix:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 40,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:gateway:external-surface:guard",
@@ -4893,7 +5016,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:gateway:external-surface:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:gateway:external-surface:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 27,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:gateway:interface:guard",
@@ -4906,7 +5032,10 @@
       "work_gate": "reliability",
       "description": "Validate Gateway interface policy: bounded route classes, forbidden raw state shapes, and projection-only payload contracts.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 12,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:gateway:shell-launch:guard",
@@ -4928,7 +5057,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:gem:closure:full in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:gem:closure:full in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 57,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:gem:closure:guard",
@@ -5126,7 +5258,10 @@
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
-      "description": "Registry command ops:infring:install-plan in group ops; domain=installer; three-laws gate=reliability."
+      "description": "Registry command ops:infring:install-plan in group ops; domain=installer; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 63,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:infring:runtime-budget",
@@ -5159,7 +5294,10 @@
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
-      "description": "Registry command ops:installer-reliability:closure:guard in group ops; domain=installer; three-laws gate=reliability."
+      "description": "Registry command ops:installer-reliability:closure:guard in group ops; domain=installer; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 34,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:installer-surface:guard",
@@ -5170,7 +5308,10 @@
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
-      "description": "Registry command ops:installer-surface:guard in group ops; domain=installer; three-laws gate=reliability."
+      "description": "Registry command ops:installer-surface:guard in group ops; domain=installer; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 25,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:interface:payload-budget:guard",
@@ -5181,7 +5322,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:interface:payload-budget:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:interface:payload-budget:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 98,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:ipc-bridge:soak",
@@ -5236,7 +5380,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:kernel-naming:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:kernel-naming:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 48,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:kernel-naming:guard:strict",
@@ -5247,7 +5394,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:kernel-naming:guard:strict in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:kernel-naming:guard:strict in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 49,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:kernel-sentinel:auto",
@@ -5260,7 +5410,10 @@
       "work_gate": "reliability",
       "description": "Run the Kernel Sentinel automatic observation loop with bounded runtime, compact artifacts, trace identity, and maintenance cadence controls.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 13,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:kernel-sentinel:heartbeat",
@@ -5273,7 +5426,10 @@
       "work_gate": "reliability",
       "description": "Run the lightweight Kernel Sentinel heartbeat path for freshness without expensive dream-state self-study.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 14,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:kernel-sentinel:release-gate",
@@ -5286,7 +5442,10 @@
       "work_gate": "reliability",
       "description": "Evaluate whether Kernel Sentinel evidence is fresh, bounded, and strong enough for release confidence.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 15,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:kernel-sentinel:schedule",
@@ -5319,7 +5478,10 @@
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:ksent:boundedness-repair:guard in group ops; domain=observability; three-laws gate=reliability."
+      "description": "Registry command ops:ksent:boundedness-repair:guard in group ops; domain=observability; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 22,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:ksent:empty-response-repair:guard",
@@ -5330,7 +5492,10 @@
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:ksent:empty-response-repair:guard in group ops; domain=observability; three-laws gate=reliability."
+      "description": "Registry command ops:ksent:empty-response-repair:guard in group ops; domain=observability; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 24,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:ksent:fresh-evidence:guard",
@@ -5343,7 +5508,10 @@
       "work_gate": "reliability",
       "description": "Guard that verifies Kernel Sentinel has fresh evidence artifacts and is not relying on stale self-observation.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 16,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:ksent:policy:guard",
@@ -5354,7 +5522,10 @@
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:ksent:policy:guard in group ops; domain=observability; three-laws gate=reliability."
+      "description": "Registry command ops:ksent:policy:guard in group ops; domain=observability; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 23,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:ksent:release-bridge-repair:guard",
@@ -5365,7 +5536,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:ksent:release-bridge-repair:guard in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:ksent:release-bridge-repair:guard in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 21,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:layer-placement:check",
@@ -5387,7 +5561,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:layer0-ops:authority:audit in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:layer0-ops:authority:audit in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 80,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:layer2:parity:guard",
@@ -5420,7 +5597,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:layer3:contract:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:layer3:contract:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 99,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:legacy-alias:guard",
@@ -5442,7 +5622,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:legacy-memory-wrapper:audit in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:legacy-memory-wrapper:audit in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 45,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:legacy-runner:release-guard",
@@ -5453,7 +5636,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:legacy-runner:release-guard in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:legacy-runner:release-guard in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 30,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:legacy-vs-infring",
@@ -5915,7 +6101,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:mlsys5:assimilation:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:mlsys5:assimilation:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 100,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:model-health:recover",
@@ -5959,7 +6148,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:boundary:audit in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:nexus:boundary:audit in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 85,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:nexus:checklist",
@@ -5981,7 +6173,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:checkpoint-policy:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:nexus:checkpoint-policy:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 36,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:nexus:governance",
@@ -5992,7 +6187,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:governance in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:nexus:governance in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 46,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:nexus:kernel-coupling:guard",
@@ -6003,7 +6201,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:kernel-coupling:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:nexus:kernel-coupling:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 37,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:nexus:route-inventory:guard",
@@ -6014,7 +6215,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:nexus:route-inventory:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:nexus:route-inventory:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 47,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:nightly:turn-loop-analytics",
@@ -6102,7 +6306,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:operator-critical:release in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:operator-critical:release in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 55,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:operator-critical:status",
@@ -6267,7 +6474,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:ownership:drift:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:ownership:drift:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 50,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:ownership:drift:weekly",
@@ -6663,7 +6873,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release-blockers:gate in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:release-blockers:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 58,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:release-contract:gate",
@@ -6674,7 +6887,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release-contract:gate in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:release-contract:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 59,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:release-hardening-window:guard",
@@ -6685,7 +6901,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release-hardening-window:guard in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:release-hardening-window:guard in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 31,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:release-reviewer-redundancy:guard",
@@ -6696,7 +6915,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release-reviewer-redundancy:guard in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:release-reviewer-redundancy:guard in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 32,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:release-semver:plan",
@@ -6729,7 +6951,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release:policy:gate in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:release:policy:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 43,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:release:proof-pack",
@@ -6742,7 +6967,10 @@
       "work_gate": "reliability",
       "description": "Build or refresh release proof-pack artifacts used by release gates and operator review.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 17,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:release:rc-rehearsal",
@@ -6753,7 +6981,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release:rc-rehearsal in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:release:rc-rehearsal in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 60,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:release:scorecard:gate",
@@ -6764,7 +6995,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:release:scorecard:gate in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:release:scorecard:gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 61,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:release:verdict",
@@ -6777,7 +7011,10 @@
       "work_gate": "reliability",
       "description": "Produce the release verdict from validation, proof-pack, Sentinel, and governance evidence.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 18,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:reliability:gauntlet",
@@ -6975,7 +7212,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:runtime-proof:reality:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:runtime-proof:reality:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 44,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:runtime-proof:release-gate",
@@ -6986,7 +7226,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:runtime-proof:release-gate in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:runtime-proof:release-gate in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 38,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:runtime-proof:verify",
@@ -7184,7 +7427,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "simplification",
-      "description": "Registry command ops:rust-hygiene:baseline:guard in group ops; domain=validation; three-laws gate=simplification."
+      "description": "Registry command ops:rust-hygiene:baseline:guard in group ops; domain=validation; three-laws gate=simplification.",
+      "operator_surface": true,
+      "operator_surface_rank": 64,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:rust-productivity:list",
@@ -7316,7 +7562,10 @@
       "source": "package.json:scripts",
       "domain": "gateway",
       "work_gate": "real_work",
-      "description": "Registry command ops:rust50:conf-004:run in group ops; domain=gateway; three-laws gate=real_work."
+      "description": "Registry command ops:rust50:conf-004:run in group ops; domain=gateway; three-laws gate=real_work.",
+      "operator_surface": true,
+      "operator_surface_rank": 76,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:rust50:conf-004:status",
@@ -7327,7 +7576,10 @@
       "source": "package.json:scripts",
       "domain": "gateway",
       "work_gate": "real_work",
-      "description": "Registry command ops:rust50:conf-004:status in group ops; domain=gateway; three-laws gate=real_work."
+      "description": "Registry command ops:rust50:conf-004:status in group ops; domain=gateway; three-laws gate=real_work.",
+      "operator_surface": true,
+      "operator_surface_rank": 77,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:rust50:gate",
@@ -8471,7 +8723,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:todo:audit-full in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:todo:audit-full in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 62,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:todo:board",
@@ -8504,7 +8759,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:todo:real-work:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:todo:real-work:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 81,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:token-economics",
@@ -8581,7 +8839,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:tooling:harness-only:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:tooling:harness-only:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 51,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:tools:context-route",
@@ -8713,7 +8974,10 @@
       "source": "package.json:scripts",
       "domain": "observability",
       "work_gate": "reliability",
-      "description": "Registry command ops:trace:substrate:guard in group ops; domain=observability; three-laws gate=reliability."
+      "description": "Registry command ops:trace:substrate:guard in group ops; domain=observability; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 35,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:transport:convergence:guard",
@@ -8735,7 +8999,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:transport:spawn-audit in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:transport:spawn-audit in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 82,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:transport:topology:gate",
@@ -8902,7 +9169,10 @@
       "work_gate": "reliability",
       "description": "Validate Windows installer contracts, wrapper expectations, and locked-down execution-policy recovery behavior.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 19,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "ops:workflow-closure",
@@ -8924,7 +9194,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command ops:workflow-failure-recovery:guard in group ops; domain=validation; three-laws gate=reliability."
+      "description": "Registry command ops:workflow-failure-recovery:guard in group ops; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 65,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:workspace-tooling:context:soak",
@@ -8946,7 +9219,10 @@
       "source": "package.json:scripts",
       "domain": "release_governance",
       "work_gate": "reliability",
-      "description": "Registry command ops:workspace-tooling:release-proof in group ops; domain=release_governance; three-laws gate=reliability."
+      "description": "Registry command ops:workspace-tooling:release-proof in group ops; domain=release_governance; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 39,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "ops:yellow:deferred-work:guard",
@@ -9133,7 +9409,10 @@
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
-      "description": "Registry command postinstall:memory in group postinstall; domain=installer; three-laws gate=reliability."
+      "description": "Registry command postinstall:memory in group postinstall; domain=installer; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 28,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "postmortem",
@@ -9485,7 +9764,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command safety:resilience:evaluate in group safety; domain=validation; three-laws gate=reliability."
+      "description": "Registry command safety:resilience:evaluate in group safety; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 52,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "schema:evolution:run",
@@ -9509,7 +9791,10 @@
       "work_gate": "reliability",
       "description": "Run dependency security audit for known package vulnerabilities before release or risky dependency work.",
       "metadata_curated": true,
-      "metadata_curated_at": "2026-05-10T00:00:00Z"
+      "metadata_curated_at": "2026-05-10T00:00:00Z",
+      "operator_surface": true,
+      "operator_surface_rank": 20,
+      "operator_surface_reason": "canonical curated command retained in the default operator surface"
     },
     {
       "id": "security:critical-path:run",
@@ -9641,7 +9926,10 @@
       "source": "package.json:scripts",
       "domain": "workspace_ops",
       "work_gate": "reliability",
-      "description": "Registry command security:organ-state:decrypt in group security; domain=workspace_ops; three-laws gate=reliability."
+      "description": "Registry command security:organ-state:decrypt in group security; domain=workspace_ops; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 78,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "security:organ-state:encrypt",
@@ -9795,7 +10083,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command security:sandbox:evaluate-workflow in group security; domain=validation; three-laws gate=reliability."
+      "description": "Registry command security:sandbox:evaluate-workflow in group security; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 56,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "security:sandbox:status",
@@ -11621,7 +11912,10 @@
       "source": "package.json:scripts",
       "domain": "validation",
       "work_gate": "reliability",
-      "description": "Registry command test:ops:subconscious-boundary-guard in group test; domain=validation; three-laws gate=reliability."
+      "description": "Registry command test:ops:subconscious-boundary-guard in group test; domain=validation; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 54,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "test:ops:system-map-generator",
@@ -11764,7 +12058,10 @@
       "source": "package.json:scripts",
       "domain": "installer",
       "work_gate": "reliability",
-      "description": "Registry command test:personal:installer:terms in group test; domain=installer; three-laws gate=reliability."
+      "description": "Registry command test:personal:installer:terms in group test; domain=installer; three-laws gate=reliability.",
+      "operator_surface": true,
+      "operator_surface_rank": 29,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "test:pre-neuralink:interface",
@@ -12633,7 +12930,10 @@
       "source": "package.json:scripts",
       "domain": "gateway",
       "work_gate": "real_work",
-      "description": "Registry command xai:embedding-adapter:adapt in group xai; domain=gateway; three-laws gate=real_work."
+      "description": "Registry command xai:embedding-adapter:adapt in group xai; domain=gateway; three-laws gate=real_work.",
+      "operator_surface": true,
+      "operator_surface_rank": 83,
+      "operator_surface_reason": "high-value non-shell operator command promoted from compatibility surface for agent navigation"
     },
     {
       "id": "xai:motivation:evaluate",
@@ -12705,5 +13005,8 @@
   "metadata_enriched_at": "2026-05-10T21:25:16.777Z",
   "metadata_policy": "validation/conformance/contracts/command_registry_metadata_policy.json",
   "metadata_curated_count": 20,
-  "metadata_curated_at": "2026-05-10T00:00:00Z"
+  "metadata_curated_at": "2026-05-10T00:00:00Z",
+  "operator_surface_count": 100,
+  "operator_surface_policy": "validation/conformance/contracts/command_operator_surface_policy.json",
+  "operator_surface_updated_at": "2026-05-11T00:00:00Z"
 }

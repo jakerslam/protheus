@@ -309,6 +309,73 @@
       "self_enforcing": true,
       "harness_only": false,
       "notes": "Validation owns empirical coverage and soak scenario regression policy; runtime artifacts remain generated evidence."
+    },
+    {
+      "id": "validation.kernel_sentinel_policy_guards",
+      "domain": "validation",
+      "validation_kind": "conformance_guard",
+      "lifecycle_state": "release_gate",
+      "signal_class": "hard_gate",
+      "authority_class": "controlled_validation",
+      "owner_of_truth": "observability/sentinel",
+      "source_refs": [
+        "observability/sentinel/feedback_absorption_policy.json",
+        "observability/sentinel/eval_runtime_boundary_policy.json",
+        "observability/freshness/kernel_sentinel_deterministic_evidence_refresh_policy.md",
+        "ops:ksent:policy:guard",
+        "ops:ksent:fresh-evidence:guard"
+      ],
+      "evidence_output": [
+        "core/local/artifacts/kernel_sentinel_policy_guard_current.json",
+        "core/local/artifacts/kernel_sentinel_fresh_evidence_guard_current.json"
+      ],
+      "self_enforcing": true,
+      "harness_only": false,
+      "notes": "Controls Sentinel feedback absorption, Eval/Sentinel boundary split, and stale-evidence promotion prevention."
+    },
+    {
+      "id": "validation.digital_dna_foundation_guard",
+      "domain": "validation",
+      "validation_kind": "conformance_guard",
+      "lifecycle_state": "release_gate",
+      "signal_class": "hard_gate",
+      "authority_class": "controlled_validation",
+      "owner_of_truth": "core/layer0/ops metakernel DNA substrate",
+      "source_refs": [
+        "docs/workspace/reports/DNA_FOUNDATION_AUDIT_2026-05-09.md",
+        "docs/workspace/reports/DNA_SRS_FOUNDATION_LOCK_2026-05-09.md",
+        "tests/tooling/scripts/ci/digital_dna_foundation_graduation_guard.ts",
+        "ops:dna:foundation:guard",
+        "ops:dna:integrity:gate"
+      ],
+      "evidence_output": [
+        "core/local/artifacts/digital_dna_foundation_graduation_guard_current.json",
+        "core/local/artifacts/digital_dna_integrity_gate_current.json"
+      ],
+      "self_enforcing": true,
+      "harness_only": false,
+      "notes": "Keeps DNA foundation audit, SRS lock, and integrity substrate visibility from drifting apart."
+    },
+    {
+      "id": "validation.combined_rust_artifact_hygiene",
+      "domain": "validation",
+      "validation_kind": "conformance_guard",
+      "lifecycle_state": "release_gate",
+      "signal_class": "hard_gate",
+      "authority_class": "controlled_validation",
+      "owner_of_truth": "validation/conformance/contracts/combined_rust_artifact_hygiene_policy.json",
+      "source_refs": [
+        "validation/reports/combined_rust_artifact_inventory_2026-05-09.json",
+        "validation/reports/combined_rust_reference_map_2026-05-09.json",
+        "validation/conformance/contracts/combined_rust_artifact_hygiene_policy.json",
+        "ops:combined-artifacts:hygiene:guard"
+      ],
+      "evidence_output": [
+        "core/local/artifacts/combined_rust_artifact_hygiene_guard_current.json"
+      ],
+      "self_enforcing": true,
+      "harness_only": false,
+      "notes": "Pins the combined artifact baseline and prevents inventory/reference-map drift before cleanup waves."
     }
   ]
 }

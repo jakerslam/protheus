@@ -1,0 +1,46 @@
+{
+  "type": "kernel_sentinel_feedback_absorption_policy",
+  "schema_version": 1,
+  "owner_domain": "observability",
+  "source_todo": "KSENT-FEEDBACK-ABSORPTION",
+  "release_policy": {
+    "safe_to_auto_file_issue": true,
+    "safe_to_auto_apply_patch": false,
+    "human_review_required": true,
+    "raw_evidence_kept_out_of_final_report": true
+  },
+  "promotion_lane": [
+    "raw_observation",
+    "candidate_finding",
+    "clustered_issue",
+    "repair_backlog_item",
+    "closed_by_evidence"
+  ],
+  "required_finding_fields": [
+    "evidence_refs",
+    "freshness_or_recurrence",
+    "owner_guess",
+    "root_cause_hypothesis",
+    "concrete_next_action",
+    "operating_law"
+  ],
+  "allowed_operating_laws": ["usability", "reliability", "simplicity"],
+  "dedupe_key_fields": [
+    "law",
+    "owner_domain",
+    "evidence_family",
+    "root_cause_hypothesis",
+    "failure_signature"
+  ],
+  "noise_controls": {
+    "final_report_contains_raw_evidence": false,
+    "oversized_report_is_invalid": true,
+    "symptom_only_drafts_are_rejected": true,
+    "cluster_repeated_symptoms": true
+  },
+  "policy_refs": [
+    "observability/sentinel/feedback_absorption_policy.md",
+    "docs/workspace/REAL_WORK_FIRST.md",
+    "observability/sentinel/usability_reliability_simplicity_enforcement_policy.json"
+  ]
+}

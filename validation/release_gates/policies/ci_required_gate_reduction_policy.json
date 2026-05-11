@@ -1,0 +1,46 @@
+{
+  "type": "ci_required_gate_reduction_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.release_gates",
+  "manifest_path": "validation/conformance/contracts/ci_workflow_tier_manifest.json",
+  "report_path": "validation/reports/ci_required_gate_reduction_plan_2026-05-10.json",
+  "target_required_max": 18,
+  "always_required_name_tokens": [
+    "ci",
+    "conventional",
+    "codeql",
+    "dependency",
+    "security-audit",
+    "core-nexus",
+    "kernel-layer",
+    "layer-placement",
+    "quality",
+    "required-checks",
+    "windows-locked-down"
+  ],
+  "prefer_advisory_or_nightly_tokens": [
+    "f100",
+    "scorecard",
+    "formal",
+    "proof",
+    "helm",
+    "empty-fort",
+    "external-validation",
+    "heartbeat",
+    "llmn",
+    "alpha",
+    "coverage",
+    "size",
+    "rust-perf",
+    "share-kpi",
+    "license-spdx",
+    "release-post",
+    "release-promote"
+  ],
+  "policy": {
+    "required_gate_count_should_trend_down": true,
+    "advisory_and_nightly_gates_should_not_block_daily_feature_work": true,
+    "security_and_basic_correctness_stay_required": true,
+    "demotion_requires_human_or_maintainer_review": true
+  }
+}

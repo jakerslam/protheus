@@ -1,0 +1,28 @@
+{
+  "type": "safe_commit_workspace_policy",
+  "schema_version": 1,
+  "owner_domain": "workspace_ops.git_safety",
+  "tool_path": "tools/git/safe_commit_report.ts",
+  "report_path": "validation/reports/safe_commit_workspace_report_2026-05-10.json",
+  "required_tokens": [
+    "safe_commit_workspace_report",
+    "unmerged_paths_present",
+    "tracked_delete_shadowed_by_untracked_same_path",
+    "large_dirty_surface_requires_surgical_commit",
+    "surgical_commit_recommended"
+  ],
+  "policy": {
+    "ordinary_commit_for_large_dirty_tree_forbidden": true,
+    "unmerged_paths_block_normal_commit": true,
+    "delete_untracked_shadow_pairs_block_normal_commit": true,
+    "report_only_no_git_mutation": true
+  },
+  "forbidden_tool_tokens": [
+    "git add",
+    "git commit",
+    "git push",
+    "git update-ref",
+    "git reset",
+    "git checkout --"
+  ]
+}

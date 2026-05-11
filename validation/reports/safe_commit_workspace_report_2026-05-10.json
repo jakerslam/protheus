@@ -1,0 +1,932 @@
+{
+  "trace_id": "workspace_ops:2026-05-10T23:34:04.275Z:83897",
+  "span_id": "span:workspace_ops:2026-05-10T23:34:04.275Z:83897",
+  "parent_span_id": null,
+  "source_domain": "workspace_ops",
+  "ok": false,
+  "type": "safe_commit_workspace_report",
+  "generated_at": "2026-05-10T23:34:04.277Z",
+  "git_status_exit_code": 0,
+  "summary": {
+    "total_rows": 265,
+    "staged": 158,
+    "unstaged": 27,
+    "untracked": 97,
+    "unmerged": 1,
+    "staged_deletes": 63,
+    "shadowed_deletes": 46,
+    "unsafe_reasons": [
+      "unmerged_paths_present",
+      "tracked_delete_shadowed_by_untracked_same_path",
+      "large_dirty_surface_requires_surgical_commit"
+    ],
+    "normal_commit_safe": false,
+    "surgical_commit_recommended": true
+  },
+  "by_domain": {
+    "ci": 4,
+    "other": 25,
+    "shell": 16,
+    "kernel_or_core": 56,
+    "installer": 10,
+    "observability": 19,
+    "orchestration": 11,
+    "validation_harness": 59,
+    "workspace_ops": 4,
+    "validation": 61
+  },
+  "unmerged_paths": [
+    "orchestration/src/eval_research_golden_scoring.rs"
+  ],
+  "shadowed_delete_paths": [
+    ".github/workflows/ci-tier-enforcement.yml",
+    ".github/workflows/windows-locked-down-install-replay.yml",
+    "observability/reports/sentinel_timing_trend_report_2026-05-10.json",
+    "observability/sentinel/sentinel_full_run_stage_timing_policy.json",
+    "observability/sentinel/sentinel_timing_trend_policy.json",
+    "observability/traces/gateway_trace_propagation_policy.json",
+    "observability/traces/non_shell_trace_completeness_policy.json",
+    "tests/tooling/scripts/ci/ci_tier_release_enforcement_guard.ts",
+    "tests/tooling/scripts/ci/ci_workflow_tier_guard.ts",
+    "tests/tooling/scripts/ci/ci_workflow_tier_manifest_generate.ts",
+    "tests/tooling/scripts/ci/command_metadata_curated_guard.ts",
+    "tests/tooling/scripts/ci/command_registry_metadata_guard.ts",
+    "tests/tooling/scripts/ci/command_runner_first_guard.ts",
+    "tests/tooling/scripts/ci/command_surface_compression_report.ts",
+    "tests/tooling/scripts/ci/gateway_adapter_invariants_guard.ts",
+    "tests/tooling/scripts/ci/gateway_idempotence_replay_guard.ts",
+    "tests/tooling/scripts/ci/gateway_trace_propagation_guard.ts",
+    "tests/tooling/scripts/ci/installer_module_guard.ts",
+    "tests/tooling/scripts/ci/memory_runtime_security_closure_guard.ts",
+    "tests/tooling/scripts/ci/non_shell_trace_completeness_guard.ts",
+    "tests/tooling/scripts/ci/proof_pack_artifact_size_guard.ts",
+    "tests/tooling/scripts/ci/release_version_convergence_guard.ts",
+    "tests/tooling/scripts/ci/rust_crate_support_evidence_guard.ts",
+    "tests/tooling/scripts/ci/rust_crate_support_evidence_report.ts",
+    "tests/tooling/scripts/ci/rust_crate_support_status_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_stage_timing_policy_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts",
+    "tests/tooling/scripts/ci/sentinel_timing_trend_report.ts",
+    "tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts",
+    "validation/conformance/contracts/ci_workflow_tier_manifest.json",
+    "validation/conformance/contracts/ci_workflow_tier_policy.json",
+    "validation/conformance/contracts/command_metadata_curated_overrides.json",
+    "validation/conformance/contracts/command_registry_metadata_policy.json",
+    "validation/conformance/contracts/command_runner_first_policy.json",
+    "validation/conformance/contracts/gateway_adapter_invariants_policy.json",
+    "validation/conformance/contracts/installer_module_policy.json",
+    "validation/conformance/contracts/memory_runtime_security_closure_policy.json",
+    "validation/conformance/contracts/rust_crate_support_evidence_policy.json",
+    "validation/conformance/contracts/rust_crate_support_status_manifest.json",
+    "validation/release_gates/policies/ci_tier_release_enforcement_policy.json",
+    "validation/release_gates/policies/proof_pack_artifact_size_policy.json",
+    "validation/release_gates/policies/release_version_convergence_policy.json",
+    "validation/release_gates/policies/windows_locked_down_install_replay_policy.json",
+    "validation/reports/command_surface_compression_report_2026-05-10.json",
+    "validation/reports/non_shell_roi_implementation_wave_2026-05-10.md",
+    "validation/reports/rust_crate_support_evidence_report_2026-05-10.json"
+  ],
+  "sample_rows": [
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": ".github/workflows/ci-tier-enforcement.yml",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": ".github/workflows/windows-locked-down-install-replay.yml",
+      "source": ""
+    },
+    {
+      "xy": " D",
+      "index": " ",
+      "worktree": "D",
+      "file": "INFRING_REPO_ANALYSIS.md",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "README.md",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "adapters/runtime/infring_dashboard.ts",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/config/batch_query_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/config/research_plane_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/config/state_cleanup_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/config/web_conduit_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/systems/ui/infring_static/css/components.css.parts/0022-ui-background-template.css",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/systems/ui/infring_static/css/theme.css",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/systems/ui/infring_static/js/app.ts",
+      "source": ""
+    },
+    {
+      "xy": " M",
+      "index": " ",
+      "worktree": "M",
+      "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/005-core-rendering-helpers.part01.ts",
+      "source": ""
+    },
+    {
+      "xy": " M",
+      "index": " ",
+      "worktree": "M",
+      "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/010-core-state.part01.ts",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/020-nav-and-layout.part01a.ts",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/systems/ui/infring_static/js/app.ts.parts/030-agent-list-runtime.part02.ts",
+      "source": ""
+    },
+    {
+      "xy": " M",
+      "index": " ",
+      "worktree": "M",
+      "file": "client/runtime/systems/ui/infring_static/js/app_markdown_helpers.ts",
+      "source": ""
+    },
+    {
+      "xy": " M",
+      "index": " ",
+      "worktree": "M",
+      "file": "client/runtime/systems/ui/infring_static/js/app_rendering_helpers.ts",
+      "source": ""
+    },
+    {
+      "xy": " M",
+      "index": " ",
+      "worktree": "M",
+      "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts",
+      "source": ""
+    },
+    {
+      "xy": " M",
+      "index": " ",
+      "worktree": "M",
+      "file": "client/runtime/systems/ui/infring_static/js/pages/chat.ts.parts/220-artifacts-voice-search.part01.ts",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "client/runtime/systems/ui/infring_static/js/shell/taskbar_dock_shell_services.ts",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "core/layer0/memory_runtime/src/db_parts/000-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "core/layer0/memory_runtime/src/db_parts/002-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "core/layer0/memory_runtime/src/main_parts/embedding_helpers_parts/010-normalize-file-ref.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/020-policy-rel-to-instruction-tail-regex.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/030-looks-like-instructional-query-to-looks-like-empty-duckduckgo-instan.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/050-looks-like-definition-candidate-to-extract-metric-focused-fragment.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/010-core_parts/000-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/010-core_parts/001-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/016-web-quality-diagnostics.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/018-request-and-cache.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/019-search-row-candidates.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/010-link-fetch-fallback-limit-to-stage-error.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/020-collect-candidates-from-stage-payload-to-retrieve-web-candidates-for.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/030-rerank-score-to-is-benign-partial-failure.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts/000-combined.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/021-summary-and-guidance.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/030-run.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/041-quality-tests.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/042-cache-rewrite-tests.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/batch_query_primitive_parts/043-web-quality-diagnostics-tests.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/000-combined.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/030-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts/040-latent-tool-candidates-for-message.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part_parts/002-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/161-part.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046-turn-workflow-library.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046a-workflow-reader.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046b-manual-toolbox-pending-request.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/046c-manual-toolbox-private-gate-turn.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/047-turn-workflow-synthesis.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload_parts/050-finalize-message-finalization-and-payload_parts/000-combined.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/workflows/simple_conversation_v1.workflow.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/shell_socket.rs",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "core/layer0/ops/src/kernel_sentinel/authority.rs",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "core/layer0/ops/src/kernel_sentinel/auto_run.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/kernel_sentinel/evidence.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/kernel_sentinel/scheduler/cadence_support.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/ops_main_usage.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/spine_parts/030-parse-worktree-blocks.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/020-domain-and-render.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/030-serper-bing-and-fetch.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/050-search-providers_parts/001-segment.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/050-search-providers_parts/002-segment.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/050-search-providers_parts/003-segment.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment_parts/670-api-search-parts/000-combined.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment_parts/670-api-search-parts/030-segment.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment_parts/670-api-search-parts/040-segment.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment_parts/670-api-search-parts/050-segment.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/065-setup-and-migration.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_parts/095-openclaw-search-tool-tests.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_provider_runtime_parts/010-provider-chain-and-health.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_provider_runtime_parts/017-provider-public-contracts.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer0/ops/src/web_conduit_provider_runtime_parts/020-cache-and-tests.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer2/tooling/src/tool_contracts.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "docs/client/GETTING_STARTED.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "docs/workspace/CRAWL4AI_WEB_TOOLING_ASSIMILATION_LEDGER.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "docs/workspace/FIRECRAWL_WEB_TOOLING_ASSIMILATION_LEDGER.md",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "docs/workspace/REAL_WORK_FIRST.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "docs/workspace/SCRAPLING_WEB_TOOLING_INTEGRATION_LEDGER.md",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "docs/workspace/manuals/infring_manual_help_tab.md",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "docs/workspace/system_understanding/infring_dossier.md",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "docs/workspace/todo/TODO.md",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "docs/workspace/todo/TODO_ARCHIVE.md",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "docs/workspace/todo/todo_archive_registry.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "docs/workspace/todo/todo_registry.json",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "install.ps1",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/README.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/modules/README.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/modules/bootstrap_common.sh",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/modules/bootstrap_contract.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/modules/completion_card.ps1",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/modules/repair_contract.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/modules/windows_wrapper_contract.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "install/modules/windows_wrappers.ps1",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/reports/sentinel_timing_trend_report_2026-05-10.json",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "observability/sentinel/README.md",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/sentinel_full_run_stage_timing_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/sentinel/sentinel_timing_trend_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "observability/sentinel/usability_reliability_simplicity_enforcement_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/traces/gateway_trace_propagation_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "observability/traces/non_shell_trace_completeness_policy.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/eval_research_gate_diagnostics.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/eval_research_gate_post_tool.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/eval_research_golden.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/eval_research_golden_post_tool_tests.rs",
+      "source": ""
+    },
+    {
+      "xy": "UU",
+      "index": "U",
+      "worktree": "U",
+      "file": "orchestration/src/eval_research_golden_scoring.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/eval_research_golden_utils.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/ingress/classifier.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/ingress/parser.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/orchestration_stability_guard.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/src/request_classifier.rs",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "orchestration/tests/control_plane_subdomains.rs",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "package.json",
+      "source": ""
+    },
+    {
+      "xy": "M ",
+      "index": "M",
+      "worktree": " ",
+      "file": "tests/client-memory-tools/run_ci_suite.ts",
+      "source": ""
+    },
+    {
+      "xy": "MM",
+      "index": "M",
+      "worktree": "M",
+      "file": "tests/tooling/config/tooling_gate_registry.json",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "tests/tooling/scripts/ci/ci_tier_release_enforcement_guard.ts",
+      "source": ""
+    },
+    {
+      "xy": "D ",
+      "index": "D",
+      "worktree": " ",
+      "file": "tests/tooling/scripts/ci/ci_workflow_tier_guard.ts",
+      "source": ""
+    }
+  ],
+  "recommendation": "Do not use ordinary staging/commit flow. Use an isolated temporary index or clean/stash unrelated work first."
+}

@@ -44,6 +44,7 @@
   "required_finding_fields": [
     "violated_law",
     "evidence_refs",
+    "freshness_or_recurrence_support",
     "owner_guess",
     "root_cause_hypothesis",
     "concrete_next_action",
@@ -52,6 +53,7 @@
   ],
   "promotion_rules": [
     "A doctrine violation may be promoted only when backed by live evidence, recurring issue evidence, or explicit operator observation.",
+    "Stale evidence must remain stale_reference_only until refreshed or corroborated by current deterministic evidence.",
     "A doctrine violation must identify the smallest real-work path it damages.",
     "Simplicity findings must name the duplicate representation, ownership ambiguity, or compatibility tail they reduce.",
     "Usability findings must identify the missing user-facing or agent-facing workflow.",

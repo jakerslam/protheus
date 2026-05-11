@@ -1,0 +1,96 @@
+{
+  "type": "real_work_workflow_proof_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.proof_packs",
+  "report_path": "core/local/artifacts/real_work_workflow_proof_current.json",
+  "minimum_ready_lanes": 4,
+  "lanes": [
+    {
+      "id": "windows_installer_repair",
+      "purpose": "Prove the system can turn real user install failure output into a repaired installer surface.",
+      "evidence_paths_any": [
+        "core/local/artifacts/windows_locked_down_install_replay_current.json",
+        "core/local/artifacts/windows_locked_down_install_replay_guard_current.json",
+        "core/local/artifacts/windows_installer_contract_guard_current.json",
+        "validation/reports/windows_locked_down_install_replay_2026-05-10.json"
+      ],
+      "guard_paths_any": [
+        "tests/tooling/scripts/ci/windows_locked_down_install_replay_guard.ts",
+        "tests/tooling/scripts/ci/windows_installer_contract_guard.ts"
+      ]
+    },
+    {
+      "id": "gateway_status_diagnosis",
+      "purpose": "Prove the system can diagnose gateway status/start failures without mutating runtime state.",
+      "evidence_paths_any": [
+        "validation/reports/gateway_status_live_replay_2026-05-10.json",
+        "core/local/artifacts/gateway_status_launcher_drift_current.json",
+        "core/local/artifacts/gateway_supervisor_authority_drift_current.json"
+      ],
+      "guard_paths_any": [
+        "tests/tooling/scripts/ci/gateway_status_live_replay_guard.ts",
+        "tests/tooling/scripts/ci/gateway_status_launcher_drift_guard.ts",
+        "tests/tooling/scripts/ci/gateway_supervisor_authority_drift_guard.ts"
+      ]
+    },
+    {
+      "id": "sentinel_anti_entropy",
+      "purpose": "Prove Sentinel can produce bounded staged evidence instead of hanging or flooding raw output.",
+      "evidence_paths_any": [
+        "observability/reports/sentinel_full_run_stage_runner_current.json",
+        "observability/reports/sentinel_full_run_timeout_report_2026-05-10.json",
+        "observability/reports/sentinel_timing_trend_report_2026-05-10.json"
+      ],
+      "guard_paths_any": [
+        "tests/tooling/scripts/ci/sentinel_full_run_stage_runner_guard.ts",
+        "tests/tooling/scripts/ci/sentinel_full_run_timeout_guard.ts",
+        "tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts"
+      ]
+    },
+    {
+      "id": "safe_commit_workflow",
+      "purpose": "Prove commit safety can be assessed before staging in a high-churn workspace.",
+      "evidence_paths_any": [
+        "validation/reports/safe_commit_workspace_report_2026-05-10.json",
+        "core/local/artifacts/safe_commit_workspace_guard_current.json"
+      ],
+      "guard_paths_any": [
+        "tests/tooling/scripts/ci/safe_commit_workspace_guard.ts"
+      ]
+    },
+    {
+      "id": "command_navigation",
+      "purpose": "Prove agents have a compressed command entrypoint instead of relying on 1000+ package scripts.",
+      "evidence_paths_any": [
+        "core/local/artifacts/command_runner_first_guard_current.json",
+        "validation/reports/non_shell_roi_implementation_wave_2026-05-10.md"
+      ],
+      "guard_paths_any": [
+        "tests/tooling/scripts/ci/command_runner_first_guard.ts"
+      ]
+    },
+    {
+      "id": "security_remediation",
+      "purpose": "Prove real security findings can be translated into concrete source patches and recurring guard coverage.",
+      "evidence_paths_any": [
+        "core/local/artifacts/memory_runtime_security_closure_guard_current.json"
+      ],
+      "guard_paths_any": [
+        "tests/tooling/scripts/ci/memory_runtime_security_closure_guard.ts"
+      ]
+    }
+  ],
+  "required_lane_fields": [
+    "id",
+    "purpose",
+    "ready",
+    "evidence_path",
+    "guard_path"
+  ],
+  "policy": {
+    "proof_must_be_evidence_backed": true,
+    "proof_must_cover_user_visible_work": true,
+    "proof_must_include_operator_next_actions_when_incomplete": true,
+    "proof_report_must_be_compact": true
+  }
+}

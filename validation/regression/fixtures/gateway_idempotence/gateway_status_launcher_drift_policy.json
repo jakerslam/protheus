@@ -1,0 +1,43 @@
+{
+  "type": "gateway_status_launcher_drift_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.regression",
+  "report_path": "core/local/artifacts/gateway_status_launcher_drift_current.json",
+  "launcher_path": "client/cli/bin/infring",
+  "ops_manifest_path": "core/layer0/ops/Cargo.toml",
+  "ops_source_roots": [
+    "core/layer0/ops/src"
+  ],
+  "package_scripts": {
+    "infring": "./client/cli/bin/infring",
+    "gateway_status": "npm run -s infring -- gateway status"
+  },
+  "candidate_resolution_order": [
+    "INFRING_NPM_BINARY",
+    "client/cli/npm/vendor/infring-ops",
+    "target/debug/infring-ops",
+    "target/release/infring-ops",
+    "cargo_fallback"
+  ],
+  "policy": {
+    "gateway_status_launcher_must_be_source_authoritative": true,
+    "repo_launcher_must_not_prefer_home_installed_binary": true,
+    "stale_repo_binary_must_emit_named_diagnostic": true,
+    "status_drift_diagnostic_must_include_next_action": true
+  },
+  "required_report_fields": [
+    "selected_candidate",
+    "diagnostic",
+    "root_cause_hypothesis",
+    "next_actions",
+    "source_newest_mtime_ms",
+    "candidates"
+  ],
+  "diagnostic_allowlist": [
+    "gateway_status_launcher_current",
+    "gateway_status_launcher_uses_cargo_fallback",
+    "gateway_status_launcher_selected_binary_stale",
+    "gateway_status_launcher_missing",
+    "gateway_status_launcher_policy_mismatch"
+  ]
+}

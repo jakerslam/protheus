@@ -87,7 +87,12 @@ fn bool_env_with_infring_alias(primary: &str, alias: &str, fallback: bool) -> bo
     bool_env(primary, bool_env(alias, fallback))
 }
 
-fn dispatch_security_gate_exempt(script_rel: &str, _args: &[String]) -> bool {
+fn dispatch_security_gate_exempt(script_rel: &str, args: &[String]) -> bool {
+    if script_rel == "core://daemon-control"
+        && args.first().map(String::as_str) == Some("status")
+    {
+        return true;
+    }
     if matches!(
         script_rel,
         "core://unknown-command"

@@ -1,0 +1,37 @@
+{
+  "type": "kernel_sentinel_eval_runtime_boundary_policy",
+  "schema_version": 1,
+  "owner_domain": "observability",
+  "source_todo": "KSENT-EVAL-RUNTIME-SPLIT",
+  "sentinel_owns": [
+    "receipt_drift",
+    "missing_finalization",
+    "stale_state",
+    "authority_leak",
+    "cadence_failure",
+    "persistence_gap",
+    "runtime_topology_health",
+    "boundary_health",
+    "structural_root_cause_cluster"
+  ],
+  "eval_owns": [
+    "hallucination",
+    "wrong_tool_choice",
+    "missing_tool_call",
+    "bad_answer_quality",
+    "refusal_policy_drift",
+    "empty_response_behavior",
+    "controlled_fixture_score",
+    "golden_trace_score"
+  ],
+  "handoff_rule": {
+    "sentinel_may_cite_response_failures_only_when_runtime_caused": true,
+    "eval_may_cite_runtime_failures_only_when_scoring_invalidated": true,
+    "shared_issue_requires_owner_split": true
+  },
+  "policy_refs": [
+    "observability/sentinel/eval_runtime_boundary_policy.md",
+    "observability/sentinel/internal_agent_scope_policy.json",
+    "validation/evals"
+  ]
+}

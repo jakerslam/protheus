@@ -76,6 +76,33 @@ fn stale_verity_drift_events_are_historical_not_current_receipt_blockers() {
 }
 
 #[test]
+// Regression token: stale_historical_evidence_failure must stay covered here.
+    fn stale_generated_at_failures_are_historical_not_current_receipt_blockers() {
+    let dir = std::env::temp_dir().join("kernel-sentinel-evidence-stale-generated-at");
+    let _ = fs::remove_dir_all(&dir);
+    fs::create_dir_all(&dir).unwrap();
+    fs::write(
+        dir.join("runtime_observations.jsonl"),
+        r#"{"id":"old-health","ok":false,"severity":"high","category":"runtime_correctness","subject":"receipts","kind":"runtime_observation_bridge","generated_at":"2026-04-17T22:44:50.318Z","summary":"old health audit failure","evidence":["health://old/receipts"]}"#,
+    )
+    .unwrap();
+
+    let args = vec![format!("--evidence-dir={}", dir.display())];
+    let ingestion = ingest_evidence_sources(&dir, &args);
+
+    assert!(ingestion.findings.is_empty());
+    assert_eq!(
+        ingestion.report["normalized_records"][0]["stale_historical_failure"],
+        Value::Bool(true)
+    );
+    assert!(ingestion.report["normalized_records"][0]["evidence"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|row| row.as_str().unwrap_or("").starts_with("freshness://age_seconds/")));
+}
+
+#[test]
 fn fresh_verity_drift_events_still_open_receipt_findings() {
     let dir = std::env::temp_dir().join("kernel-sentinel-evidence-fresh-verity-drift");
     let _ = fs::remove_dir_all(&dir);

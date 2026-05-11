@@ -1,0 +1,108 @@
+{
+  "type": "gateway_disposable_live_replay_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.regression",
+  "report_path": "core/local/artifacts/gateway_disposable_live_replay_current.json",
+  "apply_env": "INFRING_GATEWAY_DISPOSABLE_REPLAY_APPLY",
+  "default_apply": false,
+  "host": "127.0.0.1",
+  "port": 4197,
+  "timeout_ms": 18000,
+  "required_output_tokens_any": [
+    "gateway",
+    "active",
+    "status",
+    "health",
+    "not ready",
+    "failed",
+    "next-action",
+    "diagnostics"
+  ],
+  "steps": [
+    {
+      "id": "status_before",
+      "kind": "status",
+      "mutates": false,
+      "execute_in_dry_run": false,
+      "command": [
+        "npm",
+        "run",
+        "-s",
+        "gateway:status",
+        "--",
+        "--dashboard-host=127.0.0.1",
+        "--dashboard-port=4197"
+      ]
+    },
+    {
+      "id": "start_disposable",
+      "kind": "start",
+      "mutates": true,
+      "requires_apply": true,
+      "command": [
+        "npm",
+        "run",
+        "-s",
+        "gateway",
+        "--",
+        "--dashboard-host=127.0.0.1",
+        "--dashboard-port=4197"
+      ]
+    },
+    {
+      "id": "status_after_start",
+      "kind": "status",
+      "mutates": false,
+      "requires_apply": true,
+      "command": [
+        "npm",
+        "run",
+        "-s",
+        "gateway:status",
+        "--",
+        "--dashboard-host=127.0.0.1",
+        "--dashboard-port=4197"
+      ]
+    },
+    {
+      "id": "restart_disposable",
+      "kind": "restart",
+      "mutates": true,
+      "requires_apply": true,
+      "command": [
+        "npm",
+        "run",
+        "-s",
+        "gateway",
+        "--",
+        "restart",
+        "--dashboard-host=127.0.0.1",
+        "--dashboard-port=4197"
+      ]
+    },
+    {
+      "id": "stop_disposable",
+      "kind": "cleanup",
+      "mutates": true,
+      "requires_apply": true,
+      "always_cleanup": true,
+      "command": [
+        "npm",
+        "run",
+        "-s",
+        "gateway:stop",
+        "--",
+        "--dashboard-host=127.0.0.1",
+        "--dashboard-port=4197"
+      ]
+    }
+  ],
+  "policy": {
+    "mutating_steps_require_explicit_apply": true,
+    "live_replay_uses_disposable_port": true,
+    "cleanup_step_required_for_live_apply": true,
+    "dry_run_must_emit_operator_next_action": true,
+    "dry_run_must_not_execute_runtime_commands": true,
+    "status_step_must_remain_read_only": true
+  }
+}

@@ -7,6 +7,7 @@ Canonical contract:
 - `sentinel_resident_observer_contract.json`
 - `internal_agent_scope_policy.json`
 - `usability_reliability_simplicity_enforcement_policy.json`
+- `sentinel_finding_promotion_policy.md`
 
 ## Repo-wide doctrine enforcement
 

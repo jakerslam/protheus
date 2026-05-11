@@ -1,0 +1,34 @@
+{
+  "type": "gateway_supervisor_authority_drift_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.regression",
+  "input_report_path": "validation/reports/gateway_status_live_replay_2026-05-10.json",
+  "report_path": "core/local/artifacts/gateway_supervisor_authority_drift_current.json",
+  "canonical_root": ".",
+  "forbidden_supervisor_markers": [
+    "/local/workspace/shadow/",
+    "INFRING_OPS_ALLOW_STALE => 1",
+    "INFRING_NPM_ALLOW_STALE => 1"
+  ],
+  "advisory_markers": [
+    "program = /Users/jay/.local/bin/infring-ops",
+    "INFRING_NPM_BINARY => /Users/jay/.local/bin/infring-ops"
+  ],
+  "policy": {
+    "gateway_status_may_report_supervisor_state": true,
+    "supervisor_shadow_workspace_is_authority_drift": true,
+    "stale_binary_allowance_in_supervisor_env_is_authority_drift": true,
+    "authority_drift_must_be_clustered_into_one_structural_finding": true
+  },
+  "required_report_fields": [
+    "diagnostic",
+    "root_cause_hypothesis",
+    "findings",
+    "next_actions"
+  ],
+  "diagnostic_allowlist": [
+    "gateway_supervisor_authority_current",
+    "gateway_supervisor_authority_drift_detected",
+    "gateway_supervisor_status_evidence_missing"
+  ]
+}

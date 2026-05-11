@@ -1,0 +1,37 @@
+{
+  "trace_id": "validation:2026-05-11T00:15:15.560Z:44915",
+  "span_id": "span:validation:2026-05-11T00:15:15.560Z:44915",
+  "parent_span_id": null,
+  "source_domain": "validation",
+  "type": "gateway_status_live_replay",
+  "generated_at": "2026-05-11T00:15:15.561Z",
+  "policy_path": "validation/regression/fixtures/gateway_idempotence/gateway_status_live_replay_policy.json",
+  "command": [
+    "npm",
+    "run",
+    "-s",
+    "gateway:status",
+    "--",
+    "--dashboard-host=127.0.0.1",
+    "--dashboard-port=4173"
+  ],
+  "timeout_ms": 15000,
+  "duration_ms": 10403,
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "output_token_match_count": 4,
+  "matched_tokens": [
+    "active",
+    "gateway",
+    "health",
+    "diagnostics"
+  ],
+  "ok": true,
+  "diagnostic": "gateway_status_live_replay_observed_actionable_output",
+  "severity": "pass",
+  "root_cause_hypothesis": "Gateway status returned recognizable operator output.",
+  "next_actions": [],
+  "stdout_tail": "/state/ops/daemon_control/dashboard_watchdog.log\",\"pid\":null,\"running\":false,\"stop_latch_active\":false},\"watchdog_before\":{\"desired_active\":true,\"log_path\":\"/Users/jay/.openclaw/workspace/local/state/ops/daemon_control/dashboard_watchdog.log\",\"pid\":null,\"running\":false,\"stop_latch_active\":false},\"watchdog_fallback\":null},\"stop_latch_active\":false,\"supervisor\":{\"action\":\"status\",\"active\":true,\"installed\":true,\"label\":\"ai.infring.gateway\",\"ok\":true,\"platform\":\"launchd\",\"root\":\"/Users/jay/.openclaw/workspace\",\"running\":true,\"service_file\":\"/Users/jay/Library/LaunchAgents/ai.infring.gateway.plist\",\"service_state\":\"running\",\"service_target\":\"gui/501/ai.infring.gateway\",\"status_probe\":{\"args\":[\"print\",\"gui/501/ai.infring.gateway\"],\"ok\":true,\"program\":\"launchctl\",\"status\":0,\"stderr\":\"\",\"stdout\":\"gui/501/ai.infring.gateway = {\\n\\tactive count = 1\\n\\tpath = /Users/jay/Library/LaunchAgents/ai.infring.gateway.plist\\n\\ttype = LaunchAgent\\n\\tstate = running\\n\\n\\tprogram = /Users/jay/.local/bin/infring-ops\\n\\targuments = {\\n\\t\\t/Users/jay/.local/bin/infring-ops\\n\\t\\tdaemon-control\\n\\t\\twatchdog\\n\\t\\t--dashboard-autoboot=1\\n\\t\\t--gateway-persist=1\\n\\t\\t--dashboard-host=127.0.0.1\\n\\t\\t--dashboard-port=4173\\n\\t\\t--dashboard-team=ops\\n\\t\\t--dashboard-refresh-ms=2000\\n\\t\\t--dashboard-ready-timeout-ms=36000\\n\\t\\t--dashboard-watchdog-interval-ms=2000\\n\\t\\t--node-binary=/Users/jay/.local/bin/node\\n\\t}\\n\\n\\tworking directory = /Users/jay/.openclaw/workspace/local/workspace/shadow/merge-scrapling-retrieval-recovery-main-20260509\\n\\n\\tstdout path = /Users/jay/.openclaw/workspace/local/workspace/shadow/merge-scrapling-retrieval-recovery-main-20260509/local/state/ops/daemon_control/dashboard_watchdog.log\\n\\tstderr path = /Users/jay/.openclaw/workspace/local/workspace/shadow/merge-scrapling-retrieval-recovery-main-20260509/local/state/ops/daemon_control/dashboard_watchdog.log\\n\\tinherited environment = {\\n\\t\\tSSH_AUTH_SOCK => /var/run/com.apple.launchd.gsThPIMcs8/Listeners\\n\\t}\\n\\n\\tdefault environment = {\\n\\t\\tPATH => /usr/bin:/bin:/usr/sbin:/sbin\\n\\t}\\n\\n\\tenvironment = {\\n\\t\\tOSLogRateLimit => 64\\n\\t\\tINFRING_NPM_BINARY => /Users/jay/.local/bin/infring-ops\\n\\t\\tPATH => /Users/jay/.local/bin:/Users/jay/.cargo/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin\\n\\t\\tINFRING_OPS_ALLOW_STALE => 1\\n\\t\\tINFRING_NPM_ALLOW_STALE => 1\\n\\t\\tHOME => /Users/jay\\n\\t\\tXPC_SERVICE_NAME => ai.infring.gateway\\n\\t}\\n\\n\\tdomain = gui/501 [100017]\\n\\tasid = 100017\\n\\tminimum runtime = 2\\n\\texit timeout = 5\\n\\truns = 2\\n\\tpid = 20192\\n\\timmediate reason = inefficient\\n\\tforks = 21295\\n\\texecs = 1\\n\\tinitialized = 1\\n\\ttrampolined = 1\\n\\tstarted suspended = 0\\n\\tproxy started suspended = 0\\n\\tchecked allocations = 0 (queried = 1)\\n\\tchecked allocations reason = no host\\n\\tchecked allocations flags = 0x0\\n\\tlast terminating signal = Terminated: 15\\n\\n\\tresource coalition = {\\n\\t\\tID = 98616\\n\\t\\ttype = resource\\n\\t\\tstate = active\\n\\t\\tactive count = 1\\n\\t\\tname = ai.infring.gateway\\n\\t}\\n\\n\\tjetsam coalition = {\\n\\t\\tID = 98617\\n\\t\\ttype = jetsam\\n\\t\\tstate = active\\n\\t\\tactive count = 1\\n\\t\\tname = ai.infring.gateway\\n\\t}\\n\\n\\tspawn type = daemon (3)\\n\\tjetsam priority = 40\\n\\tjetsam memory limit (active) = (unlimited)\\n\\tjetsam memory limit (inactive) = (unlimited)\\n\\tjetsamproperties category = daemon\\n\\tjetsam thread limit = 32\\n\\tcpumon = default\\n\\n\\tproperties = keepalive | runatload | inferred program\\n}\"}},\"url\":\"http://127.0.0.1:4173/dashboard\",\"watchdog\":{\"desired_active\":true,\"log_path\":\"/Users/jay/.openclaw/workspace/local/state/ops/daemon_control/dashboard_watchdog.log\",\"pid\":null,\"running\":false,\"stop_latch_active\":false}},\"lazy_init\":{\"boot_scope\":[\"conduit\",\"safety_kernel\"],\"deferred\":[\"layer0_noncritical\",\"layer1_policy_extensions\",\"client_surfaces\"],\"enabled\":true},\"mode\":null,\"ok\":true,\"receipt_hash\":\"d06c76981005ddf6e62f14abc6207f2c2885fb3808f77061117c41fec48380c6\",\"root\":\"/Users/jay/.openclaw/workspace\",\"type\":\"daemon_control_receipt\"}\n",
+  "stderr_tail": ""
+}

@@ -1,0 +1,70 @@
+{
+  "type": "repo_entropy_scorecard_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.scorecards",
+  "report_path": "core/local/artifacts/repo_entropy_scorecard_current.json",
+  "tracked_loc": {
+    "enabled": true,
+    "max_file_bytes": 2097152,
+    "extensions": [
+      ".rs",
+      ".ts",
+      ".tsx",
+      ".js",
+      ".jsx",
+      ".svelte",
+      ".sh",
+      ".ps1",
+      ".json",
+      ".md",
+      ".toml",
+      ".yml",
+      ".yaml"
+    ],
+    "exclude_prefixes": [
+      "target/",
+      "node_modules/",
+      "local/",
+      "core/local/",
+      ".git/",
+      "coverage/",
+      "dist/",
+      "build/"
+    ]
+  },
+  "thresholds": {
+    "red": {
+      "dirty_paths": 250,
+      "required_ci_checks": 30,
+      "npm_scripts": 900,
+      "compat_command_entries": 900,
+      "core_local_artifacts": 500,
+      "guard_scripts": 220,
+      "duplicate_surface_roots": 2
+    },
+    "yellow": {
+      "dirty_paths": 50,
+      "required_ci_checks": 18,
+      "npm_scripts": 300,
+      "compat_command_entries": 300,
+      "core_local_artifacts": 200,
+      "guard_scripts": 120,
+      "duplicate_surface_roots": 1
+    }
+  },
+  "required_dimensions": [
+    "worktree_churn",
+    "command_surface",
+    "ci_surface",
+    "artifact_pressure",
+    "guard_surface",
+    "duplicate_surfaces",
+    "tracked_loc"
+  ],
+  "policy": {
+    "scorecard_is_observational_by_default": true,
+    "red_dimensions_require_next_actions": true,
+    "scorecard_must_not_mutate_worktree": true,
+    "scorecard_must_not_read_shell_or_orchestration_internals": true
+  }
+}

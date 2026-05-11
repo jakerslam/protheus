@@ -1,0 +1,42 @@
+{
+  "trace_id": "observability:2026-05-10T23:44:30.370Z:sentinel-stage-split",
+  "source_domain": "observability",
+  "type": "sentinel_full_run_stage_split_plan",
+  "generated_at": "2026-05-10T23:44:30.370Z",
+  "policy_path": "observability/sentinel/sentinel_full_run_stage_split_policy.json",
+  "input_artifacts": {
+    "auto_run_current": {
+      "path": "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+      "exists": true,
+      "status": "timeout",
+      "failure_kind": "sentinel_auto_timeout",
+      "artifact_kind": "diagnostic",
+      "stage_timing_count": 0,
+      "size_bytes": 1640
+    },
+    "final_report_current": {
+      "path": "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
+      "exists": true,
+      "size_bytes": 5459
+    }
+  },
+  "timeout_observed": true,
+  "required_phase_count": 5,
+  "planned_phase_count": 5,
+  "planned_phases": [
+    "evidence_collect",
+    "freshness_filter",
+    "root_cause_cluster",
+    "report_synthesis",
+    "self_study"
+  ],
+  "plan_ready": true,
+  "root_cause_hypothesis": "Full Sentinel dream/self-study is currently too monolithic; bounded automatic maintenance needs resumable phases with partial timing artifacts before timeout.",
+  "implementation_targets": [
+    "Add a Sentinel phase runner that can execute evidence_collect, freshness_filter, root_cause_cluster, report_synthesis, and self_study independently.",
+    "Persist phase timings and resume cursors after each phase instead of only at final completion.",
+    "Keep heartbeat Sentinel work lightweight and reserve full self-study for dream or release cadence.",
+    "Keep final reports budgeted; raw evidence should remain in observability evidence streams."
+  ],
+  "severity": "yellow"
+}

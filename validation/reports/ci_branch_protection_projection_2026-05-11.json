@@ -1,0 +1,340 @@
+{
+  "trace_id": "validation:2026-05-11T01:07:32.393Z:83990",
+  "span_id": "span:validation:2026-05-11T01:07:32.393Z:83990",
+  "parent_span_id": null,
+  "source_domain": "validation",
+  "type": "ci_branch_protection_projection",
+  "generated_at": "2026-05-11T01:07:32.393Z",
+  "policy_path": "validation/release_gates/policies/ci_branch_protection_projection_policy.json",
+  "ok": true,
+  "target_required_max": 18,
+  "current_workflow_count": 53,
+  "projected_required_count": 18,
+  "projected_advisory_count": 30,
+  "projected_nightly_count": 5,
+  "requires_human_review_before_apply": true,
+  "required_contexts": [
+    {
+      "context": "Conventional Commit Lint",
+      "workflow_file": ".github/workflows/conventional-commit-lint.yml",
+      "tier": "release_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Kernel Nexus Coupling Guard",
+      "workflow_file": ".github/workflows/core-nexus-coupling.yml",
+      "tier": "release_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Layer Placement Policy",
+      "workflow_file": ".github/workflows/layer-placement-policy.yml",
+      "tier": "release_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Windows Locked-Down Install Replay",
+      "workflow_file": ".github/workflows/windows-locked-down-install-replay.yml",
+      "tier": "release_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "alpha-smoke",
+      "workflow_file": ".github/workflows/alpha-smoke.yml",
+      "tier": "release_gate",
+      "reason": "tier_budget"
+    },
+    {
+      "context": "Helm Conformance",
+      "workflow_file": ".github/workflows/helm-conformance.yml",
+      "tier": "release_gate",
+      "reason": "tier_budget"
+    },
+    {
+      "context": "Backlog Consistency",
+      "workflow_file": ".github/workflows/backlog-consistency.yml",
+      "tier": "validation_guard",
+      "reason": "tier_budget"
+    },
+    {
+      "context": "Conduit Edge Feature Matrix",
+      "workflow_file": ".github/workflows/conduit-edge-matrix.yml",
+      "tier": "validation_guard",
+      "reason": "tier_budget"
+    },
+    {
+      "context": "Kernel Layer Matrix",
+      "workflow_file": ".github/workflows/kernel-layer-matrix.yml",
+      "tier": "validation_guard",
+      "reason": "tier_budget"
+    },
+    {
+      "context": "Rust Share KPI",
+      "workflow_file": ".github/workflows/rust-share-kpi.yml",
+      "tier": "validation_guard",
+      "reason": "tier_budget"
+    },
+    {
+      "context": "CI",
+      "workflow_file": ".github/workflows/ci.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "CodeQL",
+      "workflow_file": ".github/workflows/codeql.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Dependency Policy",
+      "workflow_file": ".github/workflows/dependency-policy.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Docker Supply Chain",
+      "workflow_file": ".github/workflows/docker-supply-chain.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "License SPDX Story Gate",
+      "workflow_file": ".github/workflows/license-spdx-story-gate.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Release GA",
+      "workflow_file": ".github/workflows/release.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Release Security Artifacts",
+      "workflow_file": ".github/workflows/release-security-artifacts.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    },
+    {
+      "context": "Required Checks",
+      "workflow_file": ".github/workflows/required-checks.yml",
+      "tier": "security_gate",
+      "reason": "always_required_token"
+    }
+  ],
+  "advisory_contexts": [
+    {
+      "context": "Coverage",
+      "workflow_file": ".github/workflows/coverage.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "empty-fort-pulse",
+      "workflow_file": ".github/workflows/empty-fort-pulse.yml",
+      "tier": "security_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "empty-fort-verify",
+      "workflow_file": ".github/workflows/empty-fort-verify.yml",
+      "tier": "validation_guard",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "empty-fort-visuals",
+      "workflow_file": ".github/workflows/empty-fort-visuals.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "External Validation Evidence Cadence",
+      "workflow_file": ".github/workflows/external-validation-evidence-cadence.yml",
+      "tier": "security_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "F100 A+ Scorecard",
+      "workflow_file": ".github/workflows/f100-a-plus-scorecard.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "F100 Enterprise Baseline",
+      "workflow_file": ".github/workflows/f100-enterprise-baseline.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "F100 Readiness Pack",
+      "workflow_file": ".github/workflows/f100-readiness-pack.yml",
+      "tier": "security_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "Formal Proof Runtime",
+      "workflow_file": ".github/workflows/formal-proof-runtime.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "Formal Spec Guard",
+      "workflow_file": ".github/workflows/formal-spec-guard.yml",
+      "tier": "security_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "Heartbeat KPI",
+      "workflow_file": ".github/workflows/heartbeat-kpi.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "Infringd Static Size Gate",
+      "workflow_file": ".github/workflows/infringd-static-size-gate.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "layer-rulebook",
+      "workflow_file": ".github/workflows/layer-rulebook.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "LLMN Mode Conformance",
+      "workflow_file": ".github/workflows/llmn-mode-conformance.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "Memory Burn SLO",
+      "workflow_file": ".github/workflows/memory-burn-slo.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Ownership Drift Weekly",
+      "workflow_file": ".github/workflows/ownership-drift-weekly.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Proof Pack Threshold Gate",
+      "workflow_file": ".github/workflows/proof-pack-threshold-gate.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "Proof VM Artifact",
+      "workflow_file": ".github/workflows/proof-vm-artifact.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "Release Post Verify",
+      "workflow_file": ".github/workflows/release-post-verify.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Release Promote",
+      "workflow_file": ".github/workflows/release-promote.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "repo-hygiene-generated",
+      "workflow_file": ".github/workflows/repo-hygiene-generated.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "rust-perf-regression-gate",
+      "workflow_file": ".github/workflows/rust-perf-regression-gate.yml",
+      "tier": "validation_guard",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "rust50-tcb-gate",
+      "workflow_file": ".github/workflows/rust50-tcb-gate.yml",
+      "tier": "validation_guard",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "SDLC Change Control",
+      "workflow_file": ".github/workflows/sdlc-change-control.yml",
+      "tier": "validation_guard",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Security Audit Baseline",
+      "workflow_file": ".github/workflows/security-audit.yml",
+      "tier": "security_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Size Gate",
+      "workflow_file": ".github/workflows/size-gate.yml",
+      "tier": "release_gate",
+      "reason": "advisory_token"
+    },
+    {
+      "context": "SPDX Header Guard",
+      "workflow_file": ".github/workflows/spdx-header-guard.yml",
+      "tier": "validation_guard",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Test Suite",
+      "workflow_file": ".github/workflows/test-suite.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Version Bump",
+      "workflow_file": ".github/workflows/version-bump.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    },
+    {
+      "context": "Weekly Policy Debt Report",
+      "workflow_file": ".github/workflows/weekly-policy-debt-report.yml",
+      "tier": "release_gate",
+      "reason": "outside_required_budget"
+    }
+  ],
+  "nightly_contexts": [
+    {
+      "context": "Nightly Fuzz And Chaos",
+      "workflow_file": ".github/workflows/nightly-fuzz-chaos.yml",
+      "tier": "nightly_maintenance"
+    },
+    {
+      "context": "Nightly Kernel Reproof",
+      "workflow_file": ".github/workflows/nightly-kernel-reproof.yml",
+      "tier": "nightly_maintenance"
+    },
+    {
+      "context": "Nightly Policy Debt Audit",
+      "workflow_file": ".github/workflows/nightly-policy-debt-audit.yml",
+      "tier": "nightly_maintenance"
+    },
+    {
+      "context": "Nightly Size Trust Center",
+      "workflow_file": ".github/workflows/nightly-size-trust-center.yml",
+      "tier": "nightly_maintenance"
+    },
+    {
+      "context": "Nightly Turn Loop Analytics",
+      "workflow_file": ".github/workflows/nightly-turn-loop-analytics.yml",
+      "tier": "nightly_maintenance"
+    }
+  ],
+  "next_actions": [
+    "Review required_contexts for correctness before applying branch protection changes.",
+    "Use the GitHub UI/API to mark required_contexts required and keep advisory/nightly checks visible but non-blocking.",
+    "Re-run this projection after workflow renames or required-check policy changes."
+  ]
+}

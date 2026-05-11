@@ -1,0 +1,25 @@
+{
+  "type": "guard_registry_ownership_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.conformance",
+  "report_path": "core/local/artifacts/guard_registry_ownership_current.json",
+  "guard_roots": [
+    "tests/tooling/scripts/ci"
+  ],
+  "required_source_markers_any": [
+    "source_domain",
+    "policyPath",
+    "policy_path",
+    "Layer ownership",
+    "owner_domain"
+  ],
+  "duplicate_stem_suffixes": [
+    "_guard",
+    "-guard"
+  ],
+  "policy": {
+    "guards_must_have_ownership_or_policy_marker": true,
+    "duplicate_guard_families_are_findings_not_immediate_failures": true,
+    "guard_registry_report_is_canonical_input_to_entropy_scorecard": true
+  }
+}

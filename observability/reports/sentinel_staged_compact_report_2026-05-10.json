@@ -1,0 +1,15 @@
+{
+  "type": "sentinel_staged_compact_report",
+  "generated_at": "2026-05-10T23:59:08.161Z",
+  "findings": [
+    {
+      "id": "sentinel_monolithic_full_run_timeout",
+      "severity": "yellow",
+      "evidence_refs": [
+        "core/local/artifacts/kernel_sentinel_auto_run_current.json"
+      ],
+      "next_action": "Use staged Sentinel runner for dream cadence before invoking full self-study."
+    }
+  ],
+  "raw_evidence_embedded": false
+}

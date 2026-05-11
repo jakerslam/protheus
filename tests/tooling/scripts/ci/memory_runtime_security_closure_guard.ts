@@ -24,5 +24,7 @@ for (const check of policy.required_checks || []) {
 }
 const traceId = `validation:${new Date().toISOString()}:${process.pid}`;
 const payload = { trace_id: traceId, span_id: `span:${traceId}`, parent_span_id: null, source_domain: 'validation', ok: violations.length === 0, type: 'memory_runtime_security_closure_guard', generated_at: new Date().toISOString(), policy_path: policyPath, violations };
+fs.mkdirSync(path.join(root, 'core/local/artifacts'), { recursive: true });
+fs.writeFileSync(path.join(root, 'core/local/artifacts/memory_runtime_security_closure_guard_current.json'), `${JSON.stringify(payload, null, 2)}\n`);
 console.log(JSON.stringify(payload, null, 2));
 if (violations.length) process.exit(1);

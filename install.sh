@@ -2930,6 +2930,9 @@ normalize_install_shell_default() {
     ui|browser|dashboard)
       printf '%s\n' "ui"
       ;;
+    ui-v2|browser-v2|dashboard-v2|shell-v2)
+      printf '%s\n' "ui-v2"
+      ;;
     legacy-ui|legacy|legacy-browser)
       printf '%s\n' "legacy-ui"
       ;;
@@ -4028,6 +4031,9 @@ infring_gateway_normalize_shell() {
     ui|browser|dashboard)
       printf '%s\n' "ui"
       ;;
+    ui-v2|browser-v2|dashboard-v2|shell-v2)
+      printf '%s\n' "ui-v2"
+      ;;
     legacy-ui|legacy|legacy-browser)
       printf '%s\n' "legacy-ui"
       ;;
@@ -4093,7 +4099,7 @@ infring_gateway_select_shell() {
 
 infring_gateway_shell_uses_browser() {
   case "${1:-ui}" in
-    ui|legacy-ui)
+    ui|ui-v2|legacy-ui)
       return 0
       ;;
   esac
@@ -4146,13 +4152,71 @@ infring_gateway_launch_terminal_shell() {
     "--out-markdown=${root}/local/workspace/reports/TERMINAL_SHELL_LIVE_RESPONSE_TEST_CURRENT.md" || true
 }
 
+infring_gateway_prepare_browser_v2_shell() {
+  root="${1:-}"
+  [ -n "$root" ] || root="$(infring_gateway_find_workspace_root 2>/dev/null || true)"
+  [ -n "$root" ] || {
+    echo "[infring gateway] ui-v2 shell unavailable: workspace root not found" >&2
+    return 1
+  }
+  node_bin="$(infring_gateway_node_binary 2>/dev/null || true)"
+  [ -n "$node_bin" ] || {
+    echo "[infring gateway] ui-v2 shell unavailable: node runtime not found" >&2
+    return 1
+  }
+  entrypoint="$root/client/runtime/lib/ts_entrypoint.ts"
+  browser_v2_server="$root/shell/browser-v2/browser_shell_v2_server.ts"
+  [ -f "$entrypoint" ] || {
+    echo "[infring gateway] ui-v2 shell unavailable: missing $entrypoint" >&2
+    return 1
+  }
+  [ -f "$browser_v2_server" ] || {
+    echo "[infring gateway] ui-v2 shell unavailable: missing $browser_v2_server" >&2
+    return 1
+  }
+  host="${INFRING_BROWSER_SHELL_V2_HOST:-127.0.0.1}"
+  port="${INFRING_BROWSER_SHELL_V2_PORT:-5273}"
+  gateway_url="${INFRING_SHELL_SOCKET_URL:-http://127.0.0.1:5173}"
+  shell_url="http://${host}:${port}/?gateway=${gateway_url}"
+  if command -v curl >/dev/null 2>&1 && curl -fsS "http://${host}:${port}/" >/dev/null 2>&1; then
+    printf '%s\n' "$shell_url"
+    return 0
+  fi
+  mkdir -p "$root/core/local/state/shell" "$root/core/local/artifacts" >/dev/null 2>&1 || true
+  log_path="$root/core/local/artifacts/browser_shell_v2_server_current.log"
+  "$node_bin" "$entrypoint" "$browser_v2_server" --serve=1 "--host=${host}" "--port=${port}" >"$log_path" 2>&1 &
+  printf '%s\n' "$!" > "$root/core/local/state/shell/browser_shell_v2_server.pid" 2>/dev/null || true
+  i=0
+  while [ "$i" -lt 20 ]; do
+    if command -v curl >/dev/null 2>&1 && curl -fsS "http://${host}:${port}/" >/dev/null 2>&1; then
+      printf '%s\n' "$shell_url"
+      return 0
+    fi
+    i=$((i + 1))
+    sleep 0.2
+  done
+  echo "[infring gateway] ui-v2 shell server did not become ready at http://${host}:${port}/" >&2
+  return 1
+}
+
 infring_gateway_open_browser_shell() {
   shell_mode="${1:-ui}"
   dashboard_open="${2:-1}"
   dashboard_url="${3:-}"
   [ "$dashboard_open" = "1" ] || return 0
   [ -n "$dashboard_url" ] || return 0
+  if [ "$shell_mode" = "ui-v2" ]; then
+    root_for_v2="$(infring_gateway_find_workspace_root 2>/dev/null || true)"
+    if v2_url="$(infring_gateway_prepare_browser_v2_shell "$root_for_v2" 2>/dev/null)"; then
+      dashboard_url="$v2_url"
+    else
+      echo "[infring gateway] ui-v2 shell unavailable; falling back to legacy dashboard URL" >&2
+    fi
+  fi
   echo "[infring gateway] shell: ${shell_mode}"
+  if [ "$shell_mode" = "ui-v2" ]; then
+    echo "[infring gateway] browser-shell-v2: ${dashboard_url}"
+  fi
   if command -v open >/dev/null 2>&1; then
     open "$dashboard_url" >/dev/null 2>&1 || true
   elif command -v xdg-open >/dev/null 2>&1; then
@@ -4611,7 +4675,7 @@ if [ "${1:-}" = "gateway" ]; then
     --help|-h|help)
       echo "Usage: infring gateway [start|stop|restart|status|heal|attach|subscribe|tick|diagnostics] [flags]"
       echo "  default action is 'start'"
-      echo "  --shell=ui|terminal|legacy-ui|none selects the shell plug for start/restart"
+      echo "  --shell=ui|ui-v2|terminal|legacy-ui|none selects the shell plug for start/restart"
       echo "  add --dashboard-open=0 to skip browser auto-open on start"
       exit 0
       ;;
@@ -4650,6 +4714,9 @@ if [ "${1:-}" = "gateway" ]; then
         ;;
       --ui-shell|--ui)
         gateway_shell_override="ui"
+        ;;
+      --ui-v2-shell|--ui-v2)
+        gateway_shell_override="ui-v2"
         ;;
       --no-shell)
         gateway_shell_override="none"

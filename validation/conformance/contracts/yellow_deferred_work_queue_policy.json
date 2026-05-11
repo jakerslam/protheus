@@ -1,0 +1,21 @@
+{
+  "type": "yellow_deferred_work_queue_policy",
+  "schema_version": 1,
+  "owner_domain": "validation",
+  "report_path": "docs/workspace/reports/YELLOW_DEFERRED_WORK_QUEUE_2026-05-09.md",
+  "source_todos": [
+    "ARCH-TOOLING-NEXT",
+    "SRS-NEXT"
+  ],
+  "policy": {
+    "defer_until_red_section_clear": true,
+    "operator_override_allowed": true,
+    "forbid_silent_pull_forward": true,
+    "reason_required": true
+  },
+  "release_conditions": [
+    "red_section_reduced_below_blocking_threshold",
+    "operator_explicit_override",
+    "blocking_compile_error_cleared"
+  ]
+}

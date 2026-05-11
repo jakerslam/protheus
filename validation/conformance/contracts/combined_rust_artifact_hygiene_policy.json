@@ -1,0 +1,29 @@
+{
+  "type": "combined_rust_artifact_hygiene_policy",
+  "schema_version": 1,
+  "owner_domain": "validation",
+  "source_todos": [
+    "HYGIENE-COMBINED-INVENTORY",
+    "HYGIENE-COMBINED-REFERENCE-MAP",
+    "HYGIENE-COMBINED-GUARD"
+  ],
+  "inventory_required_fields": ["path", "domain", "kind", "bytes", "lines", "parent"],
+  "reference_map_required_fields": ["path", "domain", "kind", "reference_class", "reference_count", "sample_references"],
+  "allowed_reference_classes": [
+    "live_rust_module_reference",
+    "validation_or_test_reference",
+    "docs_or_policy_reference",
+    "other_text_reference",
+    "unreferenced_by_text_scan"
+  ],
+  "cleanup_policy": {
+    "auto_delete_unreferenced": false,
+    "requires_domain_batch": true,
+    "requires_targeted_validation": true,
+    "new_combined_artifacts_require_exception": true
+  },
+  "baseline_artifacts": {
+    "inventory_json": "validation/reports/combined_rust_artifact_inventory_2026-05-09.json",
+    "reference_map_json": "validation/reports/combined_rust_reference_map_2026-05-09.json"
+  }
+}

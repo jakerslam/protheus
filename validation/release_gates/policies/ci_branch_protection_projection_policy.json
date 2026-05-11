@@ -1,0 +1,44 @@
+{
+  "type": "ci_branch_protection_projection_policy",
+  "schema_version": 1,
+  "owner_domain": "validation.release_gates",
+  "manifest_path": "validation/conformance/contracts/ci_workflow_tier_manifest.json",
+  "reduction_report_path": "validation/reports/ci_required_gate_reduction_plan_2026-05-10.json",
+  "report_path": "validation/reports/ci_branch_protection_projection_2026-05-11.json",
+  "artifact_path": "core/local/artifacts/ci_branch_protection_projection_current.json",
+  "target_required_max": 18,
+  "required_context_budget": {
+    "security_gate": 8,
+    "release_gate": 6,
+    "validation_guard": 4
+  },
+  "always_required_name_tokens": [
+    "ci",
+    "conventional",
+    "codeql",
+    "dependency",
+    "security",
+    "kernel nexus",
+    "layer placement",
+    "quality",
+    "windows"
+  ],
+  "advisory_name_tokens": [
+    "coverage",
+    "formal",
+    "proof",
+    "scorecard",
+    "f100",
+    "size",
+    "llmn",
+    "heartbeat",
+    "external validation",
+    "empty-fort"
+  ],
+  "policy": {
+    "projection_does_not_mutate_github_settings": true,
+    "required_contexts_must_be_bounded": true,
+    "advisory_contexts_must_remain_visible": true,
+    "manual_review_required_before_applying_branch_protection": true
+  }
+}

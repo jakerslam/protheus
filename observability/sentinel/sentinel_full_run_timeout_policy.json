@@ -1,0 +1,18 @@
+{
+  "type": "sentinel_full_run_timeout_policy",
+  "schema_version": 1,
+  "owner_domain": "observability.sentinel",
+  "artifact_path": "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+  "report_path": "observability/reports/sentinel_full_run_timeout_report_2026-05-10.json",
+  "policy": {
+    "full_run_timeout_is_actionable_feedback": true,
+    "timeout_diagnostics_must_remain_compact": true,
+    "timeout_should_recommend_stage_splitting_or_budget_tuning": true,
+    "timeout_report_is_advisory_until_multiple_occurrences": true
+  },
+  "budgets": {
+    "max_timeout_artifact_bytes": 20000,
+    "max_report_bytes": 12000,
+    "recurrence_required_for_red_issue": 2
+  }
+}

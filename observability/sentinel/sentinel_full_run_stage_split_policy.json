@@ -1,0 +1,57 @@
+{
+  "id": "sentinel_full_run_stage_split_policy",
+  "version": 1,
+  "owner": "observability/sentinel",
+  "status": "active",
+  "purpose": "Keep full Sentinel dream/self-study useful by splitting expensive runs into bounded, resumable stages instead of allowing one monolithic run to hang or time out.",
+  "max_full_auto_runtime_ms": 120000,
+  "max_final_report_bytes": 16000,
+  "max_final_report_findings": 5,
+  "requires_partial_timing_artifact": true,
+  "requires_resume_cursor": true,
+  "requires_raw_evidence_stream_not_final_report": true,
+  "required_phase_count": 5,
+  "required_phases": [
+    {
+      "id": "evidence_collect",
+      "budget_ms": 30000,
+      "output": "observability evidence refs and source coverage summary",
+      "fail_mode": "write compact diagnostic plus resume cursor"
+    },
+    {
+      "id": "freshness_filter",
+      "budget_ms": 15000,
+      "output": "fresh recurring findings only",
+      "fail_mode": "drop stale/noisy evidence before synthesis"
+    },
+    {
+      "id": "root_cause_cluster",
+      "budget_ms": 20000,
+      "output": "deduped structural issue clusters",
+      "fail_mode": "emit symptom cluster with unresolved root cause"
+    },
+    {
+      "id": "report_synthesis",
+      "budget_ms": 25000,
+      "output": "small final report with evidence refs",
+      "fail_mode": "truncate to highest-confidence findings"
+    },
+    {
+      "id": "self_study",
+      "budget_ms": 25000,
+      "output": "trajectory and anti-entropy recommendations",
+      "fail_mode": "defer to next dream cycle"
+    }
+  ],
+  "non_goals": [
+    "Do not run Sentinel deep self-study on regular ticks.",
+    "Do not store raw evidence in the final report.",
+    "Do not file issues directly without human-review promotion until problem discovery quality is stable."
+  ],
+  "acceptance_criteria": [
+    "A timeout produces a compact diagnostic artifact, not a hang.",
+    "Each completed phase records timing, input refs, output refs, and a resume cursor.",
+    "The final report remains small and references evidence streams instead of embedding raw evidence.",
+    "Dream cadence can resume from the last successful phase."
+  ]
+}

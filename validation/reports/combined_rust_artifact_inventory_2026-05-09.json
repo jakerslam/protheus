@@ -1,0 +1,3790 @@
+{
+  "generated_at": "2026-05-09T23:25:01.167Z",
+  "artifact_count": 472,
+  "by_domain": {
+    "core": 465,
+    "validation": 7
+  },
+  "by_kind": {
+    "combined_parts_member": 448,
+    "combined_rust_file": 24
+  },
+  "artifacts": [
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 462,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/action_receipts_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined_parts/020-hmacsha256-to-with-receipt-contract-value.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6792,
+      "lines": 191,
+      "parent": "core/layer0/ops/src/action_receipts_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined_parts/030-with-receipt-integrity-value-to-discover-lineage-paths.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6338,
+      "lines": 214,
+      "parent": "core/layer0/ops/src/action_receipts_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined_parts/040-read-jsonl-rows-to-lower-compact-type.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3301,
+      "lines": 110,
+      "parent": "core/layer0/ops/src/action_receipts_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined_parts/050-replay-task-lineage-value-to-query-task-lineage.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 9206,
+      "lines": 230,
+      "parent": "core/layer0/ops/src/action_receipts_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined_parts/060-command-to-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3577,
+      "lines": 97,
+      "parent": "core/layer0/ops/src/action_receipts_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/action_receipts_kernel.combined_parts/070-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6158,
+      "lines": 180,
+      "parent": "core/layer0/ops/src/action_receipts_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/attention_queue_parts/050-write-policy_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 18876,
+      "lines": 549,
+      "parent": "core/layer0/ops/src/attention_queue_parts/050-write-policy_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts/010-proactive-daemon-reactive-compaction-pressure-ratio-to-dream-events.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7237,
+      "lines": 219,
+      "parent": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts/020-dream-consolidation-for-hand-to-proactive-daemon-default-state.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6963,
+      "lines": 217,
+      "parent": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts/030-ensure-proactive-daemon-state-shape-to-persist-proactive-daemon-stat.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3820,
+      "lines": 115,
+      "parent": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts/040-proactive-daemon-daemon.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 17403,
+      "lines": 345,
+      "parent": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation_parts/002-part_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 31365,
+      "lines": 566,
+      "parent": "core/layer0/ops/src/autonomy_controller_parts/050-proactive-daemon-dream-speculation_parts/002-part_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/010-is-spine-hot-to-reverse-module-mapping.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7357,
+      "lines": 221,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/020-set-for-scope-to-summarize-external-health.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4970,
+      "lines": 165,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 265,
+      "lines": 5,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 19260,
+      "lines": 536,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts/010-segment-001.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4499,
+      "lines": 132,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts/020-segment-002.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6333,
+      "lines": 160,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts/030-segment-003.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5892,
+      "lines": 172,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts/040-segment-004.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2536,
+      "lines": 75,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/030-cmd-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/040-cmd-report.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6853,
+      "lines": 208,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/050-cmd-status-to-usage.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7538,
+      "lines": 208,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts/060-run-to-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6422,
+      "lines": 191,
+      "parent": "core/layer0/ops/src/autotest_controller_parts/040-is-spine-hot.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 282,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/020-policy-rel-to-instruction-tail-regex.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6326,
+      "lines": 221,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/030-looks-like-instructional-query-to-looks-like-empty-duckduckgo-instan.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5320,
+      "lines": 177,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/040-looks-like-empty-duckduckgo-instant-shell-to-looks-like-metric-rich.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5999,
+      "lines": 223,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/050-looks-like-definition-candidate-to-extract-metric-focused-fragment.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5768,
+      "lines": 223,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/060-candidate-domain-hint-to-looks-like-url-dump-segment.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5776,
+      "lines": 143,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/070-looks-like-snippet-boilerplate-segment-to-is-search-engine-domain.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6270,
+      "lines": 203,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/080-non-search-engine-links-to-candidate-from-duckduckgo-instant-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5923,
+      "lines": 191,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts/090-candidate-from-search-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4532,
+      "lines": 127,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/010-core.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/010-link-fetch-fallback-limit-to-stage-error.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5577,
+      "lines": 183,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/020-collect-candidates-from-stage-payload-to-retrieve-web-candidates-for.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 9745,
+      "lines": 278,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/030-rerank-score-to-is-benign-partial-failure.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4179,
+      "lines": 136,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 281,
+      "lines": 5,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 29829,
+      "lines": 702,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts/010-segment-001.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7287,
+      "lines": 181,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts/020-segment-002.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7199,
+      "lines": 169,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts/030-segment-003.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7914,
+      "lines": 189,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts/040-segment-004.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2983,
+      "lines": 76,
+      "parent": "core/layer0/ops/src/batch_query_primitive_parts/020-pipeline.combined_parts/040-api-batch-query_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/binary_blob_runtime.combined_parts/010-use-crate-directive-kernel.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7566,
+      "lines": 234,
+      "parent": "core/layer0/ops/src/binary_blob_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/binary_blob_runtime.combined_parts/020-validate-prime-blob-vault.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 9008,
+      "lines": 257,
+      "parent": "core/layer0/ops/src/binary_blob_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/binary_blob_runtime.combined_parts/030-normalize-module.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6860,
+      "lines": 181,
+      "parent": "core/layer0/ops/src/binary_blob_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/binary_blob_runtime.combined_parts/040-load-and-verify.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5653,
+      "lines": 170,
+      "parent": "core/layer0/ops/src/binary_blob_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 281,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/collector_runtime_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined_parts/020-default-rate-state-rel-to-default-u64-from-env.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6423,
+      "lines": 207,
+      "parent": "core/layer0/ops/src/collector_runtime_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined_parts/030-resolve-rate-state-path-to-row-u64.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6880,
+      "lines": 220,
+      "parent": "core/layer0/ops/src/collector_runtime_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined_parts/040-set-row-u64-to-mark-failure.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6240,
+      "lines": 191,
+      "parent": "core/layer0/ops/src/collector_runtime_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined_parts/050-prepare-run-to-sample-title.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4651,
+      "lines": 138,
+      "parent": "core/layer0/ops/src/collector_runtime_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined_parts/060-finalize-run-to-dispatch.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7887,
+      "lines": 199,
+      "parent": "core/layer0/ops/src/collector_runtime_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/collector_runtime_kernel.combined_parts/070-run-to-mod-collector-runtime-kernel-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1158,
+      "lines": 42,
+      "parent": "core/layer0/ops/src/collector_runtime_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts/010-use-serde-json-json-map-value.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8740,
+      "lines": 246,
+      "parent": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts/020-command-load-source-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8139,
+      "lines": 238,
+      "parent": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts/030-command-process-nodes.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7301,
+      "lines": 205,
+      "parent": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts/040-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5245,
+      "lines": 146,
+      "parent": "core/layer0/ops/src/conversation_eye_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts/010-is-low-signal-focus-token-to-read-agent-profile.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5311,
+      "lines": 202,
+      "parent": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts/020-resolve-prompt-suggestion-model-to-collect-recent-command-candidates.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5928,
+      "lines": 196,
+      "parent": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts/030-analytics-prompt-suggestions-to-model-generated-prompt-suggestions.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6156,
+      "lines": 184,
+      "parent": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts/040-apply-suggestion-style-to-intro-text-for-role.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5898,
+      "lines": 163,
+      "parent": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts/050-seed-intro-message-to-suggestions.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8230,
+      "lines": 237,
+      "parent": "core/layer0/ops/src/dashboard_agent_state_sessions_parts/002-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 337,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts/020-channel-registry-rel-to-ok-response.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4211,
+      "lines": 170,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts/030-curl-json-request-to-channel-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7235,
+      "lines": 221,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts/040-channel-name-from-path-to-live-probe-whatsapp.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5787,
+      "lines": 173,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts/050-live-probe-gohighlevel-to-live-probe-generic.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7445,
+      "lines": 221,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts/060-live-probe-to-handle.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7322,
+      "lines": 203,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_channels.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 305,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts/020-hands-state-rel-to-normalize-instance.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5752,
+      "lines": 205,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts/030-load-instances-to-evaluate-requirements.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8774,
+      "lines": 216,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts/040-catalog-to-hands-segments.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4339,
+      "lines": 147,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts/050-handle.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 16959,
+      "lines": 415,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_hands.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts/010-text-field-to-providers-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8238,
+      "lines": 221,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts/020-config-payload-to-dashboard-installed-release-candidate.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6196,
+      "lines": 200,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts/030-dashboard-runtime-version-candidate-to-task-runtime-summary.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7561,
+      "lines": 208,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts/040-worker-runtime-summary-to-snapshot-history-soft-cap-bytes.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5726,
+      "lines": 156,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts/050-memory-hygiene-payload-to-predicted-next-actions.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4236,
+      "lines": 139,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts/060-proactive-telemetry-alerts-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4651,
+      "lines": 132,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts/070-mod-continuity-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8473,
+      "lines": 251,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/020-usage-from-state.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts/010-agent-create-temp-root-to-agents-config-blank-name-and-partial-ident.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 11984,
+      "lines": 397,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts/020-agent-create-cua-rejects-unsupported-execution-features-to-identity.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 10046,
+      "lines": 321,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts/030-agents-routes-create-message-config-and-git-tree-round-trip.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6905,
+      "lines": 253,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts/040-agent-init-config-seeds-role-tailored-intro-message-to-agent-init-co.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4989,
+      "lines": 172,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts/050-agent-init-config-treats-default-name-as-blank-for-auto-name-and-ana.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4137,
+      "lines": 140,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts/060-memory-denial-variant-is-remediated-to-persistent-summary-to-interna.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4217,
+      "lines": 136,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/020-agent-create-without-name-returns-non-generic-id.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 115116,
+      "lines": 3283,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/010-governance-temp-root.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 93,
+      "lines": 4,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/020-governance-ok-snapshot.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 65,
+      "lines": 4,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/030-governance-test-chat-script-path.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 181,
+      "lines": 7,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/040-governance-test-tool-script-path.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 190,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/050-terminal-tools-run-without-signoff-and-still-enforce-command-policy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 999,
+      "lines": 37,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/060-workspace-analyze-alias-routes-into-terminal-exec-surface.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 581,
+      "lines": 23,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/070-spawn-tools-run-without-confirmation-gate.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 663,
+      "lines": 22,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/080-parent-can-archive-descendant-without-signoff-and-reason-is-persisted.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2569,
+      "lines": 92,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/090-semantic-memory-query-route-returns-matches.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1002,
+      "lines": 38,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/100-spawn-tool-applies-budget-circuit-breaker-and-merge-strategy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1033,
+      "lines": 37,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1000-response-tools-failure-reason-includes-ok-status-low-signal-web-reason.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 734,
+      "lines": 19,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/101-spawn-tool-persists-objective-scoped-context-slice-on-child-contract.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2711,
+      "lines": 67,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1010-part.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 66,
+      "lines": 2,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1020-part.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 77,
+      "lines": 5,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1030-part.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 199,
+      "lines": 8,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1040-part.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 218,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1050-truthy-test-env.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 280,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1060-workflow-library-owns-direct-answer-final-response.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3214,
+      "lines": 107,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1070-live-eval-monitor-switch.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4648,
+      "lines": 159,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1070-workflow-library-owns-successful-tool-turn-final-response.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3108,
+      "lines": 97,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1080-misty-health-wave1-output-guards.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6813,
+      "lines": 223,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1080-natural-web-prompt-stays-off-direct-tool-route-when-models-are-available.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2478,
+      "lines": 77,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1090-misty-health-wave2-telemetry-shape.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4682,
+      "lines": 156,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1090-status-check-turn-does-not-trigger-latent-web-retry-from-failed-draft.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2185,
+      "lines": 71,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/110-web-tool-fallback-can-use-semantic-memory-matches.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 777,
+      "lines": 28,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1100-misty-health-wave3-tool-gate-behavior.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5453,
+      "lines": 181,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1100-previous-turn-process-summary-is-persisted-and-injected-into-next-prompt.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2451,
+      "lines": 83,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1110-misty-health-wave4-context-hygiene.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 22255,
+      "lines": 685,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1110-workflow-retry-validator-blocks-search-again-language.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 504,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1120-misty-health-wave5-feedback-loop.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3364,
+      "lines": 105,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1120-web-tooling-harness-surfaces-no-results-with-final-llm-synthesis.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3194,
+      "lines": 101,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1130-compare-workflow-hint-clusters-workspace-and-web-tools.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 446,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1130-misty-health-wave7-route-short-circuit.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 24032,
+      "lines": 776,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1140-compare-platform-wording-clusters-workspace-and-web-tools.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 451,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1140-misty-health-wave9-finalization-guards.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 13261,
+      "lines": 425,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1150-compare-workflow-harness-decomposes-local-and-web-evidence-before-final-synthesis.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2689,
+      "lines": 86,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1160-web-tooling-live-smoke-uses-real-model-provider-when-enabled.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3891,
+      "lines": 121,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1170-compare-workflow-completes-missing-web-evidence-from-latent-candidates.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2965,
+      "lines": 90,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1180-workflow-ghost-interference-simulation.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 14452,
+      "lines": 456,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1180-workflow-more-tooling-detector-matches-compare-follow-up-question.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 294,
+      "lines": 8,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1190-workflow-self-play-coverage.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 19209,
+      "lines": 604,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1190-workspace-plus-web-comparison-payload-targets-openclaw-docs.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 475,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/120-web-search-summary-strips-search-engine-chrome-noise.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 626,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1200-inline-tool-web-search-comparison-hydrates-targeted-openclaw-query-pack.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 782,
+      "lines": 25,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1200-workflow-json-tool-menu-contract.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 10159,
+      "lines": 282,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1210-framework-catalog-web-payload-targets-named-framework-queries.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 456,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1210-live-eval-workflow-issue-flags.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6306,
+      "lines": 209,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1220-inline-tool-web-search-hydrates-framework-catalog-queries-from-broad-prompt.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 807,
+      "lines": 23,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1220-workflow-live-provider-self-play-smoke.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1968,
+      "lines": 65,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1230-summarize-unknown-workspace-analyze-payload-prefers-stdout-findings.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 610,
+      "lines": 15,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1230-workflow-finalization-trace-diagnostics.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4582,
+      "lines": 155,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1240-rewrite-workspace-analyze-raw-json-result-into-local-evidence-summary.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 607,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1250-summarize-workspace-analyze-prefers-stdout-over-claim-bundle-dump.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 998,
+      "lines": 25,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1260-summarize-tool-payload-strips-redundant-key-findings-from-claims.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 674,
+      "lines": 25,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1270-summarize-web-search-batch-query-payload-prefers-native-summary-over-claim-bundle.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1335,
+      "lines": 32,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1280-response-tools-summary-preserves-batch-query-domains-in-key-findings.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 536,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1290-summarize-web-search-framework-payload-rewrites-noisy-sources-from-evidence-refs.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1213,
+      "lines": 25,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/130-web-fetch-summary-suppresses-example-domain-placeholder-dump.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 573,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1300-summarize-web-search-framework-payload-prefers-locator-domain-over-noisy-title-domai.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1047,
+      "lines": 23,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1310-direct-batch-query-get-endpoint-emits-nexus-audit-and-tracking-metadata.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 946,
+      "lines": 31,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1320-direct-batch-query-post-endpoint-emits-nexus-audit-and-tracking-metadata.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 961,
+      "lines": 31,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/1330-direct-file-read-endpoint-emits-decision-audit-and-tracking-metadata.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1398,
+      "lines": 45,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/140-web-fetch-summary-converts-navigation-chrome-into-actionable-hint.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 640,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/150-natural-web-intent-does-not-auto-route-peer-comparisons-without-explicit-web-request.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 275,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/160-natural-web-intent-does-not-treat-tool-route-mapping-prompts-as-web-queries.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 235,
+      "lines": 8,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/170-conversational-prompt-does-not-auto-route-direct-tool-intent.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 173,
+      "lines": 6,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/180-natural-web-prompt-does-not-auto-route-direct-tool-intent.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 256,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/190-natural-file-prompt-does-not-auto-route-direct-tool-intent.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 179,
+      "lines": 6,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/200-explicit-tool-command-surfaces-web-search-workflow-hint.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 850,
+      "lines": 25,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/210-explicit-tool-command-alias-surfaces-compare-workflow-hint.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 523,
+      "lines": 16,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/220-explicit-tool-command-alias-surfaces-fetch-workflow-hint.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 506,
+      "lines": 16,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/230-explicit-tool-command-rejects-unknown-names-with-suggestion.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 632,
+      "lines": 20,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/240-explicit-tool-command-rejects-malformed-shape-before-routing.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 497,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/250-explicit-tool-command-maps-memory-store-to-workflow-hint.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 614,
+      "lines": 20,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/260-inline-tool-policy-requires-explicit-tooling-request.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1018,
+      "lines": 25,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/270-workflow-decision-tree-v2-defaults-simple-questions-to-info-without-tools.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 822,
+      "lines": 30,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/280-workflow-decision-tree-v2-selects-minimal-web-tools-only-when-needed.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 608,
+      "lines": 22,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/290-workflow-decision-tree-v2-classifies-file-edits-as-task-route.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 585,
+      "lines": 22,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/300-workflow-decision-tree-blocks-status-check-turns-from-tool-calls.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 556,
+      "lines": 22,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/310-inline-spawn-tool-calls-autoconfirm-without-user-swarm-phrase.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 948,
+      "lines": 29,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/320-inline-tool-execution-is-suppressed-for-plain-conversation-turns.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 653,
+      "lines": 21,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/330-inline-tool-execution-replaces-low-signal-cleaned-text-with-tool-fallback-lines.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 918,
+      "lines": 24,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/340-inline-tool-execution-discards-leftover-malformed-function-markup.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 843,
+      "lines": 23,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/350-workflow-retry-sanitizer-drops-follow-up-tool-markup-tail.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 687,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/360-workflow-retry-sanitizer-drops-polite-more-search-tail.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 590,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/370-workflow-retry-sanitizer-strips-malformed-inline-function-tail.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 394,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/380-inline-tool-parser-accepts-quoted-function-name-markup.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 500,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/390-inline-tool-workspace-analyze-hydrates-comparison-query-from-message.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 532,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/400-pending-confirmation-yes-replays-manage-agent-action.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2801,
+      "lines": 97,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/410-telemetry-dump-detector-flags-duckduckgo-noise-and-tool-error-codes.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 338,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/420-unrelated-dump-detector-flags-peer-review-template-leaks.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 486,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/430-unrelated-dump-detector-flags-internal-prompt-leak-even-with-function-markup.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 369,
+      "lines": 7,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/440-unrelated-dump-detector-flags-kernel-patch-thread-dumps.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 768,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/450-unrelated-dump-detector-flags-role-preamble-prompt-dumps.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 603,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/460-unrelated-dump-detector-flags-reddit-goldbach-thread-dump.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 447,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/470-unrelated-dump-detector-flags-dataframe-instruction-template-dump.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 438,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/480-helpfulness-detector-flags-prompt-echo-and-accepts-direct-answer.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 656,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/490-actionable-response-gets-next-actions-line.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 608,
+      "lines": 18,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/500-low-alignment-detector-flags-long-response-without-previous-message-overlap.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 799,
+      "lines": 15,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/510-append-turn-message-captures-explicit-remember-fact-for-long-term-memory.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 973,
+      "lines": 29,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/520-append-turn-message-captures-low-signal-web-tool-outcome-keyframe.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1158,
+      "lines": 37,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/530-response-tools-summary-rewrites-ack-only-text-into-user-facing-findings.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 591,
+      "lines": 18,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/540-ack-only-detector-flags-generic-tool-acknowledgements.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 515,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/550-ack-only-detector-flags-explicit-no-findings-failure-copy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 586,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/560-ack-only-detector-flags-speculative-web-blocker-explanations.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 611,
+      "lines": 7,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/570-ack-only-detector-flags-key-findings-source-scaffold-copy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 289,
+      "lines": 8,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/580-ack-only-detector-flags-duckduckgo-findings-placeholder-copy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 280,
+      "lines": 8,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/590-response-tools-summary-drops-ack-only-tool-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 318,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/600-response-tools-summary-drops-key-findings-source-scaffold-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 448,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/610-finalize-user-facing-response-replaces-ack-with-findings.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 489,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/620-final-answer-contract-reports-claim-sources-from-tool-receipts.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1178,
+      "lines": 37,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/630-finalize-user-facing-response-replaces-ack-without-findings.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 406,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/640-finalize-user-facing-response-rewrites-generic-tool-failure-placeholder.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 413,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/650-finalize-user-facing-response-never-leaks-tool-status-text.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 404,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/660-comparative-detector-matches-peer-ranking-language.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 377,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/670-comparative-live-web-detector-matches-openclaw-vs-workspace-language.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 274,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/680-natural-web-intent-routes-openclaw-comparison-to-batch-query.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 605,
+      "lines": 21,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/690-natural-web-intent-normalizes-try-to-web-search-query.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 367,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/700-natural-web-intent-routes-test-web-fetch-probe-to-example-dot-com.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 456,
+      "lines": 15,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/710-direct-tool-intent-does-not-auto-route-openclaw-probe.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 247,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/720-latent-tool-candidates-normalize-try-to-web-search-query.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 412,
+      "lines": 18,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/730-latent-tool-candidates-surface-chat-operator-hints-without-direct-routing.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 783,
+      "lines": 18,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/740-comparative-no-findings-fallback-is-actionable.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 135,
+      "lines": 6,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/750-tooling-failure-fallback-triggers-for-diagnostic-prompt.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 493,
+      "lines": 15,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/760-tooling-failure-fallback-triggers-for-repeated-placeholder-loop.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 338,
+      "lines": 8,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/770-system-diagnostic-failure-summary-is-not-generic-dead-end.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 433,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/780-web-search-request-read-failed-summary-is-actionable.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 604,
+      "lines": 18,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/790-web-search-context-guard-failure-summary-is-actionable.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 455,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/800-transient-tool-failure-detects-request-read-failed-signature.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 240,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/810-web-search-summary-avoids-completed-placeholder-copy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 490,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/820-web-search-summary-reports-root-cause-without-legacy-no-findings-template.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 855,
+      "lines": 20,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/830-web-search-summary-discards-potential-sources-scaffold-output.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 759,
+      "lines": 17,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/840-web-search-summary-uses-content-domains-when-summary-is-search-chrome.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1271,
+      "lines": 23,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/850-batch-query-summary-rewrites-unsynthesized-domain-dump-to-structured-evidence.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 822,
+      "lines": 22,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/860-batch-query-context-guard-comparison-uses-comparative-fallback.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 469,
+      "lines": 16,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/870-batch-query-summary-rewrites-no-useful-information-copy-to-actionable-guidance.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 639,
+      "lines": 20,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/880-maybe-tooling-failure-fallback-rewrites-context-guard-diagnosis.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 467,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/890-unsynthesized-web-snippet-detector-flags-domain-dump-copy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 512,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/900-finalize-user-facing-response-rewrites-raw-placeholder-dump.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 485,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/910-finalize-user-facing-response-unwraps-internal-payload-json-response.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 857,
+      "lines": 21,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/920-finalize-user-facing-response-unwraps-wrapped-internal-payload-json-response.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 791,
+      "lines": 20,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/930-natural-web-intent-strips-return-the-results-suffix.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 393,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/940-natural-web-intent-routes-generic-web-retry-probe-to-live-batch-query.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 550,
+      "lines": 16,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/950-inline-batch-query-input-is-normalized-before-execution.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 676,
+      "lines": 21,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/960-natural-web-intent-does-not-force-plain-workspace-peer-compare-into-web.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 292,
+      "lines": 7,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/970-response-tools-summary-keeps-actionable-web-diagnostic-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 498,
+      "lines": 16,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/980-finalize-user-facing-response-keeps-actionable-web-diagnostic-copy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 551,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts/990-response-tools-failure-reason-includes-no-results-web-reason.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 797,
+      "lines": 19,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/010-safe-step-prompt-body-json-040-combined-to-workflow-library-gate-app.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8631,
+      "lines": 279,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/020-direct-message-safe-step-prompt-returns-workflow-metadata.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1410,
+      "lines": 52,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 687,
+      "lines": 7,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts/010-segment-001.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5573,
+      "lines": 173,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts/020-segment-002.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4213,
+      "lines": 128,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts/030-segment-003.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5797,
+      "lines": 168,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts/040-segment-004.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6652,
+      "lines": 177,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts/050-segment-005.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1778,
+      "lines": 53,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/040-part.combined_parts/030-tooling-harness-round-trips-model-decision-tool-execution-and-final_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/010-assert-selected-workflow-and-visible-response-to-workflow-response-c.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2176,
+      "lines": 74,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1137,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/010-segment-001.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5042,
+      "lines": 157,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/020-segment-002.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6228,
+      "lines": 181,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/030-segment-003.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6450,
+      "lines": 181,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/040-segment-004.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6256,
+      "lines": 177,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/050-segment-005.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5529,
+      "lines": 175,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/060-segment-006.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4102,
+      "lines": 114,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/070-segment-007.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5736,
+      "lines": 163,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/080-segment-008.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4922,
+      "lines": 143,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts/090-segment-009.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5022,
+      "lines": 146,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/config_payload_tests_parts/100-governance-and-semantic-memory_parts/050-part.combined_parts/020-workflow-response-contract-persists-selected-workflow-for-tool-succe_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts/010-workspace-hint-tokens-to-workspace-file-hints-for-message.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5922,
+      "lines": 216,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts/020-chat-workflow-tool-hints-for-message.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 14242,
+      "lines": 337,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts/030-push-latent-tool-candidate.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 852,
+      "lines": 32,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts/040-latent-tool-candidates-for-message.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3489,
+      "lines": 112,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts/050-truncate-utf8-lossy-to-attention-queue-path-for-dashboard.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3471,
+      "lines": 117,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/070-part.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload_parts/050-finalize-message-finalization-and-payload_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 33860,
+      "lines": 775,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_parts/set_config_payload_parts/190_route_blocks/agent_scope_full_parts/050-message-finalization-and-payload_parts/050-finalize-message-finalization-and-payload_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 382,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts/020-reference-parity-state-rel-to-logout-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6492,
+      "lines": 203,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts/030-integrations-payload-to-uploads-list.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6407,
+      "lines": 181,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts/040-upload-create-payload-to-marketplace-aliases.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6307,
+      "lines": 190,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts/050-handle.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2926,
+      "lines": 92,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts/060-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7583,
+      "lines": 291,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_reference_parity.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts/010-use-chrono-duration-utc.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7855,
+      "lines": 256,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts/020-workflow-step-id.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2632,
+      "lines": 86,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts/030-validate-workflow-graph.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8278,
+      "lines": 260,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts/040-runs-for-workflow.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7191,
+      "lines": 225,
+      "parent": "core/layer0/ops/src/dashboard_compat_api_sidebar_ops_parts/010-state-helpers.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 240,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/dashboard_model_catalog.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined_parts/020-session-analytics-tuning-rel-to-scale-to-five.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2649,
+      "lines": 97,
+      "parent": "core/layer0/ops/src/dashboard_model_catalog.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined_parts/030-registry-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6408,
+      "lines": 177,
+      "parent": "core/layer0/ops/src/dashboard_model_catalog.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined_parts/040-catalog-payload-to-resolve-model-selection.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5571,
+      "lines": 147,
+      "parent": "core/layer0/ops/src/dashboard_model_catalog.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined_parts/050-route-decision-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7928,
+      "lines": 218,
+      "parent": "core/layer0/ops/src/dashboard_model_catalog.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined_parts/060-route-score.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1625,
+      "lines": 54,
+      "parent": "core/layer0/ops/src/dashboard_model_catalog.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_model_catalog.combined_parts/070-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 11765,
+      "lines": 323,
+      "parent": "core/layer0/ops/src/dashboard_model_catalog.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 252,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts/020-provider-registry-rel-to-command-exists.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6064,
+      "lines": 206,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts/030-local-provider-reachable-to-model-profiles-for-provider.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 14314,
+      "lines": 202,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts/040-parse-billion-hint-to-profile-tags-are-general-only.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5963,
+      "lines": 202,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts/050-enrich-single-model-profile-to-masked-prefix.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8246,
+      "lines": 231,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts/060-masked-last4-to-content-from-message-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1524,
+      "lines": 54,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/010-state-and-registry.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts/010-curl-json-to-models-from-probe-response.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6604,
+      "lines": 215,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts/020-parse-ollama-list-models-to-probe-ollama-runtime-models.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5419,
+      "lines": 173,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts/030-provider-rows-to-providers-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8188,
+      "lines": 209,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts/040-save-provider-key-to-set-provider-url.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3135,
+      "lines": 82,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts/050-provider.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8334,
+      "lines": 201,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts/060-mod-provider-http-interop-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3461,
+      "lines": 107,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/020-provider-http-interop.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 61,
+      "lines": 2,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts/020-split-model-ref-to-add-custom-model.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7872,
+      "lines": 195,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts/030-delete-custom-model-to-invoke-chat-live.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6752,
+      "lines": 187,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts/040-scripted-chat-harness-response.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6074,
+      "lines": 186,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts/050-invoke-chat.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 9835,
+      "lines": 225,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts/060-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 10192,
+      "lines": 287,
+      "parent": "core/layer0/ops/src/dashboard_provider_runtime_parts/030-model-discovery-and-mutations.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 290,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts/020-core-skills-registry-rel-to-default-tags.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6021,
+      "lines": 184,
+      "parent": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts/030-normalize-skill-row-to-list-skills-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 10919,
+      "lines": 188,
+      "parent": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts/040-mcp-servers-payload-to-detail-code-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6644,
+      "lines": 197,
+      "parent": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts/050-install-payload-to-handle.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6673,
+      "lines": 177,
+      "parent": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts/060-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5801,
+      "lines": 178,
+      "parent": "core/layer0/ops/src/dashboard_skills_marketplace.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/009-run_action_family_dashboard_agent_parts/020-action-family-dashboard-agent_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 50600,
+      "lines": 1186,
+      "parent": "core/layer0/ops/src/dashboard_ui_parts/060-action-dispatch_parts/009-run_action_family_dashboard_agent_parts/020-action-family-dashboard-agent_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment_parts/020-troubleshooting_recent_tooling_contract_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 90309,
+      "lines": 1708,
+      "parent": "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment_parts/020-troubleshooting_recent_tooling_contract_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment_parts/060-troubleshooting_summary_lane_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 31002,
+      "lines": 660,
+      "parent": "core/layer0/ops/src/dashboard_ui_parts/065-troubleshooting-and-eval_parts/005-segment_parts/060-troubleshooting_summary_lane_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/directive_kernel_run_parts/030-run_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 32826,
+      "lines": 879,
+      "parent": "core/layer0/ops/src/directive_kernel_run_parts/030-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/010-as-f64-or-to-compute-toll-from-signal.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7197,
+      "lines": 215,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/020-duality-memory-tags-for-content.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1940,
+      "lines": 56,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 273,
+      "lines": 5,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 23704,
+      "lines": 585,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts/010-segment-001.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6787,
+      "lines": 167,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts/020-segment-002.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7590,
+      "lines": 179,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts/030-segment-003.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5694,
+      "lines": 146,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts/040-segment-004.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3633,
+      "lines": 96,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/030-op-dispatch_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/040-invoke-to-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3519,
+      "lines": 111,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts/050-mod-duality-v4-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5268,
+      "lines": 168,
+      "parent": "core/layer0/ops/src/duality_seed_parts/040-op-dispatch.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/eval_plane.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 465,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/eval_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/eval_plane.combined_parts/020-state-env-to-enable.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6530,
+      "lines": 195,
+      "parent": "core/layer0/ops/src/eval_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/eval_plane.combined_parts/030-compute-loop-trace-to-experiment.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5397,
+      "lines": 158,
+      "parent": "core/layer0/ops/src/eval_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/eval_plane.combined_parts/040-benchmark-to-eval.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7261,
+      "lines": 208,
+      "parent": "core/layer0/ops/src/eval_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/eval_plane.combined_parts/050-parse-runtime-classes-to-dispatch.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6758,
+      "lines": 196,
+      "parent": "core/layer0/ops/src/eval_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/eval_plane.combined_parts/060-run-to-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4549,
+      "lines": 145,
+      "parent": "core/layer0/ops/src/eval_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 305,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/f100_reliability_certification.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined_parts/020-lane-id-to-collect-incident-rate.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5631,
+      "lines": 187,
+      "parent": "core/layer0/ops/src/f100_reliability_certification.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined_parts/030-collect-change-fail-rate-to-evidence-status.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1487,
+      "lines": 57,
+      "parent": "core/layer0/ops/src/f100_reliability_certification.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined_parts/040-load-policy-to-append-jsonl.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7594,
+      "lines": 209,
+      "parent": "core/layer0/ops/src/f100_reliability_certification.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined_parts/050-evaluate.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7394,
+      "lines": 201,
+      "parent": "core/layer0/ops/src/f100_reliability_certification.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined_parts/060-cmd-to-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3260,
+      "lines": 106,
+      "parent": "core/layer0/ops/src/f100_reliability_certification.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/f100_reliability_certification.combined_parts/070-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6370,
+      "lines": 172,
+      "parent": "core/layer0/ops/src/f100_reliability_certification.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 273,
+      "lines": 10,
+      "parent": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts/020-usage-to-build-repo-activity-fetch-plan.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5633,
+      "lines": 154,
+      "parent": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts/030-finalize-repo-activity-to-build-pr-review.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6923,
+      "lines": 197,
+      "parent": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts/040-collect-repo-activity-to-collect-pr-review.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4695,
+      "lines": 129,
+      "parent": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts/050-run-to-dispatch.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8340,
+      "lines": 214,
+      "parent": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts/060-run-to-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6163,
+      "lines": 178,
+      "parent": "core/layer0/ops/src/github_repo_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/government_plane.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 534,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/government_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/government_plane.combined_parts/020-lane-id-to-attestation-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6669,
+      "lines": 194,
+      "parent": "core/layer0/ops/src/government_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/government_plane.combined_parts/030-classification-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5741,
+      "lines": 179,
+      "parent": "core/layer0/ops/src/government_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/government_plane.combined_parts/040-nonrepudiation-command-to-soc-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6084,
+      "lines": 190,
+      "parent": "core/layer0/ops/src/government_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/government_plane.combined_parts/050-coop-command-to-proofs-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6276,
+      "lines": 182,
+      "parent": "core/layer0/ops/src/government_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/government_plane.combined_parts/060-interoperability-command-to-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7252,
+      "lines": 211,
+      "parent": "core/layer0/ops/src/government_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/healthcare_plane.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 549,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/healthcare_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/healthcare_plane.combined_parts/020-lane-id-to-patient-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5688,
+      "lines": 178,
+      "parent": "core/layer0/ops/src/healthcare_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/healthcare_plane.combined_parts/030-phi-audit-command-to-cds-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5246,
+      "lines": 169,
+      "parent": "core/layer0/ops/src/healthcare_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/healthcare_plane.combined_parts/040-devices-command-to-alerts-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6885,
+      "lines": 217,
+      "parent": "core/layer0/ops/src/healthcare_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/healthcare_plane.combined_parts/050-coordination-command-to-imaging-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6191,
+      "lines": 198,
+      "parent": "core/layer0/ops/src/healthcare_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/healthcare_plane.combined_parts/060-emergency-command-to-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5257,
+      "lines": 159,
+      "parent": "core/layer0/ops/src/healthcare_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/010-evaluate-dispatch-security-to-evaluate-security-decision-via-cargo.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5999,
+      "lines": 184,
+      "parent": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/020-node-script-to-first-positional-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7026,
+      "lines": 195,
+      "parent": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/030-unknown-command-domain-to-cargo-detected.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8546,
+      "lines": 218,
+      "parent": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/040-cargo-runnable-to-workspace-root-env-mismatches.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1743,
+      "lines": 65,
+      "parent": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/050-install-doctor-domain.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 15934,
+      "lines": 385,
+      "parent": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/060-core-domain-to-suppress-pre-dispatch-side-effects.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4828,
+      "lines": 165,
+      "parent": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts/070-maybe-run-cli-suggestion-engine-to-split-assimilate-tokens.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7134,
+      "lines": 212,
+      "parent": "core/layer0/ops/src/infringctl_parts/020-evaluate-dispatch-security.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/infringctl_parts/030-usage_parts/030-run_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 32676,
+      "lines": 841,
+      "parent": "core/layer0/ops/src/infringctl_parts/030-usage_parts/030-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/llm_economy_organ_parts/020-run_parts/020-run_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 32852,
+      "lines": 898,
+      "parent": "core/layer0/ops/src/llm_economy_organ_parts/020-run_parts/020-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/memory/stacks/050-tests_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 27477,
+      "lines": 777,
+      "parent": "core/layer0/ops/src/memory/stacks/050-tests_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/network_protocol_run_parts/010-contribution-history-path_parts/030-append-jsonl_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 56501,
+      "lines": 1408,
+      "parent": "core/layer0/ops/src/network_protocol_run_parts/010-contribution-history-path_parts/030-append-jsonl_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persist_plane.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 471,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/persist_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persist_plane.combined_parts/020-state-env-to-clean-id.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5600,
+      "lines": 163,
+      "parent": "core/layer0/ops/src/persist_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persist_plane.combined_parts/030-schedule.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6346,
+      "lines": 209,
+      "parent": "core/layer0/ops/src/persist_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persist_plane.combined_parts/040-mobile-cockpit.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5242,
+      "lines": 168,
+      "parent": "core/layer0/ops/src/persist_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persist_plane.combined_parts/050-mobile-daemon.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7114,
+      "lines": 212,
+      "parent": "core/layer0/ops/src/persist_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persist_plane.combined_parts/060-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1823,
+      "lines": 61,
+      "parent": "core/layer0/ops/src/persist_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persist_plane.combined_parts/070-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6283,
+      "lines": 177,
+      "parent": "core/layer0/ops/src/persist_plane.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persona_ambient.combined_parts/010-use-crate-contract-lane-utils-as-lane-utils.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7547,
+      "lines": 236,
+      "parent": "core/layer0/ops/src/persona_ambient.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persona_ambient.combined_parts/020-enqueue-attention.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5430,
+      "lines": 171,
+      "parent": "core/layer0/ops/src/persona_ambient.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persona_ambient.combined_parts/030-apply.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6985,
+      "lines": 215,
+      "parent": "core/layer0/ops/src/persona_ambient.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/persona_ambient.combined_parts/040-status.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5789,
+      "lines": 179,
+      "parent": "core/layer0/ops/src/persona_ambient.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 432,
+      "lines": 16,
+      "parent": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts/020-sqlitecfg-to-cfg-to-value.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6838,
+      "lines": 215,
+      "parent": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts/030-ensure-parent-to-read-jsonl-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4133,
+      "lines": 117,
+      "parent": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts/040-migrate-history-to-upsert-item.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5988,
+      "lines": 182,
+      "parent": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts/050-append-event-to-backpressure-policy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7488,
+      "lines": 213,
+      "parent": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts/060-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5735,
+      "lines": 176,
+      "parent": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts/070-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4253,
+      "lines": 120,
+      "parent": "core/layer0/ops/src/queue_sqlite_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts/010-dashboard-contract-guard-from-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1803,
+      "lines": 41,
+      "parent": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts/020-dashboard-auto-route-from-payload-to-push-if-disabled.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8282,
+      "lines": 214,
+      "parent": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts/030-dashboard-message-stack-guard-from-payload-to-dashboard-boot-retry-g.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5354,
+      "lines": 135,
+      "parent": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts/040-gap-guard-from-payload-to-duality-guard-from-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 9417,
+      "lines": 205,
+      "parent": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts/050-perf-guard-from-payload.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5116,
+      "lines": 107,
+      "parent": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts/060-contract-specific-gates-to-empty-num-gates.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7052,
+      "lines": 199,
+      "parent": "core/layer0/ops/src/runtime_systems_parts/030-dashboard-contract-guard-from-payload.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/runtime_systems_parts/120-run-writes-latest-and-status-reads-it_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 41547,
+      "lines": 1076,
+      "parent": "core/layer0/ops/src/runtime_systems_parts/120-run-writes-latest-and-status-reads-it_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 322,
+      "lines": 13,
+      "parent": "core/layer0/ops/src/scale_readiness.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined_parts/020-scale-ids-to-default-policy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4283,
+      "lines": 157,
+      "parent": "core/layer0/ops/src/scale_readiness.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined_parts/030-load-policy-to-json-script.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6573,
+      "lines": 211,
+      "parent": "core/layer0/ops/src/scale_readiness.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined_parts/040-synth-load-summary.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 653,
+      "lines": 18,
+      "parent": "core/layer0/ops/src/scale_readiness.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined_parts/050-lane-scale.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 13449,
+      "lines": 284,
+      "parent": "core/layer0/ops/src/scale_readiness.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined_parts/060-write-lane-receipt-to-usage.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4252,
+      "lines": 136,
+      "parent": "core/layer0/ops/src/scale_readiness.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/scale_readiness.combined_parts/070-run-to-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4772,
+      "lines": 160,
+      "parent": "core/layer0/ops/src/scale_readiness.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 365,
+      "lines": 14,
+      "parent": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts/020-usage-to-load-cache-items.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7317,
+      "lines": 221,
+      "parent": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts/030-today-utc-to-format-signed-2.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4418,
+      "lines": 158,
+      "parent": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts/040-map-quotes-to-command-build-fetch-plan.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7064,
+      "lines": 210,
+      "parent": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts/050-finalize-success-to-command-finalize-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5659,
+      "lines": 201,
+      "parent": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts/060-command-collect-to-mod-stock-market-collector-kernel-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7199,
+      "lines": 206,
+      "parent": "core/layer0/ops/src/stock_market_collector_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 239,
+      "lines": 9,
+      "parent": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts/020-usage-to-normalize-campaigns.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5385,
+      "lines": 168,
+      "parent": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts/030-campaigns-as-value-to-score-match.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7317,
+      "lines": 202,
+      "parent": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts/040-best-campaign-match-to-open-proposal-type-counts.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5708,
+      "lines": 179,
+      "parent": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts/050-build-campaign-decomposition-plans-to-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8380,
+      "lines": 199,
+      "parent": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts/060-run-to-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4660,
+      "lines": 150,
+      "parent": "core/layer0/ops/src/strategy_campaign_scheduler_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/swarm_runtime_parts/160-run_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 52040,
+      "lines": 1094,
+      "parent": "core/layer0/ops/src/swarm_runtime_parts/160-run_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/swarm_runtime_parts/170-spawn-options_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 29984,
+      "lines": 879,
+      "parent": "core/layer0/ops/src/swarm_runtime_parts/170-spawn-options_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/v8_kernel.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 328,
+      "lines": 11,
+      "parent": "core/layer0/ops/src/v8_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/v8_kernel.combined_parts/020-default-receipt-history-max-bytes-to-append-binary-queue.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6194,
+      "lines": 192,
+      "parent": "core/layer0/ops/src/v8_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/v8_kernel.combined_parts/030-enforce-jsonl-tail-limit-to-date-or-today.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6848,
+      "lines": 217,
+      "parent": "core/layer0/ops/src/v8_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/v8_kernel.combined_parts/040-parse-i64-str-to-deterministic-merkle-root.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5855,
+      "lines": 203,
+      "parent": "core/layer0/ops/src/v8_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/v8_kernel.combined_parts/050-merkle-proof-to-parse-csv-or-file-unique.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5081,
+      "lines": 187,
+      "parent": "core/layer0/ops/src/v8_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/v8_kernel.combined_parts/060-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3250,
+      "lines": 102,
+      "parent": "core/layer0/ops/src/v8_kernel.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts/010-stamp-receipt.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6483,
+      "lines": 205,
+      "parent": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts/020-run-navback.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7890,
+      "lines": 261,
+      "parent": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts/030-parse-coordinate-pair.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7520,
+      "lines": 251,
+      "parent": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts/040-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4435,
+      "lines": 128,
+      "parent": "core/layer0/ops/src/vbrowser_plane_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment_parts/580-execute-fetch-request-parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 62227,
+      "lines": 1635,
+      "parent": "core/layer0/ops/src/web_conduit_parts/035-fetch-runtime_parts/004-segment_parts/580-execute-fetch-request-parts"
+    },
+    {
+      "path": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment_parts/670-api-search-parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 64509,
+      "lines": 1618,
+      "parent": "core/layer0/ops/src/web_conduit_parts/060-search-orchestration_parts/001-segment_parts/670-api-search-parts"
+    },
+    {
+      "path": "core/layer0/ops/src/workflow_graph_bridge.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 406,
+      "lines": 12,
+      "parent": "core/layer0/ops/src/workflow_graph_bridge.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/workflow_graph_bridge.combined_parts/020-default-state-rel-to-semantic-claim.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6443,
+      "lines": 204,
+      "parent": "core/layer0/ops/src/workflow_graph_bridge.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/workflow_graph_bridge.combined_parts/030-emit-native-trace-to-checkpoint-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6649,
+      "lines": 173,
+      "parent": "core/layer0/ops/src/workflow_graph_bridge.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/workflow_graph_bridge.combined_parts/040-inspect-state-to-resume-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6802,
+      "lines": 169,
+      "parent": "core/layer0/ops/src/workflow_graph_bridge.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/workflow_graph_bridge.combined_parts/050-coordinate-subgraph-to-select-edge.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6839,
+      "lines": 197,
+      "parent": "core/layer0/ops/src/workflow_graph_bridge.combined_parts"
+    },
+    {
+      "path": "core/layer0/ops/src/workflow_graph_bridge.combined_parts/060-stream-graph-to-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7763,
+      "lines": 196,
+      "parent": "core/layer0/ops/src/workflow_graph_bridge.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/010-parse-last-json-line-to-guard-state-logs.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2162,
+      "lines": 80,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/020-guard.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6742,
+      "lines": 220,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/030-antisabotagepolicy-to-anti-sabotage-snapshot.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7164,
+      "lines": 201,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/040-anti-sabotage-verify-to-anti-sabotage-status.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6677,
+      "lines": 188,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/050-anti-sabotage-shield-to-proposal-status.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6969,
+      "lines": 183,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 152,
+      "lines": 3,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 23762,
+      "lines": 560,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts/010-segment-001.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7486,
+      "lines": 181,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts/020-segment-002.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7418,
+      "lines": 181,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts/030-segment-003.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7758,
+      "lines": 181,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts/040-segment-004.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1100,
+      "lines": 20,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/060-constitution-guardian_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/070-remoteemergencyhaltpolicy-to-clean-expired-nonces.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3320,
+      "lines": 110,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/080-remote-emergency-halt.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 12064,
+      "lines": 278,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/090-soultokenguardpolicy-to-read-jsonl-rows.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2175,
+      "lines": 65,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts/100-soul-token-guard.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 9317,
+      "lines": 218,
+      "parent": "core/layer1/security/src/security_planes_parts/020-run-guard.combined_parts"
+    },
+    {
+      "path": "core/layer2/autonomy/src/multi_agent_debate.combined_parts/010-use-crate.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3166,
+      "lines": 122,
+      "parent": "core/layer2/autonomy/src/multi_agent_debate.combined_parts"
+    },
+    {
+      "path": "core/layer2/autonomy/src/multi_agent_debate.combined_parts/020-load-policy.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7231,
+      "lines": 230,
+      "parent": "core/layer2/autonomy/src/multi_agent_debate.combined_parts"
+    },
+    {
+      "path": "core/layer2/autonomy/src/multi_agent_debate.combined_parts/030-build-agents.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 13081,
+      "lines": 374,
+      "parent": "core/layer2/autonomy/src/multi_agent_debate.combined_parts"
+    },
+    {
+      "path": "core/layer2/autonomy/src/multi_agent_debate.combined_parts/040-debate-status.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4728,
+      "lines": 122,
+      "parent": "core/layer2/autonomy/src/multi_agent_debate.combined_parts"
+    },
+    {
+      "path": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts/010-register-extension-runtime-to-collect-child-output.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5867,
+      "lines": 183,
+      "parent": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts/020-execute-ops-bridge-command-to-verity-drift-production-default-ms.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8405,
+      "lines": 221,
+      "parent": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts/030-verity-drift-simulation-default-ms-to-load-verity-drift-policy-uncac.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7299,
+      "lines": 221,
+      "parent": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts/040-load-verity-drift-policy-to-validate-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6503,
+      "lines": 196,
+      "parent": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts/050-validate-structure.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 2181,
+      "lines": 59,
+      "parent": "core/layer2/conduit/src/lib_parts/command_dispatch_parts/020-register-extension-runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/execution/src/autoscale_parts/400-run-autoscale-json_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 144044,
+      "lines": 3346,
+      "parent": "core/layer2/execution/src/autoscale_parts/400-run-autoscale-json_parts"
+    },
+    {
+      "path": "core/layer2/execution/src/inversion_parts/210-run-inversion-json_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 62813,
+      "lines": 1472,
+      "parent": "core/layer2/execution/src/inversion_parts/210-run-inversion-json_parts"
+    },
+    {
+      "path": "core/layer2/execution/src/inversion_parts/220-normalize-impact-matches-expected-set_parts/000-combined.rs",
+      "domain": "core",
+      "kind": "combined_rust_file",
+      "bytes": 93962,
+      "lines": 2331,
+      "parent": "core/layer2/execution/src/inversion_parts/220-normalize-impact-matches-expected-set_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/autophagy_auto_approval.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 287,
+      "lines": 8,
+      "parent": "core/layer2/ops/src/autophagy_auto_approval.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/autophagy_auto_approval.combined_parts/020-default-policy-path-to-stable-proposal-id.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5337,
+      "lines": 159,
+      "parent": "core/layer2/ops/src/autophagy_auto_approval.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/autophagy_auto_approval.combined_parts/030-load-policy-to-evaluate-proposal.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6826,
+      "lines": 211,
+      "parent": "core/layer2/ops/src/autophagy_auto_approval.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/autophagy_auto_approval.combined_parts/040-remove-entry-to-evaluate-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6453,
+      "lines": 178,
+      "parent": "core/layer2/ops/src/autophagy_auto_approval.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/autophagy_auto_approval.combined_parts/050-rollback-from-state-to-cli-error.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7084,
+      "lines": 187,
+      "parent": "core/layer2/ops/src/autophagy_auto_approval.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/autophagy_auto_approval.combined_parts/060-run-to-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5844,
+      "lines": 168,
+      "parent": "core/layer2/ops/src/autophagy_auto_approval.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts/010-round-metric.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5469,
+      "lines": 175,
+      "parent": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts/020-persist-message-event.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 6652,
+      "lines": 193,
+      "parent": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts/030-compress-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 7968,
+      "lines": 241,
+      "parent": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts/040-agent-prompt-command.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 8053,
+      "lines": 229,
+      "parent": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts/050-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 1087,
+      "lines": 34,
+      "parent": "core/layer2/ops/src/nexus_internal_comms_parts/040-run.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/srs_contract_runtime.combined_parts/010-prelude-and-shared.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 277,
+      "lines": 9,
+      "parent": "core/layer2/ops/src/srs_contract_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/srs_contract_runtime.combined_parts/020-contract-root-to-runtime-lane-to-domain.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5809,
+      "lines": 198,
+      "parent": "core/layer2/ops/src/srs_contract_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/srs_contract_runtime.combined_parts/030-parse-runtime-lane-argv-to-execute-contract.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 4531,
+      "lines": 145,
+      "parent": "core/layer2/ops/src/srs_contract_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/srs_contract_runtime.combined_parts/040-execute-contract-with-options-to-usage.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 3858,
+      "lines": 111,
+      "parent": "core/layer2/ops/src/srs_contract_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/srs_contract_runtime.combined_parts/050-run.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 5589,
+      "lines": 158,
+      "parent": "core/layer2/ops/src/srs_contract_runtime.combined_parts"
+    },
+    {
+      "path": "core/layer2/ops/src/srs_contract_runtime.combined_parts/060-mod-tests.rs",
+      "domain": "core",
+      "kind": "combined_parts_member",
+      "bytes": 10545,
+      "lines": 300,
+      "parent": "core/layer2/ops/src/srs_contract_runtime.combined_parts"
+    },
+    {
+      "path": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts/010-endpoint-env-mutex-to-archive-all-agents-endpoint-rejects-actor-scop.rs",
+      "domain": "validation",
+      "kind": "combined_parts_member",
+      "bytes": 5639,
+      "lines": 214,
+      "parent": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts"
+    },
+    {
+      "path": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts/020-roster-excludes-zombies-and-archived-profiles-surface-in-terminated.rs",
+      "domain": "validation",
+      "kind": "combined_parts_member",
+      "bytes": 5062,
+      "lines": 179,
+      "parent": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts"
+    },
+    {
+      "path": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts/030-agent-terminal-routes-through-command-router-to-agent-terminal-block.rs",
+      "domain": "validation",
+      "kind": "combined_parts_member",
+      "bytes": 3768,
+      "lines": 150,
+      "parent": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts"
+    },
+    {
+      "path": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts/040-agent-command-endpoint-routes-runtime-queries-in-core-to-active-coll.rs",
+      "domain": "validation",
+      "kind": "combined_parts_member",
+      "bytes": 7136,
+      "lines": 253,
+      "parent": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts"
+    },
+    {
+      "path": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts/050-actor-agent-management-is-scoped-to-descendants-to-direct-slash-tool.rs",
+      "domain": "validation",
+      "kind": "combined_parts_member",
+      "bytes": 5602,
+      "lines": 212,
+      "parent": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts"
+    },
+    {
+      "path": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts/060-direct-file-read-endpoint-emits-nexus-connection-metadata-to-direct.rs",
+      "domain": "validation",
+      "kind": "combined_parts_member",
+      "bytes": 5772,
+      "lines": 205,
+      "parent": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts"
+    },
+    {
+      "path": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts/070-direct-web-search-endpoint-fails-closed-when-ingress-route-pair-bloc.rs",
+      "domain": "validation",
+      "kind": "combined_parts_member",
+      "bytes": 5381,
+      "lines": 193,
+      "parent": "validation/tests/rust/dashboard_compat_api/config_payload_tests_parts/040-terminated-agent-endpoints-round-trip.combined_parts"
+    }
+  ]
+}
