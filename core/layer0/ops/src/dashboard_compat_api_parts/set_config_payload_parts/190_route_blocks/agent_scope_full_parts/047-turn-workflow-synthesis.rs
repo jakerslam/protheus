@@ -1218,6 +1218,17 @@ fn mark_workflow_pending_gate_without_final_synthesis(
     set_turn_workflow_final_stage_status(workflow, status);
 }
 
+fn workflow_final_synthesis_attempt_limit(workflow: &Value, response_tools: &[Value]) -> u64 {
+    if response_tools.is_empty() {
+        return 1;
+    }
+    workflow
+        .pointer("/selected_workflow/tool_menu_interface_contract/final_synthesis_attempt_limit")
+        .and_then(Value::as_u64)
+        .unwrap_or(1)
+        .clamp(1, 3)
+}
+
 fn run_turn_workflow_final_response(
     root: &Path,
     provider: &str,
@@ -1420,6 +1431,8 @@ fn run_turn_workflow_final_response(
         manual_toolbox_private_gate_max_attempts()
     } else if missing_turn_tool_context_recovery {
         2
+    } else if !response_tools.is_empty() {
+        workflow_final_synthesis_attempt_limit(&workflow, response_tools)
     } else {
         1
     };
@@ -1488,6 +1501,15 @@ fn run_turn_workflow_final_response(
     };
     workflow["final_llm_response"]["attempted"] = Value::Bool(true);
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
+    workflow["final_llm_response"]["attempt_budget_source"] = if !response_tools.is_empty()
+        && workflow
+            .pointer("/selected_workflow/tool_menu_interface_contract/final_synthesis_attempt_limit")
+            .is_some()
+    {
+        Value::String("workflow_cd_final_synthesis_attempt_limit".to_string())
+    } else {
+        Value::String("runtime_default".to_string())
+    };
     workflow["final_llm_response"]["coherence_window_messages"] = json!(coherence_window_messages);
     workflow["final_llm_response"]["synthesis_input_schema_version"] = workflow
         .pointer("/synthesis_input/schema_version")
@@ -3507,6 +3529,37 @@ mod workflow_fallback_tests {
                 "operator_review_recommended",
             )
         );
+    }
+
+    #[test]
+    fn final_synthesis_attempt_limit_is_cd_owned_for_tool_backed_answers() {
+        let workflow = json!({
+            "selected_workflow": {
+                "tool_menu_interface_contract": {
+                    "final_synthesis_attempt_limit": 2
+                }
+            }
+        });
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "ok",
+            "result": "source-backed finding"
+        })];
+        assert_eq!(workflow_final_synthesis_attempt_limit(&workflow, &tools), 2);
+        assert_eq!(workflow_final_synthesis_attempt_limit(&workflow, &[]), 1);
+    }
+
+    #[test]
+    fn final_synthesis_attempt_limit_is_bounded_runtime_execution() {
+        let workflow = json!({
+            "selected_workflow": {
+                "tool_menu_interface_contract": {
+                    "final_synthesis_attempt_limit": 99
+                }
+            }
+        });
+        let tools = vec![json!({"name": "batch_query"})];
+        assert_eq!(workflow_final_synthesis_attempt_limit(&workflow, &tools), 3);
     }
 
     #[test]

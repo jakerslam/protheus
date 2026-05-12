@@ -20,6 +20,19 @@
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "system_injected_chat_text_allowed": false,
     "private_gate_retry_limit": 2,
+    "final_synthesis_attempt_limit": 2,
+    "final_synthesis_retry_contract": {
+      "version": "final_synthesis_retry_contract_v1",
+      "authority": "workflow_cd_declares_attempt_budget_runtime_executes",
+      "scope": "tool_backed_final_answer_only",
+      "purpose": "When a tool-backed final answer candidate violates the generic final-output contract, Orchestration may retry the final synthesis once with the same synthesis input envelope and compact tool evidence. This is a contract-alignment retry, not a domain-specific output template.",
+      "chat_injection_allowed": false,
+      "non_goals": [
+        "do_not_force_response_format",
+        "do_not_hardcode_research_domains",
+        "do_not_change_tool_selection_authority"
+      ]
+    },
     "latent_candidate_recovery_contract": {
       "version": "latent_candidate_recovery_v1",
       "enabled": true,

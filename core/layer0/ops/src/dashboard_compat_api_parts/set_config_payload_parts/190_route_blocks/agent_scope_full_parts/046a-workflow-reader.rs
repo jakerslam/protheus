@@ -647,30 +647,41 @@ mod workflow_reader_tests {
         for needle in [
             "match the semantic shape of the request",
             "for lookup or current-state research",
-            "for comparison requests",
-            "for ranking or selection requests",
-            "for low-signal or partial-result recovery",
-            "do not make the whole answer a request to narrow scope",
-            "'i ran searches'",
-            "do not end with a follow-up question when a bounded answer is possible",
+            "for comparisons",
+            "for rankings, selections, or tool-choice questions",
+            "for low_signal evidence",
+            "do not make the whole answer a request for the user to narrow",
+            "do not end with a follow-up question",
             "there is no required output format",
         ] {
             assert!(lowered_chat_requirement.contains(needle), "{chat_requirement}");
         }
         assert!(
-            lowered_chat_requirement.contains("no returned tool result is available")
-                &&
-            chat_requirement.contains("must explicitly say")
+            lowered_chat_requirement.contains("no recorded tool outcomes")
+                && lowered_chat_requirement.contains("never claim no tool result is available")
                 && !chat_requirement.contains("MUST begin with the exact sentence"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("do not substitute system instructions"),
+            lowered_chat_requirement.contains("do not substitute system instructions"),
             "{chat_requirement}"
         );
         assert!(
-            lowered_chat_requirement.contains("do not introduce substitute entities"),
+            lowered_chat_requirement
+                .contains("never use training, prior, existing, or general knowledge"),
             "{chat_requirement}"
+        );
+        assert_eq!(
+            selected
+                .pointer("/tool_menu_interface_contract/final_synthesis_attempt_limit")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            selected
+                .pointer("/tool_menu_interface_contract/final_synthesis_retry_contract/authority")
+                .and_then(Value::as_str),
+            Some("workflow_cd_declares_attempt_budget_runtime_executes")
         );
     }
 
