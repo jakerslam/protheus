@@ -1181,9 +1181,9 @@ mod quality_tests {
                     "requested_url": "https://www.bing.com/search?q=web+retrieval+quality+evidence+promotion",
                     "status_code": 200
                 },
-                "gdelt_doc::web retrieval quality evidence promotion": {
+                "serperdev::web retrieval quality evidence promotion": {
                     "ok": true,
-                    "provider": "gdelt_doc",
+                    "provider": "serperdev",
                     "summary": "Evidence promotion for web retrieval quality requires source-backed snippets, result-quality lanes, and provider fallback before synthesis.",
                     "content": "A current engineering note explains web retrieval quality, evidence promotion, source-backed snippets, result-quality lanes, provider fallback, and synthesis-safe retrieval. https://example.org/web-retrieval-quality-evidence-promotion",
                     "requested_url": "https://example.org/web-retrieval-quality-evidence-promotion",
@@ -1208,7 +1208,7 @@ mod quality_tests {
             .unwrap_or_default();
         assert!(
             provider_results.iter().any(|row| {
-                row.get("provider").and_then(Value::as_str) == Some("gdelt_doc")
+                row.get("provider").and_then(Value::as_str) == Some("serperdev")
                     && row.get("result_quality").and_then(Value::as_str) == Some("usable")
             }),
             "{provider_results:#?}"

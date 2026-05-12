@@ -366,6 +366,15 @@ mod web_quality_diagnostics_tests {
             Some("web_research")
         );
         assert!(
+            out.pointer("/retrieval_broker/lanes")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("lane").and_then(Value::as_str) == Some("candidate_enrichment")
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
             out.pointer("/retrieval_broker/provider_attempts")
                 .and_then(Value::as_array)
                 .map(|rows| !rows.is_empty())

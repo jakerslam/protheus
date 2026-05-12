@@ -887,13 +887,12 @@
         "providers": [
           "duckduckgo_lite",
           "bing_rss",
-          "serperdev",
-          "gdelt_doc"
+          "serperdev"
         ],
         "current_intent_providers": [
           "bing_rss",
           "serperdev",
-          "gdelt_doc"
+          "duckduckgo_lite"
         ]
       }
     },

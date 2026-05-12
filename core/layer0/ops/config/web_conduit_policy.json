@@ -21,8 +21,7 @@
       "serperdev",
       "duckduckgo",
       "duckduckgo_lite",
-      "bing_rss",
-      "gdelt_doc"
+      "bing_rss"
     ],
     "fetch_provider_order": [
       "direct_http"

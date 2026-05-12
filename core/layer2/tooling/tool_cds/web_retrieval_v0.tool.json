@@ -193,6 +193,100 @@
           "do_not_store_raw_provider_payloads_in_chat_visible_state"
         ]
       },
+      "admitted_provider_adapter_manifests": [
+        {
+          "provider_id": "serperdev",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.provider_rows.v1",
+          "capabilities": [
+            "structured_search_results",
+            "snippet_rows",
+            "source_url_rows",
+            "query_time_metadata"
+          ],
+          "cost_budget": "credentialed_network_search",
+          "failure_modes": [
+            "missing_credentials",
+            "provider_error",
+            "low_signal_payload",
+            "rate_limited"
+          ],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.serperdev"
+        },
+        {
+          "provider_id": "duckduckgo",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.html_search_rows.v1",
+          "capabilities": ["html_search_results", "source_url_rows", "snippet_rows"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["anti_bot_challenge", "low_signal_payload", "provider_error"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.duckduckgo"
+        },
+        {
+          "provider_id": "duckduckgo_lite",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.html_search_rows.v1",
+          "capabilities": ["low_friction_html_search", "source_url_rows", "snippet_rows"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["anti_bot_challenge", "low_signal_payload", "provider_error"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.duckduckgo_lite"
+        },
+        {
+          "provider_id": "bing_rss",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.rss_rows.v1",
+          "capabilities": ["rss_search_results", "current_source_discovery", "source_url_rows"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["provider_error", "empty_feed", "low_signal_payload"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.bing_rss"
+        },
+        {
+          "provider_id": "duckduckgo_instant",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.answer_or_related_topics.v1",
+          "capabilities": ["answer_summary", "related_topic_links", "fallback_source_discovery"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["no_usable_summary", "low_signal_payload", "provider_error"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:batch_query.duckduckgo_instant_fallback"
+        },
+        {
+          "provider_id": "direct_http",
+          "lane_support": ["candidate_enrichment"],
+          "input_schema_ref": "web_research.source_url.v1",
+          "output_schema_ref": "web_research.reader_candidate.v1",
+          "capabilities": [
+            "direct_page_fetch",
+            "text_or_markdown_extraction",
+            "promising_url_enrichment"
+          ],
+          "cost_budget": "public_network_fetch",
+          "failure_modes": [
+            "blocked",
+            "needs_js",
+            "timeout",
+            "content_too_thin",
+            "unsupported_content_type"
+          ],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.fetch.direct_http"
+        }
+      ],
       "broker_report_fields": [
         "retrieval_broker.lanes",
         "retrieval_broker.provider_attempts",

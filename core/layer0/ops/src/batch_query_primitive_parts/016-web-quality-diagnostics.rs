@@ -1145,6 +1145,43 @@ fn provider_attempts_from_provider_results(provider_results: &Value) -> Value {
     Value::Array(attempts)
 }
 
+fn provider_results_candidate_enrichment_count(provider_results: &Value) -> usize {
+    provider_results
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| {
+                    row.get("content_preview")
+                        .and_then(Value::as_str)
+                        .map(|value| !value.trim().is_empty())
+                        .unwrap_or(false)
+                        || row
+                            .get("links")
+                            .and_then(Value::as_array)
+                            .map(|links| !links.is_empty())
+                            .unwrap_or(false)
+                        || row
+                            .get("failure_reasons")
+                            .and_then(Value::as_array)
+                            .map(|reasons| {
+                                reasons.iter().any(|reason| {
+                                    reason
+                                        .as_str()
+                                        .map(|value| {
+                                            value.contains(":fetch:")
+                                                || value.contains("fetch_candidate")
+                                                || value.contains("page_extraction")
+                                        })
+                                        .unwrap_or(false)
+                                })
+                            })
+                            .unwrap_or(false)
+                })
+                .count()
+        })
+        .unwrap_or(0)
+}
+
 fn retrieval_broker_report(
     status: &str,
     submitted_query_plan: Value,
@@ -1188,6 +1225,14 @@ fn retrieval_broker_report(
     let provider_result_count = value_array_len(provider_results);
     let evidence_pack_count = value_array_len(evidence_pack);
     let coverage_facet_count = value_array_len(evidence_coverage);
+    let enrichment_count = provider_results_candidate_enrichment_count(provider_results);
+    let enrichment_status = if enrichment_count > 0 {
+        "attempted"
+    } else if evidence_pack_count > 0 {
+        "not_needed_or_not_recorded"
+    } else {
+        "not_recorded"
+    };
     json!({
         "version": "web_research_broker_report_v1",
         "primitive": "web_research",
@@ -1213,6 +1258,11 @@ fn retrieval_broker_report(
                 "attempt_count": provider_attempt_count,
                 "usable_attempt_count": provider_success_count,
                 "provider_result_count": provider_result_count
+            },
+            {
+                "lane": "candidate_enrichment",
+                "status": enrichment_status,
+                "enrichment_signal_count": enrichment_count
             },
             {
                 "lane": "evidence_packaging",
