@@ -23,6 +23,18 @@ pub struct ToolRequestEnvelope {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct SynthesisInputEnvelope {
+    pub run_id: String,
+    pub workflow_id: String,
+    pub user_goal: String,
+    pub tool_receipt_refs: Vec<String>,
+    pub evidence_refs: Vec<String>,
+    pub evidence_pack: Value,
+    pub tool_result_quality: String,
+    pub final_output_contract: Value,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ToolFamilyDiagnostic {
     pub family: String,
     pub status: String,
@@ -74,6 +86,7 @@ pub struct WorkflowReplayReport {
     pub contract_schema_version: String,
     pub events: Vec<WorkflowRuntimeEvent>,
     pub tool_requests: Vec<ToolRequestEnvelope>,
+    pub synthesis_inputs: Vec<SynthesisInputEnvelope>,
     pub budget: WorkflowBudgetSnapshot,
     pub inspector: WorkflowInspectorArtifact,
     pub failures: Vec<String>,

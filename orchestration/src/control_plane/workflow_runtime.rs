@@ -7,8 +7,8 @@ use super::workflow_runtime_fixtures::{
     workflow_replay_fixtures, WorkflowInput, WorkflowReplayFixture,
 };
 use super::workflow_runtime_types::{
-    ToolFamilyDiagnostic, ToolRequestEnvelope, WorkflowBudgetSnapshot, WorkflowInspectorArtifact,
-    WorkflowReplayReport, WorkflowRuntimeEvent,
+    SynthesisInputEnvelope, ToolFamilyDiagnostic, ToolRequestEnvelope, WorkflowBudgetSnapshot,
+    WorkflowInspectorArtifact, WorkflowReplayReport, WorkflowRuntimeEvent,
 };
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashSet};
@@ -167,6 +167,10 @@ pub fn graph_hash(graph: &NormalizedWorkflowGraph) -> String {
     graph
         .hardcoded_interaction_behavior_allowed
         .hash(&mut hasher);
+    graph.final_response_policy.hash(&mut hasher);
+    serde_json::to_string(&graph.final_output_contract)
+        .unwrap_or_default()
+        .hash(&mut hasher);
     graph.stages.hash(&mut hasher);
     graph.transitions.hash(&mut hasher);
     graph.interaction_gate_contract.hash(&mut hasher);
@@ -261,10 +265,12 @@ fn gate_value_matches(values: &[String], normalized: &str) -> bool {
 
 struct RuntimeState {
     fixture_id: String,
+    user_goal: String,
     graph: NormalizedWorkflowGraph,
     graph_hash: String,
     events: Vec<WorkflowRuntimeEvent>,
     tool_requests: Vec<ToolRequestEnvelope>,
+    synthesis_inputs: Vec<SynthesisInputEnvelope>,
     failures: Vec<String>,
     current_family: Option<String>,
     current_tool: Option<String>,
@@ -287,10 +293,12 @@ impl RuntimeState {
     ) -> Self {
         Self {
             fixture_id: fixture.id.to_string(),
+            user_goal: fixture.user_input.to_string(),
             graph,
             graph_hash,
             events: Vec::new(),
             tool_requests: Vec::new(),
+            synthesis_inputs: Vec::new(),
             failures: Vec::new(),
             current_family: None,
             current_tool: None,
@@ -312,23 +320,13 @@ impl RuntimeState {
             WorkflowInput::ToolObservation { ok, summary } => {
                 self.apply_tool_observation(*ok, summary)
             }
+            WorkflowInput::SynthesizeFromLatestToolResult => {
+                self.synthesize_from_latest_tool_result()
+            }
             WorkflowInput::FinalAnswer(text) => {
                 self.model_turns_seen += 1;
                 self.estimated_tokens_seen += token_estimate(text);
-                self.final_answer_emitted = true;
-                let final_answer_stage = self
-                    .graph
-                    .interaction_gate_contract
-                    .final_answer_stage
-                    .clone();
-                self.event(
-                    "final_answer",
-                    "llm_final_output",
-                    &final_answer_stage,
-                    json!({"text": text}),
-                    true,
-                );
-                self.terminal_state = Some("completed".to_string());
+                self.emit_final_answer(text, "fixture_supplied_final_answer", None);
             }
             WorkflowInput::Abort => {
                 self.event(
@@ -485,6 +483,7 @@ impl RuntimeState {
                 }),
                 false,
             );
+            self.emit_synthesis_input(summary);
         } else {
             let recovery_stage = self.graph.interaction_gate_contract.recovery_stage.clone();
             self.event(
@@ -495,6 +494,120 @@ impl RuntimeState {
                 false,
             );
         }
+    }
+
+    fn synthesize_from_latest_tool_result(&mut self) {
+        self.model_turns_seen += 1;
+        let Some(synthesis_input) = self.synthesis_inputs.last().cloned() else {
+            self.emit_structured_failure(
+                "missing_synthesis_input_for_final_answer",
+                "workflow attempted final synthesis before preparing a synthesis input envelope",
+            );
+            return;
+        };
+        let evidence_count = synthesis_input.evidence_refs.len();
+        let final_text = format!(
+            "Synthesized final output for the user goal using {evidence_count} evidence ref(s)."
+        );
+        self.estimated_tokens_seen += token_estimate(&final_text);
+        self.emit_final_answer(
+            &final_text,
+            "deterministic_replay_synthesis_stub",
+            Some(json!({
+                "synthesis_input_run_id": synthesis_input.run_id,
+                "evidence_refs": synthesis_input.evidence_refs,
+                "tool_result_quality": synthesis_input.tool_result_quality
+            })),
+        );
+    }
+
+    fn emit_synthesis_input(&mut self, summary: &str) {
+        let synthesis_input = self.build_synthesis_input(summary);
+        let final_answer_stage = self
+            .graph
+            .interaction_gate_contract
+            .final_answer_stage
+            .clone();
+        self.event(
+            "workflow_state",
+            "synthesis_input_ready",
+            &final_answer_stage,
+            json!(&synthesis_input),
+            false,
+        );
+        self.synthesis_inputs.push(synthesis_input);
+    }
+
+    fn build_synthesis_input(&self, summary: &str) -> SynthesisInputEnvelope {
+        let run_id = format!("workflow_replay:{}", self.fixture_id);
+        let tool_receipt_refs = self
+            .tool_requests
+            .last()
+            .map(|request| {
+                vec![format!(
+                    "tool_receipt:{}:{}:{}:{}",
+                    self.fixture_id, request.family, request.tool_name, self.tool_calls_seen
+                )]
+            })
+            .unwrap_or_else(|| vec![format!("tool_receipt:{}:unbound", self.fixture_id)]);
+        let evidence_ref = format!(
+            "evidence:{}:{:016x}",
+            self.fixture_id,
+            stable_hash(&format!("{}::{summary}", self.user_goal))
+        );
+        let tool_result_quality = classify_tool_result_quality(summary).to_string();
+        let evidence_pack = json!({
+            "schema_version": "synthesis_evidence_pack_v1",
+            "source": "workflow_runtime_tool_observation",
+            "items": [{
+                "evidence_ref": evidence_ref,
+                "tool_receipt_ref": tool_receipt_refs.first().cloned().unwrap_or_default(),
+                "source_kind": "tool_observation_summary",
+                "summary": summary.trim(),
+                "relevance_basis": "tool_request_selected_for_user_goal",
+                "confidence": if tool_result_quality == "usable" { "requires_synthesis_verification" } else { "low" }
+            }],
+            "gaps": if tool_result_quality == "usable" {
+                Value::Array(Vec::new())
+            } else {
+                json!(["tool observation was not sufficient for ordinary source-backed synthesis"])
+            }
+        });
+        SynthesisInputEnvelope {
+            run_id,
+            workflow_id: self.graph.workflow_id.clone(),
+            user_goal: self.user_goal.clone(),
+            tool_receipt_refs,
+            evidence_refs: vec![evidence_ref],
+            evidence_pack,
+            tool_result_quality,
+            final_output_contract: self.final_output_contract(),
+        }
+    }
+
+    fn final_output_contract(&self) -> Value {
+        self.graph.final_output_contract.clone()
+    }
+
+    fn emit_final_answer(&mut self, text: &str, source: &str, synthesis: Option<Value>) {
+        self.final_answer_emitted = true;
+        let final_answer_stage = self
+            .graph
+            .interaction_gate_contract
+            .final_answer_stage
+            .clone();
+        self.event(
+            "final_answer",
+            "llm_final_output",
+            &final_answer_stage,
+            json!({
+                "text": text,
+                "source": source,
+                "synthesis": synthesis
+            }),
+            true,
+        );
+        self.terminal_state = Some("completed".to_string());
     }
 
     fn ensure_terminal_outcome(&mut self) {
@@ -638,6 +751,7 @@ impl RuntimeState {
             contract_schema_version: self.graph.contract_schema_version,
             events: self.events,
             tool_requests: self.tool_requests,
+            synthesis_inputs: self.synthesis_inputs,
             budget,
             inspector,
             failures: self.failures,
@@ -739,4 +853,26 @@ fn selected_tool_families(events: &[WorkflowRuntimeEvent]) -> HashSet<String> {
 
 fn token_estimate(text: &str) -> u64 {
     (text.len() as u64 / 4).max(1)
+}
+
+fn stable_hash(value: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    value.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn classify_tool_result_quality(summary: &str) -> &'static str {
+    let normalized = summary.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        "absent"
+    } else if normalized.contains("irrelevant") || normalized.contains("off-topic") {
+        "irrelevant"
+    } else if normalized.contains("low signal")
+        || normalized.contains("low-signal")
+        || normalized.contains("no usable")
+    {
+        "low_signal"
+    } else {
+        "usable"
+    }
 }

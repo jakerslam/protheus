@@ -145,6 +145,87 @@ fn successful_tool_observation_marks_pending_final_synthesis_before_final_answer
     assert!(report.events.iter().any(|event| {
         event.stream == "workflow_state" && event.event_kind == "pending_final_synthesis"
     }));
+    assert_eq!(report.synthesis_inputs.len(), 1, "{report:#?}");
+    assert!(report.events.iter().any(|event| {
+        event.stream == "workflow_state" && event.event_kind == "synthesis_input_ready"
+    }));
+    assert!(workflow_runtime_terminal_outcome_ok(&report));
+}
+
+#[test]
+fn tool_result_reaches_synthesis_input_and_final_projection_without_fixture_final_answer() {
+    let report = run_workflow_replay(&WorkflowReplayFixture {
+        id: "tool_result_to_synthesis_projection",
+        workflow_id: "research_synthesize_verify",
+        user_input: "Research current scientific breakthroughs.",
+        inputs: vec![
+            WorkflowInput::GateText {
+                stage: "gate_1_need_tool_access_menu",
+                text: "Yes",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_2_tool_family_menu",
+                text: "2",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_3_tool_menu",
+                text: "web_search",
+            },
+            WorkflowInput::GateText {
+                stage: "gate_4_request_payload_input",
+                text: "scientific breakthroughs 2026",
+            },
+            WorkflowInput::ToolObservation {
+                ok: true,
+                summary: "Source A reports a battery chemistry milestone. Source B reports a protein-design result.",
+            },
+            WorkflowInput::SynthesizeFromLatestToolResult,
+        ],
+    });
+
+    assert!(report.ok, "{report:#?}");
+    assert_eq!(report.synthesis_inputs.len(), 1, "{report:#?}");
+    let synthesis_input = &report.synthesis_inputs[0];
+    assert_eq!(synthesis_input.workflow_id, "research_synthesize_verify");
+    assert_eq!(
+        synthesis_input.user_goal,
+        "Research current scientific breakthroughs."
+    );
+    assert_eq!(synthesis_input.tool_result_quality, "usable");
+    assert!(!synthesis_input.tool_receipt_refs.is_empty());
+    assert!(!synthesis_input.evidence_refs.is_empty());
+    assert_eq!(
+        synthesis_input
+            .evidence_pack
+            .get("schema_version")
+            .and_then(|value| value.as_str()),
+        Some("synthesis_evidence_pack_v1")
+    );
+    assert_eq!(
+        synthesis_input
+            .final_output_contract
+            .get("source")
+            .and_then(|value| value.as_str()),
+        Some("workflow_cd")
+    );
+    assert_eq!(
+        synthesis_input
+            .final_output_contract
+            .get("quality_contract")
+            .and_then(|value| value.get("format_freedom"))
+            .and_then(|value| value.as_str())
+            .is_some(),
+        true
+    );
+    assert!(report.events.iter().any(|event| {
+        event.stream == "workflow_state" && event.event_kind == "synthesis_input_ready"
+    }));
+    assert!(report.events.iter().any(|event| {
+        event.stream == "final_answer"
+            && event.event_kind == "llm_final_output"
+            && event.payload.get("source").and_then(|value| value.as_str())
+                == Some("deterministic_replay_synthesis_stub")
+    }));
     assert!(workflow_runtime_terminal_outcome_ok(&report));
 }
 

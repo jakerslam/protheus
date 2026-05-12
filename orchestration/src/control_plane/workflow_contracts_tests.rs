@@ -16,6 +16,12 @@ fn workflow_specs_compile_to_no_injection_graphs() {
                     && graph.interaction_source == "json_workflow_spec"
                     && graph.rust_reader_role == "validate_execute_trace_only"
                     && !graph.hardcoded_interaction_behavior_allowed
+                    && !graph.final_response_policy.trim().is_empty()
+                    && graph
+                        .final_output_contract
+                        .get("schema_version")
+                        .and_then(|value| value.as_str())
+                        .is_some()
                     && REQUIRED_JSON_OWNS
                         .iter()
                         .all(|item| graph.json_owns.iter().any(|row| row == item))

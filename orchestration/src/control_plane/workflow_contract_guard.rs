@@ -117,6 +117,7 @@ fn build_checks(
         json!({"id": "run_budget_and_terminal_contract", "ok": graphs.iter().all(run_budget_ok), "detail": "terminal states and bounded run budgets required"}),
         json!({"id": "telemetry_stream_separation_contract", "ok": graphs.iter().all(telemetry_ok), "detail": "workflow_state, agent_internal_notes, tool_trace, eval_trace, and final_answer streams required"}),
         json!({"id": "no_system_chat_injection_contract", "ok": graphs.iter().all(|row| row.visible_chat_policy == "llm_final_only_no_system_injection") && enforcer.contains("System-authored fallback text is prohibited in visible chat"), "detail": "visible chat source is llm final output only"}),
+        json!({"id": "final_output_contract_binding", "ok": graphs.iter().all(final_output_contract_ok), "detail": "typed workflow graphs carry a CD-derived final-output contract for synthesis handoff"}),
         json!({"id": "workflow_runtime_replay_contract", "ok": workflow_runtime_contract_ok(replay_reports), "detail": format!("fixtures={}", replay_reports.len())}),
         json!({"id": "workflow_runtime_budget_contract", "ok": replay_reports.iter().all(runtime_budget_ok), "detail": "runtime replays stay under stage/model/tool/token budgets and keep loop guard active"}),
         json!({"id": "workflow_runtime_inspector_contract", "ok": replay_reports.iter().all(runtime_inspector_ok), "detail": "workflow_state, agent_internal_notes, tool_trace, eval_trace, and final_answer are separated from visible chat"}),
@@ -181,6 +182,20 @@ fn runtime_budget_ok(report: &WorkflowReplayReport) -> bool {
         && report.budget.model_turns_seen <= report.budget.max_model_turns
         && report.budget.tool_calls_seen <= report.budget.max_tool_calls
         && report.budget.estimated_tokens_seen <= report.budget.token_budget
+}
+
+fn final_output_contract_ok(graph: &NormalizedWorkflowGraph) -> bool {
+    !graph.final_response_policy.trim().is_empty()
+        && graph
+            .final_output_contract
+            .get("schema_version")
+            .and_then(Value::as_str)
+            .is_some()
+        && graph
+            .final_output_contract
+            .get("source")
+            .and_then(Value::as_str)
+            .is_some()
 }
 
 fn runtime_inspector_ok(report: &WorkflowReplayReport) -> bool {

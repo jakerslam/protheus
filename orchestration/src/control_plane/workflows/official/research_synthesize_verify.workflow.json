@@ -13,6 +13,29 @@
     "verification_closure"
   ],
   "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "research_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "the final answer should address the user's actual research objective, not only describe the tool run",
+      "evidence_use": "use retrieved evidence when it is usable; separate usable, weak, irrelevant, and absent evidence without presenting weak evidence as source-backed certainty",
+      "coverage_awareness": "reflect meaningful coverage gaps from the evidence pack when they matter to the answer",
+      "decision_value": "provide the most useful bounded conclusion supported by the available evidence before asking for narrower user input",
+      "format_freedom": "choose whatever response structure fits the user's request and evidence; no table, list, or paragraph shape is required by this contract"
+    },
+    "non_goals": [
+      "do_not_force_specific_output_formats",
+      "do_not_hardcode_research_domains",
+      "do_not_expose_internal_tool_traces_as_chat"
+    ]
+  },
   "gate_contract": "control_plane_lifecycle_v1",
   "observation_lifecycle_contract": {
     "version": "run_observation_lifecycle_v1",

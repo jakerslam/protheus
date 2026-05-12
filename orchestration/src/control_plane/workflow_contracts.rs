@@ -86,6 +86,10 @@ struct WorkflowSpec {
     #[serde(default)]
     workflow_role: String,
     #[serde(default)]
+    final_response_policy: String,
+    #[serde(default)]
+    final_output_contract: Value,
+    #[serde(default)]
     stages: Vec<String>,
     #[serde(default)]
     subtemplates: Vec<Value>,
@@ -248,6 +252,8 @@ pub struct NormalizedWorkflowGraph {
     pub promotion_status: String,
     pub workflow_type: String,
     pub workflow_role: String,
+    pub final_response_policy: String,
+    pub final_output_contract: Value,
     pub subtemplate_count: usize,
     pub stages: Vec<String>,
     pub transitions: Vec<String>,
@@ -425,6 +431,11 @@ fn validate_workflow_source(
     } else if !spec.subtemplates.is_empty() {
         errors.push("assistant_workflow_must_not_declare_subtemplates".to_string());
     }
+    let final_response_policy = spec.final_response_policy.trim().to_string();
+    if final_response_policy.is_empty() {
+        errors.push("missing_final_response_policy".to_string());
+    }
+    let final_output_contract = spec.final_output_contract;
     if stages.is_empty() {
         errors.push("missing_stages".to_string());
     }
@@ -449,6 +460,8 @@ fn validate_workflow_source(
         workflow_id: &workflow_id,
         workflow_type: &workflow_type,
         workflow_role: &workflow_role,
+        final_response_policy,
+        final_output_contract,
         registry_entry,
         subtemplate_count: spec.subtemplates.len(),
         stages,
@@ -466,6 +479,8 @@ struct WorkflowGraphCompileInput<'a> {
     workflow_id: &'a str,
     workflow_type: &'a str,
     workflow_role: &'a str,
+    final_response_policy: String,
+    final_output_contract: Value,
     registry_entry: &'a WorkflowRegistryEntry,
     subtemplate_count: usize,
     stages: Vec<String>,
@@ -482,6 +497,8 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         workflow_id,
         workflow_type,
         workflow_role,
+        final_response_policy,
+        final_output_contract,
         registry_entry,
         subtemplate_count,
         stages,
@@ -541,6 +558,13 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         promotion_status: registry_entry.promotion_status.clone(),
         workflow_type: workflow_type.to_string(),
         workflow_role: workflow_role.to_string(),
+        final_response_policy: final_response_policy.clone(),
+        final_output_contract: normalize_final_output_contract(
+            final_output_contract,
+            &final_response_policy,
+            &contract.visible_chat_policy,
+            &interaction_gate_contract.final_answer_stage,
+        ),
         subtemplate_count,
         stages,
         transitions,
@@ -558,6 +582,26 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         tool_families,
         visible_chat_policy: contract.visible_chat_policy,
         run_budgets: contract.run_budgets,
+    })
+}
+
+fn normalize_final_output_contract(
+    final_output_contract: Value,
+    final_response_policy: &str,
+    visible_chat_policy: &str,
+    final_answer_stage: &str,
+) -> Value {
+    if !final_output_contract.is_null() {
+        return final_output_contract;
+    }
+    serde_json::json!({
+        "schema_version": "workflow_final_output_contract_projection_v1",
+        "source": "workflow_cd_default_projection",
+        "final_response_policy": final_response_policy,
+        "visible_chat_policy": visible_chat_policy,
+        "final_answer_stage": final_answer_stage,
+        "required_terminal_outcome": "llm_final_answer_or_structured_failure",
+        "diagnostics_visibility": "telemetry_only"
     })
 }
 

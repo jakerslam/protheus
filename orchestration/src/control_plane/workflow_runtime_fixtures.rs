@@ -10,6 +10,7 @@ pub enum WorkflowInput {
         ok: bool,
         summary: &'static str,
     },
+    SynthesizeFromLatestToolResult,
     FinalAnswer(&'static str),
     Abort,
 }
