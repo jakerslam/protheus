@@ -683,6 +683,29 @@ mod workflow_reader_tests {
                 .and_then(Value::as_str),
             Some("workflow_cd_declares_attempt_budget_runtime_executes")
         );
+        assert_eq!(
+            selected
+                .pointer("/final_output_contract/final_response_verifier_contract/authority")
+                .and_then(Value::as_str),
+            Some("workflow_cd_declares_semantic_checks_runtime_may_retry_or_fail_closed")
+        );
+        let verifier_checks = selected
+            .pointer("/final_output_contract/final_response_verifier_contract/checks")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for check in [
+            "answers_the_user_goal",
+            "uses_recorded_evidence_when_tool_results_exist",
+            "does_not_force_or_depend_on_a_specific_output_format",
+        ] {
+            assert!(
+                verifier_checks
+                    .iter()
+                    .any(|value| value.as_str() == Some(check)),
+                "{selected}"
+            );
+        }
     }
 
     #[test]
