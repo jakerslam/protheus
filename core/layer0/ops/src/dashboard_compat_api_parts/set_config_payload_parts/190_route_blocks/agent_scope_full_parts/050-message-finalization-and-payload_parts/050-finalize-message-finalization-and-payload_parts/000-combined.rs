@@ -46,6 +46,49 @@ fn workflow_json_auto_executes_tools_if_permitted(response_workflow: &Value) -> 
             == Some("auto_if_permitted")
 }
 
+fn workflow_json_latent_candidate_recovery_enabled(response_workflow: &Value) -> bool {
+    response_workflow
+        .pointer("/selected_workflow/tool_menu_interface_contract/latent_candidate_recovery_contract/enabled")
+        .and_then(Value::as_bool)
+        == Some(true)
+}
+
+fn workflow_latent_candidate_recovery_needed(
+    response_workflow: &Value,
+    initial_draft_response: &str,
+) -> bool {
+    let response_text = clean_text(
+        response_workflow
+            .get("response")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        2_000,
+    );
+    let combined = clean_text(
+        &format!(
+            "{}\n{}",
+            response_text,
+            clean_text(initial_draft_response, 2_000)
+        ),
+        4_000,
+    )
+    .to_ascii_lowercase();
+    let claims_missing_tool_backed_evidence = final_response_verifier_contract_marker(
+        "/diagnostic_markers/final_response_verifier/missing_evidence_claim_phrases",
+        &combined,
+    );
+    let private_gate_diagnostic = response_workflow
+        .pointer("/final_llm_response/invalid_gate_draft_diagnostic_only")
+        .and_then(Value::as_bool)
+        == Some(true)
+        || response_workflow
+            .pointer("/workflow_control/direct_response_path")
+            .and_then(Value::as_str)
+            .map(|path| path.starts_with("gate_") && path.contains("pending"))
+            .unwrap_or(false);
+    claims_missing_tool_backed_evidence || private_gate_diagnostic
+}
+
 fn finalize_message_finalization_and_payload(
     root: &Path,
     agent_id: &str,
@@ -131,6 +174,36 @@ fn finalize_message_finalization_and_payload(
         .get("manual_toolbox_pending_tool_request")
         .filter(|value| value.is_object())
         .cloned();
+    if response_tools.is_empty()
+        && manual_toolbox_pending_tool_request.is_none()
+        && workflow_json_auto_executes_tools_if_permitted(&response_workflow)
+        && workflow_json_latent_candidate_recovery_enabled(&response_workflow)
+        && workflow_latent_candidate_recovery_needed(&response_workflow, &initial_draft_response)
+    {
+        if let Some(pending_request) =
+            manual_toolbox_pending_request_from_latent_candidates(&latent_tool_candidates, message)
+        {
+            workflow_system_events.push(turn_workflow_event(
+                "latent_tool_candidate_promoted_to_pending_request",
+                json!({
+                    "source": "latent_candidate_recovery_contract",
+                    "tool_name": pending_request
+                        .get("tool_name")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
+                    "ambiguity_policy": "single_valid_workflow_only_candidate"
+                }),
+            ));
+            response_workflow["manual_toolbox_pending_tool_request"] = pending_request.clone();
+            response_workflow["pending_tool_request"] = pending_request.clone();
+            response_workflow["workflow_control"]["direct_response_path"] =
+                Value::String("gate_4_pending_llm_tool_request".to_string());
+            response_workflow["final_llm_response"]["used"] = Value::Bool(false);
+            response_workflow["final_llm_response"]["status"] =
+                Value::String("skipped_pending_tool_confirmation".to_string());
+            manual_toolbox_pending_tool_request = Some(pending_request);
+        }
+    }
     if response_tools.is_empty() && workflow_json_auto_executes_tools_if_permitted(&response_workflow)
     {
         if let Some(pending_request) = manual_toolbox_pending_tool_request.clone() {

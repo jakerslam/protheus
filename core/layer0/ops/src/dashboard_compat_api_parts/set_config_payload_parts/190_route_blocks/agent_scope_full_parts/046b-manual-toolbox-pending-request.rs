@@ -69,6 +69,78 @@ fn record_manual_toolbox_pending_request_value(workflow: &mut Value, mut pending
     }
 }
 
+fn manual_toolbox_pending_request_from_latent_candidates(
+    latent_tool_candidates: &Value,
+    message: &str,
+) -> Option<Value> {
+    let candidates = latent_tool_candidates.as_array()?;
+    let valid = candidates
+        .iter()
+        .filter_map(|candidate| {
+            let workflow_only = candidate
+                .get("workflow_only")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            if !workflow_only {
+                return None;
+            }
+            let family_key = clean_text(
+                candidate
+                    .get("selected_tool_family")
+                    .or_else(|| candidate.get("tool_family"))
+                    .or_else(|| candidate.get("family"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                120,
+            );
+            let tool_key = clean_text(
+                candidate
+                    .get("selected_tool_key")
+                    .or_else(|| candidate.get("tool_key"))
+                    .or_else(|| candidate.get("tool_name"))
+                    .or_else(|| candidate.get("tool"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                120,
+            );
+            let tool_label = clean_text(
+                candidate
+                    .get("selected_tool_label")
+                    .or_else(|| candidate.get("label"))
+                    .or_else(|| candidate.get("tool_label"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(&tool_key),
+                120,
+            );
+            let input = candidate
+                .get("input")
+                .or_else(|| candidate.get("request_payload"))
+                .or_else(|| candidate.get("proposed_input"))
+                .cloned()
+                .filter(Value::is_object)?;
+            manual_toolbox_pending_request_from_parts(
+                &family_key,
+                &tool_key,
+                &tool_label,
+                input,
+                message,
+            )
+            .map(|mut pending| {
+                pending["source"] = Value::String("latent_candidate_recovery".to_string());
+                pending["recovery_contract"] = Value::String(
+                    "single_valid_workflow_only_candidate_after_private_gate_failure_or_terminal_invariant_recovery".to_string(),
+                );
+                pending
+            })
+        })
+        .collect::<Vec<_>>();
+    if valid.len() == 1 {
+        valid.into_iter().next()
+    } else {
+        None
+    }
+}
+
 fn workflow_tool_family_prompt_context(
     previous_category_key: &str,
     previous_category_label: &str,

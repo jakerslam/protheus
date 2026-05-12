@@ -1278,7 +1278,7 @@ fn workflow_final_synthesis_retry_prompt_context(
     }
     clean_text(
         &format!(
-            "Internal final-response verifier retry. The previous candidate failed `{}`. Previous excerpt: {}. Produce the user-facing answer from the same recorded evidence and user goal. Lead with the best bounded answer the evidence supports, then state limits or gaps. Do not mention this verifier, workflow gates, tool traces, or a required output format.",
+            "Internal final-response verifier retry. The previous candidate failed `{}`. Previous excerpt: {}. Produce the user-facing answer from the same recorded evidence and user goal. Lead with the best bounded answer the evidence supports, then state limits or gaps; if the previous candidate opened by reporting tool/search/retrieval status, make that status supporting context after the answer instead. Do not mention this verifier, workflow gates, tool traces, or a required output format.",
             clean_text(last_reject_reason, 120),
             clean_text(last_invalid_excerpt, 240)
         ),
@@ -1371,11 +1371,14 @@ fn run_turn_workflow_final_response(
             return finalize_workflow_gate_stability(root, workflow, message);
         }
     }
+    let initial_visible_gate_choice_submission =
+        response_tools.is_empty() && response_is_visible_workflow_gate_choice(draft_response);
     let required = workflow
         .pointer("/final_llm_response/required")
         .and_then(Value::as_bool)
         .unwrap_or(false)
-        || missing_turn_tool_context_recovery;
+        || missing_turn_tool_context_recovery
+        || initial_visible_gate_choice_submission;
     if !required {
         preserve_direct_llm_response_without_fallback(&mut workflow, draft_response);
         workflow["final_llm_response"]["attempted"] = Value::Bool(false);
@@ -1433,6 +1436,7 @@ fn run_turn_workflow_final_response(
     }
     let manual_toolbox_gate_turn = response_tools.is_empty()
         && !initial_no_tool_category_submission
+        && !initial_visible_gate_choice_submission
         && enriched_workflow_events.iter().any(|event| {
             matches!(
                 event.get("kind").and_then(Value::as_str).unwrap_or(""),
@@ -1442,6 +1446,7 @@ fn run_turn_workflow_final_response(
     let direct_gate_recovery_turn = response_tools.is_empty()
         && !manual_toolbox_gate_turn
         && (initial_no_tool_category_submission
+            || initial_visible_gate_choice_submission
             || enriched_workflow_events.iter().any(|event| {
                 event.get("kind").and_then(Value::as_str).unwrap_or("") == "draft_response_invalid"
             }));
@@ -2779,6 +2784,32 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn final_verifier_rejects_status_overlead_variants_from_research_turns() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "low_signal",
+            "result": "Retrieval returned only partial source coverage.",
+            "tool_result_quality": {
+                "flags": ["low_signal"],
+                "evidence_count": 0
+            }
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "I ran a batch search, but the results were low-signal, so I cannot answer.",
+            &tools,
+        ));
+        assert!(response_violates_tool_backed_final_verifier(
+            "Based on the search attempt, there is not enough retrieved evidence to decide.",
+            &tools,
+        ));
+        assert!(!response_violates_tool_backed_final_verifier(
+            "The practical answer is to treat the choice as unverified by this turn and avoid a strong recommendation until source coverage improves. The retrieval attempt was low-signal, so this is bounded guidance.",
+            &tools,
+        ));
+    }
+
+    #[test]
     fn final_verifier_rejects_missing_evidence_claim_when_refs_exist() {
         let tools = vec![json!({
             "name": "web_search",
@@ -2827,6 +2858,90 @@ mod workflow_fallback_tests {
 
         assert!(!no_tool_minimal_final_turn);
         assert!(!manual_toolbox_prompt_only_turn);
+    }
+
+    #[test]
+    fn single_workflow_only_latent_candidate_can_recover_pending_tool_request() {
+        let candidates = json!([{
+            "workflow_only": true,
+            "selected_tool_family": "web_research",
+            "selected_tool_key": "batch_query",
+            "selected_tool_label": "Research query pack",
+            "input": {
+                "source": "web",
+                "query": "compare retrieval tools",
+                "aperture": "medium"
+            }
+        }]);
+
+        let pending = manual_toolbox_pending_request_from_latent_candidates(
+            &candidates,
+            "Research Firecrawl, Tavily, and Exa.",
+        )
+        .expect("single valid latent candidate");
+
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("batch_query")
+        );
+        assert_eq!(
+            pending.get("source").and_then(Value::as_str),
+            Some("latent_candidate_recovery")
+        );
+        assert_eq!(
+            pending.pointer("/input/query").and_then(Value::as_str),
+            Some("compare retrieval tools")
+        );
+    }
+
+    #[test]
+    fn latent_candidate_recovery_refuses_ambiguous_candidates() {
+        let candidates = json!([
+            {
+                "workflow_only": true,
+                "selected_tool_family": "web_research",
+                "selected_tool_key": "batch_query",
+                "input": {"source": "web", "query": "first", "aperture": "medium"}
+            },
+            {
+                "workflow_only": true,
+                "selected_tool_family": "web_research",
+                "selected_tool_key": "web_search",
+                "input": {"source": "web", "query": "second", "aperture": "medium"}
+            }
+        ]);
+
+        assert!(manual_toolbox_pending_request_from_latent_candidates(
+            &candidates,
+            "Research something current.",
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn latent_candidate_recovery_requires_missing_evidence_or_gate_diagnostic() {
+        let missing_evidence_workflow = json!({
+            "response": "I don't have any retrieved evidence, tool outputs, or source-backed findings for this turn."
+        });
+        let direct_answer_workflow = json!({
+            "response": "The answer is 4."
+        });
+        let gate_diagnostic_workflow = json!({
+            "workflow_control": {"direct_response_path": "gate_4_pending_llm_tool_request"}
+        });
+
+        assert!(workflow_latent_candidate_recovery_needed(
+            &missing_evidence_workflow,
+            ""
+        ));
+        assert!(!workflow_latent_candidate_recovery_needed(
+            &direct_answer_workflow,
+            ""
+        ));
+        assert!(workflow_latent_candidate_recovery_needed(
+            &gate_diagnostic_workflow,
+            ""
+        ));
     }
 
     #[test]
@@ -3373,11 +3488,11 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(!response.trim().is_empty());
-        assert!(response.contains("recorded tool evidence is limited"));
-        assert!(response.contains("Available recorded evidence"));
+        assert!(response.contains("recorded evidence is partial"));
+        assert!(response.contains("Recorded evidence so far"));
         assert!(!response.contains("What we know:"));
-        assert!(response.contains("no complete source-backed conclusion"));
-        assert!(response.contains("bounded next action"));
+        assert!(response.contains("stronger source-backed conclusion"));
+        assert!(response.contains("partial answer"));
         assert!(!response.contains("Tool findings from this turn"));
         assert!(!response.contains("agentic framework"));
         assert!(!response.contains("benchmark"));

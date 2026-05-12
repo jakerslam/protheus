@@ -1571,8 +1571,11 @@ mod workflow_control_tests {
         assert!(response_is_visible_workflow_gate_choice(
             "Respond directly. Category: Respond directly. Tool family: None. Request payload: {}"
         ));
-        assert!(response_is_visible_workflow_gate_choice(
+        assert!(!response_is_visible_workflow_gate_choice(
             "This kind of work is `Respond directly`."
+        ));
+        assert!(!response_is_visible_workflow_gate_choice(
+            "Infring centers workflow-gated synthesis while OpenClaw emphasizes governed web/media tooling."
         ));
         let web_category =
             workflow_gate_option_labels(&default_workflow_tool_menu_contract(), Some(true))
@@ -1592,10 +1595,11 @@ mod workflow_control_tests {
     fn workflow_prompt_contract_requires_private_exact_gate_submission() {
         let prompt =
             workflow_library_prompt_context("Use web search to compare agent frameworks.", &[]);
-        assert!(prompt.contains("Private workflow gate submission only"));
-        assert!(prompt.contains("Reply with one token only"));
-        assert!(prompt.contains("open the private tool menu"));
-        assert!(prompt.contains("Do not narrate"));
+        assert!(prompt.contains("INTERNAL GATE"));
+        assert!(prompt.contains("MUST output ONLY a JSON object"));
+        assert!(prompt.contains(r#""gate": "<value>""#));
+        assert!(prompt.contains("open the tool menu"));
+        assert!(prompt.contains("A natural-language answer at this gate is invalid"));
         assert!(!prompt.contains("present exactly one gate"));
         assert!(!prompt.contains("If Yes, continue"));
     }
@@ -1618,8 +1622,9 @@ mod workflow_control_tests {
     #[test]
     fn workflow_tool_request_prompt_comes_from_json_contract() {
         let prompt = workflow_tool_request_prompt_context("web_research", "Web research");
-        assert!(prompt.contains("Private workflow gate submission only"));
-        assert!(prompt.contains("Tool menu JSON"));
+        assert!(prompt.contains("LEGACY INTERNAL GATE"));
+        assert!(prompt.contains("output ONLY a JSON object"));
+        assert!(prompt.contains("Available tools (JSON)"));
         assert!(prompt.contains("web_search"));
         assert!(default_workflow_tool_menu_contract()
             .get("llm_tool_request_instruction")
@@ -1631,10 +1636,11 @@ mod workflow_control_tests {
     #[test]
     fn workflow_final_answer_prompt_keeps_cd_synthesis_requirements() {
         let prompt = workflow_final_answer_prompt_context();
-        assert!(prompt.contains("tradeoff"));
-        assert!(prompt.contains("regression test"));
+        assert!(prompt.contains("User-visible reply"));
+        assert!(prompt.contains("do not echo menu options"));
         assert!(prompt.contains("source-backed"));
-        assert!(prompt.contains("bounded next step"));
+        assert!(prompt.contains("best bounded answer"));
+        assert!(prompt.contains("Never use training"));
     }
 
     #[test]
