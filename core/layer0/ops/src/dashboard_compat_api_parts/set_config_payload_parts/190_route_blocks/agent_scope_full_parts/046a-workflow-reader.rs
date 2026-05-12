@@ -697,6 +697,7 @@ mod workflow_reader_tests {
         for check in [
             "answers_the_user_goal",
             "uses_recorded_evidence_when_tool_results_exist",
+            "does_not_claim_no_evidence_when_recorded_evidence_exists",
             "does_not_force_or_depend_on_a_specific_output_format",
         ] {
             assert!(
@@ -706,6 +707,14 @@ mod workflow_reader_tests {
                 "{selected}"
             );
         }
+        assert_eq!(
+            selected
+                .pointer(
+                    "/tool_menu_interface_contract/latent_candidate_recovery_contract/promotion_scope"
+                )
+                .and_then(Value::as_str),
+            Some("single_valid_workflow_only_candidate_after_private_gate_failure_or_terminal_invariant_recovery")
+        );
     }
 
     #[test]

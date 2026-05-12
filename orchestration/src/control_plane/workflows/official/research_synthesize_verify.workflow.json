@@ -45,9 +45,10 @@
           "uses_retrieval_broker_report_when_present_for_attempts_recovery_and_gap_context",
           "covers_named_entities_or_records_coverage_gaps",
           "distinguishes_evidence_pack_quality_from_citable_evidence",
+          "does_not_claim_no_evidence_when_recorded_evidence_exists",
           "separates_retrieved_evidence_from_inference",
-        "states_uncertainty_only_where_earned_by_evidence_state",
-        "provides_bounded_decision_value_before_suggesting_more_search",
+          "states_uncertainty_only_where_earned_by_evidence_state",
+          "provides_bounded_decision_value_before_suggesting_more_search",
         "does_not_expose_internal_traces_or_raw_tool_payloads",
         "does_not_force_or_depend_on_a_specific_output_format"
       ],

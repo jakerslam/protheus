@@ -37,7 +37,7 @@
       "version": "latent_candidate_recovery_v1",
       "enabled": true,
       "purpose": "If the private gate LLM fails to emit a valid request artifact, Orchestration may promote exactly one already-structured workflow-only latent candidate into the normal pending-tool path. This is a general candidate-recovery rule, not a domain or prompt-specific shortcut.",
-      "promotion_scope": "single_valid_workflow_only_candidate_after_private_gate_failure",
+      "promotion_scope": "single_valid_workflow_only_candidate_after_private_gate_failure_or_terminal_invariant_recovery",
       "ambiguity_policy": "do_not_promote_when_zero_or_multiple_valid_candidates",
       "chat_injection_allowed": false,
       "execution_mode": "respect_declared_tool_execution_policy"
@@ -235,6 +235,7 @@
               "uses_recorded_evidence_when_tool_results_exist",
               "covers_named_entities_or_records_coverage_gaps",
               "distinguishes_retrieved_evidence_from_inference",
+              "does_not_claim_no_evidence_when_recorded_evidence_exists",
               "states_uncertainty_or_gaps_only_when_supported_by_the_recorded_state",
               "provides_bounded_decision_value_when_evidence_is_weak",
               "does_not_overlead_with_tool_status_or_provider_degradation",
@@ -725,6 +726,46 @@
           "retrieval-quality",
           "low-signal",
           "hit issues"
+        ]
+      },
+      "final_response_verifier": {
+        "opening_status_phrases": [
+          "the web search",
+          "the search",
+          "search results",
+          "the retrieval",
+          "retrieval results",
+          "the tool",
+          "tool result",
+          "provider degradation",
+          "provider degraded",
+          "i wasn't able to retrieve",
+          "i was not able to retrieve",
+          "i couldn't retrieve",
+          "i could not retrieve"
+        ],
+        "bounded_answer_signals": [
+          "bottom line",
+          "my recommendation",
+          "the practical answer",
+          "the bounded conclusion",
+          "the decision",
+          "best",
+          "use",
+          "avoid",
+          "treat",
+          "should",
+          "risk",
+          "tradeoff",
+          "trade-off"
+        ],
+        "missing_evidence_claim_phrases": [
+          "no evidence was found",
+          "no evidence is available",
+          "no recorded evidence",
+          "no source-backed findings are available",
+          "no usable evidence was retrieved",
+          "no returned evidence"
         ]
       }
     },

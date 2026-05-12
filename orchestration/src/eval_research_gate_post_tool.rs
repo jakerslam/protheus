@@ -91,12 +91,14 @@ pub(super) fn synthesis_uses_evidence_or_low_evidence_fallback(
     if tool_result_low_signal(payload) {
         return response_has_low_evidence_signal(&normalized)
             && response_has_research_shape(&normalized)
+            && !response_overleads_with_tool_status(&normalized)
             && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
     if evidence_extracted || packaged_tool_result {
         return response_has_source_signal(&normalized)
             && response_has_research_shape(&normalized)
+            && !response_overleads_with_tool_status(&normalized)
             && !response_uses_internal_runtime_context_as_evidence(&normalized)
             && !response_requests_more_scope_without_substance(&normalized);
     }
@@ -509,6 +511,50 @@ fn response_has_research_shape(normalized: &str) -> bool {
         ]
         .iter()
         .any(|needle| normalized.contains(*needle))
+}
+
+fn response_overleads_with_tool_status(normalized: &str) -> bool {
+    let first = normalized.split(['.', '\n']).next().unwrap_or("").trim();
+    if first.is_empty() {
+        return false;
+    }
+    let status_first = [
+        "the web search",
+        "the search",
+        "search results",
+        "the retrieval",
+        "retrieval results",
+        "the tool",
+        "tool result",
+        "provider degradation",
+        "provider degraded",
+        "i wasn't able to retrieve",
+        "i was not able to retrieve",
+        "i couldn't retrieve",
+        "i could not retrieve",
+    ]
+    .iter()
+    .any(|needle| first.contains(*needle));
+    if !status_first {
+        return false;
+    }
+    ![
+        "bottom line",
+        "my recommendation",
+        "practical answer",
+        "bounded conclusion",
+        "decision",
+        "best",
+        "use",
+        "avoid",
+        "treat",
+        "should",
+        "risk",
+        "tradeoff",
+        "trade-off",
+    ]
+    .iter()
+    .any(|needle| first.contains(*needle))
 }
 
 fn response_requests_more_scope_without_substance(normalized: &str) -> bool {

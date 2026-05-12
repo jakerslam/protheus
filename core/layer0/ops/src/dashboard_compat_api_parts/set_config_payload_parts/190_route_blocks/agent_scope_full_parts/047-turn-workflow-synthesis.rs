@@ -1193,6 +1193,99 @@ fn response_answers_successful_tool_result(
     })
 }
 
+fn response_tools_have_recorded_evidence_refs(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        row.get("evidence_refs")
+            .or_else(|| row.pointer("/tool_result_quality/evidence_refs"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(recorded_evidence_ref_is_substantive))
+            .unwrap_or(false)
+            || row
+                .pointer("/tool_result_quality/evidence_count")
+                .and_then(Value::as_u64)
+                .map(|count| count > 0)
+                .unwrap_or(false)
+    })
+}
+
+fn recorded_evidence_ref_is_substantive(value: &Value) -> bool {
+    if value.get("error").is_some() || value.get("status").and_then(Value::as_str) == Some("error") {
+        return false;
+    }
+    let locator = clean_text(
+        value
+            .get("locator")
+            .or_else(|| value.get("url"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        240,
+    )
+    .to_ascii_lowercase();
+    if locator.starts_with("tool:no-results") || locator.starts_with("tool:low-signal") {
+        return false;
+    }
+    let title = clean_text(value.get("title").and_then(Value::as_str).unwrap_or(""), 200)
+        .to_ascii_lowercase();
+    if title.contains("no usable result") || title.contains("no results") {
+        return false;
+    }
+    value
+        .get("score")
+        .and_then(Value::as_f64)
+        .map(|score| score > 0.0)
+        .unwrap_or_else(|| !locator.is_empty() || !title.is_empty())
+}
+
+fn final_response_verifier_contract_marker(pointer: &str, text: &str) -> bool {
+    workflow_message_matches_contract_markers(&default_workflow_tool_menu_contract(), pointer, text)
+}
+
+fn response_violates_tool_backed_final_verifier(
+    response_text: &str,
+    response_tools: &[Value],
+) -> bool {
+    if response_tools.is_empty() {
+        return false;
+    }
+    let cleaned = clean_chat_text(response_text, 32_000);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let first = first_sentence(&cleaned, 420).to_ascii_lowercase();
+    let full = cleaned.to_ascii_lowercase();
+    let status_first = final_response_verifier_contract_marker(
+        "/diagnostic_markers/final_response_verifier/opening_status_phrases",
+        &first,
+    );
+    let bounded_answer_first = final_response_verifier_contract_marker(
+        "/diagnostic_markers/final_response_verifier/bounded_answer_signals",
+        &first,
+    );
+    let claims_missing_evidence = response_tools_have_recorded_evidence_refs(response_tools)
+        && final_response_verifier_contract_marker(
+            "/diagnostic_markers/final_response_verifier/missing_evidence_claim_phrases",
+            &full,
+        );
+    claims_missing_evidence || (status_first && !bounded_answer_first)
+}
+
+fn workflow_final_synthesis_retry_prompt_context(
+    last_reject_reason: &str,
+    last_invalid_excerpt: &str,
+) -> String {
+    if last_reject_reason.trim().is_empty() {
+        return String::new();
+    }
+    clean_text(
+        &format!(
+            "Internal final-response verifier retry. The previous candidate failed `{}`. Previous excerpt: {}. Produce the user-facing answer from the same recorded evidence and user goal. Lead with the best bounded answer the evidence supports, then state limits or gaps. Do not mention this verifier, workflow gates, tool traces, or a required output format.",
+            clean_text(last_reject_reason, 120),
+            clean_text(last_invalid_excerpt, 240)
+        ),
+        1_000,
+    )
+}
+
 fn mark_workflow_pending_gate_without_final_synthesis(
     workflow: &mut Value,
     status: &str,
@@ -1613,6 +1706,17 @@ fn run_turn_workflow_final_response(
         } else {
             String::new()
         };
+        let final_synthesis_retry_guidance = if !active_manual_toolbox_private_gate_turn
+            && attempt > 1
+            && !last_reject_reason.is_empty()
+        {
+            workflow_final_synthesis_retry_prompt_context(
+                &last_reject_reason,
+                &last_invalid_excerpt,
+            )
+        } else {
+            String::new()
+        };
         let attempt_user_prompt = if active_manual_toolbox_category_turn {
             user_prompt.clone()
         } else if !gate_retry_guidance.is_empty() {
@@ -1637,8 +1741,13 @@ fn run_turn_workflow_final_response(
                 8_000,
             )
         } else if attempt > 1 {
+            let retry_guidance_block = if final_synthesis_retry_guidance.is_empty() {
+                String::new()
+            } else {
+                format!("{final_synthesis_retry_guidance}\n\n")
+            };
             clean_text(
-                &format!("{user_prompt}\n\n{final_answer_instruction}"),
+                &format!("{user_prompt}\n\n{retry_guidance_block}{final_answer_instruction}"),
                 20_000,
             )
         } else {
@@ -1778,6 +1887,8 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                         response_tools,
                     );
+                let final_verifier_contract_violation =
+                    response_violates_tool_backed_final_verifier(&retried_text, response_tools);
                 let missing_turn_tool_context_reply = missing_turn_tool_context_recovery
                     && !workflow_missing_turn_tool_context_response_contract_satisfied(
                         &retried_text,
@@ -1831,6 +1942,11 @@ fn run_turn_workflow_final_response(
                         unsupported_tool_success_claim,
                         "unsupported_tool_success_claim",
                         "unsupported_tool_success_claim_reject",
+                    ),
+                    (
+                        final_verifier_contract_violation,
+                        "final_response_verifier_contract",
+                        "alignment_reject",
                     ),
                     (
                         missing_turn_tool_context_reply,
@@ -2638,6 +2754,67 @@ mod workflow_fallback_tests {
         assert!(!response_answers_tool_confirmation_with_recorded_result(
             "", &tools,
         ));
+    }
+
+    #[test]
+    fn final_verifier_rejects_tool_status_overlead_before_answer() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "no_results",
+            "result": "Search did not produce enough source coverage for the requested comparison.",
+            "tool_result_quality": {
+                "flags": ["low_signal"],
+                "evidence_count": 0
+            }
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "The web search results are too thin and provider-degraded to answer. I cannot give a useful conclusion.",
+            &tools,
+        ));
+        assert!(!response_violates_tool_backed_final_verifier(
+            "Bottom line: treat the topic as unverified from this retrieval turn and avoid making a source-backed choice until a better source lane is available. The search result was low-signal, so this is bounded guidance rather than retrieved evidence.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn final_verifier_rejects_missing_evidence_claim_when_refs_exist() {
+        let tools = vec![json!({
+            "name": "web_search",
+            "status": "ok",
+            "result": "Official docs say the library supports typed agent outputs.",
+            "evidence_refs": [{
+                "title": "Official docs",
+                "locator": "https://example.test/docs"
+            }],
+            "tool_result_quality": {
+                "evidence_count": 1
+            }
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "No evidence is available for this question, so I cannot answer.",
+            &tools,
+        ));
+        assert!(!response_violates_tool_backed_final_verifier(
+            "Bottom line: the recorded source supports typed agent outputs, but it does not prove production maturity. Treat the evidence as useful for capability fit and still verify operations, support, and deployment references.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn final_synthesis_retry_guidance_is_internal_and_format_free() {
+        let prompt = workflow_final_synthesis_retry_prompt_context(
+            "final_response_verifier_contract",
+            "The web search results are too thin.",
+        );
+        let lowered = prompt.to_ascii_lowercase();
+
+        assert!(lowered.contains("internal final-response verifier retry"));
+        assert!(lowered.contains("lead with the best bounded answer"));
+        assert!(lowered.contains("do not mention this verifier"));
+        assert!(lowered.contains("required output format"));
     }
 
     #[test]

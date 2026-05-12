@@ -533,7 +533,7 @@ fn research_golden_accepts_no_results_retrieval_failure_as_low_evidence_synthesi
             "responses": [{
                 "case_id": "research_gold_test",
                 "response_payload": {
-                    "response": "The web search returned no directly relevant results for this query and the evidence is limited. That retrieval failure is not evidence that Infring and LangGraph are equivalent. The attempted search covered official docs and comparison terms, but returned zero candidate snippets or evidence refs, so I cannot cite a source-backed winner. Bounded conclusion: use this only as a low-evidence signal, retry with narrower source targets, and avoid treating the absence of retrievable evidence as a product judgment.",
+                    "response": "Bounded conclusion: use this only as a low-evidence signal, retry with narrower source targets, and avoid treating the absence of retrievable evidence as a product judgment. The web search returned no directly relevant results for this query and the evidence is limited. That retrieval failure is not evidence that Infring and LangGraph are equivalent. The attempted search covered official docs and comparison terms, but returned zero candidate snippets or evidence refs, so I cannot cite a source-backed winner.",
                     "pending_tool_request": {
                         "status": "executed",
                         "tool_name": "web_search",
@@ -587,6 +587,63 @@ fn research_golden_accepts_no_results_retrieval_failure_as_low_evidence_synthesi
             .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_class")
             .and_then(Value::as_str),
         Some("low_signal_not_acknowledged")
+    );
+}
+
+#[test]
+fn research_golden_rejects_tool_status_overlead_without_bounded_answer() {
+    let root = temp_path("research_golden_status_overlead");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "The web search returned no directly relevant results for this query and the evidence is limited. I cannot make a source-backed comparison, and the right next step is to retry with a narrower query. The retrieval failure does not prove the tools are equivalent, but it also does not support choosing one.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "web_search",
+                        "selected_tool_family": "Web Search / Fetch",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "no_results",
+                        "raw_results": [{
+                            "title": "No usable result",
+                            "snippet": "No results were returned for the query."
+                        }],
+                        "result": "No results: provider returned no usable source snippets.",
+                        "evidence_refs": [
+                            {"title": "No usable result", "locator": "tool:no-results", "score": 0.0}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:no_results+synthesized",
+                        "tool_completion": {
+                            "completion_state": "no_results",
+                            "findings_available": false,
+                            "evidence_refs_used": ["tool:no-results"]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint")
+            .and_then(Value::as_str),
+        Some("6a_synthesis_uses_evidence_or_low_evidence_fallback")
     );
 }
 
