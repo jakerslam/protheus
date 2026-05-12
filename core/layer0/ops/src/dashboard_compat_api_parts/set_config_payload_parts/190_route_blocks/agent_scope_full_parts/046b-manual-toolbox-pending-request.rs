@@ -493,6 +493,8 @@ fn manual_toolbox_pending_request_from_parts(
         "status": "pending_confirmation",
         "source": "split_manual_toolbox_gates",
         "tool_name": tool_name,
+        "tool_key": clean_text(tool_key, 120),
+        "selected_tool_key": clean_text(tool_key, 120),
         "selected_tool_family": clean_text(family_key, 120),
         "selected_tool_label": clean_text(tool_label, 120),
         "input": input,

@@ -53,6 +53,34 @@ fn workflow_json_latent_candidate_recovery_enabled(response_workflow: &Value) ->
         == Some(true)
 }
 
+fn workflow_private_gate_recovery_signal(response_workflow: &Value) -> bool {
+    let direct_response_path = response_workflow
+        .pointer("/workflow_control/direct_response_path")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let private_gate_pending_path = matches!(
+        direct_response_path,
+        "first_gate_pending_llm_tool_choice"
+            | "first_gate_pending_tool_confirmation"
+            | "gate_2_pending_llm_tool_request"
+    ) || direct_response_path.starts_with("gate_") && direct_response_path.contains("pending");
+    let private_gate_reject = matches!(
+        response_workflow
+            .pointer("/final_llm_response/last_reject_reason")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "invalid_manual_toolbox_gate_submission"
+            | "tool_category_without_tool_payload"
+            | "visible_gate_choice_reply"
+    );
+    response_workflow
+        .pointer("/final_llm_response/invalid_gate_draft_diagnostic_only")
+        .and_then(Value::as_bool)
+        == Some(true)
+        || private_gate_pending_path
+        || private_gate_reject
+}
+
 fn workflow_latent_candidate_recovery_needed(
     response_workflow: &Value,
     initial_draft_response: &str,
@@ -77,15 +105,7 @@ fn workflow_latent_candidate_recovery_needed(
         "/diagnostic_markers/final_response_verifier/missing_evidence_claim_phrases",
         &combined,
     );
-    let private_gate_diagnostic = response_workflow
-        .pointer("/final_llm_response/invalid_gate_draft_diagnostic_only")
-        .and_then(Value::as_bool)
-        == Some(true)
-        || response_workflow
-            .pointer("/workflow_control/direct_response_path")
-            .and_then(Value::as_str)
-            .map(|path| path.starts_with("gate_") && path.contains("pending"))
-            .unwrap_or(false);
+    let private_gate_diagnostic = workflow_private_gate_recovery_signal(response_workflow);
     claims_missing_tool_backed_evidence || private_gate_diagnostic
 }
 
@@ -307,26 +327,8 @@ fn finalize_message_finalization_and_payload(
     let mut tool_completion = json!({});
     let workflow_status = workflow_final_response_status(&response_workflow);
     let workflow_used = workflow_final_response_used(&response_workflow);
-    let workflow_direct_response_path_for_visibility = response_workflow
-        .pointer("/workflow_control/direct_response_path")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let workflow_waiting_for_private_json_gate = matches!(
-        workflow_direct_response_path_for_visibility,
-        "first_gate_pending_llm_tool_choice"
-            | "first_gate_pending_tool_confirmation"
-            | "gate_2_pending_llm_tool_request"
-    ) || workflow_direct_response_path_for_visibility.starts_with("gate_")
-        && workflow_direct_response_path_for_visibility.contains("pending")
-        || matches!(
-        response_workflow
-            .pointer("/final_llm_response/last_reject_reason")
-            .and_then(Value::as_str)
-            .unwrap_or(""),
-        "invalid_manual_toolbox_gate_submission"
-            | "tool_category_without_tool_payload"
-            | "visible_gate_choice_reply"
-    );
+    let workflow_waiting_for_private_json_gate =
+        workflow_private_gate_recovery_signal(&response_workflow);
     let mut finalization_outcome = if workflow_used {
         "workflow_authored".to_string()
     } else {

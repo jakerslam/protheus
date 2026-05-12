@@ -2885,6 +2885,10 @@ mod workflow_fallback_tests {
             Some("batch_query")
         );
         assert_eq!(
+            pending.get("selected_tool_key").and_then(Value::as_str),
+            Some("batch_query")
+        );
+        assert_eq!(
             pending.get("source").and_then(Value::as_str),
             Some("latent_candidate_recovery")
         );
@@ -2929,6 +2933,12 @@ mod workflow_fallback_tests {
         let gate_diagnostic_workflow = json!({
             "workflow_control": {"direct_response_path": "gate_4_pending_llm_tool_request"}
         });
+        let first_gate_private_workflow = json!({
+            "workflow_control": {"direct_response_path": "first_gate_pending_llm_tool_choice"}
+        });
+        let rejected_private_gate_workflow = json!({
+            "final_llm_response": {"last_reject_reason": "visible_gate_choice_reply"}
+        });
 
         assert!(workflow_latent_candidate_recovery_needed(
             &missing_evidence_workflow,
@@ -2940,6 +2950,14 @@ mod workflow_fallback_tests {
         ));
         assert!(workflow_latent_candidate_recovery_needed(
             &gate_diagnostic_workflow,
+            ""
+        ));
+        assert!(workflow_latent_candidate_recovery_needed(
+            &first_gate_private_workflow,
+            ""
+        ));
+        assert!(workflow_latent_candidate_recovery_needed(
+            &rejected_private_gate_workflow,
             ""
         ));
     }
