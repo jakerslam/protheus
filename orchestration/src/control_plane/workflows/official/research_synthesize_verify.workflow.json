@@ -28,7 +28,41 @@
       "evidence_use": "use retrieved evidence when it is usable; separate usable, weak, irrelevant, and absent evidence without presenting weak evidence as source-backed certainty",
       "coverage_awareness": "reflect meaningful coverage gaps from the evidence pack when they matter to the answer",
       "decision_value": "provide the most useful bounded conclusion supported by the available evidence before asking for narrower user input",
+      "answer_posture": "lead with the best bounded answer or decision value the evidence supports; mention low-signal retrieval, provider degradation, or remaining gaps as calibration context instead of making them the headline",
+      "private_state_classification": "classify evidence state internally only; do not print classification banners, tool-status labels, or provider-status headers as visible final answer structure",
       "format_freedom": "choose whatever response structure fits the user's request and evidence; no table, list, or paragraph shape is required by this contract"
+    },
+    "final_response_verifier_contract": {
+      "version": "research_final_response_verifier_v1",
+      "authority": "workflow_cd_declares_semantic_checks_runtime_or_agent_may_retry_before_final_projection",
+      "visibility": "internal_only_not_chat_visible",
+      "checks": [
+        "answers_the_user_goal",
+        "uses_recorded_evidence_when_tool_results_exist",
+        "covers_named_entities_or_records_coverage_gaps",
+        "separates_retrieved_evidence_from_inference",
+        "states_uncertainty_only_where_earned_by_evidence_state",
+        "provides_bounded_decision_value_before_suggesting_more_search",
+        "does_not_expose_internal_traces_or_raw_tool_payloads",
+        "does_not_force_or_depend_on_a_specific_output_format"
+      ],
+      "recovery": {
+        "max_synthesis_retries": 1,
+        "max_retrieval_retries": 1,
+        "retry_when": [
+          "evidence_pack_has_candidates_but_major_facets_are_uncovered",
+          "named_entity_or_user_stated_aspect_missing",
+          "final_answer_overleads_with_tool_status_instead_of_answering",
+          "final_answer_suggests_user_narrowing_before_bounded_synthesis"
+        ],
+        "retry_input": "same_user_goal_plus_missing_coverage_facets_quality_flags_and_verifier_failure_reason"
+      },
+      "non_goals": [
+        "do_not_add_domain_specific_answer_templates",
+        "do_not_choose_tools_or_routes_by_prompt_phrase",
+        "do_not_prescribe_tables_lists_sections_or_phrasing",
+        "do_not_treat_telemetry_as_source_evidence"
+      ]
     },
     "non_goals": [
       "do_not_force_specific_output_formats",
@@ -119,8 +153,10 @@
     "before_synthesis": "each major requested lane should have usable evidence, weak evidence, or an explicit coverage gap; use evidence_coverage when present to understand facet coverage across the user's actual research objective",
     "two_phase_retrieval": "a broad discovery query may start research, but broad, comparative, current, evaluative, multi-entity, or multi-aspect research should continue through targeted follow-up based on discovery results and missing lanes before synthesis unless sufficiency is already met",
     "coverage_gap_recovery": "many raw candidates are not enough by themselves; when usable evidence or facet coverage remains thin, use bounded recovery lanes for uncovered facets and record the gap reasons that remain",
+    "adaptive_followup_retrieval": "after discovery or any policy-generated query pack, if named entities, requested aspects, source classes, or time windows remain weak and budget remains, run targeted gap-fill queries derived from the missing lanes and retrieved terms before final synthesis",
+    "evidence_pack_ranking": "rank the synthesis pack by relevance, facet coverage, source authority, source diversity, freshness when relevant, content density, and novelty; preserve coverage-critical evidence even when it is not globally top-ranked",
     "facet_aware_evidence": "evidence_refs may include coverage_facets and the tool result may include evidence_coverage; synthesize from covered facets, use weak facets only with uncertainty, and call out missing facets as coverage gaps without forcing any response format",
-    "low_evidence_finalization": "when retrieval remains weak after bounded recovery, use tool_result_quality, provider_results, retrieval_telemetry, evidence_coverage, and evidence_refs to distinguish usable evidence from weak or irrelevant raw evidence; produce a useful bounded synthesis that separates evidence, uncertainty, coverage gaps, and decision value without forcing a format",
+    "low_evidence_finalization": "when retrieval remains weak after bounded recovery, use tool_result_quality, provider_results, retrieval_telemetry, evidence_coverage, and evidence_refs to distinguish usable evidence from weak or irrelevant raw evidence; lead with the best bounded answer or decision value, then calibrate it with evidence limits, uncertainty, and coverage gaps without forcing a format",
     "weak_evidence_handling": "low_confidence_raw evidence may inform a bounded answer or coverage-gap explanation, but it must not be presented as equally source-backed as usable evidence; retrieval telemetry is diagnostic context, not a cited source",
     "non_goals": [
       "do_not_hardcode_research_domains",

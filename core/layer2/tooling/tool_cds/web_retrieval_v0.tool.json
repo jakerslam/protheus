@@ -140,6 +140,24 @@
       "evidence_pack_contract": {
         "version": "evidence_pack_v1",
         "purpose": "ranked synthesis context with source class, confidence, quality flags, coverage facets, claim hints, term hints, and freshness signals",
+        "ranking_policy": {
+          "objective": "pack evidence for coverage, authority, diversity, freshness, density, and novelty before synthesis",
+          "primary_axes": [
+            "relevance_to_user_goal",
+            "coverage_facet_match",
+            "source_authority",
+            "source_diversity",
+            "freshness_when_relevant",
+            "content_density",
+            "novelty_against_selected_evidence"
+          ],
+          "packing_rules": [
+            "preserve coverage-critical evidence even when it is not globally top-ranked",
+            "prefer distinct source domains and source classes for broad research when available",
+            "keep weak raw evidence lower-confidence than usable evidence",
+            "include missing-facet diagnostics for verifier or retry planning"
+          ]
+        },
         "final_answer_format_authority": "agent_authored_not_tool_prescribed",
         "non_goals": [
           "do_not_force_tables_lists_sections_or_phrasing",
@@ -200,6 +218,7 @@
         "authority": "tool_cd_declares_recovery_shape_runtime_records_executed_queries",
         "trigger": "candidate_volume_exists_but_usable_evidence_or_facet_coverage_is_low",
         "purpose": "recover from high-volume low-yield retrieval by targeting uncovered research facets instead of asking the user to narrow",
+        "allow_after_policy_query_pack": true,
         "sufficiency_target": "prefer at least three usable evidence refs and roughly three quarters of requested facets before treating high-volume retrieval as sufficient",
         "query_shape_examples": [
           "{facet} source-backed evidence",
@@ -843,6 +862,32 @@
           ],
           "visibility": "telemetry_or_evidence_metadata_only"
         },
+      "final_response_verifier": {
+        "purpose": "declare the semantic quality checks that should run before final projection or trigger bounded retrieval/synthesis retry",
+        "visibility": "internal_only_not_chat_visible",
+        "checks": [
+          "answer_covers_user_goal",
+          "answer_uses_recorded_evidence_when_available",
+          "answer_covers_named_entities_or_records_gaps",
+          "answer_leads_with_bounded_decision_value_not_tool_status",
+          "answer_separates_evidence_from_inference",
+          "answer_avoids_raw_payload_or_trace_leakage"
+        ],
+        "retry_policy": {
+          "max_retrieval_retries": 1,
+          "retry_when": [
+            "coverage_gap_remains_and_budget_available",
+            "evidence_pack_has_candidates_but_major_facets_are_uncovered",
+            "final_answer_suggests_user_narrowing_before_bounded_synthesis"
+          ],
+          "retry_input": "missing_coverage_facets_quality_flags_and_verifier_failure_reason"
+        },
+        "non_goals": [
+          "do_not_prescribe_visible_answer_shape",
+          "do_not_hardcode_domain_specific_templates",
+          "do_not_treat_telemetry_as_source_evidence"
+        ]
+      },
       "resource_control": {
         "per_domain_rate_limit": true,
         "backoff_on_status": [

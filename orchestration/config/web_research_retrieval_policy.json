@@ -227,6 +227,29 @@
     "chat_visibility": "hidden_until_synthesized",
     "item_schema_version": "evidence_pack_v1",
     "purpose": "Provide the synthesizer a compact, ranked, processible evidence object instead of a raw blob of search rows.",
+    "ranking_policy": {
+      "objective": "improve final research quality by packing evidence for coverage and decision value, not just provider rank",
+      "primary_axes": [
+        "relevance_to_user_goal",
+        "coverage_facet_match",
+        "source_authority",
+        "source_diversity",
+        "freshness_when_relevant",
+        "content_density",
+        "novelty_against_selected_evidence"
+      ],
+      "packing_rules": [
+        "preserve at least one strong item for each major requested facet when available",
+        "prefer distinct source domains and source classes for broad research when available",
+        "do not let near-duplicate high-rank candidates crowd out coverage-critical evidence",
+        "label weak raw evidence as weaker than usable evidence"
+      ],
+      "non_goals": [
+        "do_not_force_final_answer_format",
+        "do_not_hardcode_research_domains",
+        "do_not_treat_provider_rank_as_validation"
+      ]
+    },
     "required_item_fields": [
       "pack_version",
       "source_kind",
@@ -339,6 +362,7 @@
     "purpose": "when candidate volume exists but usable evidence coverage remains thin, spend bounded follow-up lanes on the uncovered research facets before synthesis",
     "authority": "policy_declares_recovery_shape_agent_or_runtime_records_attempted_queries",
     "trigger": "candidate_volume_exists_but_usable_evidence_or_facet_coverage_is_low",
+    "allow_after_policy_query_pack": true,
     "sufficiency_target": "prefer at least three usable evidence refs and roughly three quarters of requested facets before treating high-volume retrieval as sufficient",
     "templates": [
       "{facet} source-backed evidence",
@@ -394,5 +418,32 @@
     "time_filter_applied",
     "partial_failures",
     "stop_reason"
-  ]
+  ],
+  "final_response_verifier": {
+    "enabled": true,
+    "authority": "workflow_cd_declares_semantic_checks_retrieval_policy_exports_inputs",
+    "visibility": "internal_only_not_chat_visible",
+    "checks": [
+      "answer_covers_user_goal",
+      "answer_uses_recorded_evidence_when_available",
+      "answer_covers_named_entities_or_records_gaps",
+      "answer_leads_with_bounded_decision_value_not_tool_status",
+      "answer_separates_evidence_from_inference",
+      "answer_avoids_raw_payload_or_trace_leakage"
+    ],
+    "retry_policy": {
+      "max_retrieval_retries": 1,
+      "retry_when": [
+        "coverage_gap_remains_and_budget_available",
+        "evidence_pack_has_candidates_but_major_facets_are_uncovered",
+        "final_answer_suggests_user_narrowing_before_bounded_synthesis"
+      ],
+      "retry_input": "missing_coverage_facets_quality_flags_and_verifier_failure_reason"
+    },
+    "non_goals": [
+      "do_not_prescribe_visible_answer_shape",
+      "do_not_hardcode_domain_specific_templates",
+      "do_not_treat_telemetry_as_source_evidence"
+    ]
+  }
 }
