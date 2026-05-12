@@ -2682,6 +2682,29 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn ordinary_lookup_and_search_intents_preserve_batch_query_candidate() {
+        for message in [
+            "look up recent changes in the relevant frameworks",
+            "search the web for public evidence about a named system",
+        ] {
+            let candidates = latent_tool_candidates_for_message(message, &[]);
+            assert_eq!(candidates.len(), 1, "{message}: {candidates:?}");
+            assert_eq!(
+                candidates[0].get("tool").and_then(Value::as_str),
+                Some("batch_query"),
+                "{message}: {candidates:?}"
+            );
+            assert_eq!(
+                candidates[0]
+                    .get("selected_tool_family")
+                    .and_then(Value::as_str),
+                Some("web_research"),
+                "{message}: {candidates:?}"
+            );
+        }
+    }
+
+    #[test]
     fn runtime_temporal_context_declares_past_future_rule() {
         let prompt = agent_runtime_temporal_context_prompt();
         assert!(prompt.contains("current date/time"));
@@ -2925,7 +2948,7 @@ mod workflow_fallback_tests {
     #[test]
     fn latent_candidate_recovery_requires_missing_evidence_or_gate_diagnostic() {
         let missing_evidence_workflow = json!({
-            "response": "I don't have any retrieved evidence, tool outputs, or source-backed findings for this turn."
+            "response": "No source-backed synthesis is available because I don't have recorded tool results for this turn."
         });
         let direct_answer_workflow = json!({
             "response": "The answer is 4."

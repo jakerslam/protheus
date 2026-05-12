@@ -85,6 +85,9 @@ fn implicit_live_web_research_query(message: &str, workspace_hints: &[Value]) ->
     .any(|token| lowered.contains(token));
     let research_signal = lowered.starts_with("research ")
         || lowered.starts_with("find ")
+        || lowered.starts_with("look up ")
+        || lowered.starts_with("lookup ")
+        || lowered.starts_with("search ")
         || lowered.starts_with("which ")
         || lowered.starts_with("what ")
         || lowered.starts_with("who ")
