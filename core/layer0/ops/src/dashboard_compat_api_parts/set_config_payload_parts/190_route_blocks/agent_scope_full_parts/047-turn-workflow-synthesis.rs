@@ -2686,6 +2686,7 @@ mod workflow_fallback_tests {
         for message in [
             "look up recent changes in the relevant frameworks",
             "search the web for public evidence about a named system",
+            "use web research to compare current options",
         ] {
             let candidates = latent_tool_candidates_for_message(message, &[]);
             assert_eq!(candidates.len(), 1, "{message}: {candidates:?}");

@@ -82,7 +82,20 @@ fn implicit_live_web_research_query(message: &str, workspace_hints: &[Value]) ->
     ]
     .iter()
     .any(|token| lowered.contains(token));
-    let research_signal = lowered.starts_with("research ")
+    let explicit_web_research_request = [
+        "use web research ",
+        "use web_research ",
+        "use web search ",
+        "use web_search ",
+        "run web research ",
+        "run web_research ",
+        "run web search ",
+        "run web_search ",
+    ]
+    .iter()
+    .any(|token| lowered.starts_with(token));
+    let research_signal = explicit_web_research_request
+        || lowered.starts_with("research ")
         || lowered.starts_with("find ")
         || lowered.starts_with("look up ")
         || lowered.starts_with("lookup ")
