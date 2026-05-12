@@ -83,7 +83,7 @@ function infringEnsureChatStoreBridge() {
   var queuedMessageSync = false;
   var pendingMessages = [];
   var pendingFilteredMessages = [];
-  var lastFilteredMessageSource = [];
+  var lastFilteredMessageProjection = [];
   var threadProjectionCenterIndex = -1;
   var threadProjectionLimit = 80;
   function scheduleMessageStoreFlush(store) {
@@ -99,7 +99,10 @@ function infringEnsureChatStoreBridge() {
   }
   function projectThreadMessages(rows) {
     var list = Array.isArray(rows) ? rows : [];
-    if (list.length <= threadProjectionLimit) return list;
+    if (list.length <= threadProjectionLimit) {
+      setThreadProjectionMeta(list.length, 0, list.length);
+      return list.slice(0);
+    }
     var center = Number(threadProjectionCenterIndex);
     if (!Number.isFinite(center) || center < 0) center = list.length - 1;
     center = Math.max(0, Math.min(list.length - 1, Math.round(center)));
@@ -107,7 +110,23 @@ function infringEnsureChatStoreBridge() {
     var start = Math.max(0, center - before);
     var end = Math.min(list.length, start + threadProjectionLimit);
     start = Math.max(0, end - threadProjectionLimit);
+    setThreadProjectionMeta(list.length, start, end);
     return list.slice(start, end);
+  }
+  function setThreadProjectionMeta(total, start, end) {
+    store.threadProjectionMeta.set({
+      total_count: total,
+      start_index: start,
+      end_index: end,
+      projection_limit: threadProjectionLimit,
+      before_cursor: start > 0 ? String(start - 1) : null,
+      after_cursor: end < total ? String(end) : null
+    });
+  }
+  function currentFilteredMessageSource() {
+    var page = (typeof window !== 'undefined' && window.InfringChatPage) || null;
+    if (page && Array.isArray(page.filteredMessages)) return page.filteredMessages;
+    return lastFilteredMessageProjection;
   }
   var store = {
     messages: writable([]),
@@ -125,6 +144,14 @@ function infringEnsureChatStoreBridge() {
     mapStepIndex: writable(-1),
     mapRows: writable([]),
     renderWindowVersion: writable(0),
+    threadProjectionMeta: writable({
+      total_count: 0,
+      start_index: 0,
+      end_index: 0,
+      projection_limit: 80,
+      before_cursor: null,
+      after_cursor: null
+    }),
     focusMode: writable(false),
     connectionState: writable(''),
     theme: writable(''),
@@ -132,8 +159,8 @@ function infringEnsureChatStoreBridge() {
   };
   store.syncMessages = function(messages, filteredMessages) {
     store.mapRows.set(buildMapRows(messages));
-    lastFilteredMessageSource = Array.isArray(filteredMessages) ? filteredMessages : [];
-    pendingFilteredMessages = projectThreadMessages(lastFilteredMessageSource);
+    pendingFilteredMessages = projectThreadMessages(Array.isArray(filteredMessages) ? filteredMessages : []);
+    lastFilteredMessageProjection = pendingFilteredMessages;
     pendingMessages = pendingFilteredMessages;
     scheduleMessageStoreFlush(store);
   };
@@ -144,7 +171,8 @@ function infringEnsureChatStoreBridge() {
     next = Math.round(next);
     if (next === threadProjectionCenterIndex) return;
     threadProjectionCenterIndex = next;
-    pendingFilteredMessages = projectThreadMessages(lastFilteredMessageSource);
+    pendingFilteredMessages = projectThreadMessages(currentFilteredMessageSource());
+    lastFilteredMessageProjection = pendingFilteredMessages;
     pendingMessages = pendingFilteredMessages;
     scheduleMessageStoreFlush(store);
   };
