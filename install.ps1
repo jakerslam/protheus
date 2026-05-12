@@ -231,24 +231,42 @@ function Invoke-OptionalWindowsWrapperModule {
 function Write-InstallCompletionCard {
   param(
     [string]$Version,
-    [string]$InstallDir
+    [string]$InstallDir,
+    [bool]$RuntimeInstalled = $true,
+    [string]$RuntimeMode = "",
+    [string]$BootstrapOnlyReason = ""
   )
 
   $launcherPath = Join-Path $InstallDir "infring.cmd"
   if (-not (Test-Path -LiteralPath $launcherPath)) {
     $launcherPath = Join-Path $InstallDir "infring.ps1"
   }
-
   $completionWriter = Get-Command Write-InfringInstallCompletionCard -ErrorAction SilentlyContinue
   if ((Test-InstallerModuleDispatchEnabled) -and $completionWriter) {
     Write-Host ""
-    Write-InfringInstallCompletionCard -Version ("{0}." -f $Version) -Location $launcherPath -Command "infring --help"
+    Write-InfringInstallCompletionCard -Version ("{0}." -f $Version) -Location $launcherPath -Command "infring --help" -RuntimeInstalled $RuntimeInstalled -RuntimeMode $RuntimeMode -BootstrapOnlyReason $BootstrapOnlyReason
     return
   }
 
   Write-Host ""
   Write-Host "Setting up InfRing..."
   Write-Host ""
+  if (-not $RuntimeInstalled) {
+    Write-Host "BOOTSTRAP INSTALLED: InfRing runtime pending." -ForegroundColor DarkYellow
+    Write-Host ""
+    Write-Host -NoNewline "  Version: "
+    Write-Host "$Version." -ForegroundColor DarkYellow
+    Write-Host "  Location: $launcherPath"
+    Write-Host -NoNewline "  Runtime: "
+    Write-Host "$RuntimeMode (runtime binaries unavailable)" -ForegroundColor DarkYellow
+    Write-Host ""
+    Write-Host -NoNewline "  Next: Run "
+    Write-Host -NoNewline "infring recover" -ForegroundColor DarkYellow
+    Write-Host " after MSVC tools or Windows runtime assets are available."
+    Write-Host ""
+    Write-Host "Installation incomplete: runtime pending." -ForegroundColor DarkYellow
+    return
+  }
   Write-Host "SUCCESS: InfRing successfully installed!" -ForegroundColor Green
   Write-Host ""
   Write-Host -NoNewline "  Version: "
@@ -326,8 +344,8 @@ function Test-InstallSummarySuccessContract {
   }
 
   $lastLine = ([string]$rows[$rows.Count - 1]).Trim()
-  if ($lastLine -ne "status: success") {
-    Write-Host "[infring install] summary contract failed: status is not terminal success line"
+  if (($lastLine -ne "status: success") -and ($lastLine -ne "status: runtime_pending")) {
+    Write-Host "[infring install] summary contract failed: status is not terminal success/runtime_pending line"
     return $false
   }
 
@@ -4375,9 +4393,14 @@ $gatewaySmokeStatus = if ($gatewaySmokeOk) { "passed" } else { "failed:$gatewayS
 $runtimeContractMode = [string]$script:InstallClientRuntimeMode
 $runtimeContractOk = @("verified", "pure_profile", "minimal_profile", "bootstrap_only_profile") -contains [string]$script:InstallRuntimeContractStatus
 $binaryInstallStatus = if ([bool]$script:InstallBootstrapOnlyMode) { "bootstrap_fallback" } else { "ok" }
+$runtimeInstalled = -not [bool]$script:InstallBootstrapOnlyMode
+$installOutcome = if ($runtimeInstalled) { "success" } else { "runtime_pending" }
 $verificationConfidence = "high"
 if (-not $runtimeContractOk -or $failedSmokeRequired.Count -gt 0) {
   $verificationConfidence = "medium"
+}
+if (-not $runtimeInstalled) {
+  $verificationConfidence = "runtime_pending"
 }
 if ($dashboardSmokeRequired -and $dashboardSmokeStatus -ne "passed") {
   $verificationConfidence = "medium"
@@ -4386,14 +4409,19 @@ $launcherCommand = "infring gateway"
 $restartCommand = "infring gateway restart"
 $recoveryCommand = "infring recover"
 
-Write-Host "[infring install] success summary: binaries=$binaryInstallStatus runtime=$runtimeContractMode launcher=$launcherCommand restart=$restartCommand verification_confidence=$verificationConfidence"
-Write-Host "[infring install] success summary: gateway_smoke=$gatewaySmokeStatus dashboard_smoke=$dashboardSmokeStatus recovery=$recoveryCommand"
+Write-Host "[infring install] install summary: status=$installOutcome binaries=$binaryInstallStatus runtime=$runtimeContractMode launcher=$launcherCommand restart=$restartCommand verification_confidence=$verificationConfidence"
+Write-Host "[infring install] smoke summary: gateway_smoke=$gatewaySmokeStatus dashboard_smoke=$dashboardSmokeStatus recovery=$recoveryCommand"
+if (-not $runtimeInstalled) {
+  Write-Host "[infring install] runtime pending reason: $($script:InstallBootstrapOnlyReason)"
+}
 
 $summaryPayload = @{
   ok = $true
-  type = "infring_install_success_summary"
+  type = if ($runtimeInstalled) { "infring_install_success_summary" } else { "infring_install_runtime_pending_summary" }
+  status = $installOutcome
   version = [string]$version
   triple = [string]$triple
+  runtime_installed = [bool]$runtimeInstalled
   install_mode = @{
     full = [bool]$InstallFull
     pure = [bool]$InstallPure
@@ -4470,6 +4498,10 @@ $summaryTextRows = @(
   "workspace_release_tag_current: $([string]$script:WorkspaceReleaseTagCurrent)",
   "workspace_release_tag_written: $([string][bool]$script:WorkspaceReleaseTagWriteApplied).ToLower()",
   "workspace_release_tag_write_verified: $([string][bool]$script:WorkspaceReleaseTagWriteVerified).ToLower()",
+  "install_status: $installOutcome",
+  "runtime_installed: $([string][bool]$runtimeInstalled).ToLower()",
+  "bootstrap_only_mode: $([string][bool]$script:InstallBootstrapOnlyMode).ToLower()",
+  "bootstrap_only_reason: $([string]$script:InstallBootstrapOnlyReason)",
   "verification_confidence: $verificationConfidence",
   "gateway_smoke: $gatewaySmokeStatus",
   "dashboard_smoke: $dashboardSmokeStatus",
@@ -4479,7 +4511,7 @@ $summaryTextRows = @(
   "summary_json: $InstallSummaryJsonPath",
   "smoke_summary_json: $InstallSmokeSummaryJsonPath",
   "completed_at: $summaryCompletedAt",
-  "status: success"
+  "status: $installOutcome"
 )
 $summaryTextRows | Set-Content -Path $InstallSummaryTextPath -Encoding UTF8
 Write-Host "[infring install] summary text: $InstallSummaryTextPath"
@@ -4511,7 +4543,7 @@ if ($InstallJson) {
   $summaryPayload | ConvertTo-Json -Depth 8 -Compress | Write-Output
 }
 
-Write-InstallCompletionCard -Version $version -InstallDir $InstallDir
+Write-InstallCompletionCard -Version $version -InstallDir $InstallDir -RuntimeInstalled $runtimeInstalled -RuntimeMode $runtimeContractMode -BootstrapOnlyReason $script:InstallBootstrapOnlyReason
 Write-Host "[infring install] installed commands: infring, infringctl, infringd"
 Write-Host "[infring install] run now (direct path): $InstallDir\\infring.cmd --help"
 Write-Host "[infring install] quickstart now (direct path): $InstallDir\\infring.cmd gateway"

@@ -1,6 +1,6 @@
 {
   "type": "installer_repair_contract",
-  "schema_version": 1,
+  "schema_version": 2,
   "owner_domain": "installer",
   "required_flags": ["Repair", "Full"],
   "required_behaviors": [
@@ -8,11 +8,13 @@
     "rewrite_missing_wrappers",
     "preserve_user_config_when_possible",
     "emit_actionable_failure",
-    "print_completion_card_on_success"
+    "print_completion_card_on_success",
+    "print_runtime_pending_card_on_bootstrap_only_fallback"
   ],
   "known_windows_failure_modes": [
     "powershell_execution_policy_blocks_ps1_wrapper",
     "missing_infring_cmd_wrapper",
-    "installer_parse_error_prevents_repair"
+    "installer_parse_error_prevents_repair",
+    "bootstrap_only_fallback_claims_full_success"
   ]
 }

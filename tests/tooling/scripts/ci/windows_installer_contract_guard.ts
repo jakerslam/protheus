@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// source_domain: validation; owner_domain: validation.installers
 /* eslint-disable no-console */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -209,14 +210,17 @@ function run(argv: string[]): number {
   });
 
   checks.push({
-    id: 'windows_install_script_bootstrap_only_is_degraded_success',
+    id: 'windows_install_script_bootstrap_only_is_runtime_pending_outcome',
     ok:
       source.includes('$script:InstallBootstrapOnlyMode = $true')
       && source.includes('bootstrap_only_profile')
       && source.includes('bootstrap-only mode: skipping client runtime bundle until runtime binaries are installed')
-      && source.includes('"bootstrap_only_profile") -contains [string]$script:InstallRuntimeContractStatus'),
+      && source.includes('"bootstrap_only_profile") -contains [string]$script:InstallRuntimeContractStatus')
+      && source.includes('status=$installOutcome')
+      && source.includes('runtime_installed = [bool]$runtimeInstalled')
+      && source.includes('Installation incomplete: runtime pending.'),
     detail:
-      'Windows full-mode onboarding fallback must complete as degraded bootstrap-only success instead of throwing after wrappers are written',
+      'Windows full-mode onboarding fallback must complete as bootstrap-only runtime-pending outcome instead of claiming full runtime success',
   });
 
   checks.push({
@@ -390,11 +394,13 @@ function run(argv: string[]): number {
     ok:
       powershellNonAsciiGlyphCount === 0
       && source.includes('SUCCESS: InfRing successfully installed!')
+      && source.includes('BOOTSTRAP INSTALLED: InfRing runtime pending.')
       && source.includes('Installation complete!')
+      && source.includes('Installation incomplete: runtime pending.')
       && !source.includes('✔ InfRing successfully installed!')
       && !source.includes('✅ Installation complete!'),
     detail:
-      `install.ps1 must keep the PowerShell completion card ASCII-only for Windows PowerShell encoding compatibility (non_ascii_count=${powershellNonAsciiGlyphCount})`,
+      `install.ps1 must keep the PowerShell completion/runtime-pending cards ASCII-only for Windows PowerShell encoding compatibility (non_ascii_count=${powershellNonAsciiGlyphCount})`,
   });
 
   checks.push({
@@ -516,7 +522,9 @@ function run(argv: string[]): number {
     ok:
       source.includes('function Write-InstallCompletionCard')
       && source.includes('SUCCESS: InfRing successfully installed!')
+      && source.includes('BOOTSTRAP INSTALLED: InfRing runtime pending.')
       && source.includes('Installation complete!')
+      && source.includes('Installation incomplete: runtime pending.')
       && source.includes('-ForegroundColor Green')
       && source.includes('-ForegroundColor DarkYellow')
       && sourceSh.includes('emit_install_completion_card')
@@ -524,7 +532,7 @@ function run(argv: string[]): number {
       && sourceSh.includes('✅ Installation complete!')
       && sourceSh.includes('38;5;208'),
     detail:
-      'installers must retain Claude-style success completion card with green success text and orange version/command accents',
+      'installers must retain Claude-style success completion card and must show a distinct runtime-pending card for bootstrap-only fallback',
   });
 
   const ok = checks.every((row) => row.ok);
