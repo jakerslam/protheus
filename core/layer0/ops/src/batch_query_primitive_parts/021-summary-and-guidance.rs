@@ -71,6 +71,34 @@ fn no_results_error_code_from_summary(summary: &str) -> Option<&'static str> {
     .then_some("query_result_mismatch")
 }
 
+fn diagnostic_value_contains(value: &Value, needle: &str) -> bool {
+    match value {
+        Value::String(text) => text.contains(needle),
+        Value::Array(rows) => rows.iter().any(|row| diagnostic_value_contains(row, needle)),
+        Value::Object(map) => map.values().any(|entry| diagnostic_value_contains(entry, needle)),
+        _ => false,
+    }
+}
+
+fn no_results_error_code(summary: &str, partial_failure_details: &Value) -> Option<&'static str> {
+    no_results_error_code_from_summary(summary).or_else(|| {
+        diagnostic_value_contains(partial_failure_details, "query_result_mismatch")
+            .then_some("query_result_mismatch")
+    })
+}
+
+fn no_results_error_code_from_failure_strings(
+    summary: &str,
+    partial_failure_details: &[String],
+) -> Option<&'static str> {
+    no_results_error_code_from_summary(summary).or_else(|| {
+        partial_failure_details
+            .iter()
+            .any(|detail| detail.contains("query_result_mismatch"))
+            .then_some("query_result_mismatch")
+    })
+}
+
 fn cached_evidence_domains(evidence_refs: &Value, max_domains: usize) -> Vec<String> {
     let mut out = Vec::<String>::new();
     let mut seen = HashSet::<String>::new();
@@ -272,6 +300,10 @@ fn no_results_summary_for_batch_query(
     }
     if let Some(summary) = comparison_guard_summary {
         return summary;
+    }
+    if diagnostic_value_contains(partial_failure_details, "query_result_mismatch") {
+        return "Web retrieval returned content that appears unrelated to the request intent (query_result_mismatch). Retry with a narrower query or one specific source URL."
+            .to_string();
     }
     if has_partial_failures {
         if is_framework_catalog_intent(query) {

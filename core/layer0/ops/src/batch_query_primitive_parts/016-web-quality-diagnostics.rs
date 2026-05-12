@@ -624,8 +624,127 @@ fn evidence_pack_max_snippet_words(policy: &Value) -> usize {
         .clamp(16, 160)
 }
 
+fn policy_string_list(policy: &Value, pointer: &str) -> Vec<String> {
+    policy
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 160).to_ascii_lowercase())
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn evidence_pack_source_class(policy: &Value, candidate: &Candidate) -> String {
+    let source_kind = clean_text(&candidate.source_kind, 80).to_ascii_lowercase();
+    let locator = clean_text(&candidate.locator, 2_200).to_ascii_lowercase();
+    let domain = candidate_domain_hint(candidate).to_ascii_lowercase();
+    if let Some(rules) = policy
+        .pointer("/batch_query/evidence_pack/source_class_rules")
+        .and_then(Value::as_array)
+    {
+        for rule in rules {
+            let class = clean_text(
+                rule.get("class").and_then(Value::as_str).unwrap_or(""),
+                80,
+            );
+            if class.is_empty() {
+                continue;
+            }
+            let source_kind_matches = policy_string_list(rule, "/source_kinds")
+                .iter()
+                .any(|value| value == &source_kind);
+            let host_suffix_matches = policy_string_list(rule, "/host_suffixes")
+                .iter()
+                .any(|suffix| domain.ends_with(suffix));
+            let host_contains_matches = policy_string_list(rule, "/host_contains")
+                .iter()
+                .any(|needle| domain.contains(needle));
+            let path_contains_matches = policy_string_list(rule, "/path_contains")
+                .iter()
+                .any(|needle| locator.contains(needle));
+            if source_kind_matches
+                || host_suffix_matches
+                || host_contains_matches
+                || path_contains_matches
+            {
+                return class;
+            }
+        }
+    }
+    if source_kind.is_empty() {
+        "general_web".to_string()
+    } else {
+        source_kind
+    }
+}
+
+fn evidence_pack_freshness_status(query: &str, candidate: &Candidate) -> String {
+    if !current_web_intent(query) {
+        return "not_time_sensitive".to_string();
+    }
+    if recency_adjustment(query, candidate) >= 0.0 {
+        "current_signal_present".to_string()
+    } else {
+        "freshness_unproven".to_string()
+    }
+}
+
+fn evidence_pack_claim_hints(query: &str, snippet: &str, limit: usize) -> Vec<String> {
+    let query_terms = tokenize_relevance(query, 40);
+    let mut out = Vec::<String>::new();
+    for segment in snippet.split(|ch| matches!(ch, '.' | ';' | '\n' | '\r')) {
+        let cleaned = clean_text(segment, 420);
+        if cleaned.split_whitespace().count() < 6 {
+            continue;
+        }
+        let segment_terms = tokenize_relevance(&cleaned, 80);
+        let has_query_overlap = query_terms.is_empty()
+            || query_terms
+                .iter()
+                .any(|term| segment_terms.contains(term.as_str()));
+        if !has_query_overlap && out.len() + 1 < limit {
+            continue;
+        }
+        out.push(trim_words(&cleaned, 34));
+        if out.len() >= limit.max(1) {
+            break;
+        }
+    }
+    out
+}
+
+fn evidence_pack_term_hints(query: &str, candidate: &Candidate, limit: usize) -> Vec<String> {
+    let mut seen = HashSet::<String>::new();
+    let mut out = Vec::<String>::new();
+    for term in tokenize_relevance(
+        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        160,
+    ) {
+        if term.len() < 4 {
+            continue;
+        }
+        if query.to_ascii_lowercase().contains(term.as_str()) {
+            continue;
+        }
+        if seen.insert(term.clone()) {
+            out.push(term);
+        }
+        if out.len() >= limit.max(1) {
+            break;
+        }
+    }
+    out
+}
+
 fn evidence_pack_from_ranked_candidates(
     policy: &Value,
+    query: &str,
+    facets: &[ResearchFacet],
+    min_terms: usize,
     actionable_ranked: &[(Candidate, f64)],
     max_evidence: usize,
 ) -> Value {
@@ -640,14 +759,42 @@ fn evidence_pack_from_ranked_candidates(
             .take(max_items)
             .map(|(candidate, score)| {
                 let domain = candidate_domain_hint(candidate);
+                let quality_flags = if candidate_is_low_confidence_retained(candidate) {
+                    vec!["low_confidence_raw".to_string()]
+                } else {
+                    candidate_quality_flags(query, candidate, *score)
+                };
+                let coverage_facets = candidate_coverage_facets(facets, candidate, min_terms);
+                let confidence = if candidate_is_low_confidence_retained(candidate) {
+                    "low_confidence_raw"
+                } else {
+                    "usable"
+                };
                 json!({
+                    "pack_version": "evidence_pack_v1",
                     "source_kind": candidate.source_kind.clone(),
+                    "source_class": evidence_pack_source_class(policy, candidate),
                     "title": clean_text(&candidate.title, 240),
                     "locator": clean_text(&candidate.locator, 2_200),
                     "source_scope": domain,
+                    "source_domain": domain,
                     "snippet": trim_words(&clean_text(&candidate.snippet, 1_800), max_snippet_words),
+                    "claim_hints": evidence_pack_claim_hints(query, &candidate.snippet, 2),
+                    "term_hints": evidence_pack_term_hints(query, candidate, 8),
                     "excerpt_hash": candidate.excerpt_hash.clone(),
                     "score": (*score * 100.0).round() / 100.0,
+                    "score_components": {
+                        "relevance": (*score * 100.0).round() / 100.0,
+                        "source_trust_delta": (source_trust_adjustment(candidate) * 100.0).round() / 100.0,
+                        "freshness_delta": (recency_adjustment(query, candidate) * 100.0).round() / 100.0
+                    },
+                    "confidence": confidence,
+                    "quality_flags": quality_flags,
+                    "coverage_facets": coverage_facets,
+                    "freshness": {
+                        "status": evidence_pack_freshness_status(query, candidate),
+                        "current_intent": current_web_intent(query)
+                    },
                     "timestamp": candidate.timestamp.clone(),
                     "permissions": candidate.permissions.clone(),
                     "content_authority": "retrieved_public_web",
@@ -770,6 +917,25 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
     flags
 }
 
+fn strong_evidence_available(query: &str, actionable_ranked: &[(Candidate, f64)]) -> bool {
+    actionable_ranked.iter().any(|(candidate, score)| {
+        if *score < 0.75 || candidate_is_low_confidence_retained(candidate) {
+            return false;
+        }
+        let flags = candidate_quality_flags(query, candidate, *score);
+        !flags.iter().any(|flag| {
+            matches!(
+                flag.as_str(),
+                "low_trust_source"
+                    | "thin_query_overlap"
+                    | "freshness_unproven"
+                    | "junk_marker"
+                    | "low_score"
+            )
+        })
+    })
+}
+
 fn potential_source_conflict(actionable_ranked: &[(Candidate, f64)]) -> bool {
     let mut positive_claim = false;
     let mut limiting_claim = false;
@@ -849,6 +1015,9 @@ fn web_tool_quality_report(
     }
     if potential_source_conflict(actionable_ranked) {
         flags.push("potential_source_conflict".to_string());
+    }
+    if status == "ok" && strong_evidence_available(query, actionable_ranked) {
+        flags.retain(|flag| flag != "low_signal");
     }
     flags.sort();
     flags.dedup();

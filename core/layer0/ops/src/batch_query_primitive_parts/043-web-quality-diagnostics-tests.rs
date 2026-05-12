@@ -307,6 +307,60 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn evidence_pack_exports_processible_research_context_without_answer_format() {
+        let query = "scientific breakthroughs 2026";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Researchers reported a scientific breakthroughs 2026 update: an April 2026 quantum sensing result improved measurement precision and documented methods, limits, and institutional context.",
+                    "requested_url": "https://science.example.edu/research/publications/scientific-breakthroughs-2026",
+                    "status_code": 200
+                }
+            }),
+            query,
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let pack = out
+            .get("evidence_pack")
+            .and_then(Value::as_array)
+            .expect("evidence pack");
+        let first = pack.first().expect("first evidence item");
+        assert_eq!(
+            first.get("pack_version").and_then(Value::as_str),
+            Some("evidence_pack_v1")
+        );
+        assert_eq!(
+            first.get("source_class").and_then(Value::as_str),
+            Some("scholarly_or_research")
+        );
+        assert_eq!(
+            first.get("confidence").and_then(Value::as_str),
+            Some("usable")
+        );
+        assert_eq!(
+            first.pointer("/freshness/current_intent").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(first
+            .get("claim_hints")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+        assert!(first
+            .get("term_hints")
+            .and_then(Value::as_array)
+            .map(|rows| !rows.is_empty())
+            .unwrap_or(false));
+        assert!(first.pointer("/score_components/relevance").is_some());
+        assert!(!out
+            .get("summary")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .contains("claim_hints"));
+    }
+
+    #[test]
     fn quality_report_marks_comparison_sources_for_careful_synthesis() {
         let ranked = vec![
             (

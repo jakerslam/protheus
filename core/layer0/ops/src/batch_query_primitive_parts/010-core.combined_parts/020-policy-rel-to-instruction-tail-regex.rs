@@ -107,7 +107,37 @@ fn default_policy() -> Value {
             "evidence_pack": {
                 "enabled": true,
                 "max_items": 6,
-                "max_snippet_words": 72
+                "max_snippet_words": 72,
+                "source_class_rules": [
+                    {
+                        "class": "public_institution",
+                        "host_suffixes": [".gov"]
+                    },
+                    {
+                        "class": "scholarly_or_research",
+                        "host_suffixes": [".edu"],
+                        "host_contains": ["arxiv.", "doi."],
+                        "path_contains": ["/paper", "/publication", "/research", "/journal"]
+                    },
+                    {
+                        "class": "documentation_or_reference",
+                        "path_contains": ["/docs", "/documentation", "/reference", "/manual", "/guide"]
+                    },
+                    {
+                        "class": "announcement_or_news",
+                        "path_contains": ["/news", "/press", "/release", "/releases", "/blog", "/announcements"]
+                    },
+                    {
+                        "class": "repository_or_dataset",
+                        "host_contains": ["github.", "gitlab."],
+                        "path_contains": ["/repo", "/repository", "/dataset", "/datasets"]
+                    },
+                    {
+                        "class": "community_or_forum",
+                        "host_contains": ["forum.", "reddit.", "quora."],
+                        "path_contains": ["/forum", "/community", "/discussion"]
+                    }
+                ]
             },
             "coverage_aware_evidence": {
                 "enabled": true,

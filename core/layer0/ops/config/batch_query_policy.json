@@ -651,6 +651,98 @@
       "enabled": true,
       "max_items": 6,
       "max_snippet_words": 72,
+      "item_schema_version": "evidence_pack_v1",
+      "item_fields": [
+        "pack_version",
+        "source_kind",
+        "source_class",
+        "title",
+        "locator",
+        "source_domain",
+        "snippet",
+        "claim_hints",
+        "term_hints",
+        "score",
+        "score_components",
+        "confidence",
+        "quality_flags",
+        "coverage_facets",
+        "freshness",
+        "timestamp",
+        "permissions"
+      ],
+      "source_class_rules": [
+        {
+          "class": "public_institution",
+          "host_suffixes": [
+            ".gov"
+          ]
+        },
+        {
+          "class": "scholarly_or_research",
+          "host_suffixes": [
+            ".edu"
+          ],
+          "host_contains": [
+            "arxiv.",
+            "doi."
+          ],
+          "path_contains": [
+            "/paper",
+            "/publication",
+            "/research",
+            "/journal"
+          ]
+        },
+        {
+          "class": "documentation_or_reference",
+          "path_contains": [
+            "/docs",
+            "/documentation",
+            "/reference",
+            "/manual",
+            "/guide"
+          ]
+        },
+        {
+          "class": "announcement_or_news",
+          "path_contains": [
+            "/news",
+            "/press",
+            "/release",
+            "/releases",
+            "/blog",
+            "/announcements"
+          ]
+        },
+        {
+          "class": "repository_or_dataset",
+          "host_contains": [
+            "github.",
+            "gitlab."
+          ],
+          "path_contains": [
+            "/repo",
+            "/repository",
+            "/dataset",
+            "/datasets"
+          ]
+        },
+        {
+          "class": "community_or_forum",
+          "host_contains": [
+            "forum.",
+            "reddit.",
+            "quora."
+          ],
+          "path_contains": [
+            "/forum",
+            "/community",
+            "/discussion"
+          ]
+        }
+      ],
+      "synthesis_boundary": "The LLM receives ranked evidence objects with source class, confidence, coverage, claim hints, and freshness signals; these are signals for reasoning, not a required final answer format.",
       "result_envelope": {
         "include_source_url": true,
         "include_final_url": true,

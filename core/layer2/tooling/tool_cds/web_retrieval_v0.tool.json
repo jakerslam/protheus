@@ -85,6 +85,21 @@
       "provider_envelope.raw_content_excerpt",
       "provider_envelope.favicon",
       "provider_envelope.subpages",
+      "evidence_pack.pack_version",
+      "evidence_pack.source_kind",
+      "evidence_pack.source_class",
+      "evidence_pack.title",
+      "evidence_pack.locator",
+      "evidence_pack.source_domain",
+      "evidence_pack.snippet",
+      "evidence_pack.claim_hints",
+      "evidence_pack.term_hints",
+      "evidence_pack.score",
+      "evidence_pack.score_components",
+      "evidence_pack.confidence",
+      "evidence_pack.quality_flags",
+      "evidence_pack.coverage_facets",
+      "evidence_pack.freshness",
       "evidence_artifacts.reader_content",
       "evidence_artifacts.reader_markdown",
       "evidence_artifacts.reader_text",
@@ -122,6 +137,16 @@
       "authority": "tool_cd_declares_strategy_rust_executes_without_domain_routes",
       "source_pattern": "crawl4ai_progressive_sufficiency",
       "objective": "gather enough useful evidence before synthesis instead of forcing a final answer from structurally successful but weak search output",
+      "evidence_pack_contract": {
+        "version": "evidence_pack_v1",
+        "purpose": "ranked synthesis context with source class, confidence, quality flags, coverage facets, claim hints, term hints, and freshness signals",
+        "final_answer_format_authority": "agent_authored_not_tool_prescribed",
+        "non_goals": [
+          "do_not_force_tables_lists_sections_or_phrasing",
+          "do_not_bind_to_a_specific_research_domain",
+          "do_not_treat_telemetry_as_citable_evidence"
+        ]
+      },
       "sufficiency_signals": [
         "candidate_count",
         "evidence_count",

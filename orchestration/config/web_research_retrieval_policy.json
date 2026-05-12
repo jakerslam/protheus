@@ -225,6 +225,26 @@
   },
   "evidence_pack": {
     "chat_visibility": "hidden_until_synthesized",
+    "item_schema_version": "evidence_pack_v1",
+    "purpose": "Provide the synthesizer a compact, ranked, processible evidence object instead of a raw blob of search rows.",
+    "required_item_fields": [
+      "pack_version",
+      "source_kind",
+      "source_class",
+      "title",
+      "locator",
+      "source_domain",
+      "snippet",
+      "claim_hints",
+      "term_hints",
+      "score",
+      "score_components",
+      "confidence",
+      "quality_flags",
+      "coverage_facets",
+      "freshness"
+    ],
+    "synthesis_boundary": "Evidence-pack fields guide reasoning and coverage checks, but do not prescribe tables, lists, sections, phrasing, or any other final answer format.",
     "content_variants": [
       "source_excerpt",
       "search_highlight_excerpt",

@@ -300,7 +300,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         {
             out["retrieval_telemetry"] = retrieval_telemetry;
         }
-        if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
+        if let Some(code) = no_results_error_code(&summary, &partial_failure_details) {
+            out["error"] = Value::String(code.to_string());
+        }
         if let Some(meta) = nexus_connection {
             out["nexus_connection"] = meta;
         }
@@ -699,8 +701,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             coverage_facets: candidate_coverage_facets(&research_facets, row, facet_min_terms),
         })
         .collect::<Vec<_>>();
-    let evidence_pack =
-        evidence_pack_from_ranked_candidates(&policy, &evidence_ranked, budget.max_evidence);
+    let evidence_pack = evidence_pack_from_ranked_candidates(
+        &policy,
+        &query,
+        &research_facets,
+        facet_min_terms,
+        &evidence_ranked,
+        budget.max_evidence,
+    );
     let evidence_coverage =
         evidence_coverage_from_ranked_candidates(&research_facets, &evidence_ranked, facet_min_terms);
 
@@ -982,7 +990,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         status,
         &cache_control,
     );
-    if let Some(code) = no_results_error_code_from_summary(&summary) { out["error"] = Value::String(code.to_string()); }
+    if let Some(code) = no_results_error_code_from_failure_strings(&summary, &hard_partial_failures) {
+        out["error"] = Value::String(code.to_string());
+    }
     if let Some(meta) = nexus_connection {
         out["nexus_connection"] = meta;
     }
