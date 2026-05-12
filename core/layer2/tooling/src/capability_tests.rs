@@ -157,7 +157,7 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
         vec!["search_pack".to_string()]
     );
     assert!(batch_query_surface.supports_bulk);
-    assert_eq!(batch_query_surface.max_bulk_items, 6);
+    assert_eq!(batch_query_surface.max_bulk_items, 8);
     assert_eq!(
         batch_query_surface.fingerprint_identity_fields,
         vec![
@@ -170,7 +170,7 @@ fn web_capability_catalog_exposes_tool_cd_metadata() {
     assert_eq!(batch_query_surface.per_domain_concurrency_default, 2);
     assert!(batch_query_surface.blocked_response_retry_allowed);
     assert_eq!(batch_query_surface.max_blocked_retries_default, 2);
-    assert_eq!(batch_query_surface.session_max_parallel_items_default, 6);
+    assert_eq!(batch_query_surface.session_max_parallel_items_default, 4);
     let web_fetch = catalog
         .iter()
         .find(|row| row.tool_name == "web_fetch")
