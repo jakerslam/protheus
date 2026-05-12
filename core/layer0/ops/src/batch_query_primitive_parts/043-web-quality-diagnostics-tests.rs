@@ -353,6 +353,25 @@ mod web_quality_diagnostics_tests {
             .map(|rows| !rows.is_empty())
             .unwrap_or(false));
         assert!(first.pointer("/score_components/relevance").is_some());
+        assert_eq!(
+            out.pointer("/evidence_pack_quality/status").and_then(Value::as_str),
+            Some("thin")
+        );
+        assert_eq!(
+            out.pointer("/source_class_coverage/status").and_then(Value::as_str),
+            Some("limited")
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/primitive").and_then(Value::as_str),
+            Some("web_research")
+        );
+        assert!(
+            out.pointer("/retrieval_broker/provider_attempts")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false),
+            "{out:#?}"
+        );
         assert!(!out
             .get("summary")
             .and_then(Value::as_str)
@@ -395,6 +414,10 @@ mod web_quality_diagnostics_tests {
         assert!(flags.iter().any(|flag| flag == "comparative_synthesis_required"));
         assert!(flags.iter().any(|flag| flag == "potential_source_conflict"));
         assert!(report.pointer("/candidate_quality/0/snippet_preview").is_some());
+        assert_eq!(
+            report.pointer("/coverage/bucket_status").and_then(Value::as_str),
+            Some("covered")
+        );
     }
 
     #[test]

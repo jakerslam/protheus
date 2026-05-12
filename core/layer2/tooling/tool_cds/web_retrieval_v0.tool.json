@@ -31,6 +31,12 @@
       "tool_result_quality.retry.query_strategy_hints",
       "tool_result_quality.coverage.bucket_status",
       "tool_result_quality.coverage.missing_buckets",
+      "retrieval_broker.version",
+      "retrieval_broker.lanes",
+      "retrieval_broker.provider_attempts",
+      "source_class_coverage.status",
+      "source_class_coverage.classes",
+      "evidence_pack_quality.status",
       "query_plan",
       "query_plan_source",
       "provider_result_count",
@@ -134,6 +140,68 @@
         "when search rows are relevant but low-detail, prefer promising-page read/fetch enrichment before synthesis if policy and budget allow",
         "synthesize from best recorded evidence only after internal recovery is exhausted"
       ]
+    },
+    "web_research_broker_contract": {
+      "version": "web_research_broker_contract_v1",
+      "authority": "tool_cd_declares_broker_shape_runtime_records_observations",
+      "purpose": "present web research as one general primitive made of admitted retrieval lanes, so agents can reason over search, read, crawl, extraction, ranking, coverage, and recovery without binding to provider-specific tools or output formats",
+      "primitive_id": "web_research",
+      "lanes": [
+        {
+          "lane": "query_planning",
+          "input": "user_goal_plus_optional_agent_submitted_query_pack",
+          "output": "submitted_query_plan_executed_query_plan_query_plan_source",
+          "authority": "agent_or_policy_submits_runtime_records"
+        },
+        {
+          "lane": "provider_retrieval",
+          "input": "executed_queries_plus_admitted_provider_capabilities",
+          "output": "provider_attempts_provider_result_count_failure_reasons"
+        },
+        {
+          "lane": "candidate_enrichment",
+          "input": "retrieved_rows_promising_urls_and_policy_budget",
+          "output": "reader_or_fetch_artifacts_when_available"
+        },
+        {
+          "lane": "evidence_packaging",
+          "input": "ranked_candidates_reader_artifacts_and_coverage_facets",
+          "output": "evidence_pack_evidence_refs_evidence_pack_quality"
+        },
+        {
+          "lane": "coverage_review",
+          "input": "evidence_pack_evidence_coverage_source_class_coverage",
+          "output": "covered_weak_or_missing_lanes_for_synthesis_or_retry"
+        }
+      ],
+      "provider_adapter_manifest_shape": {
+        "required_fields": [
+          "provider_id",
+          "lane_support",
+          "input_schema_ref",
+          "output_schema_ref",
+          "capabilities",
+          "cost_budget",
+          "failure_modes",
+          "side_effects",
+          "profile_support",
+          "adapter_ref"
+        ],
+        "non_goals": [
+          "do_not_route_by_provider_brand_name_in_agent_prompt",
+          "do_not_make_one_provider_the_semantic_model",
+          "do_not_store_raw_provider_payloads_in_chat_visible_state"
+        ]
+      },
+      "broker_report_fields": [
+        "retrieval_broker.lanes",
+        "retrieval_broker.provider_attempts",
+        "retrieval_broker.second_pass_recovery",
+        "retrieval_broker.source_class_coverage",
+        "retrieval_broker.evidence_pack_quality",
+        "retrieval_broker.tool_result_quality_flags"
+      ],
+      "synthesis_boundary": "The broker report calibrates what happened and what remains weak; it does not prescribe visible answer structure, phrasing, or source conclusions."
     },
     "progressive_retrieval_contract": {
       "authority": "tool_cd_declares_strategy_rust_executes_without_domain_routes",

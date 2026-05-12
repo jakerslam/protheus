@@ -24,6 +24,59 @@
     "depth_first_path_probe",
     "best_first_candidate_expansion"
   ],
+  "web_research_broker": {
+    "enabled": true,
+    "primitive_id": "web_research",
+    "authority": "orchestration_policy_declares_runtime_records",
+    "purpose": "Expose a compact hidden broker report for provider attempts, recovery, evidence-pack quality, source-class coverage, and remaining gaps so synthesis can improve without provider-specific or domain-specific routes.",
+    "lanes": [
+      "query_planning",
+      "provider_retrieval",
+      "candidate_enrichment",
+      "evidence_packaging",
+      "coverage_review"
+    ],
+    "required_report_fields": [
+      "retrieval_broker.lanes",
+      "retrieval_broker.provider_attempts",
+      "retrieval_broker.second_pass_recovery",
+      "source_class_coverage",
+      "evidence_pack_quality"
+    ],
+    "non_goals": [
+      "do_not_force_visible_answer_format",
+      "do_not_choose_providers_by_prompt_phrase",
+      "do_not_treat_broker_diagnostics_as_citable_evidence"
+    ]
+  },
+  "source_diversification": {
+    "enabled": true,
+    "purpose": "Prefer source-class and source-domain breadth when it helps the user's research objective, while allowing narrow lookups to complete with fewer classes.",
+    "min_source_classes": 2,
+    "preferred_source_classes": [
+      "official_or_primary",
+      "scholarly_or_research",
+      "news_or_current",
+      "independent_analysis",
+      "general_web"
+    ],
+    "non_goals": [
+      "do_not_require_every_source_class_for_every_question",
+      "do_not_hardcode_domain_topics",
+      "do_not_replace relevance_with_diversity"
+    ]
+  },
+  "evidence_pack_quality": {
+    "enabled": true,
+    "min_usable_items": 2,
+    "min_source_domains": 2,
+    "purpose": "Summarize whether the hidden evidence pack is absent, thin, low-confidence-only, or usable before final synthesis.",
+    "non_goals": [
+      "do_not_make_quality_metadata_visible_answer_text",
+      "do_not_use_candidate_count_as_sufficiency",
+      "do_not_prescribe_answer_shape"
+    ]
+  },
   "provider_result_envelope": {
     "purpose": "preserve safe provider metadata for ranking and synthesis calibration without exposing raw payloads to chat",
     "raw_payload_chat_visible": false,

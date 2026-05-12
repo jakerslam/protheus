@@ -1284,6 +1284,28 @@ mod quality_tests {
                 .unwrap_or(false),
             "{out:#?}"
         );
+        assert_eq!(
+            out.pointer("/retrieval_broker/primitive").and_then(Value::as_str),
+            Some("web_research"),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/second_pass_recovery/used")
+                .and_then(Value::as_bool),
+            Some(true),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/retrieval_broker/provider_attempts")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("phase").and_then(Value::as_str)
+                        == Some("second_pass_recovery")
+                        && row.get("status").and_then(Value::as_str) == Some("usable")
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
     }
 
     #[test]
@@ -1326,6 +1348,22 @@ mod quality_tests {
                 .and_then(Value::as_array)
                 .map(|rows| rows.iter().any(|row| row.as_str() == Some("low_confidence_raw_evidence")))
                 .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/source_class_coverage/status").and_then(Value::as_str),
+            Some("coverage_gaps"),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/source_class_coverage/missing_facet_count")
+                .and_then(Value::as_u64),
+            Some(1),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/evidence_pack_quality/status").and_then(Value::as_str),
+            Some("low_confidence_only"),
             "{out:#?}"
         );
     }

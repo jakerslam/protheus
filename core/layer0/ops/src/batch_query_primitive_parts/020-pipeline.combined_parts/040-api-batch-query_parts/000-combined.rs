@@ -194,6 +194,54 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         } else {
             cached_web_tool_quality_report(&query, &status, &partial_failure_details, &evidence_refs)
         };
+        let source_class_coverage = cached
+            .get("source_class_coverage")
+            .cloned()
+            .unwrap_or_else(|| {
+                source_class_coverage_from_evidence_pack(
+                    &policy,
+                    &query,
+                    &evidence_pack,
+                    &evidence_coverage,
+                )
+            });
+        let evidence_pack_quality = cached
+            .get("evidence_pack_quality")
+            .cloned()
+            .unwrap_or_else(|| evidence_pack_quality_report(&policy, &evidence_pack, &evidence_coverage));
+        let second_pass_recovery = cached
+            .get("second_pass_recovery")
+            .cloned()
+            .unwrap_or_else(|| {
+                json!({
+                    "enabled": second_pass_recovery_enabled(&policy),
+                    "used": false,
+                    "reason": "none",
+                    "queries": []
+                })
+            });
+        let retrieval_broker = cached
+            .get("retrieval_broker")
+            .cloned()
+            .unwrap_or_else(|| {
+                retrieval_broker_report(
+                    &status,
+                    json!(query_plan_value.clone()),
+                    cached
+                        .get("query_plan")
+                        .cloned()
+                        .unwrap_or_else(|| json!(query_plan_value.clone())),
+                    &query_plan_source,
+                    second_pass_recovery.clone(),
+                    &retrieval_telemetry,
+                    &provider_results,
+                    &evidence_pack,
+                    &evidence_coverage,
+                    &tool_result_quality,
+                    &source_class_coverage,
+                    &evidence_pack_quality,
+                )
+            });
         let parallel_retrieval_used = cached
             .get("parallel_retrieval_used")
             .and_then(Value::as_bool)
@@ -238,6 +286,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "parallel_retrieval_used": parallel_retrieval_used,
             "retrieval_telemetry": retrieval_telemetry.clone(),
             "evidence_coverage": evidence_coverage.clone(),
+            "source_class_coverage": source_class_coverage.clone(),
+            "evidence_pack_quality": evidence_pack_quality.clone(),
+            "retrieval_broker": retrieval_broker.clone(),
             "partial_failure_details": [],
             "tool_result_quality": tool_result_quality.clone(),
             "status": status
@@ -278,6 +329,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "partial_failure_details": partial_failure_details,
             "retrieval_telemetry": retrieval_telemetry.clone(),
             "tool_result_quality": tool_result_quality,
+            "source_class_coverage": source_class_coverage.clone(),
+            "evidence_pack_quality": evidence_pack_quality.clone(),
+            "retrieval_broker": retrieval_broker.clone(),
             "provider_result_count": provider_results.as_array().map(|rows| rows.len()).unwrap_or(0),
             "provider_result_dedup_count": provider_result_dedup_count,
             "cache_status": "hit",
@@ -290,6 +344,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         if evidence_coverage.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
             out["evidence_coverage"] = evidence_coverage;
         }
+        out["source_class_coverage"] = source_class_coverage;
+        out["evidence_pack_quality"] = evidence_pack_quality;
+        out["retrieval_broker"] = retrieval_broker;
         if provider_results.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
             out["provider_results"] = provider_results;
         }
@@ -853,6 +910,31 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         }
     };
     let tool_result_quality = web_tool_quality_report(&query, status, before_dedup, evidence_refs.len(), &partial_failures, &hard_partial_failures, &evidence_ranked);
+    let source_class_coverage =
+        source_class_coverage_from_ranked_candidates(&policy, &query, &evidence_ranked, &evidence_coverage);
+    let evidence_pack_quality = evidence_pack_quality_report(&policy, &evidence_pack, &evidence_coverage);
+    let second_pass_recovery = json!({
+        "enabled": second_pass_recovery_enabled(&policy),
+        "used": !second_pass_queries.is_empty(),
+        "reason": second_pass_reason,
+        "queries": second_pass_queries.clone()
+    });
+    let retrieval_telemetry_value = Value::Array(retrieval_telemetry.clone());
+    let provider_results_value = Value::Array(provider_results.clone());
+    let retrieval_broker = retrieval_broker_report(
+        status,
+        json!(queries.clone()),
+        json!(executed_queries.clone()),
+        query_plan.query_plan_source,
+        second_pass_recovery.clone(),
+        &retrieval_telemetry_value,
+        &provider_results_value,
+        &evidence_pack,
+        &evidence_coverage,
+        &tool_result_quality,
+        &source_class_coverage,
+        &evidence_pack_quality,
+    );
 
     let provider_snapshot = json!({
         "id": crate::deterministic_receipt_hash(&json!({"source": source, "queries": executed_queries, "search_scope": search_scope_value.clone()})),
@@ -872,12 +954,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "rewrite_set": rewrite_set,
         "query_plan": executed_queries,
         "submitted_query_plan": queries,
-        "second_pass_recovery": {
-            "enabled": second_pass_recovery_enabled(&policy),
-            "used": !second_pass_queries.is_empty(),
-            "reason": second_pass_reason,
-            "queries": second_pass_queries
-        },
+        "second_pass_recovery": second_pass_recovery.clone(),
         "query_plan_source": query_plan.query_plan_source,
         "query_contract": {
             "authority": "agent_submitted",
@@ -902,6 +979,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "parallel_retrieval_used": parallel_allowed,
         "retrieval_telemetry": retrieval_telemetry,
         "evidence_coverage": evidence_coverage.clone(),
+        "source_class_coverage": source_class_coverage.clone(),
+        "evidence_pack_quality": evidence_pack_quality.clone(),
+        "retrieval_broker": retrieval_broker.clone(),
         "partial_failure_details": hard_partial_failures,
         "tool_result_quality": tool_result_quality.clone(),
         "status": status
@@ -927,12 +1007,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "rewrite_set": rewrite_set.clone(),
         "query_plan": executed_queries.clone(),
         "submitted_query_plan": queries.clone(),
-        "second_pass_recovery": {
-            "enabled": second_pass_recovery_enabled(&policy),
-            "used": !second_pass_queries.is_empty(),
-            "reason": second_pass_reason,
-            "queries": second_pass_queries.clone()
-        },
+        "second_pass_recovery": second_pass_recovery.clone(),
         "query_plan_source": query_plan.query_plan_source,
         "query_contract": {
             "authority": "agent_submitted",
@@ -944,6 +1019,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "partial_failure_details": hard_partial_failures.clone(),
         "retrieval_telemetry": retrieval_telemetry.clone(),
         "evidence_coverage": evidence_coverage.clone(),
+        "source_class_coverage": source_class_coverage.clone(),
+        "evidence_pack_quality": evidence_pack_quality.clone(),
+        "retrieval_broker": retrieval_broker.clone(),
         "tool_result_quality": tool_result_quality.clone(),
         "provider_result_count": provider_results.len(),
         "provider_result_dedup_count": provider_result_dedup_count,
@@ -957,6 +1035,9 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     if evidence_coverage.as_array().map(|rows| !rows.is_empty()).unwrap_or(false) {
         out["evidence_coverage"] = evidence_coverage.clone();
     }
+    out["source_class_coverage"] = source_class_coverage.clone();
+    out["evidence_pack_quality"] = evidence_pack_quality.clone();
+    out["retrieval_broker"] = retrieval_broker.clone();
     if !provider_results.is_empty() {
         out["provider_results"] = Value::Array(provider_results.clone());
     }
@@ -974,16 +1055,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "rewrite_set": rewrite_set,
             "query_plan": executed_queries,
             "submitted_query_plan": queries,
-            "second_pass_recovery": {
-                "enabled": second_pass_recovery_enabled(&policy),
-                "used": !second_pass_queries.is_empty(),
-                "reason": second_pass_reason,
-                "queries": second_pass_queries
-            },
+            "second_pass_recovery": second_pass_recovery,
             "query_plan_source": query_plan.query_plan_source,
             "search_scope": search_scope_value,
             "partial_failure_details": hard_partial_failures,
             "retrieval_telemetry": retrieval_telemetry,
+            "source_class_coverage": source_class_coverage,
+            "evidence_pack_quality": evidence_pack_quality,
+            "retrieval_broker": retrieval_broker,
             "tool_result_quality": tool_result_quality,
             "parallel_retrieval_used": parallel_allowed
         }),

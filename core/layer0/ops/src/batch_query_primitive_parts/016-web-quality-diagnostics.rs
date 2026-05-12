@@ -18,7 +18,7 @@ fn current_web_intent(query: &str) -> bool {
 }
 
 fn web_tool_quality_version() -> &'static str {
-    "web_tool_quality_v2"
+    "web_tool_quality_v3"
 }
 
 fn current_year() -> String {
@@ -805,6 +805,441 @@ fn evidence_pack_from_ranked_candidates(
     )
 }
 
+fn value_array_len(value: &Value) -> usize {
+    value.as_array().map(Vec::len).unwrap_or(0)
+}
+
+fn policy_usize_at(policy: &Value, pointer: &str, default_value: usize, min: usize, max: usize) -> usize {
+    policy
+        .pointer(pointer)
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(default_value)
+        .clamp(min, max)
+}
+
+fn source_class_diversity_min(policy: &Value, query: &str) -> usize {
+    let default_value = if current_web_intent(query) { 2 } else { 1 };
+    policy_usize_at(
+        policy,
+        "/batch_query/source_diversification/min_source_classes",
+        default_value,
+        1,
+        8,
+    )
+}
+
+fn evidence_pack_quality_report(policy: &Value, evidence_pack: &Value, evidence_coverage: &Value) -> Value {
+    let min_usable = policy_usize_at(
+        policy,
+        "/batch_query/evidence_pack_quality/min_usable_items",
+        2,
+        1,
+        12,
+    );
+    let min_domains = policy_usize_at(
+        policy,
+        "/batch_query/evidence_pack_quality/min_source_domains",
+        2,
+        1,
+        12,
+    );
+    let mut usable_count = 0usize;
+    let mut low_confidence_count = 0usize;
+    let mut domains = HashSet::<String>::new();
+    let mut source_classes = HashSet::<String>::new();
+    if let Some(rows) = evidence_pack.as_array() {
+        for row in rows {
+            let confidence = clean_text(
+                row.get("confidence").and_then(Value::as_str).unwrap_or(""),
+                80,
+            );
+            if confidence == "low_confidence_raw" {
+                low_confidence_count += 1;
+            } else {
+                usable_count += 1;
+            }
+            let domain = clean_text(
+                row.get("source_domain")
+                    .or_else(|| row.get("source_scope"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                180,
+            )
+            .to_ascii_lowercase();
+            if !domain.is_empty() && domain != "source" {
+                domains.insert(domain);
+            }
+            let source_class = clean_text(
+                row.get("source_class").and_then(Value::as_str).unwrap_or(""),
+                120,
+            )
+            .to_ascii_lowercase();
+            if !source_class.is_empty() {
+                source_classes.insert(source_class);
+            }
+        }
+    }
+    let mut missing_facets = 0usize;
+    let mut weak_facets = 0usize;
+    if let Some(rows) = evidence_coverage.as_array() {
+        for row in rows {
+            match row.get("status").and_then(Value::as_str).unwrap_or("") {
+                "missing" => missing_facets += 1,
+                "weak" => weak_facets += 1,
+                _ => {}
+            }
+        }
+    }
+    let item_count = value_array_len(evidence_pack);
+    let status = if item_count == 0 {
+        "absent"
+    } else if usable_count == 0 {
+        "low_confidence_only"
+    } else if usable_count < min_usable || domains.len() < min_domains || missing_facets > 0 {
+        "thin"
+    } else {
+        "usable"
+    };
+    json!({
+        "version": "evidence_pack_quality_v1",
+        "status": status,
+        "item_count": item_count,
+        "usable_count": usable_count,
+        "low_confidence_count": low_confidence_count,
+        "source_domain_count": domains.len(),
+        "source_class_count": source_classes.len(),
+        "missing_facet_count": missing_facets,
+        "weak_facet_count": weak_facets,
+        "thresholds": {
+            "min_usable_items": min_usable,
+            "min_source_domains": min_domains
+        },
+        "synthesis_boundary": "quality metadata is calibration context, not citable evidence or final answer structure"
+    })
+}
+
+fn source_class_coverage_from_evidence_pack(
+    policy: &Value,
+    query: &str,
+    evidence_pack: &Value,
+    evidence_coverage: &Value,
+) -> Value {
+    let mut class_counts = HashMap::<String, usize>::new();
+    let mut domains = HashSet::<String>::new();
+    let mut low_confidence_count = 0usize;
+    if let Some(rows) = evidence_pack.as_array() {
+        for row in rows {
+            let source_class = clean_text(
+                row.get("source_class").and_then(Value::as_str).unwrap_or("general_web"),
+                120,
+            )
+            .to_ascii_lowercase();
+            if !source_class.is_empty() {
+                *class_counts.entry(source_class).or_insert(0) += 1;
+            }
+            let domain = clean_text(
+                row.get("source_domain")
+                    .or_else(|| row.get("source_scope"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                180,
+            )
+            .to_ascii_lowercase();
+            if !domain.is_empty() && domain != "source" {
+                domains.insert(domain);
+            }
+            if row.get("confidence").and_then(Value::as_str) == Some("low_confidence_raw") {
+                low_confidence_count += 1;
+            }
+        }
+    }
+    let mut classes = class_counts
+        .iter()
+        .map(|(class, count)| json!({"source_class": class, "evidence_count": count}))
+        .collect::<Vec<_>>();
+    classes.sort_by(|a, b| {
+        b.get("evidence_count")
+            .and_then(Value::as_u64)
+            .cmp(&a.get("evidence_count").and_then(Value::as_u64))
+            .then_with(|| {
+                a.get("source_class")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .cmp(b.get("source_class").and_then(Value::as_str).unwrap_or(""))
+            })
+    });
+    let preferred = policy_string_list(
+        policy,
+        "/batch_query/source_diversification/preferred_source_classes",
+    );
+    let missing_preferred = preferred
+        .iter()
+        .filter(|class| !class_counts.contains_key(*class))
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut missing_facets = 0usize;
+    if let Some(rows) = evidence_coverage.as_array() {
+        missing_facets = rows
+            .iter()
+            .filter(|row| row.get("status").and_then(Value::as_str) == Some("missing"))
+            .count();
+    }
+    let min_classes = source_class_diversity_min(policy, query);
+    let item_count = value_array_len(evidence_pack);
+    let status = if item_count == 0 {
+        "absent"
+    } else if class_counts.len() < min_classes {
+        "limited"
+    } else if missing_facets > 0 {
+        "coverage_gaps"
+    } else {
+        "diverse"
+    };
+    json!({
+        "version": "source_class_coverage_v1",
+        "status": status,
+        "source_class_count": class_counts.len(),
+        "source_domain_count": domains.len(),
+        "low_confidence_count": low_confidence_count,
+        "classes": classes,
+        "preferred_source_classes_missing": missing_preferred,
+        "missing_facet_count": missing_facets,
+        "thresholds": {
+            "min_source_classes": min_classes
+        },
+        "non_goal": "do_not_require_any_specific_source_class_for_all_research"
+    })
+}
+
+fn source_class_coverage_from_ranked_candidates(
+    policy: &Value,
+    query: &str,
+    evidence_ranked: &[(Candidate, f64)],
+    evidence_coverage: &Value,
+) -> Value {
+    let pack_like = Value::Array(
+        evidence_ranked
+            .iter()
+            .map(|(candidate, _)| {
+                json!({
+                    "source_class": evidence_pack_source_class(policy, candidate),
+                    "source_domain": candidate_domain_hint(candidate),
+                    "confidence": if candidate_is_low_confidence_retained(candidate) {
+                        "low_confidence_raw"
+                    } else {
+                        "usable"
+                    }
+                })
+            })
+            .collect::<Vec<_>>(),
+    );
+    source_class_coverage_from_evidence_pack(policy, query, &pack_like, evidence_coverage)
+}
+
+fn provider_attempts_from_retrieval_telemetry(retrieval_telemetry: &Value) -> Value {
+    let attempts = retrieval_telemetry
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .map(|row| {
+                    let provider_count = row
+                        .get("provider_count")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    let provider_raw_rows = row
+                        .get("provider_raw_rows")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    let synthesis_rows = row
+                        .get("synthesis_candidate_rows")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    let low_confidence_rows = row
+                        .get("low_confidence_raw_rows")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    let failure_count = row
+                        .get("failure_reasons")
+                        .and_then(Value::as_array)
+                        .map(Vec::len)
+                        .unwrap_or(0);
+                    let status = if synthesis_rows > 0 {
+                        "usable"
+                    } else if low_confidence_rows > 0 {
+                        "low_confidence"
+                    } else if provider_raw_rows > 0 {
+                        "filtered"
+                    } else if provider_count > 0 || failure_count > 0 {
+                        "failed_or_empty"
+                    } else {
+                        "not_recorded"
+                    };
+                    json!({
+                        "query": row.get("query").cloned().unwrap_or_else(|| json!("")),
+                        "phase": row.get("phase").cloned().unwrap_or_else(|| json!("unknown")),
+                        "status": status,
+                        "provider_count": provider_count,
+                        "provider_raw_rows": provider_raw_rows,
+                        "candidate_rows": row.get("candidate_rows").cloned().unwrap_or_else(|| json!(0)),
+                        "synthesis_candidate_rows": synthesis_rows,
+                        "low_confidence_raw_rows": low_confidence_rows,
+                        "failure_reasons": row.get("failure_reasons").cloned().unwrap_or_else(|| json!([]))
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    Value::Array(attempts)
+}
+
+fn provider_attempts_from_provider_results(provider_results: &Value) -> Value {
+    let attempts = provider_results
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .map(|row| {
+                    let raw_count = row
+                        .get("provider_raw_count")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    let synthesis_count = row
+                        .get("synthesis_candidate_count")
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0);
+                    let quality = row
+                        .get("result_quality")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
+                    let ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false);
+                    let status = if quality == "usable" || synthesis_count > 0 {
+                        "usable"
+                    } else if quality == "low_signal" || quality == "low_confidence_raw" {
+                        "low_confidence"
+                    } else if raw_count > 0 && ok {
+                        "filtered"
+                    } else {
+                        "failed_or_empty"
+                    };
+                    json!({
+                        "query": row.get("query").cloned().unwrap_or_else(|| json!("")),
+                        "phase": row.get("stage").cloned().unwrap_or_else(|| json!("provider_result")),
+                        "provider": row.get("provider").cloned().unwrap_or_else(|| json!("unknown")),
+                        "status": status,
+                        "provider_count": 1,
+                        "provider_raw_rows": raw_count,
+                        "candidate_rows": raw_count,
+                        "synthesis_candidate_rows": synthesis_count,
+                        "low_confidence_raw_rows": if status == "low_confidence" { raw_count } else { 0 },
+                        "failure_reasons": row.get("failure_reasons").cloned().unwrap_or_else(|| {
+                            row.get("error")
+                                .and_then(Value::as_str)
+                                .map(|error| json!([error]))
+                                .unwrap_or_else(|| json!([]))
+                        })
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    Value::Array(attempts)
+}
+
+fn retrieval_broker_report(
+    status: &str,
+    submitted_query_plan: Value,
+    executed_query_plan: Value,
+    query_plan_source: &str,
+    second_pass_recovery: Value,
+    retrieval_telemetry: &Value,
+    provider_results: &Value,
+    evidence_pack: &Value,
+    evidence_coverage: &Value,
+    tool_result_quality: &Value,
+    source_class_coverage: &Value,
+    evidence_pack_quality: &Value,
+) -> Value {
+    let mut provider_attempts = provider_attempts_from_retrieval_telemetry(retrieval_telemetry);
+    if value_array_len(&provider_attempts) == 0 {
+        provider_attempts = provider_attempts_from_provider_results(provider_results);
+    }
+    let provider_attempt_count = value_array_len(&provider_attempts);
+    let provider_success_count = provider_attempts
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| row.get("status").and_then(Value::as_str) == Some("usable"))
+                .count()
+        })
+        .unwrap_or(0);
+    let evidence_status = evidence_pack_quality
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("absent");
+    let provider_status = if provider_attempt_count == 0 {
+        "not_recorded"
+    } else if provider_success_count > 0 {
+        "usable"
+    } else {
+        "degraded"
+    };
+    let submitted_query_count = value_array_len(&submitted_query_plan);
+    let executed_query_count = value_array_len(&executed_query_plan);
+    let provider_result_count = value_array_len(provider_results);
+    let evidence_pack_count = value_array_len(evidence_pack);
+    let coverage_facet_count = value_array_len(evidence_coverage);
+    json!({
+        "version": "web_research_broker_report_v1",
+        "primitive": "web_research",
+        "authority": "tool_cd_policy_runtime_observation",
+        "chat_visibility": "hidden_until_synthesized",
+        "status": status,
+        "query_planning": {
+            "submitted_query_plan": submitted_query_plan,
+            "executed_query_plan": executed_query_plan,
+            "query_plan_source": query_plan_source,
+            "hidden_query_expansion": false
+        },
+        "lanes": [
+            {
+                "lane": "query_planning",
+                "status": "complete",
+                "submitted_query_count": submitted_query_count,
+                "executed_query_count": executed_query_count
+            },
+            {
+                "lane": "provider_retrieval",
+                "status": provider_status,
+                "attempt_count": provider_attempt_count,
+                "usable_attempt_count": provider_success_count,
+                "provider_result_count": provider_result_count
+            },
+            {
+                "lane": "evidence_packaging",
+                "status": evidence_status,
+                "evidence_pack_count": evidence_pack_count
+            },
+            {
+                "lane": "coverage_review",
+                "status": source_class_coverage
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
+                "coverage_facet_count": coverage_facet_count
+            }
+        ],
+        "provider_attempts": provider_attempts,
+        "second_pass_recovery": second_pass_recovery,
+        "source_class_coverage": source_class_coverage,
+        "evidence_pack_quality": evidence_pack_quality,
+        "tool_result_quality_flags": tool_result_quality
+            .get("flags")
+            .cloned()
+            .unwrap_or_else(|| json!([])),
+        "synthesis_boundary": "broker diagnostics guide retrieval calibration but are not final-answer text or citable source evidence"
+    })
+}
+
 fn fallback_link_score(query: &str, link: &str) -> f64 {
     let cleaned = clean_text(link, 2_200);
     let lowered = cleaned.to_ascii_lowercase();
@@ -1055,6 +1490,31 @@ fn web_tool_quality_report(
     }
     flags.sort();
     flags.dedup();
+    let coverage_status = if evidence_count == 0 {
+        "missing"
+    } else if weak_single_source || flags.iter().any(|flag| flag == "low_signal") {
+        "weak"
+    } else {
+        "covered"
+    };
+    let mut missing_buckets = Vec::<String>::new();
+    if evidence_count == 0 {
+        missing_buckets.push("usable_evidence".to_string());
+    }
+    if weak_single_source {
+        missing_buckets.push("source_diversity_or_confidence".to_string());
+    }
+    if flags
+        .iter()
+        .any(|flag| flag == "comparison_evidence_insufficient")
+    {
+        missing_buckets.push("comparison_coverage".to_string());
+    }
+    if flags.iter().any(|flag| flag == "freshness_unproven") {
+        missing_buckets.push("freshness_signal".to_string());
+    }
+    missing_buckets.sort();
+    missing_buckets.dedup();
     let retry_reason = if flags.iter().any(|flag| flag == "anti_bot_filtered") {
         "anti_bot_filtered"
     } else if flags.iter().any(|flag| flag == "provider_degraded") {
@@ -1079,6 +1539,12 @@ fn web_tool_quality_report(
         "flags": flags,
         "candidate_count": candidate_count,
         "evidence_count": evidence_count,
+        "coverage": {
+            "bucket_status": coverage_status,
+            "missing_buckets": missing_buckets,
+            "source_domain_count": domains.len(),
+            "basis": "usable_evidence_source_diversity_and_quality_flags"
+        },
         "freshness": {
             "current_intent": current_web_intent(query),
             "current_year": current_year()
