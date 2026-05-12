@@ -55,6 +55,22 @@ fn runner_args(root: &Path, cases: &Path, responses: &Path) -> Vec<String> {
         format!("--out-latest={}", root.join("latest.json").display()),
         format!("--out-markdown={}", root.join("report.md").display()),
         format!("--failures-out={}", root.join("failures.jsonl").display()),
+        format!(
+            "--observation-ledger-out={}",
+            root.join("observation_events.jsonl").display()
+        ),
+        format!(
+            "--observation-hot-out={}",
+            root.join("observation_hot.json").display()
+        ),
+        format!(
+            "--observation-archive-out={}",
+            root.join("observation_archive.json").display()
+        ),
+        format!(
+            "--observation-summary-out={}",
+            root.join("observation_summary.json").display()
+        ),
         "--strict=0".to_string(),
     ]
 }
@@ -135,4 +151,14 @@ fn research_success_requires_score_and_lifecycle_gate_completion() {
         .iter()
         .any(|row| row.as_str()
             == Some("research_lifecycle_gate_failed:5b_raw_provider_result_present")));
+    assert_eq!(
+        report.pointer("/observation_lifecycle/enabled"),
+        Some(&Value::Bool(true))
+    );
+    assert_eq!(
+        report.pointer("/observation_lifecycle/ok"),
+        Some(&Value::Bool(true))
+    );
+    assert!(root.join("observation_events.jsonl").exists());
+    assert!(root.join("observation_archive.json").exists());
 }

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "canonical_owner": "orchestration",
+  "policy_id": "run_observation_lifecycle_v1",
+  "purpose": "Standard lifecycle storage for workflow, tool, eval, and agent run observations without retaining raw user content or raw tool payloads.",
+  "default_application": {
+    "workflow_runs": true,
+    "workflow_gates": true,
+    "tool_attempts": true,
+    "retrieval_quality": true,
+    "synthesis_quality": true,
+    "eval_cases": true
+  },
+  "paths": {
+    "compact_ledger": "local/state/ops/run_observation_lifecycle/events.jsonl",
+    "hot_ring_buffer": "local/state/ops/run_observation_lifecycle/hot_window.json",
+    "failure_lifecycle_archive": "local/state/ops/run_observation_lifecycle/archive.json",
+    "current_summary": "core/local/artifacts/run_observation_lifecycle_current.json"
+  },
+  "lanes": {
+    "hot_ring_buffer": {
+      "enabled": true,
+      "purpose": "Recent detailed compact observations for debugging active regressions.",
+      "hard_ceiling_records": 500,
+      "drop_policy": "drop_oldest_records_first"
+    },
+    "compact_ledger": {
+      "enabled": true,
+      "purpose": "Append compact facts for longitudinal trend analysis.",
+      "payload_policy": "hashes_refs_metrics_short_previews_only",
+      "raw_payload_policy": "forbidden"
+    },
+    "failure_lifecycle_archive": {
+      "enabled": true,
+      "purpose": "Track open, mitigated, archived, and reemerged failure signatures across runs.",
+      "states": [
+        "open",
+        "targeted",
+        "mitigated",
+        "archived",
+        "reemerged",
+        "stable_pass",
+        "quarantined"
+      ],
+      "close_after_consecutive_passes": 2,
+      "same_signature_reappears_after_archive": "reemerged"
+    },
+    "age_decayed_sampling": {
+      "enabled": true,
+      "purpose": "Retain representative old compact observations while biasing detailed data toward recent runs.",
+      "strategy": "stratified_keep_hard_failures_reemergences_and_periodic_baselines_drop_repetitive_success_noise",
+      "time_blocks": [
+        {
+          "age": "0_to_7_days",
+          "target_retention_ratio": 1.0
+        },
+        {
+          "age": "8_to_30_days",
+          "target_retention_ratio": 0.5
+        },
+        {
+          "age": "31_to_90_days",
+          "target_retention_ratio": 0.2
+        },
+        {
+          "age": "older_than_90_days",
+          "target_retention_ratio": 0.05
+        }
+      ]
+    }
+  },
+  "retention": {
+    "hot_ring_max_records": 500,
+    "subject_history_tail_max": 12,
+    "archive_after_consecutive_passes": 2,
+    "bulky_artifact_ttl_days": 14,
+    "compact_artifact_summary_ttl_days": 365
+  },
+  "data_minimization": {
+    "store_raw_user_content": false,
+    "store_raw_tool_payloads": false,
+    "store_full_chat_transcripts": false,
+    "store_full_provider_results": false,
+    "store_artifact_refs_hashes_and_short_previews_only": true,
+    "max_preview_chars": 360
+  },
+  "non_goals": [
+    "do_not_make_observability_an_authority_layer",
+    "do_not_hide_current_failures_by_archiving_them",
+    "do_not_use_archives_to_remove_cases_from_golden_scoreboards",
+    "do_not_store_raw_payloads_without_an_explicit_retention_contract"
+  ]
+}

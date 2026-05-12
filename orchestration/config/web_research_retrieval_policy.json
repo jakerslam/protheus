@@ -271,6 +271,68 @@
     ],
     "synthesis_implication": "artifact_presence_is_not_evidence_usefulness; synthesize normally only from usable evidence, otherwise do bounded low-evidence synthesis after recorded recovery"
   },
+  "raw_result_retention": {
+    "purpose": "keep weak provider evidence available for diagnosis and bounded low-evidence synthesis without treating it as normal source backing",
+    "confidence_values": [
+      "usable",
+      "low_confidence_raw"
+    ],
+    "record_fields": [
+      "attempted_query",
+      "provider",
+      "provider_raw_count",
+      "provider_filtered_count",
+      "failure_reasons",
+      "result_quality"
+    ],
+    "synthesis_rule": "low_confidence_raw rows may support bounded uncertainty and gap analysis, but telemetry is diagnostic context and must not be cited as a source"
+  },
+  "coverage_aware_evidence": {
+    "purpose": "for any research domain, retain and promote evidence across the facets implied by the user's request and submitted query pack rather than relying only on one global ranking",
+    "facet_source": [
+      "user_research_objective",
+      "submitted_query_pack",
+      "generic_clause_splitting_when_no_query_pack_exists"
+    ],
+    "coverage_status_values": [
+      "covered",
+      "weak",
+      "missing"
+    ],
+    "synthesis_rule": "answer the covered facets, mark weak or missing facets as uncertainty or coverage gaps, and avoid presenting weak raw rows as strong source backing",
+    "non_goals": [
+      "do_not_hardcode_research_domains",
+      "do_not_prescribe_final_answer_format",
+      "do_not_hide_query_expansion_or_evidence_gaps"
+    ]
+  },
+  "bounded_second_pass_recovery": {
+    "purpose": "when the first pass has no usable synthesis evidence or no provider artifacts, run recorded generic recovery queries before final synthesis",
+    "authority": "policy_declares_recovery_shape_agent_or_runtime_records_attempted_queries",
+    "non_goals": [
+      "do_not_hide_query_expansion",
+      "do_not_hardcode_domains_or_research_topics",
+      "do_not_force_final_answer_format"
+    ]
+  },
+  "coverage_gap_recovery": {
+    "purpose": "when candidate volume exists but usable evidence coverage remains thin, spend bounded follow-up lanes on the uncovered research facets before synthesis",
+    "authority": "policy_declares_recovery_shape_agent_or_runtime_records_attempted_queries",
+    "trigger": "candidate_volume_exists_but_usable_evidence_or_facet_coverage_is_low",
+    "sufficiency_target": "prefer at least three usable evidence refs and roughly three quarters of requested facets before treating high-volume retrieval as sufficient",
+    "templates": [
+      "{facet} source-backed evidence",
+      "{facet} primary or official source",
+      "{facet} independent analysis evidence",
+      "{facet} examples reports data"
+    ],
+    "non_goals": [
+      "do_not_hide_query_expansion",
+      "do_not_hardcode_domains_or_research_topics",
+      "do_not_force_final_answer_format",
+      "do_not_treat_high_candidate_count_as_evidence_sufficiency"
+    ]
+  },
   "async_result_lifecycle": {
     "enabled": true,
     "use_for_large_or_long_running_batches": true,

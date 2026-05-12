@@ -10,7 +10,17 @@
   "audit_mirror": [
     { "id": "event_stream", "paths": ["local/state/events/event_stream.jsonl"], "contract": "append_only_jsonl" },
     { "id": "ops_receipts", "paths": ["local/state/ops"], "contract": "append_only_receipts" },
-    { "id": "memory_receipts", "paths": ["local/state/memory"], "contract": "append_only_receipts" }
+    { "id": "memory_receipts", "paths": ["local/state/memory"], "contract": "append_only_receipts" },
+    {
+      "id": "run_observation_lifecycle",
+      "paths": [
+        "local/state/ops/run_observation_lifecycle/events.jsonl",
+        "local/state/ops/run_observation_lifecycle/hot_window.json",
+        "local/state/ops/run_observation_lifecycle/archive.json",
+        "core/local/artifacts/run_observation_lifecycle_current.json"
+      ],
+      "contract": "compact_ledger_hot_ring_failure_lifecycle_archive"
+    }
   ],
   "paths": {
     "latest_path": "local/state/ops/state_tiering_contract/latest.json",

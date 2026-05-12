@@ -71,6 +71,34 @@ pub(super) fn markdown_report(report: &Value) -> String {
             ));
         }
     }
+    out.push_str("\n## Category Pass Rates\n\n");
+    if let Some(rows) = report.get("category_pass_rates").and_then(Value::as_array) {
+        for row in rows {
+            out.push_str(&format!(
+                "- {}: {}/{} ({:.3}) excellent={}/{}\n",
+                str_at(row, &["category"], "unknown"),
+                u64_at(row, &["passed"], 0),
+                u64_at(row, &["total"], 0),
+                f64_at(row, &["pass_rate"], 0.0),
+                u64_at(row, &["excellent"], 0),
+                u64_at(row, &["total"], 0),
+            ));
+        }
+    }
+    out.push_str("\n## Tag Pass Rates\n\n");
+    if let Some(rows) = report.get("tag_pass_rates").and_then(Value::as_array) {
+        for row in rows {
+            out.push_str(&format!(
+                "- {}: {}/{} ({:.3}) excellent={}/{}\n",
+                str_at(row, &["tag"], "unknown"),
+                u64_at(row, &["passed"], 0),
+                u64_at(row, &["total"], 0),
+                f64_at(row, &["pass_rate"], 0.0),
+                u64_at(row, &["excellent"], 0),
+                u64_at(row, &["total"], 0),
+            ));
+        }
+    }
     let split = report.get("measurement_split").unwrap_or(&Value::Null);
     out.push_str("\n## Measurement Split\n\n");
     out.push_str(&format!(
@@ -101,6 +129,20 @@ pub(super) fn markdown_report(report: &Value) -> String {
         str_at(split, &["end_to_end_golden", "mode"], "unknown"),
         f64_at(split, &["end_to_end_golden", "research_success_rate"], 0.0),
         u64_at(split, &["failure_classification", "soft_failure_cases"], 0)
+    ));
+    let lifecycle = report.get("observation_lifecycle").unwrap_or(&Value::Null);
+    out.push_str("\n## Observation Lifecycle\n\n");
+    out.push_str(&format!(
+        "- enabled={} ok={} events_recorded={}\n",
+        bool_at(lifecycle, &["enabled"], false),
+        bool_at(lifecycle, &["ok"], false),
+        u64_at(lifecycle, &["events_recorded"], 0)
+    ));
+    out.push_str(&format!(
+        "- archive: open_subjects={} archived_subjects={} reemerged_subjects={}\n",
+        u64_at(lifecycle, &["summary", "archive", "open_subjects"], 0),
+        u64_at(lifecycle, &["summary", "archive", "archived_subjects"], 0),
+        u64_at(lifecycle, &["summary", "archive", "reemerged_subjects"], 0)
     ));
     out.push_str("\n## Lowest Cases\n\n");
     let mut case_rows = report

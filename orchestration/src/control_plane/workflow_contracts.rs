@@ -38,6 +38,13 @@ pub const REQUIRED_RUST_OWNS: &[&str] = &[
     "trace_export",
     "kernel_policy_enforcement",
 ];
+pub const OBSERVATION_LIFECYCLE_SCHEMA_VERSION: &str = "run_observation_lifecycle_v1";
+pub const REQUIRED_OBSERVATION_LANES: &[&str] = &[
+    "compact_ledger",
+    "hot_ring_buffer",
+    "failure_lifecycle_archive",
+    "artifact_ref_retention",
+];
 
 const TOOL_FAMILY_SCHEMAS: &[(&str, &str, &str)] = &[
     (
@@ -83,6 +90,7 @@ struct WorkflowSpec {
     #[serde(default)]
     subtemplates: Vec<Value>,
     workflow_source_of_truth_contract: Option<WorkflowSourceOfTruthContract>,
+    observation_lifecycle_contract: Option<ObservationLifecycleContract>,
     typed_execution_contract: Option<TypedExecutionContract>,
     interaction_gate_contract: Option<InteractionGateContract>,
 }
@@ -149,6 +157,20 @@ pub struct WorkflowSourceOfTruthContract {
     pub json_owns: Vec<String>,
     #[serde(default)]
     pub rust_owns: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct ObservationLifecycleContract {
+    #[serde(default)]
+    pub version: String,
+    #[serde(default)]
+    pub policy_ref: String,
+    #[serde(default)]
+    pub purpose: String,
+    #[serde(default)]
+    pub required_lanes: Vec<String>,
+    #[serde(default)]
+    pub non_goals: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -231,6 +253,7 @@ pub struct NormalizedWorkflowGraph {
     pub transitions: Vec<String>,
     pub gate_contract: StructuredGateContract,
     pub interaction_gate_contract: InteractionGateContract,
+    pub observation_lifecycle_contract: ObservationLifecycleContract,
     pub terminal_states: Vec<String>,
     pub telemetry_streams: Vec<String>,
     pub tool_families: Vec<String>,
@@ -409,6 +432,10 @@ fn validate_workflow_source(
         errors.push("missing_workflow_source_of_truth_contract".to_string());
         return validation(path, false, &workflow_id, errors, None);
     };
+    let Some(observation_lifecycle_contract) = spec.observation_lifecycle_contract else {
+        errors.push("missing_observation_lifecycle_contract".to_string());
+        return validation(path, false, &workflow_id, errors, None);
+    };
     let Some(contract) = spec.typed_execution_contract else {
         errors.push("missing_typed_execution_contract".to_string());
         return validation(path, false, &workflow_id, errors, None);
@@ -426,6 +453,7 @@ fn validate_workflow_source(
         subtemplate_count: spec.subtemplates.len(),
         stages,
         source_contract,
+        observation_lifecycle_contract,
         contract,
         interaction_gate_contract,
         errors: &mut errors,
@@ -442,6 +470,7 @@ struct WorkflowGraphCompileInput<'a> {
     subtemplate_count: usize,
     stages: Vec<String>,
     source_contract: WorkflowSourceOfTruthContract,
+    observation_lifecycle_contract: ObservationLifecycleContract,
     contract: TypedExecutionContract,
     interaction_gate_contract: InteractionGateContract,
     errors: &'a mut Vec<String>,
@@ -457,12 +486,14 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         subtemplate_count,
         stages,
         source_contract,
+        observation_lifecycle_contract,
         contract,
         interaction_gate_contract,
         errors,
     } = input;
     let stage_set: HashSet<&str> = stages.iter().map(String::as_str).collect();
     validate_source_of_truth_contract(&source_contract, errors);
+    validate_observation_lifecycle_contract(&observation_lifecycle_contract, errors);
     validate_contract_basics(&contract, errors);
     validate_interaction_gate_contract(&interaction_gate_contract, errors);
     let terminal_states = clean_list(contract.terminal_states);
@@ -521,6 +552,7 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
             visibility_scope: "telemetry_only_until_final_llm_output".to_string(),
         },
         interaction_gate_contract,
+        observation_lifecycle_contract,
         terminal_states,
         telemetry_streams,
         tool_families,
@@ -660,6 +692,40 @@ fn validate_source_of_truth_contract(
     let rust_owns = clean_list(contract.rust_owns.clone());
     let rust_owns_set: HashSet<&str> = rust_owns.iter().map(String::as_str).collect();
     require_subset("rust_owns", REQUIRED_RUST_OWNS, &rust_owns_set, errors);
+}
+
+fn validate_observation_lifecycle_contract(
+    contract: &ObservationLifecycleContract,
+    errors: &mut Vec<String>,
+) {
+    if contract.version != OBSERVATION_LIFECYCLE_SCHEMA_VERSION {
+        errors.push("invalid_observation_lifecycle_contract_version".to_string());
+    }
+    if contract.policy_ref != "orchestration/config/run_observation_lifecycle_policy.json" {
+        errors.push("invalid_observation_lifecycle_policy_ref".to_string());
+    }
+    if contract.purpose.trim().is_empty() {
+        errors.push("missing_observation_lifecycle_purpose".to_string());
+    }
+    let lanes = clean_list(contract.required_lanes.clone());
+    let lane_set: HashSet<&str> = lanes.iter().map(String::as_str).collect();
+    require_subset(
+        "observation_lifecycle_lane",
+        REQUIRED_OBSERVATION_LANES,
+        &lane_set,
+        errors,
+    );
+    let non_goals = clean_list(contract.non_goals.clone());
+    let non_goal_set: HashSet<&str> = non_goals.iter().map(String::as_str).collect();
+    require_subset(
+        "observation_lifecycle_non_goal",
+        &[
+            "do_not_hide_current_failures",
+            "do_not_store_raw_tool_payloads",
+        ],
+        &non_goal_set,
+        errors,
+    );
 }
 
 fn validate_contract_basics(contract: &TypedExecutionContract, errors: &mut Vec<String>) {

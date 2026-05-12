@@ -106,6 +106,159 @@ mod cache_rewrite_tests {
     }
 
     #[test]
+    fn disabled_cache_mode_bypasses_read_and_write_for_isolated_runs() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = load_policy(tmp.path());
+        let query = "cache isolation test";
+        let key = cache_key("web", query, "small", &policy);
+        let now_ts = chrono::Utc::now().timestamp();
+        write_json_atomic(
+            &cache_path(tmp.path()),
+            &json!({
+                "version": 1,
+                "entries": {
+                    key.clone(): {
+                        "stored_at": now_ts,
+                        "expires_at": now_ts + 120,
+                        "status": "ok",
+                        "response": {
+                            "status": "ok",
+                            "summary": "stale cached only text",
+                            "evidence_refs": [
+                                {"title":"Stale cache row","locator":"https://stale.example/cache","score":0.9}
+                            ],
+                            "partial_failure_details": []
+                        }
+                    }
+                }
+            }),
+        )
+        .expect("write cache");
+
+        let out = run_request_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "cache isolation test fresh retrieval evidence",
+                    "content": "Cache isolation test — https://example.org/cache-isolation — Cache isolation keeps eval runs from replaying old evidence.",
+                    "links": ["https://example.org/cache-isolation"],
+                    "requested_url": "https://example.org/cache-isolation",
+                    "status_code": 200
+                }
+            }),
+            &json!({
+                "source": "web",
+                "query": query,
+                "aperture": "small",
+                "cache": {"mode": "disabled"}
+            }),
+        );
+
+        assert_eq!(
+            out.get("cache_status").and_then(Value::as_str),
+            Some("disabled")
+        );
+        assert_eq!(
+            out.get("cache_mode").and_then(Value::as_str),
+            Some("disabled")
+        );
+        let summary = out.get("summary").and_then(Value::as_str).unwrap_or("");
+        assert!(!summary.contains("stale cached only text"), "{summary}");
+
+        let cache = read_json_or(&cache_path(tmp.path()), json!({}));
+        let stored_summary = cache
+            .pointer(&format!("/entries/{key}/response/summary"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert_eq!(stored_summary, "stale cached only text");
+    }
+
+    #[test]
+    fn cache_cleanup_prunes_expired_entries_and_caps_retained_entries() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let now_ts = chrono::Utc::now().timestamp();
+        write_json_atomic(
+            &cache_path(tmp.path()),
+            &json!({
+                "version": 1,
+                "entries": {
+                    "expired": {
+                        "stored_at": now_ts - 400,
+                        "expires_at": now_ts - 1,
+                        "status": "ok",
+                        "response": {"status": "ok"}
+                    },
+                    "oldest": {
+                        "stored_at": now_ts - 300,
+                        "expires_at": now_ts + 300,
+                        "status": "ok",
+                        "response": {"status": "ok"}
+                    },
+                    "middle": {
+                        "stored_at": now_ts - 200,
+                        "expires_at": now_ts + 300,
+                        "status": "ok",
+                        "response": {"status": "ok"}
+                    },
+                    "newest": {
+                        "stored_at": now_ts - 100,
+                        "expires_at": now_ts + 300,
+                        "status": "ok",
+                        "response": {"status": "ok"}
+                    }
+                }
+            }),
+        )
+        .expect("write cache");
+        let control = BatchQueryCacheControl {
+            mode: "enabled".to_string(),
+            ttl_success_secs: 1800,
+            ttl_no_results_secs: 120,
+            max_entries: 2,
+        };
+
+        let report = prune_batch_query_cache(tmp.path(), &control);
+
+        assert_eq!(report.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            report.get("removed_entries").and_then(Value::as_u64),
+            Some(2)
+        );
+        let cache = read_json_or(&cache_path(tmp.path()), json!({}));
+        let entries = cache
+            .get("entries")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(entries.len(), 2, "{entries:?}");
+        assert!(entries.contains_key("middle"), "{entries:?}");
+        assert!(entries.contains_key("newest"), "{entries:?}");
+    }
+
+    #[test]
+    fn cache_identity_ignores_lifecycle_policy_changes() {
+        let base = json!({
+            "batch_query": {
+                "enabled_sources": ["web"],
+                "allow_large": false,
+                "cache": {"mode": "enabled", "max_entries": 240}
+            }
+        });
+        let changed_lifecycle = json!({
+            "batch_query": {
+                "enabled_sources": ["web"],
+                "allow_large": false,
+                "cache": {"mode": "disabled", "max_entries": 12}
+            }
+        });
+
+        assert_eq!(
+            cache_key("web", "cache key test", "small", &base),
+            cache_key("web", "cache key test", "small", &changed_lifecycle)
+        );
+    }
+
+    #[test]
     fn framework_catalog_query_plan_preserves_official_domain_queries() {
         let payload = json!({
             "source": "web",
@@ -123,8 +276,14 @@ mod cache_rewrite_tests {
             "aperture": "medium"
         });
         let query = request_query_text(&payload, 600);
-        let plan = resolve_query_plan(&payload, &query, aperture_budget("medium").expect("budget"));
+        let plan = resolve_query_plan(
+            &default_policy(),
+            &payload,
+            &query,
+            aperture_budget("medium").expect("budget"),
+        );
         assert_eq!(plan.query_plan_source, "explicit_request_pack");
+        assert_eq!(plan.rerank_query, query);
         assert!(plan.queries.len() >= 8, "{:?}", plan.queries);
         assert!(plan
             .queries
@@ -148,7 +307,12 @@ mod cache_rewrite_tests {
             "aperture": "medium"
         });
         let query = request_query_text(&payload, 600);
-        let plan = resolve_query_plan(&payload, &query, aperture_budget("medium").expect("budget"));
+        let plan = resolve_query_plan(
+            &default_policy(),
+            &payload,
+            &query,
+            aperture_budget("medium").expect("budget"),
+        );
         assert_eq!(plan.query_plan_source, "agent_submitted_single_query");
         assert_eq!(plan.queries, vec!["top AI agentic frameworks".to_string()]);
         assert!(plan.rewrite_set.is_empty(), "{:?}", plan.rewrite_set);

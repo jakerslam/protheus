@@ -21,6 +21,9 @@ struct EvidenceRef {
     score: f64,
     timestamp: Option<String>,
     permissions: Option<String>,
+    confidence: String,
+    quality_flags: Vec<String>,
+    coverage_facets: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -82,7 +85,137 @@ fn default_policy() -> Value {
             "enabled_sources": ["web"],
             "allow_large": false,
             "max_parallel_subqueries": 4,
-            "query_timeout_ms": 5000
+            "query_timeout_ms": 5000,
+            "cache": {
+                "mode": "enabled",
+                "ttl_success_seconds": 1800,
+                "ttl_no_results_seconds": 120,
+                "max_entries": 240
+            },
+            "page_extraction": {
+                "enabled": true,
+                "extract_mode": "text",
+                "max_links_per_stage": 3,
+                "max_total_fetches": 8,
+                "min_link_score": 0.0,
+                "trigger": "low_or_empty_candidates"
+            },
+            "structured_results": {
+                "enabled": true,
+                "max_rows_per_stage": 12
+            },
+            "evidence_pack": {
+                "enabled": true,
+                "max_items": 6,
+                "max_snippet_words": 72
+            },
+            "coverage_aware_evidence": {
+                "enabled": true,
+                "max_facets": 8,
+                "min_facet_terms": 2,
+                "record_coverage": true
+            },
+            "coverage_gap_recovery": {
+                "enabled": true,
+                "max_queries": 4,
+                "min_usable_evidence": 3,
+                "min_covered_facets": 3,
+                "min_covered_facet_ratio": 0.75,
+                "templates": [
+                    "{facet} source-backed evidence",
+                    "{facet} primary or official source",
+                    "{facet} independent analysis evidence",
+                    "{facet} examples reports data"
+                ]
+            },
+            "quality_gate": {
+                "enabled": true,
+                "provider_recovery": {
+                    "enabled": true,
+                    "max_providers": 2,
+                    "providers": [
+                        "gdelt_doc"
+                    ],
+                    "current_intent_providers": [
+                        "gdelt_doc"
+                    ]
+                }
+            },
+            "query_recovery": {
+                "broad_current_research": {
+                    "enabled": true,
+                    "max_queries": 6,
+                    "intent_markers": [
+                        "breakthrough",
+                        "breakthroughs",
+                        "changes",
+                        "current state",
+                        "developments",
+                        "landscape",
+                        "news",
+                        "overview",
+                        "some ",
+                        "state of",
+                        "trend",
+                        "trends",
+                        "what are",
+                        "what were"
+                    ],
+                    "templates": [
+                        "{query}",
+                        "{query} source-backed overview",
+                        "{query} primary sources",
+                        "{query} official sources",
+                        "{query} recent publications",
+                        "{query} institution announcements"
+                    ]
+                },
+                "general_research": {
+                    "enabled": true,
+                    "max_queries": 6,
+                    "intent_markers": [
+                        "assess",
+                        "avoid",
+                        "benchmark",
+                        "best ",
+                        "choose",
+                        "compare",
+                        "comparison",
+                        "current state",
+                        "ecosystem",
+                        "evaluate",
+                        "evaluation",
+                        "fit ",
+                        "landscape",
+                        "limitation",
+                        "limitations",
+                        "mature",
+                        "maturity",
+                        "production",
+                        "recommend",
+                        "recommendation",
+                        "reliability",
+                        "risk",
+                        "risks",
+                        "security",
+                        "strength",
+                        "strengths",
+                        "versus",
+                        " vs ",
+                        "weakness",
+                        "weaknesses",
+                        "which "
+                    ],
+                    "templates": [
+                        "{query}",
+                        "{query} primary source evidence",
+                        "{query} official documentation project sources",
+                        "{query} independent analysis comparison evidence",
+                        "{query} risks limitations security reliability evidence",
+                        "{query} production usage examples case studies"
+                    ]
+                }
+            }
         }
     })
 }
@@ -184,8 +317,68 @@ fn query_timeout(policy: &Value) -> Duration {
         .pointer("/batch_query/query_timeout_ms")
         .and_then(Value::as_u64)
         .unwrap_or(5000)
-        .clamp(500, 20_000);
+        .clamp(500, 60_000);
     Duration::from_millis(timeout_ms)
+}
+
+fn page_extraction_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_max_links_per_stage(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/max_links_per_stage")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(0, 10) as usize
+}
+
+fn page_extraction_max_total_fetches(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/max_total_fetches")
+        .and_then(Value::as_u64)
+        .unwrap_or(8)
+        .clamp(0, 40) as usize
+}
+
+fn page_extraction_extract_mode(policy: &Value) -> String {
+    let raw = policy
+        .pointer("/batch_query/page_extraction/extract_mode")
+        .and_then(Value::as_str)
+        .unwrap_or("text")
+        .trim()
+        .to_ascii_lowercase();
+    if raw == "markdown" {
+        "markdown".to_string()
+    } else {
+        "text".to_string()
+    }
+}
+
+fn page_extraction_min_link_score(policy: &Value) -> f64 {
+    policy
+        .pointer("/batch_query/page_extraction/min_link_score")
+        .and_then(Value::as_f64)
+        .unwrap_or(0.08)
+        .clamp(-1.0, 1.0)
+}
+
+fn structured_results_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/structured_results/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn structured_results_max_rows_per_stage(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/structured_results/max_rows_per_stage")
+        .and_then(Value::as_u64)
+        .unwrap_or(12)
+        .clamp(0, 40) as usize
 }
 
 #[cfg(test)]

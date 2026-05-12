@@ -1,5 +1,8 @@
 fn current_web_intent(query: &str) -> bool {
     let lowered = clean_text(query, 600).to_ascii_lowercase();
+    if lowered.contains(&current_year()) {
+        return true;
+    }
     [
         "latest",
         "current",
@@ -9,8 +12,6 @@ fn current_web_intent(query: &str) -> bool {
         "as of",
         "recent",
         "newest",
-        "april 2026",
-        "may 2026",
     ]
     .iter()
     .any(|marker| lowered.contains(marker))
@@ -165,6 +166,498 @@ fn select_diverse_ranked_candidates(
     selected
 }
 
+#[derive(Clone, Debug)]
+struct ResearchFacet {
+    id: String,
+    requested_text: String,
+    terms: HashSet<String>,
+    distinctive_terms: HashSet<String>,
+}
+
+fn research_facet_signature(terms: &HashSet<String>) -> String {
+    let mut sorted = terms.iter().cloned().collect::<Vec<_>>();
+    sorted.sort();
+    sorted.join("|")
+}
+
+fn research_facet_from_text(
+    text: &str,
+    index: usize,
+    min_terms: usize,
+) -> Option<ResearchFacet> {
+    let requested_text = clean_text(text, 600);
+    if requested_text.is_empty() {
+        return None;
+    }
+    let terms = tokenize_relevance(&requested_text, 24);
+    if terms.len() < min_terms.max(1) {
+        return None;
+    }
+    Some(ResearchFacet {
+        id: format!("facet_{:02}", index + 1),
+        requested_text,
+        terms,
+        distinctive_terms: HashSet::new(),
+    })
+}
+
+fn assign_distinctive_facet_terms(facets: &mut [ResearchFacet]) {
+    if facets.len() <= 1 {
+        for facet in facets {
+            facet.distinctive_terms = facet.terms.clone();
+        }
+        return;
+    }
+    let mut counts = HashMap::<String, usize>::new();
+    for facet in facets.iter() {
+        for term in &facet.terms {
+            *counts.entry(term.clone()).or_insert(0) += 1;
+        }
+    }
+    let facet_count = facets.len();
+    for facet in facets.iter_mut() {
+        facet.distinctive_terms = facet
+            .terms
+            .iter()
+            .filter(|term| counts.get(*term).copied().unwrap_or(0) < facet_count)
+            .cloned()
+            .collect::<HashSet<_>>();
+        if facet.distinctive_terms.is_empty() {
+            facet.distinctive_terms = facet.terms.clone();
+        }
+    }
+}
+
+fn inferred_facet_texts_from_query(query: &str) -> Vec<String> {
+    let cleaned = clean_text(query, 900);
+    if cleaned.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::<String>::new();
+    for piece in cleaned.split(|ch| matches!(ch, ',' | ';' | ':' | '?' | '.')) {
+        let piece = clean_text(piece, 240);
+        if piece.split_whitespace().count() >= 3 {
+            out.push(piece);
+        }
+    }
+    for piece in cleaned.split(" and ") {
+        let piece = clean_text(piece, 240);
+        if piece.split_whitespace().count() >= 3 {
+            out.push(piece);
+        }
+    }
+    out
+}
+
+fn infer_research_facets(
+    query: &str,
+    query_plan: &[String],
+    policy: &Value,
+    budget: ApertureBudget,
+) -> Vec<ResearchFacet> {
+    if !facet_aware_evidence_enabled(policy) {
+        return Vec::new();
+    }
+    let max_facets = facet_aware_max_facets(policy, budget);
+    let min_terms = facet_aware_min_terms(policy);
+    let mut texts = Vec::<String>::new();
+    let base = clean_text(query, 600);
+    if !base.is_empty() {
+        texts.push(base.clone());
+    }
+    for item in query_plan {
+        let item = clean_text(item, 600);
+        if !item.is_empty() {
+            texts.push(item);
+        }
+    }
+    if texts.len() <= 1 {
+        texts.extend(inferred_facet_texts_from_query(&base));
+    }
+
+    let mut seen = HashSet::<String>::new();
+    let mut facets = Vec::<ResearchFacet>::new();
+    for text in texts {
+        if let Some(mut facet) = research_facet_from_text(&text, facets.len(), min_terms) {
+            let signature = research_facet_signature(&facet.terms);
+            if !seen.insert(signature) {
+                continue;
+            }
+            facet.id = format!("facet_{:02}", facets.len() + 1);
+            facets.push(facet);
+        }
+        if facets.len() >= max_facets {
+            break;
+        }
+    }
+    assign_distinctive_facet_terms(&mut facets);
+    facets
+}
+
+fn candidate_facet_overlap(facet: &ResearchFacet, candidate: &Candidate) -> usize {
+    let haystack = tokenize_relevance(
+        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        160,
+    );
+    facet
+        .terms
+        .iter()
+        .filter(|term| haystack.contains(term.as_str()))
+        .count()
+}
+
+fn candidate_matches_facet(
+    facet: &ResearchFacet,
+    candidate: &Candidate,
+    min_terms: usize,
+) -> bool {
+    let overlap = candidate_facet_overlap(facet, candidate);
+    if overlap == 0 {
+        return false;
+    }
+    if !facet.distinctive_terms.is_empty() {
+        let haystack = tokenize_relevance(
+            &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+            160,
+        );
+        if !facet
+            .distinctive_terms
+            .iter()
+            .any(|term| haystack.contains(term.as_str()))
+        {
+            return false;
+        }
+    }
+    let required = min_terms.min(facet.terms.len()).max(1);
+    overlap >= required || (facet.terms.len() <= 2 && overlap >= 1)
+}
+
+fn coverage_aware_score(
+    base_query: &str,
+    facets: &[ResearchFacet],
+    candidate: &Candidate,
+    min_terms: usize,
+) -> f64 {
+    let mut best = rerank_score(base_query, candidate);
+    for facet in facets {
+        let overlap = candidate_facet_overlap(facet, candidate);
+        if overlap == 0 {
+            continue;
+        }
+        let mut score = rerank_score(&facet.requested_text, candidate);
+        if overlap >= min_terms.min(facet.terms.len()).max(1) {
+            score += 0.08;
+        } else {
+            score += 0.03;
+        }
+        best = best.max(score);
+    }
+    best.clamp(0.0, 1.0)
+}
+
+fn candidate_identity_key(candidate: &Candidate) -> String {
+    format!(
+        "{}|{}|{}",
+        candidate.locator.to_ascii_lowercase(),
+        candidate.title.to_ascii_lowercase(),
+        candidate.excerpt_hash
+    )
+}
+
+fn select_facet_covered_ranked_candidates(
+    ranked: Vec<(Candidate, f64)>,
+    facets: &[ResearchFacet],
+    max_evidence: usize,
+    min_terms: usize,
+) -> Vec<(Candidate, f64)> {
+    if facets.is_empty() {
+        return select_diverse_ranked_candidates(ranked, max_evidence);
+    }
+    let limit = max_evidence.max(1);
+    let sorted = sorted_ranked_candidates(ranked);
+    let mut selected = Vec::<(Candidate, f64)>::new();
+    let mut selected_keys = HashSet::<String>::new();
+    for facet in facets {
+        if let Some(row) = sorted.iter().find(|(candidate, _)| {
+            !selected_keys.contains(&candidate_identity_key(candidate))
+                && candidate_matches_facet(facet, candidate, min_terms)
+        }) {
+            selected_keys.insert(candidate_identity_key(&row.0));
+            selected.push(row.clone());
+            if selected.len() >= limit {
+                return selected;
+            }
+        }
+    }
+    let remaining = sorted
+        .into_iter()
+        .filter(|(candidate, _)| !selected_keys.contains(&candidate_identity_key(candidate)))
+        .collect::<Vec<_>>();
+    for row in select_diverse_ranked_candidates(remaining, limit.saturating_sub(selected.len())) {
+        selected_keys.insert(candidate_identity_key(&row.0));
+        selected.push(row);
+        if selected.len() >= limit {
+            break;
+        }
+    }
+    selected
+}
+
+fn candidate_coverage_facets(
+    facets: &[ResearchFacet],
+    candidate: &Candidate,
+    min_terms: usize,
+) -> Vec<String> {
+    facets
+        .iter()
+        .filter(|facet| candidate_matches_facet(facet, candidate, min_terms))
+        .map(|facet| facet.id.clone())
+        .collect::<Vec<_>>()
+}
+
+fn evidence_coverage_from_ranked_candidates(
+    facets: &[ResearchFacet],
+    evidence_ranked: &[(Candidate, f64)],
+    min_terms: usize,
+) -> Value {
+    if facets.is_empty() {
+        return json!([]);
+    }
+    Value::Array(
+        facets
+            .iter()
+            .map(|facet| {
+                let matching = evidence_ranked
+                    .iter()
+                    .filter(|(candidate, _)| candidate_matches_facet(facet, candidate, min_terms))
+                    .collect::<Vec<_>>();
+                let usable_count = matching
+                    .iter()
+                    .filter(|(candidate, _)| !candidate_is_low_confidence_retained(candidate))
+                    .count();
+                let low_confidence_count = matching.len().saturating_sub(usable_count);
+                let mut domains = matching
+                    .iter()
+                    .map(|(candidate, _)| candidate_domain_hint(candidate).to_ascii_lowercase())
+                    .filter(|domain| !domain.is_empty() && domain != "source")
+                    .collect::<Vec<_>>();
+                domains.sort();
+                domains.dedup();
+                let status = if usable_count > 0 {
+                    "covered"
+                } else if low_confidence_count > 0 {
+                    "weak"
+                } else {
+                    "missing"
+                };
+                json!({
+                    "facet_id": facet.id,
+                    "requested_text": facet.requested_text,
+                    "status": status,
+                    "evidence_count": matching.len(),
+                    "usable_evidence_count": usable_count,
+                    "low_confidence_raw_count": low_confidence_count,
+                    "source_domain_count": domains.len(),
+                    "source_domains": domains
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
+fn usable_ranked_candidates_for_coverage(
+    query: &str,
+    facets: &[ResearchFacet],
+    candidates: &[Candidate],
+    min_terms: usize,
+) -> Vec<(Candidate, f64)> {
+    let benchmark_intent = is_benchmark_or_comparison_intent(query);
+    let min_score = minimum_synthesis_score(benchmark_intent);
+    candidates
+        .iter()
+        .filter(|candidate| !candidate_is_low_confidence_retained(candidate))
+        .map(|candidate| {
+            let score = if facets.is_empty() {
+                rerank_score(query, candidate)
+            } else {
+                coverage_aware_score(query, facets, candidate, min_terms)
+            };
+            (candidate.clone(), score)
+        })
+        .filter(|(candidate, score)| {
+            *score >= min_score
+                && candidate_passes_relevance_gate(query, candidate, benchmark_intent)
+                && candidate_is_substantive(query, candidate, benchmark_intent)
+        })
+        .collect::<Vec<_>>()
+}
+
+fn missing_research_facets_for_coverage(
+    query: &str,
+    facets: &[ResearchFacet],
+    candidates: &[Candidate],
+    min_terms: usize,
+) -> Vec<ResearchFacet> {
+    if facets.is_empty() {
+        return Vec::new();
+    }
+    let usable = usable_ranked_candidates_for_coverage(query, facets, candidates, min_terms);
+    facets
+        .iter()
+        .filter(|facet| {
+            !usable
+                .iter()
+                .any(|(candidate, _)| candidate_matches_facet(facet, candidate, min_terms))
+        })
+        .cloned()
+        .collect::<Vec<_>>()
+}
+
+fn coverage_gap_recovery_needed(
+    policy: &Value,
+    query: &str,
+    facets: &[ResearchFacet],
+    candidates: &[Candidate],
+    budget: ApertureBudget,
+) -> bool {
+    if !coverage_gap_recovery_enabled(policy) || facets.is_empty() || candidates.is_empty() {
+        return false;
+    }
+    let min_terms = facet_aware_min_terms(policy);
+    let usable = usable_ranked_candidates_for_coverage(query, facets, candidates, min_terms);
+    let min_usable = coverage_gap_recovery_min_usable_evidence(policy, budget);
+    if usable.len() < min_usable {
+        return true;
+    }
+    let covered = facets
+        .iter()
+        .filter(|facet| {
+            usable
+                .iter()
+                .any(|(candidate, _)| candidate_matches_facet(facet, candidate, min_terms))
+        })
+        .count();
+    covered < coverage_gap_recovery_min_covered_facets(policy, facets.len(), budget)
+}
+
+fn expand_coverage_gap_recovery_template(template: &str, query: &str, facet: &str) -> Option<String> {
+    let expanded = template
+        .replace("{query}", query)
+        .replace("{facet}", facet);
+    let cleaned = clean_text(&expanded, 600);
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
+    }
+}
+
+fn coverage_gap_recovery_queries(
+    policy: &Value,
+    query: &str,
+    existing_queries: &[String],
+    facets: &[ResearchFacet],
+    candidates: &[Candidate],
+    budget: ApertureBudget,
+) -> Vec<String> {
+    if !coverage_gap_recovery_needed(policy, query, facets, candidates, budget) {
+        return Vec::new();
+    }
+    let min_terms = facet_aware_min_terms(policy);
+    let max_queries = coverage_gap_recovery_max_queries(policy, budget);
+    let missing = missing_research_facets_for_coverage(query, facets, candidates, min_terms);
+    if missing.is_empty() {
+        return Vec::new();
+    }
+    let mut seen = existing_queries
+        .iter()
+        .map(|row| clean_text(row, 600).to_ascii_lowercase())
+        .collect::<HashSet<_>>();
+    let mut out = Vec::<String>::new();
+    for facet in missing {
+        for template in coverage_gap_recovery_templates(policy) {
+            let template = if template.contains("{facet}") {
+                template
+            } else {
+                template.replace("{query}", "{facet}")
+            };
+            if let Some(candidate) =
+                expand_coverage_gap_recovery_template(&template, query, &facet.requested_text)
+            {
+                if seen.insert(candidate.to_ascii_lowercase()) {
+                    out.push(candidate);
+                }
+            }
+            if out.len() >= max_queries {
+                return out;
+            }
+        }
+    }
+    out
+}
+
+fn evidence_pack_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/evidence_pack/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn evidence_pack_max_items(policy: &Value, max_evidence: usize) -> usize {
+    if !evidence_pack_enabled(policy) {
+        return 0;
+    }
+    policy
+        .pointer("/batch_query/evidence_pack/max_items")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(max_evidence)
+        .clamp(1, max_evidence.max(1))
+}
+
+fn evidence_pack_max_snippet_words(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/evidence_pack/max_snippet_words")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(72)
+        .clamp(16, 160)
+}
+
+fn evidence_pack_from_ranked_candidates(
+    policy: &Value,
+    actionable_ranked: &[(Candidate, f64)],
+    max_evidence: usize,
+) -> Value {
+    let max_items = evidence_pack_max_items(policy, max_evidence);
+    if max_items == 0 {
+        return json!([]);
+    }
+    let max_snippet_words = evidence_pack_max_snippet_words(policy);
+    Value::Array(
+        actionable_ranked
+            .iter()
+            .take(max_items)
+            .map(|(candidate, score)| {
+                let domain = candidate_domain_hint(candidate);
+                json!({
+                    "source_kind": candidate.source_kind.clone(),
+                    "title": clean_text(&candidate.title, 240),
+                    "locator": clean_text(&candidate.locator, 2_200),
+                    "source_scope": domain,
+                    "snippet": trim_words(&clean_text(&candidate.snippet, 1_800), max_snippet_words),
+                    "excerpt_hash": candidate.excerpt_hash.clone(),
+                    "score": (*score * 100.0).round() / 100.0,
+                    "timestamp": candidate.timestamp.clone(),
+                    "permissions": candidate.permissions.clone(),
+                    "content_authority": "retrieved_public_web",
+                    "visibility": "synthesis_context"
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+}
+
 fn fallback_link_score(query: &str, link: &str) -> f64 {
     let cleaned = clean_text(link, 2_200);
     let lowered = cleaned.to_ascii_lowercase();
@@ -207,14 +700,19 @@ fn fallback_link_score(query: &str, link: &str) -> f64 {
     score
 }
 
-fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
+fn ranked_payload_links_for_fallback_with_min_score(
+    query: &str,
+    payload: &Value,
+    max_links: usize,
+    min_score: f64,
+) -> Vec<String> {
     let mut ranked = non_search_engine_links(payload, max_links.saturating_mul(4).max(max_links))
         .into_iter()
         .map(|link| {
             let score = fallback_link_score(query, &link);
             (link, score)
         })
-        .filter(|(_, score)| *score > -1.0)
+        .filter(|(_, score)| *score > -1.0 && *score >= min_score)
         .collect::<Vec<_>>();
     ranked.sort_by(|a, b| {
         b.1.partial_cmp(&a.1)
@@ -226,6 +724,10 @@ fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: us
         .take(max_links.max(1))
         .map(|(link, _)| link)
         .collect::<Vec<_>>()
+}
+
+fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
+    ranked_payload_links_for_fallback_with_min_score(query, payload, max_links, -1.0)
 }
 
 fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
@@ -256,6 +758,11 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
         }
         if lowered.contains("query_result_mismatch") {
             flags.push("query_result_mismatch".to_string());
+        }
+        if lowered.contains("comparison_entity_coverage_gap")
+            || lowered.contains("source coverage to compare")
+        {
+            flags.push("comparison_evidence_insufficient".to_string());
         }
     }
     flags.sort();
@@ -311,10 +818,18 @@ fn web_tool_quality_report(
     let mut flags = issue_quality_flags(partial_failures);
     if status == "no_results" || evidence_count == 0 {
         flags.push("insufficient_evidence".to_string());
+    } else if status == "low_signal" {
+        flags.push("low_signal".to_string());
     } else if status == "partial" {
         flags.push("partial_results".to_string());
     } else if evidence_count >= 2 && hard_partial_failures.is_empty() {
         flags.push("high_confidence".to_string());
+    }
+    if actionable_ranked
+        .iter()
+        .any(|(candidate, _)| candidate_is_low_confidence_retained(candidate))
+    {
+        flags.push("low_confidence_raw_evidence".to_string());
     }
     let mut domains = HashSet::<String>::new();
     for (candidate, _) in actionable_ranked {
@@ -410,15 +925,24 @@ fn web_tool_quality_report(
             "reason": retry_reason,
             "input_contract": {
                 "authority": "agent_submitted",
-                "input_kind": "text",
+                "input_kind": "query_or_query_pack",
                 "required_fields": ["query"],
-                "optional_fields": ["source_url"],
+                "optional_fields": ["queries", "source_url"],
                 "hidden_query_expansion": false
             },
+            "query_strategy_hints": [
+                "preserve the user's original research objective",
+                "split broad requests into entity-specific or aspect-specific searches",
+                "target primary, official, source-backed, or directly citable pages when possible",
+                "use partial snippets, failure reasons, and off-topic signals to remove weak terms",
+                "for current or recent research, prefer current/recent source-class searches such as changelog, release notes, repository, publication, announcement, security advisory, or methodology over broad stale year ranges",
+                "for one named entity, keep the exact entity name in every retry query and vary source class or decision aspect rather than replacing it with loose synonyms",
+                "prefer another agent-submitted query pack before asking the user to narrow"
+            ],
             "next_action": if retry_reason == "none" {
                 "synthesize_from_evidence"
             } else {
-                "ask_agent_for_narrower_query_or_specific_source_url"
+                "agent_refine_query_pack_and_retry_if_budget_remains"
             }
         }
     })
@@ -458,7 +982,8 @@ fn cached_web_tool_quality_report(
         }
         report["retry"]["recommended"] = json!(true);
         report["retry"]["reason"] = json!("weak_single_source");
-        report["retry"]["next_action"] = json!("ask_agent_for_narrower_query_or_specific_source_url");
+        report["retry"]["next_action"] =
+            json!("agent_refine_query_pack_and_retry_if_budget_remains");
     }
     report
 }

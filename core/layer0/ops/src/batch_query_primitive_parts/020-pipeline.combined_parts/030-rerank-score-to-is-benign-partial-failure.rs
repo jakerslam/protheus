@@ -3,10 +3,7 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     let benchmark_intent = is_benchmark_or_comparison_intent(query);
     let framework_catalog_intent = is_framework_catalog_intent(query);
     let query_tokens = tokenize_relevance(query, 40);
-    let haystack = tokenize_relevance(
-        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
-        120,
-    );
+    let haystack = tokenize_relevance(&candidate_relevance_text(candidate), 120);
     let overlap = query_tokens
         .iter()
         .filter(|token| haystack.contains(token.as_str()))
@@ -62,6 +59,11 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     } else {
         0.0
     };
+    let off_intent_noise_penalty = if looks_like_off_intent_noise_candidate(query, candidate) {
+        0.65
+    } else {
+        0.0
+    };
     let mut score = 0.6 * overlap_norm
         + locator_bonus
         + status_bonus
@@ -72,7 +74,8 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
         + recency_adjustment(query, candidate)
         - definition_penalty
         - comparison_noise_penalty
-        - low_signal_penalty;
+        - low_signal_penalty
+        - off_intent_noise_penalty;
     if benchmark_intent && !looks_like_metric_rich_text(&candidate.snippet) {
         score -= 0.12;
     }
@@ -90,15 +93,24 @@ fn minimum_synthesis_score(benchmark_intent: bool) -> f64 {
 fn retrieve_web_candidates_for_query_with_timeout(
     root: &Path,
     query: &str,
+    policy: &Value,
+    search_scope: &BatchQuerySearchScope,
     timeout: Duration,
 ) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
     let (tx, rx) = std::sync::mpsc::channel::<(Vec<Candidate>, Vec<String>, Vec<Value>)>();
     let root_buf = root.to_path_buf();
     let query_buf = query.to_string();
+    let policy_buf = policy.clone();
+    let search_scope_buf = search_scope.clone();
     let spawned = thread::Builder::new()
         .name("batch-query-retrieve".to_string())
         .spawn(move || {
-            let out = retrieve_web_candidates_for_query(&root_buf, &query_buf);
+            let out = retrieve_web_candidates_for_query(
+                &root_buf,
+                &query_buf,
+                &policy_buf,
+                &search_scope_buf,
+            );
             let _ = tx.send(out);
         });
     if spawned.is_err() {

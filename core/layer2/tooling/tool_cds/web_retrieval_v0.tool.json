@@ -1,733 +1,22 @@
 {
   "version": "tool_cd_web_retrieval_v0",
-  "source": "scrapling_pattern_assimilation_v0",
-  "contracts": [
-    {
-      "tool_id": "web_search",
-      "capability_family": "web_retrieval",
-      "required_args": [
-        "query"
-      ],
-      "aliases": [
-        "web_lookup",
-        "browse_web"
-      ],
-      "optional_args": [
-        "aperture",
-        "timeout_ms",
-        "source_scope"
-      ],
-      "operations": [
-        "search"
-      ],
-      "retrieval": {
-        "mode": "search",
-        "supports_bulk": false,
-        "max_bulk_items": 1,
-        "cost_tier": "low",
-        "requires_network": true
-      },
-      "execution_policy": {
-        "request_fingerprint_dedupe": true,
-        "fingerprint_identity_fields": [
-          "session_scope",
-          "http_method",
-          "request_body",
-          "canonical_url"
-        ],
-        "fingerprint_include_request_options_default": false,
-        "fingerprint_include_headers_default": false,
-        "fingerprint_keep_url_fragments_default": false,
-        "per_domain_concurrency_default": 0,
-        "request_delay_ms_default": 0,
-        "blocked_response_retry_allowed": false,
-        "max_blocked_retries_default": 0
-      },
-      "extraction": {
-        "default_type": "markdown",
-        "allowed_types": [
-          "markdown",
-          "html",
-          "text"
-        ],
-        "selector_hint_allowed": true,
-        "selector_hint_fallback_mode": "whole_page",
-        "main_content_only_default": true,
-        "max_chars": 12000
-      },
-      "readiness": {
-        "supported_fields": [
-          "timeout_ms"
-        ],
-        "default_timeout_ms": 30000,
-        "dynamic_page_allowed": false
-      },
-      "resource_policy": {
-        "disable_resources_allowed": false,
-        "block_ads_allowed": false,
-        "blocked_domains_allowed": false,
-        "blocked_domains_source": "none"
-      },
-      "session_policy": {
-        "state_scope": "stateless",
-        "reuse_allowed": false,
-        "pooling_mode": "none",
-        "max_pages_default": 1,
-        "max_parallel_items_default": 1,
-        "request_overrides_allowed": false,
-        "close_on_complete_default": true
-      },
-      "lifecycle": {
-        "implicit_session_on_invoke": false,
-        "explicit_close_supported": false,
-        "explicit_list_supported": false,
-        "session_handle_arg": null
-      },
-      "safety": {
-        "ssrf_guard_required": true,
-        "redirect_policy": "bounded",
-        "prompt_injection_sanitizer_required": true,
-        "sanitization": {
-          "hidden_content_removed": true,
-          "template_content_removed": true,
-          "html_comments_removed": true,
-          "zero_width_chars_removed": true,
-          "script_style_noise_removed": true,
-          "raw_payload_quarantined": true
-        },
-        "raw_payload_chat_visible": false
-      },
-      "evidence_packaging": {
-        "include_content_excerpt": true,
-        "include_source_url": true,
-        "include_status": true,
-        "include_fetch_mode": true,
-        "include_extraction_type": true,
-        "include_quality_flags": true,
-        "include_artifact_refs": false,
-        "allowed_artifact_kinds": [
-          "fit_markdown",
-          "markdown_with_citations",
-          "references_markdown",
-          "table_summary",
-          "link_summary",
-          "media_summary",
-          "page_metadata_summary"
-        ],
-        "include_redirect_status": true,
-        "include_content_variants": true,
-        "include_structured_artifacts": true,
-        "include_discovery_artifacts": true,
-        "include_error_envelope": true,
-        "include_resource_metadata": false
-      },
-      "quality_classification": {
-        "classifier": "tool_result_quality_v1",
-        "status_fields": [
-          "status",
-          "status_code",
-          "http_status"
-        ],
-        "content_fields": [
-          "content",
-          "text",
-          "summary",
-          "body",
-          "markdown",
-          "raw_markdown",
-          "markdown_with_citations",
-          "fit_markdown",
-          "extracted_content",
-          "excerpt"
-        ],
-        "blocked_status_codes": [
-          401,
-          403,
-          407,
-          429,
-          444,
-          500,
-          502,
-          503,
-          504
-        ],
-        "retryable_status_codes": [
-          403,
-          407,
-          429,
-          444,
-          500,
-          502,
-          503,
-          504
-        ],
-        "blocked_error_fragments": [
-          "anti_bot_challenge",
-          "policy_denied",
-          "access denied",
-          "captcha",
-          "missing_credentials"
-        ],
-        "proxy_error_fragments": [
-          "net::err_proxy",
-          "net::err_tunnel",
-          "connection refused",
-          "connection reset",
-          "connection timed out",
-          "failed to connect",
-          "could not resolve proxy"
-        ],
-        "blocked_text_fragments": [
-          "captcha",
-          "unusual traffic",
-          "access denied",
-          "are you a human",
-          "confirm this search was made by a human",
-          "login required",
-          "sign in to continue"
-        ],
-        "needs_dynamic_text_fragments": [
-          "enable javascript",
-          "requires javascript",
-          "turn on javascript",
-          "javascript is disabled"
-        ],
-        "low_signal_text_fragments": [
-          "no results",
-          "nothing found",
-          "no relevant",
-          "empty result",
-          "returned low-signal",
-          "limited information"
-        ],
-        "irrelevant_text_fragments": [
-          "irrelevant",
-          "off topic",
-          "unrelated result",
-          "not related"
-        ],
-        "proxy_metadata_fields": [
-          "proxy",
-          "proxy_url",
-          "proxy_used",
-          "proxy_rotator"
-        ],
-        "min_partial_content_chars": 80,
-        "min_usable_content_chars": 240,
-        "emit_on_normalized_result": true
-      },
-      "quality_lanes": [
-        "usable",
-        "partial",
-        "low_signal",
-        "irrelevant_or_off_topic",
-        "blocked",
-        "needs_js",
-        "needs_dynamic",
-        "absent"
-      ],
-      "visibility": {
-        "raw_payload_chat_visible": false,
-        "tool_trace_chat_visible": false,
-        "final_answer_requires_synthesis": true
-      }
-    },
-    {
-      "tool_id": "batch_query",
-      "capability_family": "web_retrieval",
-      "required_args": [
-        "query"
-      ],
-      "aliases": [
-        "web_research"
-      ],
-      "optional_args": [
-        "aperture",
-        "timeout_ms",
-        "source_scope"
-      ],
-      "operations": [
-        "search_pack"
-      ],
-      "retrieval": {
-        "mode": "search_pack",
-        "supports_bulk": true,
-        "max_bulk_items": 8,
-        "cost_tier": "medium",
-        "requires_network": true
-      },
-      "execution_policy": {
-        "request_fingerprint_dedupe": true,
-        "fingerprint_identity_fields": [
-          "session_scope",
-          "http_method",
-          "request_body",
-          "canonical_url"
-        ],
-        "fingerprint_include_request_options_default": false,
-        "fingerprint_include_headers_default": false,
-        "fingerprint_keep_url_fragments_default": false,
-        "per_domain_concurrency_default": 2,
-        "request_delay_ms_default": 0,
-        "blocked_response_retry_allowed": true,
-        "max_blocked_retries_default": 2
-      },
-      "extraction": {
-        "default_type": "markdown",
-        "allowed_types": [
-          "markdown",
-          "html",
-          "text"
-        ],
-        "selector_hint_allowed": true,
-        "selector_hint_fallback_mode": "whole_page",
-        "main_content_only_default": true,
-        "max_chars": 24000
-      },
-      "readiness": {
-        "supported_fields": [
-          "timeout_ms"
-        ],
-        "default_timeout_ms": 45000,
-        "dynamic_page_allowed": false
-      },
-      "resource_policy": {
-        "disable_resources_allowed": false,
-        "block_ads_allowed": false,
-        "blocked_domains_allowed": false,
-        "blocked_domains_source": "none"
-      },
-      "session_policy": {
-        "state_scope": "stateless",
-        "reuse_allowed": false,
-        "pooling_mode": "batch_fanout",
-        "max_pages_default": 1,
-        "max_parallel_items_default": 4,
-        "request_overrides_allowed": false,
-        "close_on_complete_default": true
-      },
-      "lifecycle": {
-        "implicit_session_on_invoke": false,
-        "explicit_close_supported": false,
-        "explicit_list_supported": false,
-        "session_handle_arg": null
-      },
-      "safety": {
-        "ssrf_guard_required": true,
-        "redirect_policy": "bounded",
-        "prompt_injection_sanitizer_required": true,
-        "sanitization": {
-          "hidden_content_removed": true,
-          "template_content_removed": true,
-          "html_comments_removed": true,
-          "zero_width_chars_removed": true,
-          "script_style_noise_removed": true,
-          "raw_payload_quarantined": true
-        },
-        "raw_payload_chat_visible": false
-      },
-      "evidence_packaging": {
-        "include_content_excerpt": true,
-        "include_source_url": true,
-        "include_status": true,
-        "include_fetch_mode": true,
-        "include_extraction_type": true,
-        "include_quality_flags": true,
-        "include_artifact_refs": false,
-        "allowed_artifact_kinds": [
-          "fit_markdown",
-          "markdown_with_citations",
-          "references_markdown",
-          "table_summary",
-          "link_summary",
-          "media_summary",
-          "page_metadata_summary",
-          "coverage_summary",
-          "evidence_chunks"
-        ],
-        "include_redirect_status": true,
-        "include_content_variants": true,
-        "include_structured_artifacts": true,
-        "include_discovery_artifacts": true,
-        "include_error_envelope": true,
-        "include_resource_metadata": true,
-        "include_coverage_buckets": true
-      },
-      "quality_classification": {
-        "classifier": "tool_result_quality_v1",
-        "status_fields": [
-          "status",
-          "status_code",
-          "http_status"
-        ],
-        "content_fields": [
-          "content",
-          "text",
-          "summary",
-          "body",
-          "markdown",
-          "raw_markdown",
-          "markdown_with_citations",
-          "fit_markdown",
-          "extracted_content",
-          "excerpt"
-        ],
-        "blocked_status_codes": [
-          401,
-          403,
-          407,
-          429,
-          444,
-          500,
-          502,
-          503,
-          504
-        ],
-        "retryable_status_codes": [
-          403,
-          407,
-          429,
-          444,
-          500,
-          502,
-          503,
-          504
-        ],
-        "blocked_error_fragments": [
-          "anti_bot_challenge",
-          "policy_denied",
-          "access denied",
-          "captcha",
-          "missing_credentials"
-        ],
-        "proxy_error_fragments": [
-          "net::err_proxy",
-          "net::err_tunnel",
-          "connection refused",
-          "connection reset",
-          "connection timed out",
-          "failed to connect",
-          "could not resolve proxy"
-        ],
-        "blocked_text_fragments": [
-          "captcha",
-          "unusual traffic",
-          "access denied",
-          "are you a human",
-          "confirm this search was made by a human",
-          "login required",
-          "sign in to continue"
-        ],
-        "needs_dynamic_text_fragments": [
-          "enable javascript",
-          "requires javascript",
-          "turn on javascript",
-          "javascript is disabled"
-        ],
-        "low_signal_text_fragments": [
-          "no results",
-          "nothing found",
-          "no relevant",
-          "empty result",
-          "returned low-signal",
-          "limited information"
-        ],
-        "irrelevant_text_fragments": [
-          "irrelevant",
-          "off topic",
-          "unrelated result",
-          "not related"
-        ],
-        "proxy_metadata_fields": [
-          "proxy",
-          "proxy_url",
-          "proxy_used",
-          "proxy_rotator"
-        ],
-        "min_partial_content_chars": 80,
-        "min_usable_content_chars": 240,
-        "emit_on_normalized_result": true
-      },
-      "quality_lanes": [
-        "usable",
-        "partial",
-        "low_signal",
-        "irrelevant_or_off_topic",
-        "blocked",
-        "needs_js",
-        "needs_dynamic",
-        "absent"
-      ],
-      "visibility": {
-        "raw_payload_chat_visible": false,
-        "tool_trace_chat_visible": false,
-        "final_answer_requires_synthesis": true
-      },
-      "request_quality_floor": {
-        "broad_research_requires_query_pack_or_followup": true,
-        "initial_discovery_only_allowed": true,
-        "single_query_may_finish_only_when": "narrow_lookup_or_sufficiency_signals_met",
-        "targeted_followup_min_queries": 3,
-        "targeted_followup_max_queries": 8,
-        "followup_query_basis": [
-          "user_requested_entities",
-          "user_requested_aspects",
-          "discovered_terms",
-          "missing_coverage_buckets",
-          "source_class_gaps"
-        ],
-        "non_goals": [
-          "do_not_hardcode_domain_candidates",
-          "do_not_force_output_format",
-          "do_not_expand_queries_without_recording_them"
-        ]
-      }
-    },
-    {
-      "tool_id": "web_fetch",
-      "capability_family": "web_retrieval",
-      "required_args": [
-        "url"
-      ],
-      "aliases": [
-        "web_read",
-        "read_url"
-      ],
-      "optional_args": [
-        "timeout_ms",
-        "selector_hint",
-        "main_content_only",
-        "wait_selector",
-        "network_idle",
-        "disable_resources",
-        "block_ads",
-        "blocked_domains",
-        "source_scope",
-        "session_id",
-        "close_on_complete"
-      ],
-      "operations": [
-        "fetch"
-      ],
-      "retrieval": {
-        "mode": "fetch",
-        "supports_bulk": false,
-        "max_bulk_items": 1,
-        "cost_tier": "low",
-        "requires_network": true
-      },
-      "execution_policy": {
-        "request_fingerprint_dedupe": true,
-        "fingerprint_identity_fields": [
-          "session_scope",
-          "http_method",
-          "request_body",
-          "canonical_url"
-        ],
-        "fingerprint_include_request_options_default": false,
-        "fingerprint_include_headers_default": false,
-        "fingerprint_keep_url_fragments_default": false,
-        "per_domain_concurrency_default": 1,
-        "request_delay_ms_default": 0,
-        "blocked_response_retry_allowed": true,
-        "max_blocked_retries_default": 2
-      },
-      "extraction": {
-        "default_type": "markdown",
-        "allowed_types": [
-          "markdown",
-          "html",
-          "text"
-        ],
-        "selector_hint_allowed": true,
-        "selector_hint_fallback_mode": "whole_page",
-        "main_content_only_default": true,
-        "max_chars": 12000
-      },
-      "readiness": {
-        "supported_fields": [
-          "timeout_ms",
-          "wait_selector",
-          "network_idle"
-        ],
-        "default_timeout_ms": 30000,
-        "dynamic_page_allowed": true
-      },
-      "resource_policy": {
-        "disable_resources_allowed": true,
-        "block_ads_allowed": true,
-        "blocked_domains_allowed": true,
-        "blocked_domains_source": "profile_or_custom",
-        "ad_block_profile_default": "built_in_ad_domains"
-      },
-      "session_policy": {
-        "state_scope": "session_context",
-        "reuse_allowed": true,
-        "pooling_mode": "serial_reuse",
-        "max_pages_default": 1,
-        "max_parallel_items_default": 1,
-        "request_overrides_allowed": true,
-        "close_on_complete_default": true
-      },
-      "lifecycle": {
-        "implicit_session_on_invoke": true,
-        "explicit_close_supported": false,
-        "explicit_list_supported": false,
-        "session_handle_arg": "session_id"
-      },
-      "safety": {
-        "ssrf_guard_required": true,
-        "redirect_policy": "bounded",
-        "prompt_injection_sanitizer_required": true,
-        "sanitization": {
-          "hidden_content_removed": true,
-          "template_content_removed": true,
-          "html_comments_removed": true,
-          "zero_width_chars_removed": true,
-          "script_style_noise_removed": true,
-          "raw_payload_quarantined": true
-        },
-        "raw_payload_chat_visible": false
-      },
-      "evidence_packaging": {
-        "include_content_excerpt": true,
-        "include_source_url": true,
-        "include_status": true,
-        "include_fetch_mode": true,
-        "include_extraction_type": true,
-        "include_quality_flags": true,
-        "include_artifact_refs": true,
-        "allowed_artifact_kinds": [
-          "screenshot",
-          "image",
-          "fit_markdown",
-          "markdown_with_citations",
-          "references_markdown",
-          "table_summary",
-          "link_summary",
-          "media_summary",
-          "page_metadata_summary",
-          "evidence_chunks"
-        ],
-        "include_redirect_status": true,
-        "include_content_variants": true,
-        "include_structured_artifacts": true,
-        "include_discovery_artifacts": true,
-        "include_error_envelope": true,
-        "include_resource_metadata": true
-      },
-      "quality_classification": {
-        "classifier": "tool_result_quality_v1",
-        "status_fields": [
-          "status",
-          "status_code",
-          "http_status"
-        ],
-        "content_fields": [
-          "content",
-          "text",
-          "summary",
-          "body",
-          "markdown",
-          "raw_markdown",
-          "markdown_with_citations",
-          "fit_markdown",
-          "extracted_content",
-          "excerpt"
-        ],
-        "blocked_status_codes": [
-          401,
-          403,
-          407,
-          429,
-          444,
-          500,
-          502,
-          503,
-          504
-        ],
-        "retryable_status_codes": [
-          403,
-          407,
-          429,
-          444,
-          500,
-          502,
-          503,
-          504
-        ],
-        "blocked_error_fragments": [
-          "anti_bot_challenge",
-          "policy_denied",
-          "access denied",
-          "captcha",
-          "missing_credentials"
-        ],
-        "proxy_error_fragments": [
-          "net::err_proxy",
-          "net::err_tunnel",
-          "connection refused",
-          "connection reset",
-          "connection timed out",
-          "failed to connect",
-          "could not resolve proxy"
-        ],
-        "blocked_text_fragments": [
-          "captcha",
-          "unusual traffic",
-          "access denied",
-          "are you a human",
-          "confirm this search was made by a human",
-          "login required",
-          "sign in to continue"
-        ],
-        "needs_dynamic_text_fragments": [
-          "enable javascript",
-          "requires javascript",
-          "turn on javascript",
-          "javascript is disabled"
-        ],
-        "low_signal_text_fragments": [
-          "no results",
-          "nothing found",
-          "no relevant",
-          "empty result",
-          "returned low-signal",
-          "limited information"
-        ],
-        "irrelevant_text_fragments": [
-          "irrelevant",
-          "off topic",
-          "unrelated result",
-          "not related"
-        ],
-        "proxy_metadata_fields": [
-          "proxy",
-          "proxy_url",
-          "proxy_used",
-          "proxy_rotator"
-        ],
-        "min_partial_content_chars": 80,
-        "min_usable_content_chars": 240,
-        "emit_on_normalized_result": true
-      },
-      "quality_lanes": [
-        "usable",
-        "partial",
-        "low_signal",
-        "irrelevant_or_off_topic",
-        "blocked",
-        "needs_js",
-        "needs_dynamic",
-        "absent"
-      ],
-      "visibility": {
-        "raw_payload_chat_visible": false,
-        "tool_trace_chat_visible": false,
-        "final_answer_requires_synthesis": true
-      }
-    }
-  ],
+  "source": "web_tooling_pattern_assimilation_v0",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact retrieval quality observations for candidate volume, usable evidence, coverage gaps, provider status, and synthesis handoff without storing raw provider payloads.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_force_response_formats"
+    ]
+  },
   "diagnostic_projection_contract": {
     "version": "web_retrieval_quality_diagnostics_v1",
     "chat_visibility": "hidden_until_synthesized",
@@ -856,6 +145,50 @@
         "low_junk_signal",
         "novelty_against_retained_evidence"
       ],
+      "raw_result_retention_contract": {
+        "authority": "tool_cd_declares_evidence_confidence_runtime_records_without_domain_routes",
+        "purpose": "retain weak raw provider evidence long enough for diagnostics, recovery planning, and bounded low-evidence synthesis",
+        "confidence_values": [
+          "usable",
+          "low_confidence_raw"
+        ],
+        "telemetry_fields": [
+          "attempted_query",
+          "provider",
+          "provider_raw_count",
+          "provider_filtered_count",
+          "failure_reasons",
+          "result_quality"
+        ],
+        "synthesis_boundary": "low_confidence_raw evidence is weaker than usable evidence and retrieval telemetry is not source evidence"
+      },
+      "bounded_second_pass_recovery": {
+        "authority": "tool_cd_declares_recovery_shape_runtime_records_executed_queries",
+        "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass",
+        "non_goals": [
+          "do_not_hide_query_expansion_from_trace",
+          "do_not_bind_to_a_specific_research_domain",
+          "do_not_force_user_visible_answer_format"
+        ]
+      },
+      "coverage_gap_recovery": {
+        "authority": "tool_cd_declares_recovery_shape_runtime_records_executed_queries",
+        "trigger": "candidate_volume_exists_but_usable_evidence_or_facet_coverage_is_low",
+        "purpose": "recover from high-volume low-yield retrieval by targeting uncovered research facets instead of asking the user to narrow",
+        "sufficiency_target": "prefer at least three usable evidence refs and roughly three quarters of requested facets before treating high-volume retrieval as sufficient",
+        "query_shape_examples": [
+          "{facet} source-backed evidence",
+          "{facet} primary or official source",
+          "{facet} independent analysis evidence",
+          "{facet} examples reports data"
+        ],
+        "non_goals": [
+          "do_not_hide_query_expansion_from_trace",
+          "do_not_bind_to_a_specific_research_domain",
+          "do_not_force_user_visible_answer_format",
+          "do_not_treat_high_candidate_count_as_evidence_sufficiency"
+        ]
+      },
       "candidate_enrichment_order": [
         "search_provider_rows",
         "prefetch_link_discovery",
@@ -951,6 +284,26 @@
           "quality_flags",
           "gap_reason"
         ],
+        "coverage_aware_evidence_promotion": {
+          "purpose": "promote evidence across the facets implied by the user request and submitted query pack before truncating to the final evidence window",
+          "inputs": [
+            "user_research_objective",
+            "submitted_query_pack",
+            "candidate_scores",
+            "candidate_source_domains",
+            "candidate_quality_flags"
+          ],
+          "outputs": [
+            "evidence_refs.coverage_facets",
+            "evidence_coverage"
+          ],
+          "rule": "facet-specific evidence should not be discarded solely because it ranks lower than globally broad evidence when it covers a requested research dimension",
+          "non_goals": [
+            "do_not_hardcode_research_domains",
+            "do_not_force_final_answer_shape",
+            "do_not_upgrade_low_confidence_raw_to_usable_evidence"
+          ]
+        },
         "non_goals": [
           "do_not_hardcode_topic_candidates",
           "do_not_force_final_answer_shape",
@@ -989,7 +342,7 @@
           "non_goals": [
             "do_not_make_site_crawl_default_for_all_research",
             "do_not_select_by_hardcoded_domain",
-            "do_not_hide_map_filters_from_request_metadata"
+          "do_not_hide_map_filters_from_request_metadata"
           ]
         },
         "search_plus_read": {
@@ -1446,25 +799,25 @@
       },
       "adaptive_state_projection": {
         "purpose": "surface progress and stop reasons for multi-step retrieval without letting crawl state become chat-visible payload",
-        "fields": [
-          "confidence",
-          "previous_confidence",
-          "confidence_delta",
-          "confidence_components",
-          "coverage",
-          "consistency",
-          "saturation",
-          "crawled_url_count",
-          "pending_candidate_count",
-          "source_domain_count",
-          "checkpoint_ref",
-          "resume_state_ref",
-          "cancelled",
-          "relevant_content_refs",
-          "stop_reason"
-        ],
-        "visibility": "telemetry_or_evidence_metadata_only"
-      },
+          "fields": [
+            "confidence",
+            "previous_confidence",
+            "confidence_delta",
+            "confidence_components",
+            "coverage",
+            "consistency",
+            "saturation",
+            "crawled_url_count",
+            "pending_candidate_count",
+            "source_domain_count",
+            "checkpoint_ref",
+            "resume_state_ref",
+            "cancelled",
+            "relevant_content_refs",
+            "stop_reason"
+          ],
+          "visibility": "telemetry_or_evidence_metadata_only"
+        },
       "resource_control": {
         "per_domain_rate_limit": true,
         "backoff_on_status": [
@@ -1472,40 +825,40 @@
           503,
           504
         ],
-        "memory_pressure_queueing": true,
-        "bounded_fanout_required": true,
-        "stream_progress_telemetry": true,
-        "score_report_fields": [
-          "score_threshold",
-          "score_min",
-          "score_max",
-          "score_avg",
-          "top_matched_terms"
-        ],
-        "browser_context_lifecycle": {
-          "enabled_for_dynamic_capability_only": true,
-          "context_signature_axes": [
-            "proxy",
-            "locale",
-            "timezone",
-            "geolocation",
-            "navigator_override",
-            "storage_state"
+          "memory_pressure_queueing": true,
+          "bounded_fanout_required": true,
+          "stream_progress_telemetry": true,
+          "score_report_fields": [
+            "score_threshold",
+            "score_min",
+            "score_max",
+            "score_avg",
+            "top_matched_terms"
           ],
-          "ignore_non_context_axes": [
-            "word_count_threshold",
-            "css_selector",
-            "screenshot",
-            "pdf",
-            "scan_full_page",
-            "only_text",
-            "wait_until",
-            "page_timeout",
-            "capture_network_requests"
-          ],
-          "evict_only_idle_contexts": true,
-          "preserve_active_refcounts": true,
-          "recycle_when_safe": "threshold_or_memory_pressure_when_no_active_sessions",
+          "browser_context_lifecycle": {
+            "enabled_for_dynamic_capability_only": true,
+            "context_signature_axes": [
+              "proxy",
+              "locale",
+              "timezone",
+              "geolocation",
+              "navigator_override",
+              "storage_state"
+            ],
+            "ignore_non_context_axes": [
+              "word_count_threshold",
+              "css_selector",
+              "screenshot",
+              "pdf",
+              "scan_full_page",
+              "only_text",
+              "wait_until",
+              "page_timeout",
+              "capture_network_requests"
+            ],
+            "evict_only_idle_contexts": true,
+            "preserve_active_refcounts": true,
+            "recycle_when_safe": "threshold_or_memory_pressure_when_no_active_sessions",
           "resource_filtering_default": "off"
         }
       },
@@ -1647,5 +1000,600 @@
         "do_not_execute_user_supplied_hook_code_without_trusted_local_capability"
       ]
     }
-  }
+  },
+  "contracts": [
+    {
+      "tool_id": "web_search",
+      "capability_family": "web_retrieval",
+      "required_args": ["query"],
+      "aliases": ["web_lookup", "browse_web"],
+      "optional_args": ["aperture", "timeout_ms", "source_scope"],
+      "operations": ["search"],
+      "retrieval": {
+        "mode": "search",
+        "supports_bulk": false,
+        "max_bulk_items": 1,
+        "cost_tier": "low",
+        "requires_network": true
+      },
+      "execution_policy": {
+        "request_fingerprint_dedupe": true,
+        "fingerprint_identity_fields": [
+          "session_scope",
+          "http_method",
+          "request_body",
+          "canonical_url"
+        ],
+        "fingerprint_include_request_options_default": false,
+        "fingerprint_include_headers_default": false,
+        "fingerprint_keep_url_fragments_default": false,
+        "per_domain_concurrency_default": 0,
+        "request_delay_ms_default": 0,
+        "blocked_response_retry_allowed": false,
+        "max_blocked_retries_default": 0
+      },
+      "extraction": {
+        "default_type": "markdown",
+        "allowed_types": ["markdown", "html", "text"],
+        "selector_hint_allowed": true,
+        "selector_hint_fallback_mode": "whole_page",
+        "main_content_only_default": true,
+        "max_chars": 12000
+      },
+      "readiness": {
+        "supported_fields": ["timeout_ms"],
+        "default_timeout_ms": 30000,
+        "dynamic_page_allowed": false
+      },
+      "resource_policy": {
+        "disable_resources_allowed": false,
+        "block_ads_allowed": false,
+        "blocked_domains_allowed": false,
+        "blocked_domains_source": "none"
+      },
+      "session_policy": {
+        "state_scope": "stateless",
+        "reuse_allowed": false,
+        "pooling_mode": "none",
+        "max_pages_default": 1,
+        "max_parallel_items_default": 1,
+        "request_overrides_allowed": false,
+        "close_on_complete_default": true
+      },
+      "lifecycle": {
+        "implicit_session_on_invoke": false,
+        "explicit_close_supported": false,
+        "explicit_list_supported": false,
+        "session_handle_arg": null
+      },
+      "safety": {
+        "ssrf_guard_required": true,
+        "redirect_policy": "bounded",
+        "prompt_injection_sanitizer_required": true,
+        "sanitization": {
+          "hidden_content_removed": true,
+          "template_content_removed": true,
+          "html_comments_removed": true,
+          "zero_width_chars_removed": true,
+          "script_style_noise_removed": true,
+          "raw_payload_quarantined": true
+        },
+        "raw_payload_chat_visible": false
+      },
+      "evidence_packaging": {
+        "include_content_excerpt": true,
+        "include_source_url": true,
+        "include_status": true,
+        "include_redirect_status": true,
+        "include_fetch_mode": true,
+        "include_extraction_type": true,
+        "include_quality_flags": true,
+        "include_content_variants": true,
+        "include_structured_artifacts": true,
+        "include_discovery_artifacts": true,
+        "include_error_envelope": true,
+        "include_resource_metadata": false,
+        "include_artifact_refs": false,
+        "allowed_artifact_kinds": [
+          "fit_markdown",
+          "markdown_with_citations",
+          "references_markdown",
+          "table_summary",
+          "link_summary",
+          "media_summary",
+          "page_metadata_summary"
+        ]
+      },
+      "quality_classification": {
+        "classifier": "tool_result_quality_v1",
+        "status_fields": ["status", "status_code", "http_status"],
+        "content_fields": [
+          "content",
+          "text",
+          "summary",
+          "body",
+          "markdown",
+          "raw_markdown",
+          "markdown_with_citations",
+          "fit_markdown",
+          "extracted_content",
+          "excerpt"
+        ],
+        "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
+        "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
+        "blocked_error_fragments": [
+          "anti_bot_challenge",
+          "policy_denied",
+          "access denied",
+          "captcha",
+          "missing_credentials"
+        ],
+        "proxy_error_fragments": [
+          "net::err_proxy",
+          "net::err_tunnel",
+          "connection refused",
+          "connection reset",
+          "connection timed out",
+          "failed to connect",
+          "could not resolve proxy"
+        ],
+        "blocked_text_fragments": [
+          "captcha",
+          "unusual traffic",
+          "access denied",
+          "are you a human",
+          "confirm this search was made by a human",
+          "login required",
+          "sign in to continue"
+        ],
+        "needs_dynamic_text_fragments": [
+          "enable javascript",
+          "requires javascript",
+          "turn on javascript",
+          "javascript is disabled"
+        ],
+        "low_signal_text_fragments": [
+          "no results",
+          "nothing found",
+          "no relevant",
+          "empty result",
+          "returned low-signal",
+          "limited information"
+        ],
+        "irrelevant_text_fragments": [
+          "irrelevant",
+          "off topic",
+          "unrelated result",
+          "not related"
+        ],
+        "proxy_metadata_fields": ["proxy", "proxy_url", "proxy_used", "proxy_rotator"],
+        "min_partial_content_chars": 80,
+        "min_usable_content_chars": 240,
+        "emit_on_normalized_result": true
+      },
+      "quality_lanes": [
+        "usable",
+        "partial",
+        "low_signal",
+        "irrelevant_or_off_topic",
+        "blocked",
+        "needs_js",
+        "needs_dynamic",
+        "absent"
+      ],
+      "visibility": {
+        "raw_payload_chat_visible": false,
+        "tool_trace_chat_visible": false,
+        "final_answer_requires_synthesis": true
+      }
+    },
+    {
+      "tool_id": "batch_query",
+      "capability_family": "web_retrieval",
+      "required_args": ["query"],
+      "aliases": ["web_research"],
+      "optional_args": ["aperture", "timeout_ms", "source_scope"],
+      "request_quality_floor": {
+        "broad_research_requires_query_pack_or_followup": true,
+        "initial_discovery_only_allowed": true,
+        "single_query_may_finish_only_when": "narrow_lookup_or_sufficiency_signals_met",
+        "targeted_followup_min_queries": 3,
+        "targeted_followup_max_queries": 8,
+        "followup_query_basis": [
+          "user_requested_entities",
+          "user_requested_aspects",
+          "discovered_terms",
+          "missing_coverage_buckets",
+          "source_class_gaps"
+        ],
+        "non_goals": [
+          "do_not_hardcode_domain_candidates",
+          "do_not_force_output_format",
+          "do_not_expand_queries_without_recording_them"
+        ]
+      },
+      "operations": ["search_pack"],
+      "retrieval": {
+        "mode": "search_pack",
+        "supports_bulk": true,
+        "max_bulk_items": 8,
+        "cost_tier": "medium",
+        "requires_network": true
+      },
+      "execution_policy": {
+        "request_fingerprint_dedupe": true,
+        "fingerprint_identity_fields": [
+          "session_scope",
+          "http_method",
+          "request_body",
+          "canonical_url"
+        ],
+        "fingerprint_include_request_options_default": false,
+        "fingerprint_include_headers_default": false,
+        "fingerprint_keep_url_fragments_default": false,
+        "per_domain_concurrency_default": 2,
+        "request_delay_ms_default": 0,
+        "blocked_response_retry_allowed": true,
+        "max_blocked_retries_default": 2
+      },
+      "extraction": {
+        "default_type": "markdown",
+        "allowed_types": ["markdown", "html", "text"],
+        "selector_hint_allowed": true,
+        "selector_hint_fallback_mode": "whole_page",
+        "main_content_only_default": true,
+        "max_chars": 24000
+      },
+      "readiness": {
+        "supported_fields": ["timeout_ms"],
+        "default_timeout_ms": 45000,
+        "dynamic_page_allowed": false
+      },
+      "resource_policy": {
+        "disable_resources_allowed": false,
+        "block_ads_allowed": false,
+        "blocked_domains_allowed": false,
+        "blocked_domains_source": "none"
+      },
+      "session_policy": {
+        "state_scope": "stateless",
+        "reuse_allowed": false,
+        "pooling_mode": "batch_fanout",
+        "max_pages_default": 1,
+        "max_parallel_items_default": 4,
+        "request_overrides_allowed": false,
+        "close_on_complete_default": true
+      },
+      "lifecycle": {
+        "implicit_session_on_invoke": false,
+        "explicit_close_supported": false,
+        "explicit_list_supported": false,
+        "session_handle_arg": null
+      },
+      "safety": {
+        "ssrf_guard_required": true,
+        "redirect_policy": "bounded",
+        "prompt_injection_sanitizer_required": true,
+        "sanitization": {
+          "hidden_content_removed": true,
+          "template_content_removed": true,
+          "html_comments_removed": true,
+          "zero_width_chars_removed": true,
+          "script_style_noise_removed": true,
+          "raw_payload_quarantined": true
+        },
+        "raw_payload_chat_visible": false
+      },
+      "evidence_packaging": {
+        "include_content_excerpt": true,
+        "include_source_url": true,
+        "include_status": true,
+        "include_redirect_status": true,
+        "include_fetch_mode": true,
+        "include_extraction_type": true,
+        "include_quality_flags": true,
+        "include_content_variants": true,
+        "include_structured_artifacts": true,
+        "include_discovery_artifacts": true,
+        "include_error_envelope": true,
+        "include_resource_metadata": true,
+        "include_coverage_buckets": true,
+        "include_artifact_refs": false,
+        "allowed_artifact_kinds": [
+          "fit_markdown",
+          "markdown_with_citations",
+          "references_markdown",
+          "table_summary",
+          "link_summary",
+          "media_summary",
+          "page_metadata_summary",
+          "coverage_summary",
+          "evidence_chunks"
+        ]
+      },
+      "quality_classification": {
+        "classifier": "tool_result_quality_v1",
+        "status_fields": ["status", "status_code", "http_status"],
+        "content_fields": [
+          "content",
+          "text",
+          "summary",
+          "body",
+          "markdown",
+          "raw_markdown",
+          "markdown_with_citations",
+          "fit_markdown",
+          "extracted_content",
+          "excerpt"
+        ],
+        "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
+        "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
+        "blocked_error_fragments": [
+          "anti_bot_challenge",
+          "policy_denied",
+          "access denied",
+          "captcha",
+          "missing_credentials"
+        ],
+        "proxy_error_fragments": [
+          "net::err_proxy",
+          "net::err_tunnel",
+          "connection refused",
+          "connection reset",
+          "connection timed out",
+          "failed to connect",
+          "could not resolve proxy"
+        ],
+        "blocked_text_fragments": [
+          "captcha",
+          "unusual traffic",
+          "access denied",
+          "are you a human",
+          "confirm this search was made by a human",
+          "login required",
+          "sign in to continue"
+        ],
+        "needs_dynamic_text_fragments": [
+          "enable javascript",
+          "requires javascript",
+          "turn on javascript",
+          "javascript is disabled"
+        ],
+        "low_signal_text_fragments": [
+          "no results",
+          "nothing found",
+          "no relevant",
+          "empty result",
+          "returned low-signal",
+          "limited information"
+        ],
+        "irrelevant_text_fragments": [
+          "irrelevant",
+          "off topic",
+          "unrelated result",
+          "not related"
+        ],
+        "proxy_metadata_fields": ["proxy", "proxy_url", "proxy_used", "proxy_rotator"],
+        "min_partial_content_chars": 80,
+        "min_usable_content_chars": 240,
+        "emit_on_normalized_result": true
+      },
+      "quality_lanes": [
+        "usable",
+        "partial",
+        "low_signal",
+        "irrelevant_or_off_topic",
+        "blocked",
+        "needs_js",
+        "needs_dynamic",
+        "absent"
+      ],
+      "visibility": {
+        "raw_payload_chat_visible": false,
+        "tool_trace_chat_visible": false,
+        "final_answer_requires_synthesis": true
+      }
+    },
+    {
+      "tool_id": "web_fetch",
+      "capability_family": "web_retrieval",
+      "required_args": ["url"],
+      "aliases": ["web_read", "read_url"],
+      "optional_args": [
+        "timeout_ms",
+        "selector_hint",
+        "main_content_only",
+        "wait_selector",
+        "network_idle",
+        "disable_resources",
+        "block_ads",
+        "blocked_domains",
+        "source_scope",
+        "session_id",
+        "close_on_complete"
+      ],
+      "operations": ["fetch"],
+      "retrieval": {
+        "mode": "fetch",
+        "supports_bulk": false,
+        "max_bulk_items": 1,
+        "cost_tier": "low",
+        "requires_network": true
+      },
+      "execution_policy": {
+        "request_fingerprint_dedupe": true,
+        "fingerprint_identity_fields": [
+          "session_scope",
+          "http_method",
+          "request_body",
+          "canonical_url"
+        ],
+        "fingerprint_include_request_options_default": false,
+        "fingerprint_include_headers_default": false,
+        "fingerprint_keep_url_fragments_default": false,
+        "per_domain_concurrency_default": 1,
+        "request_delay_ms_default": 0,
+        "blocked_response_retry_allowed": true,
+        "max_blocked_retries_default": 2
+      },
+      "extraction": {
+        "default_type": "markdown",
+        "allowed_types": ["markdown", "html", "text"],
+        "selector_hint_allowed": true,
+        "selector_hint_fallback_mode": "whole_page",
+        "main_content_only_default": true,
+        "max_chars": 12000
+      },
+      "readiness": {
+        "supported_fields": ["timeout_ms", "wait_selector", "network_idle"],
+        "default_timeout_ms": 30000,
+        "dynamic_page_allowed": true
+      },
+      "resource_policy": {
+        "disable_resources_allowed": true,
+        "block_ads_allowed": true,
+        "blocked_domains_allowed": true,
+        "blocked_domains_source": "profile_or_custom",
+        "ad_block_profile_default": "built_in_ad_domains"
+      },
+      "session_policy": {
+        "state_scope": "session_context",
+        "reuse_allowed": true,
+        "pooling_mode": "serial_reuse",
+        "max_pages_default": 1,
+        "max_parallel_items_default": 1,
+        "request_overrides_allowed": true,
+        "close_on_complete_default": true
+      },
+      "lifecycle": {
+        "implicit_session_on_invoke": true,
+        "explicit_close_supported": false,
+        "explicit_list_supported": false,
+        "session_handle_arg": "session_id"
+      },
+      "safety": {
+        "ssrf_guard_required": true,
+        "redirect_policy": "bounded",
+        "prompt_injection_sanitizer_required": true,
+        "sanitization": {
+          "hidden_content_removed": true,
+          "template_content_removed": true,
+          "html_comments_removed": true,
+          "zero_width_chars_removed": true,
+          "script_style_noise_removed": true,
+          "raw_payload_quarantined": true
+        },
+        "raw_payload_chat_visible": false
+      },
+      "evidence_packaging": {
+        "include_content_excerpt": true,
+        "include_source_url": true,
+        "include_status": true,
+        "include_redirect_status": true,
+        "include_fetch_mode": true,
+        "include_extraction_type": true,
+        "include_quality_flags": true,
+        "include_content_variants": true,
+        "include_structured_artifacts": true,
+        "include_discovery_artifacts": true,
+        "include_error_envelope": true,
+        "include_resource_metadata": true,
+        "include_artifact_refs": true,
+        "allowed_artifact_kinds": [
+          "screenshot",
+          "image",
+          "fit_markdown",
+          "markdown_with_citations",
+          "references_markdown",
+          "table_summary",
+          "link_summary",
+          "media_summary",
+          "page_metadata_summary",
+          "evidence_chunks"
+        ]
+      },
+      "quality_classification": {
+        "classifier": "tool_result_quality_v1",
+        "status_fields": ["status", "status_code", "http_status"],
+        "content_fields": [
+          "content",
+          "text",
+          "summary",
+          "body",
+          "markdown",
+          "raw_markdown",
+          "markdown_with_citations",
+          "fit_markdown",
+          "extracted_content",
+          "excerpt"
+        ],
+        "blocked_status_codes": [401, 403, 407, 429, 444, 500, 502, 503, 504],
+        "retryable_status_codes": [403, 407, 429, 444, 500, 502, 503, 504],
+        "blocked_error_fragments": [
+          "anti_bot_challenge",
+          "policy_denied",
+          "access denied",
+          "captcha",
+          "missing_credentials"
+        ],
+        "proxy_error_fragments": [
+          "net::err_proxy",
+          "net::err_tunnel",
+          "connection refused",
+          "connection reset",
+          "connection timed out",
+          "failed to connect",
+          "could not resolve proxy"
+        ],
+        "blocked_text_fragments": [
+          "captcha",
+          "unusual traffic",
+          "access denied",
+          "are you a human",
+          "confirm this search was made by a human",
+          "login required",
+          "sign in to continue"
+        ],
+        "needs_dynamic_text_fragments": [
+          "enable javascript",
+          "requires javascript",
+          "turn on javascript",
+          "javascript is disabled"
+        ],
+        "low_signal_text_fragments": [
+          "no results",
+          "nothing found",
+          "no relevant",
+          "empty result",
+          "returned low-signal",
+          "limited information"
+        ],
+        "irrelevant_text_fragments": [
+          "irrelevant",
+          "off topic",
+          "unrelated result",
+          "not related"
+        ],
+        "proxy_metadata_fields": ["proxy", "proxy_url", "proxy_used", "proxy_rotator"],
+        "min_partial_content_chars": 80,
+        "min_usable_content_chars": 240,
+        "emit_on_normalized_result": true
+      },
+      "quality_lanes": [
+        "usable",
+        "partial",
+        "low_signal",
+        "irrelevant_or_off_topic",
+        "blocked",
+        "needs_js",
+        "needs_dynamic",
+        "absent"
+      ],
+      "visibility": {
+        "raw_payload_chat_visible": false,
+        "tool_trace_chat_visible": false,
+        "final_answer_requires_synthesis": true
+      }
+    }
+  ]
 }
