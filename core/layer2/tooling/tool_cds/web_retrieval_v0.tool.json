@@ -130,6 +130,8 @@
         "split broad requests into entity, aspect, time-window, or source-type searches",
         "target primary, official, source-backed, or directly citable pages when relevant",
         "use low-relevance and off-topic diagnostics to remove weak terms",
+        "when provider degradation or partial failure is recorded, change source class, page type, exact entity terms, or reader/fetch depth instead of repeating the same broad query",
+        "when search rows are relevant but low-detail, prefer promising-page read/fetch enrichment before synthesis if policy and budget allow",
         "synthesize from best recorded evidence only after internal recovery is exhausted"
       ]
     },
@@ -207,7 +209,8 @@
       },
       "bounded_second_pass_recovery": {
         "authority": "tool_cd_declares_recovery_shape_runtime_records_executed_queries",
-        "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass",
+        "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass_or_provider_degradation",
+        "strategy": "preserve the user goal, vary source class/page type/entity terms, enrich promising pages, and record remaining coverage gaps instead of treating provider telemetry as evidence",
         "non_goals": [
           "do_not_hide_query_expansion_from_trace",
           "do_not_bind_to_a_specific_research_domain",

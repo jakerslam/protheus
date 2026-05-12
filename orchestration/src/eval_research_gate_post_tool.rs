@@ -348,6 +348,9 @@ fn text_has_low_signal_only(raw: &str) -> bool {
         "low-relevance",
         "no usable findings",
         "no usable result",
+        "no usable results",
+        "no usable snippet",
+        "no usable snippets",
         "no results",
         "no source-backed",
         "not source-backed",
@@ -356,6 +359,8 @@ fn text_has_low_signal_only(raw: &str) -> bool {
         "zero recorded results",
         "not enough source coverage",
         "limited evidence",
+        "retrieval results are limited",
+        "retrieval result is limited",
         "limited results",
         "weak evidence",
         "off topic",
@@ -369,6 +374,8 @@ fn text_has_low_signal_only(raw: &str) -> bool {
         "retrieval gap",
         "did not produce enough",
         "could not find enough",
+        "provider degradation",
+        "provider degraded",
         "narrow the query",
         "need a tighter query",
     ]
@@ -398,6 +405,8 @@ fn response_has_low_evidence_signal(normalized: &str) -> bool {
         "low relevance",
         "low-relevance",
         "limited evidence",
+        "retrieval results are limited",
+        "retrieval result is limited",
         "source coverage",
         "limited results",
         "limited source",
@@ -422,8 +431,18 @@ fn response_has_low_evidence_signal(normalized: &str) -> bool {
         "no usable source",
         "no usable sources",
         "no usable evidence",
+        "no usable retrieved evidence",
+        "no usable result",
+        "no usable results",
+        "no usable snippet",
+        "no usable snippets",
+        "no usable catalog evidence",
+        "no usable independent evidence",
+        "no usable source coverage",
         "no source-backed",
         "not source-backed",
+        "cannot source",
+        "can't source",
         "zero evidence",
         "zero snippets",
         "zero candidate snippets",
@@ -435,6 +454,8 @@ fn response_has_low_evidence_signal(normalized: &str) -> bool {
         "retrieval attempt failed",
         "retrieval failure",
         "retrieval failed",
+        "provider degradation",
+        "provider degraded",
         "tool error",
         "retrieval-quality miss",
         "retrieval quality miss",
@@ -458,14 +479,24 @@ fn response_has_research_shape(normalized: &str) -> bool {
             "versus",
             "vs",
             "recommend",
+            "ranking",
+            "selection",
             "best for",
             "criteria",
             "dimension",
+            "decision",
+            "decision boundary",
             "bounded conclusion",
+            "bounded guidance",
+            "secondary inference",
+            "labeled inference",
             "practical implication",
             "current state",
             "supports",
             "does not support",
+            "what the evidence covers",
+            "what the evidence misses",
+            "what the evidence supports",
             "risk",
             "limitation",
             "uncertainty",
@@ -552,15 +583,47 @@ fn response_matches_explicit_missing_tool_context_contract(normalized: &str) -> 
 }
 
 fn response_uses_internal_runtime_context_as_evidence(normalized: &str) -> bool {
-    [
+    let internal_subject = [
         "identity context",
-        "system instruction",
-        "system instructions",
-        "agent name",
-        "hosting this conversation",
-        "evident from system",
+        "runtime context",
         "workspace metadata",
         "platform identity",
+        "agent name",
+        "hosting this conversation",
+        "this conversation",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle));
+    let evidence_claim = [
+        "evident from",
+        "based on",
+        "according to",
+        "as evidence",
+        "tells me",
+        "shows that",
+        "proves that",
+    ]
+    .iter()
+    .any(|needle| normalized.contains(*needle));
+    if internal_subject && evidence_claim {
+        return true;
+    }
+
+    [
+        "my system instruction",
+        "my system instructions",
+        "this system instruction",
+        "these system instructions",
+        "the system instruction says",
+        "the system instructions say",
+        "evident from system instruction",
+        "evident from system instructions",
+        "based on system instruction",
+        "based on system instructions",
+        "according to system instruction",
+        "according to system instructions",
+        "from internal context",
+        "from workspace metadata",
     ]
     .iter()
     .any(|needle| normalized.contains(*needle))

@@ -903,3 +903,87 @@ fn research_golden_rejects_internal_runtime_context_as_post_tool_evidence() {
         Some("post_tool_synthesis_not_useful")
     );
 }
+
+#[test]
+fn research_golden_allows_domain_discussion_of_system_instructions_when_labeled_inference() {
+    let root = temp_path("research_golden_system_instruction_domain_content");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(
+        &cases,
+        &json!({
+            "reliability_thresholds": {
+                "min_cases_for_reliability_claim": 1,
+                "workflow_gate_pass_min": 0.95,
+                "research_success_min": 0.85
+            },
+            "scoring_contract": {
+                "pass_score": 85,
+                "excellent_score": 95
+            },
+            "cases": [{
+                "id": "research_gold_browser_agent_security",
+                "category": "current_state",
+                "prompt": "Research current security concerns around AI browser agents. Focus on prompt injection, credential handling, and approval boundaries.",
+                "expected_gate_path": {
+                    "gate_1": "tool_required",
+                    "gate_2": "web_research",
+                    "gate_3": "web_search",
+                    "gate_4_required_fields": ["query", "aperture"]
+                },
+                "required_entities": ["prompt injection", "credential handling", "approval boundaries"]
+            }]
+        }),
+    );
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_browser_agent_security",
+                "response_payload": {
+                    "response": "Current evidence from this turn is limited: the search returned no usable source coverage due to provider degradation. What I can offer is clearly labeled secondary inference, not source-backed findings. Prompt injection is a core risk because browser agents may process untrusted page text alongside system instructions and task instructions. Credential handling should be treated as high-risk because sessions, cookies, and form-fill data can cross approval boundaries. Approval boundaries matter most around navigation, downloads, form submission, payments, and account changes. Bounded guidance: keep sensitive actions gated, separate retrieved evidence from inference, and require explicit confirmation for irreversible or credential-bearing steps.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "web_search",
+                        "selected_tool_family": "Web Search / Fetch",
+                        "input": {
+                            "query": "AI browser agent security prompt injection credential handling approval boundaries",
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "no_results",
+                        "result": "Provider degradation: no usable source snippets were returned.",
+                        "evidence_refs": [
+                            {"title": "No usable result", "locator": "tool:no-results", "score": 0.0}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:no_results+synthesized",
+                        "tool_completion": {
+                            "completion_state": "no_results",
+                            "findings_available": false,
+                            "evidence_refs_used": ["tool:no-results"]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_ne!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_class")
+            .and_then(Value::as_str),
+        Some("internal_context_used_as_evidence")
+    );
+    assert_ne!(
+        report
+            .pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint")
+            .and_then(Value::as_str),
+        Some("6a_synthesis_uses_evidence_or_low_evidence_fallback")
+    );
+}

@@ -223,6 +223,30 @@
       "rejection_reason"
     ]
   },
+  "degraded_retrieval_recovery": {
+    "purpose": "Recover useful evidence when a structurally successful search returns provider degradation, zero-result rows, low-detail snippets, or high-volume low-yield candidates.",
+    "trigger_signals": [
+      "provider_degradation",
+      "partial_provider_failure",
+      "zero_usable_results",
+      "low_detail_snippets",
+      "candidate_volume_without_facet_coverage",
+      "off_topic_top_results"
+    ],
+    "recovery_actions": [
+      "preserve the original user goal and missing coverage lanes",
+      "vary source class, page type, exact entity terms, and time window rather than repeating the broad query",
+      "prefer primary, official, independent, benchmark, methodology, security, publication, repository, release, advisory, or other directly citable source classes when relevant",
+      "read or fetch promising result pages when rows are relevant but snippets are too thin",
+      "record remaining gaps explicitly when recovery budget is exhausted"
+    ],
+    "sufficiency_rule": "do not treat candidate count, provider telemetry, or failure messages as evidence sufficiency; require usable evidence or explicit coverage gaps before final synthesis",
+    "non_goals": [
+      "do_not_add_domain_specific_sources",
+      "do_not_force_user_visible_format",
+      "do_not_treat_retrieval_telemetry_as_citable_evidence"
+    ]
+  },
   "evidence_pack": {
     "chat_visibility": "hidden_until_synthesized",
     "item_schema_version": "evidence_pack_v1",
