@@ -126,6 +126,18 @@ fn normalize_finding_with_idempotency_key(
     Ok(normalized)
 }
 
+fn merge_finding_versions(task_id: &str, existing: &Value, incoming: &Value) -> Value {
+    let merged = merge_findings(&[existing.clone(), incoming.clone()]);
+    let merged_finding = merged
+        .get("merged")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .cloned()
+        .unwrap_or_else(|| incoming.clone());
+    normalize_finding_with_idempotency_key(task_id, &merged_finding)
+        .unwrap_or_else(|_| incoming.clone())
+}
+
 fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<&str>) -> Value {
     let normalized = match normalize_finding_with_idempotency_key(task_id, finding) {
         Ok(value) => value,
@@ -227,17 +239,25 @@ fn append_normalized_findings_batch(
         .unwrap_or_default();
     let mut seen = findings
         .iter()
-        .map(|existing| finding_idempotency_key(task_id, existing))
-        .collect::<HashSet<_>>();
+        .enumerate()
+        .map(|(index, existing)| (finding_idempotency_key(task_id, existing), index))
+        .collect::<HashMap<_, _>>();
     let mut appended_count = 0usize;
     let mut deduped_count = 0usize;
+    let mut reconciled_count = 0usize;
     for finding in normalized_findings {
         let key = finding_idempotency_key(task_id, finding);
-        if seen.insert(key) {
+        if let Some(index) = seen.get(&key).copied() {
+            let merged = merge_finding_versions(task_id, &findings[index], finding);
+            if findings[index] != merged {
+                findings[index] = merged;
+                reconciled_count += 1;
+            }
+            deduped_count += 1;
+        } else {
+            seen.insert(key, findings.len());
             findings.push(finding.clone());
             appended_count += 1;
-        } else {
-            deduped_count += 1;
         }
     }
 
@@ -280,6 +300,7 @@ fn append_normalized_findings_batch(
         "finding_count": count,
         "appended_count": appended_count,
         "deduped_count": deduped_count,
+        "reconciled_count": reconciled_count,
         "idempotency_keys": staged_keys
     })
 }

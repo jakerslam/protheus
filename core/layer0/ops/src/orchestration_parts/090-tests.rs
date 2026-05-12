@@ -269,6 +269,91 @@ mod orchestration_regression_tests {
     }
 
     #[test]
+    fn append_findings_batch_reconciles_retry_with_more_evidence() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let root_dir = root.path().join("scratchpad-store");
+        let root_dir_string = root_dir.display().to_string();
+        let first = json!({
+            "audit_id": "audit-1",
+            "workflow_id": "workflow-a",
+            "item_id": "REQ-1",
+            "severity": "medium",
+            "status": "open",
+            "location": "core/layer0/ops/src/orchestration.rs:1",
+            "evidence": [{ "type": "receipt", "value": "r1" }],
+            "timestamp": "2026-05-12T01:00:00Z",
+            "summary": "first pass"
+        });
+        let stronger_retry = json!({
+            "audit_id": "audit-1",
+            "workflow_id": "workflow-a",
+            "item_id": "REQ-1",
+            "severity": "high",
+            "status": "confirmed",
+            "location": "core/layer0/ops/src/orchestration.rs:1",
+            "evidence": [
+                { "type": "receipt", "value": "r1" },
+                { "type": "trace", "value": "r2" }
+            ],
+            "timestamp": "2026-05-12T02:00:00Z",
+            "summary": "retry pass"
+        });
+
+        let first_out = append_findings_batch(
+            root.path(),
+            "task-batch-2",
+            &[first],
+            None,
+            Some(root_dir_string.as_str()),
+        );
+        assert_eq!(first_out.get("ok").and_then(Value::as_bool), Some(true));
+
+        let retry_out = append_findings_batch(
+            root.path(),
+            "task-batch-2",
+            &[stronger_retry],
+            None,
+            Some(root_dir_string.as_str()),
+        );
+        assert_eq!(retry_out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            retry_out.get("deduped_count").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            retry_out.get("reconciled_count").and_then(Value::as_i64),
+            Some(1)
+        );
+
+        let loaded = load_scratchpad(
+            root.path(),
+            "task-batch-2",
+            Some(root_dir_string.as_str()),
+        )
+        .expect("scratchpad load");
+        let finding = loaded
+            .scratchpad
+            .pointer("/findings/0")
+            .expect("merged finding");
+        assert_eq!(finding.get("severity").and_then(Value::as_str), Some("high"));
+        assert_eq!(
+            finding.get("status").and_then(Value::as_str),
+            Some("confirmed")
+        );
+        assert_eq!(
+            finding
+                .get("evidence")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(2)
+        );
+        assert_eq!(
+            finding.get("timestamp").and_then(Value::as_str),
+            Some("2026-05-12T02:00:00Z")
+        );
+    }
+
+    #[test]
     fn invoke_exposes_thin_client_helper_ops() {
         let root = tempfile::tempdir().expect("tempdir");
 
