@@ -2,6 +2,35 @@
   "name": "clarify_then_coordinate",
   "workflow_type": "control_plane_orchestration_workflow",
   "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "online_research",
+        "workflow_id": "research_synthesize_verify",
+        "input_contract": "workflow_input_envelope_v1",
+        "output_artifact": "research_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_inline_child_workflow_internals",
+      "do_not_return_raw_tool_payloads_to_parent"
+    ]
+  },
   "default": false,
   "description": "Clarification-first control-plane template used when request intent is ambiguous or clarification is mandatory before execution.",
   "stages": [

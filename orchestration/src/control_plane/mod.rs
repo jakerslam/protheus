@@ -16,6 +16,7 @@ pub mod status_phase_projection_types;
 pub mod templates;
 pub mod terminal_coordination;
 pub mod tool_result_packaging;
+pub mod workflow_composition_contracts;
 pub mod workflow_contract_guard;
 pub mod workflow_contracts;
 pub mod workflow_graph_compilation;

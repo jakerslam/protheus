@@ -152,6 +152,31 @@ Optional fields:
 
 `final_response_policy` and `gate_contract` are required. Unknown extra keys are currently ignored by the reader.
 
+## Composable Workflow CD Contract
+
+Workflow CDs are executable workflow programs, not loose config fragments. Every registered CD must declare `workflow_composition_contract` so primitive and composite workflow boundaries are machine-checkable.
+
+Required fields:
+
+1. `version`: `workflow_composition_contract_v1`
+2. `cd_kind`: `primitive` or `composite`
+3. `returns_exactly_one_terminal_artifact`: `true`
+4. `terminal_artifact_contract.artifact_schema`: `workflow_terminal_artifact_v1`
+5. `terminal_artifact_contract.allowed_kinds`: typed terminal artifact kinds such as `completed_final_answer`, `clarification_request`, `structured_failure`, and for composite CDs `delegated_workflow_result`
+6. `terminal_artifact_contract.parent_receives`: `terminal_artifact_only_refs_for_internals`
+7. `child_workflow_calls`: typed child-CD calls, empty for primitive CDs
+
+Child workflow calls must declare `capability`, `workflow_id`, `input_contract`, `output_artifact`, `return_policy`, and `internal_trace_visibility`. `return_policy` must be `return_single_terminal_artifact_to_parent`; `internal_trace_visibility` must be `refs_only`.
+
+Composition rules:
+
+1. Primitive CDs must not call child workflows.
+2. Composite CDs may call primitive or composite CDs through typed child-call envelopes.
+3. A child CD returns one terminal artifact to the parent; raw tool payloads, internal traces, and child-local state remain behind refs/receipts.
+4. The default/main workflow CD may delegate online research to a research workflow CD, but must not inline research retrieval, evidence packing, or synthesis internals as parent-owned behavior.
+5. Full research workflows are composite capability CDs, not primitive CDs; smaller retrieval, evidence-pack, synthesis, and verifier CDs may later become primitives under the research composite.
+6. Rust may validate, compile, execute, cache, and fail closed on invalid composition contracts; Rust must not invent undeclared child workflow calls or terminal artifact shapes.
+
 ## Workflow Role Rule
 
 The control-plane workflow directory contains both assistant-response workflows and assimilation workflow templates. They must be role-typed so the runtime and guards do not confuse strategy templates with normal chat finalization paths.

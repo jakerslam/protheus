@@ -48,6 +48,13 @@ Required execution behavior:
 - Enforce Rust-kernel authority and thin-shell boundaries on every implementation.
 - Avoid hardcoding application-specific behaviors unless the user explicitly requested a one-off behavior. Prefer OS-style general primitives and declarative contracts over narrow product logic.
 - Do not assume specific user prompt phrasings, benchmark prompts, or canned request shapes as runtime authority. If behavior depends on prompt interpretation, that behavior must live in a declared workflow/tool contract or a general-purpose primitive rather than Rust phrase matching.
+- Workflow CDs must be treated as typed programs:
+  - Every registered Workflow CD must declare primitive/composite identity, typed child-CD calls, and exactly one terminal artifact return.
+  - Primitive CDs must not call child workflows.
+  - Composite CDs may call child CDs only through declared input/output artifact contracts.
+  - Parent CDs must receive child results as one terminal artifact with refs/receipts for internals, not raw child state or raw tool payloads.
+  - Main/default conversation CDs may delegate online research to a research CD, but must not inline research retrieval, evidence packing, or synthesis internals as parent-owned behavior.
+  - Rust readers/runtimes may validate, compile, execute, cache, and fail closed; they must not invent undeclared child workflow calls, prompt-specific routing, or terminal artifact shapes.
 - Terminology transition rule:
   - Canonical authority term is `Kernel`; repository path `core/**` is implementation/path compatibility and `Core` is not a second owner.
   - Canonical coordination term is `Orchestration Control Plane`; repository path `orchestration/**` is implementation/path compatibility and `Tower` is rejected as an active architecture term.

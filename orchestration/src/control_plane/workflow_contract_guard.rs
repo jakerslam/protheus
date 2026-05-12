@@ -1,4 +1,5 @@
 // Layer ownership: orchestration (non-canonical orchestration coordination only).
+use super::workflow_composition_contracts::workflow_composition_contract_report;
 use super::workflow_contracts::{
     registered_workflow_graphs, registered_workflow_validations, tool_contracts_cover_required,
     tool_family_contracts, workflow_registry_contract_ok, NormalizedWorkflowGraph,
@@ -39,7 +40,14 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
     let graphs = registered_workflow_graphs();
     let tool_contracts = tool_family_contracts();
     let replay_reports = run_registered_replay_fixtures();
-    let checks = build_checks(&validations, &graphs, &tool_contracts, &replay_reports);
+    let composition_report = workflow_composition_contract_report();
+    let checks = build_checks(
+        &validations,
+        &graphs,
+        &tool_contracts,
+        &replay_reports,
+        &composition_report,
+    );
     let ok = checks
         .iter()
         .all(|row| row.get("ok").and_then(Value::as_bool).unwrap_or(false));
@@ -50,6 +58,7 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
         "graphs": graphs,
         "tool_family_contracts": tool_contracts,
         "runtime_replay_reports": replay_reports,
+        "workflow_composition_contracts": composition_report,
     });
     let report = json!({
         "type": "orchestration_workflow_contract_guard",
@@ -71,6 +80,7 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
             "graph_artifact_path": graph_out,
         },
         "validations": validations,
+        "composition_contracts": composition_report,
         "artifact_paths": {
             "graphs": graph_out,
             "format_policy": FORMAT_POLICY_PATH,
@@ -101,6 +111,7 @@ fn build_checks(
     graphs: &[NormalizedWorkflowGraph],
     tool_contracts: &[ToolFamilyContract],
     replay_reports: &[WorkflowReplayReport],
+    composition_report: &Value,
 ) -> Vec<Value> {
     let format_policy = read_text(FORMAT_POLICY_PATH);
     let enforcer = read_text(ENFORCER_PATH);
@@ -124,6 +135,7 @@ fn build_checks(
         json!({"id": "workflow_runtime_graph_binding_contract", "ok": replay_reports.iter().all(|row| !row.graph_hash.is_empty() && row.inspector.selected_graph_source == "json_workflow_source_of_truth_v1"), "detail": "runtime selection consumes JSON source-of-truth orchestration graph bindings"}),
         json!({"id": "workflow_json_source_metadata_contract", "ok": graphs.iter().all(graph_json_source_metadata_ok), "detail": "typed graphs carry workflow id, source JSON path, contract schema version, and graph hash metadata"}),
         json!({"id": "workflow_runtime_registered_json_source_contract", "ok": replay_reports.iter().all(runtime_registered_json_source_ok), "detail": "runtime telemetry exposes selected workflow id, source JSON path, contract schema version, and graph hash from a registered JSON workflow"}),
+        json!({"id": "workflow_cd_composition_contract", "ok": composition_report.get("ok").and_then(Value::as_bool).unwrap_or(false), "detail": "workflow CDs declare primitive/composite boundaries, typed child workflow calls, and exactly one terminal artifact return"}),
         json!({"id": "workflow_format_policy_contract", "ok": all_present(&format_policy, &["workflow_source_of_truth_contract", "typed_execution_contract", "burnable CD", "json_workflow_spec", "llm_final_only_no_system_injection"]), "detail": FORMAT_POLICY_PATH}),
         json!({"id": "control_plane_parity_map_contract", "ok": all_present(&parity_map, &["OpenHands", "OpenFang", "Infring", "orchestration/src", "event-sourced action/observation"]), "detail": PARITY_MAP_PATH}),
     ]

@@ -2,6 +2,26 @@
   "name": "research_synthesize_verify",
   "workflow_type": "control_plane_orchestration_workflow",
   "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_treat_full_research_workflow_as_primitive",
+      "do_not_expose_retrieval_internals_to_parent"
+    ]
+  },
   "default": false,
   "description": "Research and synthesis template used for evidence-heavy retrieval turns and mixed tooling/web/workspace analysis.",
   "stages": [
