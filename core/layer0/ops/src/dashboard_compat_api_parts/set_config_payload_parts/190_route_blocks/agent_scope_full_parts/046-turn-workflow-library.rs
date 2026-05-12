@@ -1104,6 +1104,9 @@ fn turn_workflow_metadata(
         turn_workflow_requires_final_llm(response_tools, workflow_events, draft_response);
     let tool_gate = workflow_turn_tool_decision_tree(message);
     let contract = default_workflow_tool_menu_contract();
+    let selected_workflow = selected_turn_workflow(workflow_mode);
+    let synthesis_input =
+        workflow_synthesis_input_for_final_response(message, response_tools, &selected_workflow);
     let final_gate_id = workflow_final_gate_id(&contract);
     let final_stage_status = if requires_final_llm {
         "pending_final_llm"
@@ -1144,7 +1147,8 @@ fn turn_workflow_metadata(
             "default_workflow": default_turn_workflow_name(),
             "available_workflows": turn_workflow_library_catalog()
         },
-        "selected_workflow": selected_turn_workflow(workflow_mode),
+        "selected_workflow": selected_workflow,
+        "synthesis_input": synthesis_input,
         "tool_count": response_tools.len(),
         "system_event_count": workflow_events.len(),
         "draft_response_state": draft_response_state,

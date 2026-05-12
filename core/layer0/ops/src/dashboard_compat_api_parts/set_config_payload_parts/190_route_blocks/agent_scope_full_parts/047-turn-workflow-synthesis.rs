@@ -1305,6 +1305,12 @@ fn run_turn_workflow_final_response(
     }
     let tool_rows_json = serde_json::to_string(&tool_rows_for_llm_recovery(response_tools, 6))
         .unwrap_or_else(|_| "[]".to_string());
+    let synthesis_input_json = serde_json::to_string(
+        workflow
+            .get("synthesis_input")
+            .unwrap_or(&Value::Null),
+    )
+    .unwrap_or_else(|_| "{}".to_string());
     let tool_state_summary = workflow_tool_state_prompt_context(response_tools);
     let missing_turn_tool_context_block = if missing_turn_tool_context_prompt.is_empty() {
         String::new()
@@ -1378,7 +1384,7 @@ fn run_turn_workflow_final_response(
             } else {
                 clean_text(
                     &format!(
-                        "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}\n\nRecorded tool outcomes:\n{tool_rows_json}"
+                        "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}\n\nSynthesis input envelope:\n{synthesis_input_json}\n\nRecorded tool outcomes:\n{tool_rows_json}"
                     ),
                     20_000,
                 )
@@ -1483,6 +1489,17 @@ fn run_turn_workflow_final_response(
     workflow["final_llm_response"]["attempted"] = Value::Bool(true);
     workflow["final_llm_response"]["max_attempts"] = json!(max_attempts);
     workflow["final_llm_response"]["coherence_window_messages"] = json!(coherence_window_messages);
+    workflow["final_llm_response"]["synthesis_input_schema_version"] = workflow
+        .pointer("/synthesis_input/schema_version")
+        .cloned()
+        .unwrap_or(Value::Null);
+    workflow["final_llm_response"]["synthesis_input_ready"] = Value::Bool(
+        workflow
+            .get("synthesis_input")
+            .and_then(Value::as_object)
+            .map(|object| !object.is_empty())
+            .unwrap_or(false),
+    );
     workflow["gate_trace"] = json!({
         "active": manual_toolbox_gate_turn,
         "attempt_count": 0,
@@ -1593,7 +1610,7 @@ fn run_turn_workflow_final_response(
         } else if compact_tool_retry {
             clean_text(
                 &format!(
-                    "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}\n\nRecorded tool outcomes:\n{tool_rows_json}"
+                    "User message:\n{message}\n\n{tool_state_summary}{missing_turn_tool_context_block}\n\nSynthesis input envelope:\n{synthesis_input_json}\n\nRecorded tool outcomes:\n{tool_rows_json}"
                 ),
                 8_000,
             )

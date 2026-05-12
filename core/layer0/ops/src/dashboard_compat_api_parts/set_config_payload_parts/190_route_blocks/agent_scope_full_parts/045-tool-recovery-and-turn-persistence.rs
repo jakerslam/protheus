@@ -103,6 +103,199 @@ fn tool_hidden_array_len(tool: &Value, key: &str) -> usize {
         .unwrap_or(0)
 }
 
+fn tool_hidden_array(tool: &Value, key: &str) -> Vec<Value> {
+    tool.get(key)
+        .and_then(Value::as_array)
+        .cloned()
+        .or_else(|| {
+            tool.pointer(&format!("/tool_pipeline/raw_payload/{key}"))
+                .and_then(Value::as_array)
+                .cloned()
+        })
+        .unwrap_or_default()
+}
+
+fn compact_tool_evidence_item(source: &str, row: &Value) -> Value {
+    if let Some(raw) = row.as_str() {
+        return json!({
+            "source": source,
+            "ref": clean_text(raw, 240)
+        });
+    }
+    json!({
+        "source": source,
+        "pack_version": clean_text(row.get("pack_version").and_then(Value::as_str).unwrap_or(""), 80),
+        "source_kind": clean_text(row.get("source_kind").and_then(Value::as_str).unwrap_or(""), 80),
+        "source_class": clean_text(row.get("source_class").and_then(Value::as_str).unwrap_or(""), 80),
+        "title": clean_text(row.get("title").and_then(Value::as_str).unwrap_or(""), 180),
+        "locator": clean_text(row.get("locator").or_else(|| row.get("url")).and_then(Value::as_str).unwrap_or(""), 260),
+        "source_domain": clean_text(row.get("source_domain").or_else(|| row.get("domain")).and_then(Value::as_str).unwrap_or(""), 120),
+        "snippet": clean_text(row.get("snippet").or_else(|| row.get("snippet_preview")).and_then(Value::as_str).unwrap_or(""), 420),
+        "claim_hints": compact_string_array(row.get("claim_hints"), 6, 180),
+        "term_hints": compact_string_array(row.get("term_hints"), 8, 80),
+        "score": row.get("score").cloned().unwrap_or(Value::Null),
+        "confidence": row.get("confidence").cloned().unwrap_or(Value::Null),
+        "quality_flags": compact_string_array(row.get("quality_flags").or_else(|| row.get("flags")), 8, 80),
+        "coverage_facets": row.get("coverage_facets").cloned().unwrap_or_else(|| json!([])),
+        "freshness": row.get("freshness").cloned().unwrap_or(Value::Null)
+    })
+}
+
+fn compact_string_array(value: Option<&Value>, limit: usize, item_len: usize) -> Value {
+    value
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, item_len))
+                .filter(|row| !row.is_empty())
+                .take(limit)
+                .map(Value::String)
+                .collect::<Vec<_>>()
+        })
+        .map(Value::Array)
+        .unwrap_or_else(|| json!([]))
+}
+
+fn synthesis_evidence_pack_for_tools(response_tools: &[Value], limit: usize) -> Value {
+    let mut items = Vec::<Value>::new();
+    for tool in response_tools {
+        for row in tool_hidden_array(tool, "evidence_pack") {
+            if items.len() >= limit {
+                return Value::Array(items);
+            }
+            items.push(compact_tool_evidence_item("evidence_pack", &row));
+        }
+        for row in tool_hidden_array(tool, "evidence_refs") {
+            if items.len() >= limit {
+                return Value::Array(items);
+            }
+            items.push(compact_tool_evidence_item("evidence_ref", &row));
+        }
+        for row in tool_hidden_array(tool, "provider_results") {
+            if items.len() >= limit {
+                return Value::Array(items);
+            }
+            items.push(compact_tool_evidence_item("provider_result", &row));
+        }
+    }
+    if items.is_empty() {
+        for tool in response_tools.iter().take(limit) {
+            let result = clean_text(tool.get("result").and_then(Value::as_str).unwrap_or(""), 420);
+            if result.is_empty() {
+                continue;
+            }
+            items.push(json!({
+                "source": "tool_result_summary",
+                "tool_name": normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool")),
+                "snippet": result
+            }));
+        }
+    }
+    Value::Array(items)
+}
+
+fn synthesis_tool_receipt_refs(response_tools: &[Value]) -> Value {
+    Value::Array(
+        response_tools
+            .iter()
+            .take(8)
+            .enumerate()
+            .map(|(idx, tool)| {
+                let receipt = response_tool_receipt_id(tool);
+                if receipt.is_empty() {
+                    format!(
+                        "tool_observation:{}:{}",
+                        idx,
+                        normalize_tool_name(tool.get("name").and_then(Value::as_str).unwrap_or("tool"))
+                    )
+                } else {
+                    receipt
+                }
+            })
+            .map(Value::String)
+            .collect(),
+    )
+}
+
+fn synthesis_tool_result_quality(response_tools: &[Value]) -> String {
+    if response_tools.is_empty() {
+        return "absent".to_string();
+    }
+    let search_result_count = response_tools
+        .iter()
+        .map(|tool| tool_hidden_array_len(tool, "search_results"))
+        .sum::<usize>();
+    let provider_result_count = response_tools
+        .iter()
+        .map(|tool| tool_hidden_array_len(tool, "provider_results"))
+        .sum::<usize>();
+    let evidence_ref_count = response_tools
+        .iter()
+        .map(|tool| tool_hidden_array_len(tool, "evidence_refs") + tool_hidden_array_len(tool, "evidence_pack"))
+        .sum::<usize>();
+    let has_evidence = search_result_count > 0 || provider_result_count > 0 || evidence_ref_count > 0;
+    let has_error = !response_tools_failure_reason_for_user(response_tools, 4)
+        .trim()
+        .is_empty();
+    let low_signal = response_tools_any_low_signal(response_tools)
+        || response_tools.iter().any(tool_quality_retry_recommended);
+    if has_evidence && !has_error && !low_signal {
+        "usable".to_string()
+    } else if has_evidence {
+        "partial_or_low_signal".to_string()
+    } else if low_signal {
+        "low_signal".to_string()
+    } else if has_error {
+        "error".to_string()
+    } else {
+        "no_evidence".to_string()
+    }
+}
+
+fn synthesis_coverage_gaps(response_tools: &[Value]) -> Value {
+    let mut gaps = Vec::<Value>::new();
+    for tool in response_tools.iter().take(6) {
+        if let Some(quality) = tool_result_quality_object(tool) {
+            for flag in tool_quality_string_array(quality, "/flags", 8) {
+                gaps.push(json!({"kind": "quality_flag", "detail": flag}));
+            }
+            let retry_reason = clean_text(
+                quality
+                    .pointer("/retry/reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                160,
+            );
+            if !retry_reason.is_empty() && retry_reason != "none" {
+                gaps.push(json!({"kind": "retry_reason", "detail": retry_reason}));
+            }
+        }
+    }
+    Value::Array(gaps.into_iter().take(12).collect())
+}
+
+fn workflow_synthesis_input_for_final_response(
+    message: &str,
+    response_tools: &[Value],
+    selected_workflow: &Value,
+) -> Value {
+    let final_output_contract = selected_workflow
+        .get("final_output_contract")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    json!({
+        "schema_version": "live_synthesis_input_v1",
+        "source": "dashboard_tool_observation_handoff",
+        "user_goal": clean_text(message, 1_200),
+        "tool_result_quality": synthesis_tool_result_quality(response_tools),
+        "tool_receipt_refs": synthesis_tool_receipt_refs(response_tools),
+        "evidence_pack": synthesis_evidence_pack_for_tools(response_tools, 8),
+        "coverage_gaps": synthesis_coverage_gaps(response_tools),
+        "final_output_contract": final_output_contract
+    })
+}
+
 fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
     let limited = response_tools.iter().take(6).collect::<Vec<_>>();
     let tool_count = limited.len();
@@ -576,6 +769,70 @@ mod tool_turn_response_text_tests {
         assert!(
             rows.pointer("/0/quality_diagnostics/candidate_quality/0/locator").is_none(),
             "{rows}"
+        );
+    }
+
+    #[test]
+    fn workflow_synthesis_input_carries_evidence_pack_and_final_contract() {
+        let selected_workflow = json!({
+            "name": "research_synthesize_verify",
+            "final_output_contract": {
+                "visible_chat_source": "llm_final_answer_only",
+                "chat_requirement": "Answer from available evidence without exposing traces."
+            }
+        });
+        let input = workflow_synthesis_input_for_final_response(
+            "What are some scientific breakthroughs in 2026?",
+            &[json!({
+                "name": "batch_query",
+                "status": "ok",
+                "result": "Battery chemistry and protein design examples were retrieved.",
+                "tool_attempt_receipt": {"receipt_id": "receipt-123"},
+                "evidence_pack": [{
+                    "pack_version": "evidence_pack_v1",
+                    "source_kind": "web_page",
+                    "source_class": "news",
+                    "title": "Battery milestone",
+                    "locator": "https://example.test/battery",
+                    "source_domain": "example.test",
+                    "snippet": "A lab reported a battery chemistry milestone.",
+                    "claim_hints": ["battery chemistry milestone"],
+                    "quality_flags": ["primary_source_needed"],
+                    "score": 0.84,
+                    "confidence": "medium"
+                }],
+                "tool_result_quality": {
+                    "status": "ok",
+                    "flags": [],
+                    "evidence_count": 1,
+                    "candidate_count": 1,
+                    "retry": {"recommended": false, "reason": "none"}
+                }
+            })],
+            &selected_workflow,
+        );
+
+        assert_eq!(
+            input.get("schema_version").and_then(Value::as_str),
+            Some("live_synthesis_input_v1")
+        );
+        assert_eq!(
+            input.get("tool_result_quality").and_then(Value::as_str),
+            Some("usable")
+        );
+        assert_eq!(
+            input.pointer("/tool_receipt_refs/0").and_then(Value::as_str),
+            Some("receipt-123")
+        );
+        assert_eq!(
+            input.pointer("/evidence_pack/0/title").and_then(Value::as_str),
+            Some("Battery milestone")
+        );
+        assert_eq!(
+            input
+                .pointer("/final_output_contract/visible_chat_source")
+                .and_then(Value::as_str),
+            Some("llm_final_answer_only")
         );
     }
 
