@@ -297,12 +297,7 @@ fn write_scratchpad(
     let payload = serde_json::to_string_pretty(&next)
         .map_err(|err| format!("scratchpad_encode_failed:{err}"))?
         + "\n";
-    fs::write(&loaded.file_path, payload).map_err(|err| {
-        format!(
-            "scratchpad_write_failed:{}:{err}",
-            loaded.file_path.display()
-        )
-    })?;
+    write_scratchpad_file_atomically(&loaded.file_path, &payload)?;
 
     Ok(json!({
         "ok": true,
@@ -311,6 +306,43 @@ fn write_scratchpad(
         "file_path": loaded.file_path,
         "scratchpad": next
     }))
+}
+
+fn write_scratchpad_file_atomically(file_path: &Path, payload: &str) -> Result<(), String> {
+    let parent = file_path
+        .parent()
+        .ok_or_else(|| format!("scratchpad_invalid_path:{}", file_path.display()))?;
+    let file_name = file_path
+        .file_name()
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "scratchpad.json".to_string());
+    let nonce = Utc::now()
+        .timestamp_nanos_opt()
+        .unwrap_or_else(|| Utc::now().timestamp_micros() * 1000);
+    let temp_path = parent.join(format!(".{file_name}.{nonce}.tmp"));
+
+    fs::write(&temp_path, payload)
+        .map_err(|err| format!("scratchpad_write_failed:{}:{err}", temp_path.display()))?;
+
+    #[cfg(windows)]
+    if file_path.exists() {
+        fs::remove_file(file_path).map_err(|err| {
+            let _ = fs::remove_file(&temp_path);
+            format!(
+                "scratchpad_replace_existing_failed:{}:{err}",
+                file_path.display()
+            )
+        })?;
+    }
+
+    fs::rename(&temp_path, file_path).map_err(|err| {
+        let _ = fs::remove_file(&temp_path);
+        format!(
+            "scratchpad_commit_failed:{}:{}:{err}",
+            temp_path.display(),
+            file_path.display()
+        )
+    })
 }
 
 fn is_datetime(value: &str) -> bool {

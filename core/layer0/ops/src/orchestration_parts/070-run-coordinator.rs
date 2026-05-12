@@ -102,6 +102,7 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
             Value::String(session)
         }
     };
+    let workflow_id = get_string_any(input, &["workflow_id", "workflowId"]);
     let agents = partitions
         .iter()
         .map(|partition| {
@@ -172,52 +173,82 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         "total": items.len()
     });
 
-    let write_progress = write_scratchpad(
-        root,
-        &task_id,
-        &json!({ "progress": updated_progress }),
-        root_dir,
-    );
-    if write_progress.is_err() {
-        return json!({
-            "ok": false,
-            "type": "orchestration_coordinator",
-            "reason_code": write_progress.err().unwrap_or_else(|| "scratchpad_write_failed".to_string())
-        });
-    }
-
     let merged_findings = merged
         .get("merged")
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    for finding in &merged_findings {
-        let out = append_finding(
-            root,
-            &task_id,
-            &json!({
-                "audit_id": audit_id,
-                "item_id": finding.get("item_id").cloned().unwrap_or(Value::Null),
-                "severity": finding.get("severity").cloned().unwrap_or(Value::Null),
-                "status": finding.get("status").cloned().unwrap_or(Value::Null),
-                "location": finding.get("location").cloned().unwrap_or(Value::Null),
-                "evidence": finding.get("evidence").cloned().unwrap_or(Value::Array(Vec::new())),
-                "timestamp": finding.get("timestamp").cloned().unwrap_or(Value::String(now_iso())),
-                "summary": finding.get("summary").cloned().unwrap_or(Value::Null),
-                "agent_id": finding.get("agent_id").cloned().unwrap_or(Value::Null),
-                "metadata": finding.get("metadata").cloned().unwrap_or(Value::Null)
-            }),
-            root_dir,
-        );
-        if out.get("ok").and_then(Value::as_bool) != Some(true) {
-            return json!({
-                "ok": false,
-                "type": "orchestration_coordinator",
-                "reason_code": out.get("reason_code").cloned().unwrap_or(Value::String("append_finding_failed".to_string())),
-                "task_id": task_id,
-                "audit_id": audit_id
-            });
-        }
+
+    let coordinator_findings = merged_findings
+        .iter()
+        .map(|finding| {
+            let mut row = Map::new();
+            row.insert("audit_id".to_string(), Value::String(audit_id.clone()));
+            row.insert(
+                "item_id".to_string(),
+                finding.get("item_id").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "severity".to_string(),
+                finding.get("severity").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "status".to_string(),
+                finding.get("status").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "location".to_string(),
+                finding.get("location").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "evidence".to_string(),
+                finding
+                    .get("evidence")
+                    .cloned()
+                    .unwrap_or(Value::Array(Vec::new())),
+            );
+            row.insert(
+                "timestamp".to_string(),
+                finding
+                    .get("timestamp")
+                    .cloned()
+                    .unwrap_or(Value::String(now_iso())),
+            );
+            row.insert(
+                "summary".to_string(),
+                finding.get("summary").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "agent_id".to_string(),
+                finding.get("agent_id").cloned().unwrap_or(Value::Null),
+            );
+            row.insert(
+                "metadata".to_string(),
+                finding.get("metadata").cloned().unwrap_or(Value::Null),
+            );
+            if !workflow_id.is_empty() {
+                row.insert("workflow_id".to_string(), Value::String(workflow_id.clone()));
+            }
+            Value::Object(row)
+        })
+        .collect::<Vec<_>>();
+
+    let finding_commit = append_findings_batch(
+        root,
+        &task_id,
+        &coordinator_findings,
+        Some(updated_progress.clone()),
+        root_dir,
+    );
+    if finding_commit.get("ok").and_then(Value::as_bool) != Some(true) {
+        return json!({
+            "ok": false,
+            "type": "orchestration_coordinator",
+            "reason_code": finding_commit.get("reason_code").cloned().unwrap_or(Value::String("append_findings_failed".to_string())),
+            "task_id": task_id,
+            "audit_id": audit_id,
+            "reconciliation": finding_commit.get("reconciliation").cloned().unwrap_or(Value::Null)
+        });
     }
 
     let checkpoint = maybe_checkpoint(
@@ -300,6 +331,7 @@ fn run_coordinator(root: &Path, input: &Value) -> Value {
         "findings_in_scope": filtered.get("kept").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
         "findings_merged": merged_findings.len(),
         "findings_deduped": get_i64_any(&merged, &["deduped_count"], 0),
+        "finding_commit": finding_commit,
         "findings_dropped": merged.get("dropped").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
         "scope_violation_count": filtered.get("violations").and_then(Value::as_array).map(|rows| rows.len()).unwrap_or(0),
         "scope_violations": filtered.get("violations").cloned().unwrap_or(Value::Array(Vec::new())),

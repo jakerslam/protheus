@@ -132,6 +132,143 @@ mod orchestration_regression_tests {
     }
 
     #[test]
+    fn append_findings_batch_rejects_invalid_row_without_partial_commit() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let root_dir = root.path().join("scratchpad-store");
+        let root_dir_string = root_dir.display().to_string();
+
+        let valid = json!({
+            "audit_id": "audit-1",
+            "item_id": "REQ-1",
+            "severity": "high",
+            "status": "open",
+            "location": "core/layer0/ops/src/orchestration.rs:1",
+            "evidence": [{ "type": "receipt", "value": "r1" }],
+            "timestamp": now_iso()
+        });
+        let invalid = json!({
+            "audit_id": "audit-1",
+            "item_id": "REQ-2",
+            "severity": "fatal",
+            "status": "open",
+            "location": "core/layer0/ops/src/orchestration.rs:2",
+            "evidence": [{ "type": "receipt", "value": "r2" }],
+            "timestamp": now_iso()
+        });
+
+        let out = append_findings_batch(
+            root.path(),
+            "task-batch-1",
+            &[valid, invalid],
+            Some(json!({ "processed": 2, "total": 2 })),
+            Some(root_dir_string.as_str()),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("reason_code").and_then(Value::as_str),
+            Some("finding_invalid_severity")
+        );
+        assert_eq!(out.get("failed_index").and_then(Value::as_i64), Some(1));
+
+        let loaded = load_scratchpad(
+            root.path(),
+            "task-batch-1",
+            Some(root_dir_string.as_str()),
+        )
+        .expect("scratchpad load");
+        assert_eq!(loaded.exists, false);
+        assert_eq!(
+            loaded
+                .scratchpad
+                .get("findings")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(0)
+        );
+        assert_eq!(
+            loaded
+                .scratchpad
+                .pointer("/progress/processed")
+                .and_then(Value::as_f64),
+            Some(0.0)
+        );
+    }
+
+    #[test]
+    fn coordinator_run_commits_findings_idempotently() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let root_dir = root.path().join("coordinator-store");
+        let root_dir_string = root_dir.display().to_string();
+        let finding = json!({
+            "item_id": "REQ-1",
+            "severity": "high",
+            "status": "open",
+            "location": "core/layer0/ops/src/orchestration.rs:1",
+            "evidence": [{ "type": "receipt", "value": "r1" }],
+            "timestamp": now_iso(),
+            "summary": "finding one"
+        });
+        let payload = json!({
+            "root_dir": root_dir_string,
+            "task_id": "task-coordinator-1",
+            "workflow_id": "workflow-a",
+            "task_group_id": "audit-20260512000000-batch1",
+            "task_type": "audit",
+            "items": [{ "item_id": "REQ-1" }],
+            "findings": [finding],
+            "agent_count": 1
+        });
+
+        let first = run_coordinator(root.path(), &payload);
+        assert_eq!(first.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            first
+                .pointer("/finding_commit/appended_count")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+
+        let second = run_coordinator(root.path(), &payload);
+        assert_eq!(second.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            second
+                .pointer("/finding_commit/deduped_count")
+                .and_then(Value::as_i64),
+            Some(1)
+        );
+
+        let loaded = load_scratchpad(
+            root.path(),
+            "task-coordinator-1",
+            Some(root_dir_string.as_str()),
+        )
+        .expect("scratchpad load");
+        assert_eq!(
+            loaded
+                .scratchpad
+                .get("findings")
+                .and_then(Value::as_array)
+                .map(|rows| rows.len()),
+            Some(1)
+        );
+        assert_eq!(
+            loaded
+                .scratchpad
+                .pointer("/progress/processed")
+                .and_then(Value::as_f64),
+            Some(1.0)
+        );
+        assert!(
+            !loaded
+                .scratchpad
+                .pointer("/findings/0/idempotency_key")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .is_empty()
+        );
+    }
+
+    #[test]
     fn invoke_exposes_thin_client_helper_ops() {
         let root = tempfile::tempdir().expect("tempdir");
 
