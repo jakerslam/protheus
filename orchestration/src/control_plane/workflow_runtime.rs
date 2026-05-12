@@ -326,7 +326,19 @@ impl RuntimeState {
             WorkflowInput::FinalAnswer(text) => {
                 self.model_turns_seen += 1;
                 self.estimated_tokens_seen += token_estimate(text);
-                self.emit_final_answer(text, "fixture_supplied_final_answer", None);
+                let synthesis = if self.tool_observation_seen {
+                    let Some(binding) = self.latest_synthesis_binding() else {
+                        self.emit_structured_failure(
+                            "missing_synthesis_input_for_final_answer",
+                            "workflow attempted final answer after tool observation before preparing a synthesis input envelope",
+                        );
+                        return;
+                    };
+                    Some(binding)
+                } else {
+                    None
+                };
+                self.emit_final_answer(text, "fixture_supplied_final_answer", synthesis);
             }
             WorkflowInput::Abort => {
                 self.event(
@@ -498,14 +510,18 @@ impl RuntimeState {
 
     fn synthesize_from_latest_tool_result(&mut self) {
         self.model_turns_seen += 1;
-        let Some(synthesis_input) = self.synthesis_inputs.last().cloned() else {
+        let Some(synthesis) = self.latest_synthesis_binding() else {
             self.emit_structured_failure(
                 "missing_synthesis_input_for_final_answer",
                 "workflow attempted final synthesis before preparing a synthesis input envelope",
             );
             return;
         };
-        let evidence_count = synthesis_input.evidence_refs.len();
+        let evidence_count = synthesis
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0);
         let final_text = format!(
             "Synthesized final output for the user goal using {evidence_count} evidence ref(s)."
         );
@@ -513,12 +529,28 @@ impl RuntimeState {
         self.emit_final_answer(
             &final_text,
             "deterministic_replay_synthesis_stub",
-            Some(json!({
-                "synthesis_input_run_id": synthesis_input.run_id,
-                "evidence_refs": synthesis_input.evidence_refs,
-                "tool_result_quality": synthesis_input.tool_result_quality
-            })),
+            Some(synthesis),
         );
+    }
+
+    fn latest_synthesis_binding(&self) -> Option<Value> {
+        let synthesis_input = self.synthesis_inputs.last()?;
+        Some(json!({
+            "synthesis_input_run_id": synthesis_input.run_id,
+            "evidence_refs": synthesis_input.evidence_refs,
+            "tool_receipt_refs": synthesis_input.tool_receipt_refs,
+            "tool_result_quality": synthesis_input.tool_result_quality,
+            "final_output_contract_schema_version": synthesis_input
+                .final_output_contract
+                .get("schema_version")
+                .cloned()
+                .unwrap_or(Value::Null),
+            "quality_contract_present": synthesis_input
+                .final_output_contract
+                .get("quality_contract")
+                .map(|value| !value.is_null())
+                .unwrap_or(false)
+        }))
     }
 
     fn emit_synthesis_input(&mut self, summary: &str) {

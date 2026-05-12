@@ -149,6 +149,19 @@ fn successful_tool_observation_marks_pending_final_synthesis_before_final_answer
     assert!(report.events.iter().any(|event| {
         event.stream == "workflow_state" && event.event_kind == "synthesis_input_ready"
     }));
+    assert!(report.events.iter().any(|event| {
+        event.stream == "final_answer"
+            && event
+                .payload
+                .pointer("/synthesis/synthesis_input_run_id")
+                .and_then(|value| value.as_str())
+                .is_some()
+            && event
+                .payload
+                .pointer("/synthesis/quality_contract_present")
+                .and_then(|value| value.as_bool())
+                == Some(true)
+    }));
     assert!(workflow_runtime_terminal_outcome_ok(&report));
 }
 
@@ -225,6 +238,11 @@ fn tool_result_reaches_synthesis_input_and_final_projection_without_fixture_fina
             && event.event_kind == "llm_final_output"
             && event.payload.get("source").and_then(|value| value.as_str())
                 == Some("deterministic_replay_synthesis_stub")
+            && event
+                .payload
+                .pointer("/synthesis/quality_contract_present")
+                .and_then(|value| value.as_bool())
+                == Some(true)
     }));
     assert!(workflow_runtime_terminal_outcome_ok(&report));
 }
