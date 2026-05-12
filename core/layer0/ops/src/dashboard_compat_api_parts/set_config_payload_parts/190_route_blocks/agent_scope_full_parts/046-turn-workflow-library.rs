@@ -4,6 +4,97 @@ fn default_workflow_tool_menu_contract() -> Value {
         .unwrap_or_else(|| json!({}))
 }
 
+fn workflow_child_id_for_tool_family(workflow: &WorkflowDefinition, family_key: &str) -> String {
+    let family_key = clean_text(family_key, 120);
+    workflow
+        .workflow_composition_contract
+        .get("child_workflow_calls")
+        .and_then(Value::as_array)
+        .and_then(|calls| {
+            calls.iter().find_map(|call| {
+                let call_family = call
+                    .get("tool_family_key")
+                    .and_then(Value::as_str)
+                    .map(|row| clean_text(row, 120))
+                    .unwrap_or_default();
+                if call_family == family_key {
+                    call.get("workflow_id")
+                        .and_then(Value::as_str)
+                        .map(|row| clean_text(row, 120))
+                        .filter(|row| !row.is_empty())
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or_default()
+}
+
+fn workflow_tool_menu_contract_for_family(family_key: &str) -> Value {
+    let family_key = clean_text(family_key, 120);
+    let Some(default_workflow) = default_workflow_definition() else {
+        return json!({});
+    };
+    let child_id = workflow_child_id_for_tool_family(&default_workflow, &family_key);
+    if !child_id.is_empty() {
+        if let Some(child) = workflow_definition_by_name(&child_id) {
+            let child_has_family = child
+                .tool_menu_interface_contract
+                .get("tool_menu_by_family")
+                .and_then(Value::as_object)
+                .and_then(|families| families.get(&family_key))
+                .is_some();
+            if child_has_family {
+                return child.tool_menu_interface_contract;
+            }
+        }
+    }
+    default_workflow.tool_menu_interface_contract
+}
+
+fn workflow_tool_menu_contract_for_tool_key(tool_key: &str) -> Value {
+    let tool_key = clean_text(tool_key, 120);
+    if tool_key.is_empty() {
+        return default_workflow_tool_menu_contract();
+    }
+    let mut contracts = default_workflow_definition()
+        .map(|default_workflow| {
+            let mut contracts = vec![default_workflow.tool_menu_interface_contract.clone()];
+            if let Some(child_calls) = default_workflow
+                .workflow_composition_contract
+                .get("child_workflow_calls")
+                .and_then(Value::as_array)
+            {
+                for call in child_calls {
+                    if let Some(child_id) = call.get("workflow_id").and_then(Value::as_str) {
+                        if let Some(child) = workflow_definition_by_name(child_id) {
+                            contracts.push(child.tool_menu_interface_contract);
+                        }
+                    }
+                }
+            }
+            contracts
+        })
+        .unwrap_or_default();
+    contracts.reverse();
+    contracts
+        .into_iter()
+        .find(|contract| {
+            contract
+                .get("tool_menu_by_family")
+                .and_then(Value::as_object)
+                .map(|families| {
+                    families.values().any(|tools| {
+                        tools.as_array().map(|tools| {
+                            tools.iter().any(|tool| workflow_option_key(tool) == tool_key)
+                        }) == Some(true)
+                    })
+                })
+                .unwrap_or(false)
+        })
+        .unwrap_or_else(default_workflow_tool_menu_contract)
+}
+
 fn workflow_contract_gate(contract: &Value, gate_id: &str) -> Value {
     contract
         .pointer(&format!("/gates/{gate_id}"))
@@ -383,6 +474,23 @@ fn workflow_final_answer_instruction(contract: &Value) -> String {
 
 fn workflow_final_answer_prompt_context() -> String {
     workflow_final_answer_instruction(&default_workflow_tool_menu_contract())
+}
+
+fn workflow_final_answer_prompt_context_for_tools(response_tools: &[Value]) -> String {
+    let tool_contract = response_tools.iter().find_map(|tool| {
+        let tool_key = tool
+            .get("name")
+            .or_else(|| tool.get("tool_name"))
+            .or_else(|| tool.get("tool"))
+            .and_then(Value::as_str)
+            .map(|row| clean_text(row, 120))
+            .filter(|row| !row.is_empty())?;
+        Some(workflow_tool_menu_contract_for_tool_key(&tool_key))
+    });
+    tool_contract
+        .map(|contract| workflow_final_answer_instruction(&contract))
+        .filter(|row| !row.is_empty())
+        .unwrap_or_else(workflow_final_answer_prompt_context)
 }
 
 fn workflow_example_tool_key(contract: &Value) -> String {
@@ -1488,7 +1596,18 @@ fn canonical_manual_toolbox_tool_name(family: &str, tool_label: &str) -> String 
     {
         return "workspace_search".to_string();
     }
-    workflow_tool_key_for_selection(&default_workflow_tool_menu_contract(), family, tool_label)
+    let default_contract = default_workflow_tool_menu_contract();
+    let family_key = workflow_family_key_for_selection(&default_contract, family);
+    let family_key = if family_key.is_empty() {
+        clean_text(family, 120)
+    } else {
+        family_key
+    };
+    workflow_tool_key_for_selection(
+        &workflow_tool_menu_contract_for_family(&family_key),
+        &family_key,
+        tool_label,
+    )
 }
 
 fn response_is_visible_workflow_gate_choice(response: &str) -> bool {

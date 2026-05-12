@@ -1426,7 +1426,7 @@ fn run_turn_workflow_final_response(
     };
     let template_label = workflow_response_template_label(message);
     let detail_style = "workflow_cd_default";
-    let final_answer_instruction = workflow_final_answer_prompt_context();
+    let final_answer_instruction = workflow_final_answer_prompt_context_for_tools(response_tools);
     let _workflow_mode_clean = clean_text(workflow_mode, 80);
     let initial_no_tool_category_submission =
         response_tools.is_empty() && response_is_exact_no_tool_gate_submission(draft_response);

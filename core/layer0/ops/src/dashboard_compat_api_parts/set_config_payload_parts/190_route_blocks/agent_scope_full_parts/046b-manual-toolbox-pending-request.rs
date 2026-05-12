@@ -173,9 +173,9 @@ fn workflow_tool_family_prompt_context(
 }
 
 fn workflow_tool_selection_prompt_context(family_key: &str, family_label: &str) -> String {
-    let contract = default_workflow_tool_menu_contract();
     let family_key = clean_text(family_key, 120);
     let family_label = clean_text(family_label, 120);
+    let contract = workflow_tool_menu_contract_for_family(&family_key);
     let tools = contract
         .get("tool_menu_by_family")
         .and_then(Value::as_object)
@@ -214,10 +214,10 @@ fn workflow_tool_payload_prompt_context(
     tool_key: &str,
     tool_label: &str,
 ) -> String {
-    let contract = default_workflow_tool_menu_contract();
     let family_key = clean_text(family_key, 120);
     let tool_key = clean_text(tool_key, 120);
     let tool_label = clean_text(tool_label, 120);
+    let contract = workflow_tool_menu_contract_for_family(&family_key);
     let tool = contract
         .get("tool_menu_by_family")
         .and_then(Value::as_object)
@@ -345,7 +345,7 @@ fn workflow_tool_selection_from_response(
     family_key: &str,
     response: &str,
 ) -> Option<(String, String)> {
-    let contract = default_workflow_tool_menu_contract();
+    let contract = workflow_tool_menu_contract_for_family(family_key);
     let token = workflow_structured_gate_submission(response)
         .and_then(|request| {
             workflow_tool_request_string_field(&request, &contract, "tool")
@@ -374,7 +374,7 @@ fn workflow_tool_selection_from_response(
 }
 
 fn workflow_selected_tool_request_format_keys(family_key: &str, tool_key: &str) -> Vec<String> {
-    default_workflow_tool_menu_contract()
+    workflow_tool_menu_contract_for_family(family_key)
         .get("tool_menu_by_family")
         .and_then(Value::as_object)
         .and_then(|families| families.get(family_key))

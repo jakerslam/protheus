@@ -1,7 +1,7 @@
 {
-  "name": "simple_conversation_v1",
+  "name": "research_synthesize_verify_v1",
   "workflow_type": "hard_agent_workflow",
-  "workflow_role": "assistant_response_workflow",
+  "workflow_role": "capability_workflow_cd",
   "workflow_composition_contract": {
     "version": "workflow_composition_contract_v1",
     "cd_kind": "composite",
@@ -16,34 +16,23 @@
       ],
       "parent_receives": "terminal_artifact_only_refs_for_internals"
     },
-    "child_workflow_calls": [
-      {
-        "capability": "online_research",
-        "tool_family_key": "web_research",
-        "workflow_id": "research_synthesize_verify_v1",
-        "input_contract": "workflow_input_envelope_v1",
-        "output_artifact": "research_result_artifact_v1",
-        "return_policy": "return_single_terminal_artifact_to_parent",
-        "internal_trace_visibility": "refs_only"
-      }
-    ],
+    "child_workflow_calls": [],
     "non_goals": [
-      "do_not_inline_child_workflow_internals",
-      "do_not_duplicate_research_policy_in_default_workflow",
-      "do_not_return_raw_child_tool_payloads_to_parent"
+      "do_not_treat_full_research_workflow_as_primitive_yet",
+      "do_not_expose_retrieval_internals_to_parent",
+      "do_not_force_final_answer_format"
     ]
   },
-  "default": true,
-  "description": "Default composite assistant workflow. It owns the general work-category gate and delegates online research to the research_synthesize_verify_v1 CD.",
+  "default": false,
+  "description": "Research capability CD. Owns web-research tool menus, retrieval recovery, evidence-aware final synthesis, and verifier policy. Composite parents receive one terminal artifact plus refs.",
   "stages": [
-    "gate_1_work_category_menu",
-    "gate_2_tool_family_menu",
-    "gate_3_tool_menu",
-    "gate_4_request_payload_input",
-    "gate_4b_tool_confirmation_menu",
-    "gate_5_post_tool_menu",
-    "gate_5b_synthesis_handoff",
-    "gate_6_llm_final_output"
+    "research_intake",
+    "research_tool_family_menu",
+    "research_tool_menu",
+    "research_request_payload_input",
+    "research_tool_execution",
+    "research_synthesis_handoff",
+    "research_final_output"
   ],
   "final_response_policy": "llm_authored_only_no_system_injection",
   "gate_contract": "tool_menu_interface_v1",
@@ -101,7 +90,7 @@
       "chat_injection_allowed": false
     },
     "private_gate_retry_instruction": "INTERNAL RETRY — output is never shown to the user. The previous response for `{current_gate_id}` was rejected with reason `{last_reject_reason}`. Previous excerpt: {last_invalid_excerpt}. If the excerpt is empty, treat it as an empty response. Re-read the current gate system instruction and output only the exact JSON artifact required by that gate. Do not answer the user directly, do not write prose, do not include markdown, and do not use XML/tool markup such as `<tool>`, `<query>`, or `<function=...>`.",
-    "llm_gate_instruction": "INTERNAL GATE — output is never shown to the user. Gate 1: {gate_question}. You MUST output ONLY a JSON object and nothing else. Format: {\"gate\": \"<value>\"} where <value> is exactly one of: {category_options}. A natural-language answer at this gate is invalid even if it is helpful, accurate, or well formatted. No-tool values — {no_tool_categories} — skip tools and go straight to synthesis. Tool values — {tool_bearing_categories} — open the tool menu. IMPORTANT: when you choose a no-tool gate value (respond_directly or equivalent), the JSON object itself is the submission artifact and it MUST also include a \"final_answer\" field with the actual natural-language reply the user should see. A prose answer, markdown answer, or naked final answer without a valid gate JSON object does NOT count as choosing respond_directly and will be rejected. Choose a no-tool gate only for direct conversation, planning from current context, or explicit post-tool synthesis prompts that already refer to a returned tool result, existing snippets, evidence refs, or low-signal findings present in the current turn context. Choose `web_research` whenever the user asks for external research, source-backed information, freshness-sensitive information, or judgment that depends on public evidence, including current-state questions, comparisons, evaluations, rankings, recommendations, strengths or weaknesses, maturity, benchmarks, ecosystem status, or changing categories even when the user does not name candidates up front. Do NOT choose `respond_directly` for external research just because you can produce a plausible answer from memory; a tool-required or external-evidence path without a promoted/executed/failed-closed tool attempt is not a valid final-answer path. If the prompt references prior tool results but none are present, the direct answer must explain that no source-backed synthesis is available from this turn's state and avoid inventing evidence, low-signal results, or substitute entities from system, workspace, or generic prior knowledge. Example direct reply artifact: {\"gate\": \"respond_directly\", \"final_answer\": \"Hey! What can I help you with?\"}. Example tool-routed artifact: {\"gate\": \"web_research\"}. Do NOT write any other text outside the JSON object.",
+    "llm_gate_instruction": "INTERNAL RESEARCH CD GATE — output is never shown to the user. Decide whether the current research state is ready for synthesis or needs web retrieval. Output ONLY JSON. Format: {\"gate\":\"<value>\"} where <value> is exactly one of: research_synthesis_from_recorded_state, web_research. Choose research_synthesis_from_recorded_state only when this turn already has recorded tool outcomes, evidence refs, snippets, or an explicit structured failure artifact to synthesize. Choose web_research when the user goal still needs public evidence, current information, source-backed comparison, retrieval, page reading, or coverage-gap recovery. Do not answer the user directly at this gate.",
     "gate_shapes_allowed": [
       "multiple_choice",
       "text_input",
@@ -255,53 +244,48 @@
             "stage_token",
             "gate_token"
           ],
-          "chat_requirement": "User-visible reply. Answer the original user message only; do not echo menu options, gate labels, routing tokens, tool names, function-call JSON, raw tool observations, or internal traces. For direct conversation or planning from current context, answer normally from the current turn state. For delegated child workflow results, use the returned terminal artifact and refs; do not expose child internals or raw payloads. If a required child or tool path has no terminal artifact, do not invent results from memory; fail closed internally or ask for required permissions only when a permission gate actually applies. Match the semantic shape of the request without forcing a canned format. Do not end with a follow-up question unless the user asked for options or the task is genuinely under-specified.",
+          "chat_requirement": "User-visible reply. Answer the original user message only; do not echo menu options, gate labels, routing tokens, tool names, function-call JSON, raw tool observations, or internal traces. Privately classify the available state as one lane: no_tool_state, usable, low_signal, irrelevant, or failed; never print that classification, a status banner, or provider-degradation label as the opening of the visible answer. Use no_tool_state only when the prompt asks for post-tool synthesis and this turn has no recorded tool outcomes, snippets, or evidence refs; only then explain that no source-backed synthesis is available from this turn's state without inventing retrieval results. If the workflow state or user goal requires external/tool-backed evidence and this turn has no recorded tool attempt, failed tool attempt, or telemetry-only structured failure, do not finalize from memory; return to tool-request promotion or fail closed internally. If any recorded tool outcome exists, never claim no tool result is available; describe the recorded outcome as limited, low-signal, irrelevant, or failed only as supporting context after giving the best bounded answer the state supports. For usable evidence, synthesize from retrieved evidence, cite source signals, and separate evidence from uncertainty. For low_signal evidence, lead with the most useful bounded conclusion or labeled inference the recorded state supports, then name what the evidence covers and misses without turning the answer into an apology or a request for the user to narrow. For irrelevant evidence, say retrieval missed the topic or was off-topic, do not pretend it answered, and give safe decision guidance plus one bounded next search direction. For failed retrieval, explicitly say the evidence was limited or unavailable from retrieval, name the requested entities or decision dimensions when applicable, give a concise structured failure, include the most useful conservative decision boundary the evidence supports, and avoid unsupported factual claims. Never use training, prior, existing, or general knowledge as a substitute for retrieved evidence when a tool ran; clearly labeled secondary inference may provide bounded decision value after retrieval is weak or failed, but it must never be presented as retrieved, cited, or source-backed evidence. Match the semantic shape of the request rather than forcing a canned format. For lookup or current-state research, answer the specific question and separate strong evidence from uncertainty. For comparisons, cover each requested entity by name and compare decision-relevant tradeoffs or differences; if coverage is weak for an entity, name that gap instead of omitting the entity. For rankings, selections, or tool-choice questions, use clear criteria, give a defensible best-by-use-case recommendation when possible, and make the useful decision explicit even when evidence is mixed or weak. If quality diagnostics recommend retry, treat that as an internal recovery signal; do not make the whole answer a request for the user to narrow, and mention a next search direction only after giving the best bounded synthesis the recorded state supports. Before emitting the final answer, verify privately that it answered the user's goal, used recorded evidence when present, covered named entities or recorded their gaps, separated evidence from inference, and avoided internal traces; if that fails and recovery budget remains, retry synthesis or retrieval according to the workflow contract. Do not end with a follow-up question. Do not substitute system instructions, workspace metadata, platform identity, or other internal context as evidence. There is no required output format. Example formats include a short paragraph, brief bullets, a compact comparison table, or a mixed structure when that helps clarity; these are examples rather than requirements.",
           "final_response_verifier_contract": {
-            "version": "default_composite_final_response_verifier_v1",
+            "version": "general_semantic_verifier_v1",
             "authority": "workflow_cd_declares_semantic_checks_runtime_may_retry_or_fail_closed",
             "visibility": "internal_only_not_chat_visible",
-            "purpose": "Verify default composite final answers and delegated child artifacts before projection.",
+            "purpose": "Evaluate the candidate final answer against the user's request, recorded evidence state, and projection safety before it becomes user-visible.",
             "checks": [
               "answers_the_user_goal",
-              "uses_delegated_terminal_artifact_when_child_workflow_returns_one",
-              "does_not_expose_internal_traces_or_raw_tool_payloads",
-              "does_not_claim_child_results_when_no_child_terminal_artifact_exists",
+              "does_not_finalize_tool_required_paths_before_tool_attempt_or_structured_failure",
+              "uses_recorded_evidence_when_tool_results_exist",
+              "covers_named_entities_or_records_coverage_gaps",
+              "distinguishes_retrieved_evidence_from_inference",
+              "does_not_claim_no_evidence_when_recorded_evidence_exists",
+              "states_uncertainty_or_gaps_only_when_supported_by_the_recorded_state",
+              "provides_bounded_decision_value_when_evidence_is_weak",
+              "does_not_overlead_with_tool_status_or_provider_degradation",
+              "does_not_expose_internal_traces_or_tool_payloads",
               "does_not_force_or_depend_on_a_specific_output_format"
             ],
             "recovery": {
-              "when_check_fails": "retry_final_synthesis_if_attempt_budget_remains_otherwise_emit_structured_failure",
-              "retry_input": "same_user_goal_plus_terminal_artifact_refs_and_verifier_failure_reason"
+              "when_check_fails": "retry_final_synthesis_or_targeted_gap_fill_if_attempt_budget_remains_otherwise_emit_structured_failure",
+              "retry_input": "same_synthesis_input_plus_missing_coverage_facets_quality_flags_and_verifier_failure_reason"
             },
             "non_goals": [
-              "do_not_inline_child_workflow_policy",
+              "do_not_add_domain_specific_answer_templates",
               "do_not_choose_tools_or_routes",
-              "do_not_prescribe_tables_lists_sections_or_phrasing"
+              "do_not_prescribe_tables_lists_sections_or_phrasing",
+              "do_not_treat_telemetry_as_source_evidence"
             ]
           }
         }
       },
       "gate_1_work_category_menu": {
         "input_kind": "multiple_choice",
-        "question": "What kind of work is this?",
+        "question": "Is this research state ready to synthesize or does it need web retrieval?",
         "submission_contract": {
           "visibility": "private_token_only",
           "accepted_outputs": [
             "1",
-            "Respond directly",
+            "Research synthesis from recorded state",
             "2",
-            "Planning from current context",
-            "3",
-            "Web research",
-            "4",
-            "Workspace/files",
-            "5",
-            "Code execution / terminal",
-            "6",
-            "Agent management",
-            "7",
-            "Memory/notes",
-            "8",
-            "External apps/integrations"
+            "Web research"
           ],
           "structured_token_fields": [
             "token",
@@ -324,21 +308,10 @@
         },
         "options": [
           {
-            "key": "respond_directly",
-            "label": "Respond directly",
+            "key": "research_synthesis_from_recorded_state",
+            "label": "Research synthesis from recorded state",
             "aliases": [
               "1"
-            ],
-            "private_token": true,
-            "visible_chat": false,
-            "has_tools": false,
-            "transition": "gate_6_llm_final_output"
-          },
-          {
-            "key": "planning_current_context",
-            "label": "Planning from current context",
-            "aliases": [
-              "2"
             ],
             "private_token": true,
             "visible_chat": false,
@@ -349,62 +322,7 @@
             "key": "web_research",
             "label": "Web research",
             "aliases": [
-              "3"
-            ],
-            "private_token": true,
-            "visible_chat": false,
-            "has_tools": true,
-            "transition": "gate_2_tool_family_menu"
-          },
-          {
-            "key": "workspace_files",
-            "label": "Workspace/files",
-            "aliases": [
-              "4"
-            ],
-            "private_token": true,
-            "visible_chat": false,
-            "has_tools": true,
-            "transition": "gate_2_tool_family_menu"
-          },
-          {
-            "key": "code_execution_terminal",
-            "label": "Code execution / terminal",
-            "aliases": [
-              "5"
-            ],
-            "private_token": true,
-            "visible_chat": false,
-            "has_tools": true,
-            "transition": "gate_2_tool_family_menu"
-          },
-          {
-            "key": "agent_management",
-            "label": "Agent management",
-            "aliases": [
-              "6"
-            ],
-            "private_token": true,
-            "visible_chat": false,
-            "has_tools": true,
-            "transition": "gate_2_tool_family_menu"
-          },
-          {
-            "key": "memory_notes",
-            "label": "Memory/notes",
-            "aliases": [
-              "7"
-            ],
-            "private_token": true,
-            "visible_chat": false,
-            "has_tools": true,
-            "transition": "gate_2_tool_family_menu"
-          },
-          {
-            "key": "external_apps_integrations",
-            "label": "External apps/integrations",
-            "aliases": [
-              "8"
+              "2"
             ],
             "private_token": true,
             "visible_chat": false,
@@ -417,8 +335,7 @@
     "private_tokens": [
       "confirm",
       "cancel",
-      "respond_directly",
-      "planning_current_context"
+      "research_synthesis_from_recorded_state"
     ],
     "terminal_states": [
       "completed",
@@ -864,41 +781,44 @@
         "agent_process": "Follow the currently presented workflow gate."
       }
     },
+    "retrieval_recovery_contract": {
+      "version": "retrieval_recovery_contract_v1",
+      "authority": "agent_submitted_tool_inputs",
+      "default_recovery_budget": 2,
+      "trigger_signals": [
+        "tool_result_quality.retry.recommended",
+        "insufficient_evidence",
+        "low_relevance_filtered",
+        "comparison_evidence_insufficient",
+        "weak_single_source",
+        "no_results",
+        "provider_degraded_or_partial_failure",
+        "partial_or_low_signal_evidence"
+      ],
+      "recovery_behavior": "When retrieval evidence is weak and budget remains, submit a more specific query or query pack before final synthesis. When provider degradation, partial failure, zero-result, or low-detail snippets are recorded, recover with a source-diverse query pack and promising-page read/fetch candidates where available instead of treating candidate count or failure telemetry as sufficient evidence. Do not ask the user to narrow unless the request is ambiguous, permissions are needed, or the recovery budget is exhausted.",
+      "coverage_behavior": "For multi-entity, multi-aspect, comparative, selection, ranking, current-state, or open-ended discovery research, preserve each major entity, user-stated aspect, source class, and time window as a retrieval coverage lane. Before final synthesis, each lane should have usable evidence, weak evidence, or an explicit coverage gap; do not silently omit a lane just because another lane had stronger results.",
+      "two_phase_retrieval_behavior": "A single broad query may be used as an initial discovery pass to learn vocabulary, candidates, source classes, and gaps, but it is not enough to finish broad, comparative, current, evaluative, multi-entity, or multi-aspect research unless sufficiency signals already show the request is covered. If discovery is weak and recovery budget remains, submit targeted follow-up queries derived from the user request, discovery terms, quality flags, and missing coverage lanes before final synthesis.",
+      "query_refinement_axes": [
+        "preserve the user's original objective",
+        "split broad requests by named entity, aspect, time window, or source type",
+        "treat discovery-first retrieval as non-terminal for broad research until targeted follow-up covers major lanes or records explicit gaps",
+        "allocate query budget across major entities, user-stated aspects or criteria, cross-comparison evidence, and coverage-gap recovery rather than spending all queries on the broad topic",
+        "for open-ended discovery requests, search for constrained candidates and source classes before relying on unnamed candidates from memory",
+        "prefer primary, official, source-backed, or directly citable pages when possible",
+        "use partial snippets, failure reasons, and off-topic signals to remove weak terms",
+        "when provider degradation or partial failure is recorded, vary source class, exact entity terms, and page type rather than repeating the same broad query",
+        "when search rows have relevance but weak snippets, prefer reader/fetch or page-content candidates before final synthesis if budget and policy allow",
+        "for one named entity, keep the exact entity name in each recovery query and vary source class or decision aspect rather than replacing it with loose synonyms",
+        "for current or recent research, use current/recent source-class searches such as changelog, release notes, repository, publication, announcement, security advisory, methodology, or direct documentation instead of broad stale year ranges",
+        "avoid hidden query expansion; every retry query must be represented in the submitted request payload"
+      ],
+      "finalization_after_exhaustion": "If retrieval remains weak after the allowed internal recovery attempts, synthesize a bounded answer from the best recorded evidence and clearly separate evidence, uncertainty, coverage gaps, decision value, and useful next search direction."
+    },
     "tool_family_menu": [
       {
         "option": 1,
         "key": "web_research",
         "label": "Web research",
-        "has_tools": true
-      },
-      {
-        "option": 2,
-        "key": "workspace_files",
-        "label": "Workspace/files",
-        "has_tools": true
-      },
-      {
-        "option": 3,
-        "key": "code_execution_terminal",
-        "label": "Code execution / terminal",
-        "has_tools": true
-      },
-      {
-        "option": 4,
-        "key": "agent_management",
-        "label": "Agent management",
-        "has_tools": true
-      },
-      {
-        "option": 5,
-        "key": "memory_notes",
-        "label": "Memory/notes",
-        "has_tools": true
-      },
-      {
-        "option": 6,
-        "key": "external_apps_integrations",
-        "label": "External apps/integrations",
         "has_tools": true
       }
     ],
@@ -906,156 +826,67 @@
       "web_research": [
         {
           "option": 1,
-          "key": "research_synthesize_verify_v1",
-          "label": "Delegate to research workflow",
-          "delegated_workflow_ref": "research_synthesize_verify_v1",
+          "key": "batch_query",
+          "tool_id": "batch_query",
+          "tool_cd_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#batch_query",
+          "label": "Research query pack",
           "request_format": {
-            "user_goal": "<research question>",
-            "input_contract": "workflow_input_envelope_v1"
+            "source": "web",
+            "query": "<overall research question>",
+            "queries": [
+              "<specific source-backed query 1>",
+              "<specific source-backed query 2>",
+              "<specific source-backed query 3>",
+              "<specific source-backed query 4>"
+            ],
+            "aperture": "medium"
           },
           "request_example": {
-            "user_goal": "Research the current state of a topic using web evidence.",
-            "input_contract": "workflow_input_envelope_v1"
-          }
-        }
-      ],
-      "workspace_files": [
-        {
-          "option": 1,
-          "key": "parse_workspace",
-          "label": "Parse workspace",
-          "request_format": {
-            "path": "<path>",
-            "operation": "inspect|read|mutate"
-          },
-          "request_example": {
-            "path": "core/layer0/ops/src",
-            "operation": "inspect"
+            "source": "web",
+            "query": "Compare LangGraph vs CrewAI on reliability, observability, human-in-the-loop, and deployment.",
+            "queries": [
+              "LangGraph official docs reliability observability human-in-the-loop deployment",
+              "CrewAI official docs reliability observability human-in-the-loop deployment",
+              "LangGraph GitHub deployment observability release notes",
+              "CrewAI GitHub deployment observability release notes"
+            ],
+            "aperture": "medium"
           }
         },
         {
           "option": 2,
-          "key": "file_read",
-          "aliases": [
-            "read_file"
-          ],
-          "label": "Read file",
+          "key": "web_search",
+          "tool_id": "web_search",
+          "tool_cd_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#web_search",
+          "label": "Search web",
           "request_format": {
-            "path": "<path>"
+            "query": "<search criteria>",
+            "aperture": "medium"
           },
           "request_example": {
-            "path": "core/layer0/ops/src/main.rs"
+            "query": "latest rust 2026 release notes",
+            "aperture": "medium"
           }
         },
         {
           "option": 3,
-          "key": "apply_patch",
-          "label": "Apply patch",
+          "key": "web_fetch",
+          "tool_id": "web_fetch",
+          "tool_cd_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#web_fetch",
+          "label": "Fetch URL",
           "request_format": {
-            "path": "<path>",
-            "patch": "<unified diff>"
+            "url": "<https url>"
           },
           "request_example": {
-            "path": "core/layer0/ops/src/main.rs",
-            "patch": "*** Begin Patch\\n*** Update File: core/layer0/ops/src/main.rs\\n@@\\n- old\\n+ new\\n*** End Patch"
-          }
-        },
-        {
-          "option": 4,
-          "key": "workspace_search",
-          "label": "Search workspace",
-          "request_format": {
-            "path": "<path>",
-            "pattern": "<criteria>"
-          },
-          "request_example": {
-            "path": ".",
-            "pattern": "selected_tool_family"
-          }
-        }
-      ],
-      "code_execution_terminal": [
-        {
-          "option": 1,
-          "key": "terminal_exec",
-          "label": "Run terminal command",
-          "request_format": {
-            "cmd": "<command>",
-            "cwd": "<workspace path optional>"
-          },
-          "request_example": {
-            "cmd": "cargo test --manifest-path core/layer0/ops/Cargo.toml --lib",
-            "cwd": "/Users/jay/.openclaw/workspace"
-          }
-        }
-      ],
-      "agent_management": [
-        {
-          "option": 1,
-          "key": "spawn_agent",
-          "label": "Spawn agent",
-          "request_format": {
-            "objective": "<bounded task>",
-            "agent_type": "default|worker|explorer"
-          },
-          "request_example": {
-            "objective": "inspect workflow traces for one failing turn",
-            "agent_type": "explorer"
-          }
-        }
-      ],
-      "memory_notes": [
-        {
-          "option": 1,
-          "key": "read_memory",
-          "label": "Read memory",
-          "request_format": {
-            "scope": "session|workspace",
-            "query": "<criteria>"
-          },
-          "request_example": {
-            "scope": "workspace",
-            "query": "recent orchestration commits"
-          }
-        },
-        {
-          "option": 2,
-          "key": "workspace_search",
-          "label": "Search workspace",
-          "request_format": {
-            "path": "<path>",
-            "pattern": "<criteria>"
-          },
-          "request_example": {
-            "path": "core/layer0/ops/src",
-            "pattern": "need_tool_access"
-          }
-        }
-      ],
-      "external_apps_integrations": [
-        {
-          "option": 1,
-          "key": "external_app_request",
-          "label": "Use external app/integration",
-          "request_format": {
-            "app": "<app name>",
-            "action": "<requested action>",
-            "payload": {}
-          },
-          "request_example": {
-            "app": "github",
-            "action": "inspect pull request",
-            "payload": {
-              "query": "<PR or issue>"
-            }
+            "url": "https://www.rust-lang.org/"
           }
         }
       ],
       "none": []
     },
     "llm_tool_family_instruction": "INTERNAL GATE — output is never shown to the user. Gate 2 selects the tool family only. You MUST output ONLY a JSON object and nothing else. Format: {\"tool_family\": \"<family_key>\"}. Choose exactly one `tool_family` from the menu below. The previous tool-bearing work category was `{previous_category_key}` (`{previous_category_label}`); use that as context, but the only accepted artifact for this gate is the selected family key. Do NOT include a tool key, request payload, explanation, or sentence. Do NOT answer the user directly and do NOT describe what you plan to do. Family decision rules: choose `workspace_files` when the user asks to search, find, inspect, read, patch, or locate information in repository/workspace files, including finding where a symbol/string/config value is set. Choose `code_execution_terminal` only when the user asks to run a shell command, compile, test, start/stop a process, inspect the environment/system, or perform terminal/process control. If the request is to get information from files and a terminal command could also do it, prefer `workspace_files`. Near-miss examples: `Search the workspace for selected_tool_family and show me where it is set.` -> {\"tool_family\": \"workspace_files\"}. `Find where gate_2_tool_family_menu is declared in the repo.` -> {\"tool_family\": \"workspace_files\"}. `Run rg selected_tool_family and show the output.` -> {\"tool_family\": \"code_execution_terminal\"}. `Build the crate and show failing tests.` -> {\"tool_family\": \"code_execution_terminal\"}. Example: {\"tool_family\": \"web_research\"}.\n\nTool families (JSON):\n{tool_family_menu_json}",
-    "llm_tool_selection_instruction": "INTERNAL GATE - output is never shown to the user. Gate 3 selects one tool within the already-selected family `{selected_family_key}` (`{selected_family_label}`). Output MUST be parseable as a single JSON object with exactly one key named `tool`: {\"tool\":\"<tool_key>\"}. The value MUST exactly match one entry in this allowed tool-key array: {selected_tool_keys_json}. Anything else is invalid: prose, markdown, XML/tool markup, family keys, request payloads, placeholder values, or text before/after the JSON object. If the selected family is delegated to a child workflow CD, choose from the child CD projected tool menu and do not invent parent-local tools. Valid artifact example: {\"tool\":\"<tool_key_from_allowed_array>\"}.\n\nAvailable tools for the selected family (JSON):\n{selected_tool_menu_json}",
-    "llm_tool_payload_instruction": "INTERNAL GATE — output is never shown to the user. Gate 4 fills the request payload for the already-selected tool `{selected_tool_key}` (`{selected_tool_label}`) inside family `{selected_family_key}`. You MUST output ONLY a JSON object and nothing else. Format: {\"request_payload\": <payload_object>}. The payload object MUST match this request_format JSON: {selected_tool_request_format_json}. Use this example only as shape guidance: {selected_tool_request_example_json}. Do NOT include the tool family, do NOT include the tool key, and do NOT write any explanation or sentence. Do NOT repeat earlier gate/category artifacts. Do NOT emit placeholder JSON such as {\"key\":\"value\"}. Include every required field declared by the selected request_format, including fields whose value is a fixed literal in the format. Any prose is invalid, including phrases like `I will search`, `I will read`, or `To analyze`. Always follow the selected request_format and selected example for the already-selected tool.",
+    "llm_tool_selection_instruction": "INTERNAL GATE - output is never shown to the user. Gate 3 selects one tool within the already-selected family `{selected_family_key}` (`{selected_family_label}`). This is a machine-control turn, not a chat turn. Output MUST be parseable as a single JSON object with exactly one key named `tool`: {\"tool\":\"<tool_key>\"}. The value MUST exactly match one entry in this allowed tool-key array: {selected_tool_keys_json}. Anything else is invalid: prose, markdown, code fences, XML/tool markup such as `<tool>`, `<query>`, or `<function=...>`, family keys, request payloads, placeholder values, or text before/after the JSON object. For `web_research`, choose `batch_query` when the task may need multiple evidence slices or query reformulation: broad/current/comparative/evaluative research, multiple entities, recommendation/selection/ranking/landscape/benchmark questions, maturity/risk/security/production-readiness judgments, strengths/weaknesses, or source-backed fit assessment. Choose `web_search` for one narrow lookup where one result set is enough: an exact fact, latest version/date, one named source/domain, or one isolated side of a topic. Choose `web_fetch` only for an absolute URL or a request to read one specific page. If uncertain between `batch_query` and `web_search`, choose `batch_query`; the payload gate can narrow the queries. Valid artifact example: {\"tool\":\"batch_query\"}.\n\nAvailable tools for the selected family (JSON):\n{selected_tool_menu_json}",
+    "llm_tool_payload_instruction": "INTERNAL GATE — output is never shown to the user. Gate 4 fills the request payload for the already-selected tool `{selected_tool_key}` (`{selected_tool_label}`) inside family `{selected_family_key}`. You MUST output ONLY a JSON object and nothing else. Format: {\"request_payload\": <payload_object>}. The payload object MUST match this request_format JSON: {selected_tool_request_format_json}. Use this example only as shape guidance: {selected_tool_request_example_json}. Do NOT include the tool family, do NOT include the tool key, and do NOT write any explanation or sentence. IMPORTANT: do NOT repeat any earlier gate/category artifact such as {\"gate\": \"...\"}; Gate 4 accepts only the request payload object. Do NOT emit placeholder JSON such as {\"key\":\"value\"} or a payload that omits the declared request_format fields. Any prose is invalid, including phrases like `I'll search`, `I will read`, `To analyze`, or `I need to`. If the selected request_format declares `aperture`, copy `aperture` into `request_payload` exactly as declared; a payload that omits `aperture` is invalid even when the intended value is the default `medium`. For `batch_query`, the top-level `query` field is mandatory on every request. Treat `query` as the one-sentence overall research question in normal prose. A single broad query may be used as an initial discovery pass, but broad, current, comparative, evaluative, multi-entity, multi-aspect, selection, ranking, or recommendation research must not finish from that pass unless the returned evidence already covers the request. Fill `queries` with 4-8 concrete follow-up searches whenever the request is broad, current, comparative, evaluative, names multiple entities, asks which option to use, asks for strengths or weaknesses, asks where a product or library fits, asks about maturity/risk/security/production readiness, or likely to need source diversity. A `batch_query` payload that contains only `queries` and `aperture` is invalid. For research-shaped requests routed to `batch_query`, omitting `queries` is also invalid unless this is explicitly a narrow lookup or an initial discovery pass whose result will be assessed before synthesis; if the discovery pass is weak, low-signal, off-topic, or missing named entities or user-stated aspects, submit targeted follow-up queries rather than finalizing. For one named product, library, framework, method, institution, person, place, event, standard, or other entity, keep the exact entity name in the query pack and vary source class or decision aspect. If the selected request_format declares `source`, include it exactly as declared. For comparisons, landscapes, benchmarks, selections, or current-state research, keep `query` broad enough to summarize the whole ask and use `queries` to cover each named side, use case, source family, or decision dimension separately with source-backed searches. For multi-entity or multi-aspect requests, allocate query coverage fairly across each major entity and user-stated criterion, plus one cross-comparison or source-diversity lane when useful; if a lane cannot be searched directly, represent that gap in the query pack rather than dropping it. For open-ended discovery requests where the user has not named candidates, make the first queries constrained discovery searches by category, source class, and decision criteria; candidate-specific queries may also use likely candidates from model knowledge as retrieval probes when they are clearly relevant, but treat those names only as search hypotheses until current evidence is retrieved and do not seed the whole query pack from one prior-memory list. For named product/library/framework evaluation, use `queries` to cover the exact named thing across official docs, repository or release notes, examples or usage evidence, independent/benchmark/security/risk coverage when relevant, and any adjacent comparison named by the user. Build the query pack across general source types rather than fixed domains: primary or official sources, docs or release notes, independent coverage, benchmark or methodology evidence, security or risk evidence, recent publications, institution or project announcements, and other directly citable pages when relevant. For current or recent research, prefer current/recent source-class searches such as changelog, release notes, repository, publication, announcement, security advisory, methodology, or direct documentation; do not pad queries with stale multi-year ranges. Use one explicit year only when the user's request or the current-date requirement needs it, otherwise use current/recent wording. For single-entity evaluation, keep the exact entity name in each query and vary the source class or decision aspect rather than replacing the entity with loose synonyms. For open-source/software questions, include repository, license, release, issue, and adoption evidence; do not treat closed-source products as open-source candidates unless the user explicitly asks to compare them. If a prior tool result quality diagnostic is available and recommends retry, use its flags, snippets, failure reasons, or off-topic signals to remove weak terms and submit a narrower query pack; do not ask the user to narrow while the workflow still has internal recovery budget. For `web_search`, do NOT invent provider or source fields unless the selected tool request_format explicitly declares them; use the declared keys only. For `workspace_search`, use `path` as the requested path or `.` when the user says workspace/repo without a narrower path; use `pattern` as the exact symbol, phrase, filename, or search target from the user request, not a paraphrase. Near-miss example: if the already-selected tool is `workspace_search` and the user says `Search the workspace for selected_tool_family and show me where it is set.`, output exactly {\"request_payload\":{\"path\":\".\",\"pattern\":\"selected_tool_family\"}}. Invalid `batch_query` example: {\"request_payload\":{\"queries\":[\"framework docs\",\"framework GitHub issues\"],\"aperture\":\"medium\"}} because it omits the required top-level `query`. Invalid `batch_query` example: {\"request_payload\":{\"source\":\"web\",\"query\":\"Research stack options for a small team.\",\"queries\":[\"framework docs small team\",\"framework production guide small team\"]}} because it omits the required `aperture`. Comparison example: if the already-selected tool is `batch_query` and the user says `Compare two frameworks on reliability and deployment`, output exactly {\"request_payload\":{\"source\":\"web\",\"query\":\"Compare two frameworks on reliability and deployment.\",\"queries\":[\"first framework official docs reliability deployment\",\"second framework official docs reliability deployment\",\"first framework GitHub release notes deployment\",\"second framework GitHub release notes deployment\"],\"aperture\":\"medium\"}}. Single-framework evaluation example: if the already-selected tool is `batch_query` and the user says `Research a named framework's strengths, weak points, and production fit`, output exactly {\"request_payload\":{\"source\":\"web\",\"query\":\"Research the named framework's strengths, weak points, and production fit.\",\"queries\":[\"named framework official docs strengths production\", \"named framework GitHub repository release notes issues\", \"named framework examples structured workflows production\", \"named framework independent review benchmark comparison\", \"named framework security risks limitations\"],\"aperture\":\"medium\"}}. Benchmark example: if the already-selected tool is `batch_query` and the user says `Find recent benchmarks comparing agent frameworks`, output exactly {\"request_payload\":{\"source\":\"web\",\"query\":\"Find recent benchmarks comparing agent frameworks.\",\"queries\":[\"agent framework benchmark comparison recent\", \"agent framework benchmark reproducibility methodology\", \"agent framework benchmark results task success reliability\"],\"aperture\":\"medium\"}}. RAG stack example: if the already-selected tool is `batch_query` and the user says `Research current RAG stack options for a small team`, output exactly {\"request_payload\":{\"source\":\"web\",\"query\":\"Research current RAG stack options for a small team.\",\"queries\":[\"retrieval framework official docs RAG small team getting started\", \"retrieval framework production guide small team\", \"Postgres vector search RAG small team cost performance\", \"managed vector database small team pricing RAG comparison\"],\"aperture\":\"medium\"}}. Always follow the selected request_format and selected example above for the already-selected tool, not examples for other tools.",
     "llm_tool_request_instruction": "LEGACY INTERNAL GATE — output is never shown to the user. Deprecated combined submission contract retained only for compatibility. Runtime should prefer the split Gate 2/3/4 instructions above. If used, output ONLY a JSON object in the format {\"tool_family\": \"{selected_category_key}\", \"tool\": \"<tool_key>\", \"request_payload\": <payload_object>} and nothing else.\n\nAvailable tools (JSON):\n{selected_tool_menu_json}",
     "tool_request_submission_contract": {
       "version": "tool_request_submission_contract_v1",
@@ -1078,20 +909,6 @@
       },
       "chat_injection_allowed": false,
       "system_may_infer_missing_fields": false
-    },
-    "delegated_capability_contract_refs": {
-      "web_research": {
-        "capability": "online_research",
-        "workflow_id": "research_synthesize_verify_v1",
-        "owns": [
-          "tool_menu_by_family.web_research",
-          "llm_tool_selection_instruction for web_research",
-          "llm_tool_payload_instruction for web_research",
-          "retrieval_recovery_contract",
-          "research_final_output_contract"
-        ],
-        "parent_receives": "single_terminal_artifact_refs_only"
-      }
     }
   },
   "workflow_source_of_truth_contract": {
