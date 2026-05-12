@@ -814,6 +814,8 @@
         {
           "option": 1,
           "key": "batch_query",
+          "tool_id": "batch_query",
+          "tool_cd_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#batch_query",
           "label": "Research query pack",
           "request_format": {
             "source": "web",
@@ -841,6 +843,8 @@
         {
           "option": 2,
           "key": "web_search",
+          "tool_id": "web_search",
+          "tool_cd_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#web_search",
           "label": "Search web",
           "request_format": {
             "query": "<search criteria>",
@@ -854,6 +858,8 @@
         {
           "option": 3,
           "key": "web_fetch",
+          "tool_id": "web_fetch",
+          "tool_cd_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#web_fetch",
           "label": "Fetch URL",
           "request_format": {
             "url": "<https url>"

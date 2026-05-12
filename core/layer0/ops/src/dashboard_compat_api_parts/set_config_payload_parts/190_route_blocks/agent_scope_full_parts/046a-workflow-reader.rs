@@ -812,6 +812,31 @@ mod workflow_reader_tests {
     }
 
     #[test]
+    fn workflow_reader_web_research_menu_preserves_tool_cd_refs() {
+        let selected = selected_turn_workflow("");
+        let web_tools = selected
+            .pointer("/tool_menu_interface_contract/tool_menu_by_family/web_research")
+            .and_then(Value::as_array)
+            .expect("web research tools");
+
+        for tool_id in ["batch_query", "web_search", "web_fetch"] {
+            let tool = web_tools
+                .iter()
+                .find(|row| {
+                    row.get("key").and_then(Value::as_str) == Some(tool_id)
+                })
+                .unwrap_or_else(|| panic!("missing {tool_id} tool"));
+            assert_eq!(tool.get("tool_id").and_then(Value::as_str), Some(tool_id));
+            let expected_cd_ref =
+                format!("core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#{tool_id}");
+            assert_eq!(
+                tool.get("tool_cd_ref").and_then(Value::as_str),
+                Some(expected_cd_ref.as_str())
+            );
+        }
+    }
+
+    #[test]
     fn workflow_reader_gate_instruction_keeps_research_routing_general() {
         let selected = selected_turn_workflow("");
         let gate_instruction = selected
