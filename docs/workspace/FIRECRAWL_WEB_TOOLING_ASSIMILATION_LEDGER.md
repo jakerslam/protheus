@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 878
-- Not parsed: 395
+- Parsed: 900
+- Not parsed: 373
 - Skipped generated: 13
 - Skipped media or sample: 71
 
@@ -927,6 +927,28 @@
 | `examples/deepseek-v3-company-researcher/README.md` | DeepSeek company researcher overview. | Same company research composition with explicit progress and polling. |
 | `examples/deepseek-v3-company-researcher/deepseek-v3-extract.py` | DeepSeek company researcher implementation. | Cleans URLs, filters social/invalid links, calls Firecrawl extract, and polls a structured extraction job to completion. |
 | `examples/deepseek-v3-company-researcher/requirements.txt` | DeepSeek company researcher dependencies. | Confirms external search plus provider-wrapper plus Firecrawl extraction composition. |
+| `examples/claude-3.7-stock-analyzer/claude-3.7-stock-analyzer.py` | Domain analysis example. | Map discovery can feed batch scrape, then structured scoring and optional visualization; downstream analysis should consume extracted evidence artifacts rather than alter retrieval. |
+| `examples/claude_stock_analyzer/claude_stock_analyzer.py` | Duplicate domain analysis example. | Repeats the stock map/batch-scrape/score/visualize flow with an older model wrapper; useful only as downstream analysis-over-evidence reinforcement. |
+| `examples/claude3.7-web-crawler/claude3.7-web-crawler.py` | Model-variant crawler example. | Objective-derived map keyword proposal, URL ranking, top-page scrape, objective-satisfaction check, and JSON cleanup repeat the generic discovery-selection-extraction loop. |
+| `examples/claude3.7-web-extractor/claude-3.7-web-extractor.py` | Model-variant extraction example. | SERP rows are compacted to title/link/snippet, selected URLs are cleaned, and extraction is polled to terminal data; example-specific output shape is not authoritative. |
+| `examples/gemini-2.0-crawler/gemini-2.0-crawler.py` | Model-variant crawler example. | Repeats map/rank/scrape/objective-check loop and adds linked PDF/image MIME probing as optional secondary evidence enrichment. |
+| `examples/gemini-2.0-web-extractor/gemini-2.0-web-extractor.py` | Model-variant extraction example. | SERP discovery, selected URL cleanup, Firecrawl extract job handles, and polling mirror the generic search-select-extract-poll primitive. |
+| `examples/gemini-github-analyzer/gemini-github-analyzer.py` | Source-specific profile analysis example. | Source-specific extract prompts can produce profile/repository/activity artifacts before analysis, but platform-specific sections remain example-only. |
+| `examples/gpt-4.5-web-crawler/gpt-4.5-crawler.py` | Model-variant crawler example. | Confirms map search parameter proposal, ranked URL selection, top-page scrape, and objective-met loop across another provider wrapper. |
+| `examples/grok_web_crawler/grok_web_crawler.py` | Model-variant crawler example. | Repeats the same map/scrape/objective loop with more debug leakage; debug/status text is a non-assimilated anti-pattern. |
+| `examples/groq_web_crawler/groq_website_analyzer.py` | Page analysis example. | Single-page scrape can branch into selectable downstream facets such as summary, sentiment, or topic extraction, reinforcing artifact-lane separation. |
+| `examples/groq_web_crawler/requirements.txt` | Example dependency list. | Dependencies are Firecrawl, provider wrapper, and dotenv only. |
+| `examples/haiku_web_crawler/haiku_web_crawler.py` | Model-variant crawler example. | Batch scraping the top ranked links reinforces candidate fan-in before objective satisfaction, with AgentOps tracing as observability-only. |
+| `examples/job-resource-analyzer/job-resources-analyzer.py` | Domain workflow example. | Extract a compact structured task profile first, then launch a second search/ranking pass over resources derived from the extracted skills. |
+| `examples/mistral-small-3.1-crawler/mistral-small-3.1-crawler.py` | Model-variant crawler example. | Robust JSON-block extraction around URL ranking/objective checks is adapter hygiene, not final-answer formatting policy. |
+| `examples/mistral-small-3.1-extractor/mistral-small-3.1-extractor.py` | Reliability-focused extraction example. | Candidate URL selection can carry confidence/justification, cross-verification can refine source sets, and extraction can be source-bound with per-claim confidence/source expectations. |
+| `examples/o1_job_recommender/o1_job_recommender.py` | Domain workflow example. | Scrape an index page, extract apply links, run per-link structured extraction with an action precondition, then recommend from normalized job artifacts. |
+| `examples/o1_web_crawler/o1_web_crawler.py` | Model-variant crawler example. | Repeats map keyword proposal, top-link scrape, and objective-met JSON extraction with no new primitive beyond provider-wrapper parity. |
+| `examples/o1_web_extractor/o1_web_extractor.py` | Model-variant extraction example. | Structured URL selection with a schema response and wildcard cleanup reinforces typed candidate selection before extraction. |
+| `examples/o3-mini-deal-finder/o3-mini-deal-finder.py` | Domain comparison example. | Query templates can intentionally diversify source classes, then extraction compares normalized product/review artifacts before downstream sentiment analysis. |
+| `examples/o3-mini_company_researcher/o3-mini_company_researcher.py` | Model-variant extraction example. | Repeats SERP discovery, URL selection, cleanup, source extraction, and async polling; provider-specific model choice is quarantined. |
+| `examples/o3-mini_web_crawler/o3-mini_web_crawler.py` | Model-variant crawler example. | Confirms objective-to-map-query, URL ranking, top-page scrape, and JSON objective check as repeated composition rather than new syntax. |
+| `examples/sonnet_web_crawler/sonnet_web_crawler.py` | Model-variant crawler example. | Repeats batch top-link scrape/objective extraction with tracing; tracing is observability and should not enter evidence. |
 
 ## Decisions So Far
 
@@ -1331,6 +1353,13 @@
 225. Source-priority fan-in: URL selection should support source-priority and max-fan-in constraints such as official/docs/press first and excluding inaccessible social links, expressed as typed policy not prompt-only rules. Ledger captured; candidate evidence planner target.
 226. Structured extraction job handle: multi-URL extraction should return an ID, poll interval, max attempts, terminal data/error, and timeout classification rather than synchronous best-effort snippets. Ledger reinforced; candidate Tool CD runtime target.
 227. URL cleanup before extraction: wildcard suffixes, tracking query strings, invalid schemes, and empty selected URLs should be normalized or dropped before extraction work is admitted. Ledger captured; candidate URL hygiene primitive.
+228. Extract-then-discover loop: some tasks benefit from first extracting a compact need/profile from one source, then issuing a second discovery pass derived from those fields. Ledger captured; candidate research CD iterative planning target.
+229. Candidate confidence sidecar: URL selection can attach confidence and justification metadata before extraction so the evidence pack can distinguish high-priority candidates from merely available links. Ledger captured; candidate evidence-pack scoring field.
+230. Cross-verification before extraction: selected source sets can be checked for relevance, likely consistency, and bias before spending extraction budget. Ledger captured; candidate retrieval planner/verifier target.
+231. Source-bound extraction after selection: once selected URLs are verified, extraction should be able to disable untracked additional web search to preserve provenance. Ledger reinforced; candidate Tool CD option.
+232. Domain query templates as policy: source diversification examples such as marketplace/site-specific product searches are useful when expressed as typed source-class policy, not hardcoded domains or user-facing prompt text. Ledger captured; candidate source-diversification primitive.
+233. Action precondition extraction: dynamic page work such as clicking a job overview can be a declared extraction precondition with a selector artifact and typed failure mode. Ledger captured; candidate dynamic retrieval lane.
+234. Debug leakage as anti-pattern: example scripts often print raw maps, responses, headers, and provider output; production workflow traces must keep that telemetry separate from evidence and final projection. Ledger reinforced; candidate projection guard.
 
 ## Remaining Work
 
@@ -1342,8 +1371,8 @@
 - Map, scrape, and crawl endpoint articles are fully parsed; broader deployment/scheduling articles were only sampled and remain unmarked until a complete read.
 - Test-suite overview, crawl/scrape fixtures, load config, and markdown load reports are parsed; generated Artillery JSON report is skipped as generated after aggregate inspection.
 - Airbnb data-analysis example is parsed; it contributes retrieval-to-analysis artifact separation and discovery fallback patterns, not model/tool permission choices.
-- First model-variant crawler cluster is parsed; it mostly reinforces map/rank/scrape/extract, with Gemini adding linked PDF/image evidence expansion.
-- First company-extractor cluster is parsed; it reinforces search-select-extract-poll as a broader research primitive.
+- Model-variant crawler/extractor clusters through Claude, Gemini, GPT-4.5, Grok, Groq, Haiku, Mistral, O1, O3-mini, and Sonnet are parsed; they mostly reinforce map/rank/scrape/extract, linked media/document lanes, and source-bound extraction while provider choices remain quarantined.
+- Company/product/job/source-specific examples are parsed enough to capture extract-then-discover, candidate confidence sidecars, source verification, action preconditions, and downstream analysis-over-evidence patterns.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
