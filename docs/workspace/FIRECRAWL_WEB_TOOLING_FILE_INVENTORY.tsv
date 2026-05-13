@@ -848,19 +848,19 @@ apps/playwright-service-ts/helpers/get_error.ts	apps	not_parsed	pending_review
 apps/playwright-service-ts/package.json	apps	not_parsed	pending_review	
 apps/playwright-service-ts/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
 apps/playwright-service-ts/tsconfig.json	apps	not_parsed	pending_review	
-apps/python-sdk/.env.example	apps	not_parsed	pending_review	
-apps/python-sdk/.gitignore	apps	not_parsed	pending_review	
-apps/python-sdk/.pylintrc	apps	not_parsed	pending_review	
-apps/python-sdk/LICENSE	apps	not_parsed	pending_review	
-apps/python-sdk/README.md	apps	not_parsed	pending_review	
-apps/python-sdk/example.py	apps	not_parsed	pending_review	
-apps/python-sdk/example_aio.py	apps	not_parsed	pending_review	
-apps/python-sdk/example_pagination.py	apps	not_parsed	pending_review	
-apps/python-sdk/example_v1.py	apps	not_parsed	pending_review	
-apps/python-sdk/example_v2.py	apps	not_parsed	pending_review	
-apps/python-sdk/example_ws.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/TODO.md	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__init__.py	apps	not_parsed	pending_review	
+apps/python-sdk/.env.example	apps	parsed	python_sdk_env_example	api_key_api_url_and_identity_broker_capability_inputs
+apps/python-sdk/.gitignore	apps	parsed	python_sdk_ignore_rules	local_env_and_build_output_exclusions
+apps/python-sdk/.pylintrc	apps	parsed	python_sdk_lint_config	format_width_only
+apps/python-sdk/LICENSE	apps	parsed	python_sdk_license	license_metadata_only
+apps/python-sdk/README.md	apps	parsed	python_sdk_readme	typed_search_scrape_parse_crawl_batch_map_async_pagination_and_interaction_surface
+apps/python-sdk/example.py	apps	parsed	python_sdk_sync_example	content_metadata_status_link_count_smoke_surface
+apps/python-sdk/example_aio.py	apps	parsed	python_sdk_async_example	sync_async_retrieval_primitive_projection_parity
+apps/python-sdk/example_pagination.py	apps	parsed	python_sdk_pagination_example	opaque_next_cursor_and_max_page_result_time_controls
+apps/python-sdk/example_v1.py	apps	parsed	python_sdk_v1_example	legacy_proxy_polling_extract_deep_research_and_websocket_examples
+apps/python-sdk/example_v2.py	apps	parsed	python_sdk_v2_example	location_schema_json_multi_format_search_source_map_and_extract_options
+apps/python-sdk/example_ws.py	apps	parsed	python_sdk_watcher_example	started_crawl_handle_progress_events_and_terminal_state_projection
+apps/python-sdk/firecrawl/TODO.md	apps	parsed	python_sdk_todo_failure_note	active_crawls_500_and_error_handling_improvement_signal
+apps/python-sdk/firecrawl/__init__.py	apps	parsed	python_sdk_package_exports	opt_in_logging_and_sync_async_v1_v2_exports
 apps/python-sdk/firecrawl/__tests__/e2e/v2/.env.example	apps	parsed	python_sdk_e2e_env_example	api_key_api_url_and_identity_broker_live_capability_setup
 apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/conftest.py	apps	parsed	python_async_sdk_e2e_harness	env_loading_required_capability_fixtures_and_skip_behavior
 apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_batch_scrape.py	apps	parsed	python_async_sdk_batch_e2e	start_status_wait_all_params_cancel_multi_url_collection
@@ -884,15 +884,15 @@ apps/python-sdk/firecrawl/__tests__/e2e/v2/test_search.py	apps	parsed	python_sdk
 apps/python-sdk/firecrawl/__tests__/e2e/v2/test_usage.py	apps	parsed	python_sdk_usage_e2e	concurrency_credit_token_shape_control_projection_checks
 apps/python-sdk/firecrawl/__tests__/e2e/v2/test_watcher.py	apps	parsed	python_sdk_watcher_e2e	crawl_batch_progress_listener_terminal_state_checks
 apps/python-sdk/firecrawl/__tests__/unit/test_recursive_schema_v1.py	apps	parsed	python_sdk_recursive_schema_v1_tests	legacy_recursive_schema_normalization_ref_resolution_model_complexity_and_no_crash_compatibility
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_params.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_params.py	apps	parsed	python_async_sdk_crawl_params_tests	url_and_prompt_validation_before_transport
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_request_preparation.py	apps	parsed	python_async_sdk_crawl_request_prep_tests	field_mapping_webhook_none_exclusion_and_integration_trimming
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_validation.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_validation.py	apps	parsed	python_async_sdk_crawl_validation_tests	blank_url_rejection_before_async_execution
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_map_request_preparation.py	apps	parsed	python_async_sdk_map_request_prep_tests	search_subdomain_limit_sitemap_timeout_integration_conversion_parity
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_parse_request_preparation.py	apps	parsed	python_async_sdk_parse_request_prep_tests	multipart_bytes_path_origin_and_missing_path_rejection
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_scrape_request_preparation.py	apps	parsed	python_async_sdk_scrape_request_prep_tests	option_conversion_retained_browser_prompt_code_validation_and_response_normalization
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_search_request_preparation.py	apps	parsed	python_async_sdk_search_request_prep_tests	alias_conversion_domain_filter_exclusivity_empty_options_and_integration_trimming
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_batch_request_preparation_async.py	apps	parsed	python_async_sdk_batch_request_prep_tests	url_validation_flattened_options_webhook_append_concurrency_zdr_integration
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_ensure_async.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_ensure_async.py	apps	parsed	python_async_sdk_nonblocking_tests	true_async_transport_no_sync_fallback_concurrency_and_poll_interval
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent.py	apps	parsed	python_sdk_agent_method_tests	start_status_wait_cancel_timeout_immediate_completion_schema_and_errors
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent_request_preparation.py	apps	parsed	python_sdk_agent_request_prep_tests	schema_normalization_invalid_schema_rejection_budget_constraints_model_metadata_webhooks
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent_webhook.py	apps	parsed	python_sdk_agent_webhook_tests	required_url_agent_events_and_none_field_pruning
@@ -914,10 +914,10 @@ apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_metadata_extras_multivalu
 apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_recursive_schema.py	apps	parsed	python_sdk_recursive_schema_v2_tests	recursive_ref_detection_circular_defs_ref_resolution_schema_normalization_model_complexity_and_no_crash_stress
 apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_validation.py	apps	parsed	python_sdk_validation_tests	timeout_wait_budget_format_query_question_highlight_parser_cache_lockdown_action_conversion
 apps/python-sdk/firecrawl/__tests__/unit/v2/watcher/test_ws_watcher.py	apps	parsed	python_sdk_watcher_tests	document_done_error_catchup_terminal_snapshot_auth_uri_and_field_normalization
-apps/python-sdk/firecrawl/client.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/client.py	apps	parsed	python_sdk_unified_client_facade	v2_default_v1_proxy_sync_async_method_alignment_and_policy_free_facade
 apps/python-sdk/firecrawl/firecrawl.backup.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/types.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v1/__init__.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/types.py	apps	parsed	python_sdk_unified_type_exports	document_search_format_action_job_error_usage_webhook_and_agent_contract_reexports
+apps/python-sdk/firecrawl/v1/__init__.py	apps	parsed	python_sdk_v1_exports	explicit_legacy_compatibility_boundary
 apps/python-sdk/firecrawl/v1/client.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/v2/__init__.py	apps	parsed	python_sdk_v2_public_exports	client_async_client_and_typed_contract_exports
 apps/python-sdk/firecrawl/v2/client.py	apps	parsed	python_sdk_v2_sync_client_facade	thin_method_delegation_start_status_cancel_wait_watcher_and_config_lifecycle
@@ -955,9 +955,9 @@ apps/python-sdk/firecrawl/v2/utils/normalize.py	apps	parsed	python_sdk_result_no
 apps/python-sdk/firecrawl/v2/utils/validation.py	apps	parsed	python_sdk_validation_helpers	format_schema_query_question_highlight_action_parser_location_profile_normalization
 apps/python-sdk/firecrawl/v2/watcher.py	apps	parsed	python_sdk_sync_watcher	websocket_polling_equivalence_document_accumulation_and_single_terminal_event_dispatch
 apps/python-sdk/firecrawl/v2/watcher_async.py	apps	parsed	python_sdk_async_watcher	ws_quiet_failure_fallback_to_bounded_polling_and_normalized_terminal_snapshots
-apps/python-sdk/pyproject.toml	apps	not_parsed	pending_review	
-apps/python-sdk/requirements.txt	apps	not_parsed	pending_review	
-apps/python-sdk/setup.py	apps	not_parsed	pending_review	
+apps/python-sdk/pyproject.toml	apps	parsed	python_sdk_project_metadata	transport_async_websocket_dotenv_pydantic_capability_dependencies
+apps/python-sdk/requirements.txt	apps	parsed	python_sdk_requirements	runtime_and_test_dependency_capability_inventory
+apps/python-sdk/setup.py	apps	parsed	python_sdk_setup	version_metadata_packaging_and_release_surface
 apps/python-sdk/tests/test_agent_integration.py	apps	not_parsed	pending_review	
 apps/python-sdk/tests/test_api_key_handling.py	apps	not_parsed	pending_review	
 apps/python-sdk/tests/test_change_tracking.py	apps	not_parsed	pending_review	

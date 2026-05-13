@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 539
-- Not parsed: 738
+- Parsed: 561
+- Not parsed: 716
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -502,6 +502,25 @@
 | `apps/api/src/lib/engpicker.ts` | Engine-quality picker. | Engine suitability is sampled across URLs and transport modes, filtered away from non-content files, evaluated for actual page content, then reduced to tls-ok/render-required/uncertain verdicts using similarity and success thresholds. |
 | `apps/api/src/lib/permissions.ts` | Retrieval permission gate. | ZDR, robots overrides, custom robots agents, and static-IP location modes are checked before execution against team flags with explicit denial reasons. |
 | `apps/api/src/lib/validate-country.ts` | Location metadata table. | Country/location support is represented as a structured metadata table; useful only as validation data for location-aware retrieval inputs. |
+| `apps/python-sdk/.env.example` | Python SDK environment example. | Live SDK examples/tests declare API key, API URL, and optional identity broker inputs explicitly rather than burying capability assumptions in retrieval code. |
+| `apps/python-sdk/.gitignore` | Python SDK ignore rules. | Local environment/build outputs are excluded from the SDK workspace; no retrieval-specific pattern. |
+| `apps/python-sdk/.pylintrc` | Python SDK lint config. | Only carries formatting width; no retrieval-specific pattern. |
+| `apps/python-sdk/LICENSE` | Python SDK license file. | License metadata only; no retrieval/tooling primitive beyond dependency governance awareness. |
+| `apps/python-sdk/README.md` | Python SDK usage documentation. | Public SDK presents search, scrape, parse, crawl, batch, map, monitor, browser interaction, pagination, and async variants as typed primitives over one client surface. |
+| `apps/python-sdk/example.py` | Minimal sync SDK example. | Examples prove each retrieval primitive returns either content/metadata, status counts, or link/result counts, keeping lifecycle and evidence-bearing assertions separate. |
+| `apps/python-sdk/example_aio.py` | Minimal async SDK example. | Async examples mirror sync retrieval primitives and preserve the same content/status/link projection expectations. |
+| `apps/python-sdk/example_pagination.py` | Pagination example. | Crawl and batch result windows expose opaque next cursors plus max page/result/time controls for memory-safe incremental processing. |
+| `apps/python-sdk/example_v1.py` | Legacy v1 example. | Compatibility examples keep scrape/crawl/batch/map/extract/deep-research/generate-corpus features behind explicit v1 proxies while demonstrating terminal polling and async parity. |
+| `apps/python-sdk/example_v2.py` | V2 feature example. | V2 examples show location hints, schema/prompt JSON extraction, multi-format scrape, search source lanes, map filtering, and extract schemas as typed request options. |
+| `apps/python-sdk/example_ws.py` | Watcher example. | WebSocket-style watching is treated as progress/status projection over a started crawl handle, with terminal state checked independently from retrieved documents. |
+| `apps/python-sdk/firecrawl/TODO.md` | SDK TODO/failure note. | Recorded E2E 500 on active-crawls and a TODO to improve 500 handling; useful signal is that provider/server faults need typed transient/retry/error classification. |
+| `apps/python-sdk/firecrawl/__init__.py` | Python SDK package exports and logging setup. | Package exports sync/async and v1/v2 surfaces while default logging is null unless explicitly enabled, keeping diagnostics opt-in. |
+| `apps/python-sdk/firecrawl/client.py` | Unified Python SDK facade. | Unified client exposes v2 as default while retaining v1 proxies, keeping sync/async method names aligned and version compatibility outside workflow-policy decisions. |
+| `apps/python-sdk/firecrawl/types.py` | Unified Python SDK type exports. | Top-level types re-export v2 contracts for documents, search lanes, formats, actions, jobs, errors, usage, webhooks, and agent options as one typed tool surface. |
+| `apps/python-sdk/firecrawl/v1/__init__.py` | Python SDK v1 exports. | Legacy v1 compatibility is isolated behind explicit exports so migration support does not leak into new retrieval semantics. |
+| `apps/python-sdk/pyproject.toml` | Python SDK project metadata. | Dependencies declare transport, async, websocket, dotenv, and Pydantic schema support as capability prerequisites rather than runtime discovery. |
+| `apps/python-sdk/requirements.txt` | Python SDK dependency list. | Test/runtime dependencies mirror project metadata; useful only as capability inventory. |
+| `apps/python-sdk/setup.py` | Python SDK package setup. | Version is derived from package metadata and dependencies are packaged with the SDK; no direct retrieval primitive beyond release-surface consistency. |
 | `apps/python-sdk/firecrawl/v2/methods/search.py` | Python SDK search method. | SDK search validates source/category/domain/time inputs, preserves search rows vs enriched documents as distinct result shapes, and prepares scrape enrichment options before transport. |
 | `apps/python-sdk/firecrawl/v2/methods/scrape.py` | Python SDK scrape and retained-browser interaction methods. | Single-URL scrape trims/validates URL and normalizes returned documents; retained browser interaction requires a job ID plus code or prompt and normalizes execution/delete projections. |
 | `apps/python-sdk/firecrawl/v2/methods/map.py` | Python SDK map method. | Map request prep validates URL, trims integration labels, supports search/subdomain/query-parameter/location lanes, and returns typed link rows with title/description metadata. |
@@ -566,6 +585,9 @@
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_validation.py` | Python SDK scrape validation tests. | Validation tests lock positive timeout/wait budgets, snake-to-camel conversion, query/question/highlight format constraints, parser max-page conversion, cache/lockdown/action fields, and invalid structured fields. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_recursive_schema.py` | Python SDK v2 recursive schema tests. | Tests recursive/circular `$ref` detection, ref resolution depth bounds, OpenAI-schema normalization, invalid required/additionalProperties cleanup, JSON-format validation, and malformed-ref no-crash behavior. |
 | `apps/python-sdk/firecrawl/__tests__/unit/test_recursive_schema_v1.py` | Python SDK v1 recursive schema tests. | Legacy recursive-schema tests cover the same schema normalization, ref-resolution, model-complexity, and no-crash behavior across the v1 boundary, locking compatibility semantics. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_params.py` | Python async SDK crawl-params validation tests. | Async crawl-parameter preview rejects missing URL or prompt before transport, mirroring sync request-boundary validation. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_validation.py` | Python async SDK crawl validation tests. | Async crawl prep rejects blank URLs before execution, keeping async request shape parity with sync validation. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_ensure_async.py` | Python async SDK nonblocking tests. | Async client tests assert real async transport, no sync-client fallback, concurrent requests, event-loop progress, and poll-interval behavior. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/.env.example` | Python SDK E2E environment example. | E2E tests declare API key/API URL plus optional identity broker as environment requirements, keeping live capability setup explicit. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/conftest.py` | Python SDK sync E2E harness. | Live tests resolve credentials through an identity broker when present, inject clients consistently, and fail/skip based on explicit environment capabilities. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/conftest.py` | Python SDK async E2E harness. | Async E2E setup loads environment once, validates required variables, and provides per-test API key/API URL fixtures. |
@@ -745,6 +767,9 @@
 - Recursive and complex schema support is a tool-boundary quality primitive: normalize, classify, and validate schema complexity before extraction starts so schema mistakes do not degrade into weak synthesis.
 - Hardcoded model names in Firecrawl schema tests are not portable. The transferable pattern is schema-complexity metadata and externally selected capability routing, with model choice staying policy-bound.
 - Broken, unsupported, or malformed schema refs should become typed request/gap failures or bounded warnings, not crashes, invisible empty artifacts, or user-facing low-signal apologies.
+- Public client facades should expose primitive retrieval capabilities consistently while keeping orchestration order and model/tool decisions outside the client surface.
+- Async, streaming, and polling paths should prove they are true lifecycle variants over the same primitive contract, including nonblocking transport and equivalent terminal snapshots.
+- SDK examples are useful as capability smoke tests only when they assert content-bearing evidence, bounded status windows, or typed result counts; they are not quality evals by themselves.
 
 ## Candidate Assimilation Targets
 
@@ -844,6 +869,8 @@
 94. Metadata preservation guard: preserve unknown metadata and deterministic known-field coercions through evidence packing and source refs. Ledger captured; candidate evidence-pack quality target.
 95. Schema complexity classifier: detect recursive refs, circular refs, malformed refs, nested combinators, and cleanup limits as hidden schema-complexity metadata before structured extraction. Ledger captured; candidate Tool CD/schema validation target.
 96. Structured extraction no-crash contract: broken or unsupported schema refs should become typed request/gap failures rather than crashes or weak synthesis. Ledger captured; candidate validation/eval target.
+97. Unified client facade contract: expose web retrieval primitives through sync/async/poll/stream facades with equivalent request/result semantics while keeping workflow policy in CDs/orchestration. Ledger captured; candidate adapter parity guard.
+98. Nonblocking async retrieval proof: assert async tools use true async transport, preserve event-loop progress, and never route through blocking sync clients. Ledger captured; candidate tool-adapter eval target.
 
 ## Remaining Work
 
