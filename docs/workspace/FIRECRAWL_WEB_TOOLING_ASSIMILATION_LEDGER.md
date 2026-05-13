@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 798
-- Not parsed: 476
+- Parsed: 813
+- Not parsed: 461
 - Skipped generated: 12
 - Skipped media or sample: 71
 
@@ -847,6 +847,21 @@
 | `apps/ruby-sdk/lib/firecrawl/version.rb` | Ruby SDK version metadata. | SDK version is diagnostic origin metadata and should stay hidden from synthesis evidence. |
 | `apps/ruby-sdk/test/firecrawl/client_test.rb` | Ruby SDK client tests. | Tests assert credential/base URL admission, JSON/multipart request bodies, retryable recovery, option serialization, idempotency header handling, same-origin pagination rejection, parse lane validation, and map/search result normalization. |
 | `apps/ruby-sdk/test/test_helper.rb` | Ruby SDK test helper. | WebMock-backed unit tests keep network behavior deterministic while still proving outbound request shape. |
+| `examples/contradiction_testing/web-data-contradiction-testing-using-llms.mdx` | Contradiction-checking documentation example. | Multi-page evidence can be paired or otherwise compared to detect contradictions, stale facts, and source disagreement before final synthesis. |
+| `examples/web_data_rag_with_llama3/web-data-rag--with-llama3.mdx` | Website RAG documentation example. | Crawl output can be chunked with overlap, indexed, similarity-retrieved by question, and then passed as bounded evidence instead of raw crawl blobs. |
+| `examples/web_data_extraction/web-data-extraction-using-llms.mdx` | Structured extraction documentation example. | Clean main-content scraping followed by JSON-mode field extraction reinforces schema-bound page evidence as a tool artifact, not a final-answer format. |
+| `examples/turning_docs_into_api_specs/turning_docs_into_api_specs.py` | Docs-to-API-spec transformation example. | Crawl docs, extract per-page structured candidates only under high confidence, parse JSON, and keep the most complete candidate per path/schema during consolidation. |
+| `examples/blog-articles/scheduling_scrapers/scripts/async_scheduler.py` | Async scheduled scraper example. | Scheduled retrieval loops should isolate per-run exceptions, support concurrent schedules, and keep cadence control outside the retrieval primitive. |
+| `examples/blog-articles/scheduling_scrapers/scripts/bs4_scraper.py` | Traditional scraper baseline example. | Selector-based extraction over the same target can serve as a baseline quality comparison against AI/semantic extraction, especially for stable fixture pages. |
+| `examples/blog-articles/scheduling_scrapers/scripts/cron_scraper.py` | Cron wrapper example. | Scheduled retrieval jobs should write run-scoped logs and capture stack traces internally while preserving a simple terminal artifact path. |
+| `examples/blog-articles/scheduling_scrapers/scripts/firecrawl_scraper.py` | Scheduled Firecrawl extraction example. | Schema-bound extraction plus timestamped JSON artifacts provides a simple recurring evidence snapshot pattern. |
+| `examples/blog-articles/scheduling_scrapers/scripts/scrape_scheduler.py` | Local scheduler wrapper example. | Scheduler mechanics are control-plane concerns; retrieval functions should remain callable primitives that can be run by multiple cadence mechanisms. |
+| `examples/hacker_news_scraper/bs4_scraper.py` | Traditional Hacker News scraper example. | Duplicate non-AI extraction over the same schema provides a useful deterministic comparator for semantic extraction drift. |
+| `examples/hacker_news_scraper/firecrawl_scraper.py` | Firecrawl Hacker News scraper example. | Page-level schema extraction should return structured evidence snapshots while leaving persistence/projection to a separate step. |
+| `examples/hacker_news_scraper/requirements.txt` | Hacker News scraper dependency file. | Dependency list confirms this is an example-only comparison between manual parsing and Firecrawl extraction. |
+| `examples/sales_web_crawler/.env.example` | Sales crawler capability config example. | External search, LLM, and crawl credentials are capability inputs and should stay outside workflow logic. |
+| `examples/sales_web_crawler/app.py` | Multi-agent sales crawler example. | A bounded crawl can analyze each page independently into JSON candidates, tolerate per-page parse failures, and aggregate structured results behind an explicit objective. |
+| `examples/sales_web_crawler/requirements.txt` | Sales crawler dependency file. | Example depends on external search, Firecrawl, OpenAI, and Swarm; composition pattern is useful, concrete model/library choices are not. |
 
 ## Decisions So Far
 
@@ -1218,6 +1233,13 @@
 192. Post-extraction dedupe/consolidation: extracted structured data needs duplicate removal and quality consolidation before final synthesis. Ledger captured; candidate evidence normalizer.
 193. Activity callbacks as observability: deep research examples surface search/scrape/analyze activities separately from final answers. Ledger reinforced; candidate Shell Socket/tool-status projection.
 194. Example prompt/model quarantine: examples contain useful composition patterns but hardcoded model IDs, company/apartment-specific prompts, and output templates should not be copied into user-facing workflow CDs. Ledger reinforced; candidate anti-hardcoding guard.
+195. Contradiction/disagreement pass: evidence packs should support comparing claims across sources/pages and surfacing disagreement or stale facts as verifier inputs before synthesis. Ledger captured; candidate final-response verifier/evidence-quality target.
+196. Retrieval workspace pattern: broad crawls should be converted into chunks, vectors, selected docs, or structured candidates before synthesis, so the model reasons over ranked evidence rather than raw result blobs. Ledger reinforced; candidate evidence-pack builder target.
+197. High-confidence structured transform: when converting retrieved docs into structured artifacts, uncertainty should yield empty/typed gap artifacts instead of invented fields. Ledger captured; candidate structured extraction/evidence guard.
+198. Most-complete consolidation: multiple extracted candidates for the same logical object can be merged by keeping the richest compatible structure per key/path while preserving source refs. Ledger captured; candidate evidence normalizer target.
+199. Scheduled retrieval control split: cadence, logs, and run history belong to control/observability; the retrieval primitive should remain callable and artifact-producing. Ledger captured; candidate monitor/change-detection workflow target.
+200. Baseline comparator extraction: stable fixture targets can use both selector/manual extraction and semantic extraction to detect drift, over-extraction, or missing fields. Ledger captured; candidate retrieval-quality eval target.
+201. Per-page structured candidate fan-in: crawl-scale extraction should analyze pages independently, skip malformed per-page candidates with hidden warnings, and aggregate only parseable structured results. Ledger captured; candidate evidence-pack/retrieval runtime target.
 
 ## Remaining Work
 
@@ -1226,6 +1248,7 @@
 - Standalone rendered-fetch and HTML-to-Markdown service primitives are parsed; remaining deployment YAML can be treated as lower-priority unless operational wiring becomes relevant.
 - Test-site text fixtures and routes are parsed; binary font fixtures are marked skipped.
 - First high-signal research/crawler examples are parsed; remaining examples should be sampled for new composition patterns, not repeated model-specific syntax.
+- Several long blog endpoint articles were sampled but remain unmarked until a complete read; prioritize full reads only where they add primitives beyond already parsed source/tests.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
