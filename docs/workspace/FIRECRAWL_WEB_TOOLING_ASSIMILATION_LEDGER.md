@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 623
-- Not parsed: 653
+- Parsed: 642
+- Not parsed: 634
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -672,6 +672,25 @@
 | `apps/java-sdk/src/main/java/com/firecrawl/models/CrawlOptions.java` | Java crawl option model. | Crawl options expose prompt, include/exclude paths, depth, sitemap, dedupe, domain expansion, robots/user-agent, delay, concurrency, webhook, scrape options, ZDR, and integration controls. |
 | `apps/java-sdk/src/main/java/com/firecrawl/models/Document.java` | Java document model. | Document projection keeps markdown, HTML, raw HTML, structured JSON, summary, metadata, links, images, screenshots, audio, actions, answers, warnings, change tracking, and branding as separate facets. |
 | `apps/java-sdk/src/main/java/com/firecrawl/models/ParseOptions.java` | Java parse option model. | Parse options explicitly reject browser-rendering formats and unsupported proxy/timeout values, keeping file parsing a narrower lane than web scraping. |
+| `apps/dot-net-sdk/Firecrawl/FirecrawlClient.cs` | .NET SDK client facade. | The .NET facade keeps primitives async end-to-end, flattens batch scrape options, sends idempotency as a header, validates parse input, polls with cancellation, and auto-paginates terminal jobs. |
+| `apps/dot-net-sdk/Firecrawl/FirecrawlHttpClient.cs` | .NET SDK HTTP adapter. | HTTP retry rebuilds each request per attempt, carries cancellation through backoff, maps auth/rate-limit/client errors, handles multipart uploads, and blocks cross-origin pagination credentials. |
+| `apps/dot-net-sdk/Firecrawl.Tests/FirecrawlClientTests.cs` | .NET SDK client tests. | Tests assert credential resolution, required URL/query/job inputs, custom API URL/client injection, and null rejection for primitive calls. |
+| `apps/dot-net-sdk/Firecrawl.Tests/ParseTests.cs` | .NET parse tests. | Parse tests cover file-from-bytes/path, supported option serialization, unsupported format/proxy/timeout rejection, multipart request shape, and API error propagation. |
+| `apps/dot-net-sdk/Firecrawl.Tests/ModelsTests.cs` | .NET model tests. | Model tests prove option serialization, null omission, idempotency-key exclusion from JSON, unknown document-field tolerance, terminal job detection, format object typing, and invalid-URL reporting. |
+| `apps/dot-net-sdk/Firecrawl.Tests/ExceptionsTests.cs` | .NET exception tests. | Exception tests preserve status codes, error codes, inner exceptions, and job timeout metadata as typed failure information. |
+| `apps/dot-net-sdk/Firecrawl/Models/SearchOptions.cs` | .NET search option model. | Search options preserve source, category, include/exclude domain, freshness, location/country, invalid-URL, timeout, scrape enrichment, enterprise, and integration controls. |
+| `apps/dot-net-sdk/Firecrawl/Models/SearchData.cs` | .NET search result model. | Search results keep web/news/image lanes distinct while allowing enriched markdown/html/raw/links/screenshot/metadata/answer/highlights fields on result rows. |
+| `apps/dot-net-sdk/Firecrawl/Models/ScrapeOptions.cs` | .NET scrape option model. | Scrape options preserve formats, headers, include/exclude tags, main-content extraction, waits, mobile, parsers, actions, location, TLS, image scrub, ads, proxy, cache, and integration fields. |
+| `apps/dot-net-sdk/Firecrawl/Models/Document.cs` | .NET document model. | Document artifacts keep markdown, HTML, raw HTML, JSON, summary, metadata, links, images, screenshot, audio, actions, answer, highlights, warning, change tracking, and branding as separate fields. |
+| `apps/dot-net-sdk/Firecrawl/Models/CrawlOptions.cs` | .NET crawl option model. | Crawl options expose prompt, path filters, depth, sitemap, query dedupe, similar-URL dedupe, limits, domain expansion, delay, concurrency, webhook, scrape options, regex scope, ZDR, and integration. |
+| `apps/dot-net-sdk/Firecrawl/Models/BatchScrapeOptions.cs` | .NET batch scrape option model. | Batch scrape separates per-page scrape options from batch controls, append target, invalid-URL tolerance, concurrency, ZDR, integration, and non-JSON idempotency header. |
+| `apps/dot-net-sdk/Firecrawl/Models/ParseOptions.cs` | .NET parse option model. | Parse options validate positive timeouts, supported proxies, and unsupported browser formats before the multipart request is built. |
+| `apps/dot-net-sdk/Firecrawl/Models/ParseFile.cs` | .NET parse file model. | Parse files can come from bytes or disk, infer content type from extension, and fall back to octet-stream for unknown file kinds. |
+| `apps/dot-net-sdk/Firecrawl/Models/MapOptions.cs` | .NET map option model. | Map options preserve search, sitemap, subdomain, query-parameter dedupe, limit, timeout, location, cache, and integration controls for cheap discovery. |
+| `apps/dot-net-sdk/Firecrawl/Models/MonitorModels.cs` | .NET monitor models. | Monitor artifacts separate schedules, retention, summaries, checks, page-level diffs, status, billing/credit fields, and pagination from normal research evidence. |
+| `apps/dot-net-sdk/Firecrawl/Models/CrawlJob.cs` | .NET crawl job model. | Crawl job state carries status, progress, credits, expiry, pagination cursor, documents, and terminal-state classification. |
+| `apps/dot-net-sdk/Firecrawl/Models/BatchScrapeJob.cs` | .NET batch scrape job model. | Batch scrape job state mirrors crawl terminal/pagination semantics for multi-URL document retrieval. |
+| `apps/dot-net-sdk/Firecrawl/Models/ApiResponse.cs` | .NET API response wrapper. | Data-bearing API responses are wrapped explicitly so missing data can become a typed client failure. |
 
 ## Decisions So Far
 
@@ -979,11 +998,17 @@
 128. Async facade proof: if a tool surface claims async, tests should prove it is not merely blocking work wrapped in a future where runtime nonblocking behavior matters. Ledger captured; candidate runtime/tool-adapter eval target.
 129. Search-plus-scrape quality check: retrieval evals should assert enriched markdown content when scrape options are requested, not only SERP row presence. Ledger captured; candidate golden/eval target.
 130. Parse lane rejection guard: parse/document adapters should reject browser-only formats/options at schema time instead of sending ambiguous requests downstream. Ledger captured; candidate Tool CD schema validation target.
+131. Credential-safe pagination: absolute `next` cursor requests must be same-origin with the admitted API base before credentials are attached. Ledger captured; candidate tool-adapter security guard.
+132. Retry request rebuild: HTTP retry loops should rebuild request bodies per attempt, especially multipart bodies that cannot be safely resent. Ledger captured; candidate transport adapter target.
+133. Cancellation-propagating polling: async job polling, pagination, and retry backoff should all accept cancellation/deadline signals and classify timeout separately from failed jobs. Ledger captured; candidate tool runtime target.
+134. Missing-data response failure: successful HTTP envelopes with missing required `data` should become typed tool failures, not empty evidence packs. Ledger captured; candidate evidence-pack/runtime guard.
+135. Request-shape proof tests: adapter tests should capture real multipart/JSON request bodies for parse/batch/search enrichment so gate 3/4 regressions become concrete diffs. Ledger captured; candidate gate stability target.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
+- .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.

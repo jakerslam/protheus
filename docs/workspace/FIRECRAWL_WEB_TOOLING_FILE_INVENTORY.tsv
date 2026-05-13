@@ -583,42 +583,42 @@ apps/api/utils/logview.js	apps	not_parsed	pending_review
 apps/api/utils/urldump-redis.js	apps	not_parsed	pending_review	
 apps/api/utils/urldump.js	apps	not_parsed	pending_review	
 apps/api/v1-openapi.json	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl.Tests/ExceptionsTests.cs	apps	not_parsed	pending_review	
+apps/dot-net-sdk/Firecrawl.Tests/ExceptionsTests.cs	apps	parsed	dotnet_exception_tests	status_error_inner_exception_and_job_timeout_metadata_preserved_as_typed_failures
 apps/dot-net-sdk/Firecrawl.Tests/Firecrawl.Tests.csproj	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl.Tests/FirecrawlClientTests.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl.Tests/ModelsTests.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl.Tests/ParseTests.cs	apps	not_parsed	pending_review	
+apps/dot-net-sdk/Firecrawl.Tests/FirecrawlClientTests.cs	apps	parsed	dotnet_client_tests	credential_resolution_required_input_custom_api_url_custom_http_client_and_null_rejection_checks
+apps/dot-net-sdk/Firecrawl.Tests/ModelsTests.cs	apps	parsed	dotnet_model_tests	option_serialization_null_omission_idempotency_json_exclusion_unknown_field_tolerance_terminal_detection_and_invalid_url_reporting
+apps/dot-net-sdk/Firecrawl.Tests/ParseTests.cs	apps	parsed	dotnet_parse_tests	file_path_bytes_option_validation_multipart_request_shape_and_api_error_propagation
 apps/dot-net-sdk/Firecrawl.sln	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Exceptions/AuthenticationException.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Exceptions/FirecrawlException.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Exceptions/JobTimeoutException.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Exceptions/RateLimitException.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Firecrawl.csproj	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/FirecrawlClient.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/FirecrawlHttpClient.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/ApiResponse.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/BatchScrapeJob.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/BatchScrapeOptions.cs	apps	not_parsed	pending_review	
+apps/dot-net-sdk/Firecrawl/FirecrawlClient.cs	apps	parsed	dotnet_client_facade	true_async_primitives_batch_option_flattening_idempotency_header_parse_validation_cancellable_polling_and_autopagination
+apps/dot-net-sdk/Firecrawl/FirecrawlHttpClient.cs	apps	parsed	dotnet_http_adapter	retry_request_rebuild_cancellation_propagation_typed_error_mapping_multipart_and_same_origin_pagination_credentials
+apps/dot-net-sdk/Firecrawl/Models/ApiResponse.cs	apps	parsed	dotnet_api_response_wrapper	explicit_data_wrapper_so_missing_data_becomes_typed_failure
+apps/dot-net-sdk/Firecrawl/Models/BatchScrapeJob.cs	apps	parsed	dotnet_batch_scrape_job	terminal_pagination_progress_credit_expiry_and_document_state_for_multi_url_retrieval
+apps/dot-net-sdk/Firecrawl/Models/BatchScrapeOptions.cs	apps	parsed	dotnet_batch_scrape_options	per_page_scrape_options_batch_controls_append_invalid_url_concurrency_zdr_integration_and_non_json_idempotency_header
 apps/dot-net-sdk/Firecrawl/Models/BatchScrapeResponse.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Models/ConcurrencyCheck.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/CrawlJob.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/CrawlOptions.cs	apps	not_parsed	pending_review	
+apps/dot-net-sdk/Firecrawl/Models/CrawlJob.cs	apps	parsed	dotnet_crawl_job	status_progress_credits_expiry_next_cursor_documents_and_terminal_state_classification
+apps/dot-net-sdk/Firecrawl/Models/CrawlOptions.cs	apps	parsed	dotnet_crawl_options	prompt_path_filters_depth_sitemap_query_and_similar_url_dedupe_limits_domain_expansion_delay_concurrency_webhook_scrape_options_zdr_and_integration
 apps/dot-net-sdk/Firecrawl/Models/CrawlResponse.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Models/CreditUsage.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/Document.cs	apps	not_parsed	pending_review	
+apps/dot-net-sdk/Firecrawl/Models/Document.cs	apps	parsed	dotnet_document_model	markdown_html_raw_json_summary_metadata_links_images_screenshot_audio_actions_answer_highlights_warning_change_tracking_and_branding_facets
 apps/dot-net-sdk/Firecrawl/Models/HighlightsFormat.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Models/JsonFormat.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Models/LocationConfig.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Models/MapData.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/MapOptions.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/MonitorModels.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/ParseFile.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/ParseOptions.cs	apps	not_parsed	pending_review	
+apps/dot-net-sdk/Firecrawl/Models/MapOptions.cs	apps	parsed	dotnet_map_options	search_sitemap_subdomain_query_dedupe_limit_timeout_location_cache_and_integration_controls_for_cheap_discovery
+apps/dot-net-sdk/Firecrawl/Models/MonitorModels.cs	apps	parsed	dotnet_monitor_models	schedules_retention_summaries_checks_page_diffs_status_billing_credit_fields_and_pagination_control_artifacts
+apps/dot-net-sdk/Firecrawl/Models/ParseFile.cs	apps	parsed	dotnet_parse_file	bytes_or_disk_file_payload_content_type_inference_and_octet_stream_fallback
+apps/dot-net-sdk/Firecrawl/Models/ParseOptions.cs	apps	parsed	dotnet_parse_options	positive_timeout_supported_proxy_and_unsupported_browser_format_validation_before_multipart_request
 apps/dot-net-sdk/Firecrawl/Models/QueryFormat.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/Firecrawl/Models/QuestionFormat.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/ScrapeOptions.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/SearchData.cs	apps	not_parsed	pending_review	
-apps/dot-net-sdk/Firecrawl/Models/SearchOptions.cs	apps	not_parsed	pending_review	
+apps/dot-net-sdk/Firecrawl/Models/ScrapeOptions.cs	apps	parsed	dotnet_scrape_options	formats_headers_tag_filters_main_content_waits_mobile_parsers_actions_location_tls_image_scrub_ads_proxy_cache_and_integration
+apps/dot-net-sdk/Firecrawl/Models/SearchData.cs	apps	parsed	dotnet_search_data	web_news_image_lanes_with_optional_enriched_content_fields_on_result_rows
+apps/dot-net-sdk/Firecrawl/Models/SearchOptions.cs	apps	parsed	dotnet_search_options	source_category_domain_freshness_location_country_invalid_url_timeout_scrape_enrichment_enterprise_and_integration_controls
 apps/dot-net-sdk/Firecrawl/Models/WebhookConfig.cs	apps	not_parsed	pending_review	
 apps/dot-net-sdk/README.md	apps	not_parsed	pending_review	
 apps/elixir-sdk/.formatter.exs	apps	not_parsed	pending_review	
