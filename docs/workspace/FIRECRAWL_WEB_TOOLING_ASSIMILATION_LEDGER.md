@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 337
-- Not parsed: 941
+- Parsed: 361
+- Not parsed: 917
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -318,6 +318,30 @@
 | `apps/api/src/controllers/v2/monitor.ts` | V2 monitor controller. | Monitor CRUD/run/detail surfaces reject forced-ZDR teams, validate schedules, serialize bounded monitor/check summaries, prevent overlapping manual runs, and page check details while loading diff artifacts by ref. |
 | `apps/api/src/controllers/v1/activity.ts` | Activity window projection. | Recent work activity uses endpoint allowlists, 24-hour bounded windows, limit caps, keyset cursors, and target hints instead of raw request rows. |
 | `apps/api/src/controllers/v2/__tests__/browser-billing.test.ts` | Browser billing and prompt-use tests. | Interactive browser sessions are billed by duration with a minimum charge, prompt-use is tracked in Redis with a TTL, and Redis failure falls back to the cheaper browser rate rather than throwing. |
+| `apps/api/src/lib/browser-billing.ts` | Browser session cost helper. | Dynamic browser and interaction work is costed from duration with a minimum charge and rate parameter, keeping capability cost separate from answer synthesis. |
+| `apps/api/src/lib/scrape-billing.ts` | Scrape artifact cost calculator. | Retrieval cost is derived from outcome, requested artifact shape, privacy mode, parser/page counts, proxy/capability use, typed failure cause, and unsupported-feature state. |
+| `apps/api/src/lib/extract/usage/llm-cost.ts` | LLM extraction cost estimator. | LLM/extraction cost estimates use token usage, request-level fixed costs, output JSON size, and tracked thinking cost while returning zero for unknown/non-chat model metadata. |
+| `apps/api/src/lib/extract/usage/model-prices.ts` | Model capability/pricing metadata table. | This is a large static provider/model metadata table with token prices, modality/tool support, context limits, cache costs, endpoints, and deprecation fields; individual prices are not an assimilation target. |
+| `apps/api/src/services/autumn/usage.ts` | Credit/usage projection service. | Usage lookup resolves team to org, tries entity-scoped data before customer fallback, extracts period/plan credits from balance metadata, rolls daily usage into monthly buckets, and maps API-key IDs to display names with raw-ID fallback. |
+| `apps/api/src/controllers/v1/credit-usage.ts` | V1 credit usage projection. | Current credit usage exposes remaining/plan credits and billing period bounds, returning a typed 404 when usage data is absent. |
+| `apps/api/src/controllers/v1/credit-usage-historical.ts` | V1 historical credit usage projection. | Historical usage can optionally group by API key and sorts periods by parsed start date while keeping malformed/null dates at the end. |
+| `apps/api/src/controllers/v2/credit-usage.ts` | V2 credit usage projection. | V2 preserves the same current-credit projection with camelCase response fields. |
+| `apps/api/src/controllers/v2/credit-usage-historical.ts` | V2 historical credit usage projection. | V2 preserves the same optionally grouped historical projection and stable period sort. |
+| `apps/api/src/controllers/v1/token-usage.ts` | V1 token usage projection. | Token usage is a compatibility projection over credit balance using a fixed conversion ratio, not independent evidence or retrieval state. |
+| `apps/api/src/controllers/v1/token-usage-historical.ts` | V1 historical token usage projection. | Historical token usage converts credit periods to token periods after the same optional API-key grouping and date sort. |
+| `apps/api/src/controllers/v2/token-usage.ts` | V2 token usage projection. | V2 preserves token compatibility projection with camelCase response fields. |
+| `apps/api/src/controllers/v2/token-usage-historical.ts` | V2 historical token usage projection. | V2 preserves historical token conversion and stable sorting semantics. |
+| `apps/api/src/controllers/v1/concurrency-check.ts` | V1 concurrency projection. | Team concurrency is projected from active Redis sorted-set entries whose score is still in the future, plus the account concurrency cap. |
+| `apps/api/src/controllers/v2/concurrency-check.ts` | V2 concurrency projection. | V2 refuses missing account context and reports the max of crawl/extract concurrency caps so mixed retrieval lanes share capacity correctly. |
+| `apps/api/src/lib/http-metrics.ts` | HTTP duration metric helper. | Request duration histograms should bucket by version/method/route/status and normalize UUID path segments to avoid high-cardinality metrics. |
+| `apps/api/src/lib/job-metrics.ts` | Job duration metric helper. | Background job duration histograms bucket by job type and terminal status over second-to-hour ranges. |
+| `apps/api/src/services/system-monitor.ts` | Resource pressure monitor. | Admission can be gated by cached CPU/RAM usage, with Kubernetes cgroup readers, OS fallbacks, singleton construction, and a cheap `acceptConnection` predicate. |
+| `apps/api/src/services/billing/types.ts` | Billing metadata contract. | Billing metadata normalizes endpoint/job identity and derives scrape/extract/crawl/batch defaults from request context before accounting. |
+| `apps/api/src/services/billing/credit_billing.ts` | Credit admission and request tracking. | Credit billing tracks request-scoped usage first, queues batch billing, refunds request-tracked credits when queueing fails, bypasses preview/no-DB paths, and logs detailed insufficient-credit diagnostics. |
+| `apps/api/src/services/billing/batch_billing.ts` | Batched billing reconciler. | Billing operations are queued in Redis, processed under a lock, grouped by team/subscription/endpoint/lane/API key, refunded when committed billing fails after request tracking, and flushed on process exit. |
+| `apps/api/src/services/billing/__tests__/credit_billing.test.ts` | Credit billing tests. | Tests lock the request-track/queue/refund behavior so duplicate or lost billing can be caught at the boundary. |
+| `apps/api/src/services/billing/__tests__/batch_billing.test.ts` | Batch billing tests. | Tests prove untracked queued usage is tracked later, already tracked usage is not double-tracked, failures refund request-tracked credits, and later groups continue after refund errors. |
+| `apps/api/src/services/billing/auto_charge.ts` | Auto-recharge guard. | Recharge workflows use distributed locks, cooldowns, hourly/monthly caps, rechecks inside the lock, cache clearing, transaction records, and bounded notifications; product-specific team blocks are not assimilation targets. |
 | `apps/api/src/__tests__/snips/v2/scrape-branding.test.ts` | V2 branding artifact tests. | Skipped branding tests describe a design-artifact lane for colors, typography, spacing, components, images, and cleaned fonts; because coverage is skipped, treat this as experimental rather than a proven primitive. |
 | `apps/api/src/__tests__/snips/zdr-helpers.ts` | ZDR assertion helpers. | Privacy tests assert scrubbed URL/options storage, filtered logs, request records with cleanup markers, GCS removal after cleaner, and request-scoped status disappearance. |
 | `apps/api/src/__tests__/snips/v2/lib.ts` | V2 snips test harness. | Raw/success/failure wrappers and async start/status/poll helpers make status-handle workflows testable without mixing transport details into each behavior test. |
@@ -476,6 +500,11 @@
 - Product defaults such as named agent models are not portable web-tooling primitives. The portable pattern is carrying selected capability/model metadata through status projections without making it user-visible research behavior.
 - User-visible activity/history should be a bounded projection with endpoint allowlists and keyset cursors, not a raw request log. This can help debug workflow quality without exposing full traces.
 - Optional interactive/browser capabilities need TTL-scoped accounting flags and graceful fallback when accounting cache reads fail.
+- Retrieval cost and capacity should be computed from structured artifact/capability metadata before and after execution: parser pages, screenshots/audio/questions/highlights, dynamic browser time, privacy mode, proxy/capability use, and typed failure causes all affect admission and budgeting.
+- Usage, token, concurrency, and billing projections are account/control-plane state. They can guide budgets and diagnostics but should not become evidence in a research answer.
+- Model/capability price tables are useful as data-driven cost/capability metadata, but they must not hardcode user-facing model selection or answer behavior.
+- Resource pressure gates should be cheap, cached, and environment-aware so retrieval workers can shed load before producing partial evidence or timeout noise.
+- Batched side effects need idempotency/reconciliation semantics: group work by stable metadata, avoid double-tracking when a request already tracked usage, refund when later persistence fails, and keep processing independent groups.
 
 ## Candidate Assimilation Targets
 
@@ -521,6 +550,9 @@
 40. Typed retrieval failure bridge: serialize retrieval failures as stable error codes and structured payloads across async/tool/status boundaries. Ledger captured; candidate synthesis-gap and eval-failure classification target.
 41. Engine quality sampler: periodically compare admitted retrieval engines on sampled URLs using content-success and similarity metrics, emitting hidden capability verdicts rather than hardcoded provider routes. Ledger captured; candidate retrieval capability scoring target.
 42. Bounded activity/status projections: expose recent retrieval/tool activity through endpoint allowlists, time windows, keyset cursors, owner checks, and artifact refs while keeping raw logs internal. Ledger captured; candidate observability projection refinement.
+43. Cost/capacity-aware retrieval admission: score planned retrieval work by artifact shape, capability lane, parser/document size, dynamic runtime, privacy mode, and resource pressure before spending tool budget. Ledger captured; candidate Tool CD budget/admission refinement.
+44. Account-control projections: keep usage, token, credit, billing, concurrency, and activity windows as bounded control-plane projections that inform budgets but never become citable evidence. Ledger captured; candidate observability/control-plane contract.
+45. Billing/effect reconciliation primitive: queue and group non-evidence side effects under locks, track request-scoped vs batch-scoped effects, refund or compensate on partial failure, and continue independent groups. Ledger captured; candidate general side-effect ledger target.
 
 ## Remaining Work
 
