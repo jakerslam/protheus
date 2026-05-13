@@ -11,7 +11,7 @@ path	top_level	status	reason	patterns
 .github/dependabot.yml	.github	not_parsed	pending_review	
 .github/scripts/audit-ci-vuln-scan.mjs	.github	not_parsed	pending_review	
 .github/scripts/check_version_has_incremented.py	.github	not_parsed	pending_review	
-.github/scripts/eval_run.py	.github	not_parsed	pending_review	
+.github/scripts/eval_run.py	.github	parsed	eval_dispatch_script	explicit_api_experiment_label_inputs_and_fail_closed_request_error_exit
 .github/scripts/requirements.txt	.github	not_parsed	pending_review	
 .github/workflows/deploy-go-service.yaml	.github	not_parsed	pending_review	
 .github/workflows/deploy-image-staging.yml	.github	not_parsed	pending_review	
@@ -19,7 +19,7 @@ path	top_level	status	reason	patterns
 .github/workflows/deploy-nuq-postgres.yml	.github	not_parsed	pending_review	
 .github/workflows/deploy-playwright.yml	.github	not_parsed	pending_review	
 .github/workflows/deploy-redis.yml	.github	not_parsed	pending_review	
-.github/workflows/eval-prod.yml	.github	not_parsed	pending_review	
+.github/workflows/eval-prod.yml	.github	parsed	production_eval_workflow	post_deploy_wait_commit_labeled_external_eval_service_dispatch
 .github/workflows/ghcr-clean.yml	.github	not_parsed	pending_review	
 .github/workflows/npm-audit-claude-remediation.yml	.github	not_parsed	pending_review	
 .github/workflows/npm-audit.yml	.github	not_parsed	pending_review	
@@ -32,7 +32,7 @@ path	top_level	status	reason	patterns
 .github/workflows/publish-python-sdk.yml	.github	not_parsed	pending_review	
 .github/workflows/publish-ruby-sdk.yml	.github	not_parsed	pending_review	
 .github/workflows/publish-rust-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/scrape-evals.yml	.github	not_parsed	pending_review	
+.github/workflows/scrape-evals.yml	.github	parsed	opt_in_scrape_quality_eval_workflow	pr_comment_title_body_tokens_org_membership_gate_and_external_eval_dispatch
 .github/workflows/test-dotnet-sdk.yml	.github	not_parsed	pending_review	
 .github/workflows/test-go-html-to-md-service.yml	.github	not_parsed	pending_review	
 .github/workflows/test-go-sdk.yml	.github	not_parsed	pending_review	
@@ -297,8 +297,8 @@ apps/api/src/lib/canonical-url.ts	apps	parsed	url_normalization	canonical_url_st
 apps/api/src/lib/clickhouse-client.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/concurrency-limit.ts	apps	parsed	concurrency_queue_state_machine	ttl_scored_active_and_backlog_sets_crawl_limits_cleanup_successor_promotion
 apps/api/src/lib/concurrency-queue-reconciler.ts	apps	parsed	concurrency_queue_reconciler	backlog_runtime_drift_repair_type_capacity_promotion_requeue
-apps/api/src/lib/cost-tracking.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/crawl-redis.test.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/cost-tracking.ts	apps	parsed	cost_tracking_helper	typed_call_metadata_model_tokens_stack_nan_safe_totals_and_limit_exception
+apps/api/src/lib/crawl-redis.test.ts	apps	parsed	crawl_url_permutation_tests	protocol_www_trailing_slash_and_index_file_equivalence_for_url_locks
 apps/api/src/lib/crawl-redis.ts	apps	parsed	crawl_state_url_locking_ttl	ttl_state_canonical_url_locks_limit_before_work_finish_cleanup
 apps/api/src/lib/custom-error.ts	apps	parsed	http_custom_error_wrapper	status_code_status_message_and_optional_job_context
 apps/api/src/lib/deep-research/deep-research-redis.ts	apps	parsed	ttl_research_state_persistence	TTL-bounded state appends activities/sources/summaries while local manager caps findings
@@ -359,7 +359,7 @@ apps/api/src/lib/gcs-pdf-cache.ts	apps	parsed	pdf_conversion_cache	content_hash_
 apps/api/src/lib/generate-llmstxt/generate-llmstxt-redis.ts	apps	parsed	ttl_site_corpus_state	TTL-bounded async corpus-pack state with compact text/full text/status/error
 apps/api/src/lib/generate-llmstxt/generate-llmstxt-service.ts	apps	parsed	map_scrape_site_corpus_pack	maps bounded URLs, batch-scrapes pages, creates compact page rows, stores full text separately, updates progress
 apps/api/src/lib/generate-llmstxt/generate-llmstxt-supabase.ts	apps	parsed	site_corpus_cache_reuse	reuses fresh larger hostname-normalized corpus for smaller limits and rejects stale entries
-apps/api/src/lib/generic-ai.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/generic-ai.ts	apps	parsed	generic_ai_provider_wrapper	centralized_provider_factory_environment_default_and_config_model_override_boundary
 apps/api/src/lib/html-to-markdown-client.ts	apps	parsed	html_to_markdown_service_client	http_converter_timeout_zdr_headers_request_id_suppression_service_error_metadata
 apps/api/src/lib/html-to-markdown.ts	apps	parsed	html_to_markdown_waterfall	http_service_go_parser_turndown_fallback_postprocess_markdown_zdr_safe_logging
 apps/api/src/lib/http-metrics.ts	apps	parsed	http_duration_metrics	uuid_route_scrubbing_histogram_by_version_method_route_status
@@ -386,7 +386,7 @@ apps/api/src/lib/scrape-interact/scrape-replay.ts	apps	parsed	scrape_replay_cont
 apps/api/src/lib/search-index-client.ts	apps	parsed	managed_search_index_client	optional_index_search_empty_on_failure_score_quality_freshness_rank_metadata_index_write_nonblocking
 apps/api/src/lib/search-query-builder.ts	apps	parsed	structured_query_filter_builder	category_to_site_filter_include_domains_exclude_domains_pdf_filter_category_map
 apps/api/src/lib/strings.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/supabase-jobs.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/supabase-jobs.ts	apps	parsed	durable_job_lookup_helpers	null_or_empty_on_no_row_error_and_lightweight_ownership_lookup_separation
 apps/api/src/lib/tracking.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/url-utils.ts	apps	parsed	public_suffix_url_utils	psl_base_domain_extraction_root_domain_detection
 apps/api/src/lib/validate-country.ts	apps	parsed	location_metadata_table	country_codes_location_validation_data_for_location_aware_retrieval_inputs
@@ -550,8 +550,8 @@ apps/api/src/services/notification/notification_string.ts	apps	not_parsed	pendin
 apps/api/src/services/queue-jobs.ts	apps	parsed	scrape_job_admission_wait_path	team_run_concurrency_backlog_trace_propagation_queue_full_wait_fallback
 apps/api/src/services/queue-service.ts	apps	parsed	async_queue_lifecycle_bounds	queue job completion/failure retention ages bound async artifact growth
 apps/api/src/services/queue-worker.ts	apps	parsed	general_worker_loop	resource_liveness_gate_lock_extension_stall_detection_running_job_tracking_graceful_shutdown
-apps/api/src/services/rate-limiter.test.ts	apps	not_parsed	pending_review	
-apps/api/src/services/rate-limiter.ts	apps	not_parsed	pending_review	
+apps/api/src/services/rate-limiter.test.ts	apps	parsed	historical_rate_limiter_tests	commented_expected_mode_limits_consumption_and_reset_behavior_not_active_proof
+apps/api/src/services/rate-limiter.ts	apps	parsed	rate_limiter_service	per_capability_redis_minute_windows_with_search_scrape_minimum_floors
 apps/api/src/services/redis.ts	apps	parsed	redis_utility_connections	connection_lifecycle_logging_ttl_get_set_delete_and_evict_status_connection
 apps/api/src/services/redlock.ts	apps	parsed	distributed_lock_config	drift_retry_delay_jitter_and_auto_extension_threshold
 apps/api/src/services/sentry.ts	apps	parsed	privacy_safe_error_capture	no_ai_io_capture_zdr_drop_expected_retrieval_error_filter_service_tags
@@ -763,20 +763,20 @@ apps/js-sdk/firecrawl/src/v2/client.ts	apps	not_parsed	pending_review
 apps/js-sdk/firecrawl/src/v2/methods/agent.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/v2/methods/batch.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/v2/methods/browser.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/crawl.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/methods/crawl.ts	apps	parsed	sdk_crawl_method	start_status_cancel_poll_autopagination_retryable_poll_errors_timeout_and_error_summary
 apps/js-sdk/firecrawl/src/v2/methods/extract.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/map.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/methods/map.ts	apps	parsed	sdk_map_method	typed_map_options_and_legacy_string_link_to_structured_web_row_normalization
 apps/js-sdk/firecrawl/src/v2/methods/monitor.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/v2/methods/parse.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/scrape.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/search.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/usage.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/methods/scrape.ts	apps	parsed	sdk_scrape_method	url_options_validation_retained_interaction_job_id_prompt_or_code_and_timeout_error_boundary
+apps/js-sdk/firecrawl/src/v2/methods/search.ts	apps	parsed	sdk_search_method	query_limit_timeout_domain_filter_validation_scrape_option_validation_and_mixed_row_normalization
+apps/js-sdk/firecrawl/src/v2/methods/usage.ts	apps	parsed	sdk_usage_methods	usage_token_credit_concurrency_queue_control_plane_projection_normalization
 apps/js-sdk/firecrawl/src/v2/types.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/utils/errorHandler.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/utils/errorHandler.ts	apps	parsed	sdk_error_normalization	typed_errors_retryable_status_network_timeout_classification_and_terminal_job_timeout
 apps/js-sdk/firecrawl/src/v2/utils/getVersion.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/utils/httpClient.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/utils/pagination.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/utils/validation.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/utils/httpClient.ts	apps	parsed	sdk_http_client	origin_metadata_multipart_header_cleanup_502_backoff_per_request_timeout_and_idempotency_header
+apps/js-sdk/firecrawl/src/v2/utils/pagination.ts	apps	parsed	sdk_pagination_helper	max_pages_results_wait_partial_followup_failure_keeps_initial_evidence
+apps/js-sdk/firecrawl/src/v2/utils/validation.ts	apps	parsed	sdk_request_validation	format_dependencies_schema_conversion_parse_option_rejection_and_artifact_shape_guards
 apps/js-sdk/firecrawl/src/v2/watcher.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/tsconfig.json	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/tsup.config.ts	apps	not_parsed	pending_review	

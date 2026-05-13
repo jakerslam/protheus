@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 381
-- Not parsed: 897
+- Parsed: 399
+- Not parsed: 879
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -365,6 +365,24 @@
 | `apps/api/src/__tests__/e2e_map/index.test.ts` | V1 map E2E tests. | Map quality tests check search-filtered links, subdomain inclusion, sitemap-only exclusion, limit enforcement, and large sitemap discovery volume. |
 | `apps/api/src/__tests__/e2e_map/v2_map.test.ts` | V2 map E2E tests. | V2 map tests require structured `web` rows with title/description metadata, backwards-compatible links, transformed sitemap flags, search query echoing, and explicit timeout failure. |
 | `apps/api/src/__tests__/e2e_extract/index.test.ts` | Extract E2E behavior tests. | Extraction quality is checked against known facts across sites, wildcard scopes, external links, schemas/no-schema output, waitFor dynamic content, and malformed UUID rejection for status handles. |
+| `apps/api/src/services/rate-limiter.ts` | Rate limiter service. | Per-capability limits are declared by mode with Redis-backed one-minute windows; search/scrape get minimum floors so critical retrieval primitives are not starved by low plan defaults. |
+| `apps/api/src/services/rate-limiter.test.ts` | Historical rate-limit tests. | The file is commented out and should not be treated as proof, but it records expected rate-limit checks across crawl/scrape/search/status/preview/account modes and reset behavior. |
+| `apps/api/src/lib/cost-tracking.ts` | Cost tracking helper. | LLM/tool cost accounting records typed calls, model, metadata, token counts, call stack, NaN-safe totals, and a fail-fast limit exception. |
+| `apps/api/src/lib/generic-ai.ts` | Generic AI provider wrapper. | Provider/model selection is centralized behind a narrow factory and supports environment-selected provider defaults; useful as an adapter-boundary pattern, not as user-facing model routing. |
+| `apps/api/src/lib/supabase-jobs.ts` | Durable job lookup helpers. | Status/result lookup helpers distinguish no-row/error from data, keep lightweight ownership lookups separate from full payload reads, and fail reads to null or empty arrays. |
+| `apps/api/src/lib/crawl-redis.test.ts` | Crawl URL permutation test. | URL lock equivalence expands protocol, `www`, trailing slash, and common index file variants so crawl dedupe avoids revisiting the same logical page. |
+| `apps/js-sdk/firecrawl/src/v2/methods/search.ts` | SDK search method. | Client-side request shaping rejects empty queries, invalid limits/timeouts, conflicting include/exclude domains, validates scrape enrichment options, and normalizes mixed SERP/doc rows. |
+| `apps/js-sdk/firecrawl/src/v2/methods/scrape.ts` | SDK scrape method. | Scrape inputs are validated before transport; retained browser interaction requires a valid job id plus prompt or code, bounded timeout propagation, and shared error normalization. |
+| `apps/js-sdk/firecrawl/src/v2/methods/map.ts` | SDK map method. | Map request shaping keeps sitemap/search/subdomain/query/limit/location options typed and normalizes legacy string links into structured web rows. |
+| `apps/js-sdk/firecrawl/src/v2/methods/crawl.ts` | SDK crawl method. | Crawl is start/status/cancel/poll separated, auto-paginates result windows, retries only transient polling errors, surfaces terminal timeout, and exposes crawl error summaries separately. |
+| `apps/js-sdk/firecrawl/src/v2/methods/usage.ts` | SDK usage methods. | Usage/concurrency/queue projections normalize camel/snake response fields and remain control-plane state rather than evidence-bearing retrieval results. |
+| `apps/js-sdk/firecrawl/src/v2/utils/validation.ts` | SDK request validation utilities. | Output artifact requests validate format dependencies, reject unsupported parse options early, convert schemas at the boundary, and keep artifact-shape constraints out of final synthesis. |
+| `apps/js-sdk/firecrawl/src/v2/utils/pagination.ts` | SDK pagination helper. | Paginated result aggregation has max page/result/wait stop conditions and treats failed follow-up pages as bounded partial results rather than throwing away initial evidence. |
+| `apps/js-sdk/firecrawl/src/v2/utils/errorHandler.ts` | SDK error normalization. | Transport failures become typed SDK errors, non-retryable client/status errors are distinguished from retryable server/network/timeouts, and job timeout is terminal. |
+| `apps/js-sdk/firecrawl/src/v2/utils/httpClient.ts` | SDK HTTP client. | Transport adds origin metadata, strips multipart content-type, retries only 502 with exponential backoff, supports per-request timeouts, and carries idempotency keys as headers. |
+| `.github/workflows/scrape-evals.yml` | Opt-in scrape eval workflow. | Expensive quality/OCR evals are opt-in by PR title/body/comment token and permission-gated before dispatching an external eval run with commit metadata. |
+| `.github/workflows/eval-prod.yml` | Production eval workflow. | Post-deploy evals wait for rollout, label runs with commit SHA, and call a separate eval service rather than mixing benchmark execution into the product runtime. |
+| `.github/scripts/eval_run.py` | Eval dispatch script. | Eval execution is a narrow dispatch client with explicit API URL/key/experiment/label inputs and fail-closed nonzero exit on request failure. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -535,6 +553,11 @@
 - Test harnesses should declare available capabilities from environment and skip/gate unavailable expensive lanes instead of letting missing AI/search/rendering/proxy services masquerade as product failures.
 - Metadata extraction should preserve semantic field shapes: single-answer description strings can merge duplicates, while naturally repeated fields remain arrays and malformed metadata becomes a warning/gap rather than a failed scrape.
 - Native parser bridges should stay narrow, capability-scoped, and memory-cleanup explicit; the reusable primitive is parser isolation, not a specific implementation language.
+- Retrieval admission should reserve enough budget for core search/scrape/map lanes while still accounting for capability-specific cost; starving discovery is a root cause of weak research output.
+- Tool clients should normalize request shapes and reject impossible combinations before execution. That keeps workflow gates from compensating for malformed tool inputs after the fact.
+- Pagination should be evidence-preserving: keep initial result windows, stop on max pages/results/wait, and record partial follow-up failure instead of discarding usable retrieved data.
+- Idempotency keys, typed retryability, and terminal timeout errors belong at the transport/tool boundary so retries do not duplicate side effects or blur hard vs soft retrieval failures.
+- Expensive eval lanes should be explicit, permission/capability-gated, and labeled by commit/run metadata. Quality evals are system evidence, not product behavior.
 
 ## Candidate Assimilation Targets
 
@@ -587,6 +610,10 @@
 47. Privacy-safe infrastructure boundary: shared clients, locks, metrics, traces, and database adapters should expose typed unavailable/no-row/expected-failure states and suppress ZDR-sensitive telemetry. Ledger captured; candidate infrastructure policy guard.
 48. Content-quality eval contract: research/retrieval tests should assert answer-bearing evidence, structured metadata, source coverage, dynamic-content handling, and malformed-handle failures instead of tool-status-only success. Ledger captured; candidate golden/eval refinement target.
 49. Capability-gated eval harness: classify eval failures by unavailable capability vs retrieval failure vs synthesis failure using environment-gated test lanes and identity/budget setup. Ledger captured; candidate workflow eval harness target.
+50. Request-shaping SDK boundary: validate mutually exclusive filters, positive budgets, supported artifact formats, and parse/scrape option compatibility before tool execution. Ledger captured; candidate web Tool CD/schema target.
+51. Evidence-preserving pagination: aggregate paginated crawl/map/search results with max page/result/wait limits and partial-result gap metadata. Ledger captured; candidate evidence pack/runtime target.
+52. Retry/idempotency transport contract: carry idempotency keys, typed retryability, retry-scoped backoff, and terminal timeout semantics through tool calls. Ledger captured; candidate tool broker/adapter target.
+53. Eval dispatch lifecycle: keep expensive retrieval quality/OCR evals opt-in or scheduled, permission-gated, commit-labeled, and separate from product runtime. Ledger captured; candidate governance/eval runner target.
 
 ## Remaining Work
 
