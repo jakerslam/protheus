@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 291
-- Not parsed: 987
+- Parsed: 297
+- Not parsed: 981
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -314,6 +314,12 @@
 | `apps/api/src/__tests__/snips/v2/scrape-branding.test.ts` | V2 branding artifact tests. | Skipped branding tests describe a design-artifact lane for colors, typography, spacing, components, images, and cleaned fonts; because coverage is skipped, treat this as experimental rather than a proven primitive. |
 | `apps/api/src/__tests__/snips/zdr-helpers.ts` | ZDR assertion helpers. | Privacy tests assert scrubbed URL/options storage, filtered logs, request records with cleanup markers, GCS removal after cleaner, and request-scoped status disappearance. |
 | `apps/api/src/__tests__/snips/v2/lib.ts` | V2 snips test harness. | Raw/success/failure wrappers and async start/status/poll helpers make status-handle workflows testable without mixing transport details into each behavior test. |
+| `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
+| `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
+| `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
+| `apps/api/src/services/monitoring/results.ts` | Monitor result recorder. | Completed pages upsert durable page state, compare against previous scrape artifacts, save diff artifacts out-of-band, insert per-check page rows, and emit sanitized page webhooks. |
+| `apps/api/src/services/monitoring/scheduler.ts` | Monitor scheduler. | Due monitors are claimed with a worker lease, overlapping checks are skipped, stale checks release credit locks and fail closed, and failed enqueue attempts are marked on the check. |
+| `apps/api/src/services/monitoring/types.ts` | Monitor type contracts. | Monitor targets, schedules, notification/webhook filters, pagination, page statuses, summaries, and markdown-format injection are explicit schema contracts. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -407,6 +413,9 @@
 - Scheduled retrieval is a useful primitive only when it has minimum cadence bounds, owner-scoped CRUD, manual-run probes, bounded result pages, and summaries that remain separate from final chat synthesis.
 - Test harnesses should make async tool behavior first-class with raw requests, success/failure assertions, start/status polling, error projection, and cleanup helpers so workflow regressions are easy to isolate.
 - Experimental artifact lanes should be ledgered separately from proven primitives; skipped tests are pattern signals, not implementation proof.
+- Scheduled retrieval needs overlap and staleness semantics before it is trustworthy: claim due work, skip overlapping checks, release reserved resources on stale checks, and persist the reason.
+- Change tracking should store diff artifacts behind refs and expose summary/status counts; raw prior/current page bodies should not be the user-facing projection.
+- Queue DLQs and handler ack/nack boundaries are evidence-lifecycle mechanics: failed scheduled retrieval should become a typed terminal state, not repeated invisible retries.
 
 ## Candidate Assimilation Targets
 
@@ -443,6 +452,7 @@
 31. Structured search lane schema: support source/category/domain/freshness/location/language/scrape-option lanes as general retrieval inputs without hardcoding research domains. Ledger captured; compare against current `web_retrieval_v0` Tool CD.
 32. Artifact-aware engine eligibility: annotate retrieval engines with required context/capabilities such as browser cookies, retained sessions, source-specialty parser, or no-cache eligibility. Ledger captured; candidate Tool CD capability field.
 33. Async retrieval test harness: maintain raw/success/failure wrappers plus polling helpers for each async retrieval primitive so live workflow failures can be classified as request, execution, status, or synthesis failures. Ledger captured; candidate eval-harness target.
+34. Scheduled retrieval/change tracking primitive: model monitors as due-work claims, overlap/stale handling, durable per-page states, out-of-band diff artifacts, and bounded summary/page projections. Ledger captured; candidate future workflow-memory/monitoring CD.
 
 ## Remaining Work
 
