@@ -109,6 +109,66 @@ fn workflow_latent_candidate_recovery_needed(
     claims_missing_tool_backed_evidence || private_gate_diagnostic
 }
 
+fn workflow_terminal_invariant_promotes_required_latent_candidates(
+    response_workflow: &Value,
+) -> bool {
+    response_workflow
+        .pointer(
+            "/selected_workflow/tool_menu_interface_contract/terminal_invariant_contract/valid_latent_candidate_without_tool_attempt_policy",
+        )
+        .and_then(Value::as_str)
+        == Some("promote_single_required_candidate_or_structured_failure_before_final_answer")
+}
+
+fn workflow_terminal_invariant_required_latent_candidate_flag(
+    response_workflow: &Value,
+) -> String {
+    clean_text(
+        response_workflow
+            .pointer(
+                "/selected_workflow/tool_menu_interface_contract/terminal_invariant_contract/required_latent_candidate_flag",
+            )
+            .and_then(Value::as_str)
+            .unwrap_or("requires_tool_attempt_before_final_answer"),
+        120,
+    )
+}
+
+fn latent_candidate_requires_tool_attempt(candidate: &Value, required_flag: &str) -> bool {
+    let required_flag = clean_text(required_flag, 120);
+    if required_flag.is_empty() {
+        return false;
+    }
+    candidate
+        .get(&required_flag)
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn workflow_latent_candidate_recovery_required_by_terminal_invariant(
+    response_workflow: &Value,
+    latent_tool_candidates: &Value,
+) -> bool {
+    if !workflow_terminal_invariant_promotes_required_latent_candidates(response_workflow) {
+        return false;
+    }
+    let required_flag = workflow_terminal_invariant_required_latent_candidate_flag(response_workflow);
+    let Some(candidates) = latent_tool_candidates.as_array() else {
+        return false;
+    };
+    candidates
+        .iter()
+        .filter(|candidate| {
+            candidate
+                .get("workflow_only")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+                && latent_candidate_requires_tool_attempt(candidate, &required_flag)
+        })
+        .count()
+        == 1
+}
+
 fn finalize_message_finalization_and_payload(
     root: &Path,
     agent_id: &str,
@@ -194,11 +254,20 @@ fn finalize_message_finalization_and_payload(
         .get("manual_toolbox_pending_tool_request")
         .filter(|value| value.is_object())
         .cloned();
+    let latent_candidate_recovery_required =
+        workflow_latent_candidate_recovery_required_by_terminal_invariant(
+            &response_workflow,
+            &latent_tool_candidates,
+        );
     if response_tools.is_empty()
         && manual_toolbox_pending_tool_request.is_none()
         && workflow_json_auto_executes_tools_if_permitted(&response_workflow)
         && workflow_json_latent_candidate_recovery_enabled(&response_workflow)
-        && workflow_latent_candidate_recovery_needed(&response_workflow, &initial_draft_response)
+        && (latent_candidate_recovery_required
+            || workflow_latent_candidate_recovery_needed(
+                &response_workflow,
+                &initial_draft_response,
+            ))
     {
         if let Some(pending_request) =
             manual_toolbox_pending_request_from_latent_candidates(&latent_tool_candidates, message)

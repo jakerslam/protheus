@@ -724,6 +724,22 @@ mod workflow_reader_tests {
                 .and_then(Value::as_str),
             Some("single_valid_workflow_only_candidate_after_private_gate_failure_or_terminal_invariant_recovery")
         );
+        assert_eq!(
+            selected
+                .pointer(
+                    "/tool_menu_interface_contract/terminal_invariant_contract/valid_latent_candidate_without_tool_attempt_policy"
+                )
+                .and_then(Value::as_str),
+            Some("promote_single_required_candidate_or_structured_failure_before_final_answer")
+        );
+        assert_eq!(
+            selected
+                .pointer(
+                    "/tool_menu_interface_contract/terminal_invariant_contract/required_latent_candidate_flag"
+                )
+                .and_then(Value::as_str),
+            Some("requires_tool_attempt_before_final_answer")
+        );
     }
 
     #[test]

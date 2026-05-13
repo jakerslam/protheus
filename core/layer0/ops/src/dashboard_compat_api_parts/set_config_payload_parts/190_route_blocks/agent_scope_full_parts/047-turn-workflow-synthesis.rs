@@ -2923,6 +2923,56 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn latent_candidates_mark_tool_required_research_without_forcing_trivia() {
+        let research_candidates = latent_tool_candidates_for_message(
+            "Research Firecrawl, Tavily, and Exa as data tools for AI research agents.",
+            &[],
+        );
+        assert_eq!(research_candidates.len(), 1, "{research_candidates:?}");
+        assert_eq!(
+            research_candidates[0]
+                .get("requires_tool_attempt_before_final_answer")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let trivia_candidates = latent_tool_candidates_for_message("what is 2+2?", &[]);
+        assert_eq!(trivia_candidates.len(), 1, "{trivia_candidates:?}");
+        assert_eq!(
+            trivia_candidates[0]
+                .get("requires_tool_attempt_before_final_answer")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn terminal_invariant_can_require_single_latent_candidate_promotion() {
+        let workflow = json!({
+            "selected_workflow": {
+                "tool_menu_interface_contract": {
+                    "terminal_invariant_contract": {
+                        "valid_latent_candidate_without_tool_attempt_policy": "promote_single_required_candidate_or_structured_failure_before_final_answer",
+                        "required_latent_candidate_flag": "requires_tool_attempt_before_final_answer"
+                    }
+                }
+            }
+        });
+        let candidates = json!([{
+            "workflow_only": true,
+            "selected_tool_family": "web_research",
+            "selected_tool_key": "batch_query",
+            "requires_tool_attempt_before_final_answer": true,
+            "input": {"source": "web", "query": "compare retrieval tools", "aperture": "medium"}
+        }]);
+
+        assert!(workflow_latent_candidate_recovery_required_by_terminal_invariant(
+            &workflow,
+            &candidates
+        ));
+    }
+
+    #[test]
     fn latent_candidate_recovery_refuses_ambiguous_candidates() {
         let candidates = json!([
             {

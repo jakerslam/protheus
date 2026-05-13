@@ -92,6 +92,8 @@
       "purpose": "A workflow path that has entered tool-routing gates must not finalize as an empty user-visible answer or as a direct answer before a required tool attempt. It must continue as a pending tool request, an executed tool result, or an internal structured failure artifact.",
       "tool_required_empty_final_response_policy": "never_terminal",
       "tool_required_direct_final_response_without_attempt_policy": "never_terminal_retry_tool_request_or_structured_failure",
+      "valid_latent_candidate_without_tool_attempt_policy": "promote_single_required_candidate_or_structured_failure_before_final_answer",
+      "required_latent_candidate_flag": "requires_tool_attempt_before_final_answer",
       "allowed_tool_required_terminal_outcomes": [
         "pending_tool_request",
         "executed_tool_result",
@@ -818,7 +820,11 @@
           "no recorded tool results",
           "no source-backed findings are available",
           "no usable evidence was retrieved",
-          "no returned evidence"
+          "no returned evidence",
+          "no tool evidence",
+          "no active tool results",
+          "based on general knowledge",
+          "based on my current knowledge"
         ]
       }
     },
