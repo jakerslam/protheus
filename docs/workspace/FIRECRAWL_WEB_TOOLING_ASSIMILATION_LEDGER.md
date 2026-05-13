@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1046
-- Not parsed: 223
+- Parsed: 1065
+- Not parsed: 204
 - Skipped generated: 13
 - Skipped media or sample: 75
 
@@ -803,6 +803,25 @@
 | `apps/dot-net-sdk/Firecrawl/Models/CrawlJob.cs` | .NET crawl job model. | Crawl job state carries status, progress, credits, expiry, pagination cursor, documents, and terminal-state classification. |
 | `apps/dot-net-sdk/Firecrawl/Models/BatchScrapeJob.cs` | .NET batch scrape job model. | Batch scrape job state mirrors crawl terminal/pagination semantics for multi-URL document retrieval. |
 | `apps/dot-net-sdk/Firecrawl/Models/ApiResponse.cs` | .NET API response wrapper. | Data-bearing API responses are wrapped explicitly so missing data can become a typed client failure. |
+| `apps/dot-net-sdk/Firecrawl.Tests/Firecrawl.Tests.csproj` | .NET test project manifest. | Test harness pins xUnit/Test SDK and references the client project directly for parity checks. |
+| `apps/dot-net-sdk/Firecrawl.sln` | .NET solution manifest. | Client and tests are paired as the SDK verification unit. |
+| `apps/dot-net-sdk/Firecrawl/Firecrawl.csproj` | .NET package manifest. | SDK package metadata, nullable mode, test internals visibility, and JSON dependency are explicit package governance. |
+| `apps/dot-net-sdk/Firecrawl/Exceptions/AuthenticationException.cs` | .NET auth exception. | 401 responses become a typed boundary error carrying code/details. |
+| `apps/dot-net-sdk/Firecrawl/Exceptions/FirecrawlException.cs` | .NET base exception. | SDK errors preserve status code, error code, details, and inner exceptions as typed failure context. |
+| `apps/dot-net-sdk/Firecrawl/Exceptions/JobTimeoutException.cs` | .NET job timeout exception. | Async job timeouts preserve job ID, timeout seconds, and job type so polling failure is not confused with evidence absence. |
+| `apps/dot-net-sdk/Firecrawl/Exceptions/RateLimitException.cs` | .NET rate-limit exception. | 429 responses become a typed boundary error carrying code/details. |
+| `apps/dot-net-sdk/Firecrawl/Models/BatchScrapeResponse.cs` | .NET batch-start response. | Async batch admission returns success, ID, and invalid URLs; the handle is not evidence until status resolves documents. |
+| `apps/dot-net-sdk/Firecrawl/Models/ConcurrencyCheck.cs` | .NET concurrency projection. | Current/max concurrency is account control metadata, not retrieval evidence. |
+| `apps/dot-net-sdk/Firecrawl/Models/CrawlResponse.cs` | .NET crawl-start response. | Async crawl admission returns success, ID, and seed URL as a handle shape. |
+| `apps/dot-net-sdk/Firecrawl/Models/CreditUsage.cs` | .NET credit usage projection. | Remaining/used credits and billing windows are usage/control metadata. |
+| `apps/dot-net-sdk/Firecrawl/Models/HighlightsFormat.cs` | .NET highlights format. | Page-local highlight queries are an artifact facet, not cross-source synthesis. |
+| `apps/dot-net-sdk/Firecrawl/Models/JsonFormat.cs` | .NET JSON format. | Structured extraction prompt/schema remain artifact-format inputs, not final-answer format requirements. |
+| `apps/dot-net-sdk/Firecrawl/Models/LocationConfig.cs` | .NET location config. | Country and language are typed retrieval controls for discovery/fetch, not prompt phrasing. |
+| `apps/dot-net-sdk/Firecrawl/Models/MapData.cs` | .NET map data. | Map output is a links-only discovery artifact until selected/enriched. |
+| `apps/dot-net-sdk/Firecrawl/Models/QueryFormat.cs` | .NET deprecated query format. | Legacy freeform/direct-quote page queries are compatibility artifact facets. |
+| `apps/dot-net-sdk/Firecrawl/Models/QuestionFormat.cs` | .NET question format. | Page-local questions are selectable artifact facets and remain narrower than final synthesis. |
+| `apps/dot-net-sdk/Firecrawl/Models/WebhookConfig.cs` | .NET webhook config. | URL, headers, metadata, and event list define async projection side effects. |
+| `apps/dot-net-sdk/README.md` | .NET SDK README. | Usage examples reinforce separate scrape, crawl, batch, parse, map, search, usage, and typed error-handling primitives. |
 | `apps/php-sdk/src/Client/FirecrawlClient.php` | PHP SDK client facade. | The PHP facade validates API URL shape, keeps primitives separate, passes idempotency as a header, validates poll intervals, enforces same-origin pagination, and composes polling/pagination internally. |
 | `apps/php-sdk/src/Client/FirecrawlHttpClient.php` | PHP SDK HTTP adapter. | Transport sets JSON/multipart headers, adds SDK user-agent metadata, retries retryable status/connect/request failures, maps auth/rate-limit errors, and fails JSON parse errors as typed client failures. |
 | `apps/php-sdk/src/Models/SearchOptions.php` | PHP search option model. | Search options preserve source, category, domain, limit, freshness, location, invalid-URL, timeout, scrape enrichment, and integration controls while omitting nulls. |
@@ -1550,6 +1569,11 @@
 276. Legacy route membrane: deprecated route warnings stay in route metadata and compatibility projections, never final-answer synthesis text.
 277. API schema parity source: legacy and current OpenAPI schemas can seed Tool CD request/response parity while leaving execution policy in orchestration.
 278. Diagnostic URL dumps: crawl URL dumps and visited-set exports are useful coverage/debug artifacts, but should be kept separate from source-backed evidence.
+279. SDK parity as Tool CD smoke test: client SDK models reveal which request fields, response handles, errors, and artifact facets must remain stable across language surfaces.
+280. Async handle is not evidence: start responses for crawl/batch jobs carry IDs and invalid URL metadata, but evidence only exists after status resolution yields documents.
+281. Typed boundary failures: auth, rate-limit, timeout, and general client errors should preserve status/code/details/job metadata so evals can classify hard failures cleanly.
+282. Page-local artifact formats: highlights, questions, direct quotes, and JSON extraction are selectable evidence facets, not instructions for final answer format.
+283. Location and webhook controls: country/language affect retrieval scope, while webhook metadata/events are async side effects; neither should steer synthesis phrasing.
 
 ## Remaining Work
 
@@ -1569,7 +1593,7 @@
 - Root/API config, native parser packaging, OpenAPI schema surfaces, request scratchpads, document samples, and local utility scripts are parsed; useful signals are typed capability profiles, parser/runtime assembly, hidden native diagnostics, Tool CD schema seeds, executable request fixtures, and crawl graph debug artifacts.
 - API control-plane helpers, billing/notification side-effect surfaces, agent key admission, and legacy v1 schema are parsed; useful signals are side-effect/evidence separation, async terminal artifact assertions, optional observability sinks, billing leases, bounded caches, and diagnostic-only URL dumps.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
-- .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
+- .NET SDK client, transport, tests, docs/project metadata, exceptions, and model surface are parsed; no unparsed .NET SDK files remain in the inventory.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
 - Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
 - JS SDK v2 docs, public entrypoint, compact E2E suites, and remaining compact unit tests are parsed; large legacy v1 SDK and outer example files remain.
