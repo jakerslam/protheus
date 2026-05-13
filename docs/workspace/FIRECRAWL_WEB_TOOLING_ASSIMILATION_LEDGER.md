@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 274
-- Not parsed: 1004
+- Parsed: 283
+- Not parsed: 995
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -297,6 +297,15 @@
 | `apps/api/src/__tests__/snips/v1/deep-research.test.ts` | V1 deep research E2E test. | The live research contract expects a terminal analysis plus sources and activities, although this file only proves coarse completion and should not be treated as strong quality coverage. |
 | `apps/api/src/__tests__/snips/v1/concurrency.test.ts` | V1 concurrency behavior tests. | Crawl and batch scrape concurrency should use available account capacity, honor per-request `maxConcurrency`, and stack concurrent work groups without crossing combined limits. |
 | `apps/api/src/__tests__/snips/v1/webhook.test.ts` | V1 webhook placeholder. | Commented tests document an event contract of started/page/completed events whose page payloads must match final results by scrape ID, but current executable coverage is only a placeholder. |
+| `apps/api/src/__tests__/snips/v2/concurrency.test.ts` | V2 concurrency behavior tests. | The newer surface repeats the same crawl/batch concurrency contract: account caps, per-request caps, and stacked group behavior must be observable in completed counts. |
+| `apps/api/src/__tests__/snips/v2/zdr.test.ts` | V2 zero-retention behavior tests. | V2 retains the same no-durable-job, no-log, and child-scrape cleanup expectations for scrape, crawl, and batch work. |
+| `apps/api/src/__tests__/snips/v2/iframe-selectors.test.ts` | V2 selector rewrite tests. | Selector compatibility belongs in schema/request normalization; iframe selectors are rewritten to extraction-engine DOM markers without changing user intent. |
+| `apps/api/src/__tests__/snips/v2/scrape-browser.test.ts` | V2 browser replay tests. | Interactive browser work replays retained scrape context, retries replica readiness, rejects malformed/missing/foreign job IDs, and fails when zero-retention makes replay context unavailable. |
+| `apps/api/src/__tests__/snips/v2/scrape-viewport.test.ts` | V2 screenshot viewport tests. | Screenshot artifacts carry typed viewport options with positive integer bounds and backwards compatibility for string and object format declarations. |
+| `apps/api/src/__tests__/snips/v2/scrape-skip-tls.test.ts` | V2 TLS and screenshot compatibility tests. | TLS policy has an explicit default and override behavior, and object screenshot formats remain accepted as artifact-shape inputs. |
+| `apps/api/src/__tests__/snips/v2/system-prompt-rejection.test.ts` | V2 extraction boundary test. | User-supplied system prompts in extraction format options are rejected while ordinary extraction prompts remain accepted. |
+| `apps/api/src/__tests__/snips/v2/webhook.test.ts` | V2 webhook placeholder. | The commented event contract mirrors V1 started/page/completed reconciliation, but executable coverage is only a placeholder. |
+| `apps/api/src/__tests__/snips/v2/wikipedia.test.ts` | V2 specialty source behavior tests. | A specialty source engine can provide high-quality article evidence across languages, redirects, special characters, requested formats, metadata, and graceful not-found behavior. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -379,6 +388,10 @@
 - Schema/request validation is upstream retrieval quality, not API decoration: format dependencies, timeout inflation, action limits, URL caps, and handle IDs should be resolved before adapters run.
 - Privacy retention modes must affect logs, durable job storage, status access, cache eligibility, and child scrape cleanup as a single policy lane.
 - Async event streams need reconcilable event IDs and page IDs so final result windows, webhooks, and streamed projections can be checked against the same completed evidence artifacts.
+- Browser interaction must be a retained-context operation with owner checks, malformed-handle rejection, explicit ZDR incompatibility, readiness retry, and cleanup; it should never be a default answer path.
+- Source-specialty engines are useful when they improve evidence quality for known content classes, but they must stay declared capability lanes with normal format/metadata/error contracts.
+- Extraction prompts are user/task instructions; system prompts remain internal policy and should be rejected at the request boundary if surfaced through tool input.
+- Artifact-shape options such as screenshots, viewport, TLS behavior, and selector rewrites should be typed tool inputs that influence retrieval artifacts, not final-answer formatting instructions.
 
 ## Candidate Assimilation Targets
 
@@ -409,6 +422,8 @@
 25. Retrieval behavior test invariants: preserve content-bearing search-plus-scrape, cache-key correctness, status-handle validation, source URL preservation, schema normalization, and timeout semantics as regression tests. Ledger captured; no new CD change needed unless current tests lack equivalent coverage.
 26. Request-boundary quality gates: validate format dependencies, timeout/action budgets, URL/input caps, privacy modes, and async handle shapes before retrieval execution. Ledger captured; compare against current CD/tool schema coverage before adding code.
 27. Projection reconciliation: status windows, streamed events, webhook-style events, and final evidence refs should be reconcilable by stable internal IDs without exposing queue internals. Ledger captured; candidate future test target.
+28. Retained-context interaction lane: browser follow-up execution should require retained scrape context, ownership, valid handles, ZDR compatibility, readiness retry, and explicit cleanup. Ledger captured; compare against current browser/dynamic retrieval CD contract.
+29. Source-specialty evidence lanes: admit specialized source readers only as capability lanes with the same output-format, metadata, error, and privacy contracts as generic readers. Ledger captured; candidate future tooling-CD refinement.
 
 ## Remaining Work
 

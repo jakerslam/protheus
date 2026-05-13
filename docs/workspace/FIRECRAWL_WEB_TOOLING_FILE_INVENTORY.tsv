@@ -153,31 +153,31 @@ apps/api/src/__tests__/snips/v1/zdr.test.ts	apps	parsed	v1_zdr_snips_team_and_re
 apps/api/src/__tests__/snips/v2/audio-routing.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/batch-scrape.test.ts	apps	parsed	batch_scrape_e2e_tests	content_bearing_docs_source_url_preservation_json_format
 apps/api/src/__tests__/snips/v2/billing.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/concurrency.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/concurrency.test.ts	apps	parsed	v2_concurrency_snips	account_and_request_concurrency_limits_with_stacked_group_behavior
 apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts	apps	parsed	crawl_prompt_behavior_placeholder	explicit_option_precedence_intent_placeholder
 apps/api/src/__tests__/snips/v2/crawl.test.ts	apps	parsed	crawl_e2e_behavior_tests	sitemap_mode_include_path_filter_url_normalization_expectations
 apps/api/src/__tests__/snips/v2/document-converter.test.ts	apps	parsed	document_converter_exact_output_tests	
-apps/api/src/__tests__/snips/v2/iframe-selectors.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/iframe-selectors.test.ts	apps	parsed	v2_iframe_selector_snips_schema_level_iframe_selector_rewrite
 apps/api/src/__tests__/snips/v2/lib.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/map.test.ts	apps	parsed	map_e2e_behavior_tests	timeout_sitemap_limit_base_domain_warning_redirect_expectations
 apps/api/src/__tests__/snips/v2/monitor.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/parse.test.ts	apps	parsed	parse_upload_contract_tests	
 apps/api/src/__tests__/snips/v2/parsers.test.ts	apps	parsed	parser_contract_tests	
 apps/api/src/__tests__/snips/v2/scrape-branding.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/scrape-browser.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/scrape-browser.test.ts	apps	parsed	v2_scrape_browser_snips_replay_context_owner_checks_zdr_rejection_and_foreground_tab_stability
 apps/api/src/__tests__/snips/v2/scrape-cache.test.ts	apps	parsed	cache_age_contract_tests	
 apps/api/src/__tests__/snips/v2/scrape-formats.test.ts	apps	parsed	format_shape_contract_tests	
 apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts	apps	parsed	lockdown_cache_zdr_tests	
 apps/api/src/__tests__/snips/v2/scrape-query.test.ts	apps	parsed	page_query_format_tests	
-apps/api/src/__tests__/snips/v2/scrape-skip-tls.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/scrape-viewport.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/scrape-skip-tls.test.ts	apps	parsed	v2_scrape_skip_tls_snips_tls_default_override_and_object_screenshot_compatibility
+apps/api/src/__tests__/snips/v2/scrape-viewport.test.ts	apps	parsed	v2_scrape_viewport_snips_screenshot_viewport_bounds_and_compatibility
 apps/api/src/__tests__/snips/v2/scrape.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/search.test.ts	apps	parsed	search_e2e_behavior_tests	include_exclude_domain_limit_multi_source_scrape_enrichment_partial_markdown_expectations
-apps/api/src/__tests__/snips/v2/system-prompt-rejection.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/system-prompt-rejection.test.ts	apps	parsed	v2_system_prompt_rejection_snips_reject_user_supplied_system_prompt_in_extract_options
 apps/api/src/__tests__/snips/v2/types-validation.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/webhook.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/wikipedia.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/zdr.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/webhook.test.ts	apps	parsed	v2_webhook_snips_commented_placeholder_started_page_completed_event_contract
+apps/api/src/__tests__/snips/v2/wikipedia.test.ts	apps	parsed	v2_wikipedia_snips_specialty_source_engine_formats_redirects_i18n_and_metadata
+apps/api/src/__tests__/snips/v2/zdr.test.ts	apps	parsed	v2_zdr_snips_team_and_request_scoped_zero_retention_cleanup
 apps/api/src/__tests__/snips/wikipedia-url-parser.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/zdr-helpers.ts	apps	not_parsed	pending_review	
 apps/api/src/config.ts	apps	not_parsed	pending_review	
