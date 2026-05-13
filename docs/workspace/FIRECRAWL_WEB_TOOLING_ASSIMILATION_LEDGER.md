@@ -40,10 +40,10 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 422
-- Not parsed: 856
+- Parsed: 425
+- Not parsed: 852
 - Skipped generated: 11
-- Skipped media or sample: 68
+- Skipped media or sample: 69
 
 ## Parsed Files
 
@@ -406,6 +406,9 @@
 | `apps/api/src/__tests__/snips/v0/scrape.test.ts` | V0 scrape URL validation tests. | Legacy scrape rejects invalid, empty, unsupported-protocol, and no-TLD URLs while allowing self-hosted/test-suite exceptions to be environment-sensitive. |
 | `apps/api/src/__tests__/snips/v1/deprecation.test.ts` | Deprecation projection tests. | Deprecated endpoints emit headers/body warnings and successor links while non-deprecated endpoints stay clean, including warning behavior on 404 status calls. |
 | `apps/api/src/__tests__/snips/v1/iframe-selectors.test.ts` | Iframe selector schema tests. | Request schemas rewrite iframe selectors to transformed DOM markers across include/exclude, combinators, and attribute selectors without touching partial-name matches. |
+| `apps/api/src/__tests__/snips/utils/collect-mocks.js` | Mock fixture collector. | Recorded HTTP mocks are aggregated from scraper mock files into named JSON fixtures, keeping deterministic replay data outside behavior tests. |
+| `apps/api/src/__tests__/snips/mocks/mocking-works-properly.json` | Deterministic scrape mock fixture. | The recorded trace models instant-return scrape submission, repeated status polling states, terminal completion, response headers, and mocked page content. |
+| `apps/api/src/__tests__/lib/branding/processor-color.test.ts` | Color normalization tests. | Color extraction normalizes RGB/RGBA/hex, treats transparent colors as absent, blends semi-transparent overlays against explicit/default backgrounds, and prevents false opaque black artifacts. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -593,6 +596,8 @@
 - Authentication mode is a capability/profile setting, not a reason to weaken retrieval validation. Unsupported URLs, invalid job IDs, and completed evidence shapes still need stable behavior.
 - Deprecation and compatibility warnings belong in headers/status metadata, not final research synthesis. They can guide client migration without contaminating evidence.
 - DOM-normalization rewrites such as iframe placeholders should happen in request/schema/extraction layers so selectors continue to work against transformed evidence artifacts.
+- Deterministic replay fixtures are useful when they model transport state transitions and terminal artifacts; giant raw content fixtures should be counted as sample data, not mined for implementation logic.
+- Visual/branding artifacts need normalization semantics too. Transparent and semi-transparent colors should become calibrated evidence or absence, not false opaque black signals.
 
 ## Candidate Assimilation Targets
 
@@ -661,6 +666,8 @@
 63. Profile-invariant validation: keep URL validation, unsupported-source policy, handle shape checks, and completed artifact shape assertions stable across auth/no-auth/self-host/test profiles. Ledger captured; candidate eval harness profile matrix.
 64. Compatibility warning projection: route deprecation/successor warnings through headers/status metadata, never as evidence or final answer text. Ledger captured; candidate projection hygiene guard.
 65. Selector transform contract: centralize DOM rewrites such as iframe marker transforms in request/schema extraction layers and test complex selector preservation. Ledger captured; candidate scrape option schema target.
+66. Deterministic retrieval replay fixtures: store compact recorded request/status/result traces for transport regression while keeping bulky raw bodies as sample fixtures. Ledger captured; candidate web-tool eval fixture target.
+67. Artifact normalization semantics: treat colors/media/visual metadata as evidence artifacts with transparency, blending, and invalid-value handling instead of lossy strings. Ledger captured; candidate rich evidence artifact target.
 
 ## Remaining Work
 

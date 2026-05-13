@@ -124,14 +124,14 @@ apps/api/src/__tests__/e2e_noAuth/index.test.ts	apps	parsed	no_auth_e2e_behavior
 apps/api/src/__tests__/e2e_v1_withAuth/index.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/e2e_v1_withAuth_all_params/index.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/e2e_withAuth/index.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/lib/branding/processor-color.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/lib/branding/processor-color.test.ts	apps	parsed	color_normalization_tests	rgb_rgba_hex_transparency_blending_invalid_value_and_false_black_regressions
 apps/api/src/__tests__/lib/search-query-builder.test.ts	apps	parsed	search_query_builder_tests	category_filter_include_exclude_domain_exact_query_preservation_and_category_map_behavior
 apps/api/src/__tests__/snips/generateDomainSplits.test.ts	apps	parsed	domain_split_tests	public_suffix_subdomain_rollup_and_fake_domain_test_support
 apps/api/src/__tests__/snips/lib.ts	apps	parsed	test_capability_harness	env_gated_ai_search_render_proxy_lanes_identity_budget_setup_and_timeout_constants
 apps/api/src/__tests__/snips/metadata-concat.test.ts	apps	parsed	metadata_extraction_stability_tests	description_concat_repeated_arrays_invalid_favicon_debug_valid_relative_favicon
-apps/api/src/__tests__/snips/mocks/map-query-params.json	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/mocks/mocking-works-properly.json	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/utils/collect-mocks.js	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/mocks/map-query-params.json	apps	skipped_media_or_sample	large_recorded_sitemap_fixture_raw_sample_not_logic_source	sample_skipped
+apps/api/src/__tests__/snips/mocks/mocking-works-properly.json	apps	parsed	deterministic_scrape_mock_fixture	instant_return_submit_status_polling_terminal_completion_headers_and_mock_content_trace
+apps/api/src/__tests__/snips/utils/collect-mocks.js	apps	parsed	mock_fixture_collector	aggregates_recorded_scraper_http_mocks_into_named_json_replay_fixtures
 apps/api/src/__tests__/snips/v0/lib.ts	apps	parsed	v0_snips_helper	legacy_raw_scrape_transport_helper_shared_identity_timeout_reexports
 apps/api/src/__tests__/snips/v0/scrape.test.ts	apps	parsed	v0_scrape_url_validation_tests	invalid_empty_unsupported_protocol_no_tld_rejection_and_profile_sensitive_valid_url_acceptance
 apps/api/src/__tests__/snips/v1/batch-scrape.test.ts	apps	parsed	v1_batch_scrape_snips	contentful_batch_markdown_source_url_preservation_and_json_extract_format
