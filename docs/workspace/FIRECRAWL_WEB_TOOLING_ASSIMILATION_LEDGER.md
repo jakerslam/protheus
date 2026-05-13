@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 245
-- Not parsed: 1033
+- Parsed: 257
+- Not parsed: 1021
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -54,6 +54,7 @@
 | `CLAUDE.md` | Maintainer workflow and tests. | Firecrawl prefers E2E/snips tests with happy and failure paths around actual API behavior. |
 | `apps/api/src/controllers/v2/search.ts` | Public search request entrypoint. | Normalize/validate request, preserve agent interop and ZDR boundaries, then delegate to a single search executor. |
 | `apps/api/src/controllers/v2/f-search.ts` | Search-index endpoint. | Index-backed search exposes hybrid, keyword, semantic, and BM25 modes plus domain/country/freshness/language filters as candidate-discovery controls. |
+| `apps/api/src/controllers/v0/search.ts` | Legacy search controller. | Search overfetches beyond the requested limit to survive blocked/empty candidates, optionally fetches page content, and returns only contentful docs when scraping is requested. |
 | `apps/api/src/search/execute.ts` | Search orchestration. | Overfetch search results, categorize domains, optionally scrape selected candidates, then merge scraped content back into the search response. |
 | `apps/api/src/search/scrape.ts` | Search-result enrichment. | Treat SERP rows as candidates; filter blocked URLs, directly scrape result URLs concurrently, and merge richer documents into original result rows. |
 | `apps/api/src/search/v2/index.ts` | Provider fallback. | Try configured premium engine first, then self-hosted SearXNG, then DuckDuckGo, failing to an empty response rather than leaking provider errors. |
@@ -236,6 +237,8 @@
 | `apps/api/src/lib/deep-research/deep-research-service.ts` | Deep research orchestration loop. | Bounded loop: generate parallel query lanes, search-plus-scrape them, dedupe URLs, append findings/sources, analyze coverage gaps, continue or synthesize under max-depth/max-URL/time budgets. |
 | `apps/api/src/lib/deep-research/deep-research-redis.ts` | Deep research state persistence. | Long-running research state uses TTL-bounded storage and appends activities/sources/summaries while keeping findings locally capped. |
 | `apps/api/src/controllers/v1/search.ts` | V1 search and deep-research search bridge. | Deep research uses a small SERP result set plus scrape enrichment; normal search filters content-bearing docs when scrape formats are requested. |
+| `apps/api/src/controllers/v1/x402-search.ts` | V1 paid search bridge. | Search overfetches, optionally scrapes results, filters to contentful documents, carries cost tracking, and blocks unsupported ZDR modes. |
+| `apps/api/src/controllers/v2/x402-search.ts` | V2 paid search bridge. | Multi-source results can keep web/news/image lanes, category labels, per-type limits, and optional sync or async scrape enrichment while preserving original result metadata. |
 | `apps/api/src/search/transform.ts` | Search response transformation. | Multi-source search rows are normalized into a common document shape, and content-bearing rows are separated from thin SERP metadata. |
 | `apps/api/src/search/index.ts` | V1 search provider fallback. | Provider order falls through Fire Engine, SearXNG, then DuckDuckGo, returning empty on failures rather than exposing provider internals. |
 | `apps/api/src/lib/ranker.test.ts` | Ranking behavior tests. | Semantic rerank should expose scores/original indices, handle empty inputs, and preserve stable order for equal scores. |
@@ -251,10 +254,13 @@
 | `apps/api/src/controllers/v1/generate-llmstxt.ts` | Site corpus request controller. | Corpus generation is async, ZDR-gated, initialized with max URL/show-full/cache options, and projected by job ID. |
 | `apps/api/src/controllers/v1/generate-llmstxt-status.ts` | Site corpus status controller. | Status projection can return only compact index or compact plus full text based on request, with expiry and failure state. |
 | `apps/api/src/controllers/v2/crawl.ts` | V2 crawl request controller. | Explicit crawler options override agent/planner-generated options, invalid path regexes fail early, robots are fetched before queueing, and crawl groups get TTL-bounded handles. |
+| `apps/api/src/controllers/v0/crawl.ts` | Legacy crawl controller. | Idempotency keys, regex validation, credit-bound limits, URL normalization, URL locks, robots/sitemap kickoff, and seed-URL fallback protect crawl admission before worker execution. |
 | `apps/api/src/controllers/v2/map.ts` | V2 map request controller. | Map is treated as lightweight URL discovery with timeout/cancel support, optional index/search/sitemap sources, and low-result warnings that can drive broader retrieval. |
 | `apps/api/src/controllers/v2/crawl-params-preview.ts` | Crawl option preview controller. | Site structure can be discovered before option planning, but option generation should remain optional and never override explicit request fields. |
 | `apps/api/src/controllers/v2/crawl-status.ts` | V2 crawl status projection. | Status returns counts, expiry, bounded result windows, next cursors, and warnings rather than raw queue state or unbounded crawl payloads. |
+| `apps/api/src/controllers/v0/crawl-status.ts` | Legacy crawl status projection. | Status can merge queue, durable DB, and blob-backed jobs, filter failed pages, and project partial completed documents while the crawl is still active. |
 | `apps/api/src/controllers/v2/crawl-cancel.ts` | Crawl cancellation controller. | Cancellation is persisted as crawl state after ownership checks and should project as a terminal workflow state. |
+| `apps/api/src/controllers/v0/crawl-cancel.ts` | Legacy crawl cancellation. | Cancellation refuses missing/completed groups, enforces ownership, and persists a cancelled flag instead of relying on queue internals as truth. |
 | `apps/api/src/controllers/v2/crawl-errors.ts` | Crawl error projection. | Failed page errors are projected as sanitized per-URL summaries, while robots-blocked URLs are separated as access-policy evidence. |
 | `apps/api/src/controllers/v2/crawl-ongoing.ts` | Ongoing crawl projection. | Ongoing async work is listed by handle, origin URL, creation time, and options without exposing queue internals. |
 | `apps/api/src/controllers/v2/crawl-status-ws.ts` | Streaming crawl status projection. | Streaming results begin with a catchup projection, then emit bounded document events and done/error terminal messages. |
@@ -268,6 +274,7 @@
 | `apps/api/src/controllers/__tests__/crawl.test.ts` | Legacy crawl controller test. | Idempotency keys prevent duplicate crawl kickoff requests, a useful retry-safety primitive for async retrieval. |
 | `apps/api/src/scraper/WebScraper/__tests__/crawler.test.ts` | WebCrawler unit tests. | Tests lock limit enforcement plus include/exclude behavior across subdomains and full-URL regex modes. |
 | `apps/api/src/controllers/v2/batch-scrape.ts` | V2 batch scrape controller. | Batch URL reads validate/ignore invalid URLs explicitly, lock normalized URLs before queueing, support append-to-existing handles, and return a handle plus invalid URL projection. |
+| `apps/api/src/controllers/v0/scrape.ts` | Legacy scrape controller. | Legacy scrape still enforces URL validation, blocklist checks, schema-required extraction mode, queue cleanup, raw HTML pruning, and ZDR incompatibility as explicit failure states. |
 | `apps/api/src/controllers/v1/batch-scrape.ts` | V1 batch scrape controller. | The older path confirms the same batch primitive: prevalidate URLs, TTL-bound a group, lock URLs, enqueue single-url jobs, and report a status handle. |
 | `apps/api/src/controllers/v2/extract.ts` | V2 structured extract controller. | Structured extraction is its own async job lane with URL block filtering, ZDR rejection, status initialization, and optional invalid URL reporting. |
 | `apps/api/src/controllers/v2/extract-status.ts` | V2 extract status projection. | Status loads result data only when complete and projects optional steps/sources/cost/session fields by explicit show flags. |
@@ -287,6 +294,9 @@
 | `apps/api/src/services/worker/scrape-worker.ts` | Retrieval worker and incremental crawl expansion. | Completed pages can discover more links, but new work is enqueued only after crawl policy filtering, robots recording, URL locks, priority assignment, and parent-run cancellation checks. |
 | `apps/api/src/lib/job-priority.ts` | Queue priority helper. | Priority adapts to recent per-team queue pressure with a TTL window rather than static one-size scheduling. |
 | `apps/api/src/lib/__tests__/job-priority.test.ts` | Queue priority tests. | Priority pressure state is TTL-scoped, reset on add, removable on completion, and increases priority when recent team queue size crosses thresholds. |
+| `apps/api/src/controllers/v1/queue-status.ts` | Queue status projection. | Queue status cleans stale concurrency entries before projecting active count, waiting count, max concurrency, and most recent success. |
+| `apps/api/src/controllers/v2/queue-status.ts` | Queue status compatibility projection. | V2 preserves the same bounded owner-scoped queue projection and cleanup behavior. |
+| `apps/api/src/controllers/v0/admin/concurrency-queue-backfill.ts` | Concurrency backfill endpoint. | Explicit admin reconciliation can repair queue/index drift for one owner or all owners and return a bounded recovery summary. |
 | `apps/api/src/services/idempotency/create.ts` | Idempotency key creation. | Idempotency keys are persisted at request admission so retries can be detected before duplicate work starts. |
 | `apps/api/src/services/idempotency/validate.ts` | Idempotency key validation. | Request retry safety validates UUID-shaped keys and treats existing keys as duplicate work admission. |
 | `apps/api/src/services/extract-queue.ts` | Extract queue and DLQ. | Extraction work uses persistent message IDs, prefetch bounds, explicit ack/nack, single-delivery DLQ routing, and DLQ requeue only when DLQ handling itself fails. |
@@ -294,6 +304,8 @@
 | `apps/api/src/services/queue-worker.ts` | General worker loop. | Workers gate job pickup on liveness/resource pressure, extend locks for long work, track running jobs, and wait for in-flight jobs during graceful shutdown. |
 | `apps/api/src/services/indexing/indexer-queue.ts` | Indexer queue publisher. | Optional index publication no-ops when disabled, reconnects after transport close, sends persistent messages, and waits for bounded drain on backpressure. |
 | `apps/api/src/services/indexing/index-worker.ts` | Index/backfill worker. | Budgeted precrawl ranks domains and pages by observed demand, batches URL lookup with backoff, allocates crawl budget proportionally, and submits cacheable crawl jobs only within resource bounds. |
+| `apps/api/src/controllers/v0/admin/precrawl.ts` | Precrawl trigger endpoint. | Background corpus warming can be admitted as an explicit queue event rather than coupling it to request-time retrieval. |
+| `apps/api/src/controllers/v0/admin/check-fire-engine.ts` | Engine health probe. | Optional rendered-fetch engines should have bounded health probes that try multiple neutral URLs, abort by timeout, and return sanitized failure state. |
 
 ## Decisions So Far
 
@@ -340,6 +352,8 @@
 - Structured extraction is not a final answer format. It is an evidence-pack primitive for ranking candidates, separating single-answer vs multi-entity goals, merging partial facts safely, and preserving source refs through dedupe.
 - Fire-0 confirms the extraction primitive should have a pre-extraction relevance gate and a hidden token/schema repair boundary. The useful part is the mechanics and quality metadata, not the hardcoded model names or prompt prose.
 - URL-scoped extraction should not stop after one sparse map/search pass. A bounded broader discovery pass plus rerank is a general way to avoid false "no evidence" results without asking the user to narrow.
+- Compatibility controllers confirm the same primitives should hold across old and new surfaces: overfetch before filtering, preserve original search metadata when enrichment succeeds, and project partial/failed work as bounded status rather than raw queue state.
+- Queue and engine admin endpoints are useful only as observability/reconciliation primitives. They should not become user-facing research evidence or provider-specific workflow branches.
 
 ## Candidate Assimilation Targets
 
@@ -365,6 +379,7 @@
 20. Retrieval projection lifecycle: enforce owner, TTL, ZDR, cancellation, catch-up, and bounded streaming/status projections for long-running retrieval work. Implemented CD/tool-policy update; runtime execution remains future work.
 21. Structured extraction evidence artifacts: classify single-answer vs multi-entity evidence needs, rerank mapped candidates by extraction value, merge partial extracted facts safely, and preserve source refs through dedupe. Implemented CD/tool-policy update; runtime execution remains future work.
 22. Relevance-gated extraction and repair boundary: before expensive structured extraction, gate candidate pages for likely usefulness; trim oversized inputs to context budget; normalize/repair structured outputs inside the evidence layer; preserve hidden warnings for synthesis calibration. Implemented CD/tool-policy update; runtime execution remains future work.
+23. Compatibility projection invariants: ensure legacy and new search/crawl/scrape paths share overfetch, enrichment, bounded status, owner/ZDR checks, queue cleanup, and raw payload pruning semantics. Ledger captured; no new CD change needed unless runtime drift appears.
 
 ## Remaining Work
 
