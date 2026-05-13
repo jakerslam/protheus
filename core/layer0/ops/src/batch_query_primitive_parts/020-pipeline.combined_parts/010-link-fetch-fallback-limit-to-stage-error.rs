@@ -285,6 +285,90 @@ fn payload_links_for_page_extraction(
     selected
 }
 
+fn candidate_locator_links_for_page_extraction(
+    query: &str,
+    policy: &Value,
+    candidates: &[Candidate],
+    max_links: usize,
+    include_substantive_candidates: bool,
+) -> Vec<String> {
+    if !page_extraction_candidate_locator_followup_enabled(policy) || max_links == 0 {
+        return Vec::new();
+    }
+    let mut ranked = candidates
+        .iter()
+        .filter_map(|candidate| {
+            let needs_fetch = candidate_needs_link_fetch(query, policy, candidate);
+            if !needs_fetch && !include_substantive_candidates {
+                return None;
+            }
+            let link = normalize_page_extraction_link(policy, &candidate.locator)?;
+            let mut score = fallback_link_score(query, &link) + rerank_score(query, candidate) * 0.35;
+            if needs_fetch {
+                score += 0.24;
+            }
+            if candidate_is_low_confidence_retained(candidate) {
+                score += 0.08;
+            }
+            Some((link, score))
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.cmp(&b.0))
+    });
+
+    let mut selected = Vec::<String>::new();
+    let mut selected_by_key = HashSet::<String>::new();
+    for (link, _) in ranked {
+        let dedupe_key = page_extraction_link_dedupe_key(policy, &link);
+        if dedupe_key.is_empty() || !selected_by_key.insert(dedupe_key) {
+            continue;
+        }
+        selected.push(link);
+        if selected.len() >= max_links {
+            break;
+        }
+    }
+    selected
+}
+
+fn links_for_page_extraction(
+    query: &str,
+    policy: &Value,
+    payload: &Value,
+    candidates: &[Candidate],
+    max_links: usize,
+    include_substantive_candidates: bool,
+) -> Vec<String> {
+    let limit = max_links.max(1);
+    let mut selected = payload_links_for_page_extraction(query, policy, payload, limit);
+    let mut selected_by_key = selected
+        .iter()
+        .map(|link| page_extraction_link_dedupe_key(policy, link))
+        .filter(|key| !key.is_empty())
+        .collect::<HashSet<_>>();
+    let candidate_limit = page_extraction_candidate_locator_max_per_stage(policy).min(limit);
+    for link in candidate_locator_links_for_page_extraction(
+        query,
+        policy,
+        candidates,
+        candidate_limit,
+        include_substantive_candidates,
+    ) {
+        if selected.len() >= limit {
+            break;
+        }
+        let dedupe_key = page_extraction_link_dedupe_key(policy, &link);
+        if dedupe_key.is_empty() || !selected_by_key.insert(dedupe_key) {
+            continue;
+        }
+        selected.push(link);
+    }
+    selected
+}
+
 fn normalize_page_extraction_link(policy: &Value, link: &str) -> Option<String> {
     let mut cleaned = clean_text(link, 2_200);
     if cleaned.is_empty() {

@@ -434,6 +434,26 @@
         "promising_link_fetch",
         "fit_markdown_or_excerpt_packaging"
       ],
+      "candidate_locator_followup": {
+        "authority": "tool_cd_declares_candidate_map_to_page_read_policy_runtime_applies_budget_and_hygiene",
+        "purpose": "When search rows expose promising public locators but snippets are thin, treat those locators as bounded page-read candidates so synthesis receives processible evidence instead of search-result shells.",
+        "trigger": [
+          "payload_links_are_absent_or_less_relevant_than_structured_result_locators",
+          "candidate_snippets_are_thin_low_overlap_or_source_only",
+          "usable_evidence_count_is_below_policy_threshold"
+        ],
+        "selection": "rank candidate locators with the same relevance/source/freshness axes used for payload links, dedupe canonical URLs, and fetch only within the declared per-stage and per-run budgets",
+        "source_patterns": [
+          "firecrawl_search_result_scrape_merge",
+          "firecrawl_high_volume_candidate_map_rerank_filter",
+          "exa_search_then_fetch"
+        ],
+        "non_goals": [
+          "do_not_fetch_every_candidate_without_budget",
+          "do_not_bind_selection_to_a_specific_provider_or_domain",
+          "do_not_treat_candidate_count_as_evidence_sufficiency"
+        ]
+      },
       "semantic_query_planning": {
         "source_pattern": "exa_semantic_search_guidance",
         "provider_binding": "none_source_pattern_is_attribution_only",

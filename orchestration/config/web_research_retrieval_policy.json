@@ -1002,6 +1002,25 @@
       "do_not_treat_high_candidate_count_as_evidence_sufficiency"
     ]
   },
+  "candidate_locator_followup": {
+    "purpose": "When search providers return processible result URLs but thin snippets, the retrieval primitive may read the best public locators within budget before synthesis.",
+    "authority": "retrieval_policy_declares_candidate_map_to_page_read_behavior_tool_cd_and_runtime_enforce_budget_hygiene",
+    "source_patterns": [
+      "firecrawl_search_result_scrape_merge",
+      "firecrawl_high_volume_candidate_map_rerank_filter",
+      "exa_search_then_fetch"
+    ],
+    "trigger": [
+      "payload_links_are_absent_or_weaker_than_structured_result_locators",
+      "candidate_snippets_are_thin_or_source_only",
+      "usable_evidence_count_is_below_policy_threshold"
+    ],
+    "non_goals": [
+      "do_not_fetch_every_candidate_without_budget",
+      "do_not_hardcode_domains_or_research_topics",
+      "do_not_prescribe_visible_answer_shape"
+    ]
+  },
   "async_result_lifecycle": {
     "enabled": true,
     "use_for_large_or_long_running_batches": true,

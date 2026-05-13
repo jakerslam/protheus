@@ -1229,6 +1229,50 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_fetches_structured_candidate_locators_when_payload_links_are_absent() {
+        let query = "scientific breakthroughs april 2026";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Search results mention April 2026 science breakthroughs, but the search snippets are thin.",
+                    "results": [
+                        {
+                            "title": "April 2026 science breakthroughs",
+                            "url": "https://science.example.org/april-2026-brief",
+                            "snippet": "April 2026 breakthrough list."
+                        }
+                    ],
+                    "requested_url": "https://search.example.com/science",
+                    "status_code": 200
+                },
+                "fetch::https://science.example.org/april-2026-brief": {
+                    "ok": true,
+                    "summary": "Scientific breakthroughs April 2026 evidence includes a quantum error correction record, cancer vaccine trial data, and materials replication notes from research institutions.",
+                    "requested_url": "https://science.example.org/april-2026-brief",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "small",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("quantum error correction"), "{lowered}");
+        assert!(lowered.contains("cancer vaccine"), "{lowered}");
+        assert!(out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .map(|refs| refs.iter().any(|row| {
+                row.get("locator")
+                    .and_then(Value::as_str)
+                    .map(|value| value == "https://science.example.org/april-2026-brief")
+                    .unwrap_or(false)
+            }))
+            .unwrap_or(false));
+    }
+
+    #[test]
     fn page_extraction_dedupes_canonical_url_variants_before_fetch_budget() {
         let query = "scientific breakthroughs april 2026";
         let policy = default_policy();

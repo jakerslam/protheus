@@ -114,11 +114,16 @@ fn collect_candidates_from_stage_payload(
                 .iter()
                 .any(|candidate| candidate_needs_link_fetch(query, policy, candidate)));
     if should_fetch_links {
-        for link in payload_links_for_page_extraction(
+        let include_substantive_candidates =
+            usable_candidate_count < page_extraction_min_usable_items_before_skip(policy)
+                || looks_like_low_signal_search_summary(&summary);
+        for link in links_for_page_extraction(
             query,
             policy,
             payload,
+            &candidates,
             page_extraction_max_links_per_stage(policy),
+            include_substantive_candidates,
         ) {
             if fetched_links.len() >= page_extraction_max_total_fetches(policy) {
                 issues.push(format!("{stage}:page_extraction_budget_exhausted"));

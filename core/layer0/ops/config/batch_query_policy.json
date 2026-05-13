@@ -524,6 +524,21 @@
       "min_snippet_words_before_skip": 22,
       "min_query_overlap_terms_before_skip": 2,
       "trigger": "low_thin_or_coverage_weak_candidates",
+      "candidate_locator_followup": {
+        "enabled": true,
+        "max_per_stage": 3,
+        "selection": "merge_structured_result_locators_with_payload_links_when_candidates_are_thin_or_coverage_is_weak",
+        "source_patterns": [
+          "firecrawl_search_result_scrape_merge",
+          "firecrawl_high_volume_candidate_map_rerank_filter",
+          "exa_search_then_fetch"
+        ],
+        "non_goals": [
+          "do_not_bind_to_a_specific_provider",
+          "do_not_fetch_every_candidate_without_budget",
+          "do_not_treat_candidate_count_as_evidence_quality"
+        ]
+      },
       "url_hygiene": {
         "enabled": true,
         "drop_fragment_for_dedupe": true,

@@ -102,6 +102,11 @@ fn default_policy() -> Value {
                 "min_snippet_words_before_skip": 22,
                 "min_query_overlap_terms_before_skip": 2,
                 "trigger": "low_thin_or_coverage_weak_candidates",
+                "candidate_locator_followup": {
+                    "enabled": true,
+                    "max_per_stage": 3,
+                    "selection": "merge_structured_result_locators_with_payload_links_when_candidates_are_thin_or_coverage_is_weak"
+                },
                 "url_hygiene": {
                     "enabled": true,
                     "drop_fragment_for_dedupe": true,
@@ -450,6 +455,21 @@ fn page_extraction_min_query_overlap_terms_before_skip(policy: &Value) -> usize 
         .and_then(Value::as_u64)
         .unwrap_or(2)
         .clamp(0, 12) as usize
+}
+
+fn page_extraction_candidate_locator_followup_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/candidate_locator_followup/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_candidate_locator_max_per_stage(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/candidate_locator_followup/max_per_stage")
+        .and_then(Value::as_u64)
+        .unwrap_or(3)
+        .clamp(0, 10) as usize
 }
 
 fn page_extraction_url_hygiene_enabled(policy: &Value) -> bool {
