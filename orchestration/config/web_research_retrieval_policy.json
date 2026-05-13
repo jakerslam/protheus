@@ -17,7 +17,8 @@
     "firecrawl_parse_upload_as_no_browse_document_lane",
     "firecrawl_deep_research_gap_loop_without_final_format_hardcoding",
     "firecrawl_llmstxt_map_scrape_corpus_pack_without_output_shape_hardcoding",
-    "firecrawl_async_map_crawl_status_projection"
+    "firecrawl_async_map_crawl_status_projection",
+    "firecrawl_high_volume_candidate_map_rerank_filter"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -311,6 +312,21 @@
         "raw_queue_state_and_raw_payloads_are_not_chat_visible",
         "robots_or_low_coverage_warnings_are_quality_signals_not_final_answer_text"
       ],
+      "high_volume_filtering": {
+        "source_pattern": "firecrawl_high_volume_candidate_map_rerank_filter",
+        "purpose": "When a site or URL-scope discovery pass produces too little coverage, broaden candidate discovery once, then rerank and filter before spending read/scrape budget.",
+        "rules": [
+          "do_not_treat_one_or_zero_mapped_urls_as_sufficient_for_site_scope_research",
+          "broadening_may_remove_over_specific_search_terms_but_must_preserve_the_original_user_goal_as_context",
+          "rerank_again_when_the_candidate_pool_is_large_enough_to_exceed_synthesis_or_fetch_budget",
+          "record_candidate_counts_rejection_reasons_and_used_in_synthesis_flags"
+        ],
+        "non_goals": [
+          "do_not_require_llm_query_rewrite_for_every_request",
+          "do_not_prescribe_specific_thresholds_as_user_visible_behavior",
+          "do_not_fetch_every_candidate_without_ranking"
+        ]
+      },
       "option_precedence": "explicit_user_or_workflow_options_override_agent_planned_options",
       "non_goals": [
         "do_not_make_natural_language_crawl_option_generation_required",

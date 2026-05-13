@@ -151,7 +151,7 @@ apps/api/src/__tests__/snips/v1/types-validation.test.ts	apps	not_parsed	pending
 apps/api/src/__tests__/snips/v1/webhook.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v1/zdr.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/audio-routing.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/batch-scrape.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/batch-scrape.test.ts	apps	parsed	batch_scrape_e2e_tests	content_bearing_docs_source_url_preservation_json_format
 apps/api/src/__tests__/snips/v2/billing.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/concurrency.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts	apps	parsed	crawl_prompt_behavior_placeholder	explicit_option_precedence_intent_placeholder
@@ -207,7 +207,7 @@ apps/api/src/controllers/v0/scrape.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v0/search.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/__tests__/urlValidation.test.ts	apps	parsed	url_validation_behavior_tests	protocol_default_http_reject_unsupported_protocols_reject_malformed_urls_accept_idn
 apps/api/src/controllers/v1/activity.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/batch-scrape.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/batch-scrape.ts	apps	parsed	v1_batch_scrape_controller	validate_urls_ttl_group_lock_urls_queue_single_url_jobs
 apps/api/src/controllers/v1/concurrency-check.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/crawl-cancel.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/crawl-errors.ts	apps	not_parsed	pending_review	
@@ -219,8 +219,8 @@ apps/api/src/controllers/v1/credit-usage-historical.ts	apps	not_parsed	pending_r
 apps/api/src/controllers/v1/credit-usage.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/deep-research-status.ts	apps	parsed	deep_research_status_projection	projects final analysis/sources/activities/expiry/depth/status without exposing queue internals
 apps/api/src/controllers/v1/deep-research.ts	apps	parsed	deep_research_request_bounds	bounds max depth/max URLs/time limit and initializes async research state
-apps/api/src/controllers/v1/extract-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/extract.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/extract-status.ts	apps	parsed	v1_extract_status_projection	ownership_redis_then_db_result_error_expiry
+apps/api/src/controllers/v1/extract.ts	apps	parsed	v1_extract_controller	compat_direct_or_queued_extract_with_events_and_sanitized_state
 apps/api/src/controllers/v1/fireclaw.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/generate-llmstxt-status.ts	apps	parsed	site_corpus_status_projection	returns compact corpus index or compact plus full text with status/expiry/error
 apps/api/src/controllers/v1/generate-llmstxt.ts	apps	parsed	site_corpus_async_request	ZDR-gated async corpus generation initialized with max URL/full text/cache options
@@ -240,7 +240,7 @@ apps/api/src/controllers/v2/agent-signup-confirm.ts	apps	not_parsed	pending_revi
 apps/api/src/controllers/v2/agent-signup.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/agent-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/agent.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/batch-scrape.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/batch-scrape.ts	apps	parsed	v2_batch_scrape_controller	ignore_invalid_urls_append_to_handle_lock_urls_queue_jobs
 apps/api/src/controllers/v2/browser.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/concurrency-check.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/crawl-cancel.ts	apps	parsed	v2_crawl_cancel_projection	ownership_checked_cancelled_terminal_state
@@ -252,8 +252,8 @@ apps/api/src/controllers/v2/crawl-status.ts	apps	parsed	v2_crawl_status_projecti
 apps/api/src/controllers/v2/crawl.ts	apps	parsed	v2_crawl_request_controller	option_precedence_regex_validation_robots_ttl_queue_handle
 apps/api/src/controllers/v2/credit-usage-historical.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/credit-usage.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/extract-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/extract.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/extract-status.ts	apps	parsed	v2_extract_status_projection	completed_result_loading_optional_steps_sources_cost_sessions
+apps/api/src/controllers/v2/extract.ts	apps	parsed	v2_extract_controller	async_structured_extract_lane_url_filter_zdr_status_init
 apps/api/src/controllers/v2/f-search.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/map.ts	apps	parsed	v2_map_discovery_controller	timeout_cancel_avgrab_fallback_base_domain_warning
 apps/api/src/controllers/v2/monitor.ts	apps	not_parsed	pending_review	
@@ -318,8 +318,8 @@ apps/api/src/lib/extract/completions/batchExtract.ts	apps	not_parsed	pending_rev
 apps/api/src/lib/extract/completions/singleAnswer.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/config.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/document-scraper.ts	apps	parsed	extract_scrape_bridge	scrape-for-extract retries single URLs, traces content stats, bypasses billing, cleans queue jobs
-apps/api/src/lib/extract/extract-redis.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/extraction-service.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/extract-redis.ts	apps	parsed	extract_state_persistence	ttl_bounded_recent_steps_capped_discovered_links_result_separation
+apps/api/src/lib/extract/extraction-service.ts	apps	parsed	extract_orchestration_service	map_broaden_chunk_extract_source_track_dedupe_merge
 apps/api/src/lib/extract/fire-0/build-document-f0.ts	apps	parsed	metadata_bounded_llm_input	alternate extraction lane preserves same sanitized metadata boundary
 apps/api/src/lib/extract/fire-0/build-prompts-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/completions/analyzeSchemaAndPrompt-f0.ts	apps	not_parsed	pending_review	
@@ -349,7 +349,7 @@ apps/api/src/lib/extract/helpers/spread-schemas.ts	apps	not_parsed	pending_revie
 apps/api/src/lib/extract/helpers/transform-array-to-obj.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/reranker.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/team-id-sync.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/url-processor.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/url-processor.ts	apps	parsed	extract_url_discovery_rerank	broad_map_retry_candidate_cap_two_pass_rerank_trace_flags
 apps/api/src/lib/extract/usage/llm-cost.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/usage/model-prices.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/format-utils.ts	apps	parsed	format_option_contract_helper	supports string and object format declarations as extraction contracts

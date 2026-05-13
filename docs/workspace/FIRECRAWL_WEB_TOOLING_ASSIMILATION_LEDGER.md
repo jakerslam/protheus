@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 121
-- Not parsed: 1157
+- Parsed: 131
+- Not parsed: 1147
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -170,6 +170,16 @@
 | `apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts` | Crawl prompt test placeholder. | The intended behavior is explicit-option precedence, graceful invalid-prompt handling, and schema acceptance, but this file is currently a weak placeholder. |
 | `apps/api/src/controllers/__tests__/crawl.test.ts` | Legacy crawl controller test. | Idempotency keys prevent duplicate crawl kickoff requests, a useful retry-safety primitive for async retrieval. |
 | `apps/api/src/scraper/WebScraper/__tests__/crawler.test.ts` | WebCrawler unit tests. | Tests lock limit enforcement plus include/exclude behavior across subdomains and full-URL regex modes. |
+| `apps/api/src/controllers/v2/batch-scrape.ts` | V2 batch scrape controller. | Batch URL reads validate/ignore invalid URLs explicitly, lock normalized URLs before queueing, support append-to-existing handles, and return a handle plus invalid URL projection. |
+| `apps/api/src/controllers/v1/batch-scrape.ts` | V1 batch scrape controller. | The older path confirms the same batch primitive: prevalidate URLs, TTL-bound a group, lock URLs, enqueue single-url jobs, and report a status handle. |
+| `apps/api/src/controllers/v2/extract.ts` | V2 structured extract controller. | Structured extraction is its own async job lane with URL block filtering, ZDR rejection, status initialization, and optional invalid URL reporting. |
+| `apps/api/src/controllers/v2/extract-status.ts` | V2 extract status projection. | Status loads result data only when complete and projects optional steps/sources/cost/session fields by explicit show flags. |
+| `apps/api/src/controllers/v1/extract.ts` | V1 structured extract controller. | Compatibility extraction can run old direct extraction or queued extraction, but both preserve started/completed/failed events and sanitized request state. |
+| `apps/api/src/controllers/v1/extract-status.ts` | V1 extract status projection. | Extract status enforces ownership, falls back from Redis to durable store, and returns status/result/error/expiry without raw worker state. |
+| `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
+| `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
+| `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
+| `apps/api/src/lib/extract/url-processor.ts` | Extract URL discovery and rerank. | Site-scope extraction maps URLs, retries a broader map when unique candidates are too few, caps initial candidates, reranks large pools, and records trace status/used-in-completion flags. |
 
 ## Decisions So Far
 
@@ -197,6 +207,8 @@
 - Site-level research can benefit from a hidden corpus-pack primitive: map candidate URLs, scrape/read selected pages in batches, keep compact page summaries for navigation and full text behind evidence refs, then let synthesis pull from refs. The valid primitive is the corpus pack, not a forced `llms.txt` visible output.
 - Async crawl/map is best treated as three primitives, not one opaque tool: URL discovery, selected page/document extraction, and bounded status/result projection. A handle, queue state, or completed count is not evidence until completed pages are converted into evidence refs.
 - Agent/planner-generated crawl options are safe only as optional proposals. Explicit user/workflow fields must win, and failures in option planning should not be required for ordinary research retrieval.
+- High-volume retrieval should be candidate-first, not answer-first: broaden discovery when coverage is too sparse, cap and rerank large candidate pools, then spend read/scrape budget only on selected candidates with traceable rejection/selection reasons.
+- Structured extraction patterns are useful for evidence tooling, but Firecrawl's prompt-to-schema/model behavior is not an assimilation target for user-facing research; the useful primitive is source-tracked extraction over already-retrieved documents.
 
 ## Candidate Assimilation Targets
 
@@ -211,6 +223,7 @@
 9. Parse-only document lane: uploaded or fetched document-like artifacts should reject browsing/rendering options, bypass normal web cache unless explicit, and emit normalized document evidence. Implemented CD-level policy update plus PDF fetch handoff; office-document runtime extraction remains future work.
 10. Site corpus pack: when the target is a site/docs set/URL collection, map a bounded URL set, batch-read pages, expose compact page rows and full-text evidence refs, and reuse fresh larger cache entries for smaller limits when privacy policy permits. Implemented CD-level policy update; runtime execution remains future work.
 11. Async map/crawl status projection: for site-scale research, separate discovery, crawl/read execution, and bounded result windows; make final synthesis consume completed page evidence refs, not raw handles or queue status. Implemented CD-level policy update; runtime execution remains future work.
+12. High-volume candidate filtering: when discovery is sparse or broad research needs coverage, broaden once, keep a capped candidate pool, rerank/filter before fetch, and record selected/rejected candidate traces. Implemented CD-level policy update; runtime execution remains future work.
 
 ## Remaining Work
 

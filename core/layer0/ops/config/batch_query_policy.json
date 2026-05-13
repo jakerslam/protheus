@@ -138,6 +138,42 @@
         "do_not_force_visible_answer_format"
       ]
     },
+    "high_volume_candidate_filtering": {
+      "enabled": true,
+      "source_pattern": "firecrawl_high_volume_candidate_map_rerank_filter",
+      "purpose": "Cast a wider candidate net for site or corpus research, then use ranking, traces, and evidence thresholds to decide what to read.",
+      "trigger": "mapped_or_search_candidates_are_too_few_too_many_or_low_coverage",
+      "candidate_pool": {
+        "max_initial_candidates": 1000,
+        "broaden_when_unique_candidates_lte": 1,
+        "rerank_again_when_candidates_gt": 100,
+        "record_unique_candidate_count": true,
+        "record_used_in_synthesis": true
+      },
+      "signals": [
+        "query_or_goal_relevance",
+        "candidate_title_and_description",
+        "source_path_and_domain_fit",
+        "source_class",
+        "coverage_bucket_match",
+        "dedupe_group",
+        "access_or_block_reason"
+      ],
+      "trace_fields": [
+        "candidate_locator",
+        "discovery_pass",
+        "selected_for_fetch",
+        "rejection_reason",
+        "used_in_synthesis",
+        "warning"
+      ],
+      "non_goals": [
+        "do_not_use_candidate_volume_as_evidence_sufficiency",
+        "do_not_hardcode_research_domains_or_prompt_examples",
+        "do_not_require_provider_specific_rerank_syntax",
+        "do_not_make_candidate_trace_chat_visible"
+      ]
+    },
     "evidence_pack_quality": {
       "enabled": true,
       "min_usable_items": 2,
