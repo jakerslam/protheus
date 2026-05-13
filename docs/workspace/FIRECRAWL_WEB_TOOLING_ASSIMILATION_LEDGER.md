@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 444
-- Not parsed: 833
+- Parsed: 461
+- Not parsed: 816
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -493,6 +493,23 @@
 | `apps/api/src/lib/engpicker.ts` | Engine-quality picker. | Engine suitability is sampled across URLs and transport modes, filtered away from non-content files, evaluated for actual page content, then reduced to tls-ok/render-required/uncertain verdicts using similarity and success thresholds. |
 | `apps/api/src/lib/permissions.ts` | Retrieval permission gate. | ZDR, robots overrides, custom robots agents, and static-IP location modes are checked before execution against team flags with explicit denial reasons. |
 | `apps/api/src/lib/validate-country.ts` | Location metadata table. | Country/location support is represented as a structured metadata table; useful only as validation data for location-aware retrieval inputs. |
+| `apps/python-sdk/firecrawl/v2/methods/search.py` | Python SDK search method. | SDK search validates source/category/domain/time inputs, preserves search rows vs enriched documents as distinct result shapes, and prepares scrape enrichment options before transport. |
+| `apps/python-sdk/firecrawl/v2/methods/scrape.py` | Python SDK scrape and retained-browser interaction methods. | Single-URL scrape trims/validates URL and normalizes returned documents; retained browser interaction requires a job ID plus code or prompt and normalizes execution/delete projections. |
+| `apps/python-sdk/firecrawl/v2/methods/map.py` | Python SDK map method. | Map request prep validates URL, trims integration labels, supports search/subdomain/query-parameter/location lanes, and returns typed link rows with title/description metadata. |
+| `apps/python-sdk/firecrawl/v2/methods/crawl.py` | Python SDK crawl methods. | Crawl status preserves initial page results, auto-paginates with max page/result/wait limits, exposes single-page fetch, terminal polling, cancel, error projection, and active-crawl projection. |
+| `apps/python-sdk/firecrawl/v2/methods/batch.py` | Python SDK batch scrape methods. | Batch retrieval validates/chunks URLs, supports idempotency keys, appends to prior jobs, paginates partial results under bounds, exposes terminal polling/cancel/errors, and preserves completed documents. |
+| `apps/python-sdk/firecrawl/v2/methods/extract.py` | Python SDK extract methods. | Deprecated extraction still models async start/status/wait with payload normalization, source-showing options, optional web-search enablement, and terminal timeout returning last known status. |
+| `apps/python-sdk/firecrawl/v2/methods/parse.py` | Python SDK parse/upload method. | Parse uploads reject browser-only artifacts/actions/location/mobile/unsupported proxy values, preserve filename/content-type/origin metadata, strip cache hints, and normalize document output. |
+| `apps/python-sdk/firecrawl/v2/methods/browser.py` | Python SDK browser session methods. | Browser sessions are TTL/activity-profile bounded and project create/list/execute/delete fields through normalized snake/camel compatibility without exposing raw transport details. |
+| `apps/python-sdk/firecrawl/v2/methods/monitor.py` | Python SDK monitor methods. | Monitor targets recursively prepare scrape/crawl options, project check pages through bounded pagination, and keep scheduled run/list/update/delete surfaces as typed control-plane operations. |
+| `apps/python-sdk/firecrawl/v2/methods/usage.py` | Python SDK usage methods. | Concurrency, queue, credit, and token projections normalize account-control data separately from evidence-bearing retrieval results. |
+| `apps/python-sdk/firecrawl/v2/utils/normalize.py` | Python SDK result normalization helpers. | Document/result normalization maps camel/snake metadata, preserves unknown metadata fields, coerces status codes lightly, and normalizes rich artifact keys before typed model construction. |
+| `apps/python-sdk/firecrawl/v2/utils/error_handler.py` | Python SDK error mapper. | HTTP failure mapping turns status codes and non-JSON bodies into typed exceptions with bounded response snippets and action context. |
+| `apps/python-sdk/firecrawl/v2/utils/http_client.py` | Python SDK sync HTTP client. | Transport wrapper normalizes absolute/protocol-relative endpoints to the configured host, injects origin/idempotency headers, retries transient 502/network errors with backoff, and supports multipart without JSON content-type leakage. |
+| `apps/python-sdk/firecrawl/v2/utils/http_client_async.py` | Python SDK async HTTP client. | Async transport mirrors retry/origin/idempotency behavior and disables keepalive reuse, giving parity between sync and async retrieval paths. |
+| `apps/python-sdk/firecrawl/v2/utils/validation.py` | Python SDK validation helpers. | Scrape option prep normalizes artifact formats, schema refs, OpenAI-compatible structured extraction schemas, query/question/highlight formats, actions, parsers, location, and profile fields before execution. |
+| `apps/python-sdk/firecrawl/v2/watcher.py` | Python SDK sync watcher. | Job watching treats WebSocket events and HTTP polling as equivalent projections, accumulates document events, dispatches terminal done/error states once, and normalizes final job snapshots. |
+| `apps/python-sdk/firecrawl/v2/watcher_async.py` | Python SDK async watcher. | Async watcher pre-yields status, falls back from WebSocket failure/quiet periods to bounded HTTP polling, accumulates documents, and yields normalized terminal crawl/batch snapshots. |
 
 ## Decisions So Far
 
@@ -627,6 +644,10 @@
 - Logo/media extraction should be candidate-based: collect broad visual candidates, assign stable IDs/index maps, attach positive indicators and negative UI/social/language signals, dedupe by source/geometry, then let an optional LLM adjudicate only over the capped candidate packet.
 - Prompt builders around tool artifacts should not become workflow policy. The portable primitive is a compact untrusted evidence packet with heuristic context, candidate metadata, source refs, and schema-bound expected fields.
 - Browser visual artifacts should be normalized before evidence packing: resolve URLs, inline/clone SVGs where needed, classify visibility/location/size, handle transparency, sample dominant backgrounds, and keep debug-only snapshots behind refs.
+- SDK request builders show the same quality rule from the client side: validate impossible combinations and normalize aliases/defaults before transport so workflow gates do not compensate for malformed or ambiguous tool inputs.
+- Paginated async retrieval should preserve partial evidence under explicit stop limits. Max pages, max results, max wait, and page-fetch errors should produce a bounded artifact plus gap reason rather than dropping retrieved documents.
+- WebSocket streams and polling should be interchangeable views over the same durable job state. The user-facing workflow should consume normalized terminal snapshots, not depend on a single transport staying healthy.
+- SDK-level model/schema helpers are not portable model-routing rules. The useful primitive is artifact/schema complexity metadata plus externally selected or policy-bound model choice.
 
 ## Candidate Assimilation Targets
 
@@ -705,6 +726,10 @@
 73. Visual candidate scoring: use stable candidate IDs, geometry/visibility/location indicators, positive/negative signal flags, dedupe, and top-K remapping before optional LLM adjudication. Ledger captured; candidate rich evidence Tool CD lane.
 74. Visual evidence prompt packets: pass compact untrusted artifact packets with heuristic context and schema expectations rather than raw DOM, screenshots, or copied prompt prose. Ledger captured; candidate synthesis/evidence handoff target.
 75. Browser visual artifact normalization: normalize image/background/SVG/icon candidates, background colors, fonts, components, and transparency into typed evidence facets with debug refs. Ledger captured; candidate evidence-pack enrichment target.
+76. Client-side request normalization parity: keep search/scrape/map/crawl/batch/parse request prep equivalent across API, SDK, and workflow tool adapters. Ledger captured; candidate Tool CD/schema generation target.
+77. Partial-result pagination contract: return retrieved documents plus stop/gap metadata when pagination hits max pages/results/wait or a later page fails. Ledger captured; candidate evidence-pack/runtime target.
+78. Stream/poll terminal snapshot parity: normalize WebSocket events, catchup/document/done messages, and polling snapshots into one terminal artifact contract. Ledger captured; candidate Shell Socket/status projection target.
+79. Typed transport error boundary: map HTTP/non-JSON/network/status failures into stable internal error classes with bounded snippets and action context before synthesis sees gap reasons. Ledger captured; candidate tool adapter target.
 
 ## Remaining Work
 

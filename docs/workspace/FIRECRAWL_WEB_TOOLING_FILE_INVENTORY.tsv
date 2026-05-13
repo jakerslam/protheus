@@ -935,26 +935,26 @@ apps/python-sdk/firecrawl/v2/methods/aio/parse.py	apps	not_parsed	pending_review
 apps/python-sdk/firecrawl/v2/methods/aio/scrape.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/v2/methods/aio/search.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/v2/methods/aio/usage.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/batch.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/browser.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/crawl.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/extract.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/map.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/monitor.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/parse.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/scrape.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/search.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/usage.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/v2/methods/batch.py	apps	parsed	python_sdk_batch_methods	url_validation_chunking_idempotency_status_pagination_terminal_polling_cancel_errors
+apps/python-sdk/firecrawl/v2/methods/browser.py	apps	parsed	python_sdk_browser_methods	ttl_activity_profile_session_create_list_execute_delete_projection_normalization
+apps/python-sdk/firecrawl/v2/methods/crawl.py	apps	parsed	python_sdk_crawl_methods	request_prep_status_pagination_terminal_polling_cancel_errors_active_crawls
+apps/python-sdk/firecrawl/v2/methods/extract.py	apps	parsed	python_sdk_extract_methods	deprecated_async_extract_start_status_wait_payload_normalization_source_options
+apps/python-sdk/firecrawl/v2/methods/map.py	apps	parsed	python_sdk_map_method	url_search_subdomain_query_parameter_location_lanes_and_typed_link_rows
+apps/python-sdk/firecrawl/v2/methods/monitor.py	apps	parsed	python_sdk_monitor_methods	recursive_target_prep_bounded_check_page_pagination_and_control_plane_projection
+apps/python-sdk/firecrawl/v2/methods/parse.py	apps	parsed	python_sdk_parse_upload	parse_only_validation_filename_content_type_origin_cache_hint_strip_and_document_normalization
+apps/python-sdk/firecrawl/v2/methods/scrape.py	apps	parsed	python_sdk_scrape_methods	single_url_scrape_and_retained_browser_interaction_projection_normalization
+apps/python-sdk/firecrawl/v2/methods/search.py	apps	parsed	python_sdk_search_method	source_category_domain_time_validation_search_row_vs_document_result_shapes
+apps/python-sdk/firecrawl/v2/methods/usage.py	apps	parsed	python_sdk_usage_methods	concurrency_queue_credit_token_account_control_projection_normalization
 apps/python-sdk/firecrawl/v2/types.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/v2/utils/__init__.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/utils/error_handler.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/v2/utils/error_handler.py	apps	parsed	python_sdk_error_mapper	typed_http_status_errors_non_json_bounded_snippets_and_action_context
 apps/python-sdk/firecrawl/v2/utils/get_version.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/utils/http_client.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/utils/http_client_async.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/utils/normalize.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/utils/validation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/watcher.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/watcher_async.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/v2/utils/http_client.py	apps	parsed	python_sdk_sync_http_client	endpoint_host_normalization_origin_idempotency_headers_502_network_retry_and_multipart_boundary
+apps/python-sdk/firecrawl/v2/utils/http_client_async.py	apps	parsed	python_sdk_async_http_client	async_retry_origin_idempotency_and_transport_parity
+apps/python-sdk/firecrawl/v2/utils/normalize.py	apps	parsed	python_sdk_result_normalization	camel_snake_metadata_mapping_unknown_field_preservation_and_rich_artifact_key_normalization
+apps/python-sdk/firecrawl/v2/utils/validation.py	apps	parsed	python_sdk_validation_helpers	format_schema_query_question_highlight_action_parser_location_profile_normalization
+apps/python-sdk/firecrawl/v2/watcher.py	apps	parsed	python_sdk_sync_watcher	websocket_polling_equivalence_document_accumulation_and_single_terminal_event_dispatch
+apps/python-sdk/firecrawl/v2/watcher_async.py	apps	parsed	python_sdk_async_watcher	ws_quiet_failure_fallback_to_bounded_polling_and_normalized_terminal_snapshots
 apps/python-sdk/pyproject.toml	apps	not_parsed	pending_review	
 apps/python-sdk/requirements.txt	apps	not_parsed	pending_review	
 apps/python-sdk/setup.py	apps	not_parsed	pending_review	
