@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 369
-- Not parsed: 909
+- Parsed: 373
+- Not parsed: 905
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -350,6 +350,10 @@
 | `apps/api/src/services/webhook/index.ts` | Webhook sender factory. | Sender creation returns null when no config exists and otherwise binds team/job/version context before delivery. |
 | `apps/api/src/services/webhook/delivery.test.ts` | Webhook event filter tests. | Tests lock both full namespaced monitor event matching and legacy subtype matching for older crawl/batch events. |
 | `apps/api/src/services/notification/monitoring_email.ts` | Monitor email summary sender. | Monitor email notifications skip disabled/no-change/no-recipient/no-provider states, honor user preferences, escape HTML, bound page lists, and return attempted/success/recipient metadata. |
+| `apps/api/src/services/redis.ts` | Redis utility connections. | Redis helpers centralize set/get/delete with optional TTL, log connection lifecycle events, and maintain a separate auto-pipelined evict/status connection. |
+| `apps/api/src/services/redlock.ts` | Distributed lock configuration. | Distributed locks use drift factors, high retry counts, retry delay/jitter, and automatic extension thresholds for long-running guarded operations. |
+| `apps/api/src/services/sentry.ts` | Privacy-safe error capture. | Sentry setup disables AI input/output capture, samples AI traces differently, drops zero-retention events, filters expected retrieval/cancellation errors, and exposes explicit ZDR-scoped capture helpers. |
+| `apps/api/src/services/supabase.ts` | Database client boundary. | Supabase clients initialize only when DB auth/env is configured, split primary/read-replica clients, expose a no-rows helper, and fail fast through proxies when unavailable. |
 | `apps/api/src/__tests__/snips/v2/scrape-branding.test.ts` | V2 branding artifact tests. | Skipped branding tests describe a design-artifact lane for colors, typography, spacing, components, images, and cleaned fonts; because coverage is skipped, treat this as experimental rather than a proven primitive. |
 | `apps/api/src/__tests__/snips/zdr-helpers.ts` | ZDR assertion helpers. | Privacy tests assert scrubbed URL/options storage, filtered logs, request records with cleanup markers, GCS removal after cleaner, and request-scoped status disappearance. |
 | `apps/api/src/__tests__/snips/v2/lib.ts` | V2 snips test harness. | Raw/success/failure wrappers and async start/status/poll helpers make status-handle workflows testable without mixing transport details into each behavior test. |
@@ -516,6 +520,9 @@
 - External event delivery should be typed, filtered, signed, privacy-safe, and logged as a side-effect projection. Webhook/email delivery status can support observability, but delivery payloads and logs are not evidence for synthesis.
 - Compatibility filters can accept both namespaced event names and legacy suffixes without hardcoding domain behavior into final answers.
 - Notification summaries should be bounded and escaped, and should no-op cleanly when disabled, unchanged, unconfigured, or missing provider credentials.
+- Shared infrastructure should make privacy and expected-failure filtering explicit. ZDR, cancellations, typed retrieval failures, and known control-flow errors should not become noisy external telemetry or user-visible research content.
+- Distributed locks and Redis state are primitive coordination mechanics; they should expose bounded retry/backoff behavior and clear failure modes, not hidden workflow policy.
+- Database boundaries should fail fast when unavailable and distinguish no-row states from operational errors so workflow gaps are typed rather than ambiguous.
 
 ## Candidate Assimilation Targets
 
@@ -565,6 +572,7 @@
 44. Account-control projections: keep usage, token, credit, billing, concurrency, and activity windows as bounded control-plane projections that inform budgets but never become citable evidence. Ledger captured; candidate observability/control-plane contract.
 45. Billing/effect reconciliation primitive: queue and group non-evidence side effects under locks, track request-scoped vs batch-scoped effects, refund or compensate on partial failure, and continue independent groups. Ledger captured; candidate general side-effect ledger target.
 46. Typed external event projection: emit crawl/search/extract/monitor lifecycle events through typed, filtered, signed, bounded, retryable side-effect channels while keeping delivery logs internal. Ledger captured; candidate Gateway/Observability contract.
+47. Privacy-safe infrastructure boundary: shared clients, locks, metrics, traces, and database adapters should expose typed unavailable/no-row/expected-failure states and suppress ZDR-sensitive telemetry. Ledger captured; candidate infrastructure policy guard.
 
 ## Remaining Work
 

@@ -552,11 +552,11 @@ apps/api/src/services/queue-service.ts	apps	parsed	async_queue_lifecycle_bounds	
 apps/api/src/services/queue-worker.ts	apps	parsed	general_worker_loop	resource_liveness_gate_lock_extension_stall_detection_running_job_tracking_graceful_shutdown
 apps/api/src/services/rate-limiter.test.ts	apps	not_parsed	pending_review	
 apps/api/src/services/rate-limiter.ts	apps	not_parsed	pending_review	
-apps/api/src/services/redis.ts	apps	not_parsed	pending_review	
-apps/api/src/services/redlock.ts	apps	not_parsed	pending_review	
-apps/api/src/services/sentry.ts	apps	not_parsed	pending_review	
+apps/api/src/services/redis.ts	apps	parsed	redis_utility_connections	connection_lifecycle_logging_ttl_get_set_delete_and_evict_status_connection
+apps/api/src/services/redlock.ts	apps	parsed	distributed_lock_config	drift_retry_delay_jitter_and_auto_extension_threshold
+apps/api/src/services/sentry.ts	apps	parsed	privacy_safe_error_capture	no_ai_io_capture_zdr_drop_expected_retrieval_error_filter_service_tags
 apps/api/src/services/subscription/enterprise-check.ts	apps	not_parsed	pending_review	
-apps/api/src/services/supabase.ts	apps	not_parsed	pending_review	
+apps/api/src/services/supabase.ts	apps	parsed	database_client_boundary	db_auth_env_gated_primary_read_replica_no_rows_helper_fail_fast_proxy
 apps/api/src/services/system-monitor.ts	apps	parsed	resource_pressure_monitor	cached_cpu_ram_kubernetes_cgroup_os_fallback_singleton_accept_connection_gate
 apps/api/src/services/webhook/config.ts	apps	parsed	webhook_config_resolver	request_config_self_hosted_fallback_job_id_substitution_hmac_secret_resolution
 apps/api/src/services/webhook/delivery.test.ts	apps	parsed	webhook_delivery_filter_tests	namespaced_monitor_event_and_legacy_suffix_filter_compatibility
