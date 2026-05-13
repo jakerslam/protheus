@@ -785,57 +785,57 @@ apps/js-sdk/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependen
 apps/js-sdk/tsconfig.json	apps	not_parsed	pending_review	
 apps/nuq-postgres/Dockerfile	apps	not_parsed	pending_review	
 apps/nuq-postgres/nuq.sql	apps	not_parsed	pending_review	
-apps/php-sdk/.gitignore	apps	not_parsed	pending_review	
-apps/php-sdk/CHANGELOG.md	apps	not_parsed	pending_review	
-apps/php-sdk/README.md	apps	not_parsed	pending_review	
-apps/php-sdk/composer.json	apps	not_parsed	pending_review	
-apps/php-sdk/config/firecrawl.php	apps	not_parsed	pending_review	
-apps/php-sdk/phpstan.neon.dist	apps	not_parsed	pending_review	
-apps/php-sdk/phpunit.xml.dist	apps	not_parsed	pending_review	
+apps/php-sdk/.gitignore	apps	parsed	php_local_artifact_hygiene	vendor_locks_caches_env_and_static_analysis_artifacts_are_package_boundary_outputs
+apps/php-sdk/CHANGELOG.md	apps	parsed	php_changelog	parse_addition_and_v2_initial_release_confirm_primitive_surface
+apps/php-sdk/README.md	apps	parsed	php_sdk_usage_surface	scrape_parse_crawl_batch_map_search_agent_browser_usage_errors_advanced_config_and_laravel_docs
+apps/php-sdk/composer.json	apps	parsed	php_package_manifest	psr_autoload_guzzle_laravel_optional_integration_and_pest_phpstan_test_stack
+apps/php-sdk/config/firecrawl.php	apps	parsed	php_laravel_config	api_key_url_timeout_retry_and_backoff_env_surface
+apps/php-sdk/phpstan.neon.dist	apps	parsed	php_static_analysis_config	laravel_optional_dependency_suppression_kept_out_of_core_client
+apps/php-sdk/phpunit.xml.dist	apps	parsed	php_test_harness_config	vendor_autoload_pest_phpunit_bootstrap
 apps/php-sdk/src/Client/FirecrawlClient.php	apps	parsed	php_sdk_client_facade	api_url_shape_validation_separate_primitives_idempotency_header_poll_interval_validation_same_origin_pagination_and_internal_polling_pagination
 apps/php-sdk/src/Client/FirecrawlHttpClient.php	apps	parsed	php_sdk_http_adapter	json_multipart_headers_sdk_user_agent_retryable_status_connect_request_retries_typed_auth_rate_limit_and_json_parse_failures
-apps/php-sdk/src/Exceptions/AuthenticationException.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Exceptions/FirecrawlException.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Exceptions/JobTimeoutException.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Exceptions/RateLimitException.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Laravel/Facades/Firecrawl.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Laravel/FirecrawlServiceProvider.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/AgentOptions.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/AgentResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/AgentStatusResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BatchScrapeJob.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BatchScrapeOptions.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BatchScrapeResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BrowserCreateResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BrowserDeleteResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BrowserExecuteResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BrowserListResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/BrowserSession.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/ConcurrencyCheck.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/CrawlJob.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/CrawlOptions.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/CrawlResponse.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/CreditUsage.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Exceptions/AuthenticationException.php	apps	parsed	php_auth_exception	typed_401_boundary_error_with_error_code_and_details
+apps/php-sdk/src/Exceptions/FirecrawlException.php	apps	parsed	php_base_exception	status_code_error_code_details_and_previous_exception_preserved
+apps/php-sdk/src/Exceptions/JobTimeoutException.php	apps	parsed	php_job_timeout_exception	job_id_timeout_seconds_job_type_and_408_status_preserved
+apps/php-sdk/src/Exceptions/RateLimitException.php	apps	parsed	php_rate_limit_exception	typed_429_boundary_error_with_error_code_and_details
+apps/php-sdk/src/Laravel/Facades/Firecrawl.php	apps	parsed	php_laravel_facade	facade_projects_sdk_primitives_without_owning_execution_policy
+apps/php-sdk/src/Laravel/FirecrawlServiceProvider.php	apps	parsed	php_laravel_provider	config_merge_singleton_client_alias_and_publishable_config
+apps/php-sdk/src/Models/AgentOptions.php	apps	parsed	php_agent_options	url_scope_prompt_schema_integration_credit_strict_url_model_and_webhook_fields_with_null_pruning
+apps/php-sdk/src/Models/AgentResponse.php	apps	parsed	php_agent_start_response	success_id_error_handle_shape
+apps/php-sdk/src/Models/AgentStatusResponse.php	apps	parsed	php_agent_status_response	status_data_model_expiry_credit_and_terminal_detection
+apps/php-sdk/src/Models/BatchScrapeJob.php	apps	parsed	php_batch_scrape_job	status_progress_credits_expiry_cursor_document_hydration_and_appendable_pagination
+apps/php-sdk/src/Models/BatchScrapeOptions.php	apps	parsed	php_batch_scrape_options	per_page_options_webhook_append_invalid_url_concurrency_zdr_idempotency_and_integration_controls
+apps/php-sdk/src/Models/BatchScrapeResponse.php	apps	parsed	php_batch_scrape_start_response	id_url_invalid_urls_and_error_handle_shape
+apps/php-sdk/src/Models/BrowserCreateResponse.php	apps	parsed	php_browser_create_response	session_id_cdp_live_view_interactive_view_expiry_and_error_projection
+apps/php-sdk/src/Models/BrowserDeleteResponse.php	apps	parsed	php_browser_delete_response	success_duration_credits_and_error_projection
+apps/php-sdk/src/Models/BrowserExecuteResponse.php	apps	parsed	php_browser_execute_response	stdout_result_stderr_exit_code_killed_and_error_projection
+apps/php-sdk/src/Models/BrowserListResponse.php	apps	parsed	php_browser_list_response	session_collection_hydration
+apps/php-sdk/src/Models/BrowserSession.php	apps	parsed	php_browser_session_model	status_cdp_live_view_stream_creation_and_activity_projection
+apps/php-sdk/src/Models/ConcurrencyCheck.php	apps	parsed	php_concurrency_projection	current_max_concurrency_control_metadata
+apps/php-sdk/src/Models/CrawlJob.php	apps	parsed	php_crawl_job	status_progress_credits_expiry_cursor_document_hydration_and_appendable_pagination
+apps/php-sdk/src/Models/CrawlOptions.php	apps	parsed	php_crawl_options	prompt_paths_depth_sitemap_dedupe_domain_robots_delay_concurrency_webhook_scrape_options_zdr_and_integration
+apps/php-sdk/src/Models/CrawlResponse.php	apps	parsed	php_crawl_start_response	id_url_and_error_handle_shape
+apps/php-sdk/src/Models/CreditUsage.php	apps	parsed	php_credit_usage_projection	remaining_plan_used_and_billing_window_control_metadata
 apps/php-sdk/src/Models/Document.php	apps	parsed	php_document_model	markdown_html_raw_json_summary_metadata_links_images_screenshot_audio_attributes_actions_answer_highlights_warning_change_tracking_and_branding_facets
-apps/php-sdk/src/Models/HighlightsFormat.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/JsonFormat.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/LocationConfig.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/MapData.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/MapOptions.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/Monitor.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/MonitorCheck.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/MonitorCheckDetail.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/HighlightsFormat.php	apps	parsed	php_highlights_format	page_local_query_highlight_artifact_facet
+apps/php-sdk/src/Models/JsonFormat.php	apps	parsed	php_json_format	structured_extraction_prompt_and_schema_artifact_facet
+apps/php-sdk/src/Models/LocationConfig.php	apps	parsed	php_location_config	country_and_language_retrieval_scope_controls
+apps/php-sdk/src/Models/MapData.php	apps	parsed	php_map_data	string_or_object_link_normalization_to_url_rows_and_malformed_lane_degradation
+apps/php-sdk/src/Models/MapOptions.php	apps	parsed	php_map_options	search_sitemap_subdomains_query_dedupe_limit_timeout_integration_and_location_controls
+apps/php-sdk/src/Models/Monitor.php	apps	parsed	php_monitor_model	recurring_retrieval_schedule_targets_webhook_notification_retention_credit_estimate_and_summary
+apps/php-sdk/src/Models/MonitorCheck.php	apps	parsed	php_monitor_check	status_trigger_timing_credit_billing_summary_target_notification_and_error_projection
+apps/php-sdk/src/Models/MonitorCheckDetail.php	apps	parsed	php_monitor_check_detail	paginated_monitor_check_pages_and_next_cursor
 apps/php-sdk/src/Models/ParseFile.php	apps	parsed	php_parse_file	nonempty_filename_content_validation_file_read_and_common_document_content_type_inference
 apps/php-sdk/src/Models/ParseOptions.php	apps	parsed	php_parse_options	nonpositive_timeout_unsupported_proxy_and_browser_only_format_rejection_before_request_shape
-apps/php-sdk/src/Models/QueryFormat.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/QuestionFormat.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/QueryFormat.php	apps	parsed	php_deprecated_query_format	freeform_or_direct_quote_page_local_answer_facet
+apps/php-sdk/src/Models/QuestionFormat.php	apps	parsed	php_question_format	page_local_question_artifact_facet
 apps/php-sdk/src/Models/ScrapeOptions.php	apps	parsed	php_scrape_options	format_objects_headers_tags_main_content_wait_mobile_parsers_actions_location_tls_image_scrub_ads_proxy_cache_age_lockdown_profile_and_change_tracking
-apps/php-sdk/src/Models/ScreenshotFormat.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/ScreenshotFormat.php	apps	parsed	php_screenshot_format	viewport_fullpage_wait_visual_artifact_facet
 apps/php-sdk/src/Models/SearchData.php	apps	parsed	php_search_data	web_news_image_lane_hydration_with_malformed_optional_lanes_degraded_to_empty_arrays
 apps/php-sdk/src/Models/SearchOptions.php	apps	parsed	php_search_options	source_category_domain_limit_freshness_location_invalid_url_timeout_scrape_enrichment_and_integration_controls_with_null_omission
-apps/php-sdk/src/Models/WebhookConfig.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Version.php	apps	not_parsed	pending_review	
-apps/php-sdk/tests/Pest.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/WebhookConfig.php	apps	parsed	php_webhook_config	url_headers_metadata_and_event_subscription_side_effect_controls
+apps/php-sdk/src/Version.php	apps	parsed	php_version_source	static_sdk_version_metadata
+apps/php-sdk/tests/Pest.php	apps	parsed	php_pest_bootstrap	compact_test_harness_entrypoint
 apps/php-sdk/tests/Unit/ModelsTest.php	apps	parsed	php_model_tests	account_projection_map_link_normalization_credit_coercion_scrape_option_ordering_lockdown_format_objects_and_query_mode_validation
 apps/php-sdk/tests/Unit/ParseTest.php	apps	parsed	php_parse_tests	parse_file_payload_validation_json_format_serialization_unsupported_format_proxy_and_timeout_rejection
 apps/playwright-service-ts/.dockerignore	apps	parsed	playwright_service_container_ignore	node_modules_dist_and_env_excluded_from_rendered_fetch_image

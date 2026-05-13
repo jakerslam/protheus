@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1133
-- Not parsed: 134
+- Parsed: 1176
+- Not parsed: 91
 - Skipped generated: 15
 - Skipped media or sample: 75
 
@@ -901,6 +901,49 @@
 | `apps/php-sdk/src/Models/ParseFile.php` | PHP parse file model. | Parse files validate nonempty filename/content, read local files safely, and infer content types for common document formats. |
 | `apps/php-sdk/tests/Unit/ModelsTest.php` | PHP model tests. | Tests cover nested/flat account projections, malformed map links, numeric credit coercion, null credit preservation, scrape option positional safety, lockdown serialization, format objects, and invalid query modes. |
 | `apps/php-sdk/tests/Unit/ParseTest.php` | PHP parse tests. | Parse tests assert byte payload validation, JSON-format serialization, unsupported format rejection, proxy rejection, and timeout validation. |
+| `apps/php-sdk/.gitignore` | PHP SDK local artifact hygiene. | Vendor trees, locks, caches, local env files, and static-analysis caches are package boundary artifacts. |
+| `apps/php-sdk/CHANGELOG.md` | PHP SDK changelog. | Release history confirms parse upload and the v2 primitive set as the package surface. |
+| `apps/php-sdk/README.md` | PHP SDK public usage surface. | Public docs cover scrape, parse, crawl, batch, map, search, agent, browser sessions, usage metrics, typed errors, advanced HTTP config, and Laravel integration. |
+| `apps/php-sdk/composer.json` | PHP package manifest. | Composer metadata keeps PSR autoload, Guzzle transport, optional Laravel integration, Pest/PHPStan tests, and auto-discovery explicit. |
+| `apps/php-sdk/config/firecrawl.php` | PHP Laravel config. | API key, API URL, timeout, retry count, and backoff factor are framework config fields, not prompt behavior. |
+| `apps/php-sdk/phpstan.neon.dist` | PHP static-analysis config. | Laravel optional dependency suppression stays scoped to framework adapters. |
+| `apps/php-sdk/phpunit.xml.dist` | PHP test harness config. | PHPUnit/Pest bootstrap is package verification infrastructure. |
+| `apps/php-sdk/src/Exceptions/AuthenticationException.php` | PHP auth exception. | 401 responses become typed boundary errors carrying code/details. |
+| `apps/php-sdk/src/Exceptions/FirecrawlException.php` | PHP base exception. | SDK errors preserve status code, error code, details, and previous exception context. |
+| `apps/php-sdk/src/Exceptions/JobTimeoutException.php` | PHP job timeout exception. | Async job timeouts preserve job ID, timeout seconds, and job type with a timeout status. |
+| `apps/php-sdk/src/Exceptions/RateLimitException.php` | PHP rate-limit exception. | 429 responses become typed boundary errors carrying code/details. |
+| `apps/php-sdk/src/Laravel/Facades/Firecrawl.php` | PHP Laravel facade. | Framework facade projects SDK primitives without owning workflow policy or evidence semantics. |
+| `apps/php-sdk/src/Laravel/FirecrawlServiceProvider.php` | PHP Laravel service provider. | Provider merges config, creates a singleton client, aliases it, and publishes config while keeping execution in the SDK client. |
+| `apps/php-sdk/src/Models/AgentOptions.php` | PHP agent option model. | Agent options preserve URL scope, prompt, schema, integration, credit budget, strict URL constraints, model, and webhook with null-field pruning. |
+| `apps/php-sdk/src/Models/AgentResponse.php` | PHP agent-start response. | Start responses carry success, ID, and error as handle metadata. |
+| `apps/php-sdk/src/Models/AgentStatusResponse.php` | PHP agent-status response. | Agent status preserves terminal detection, data, model, expiry, credits, and error. |
+| `apps/php-sdk/src/Models/BatchScrapeJob.php` | PHP batch scrape job model. | Batch status hydrates documents, progress, credits, expiry, cursor, and supports appendable pagination. |
+| `apps/php-sdk/src/Models/BatchScrapeOptions.php` | PHP batch scrape option model. | Batch scrape separates per-page options from webhook, append target, invalid-URL tolerance, concurrency, ZDR, idempotency, and integration. |
+| `apps/php-sdk/src/Models/BatchScrapeResponse.php` | PHP batch-start response. | Async batch admission returns ID, URL, invalid URLs, and error before evidence exists. |
+| `apps/php-sdk/src/Models/BrowserCreateResponse.php` | PHP browser-create response. | Session creation projects CDP, live view, interactive live view, expiry, and error metadata. |
+| `apps/php-sdk/src/Models/BrowserDeleteResponse.php` | PHP browser-delete response. | Session deletion projects success, duration, credits billed, and error separately from page evidence. |
+| `apps/php-sdk/src/Models/BrowserExecuteResponse.php` | PHP browser-execute response. | Browser execution projects stdout, result, stderr, exit code, killed flag, and error as diagnostics/control artifacts. |
+| `apps/php-sdk/src/Models/BrowserListResponse.php` | PHP browser-list response. | Browser listing hydrates session projection rows. |
+| `apps/php-sdk/src/Models/BrowserSession.php` | PHP browser session model. | Session status, CDP/live-view URLs, stream flag, creation time, and last activity are lifecycle projections. |
+| `apps/php-sdk/src/Models/ConcurrencyCheck.php` | PHP concurrency projection. | Current/max concurrency remains account-control metadata. |
+| `apps/php-sdk/src/Models/CrawlJob.php` | PHP crawl job model. | Crawl status hydrates documents, progress, credits, expiry, cursor, and supports appendable pagination. |
+| `apps/php-sdk/src/Models/CrawlOptions.php` | PHP crawl option model. | Crawl options preserve prompt, path filters, depth, sitemap, dedupe, domain expansion, robots/user-agent, delay, concurrency, webhook, scrape options, ZDR, and integration. |
+| `apps/php-sdk/src/Models/CrawlResponse.php` | PHP crawl-start response. | Async crawl admission returns ID, URL, and error as handle metadata. |
+| `apps/php-sdk/src/Models/CreditUsage.php` | PHP credit usage projection. | Remaining/plan/used credits and billing windows are usage metadata. |
+| `apps/php-sdk/src/Models/HighlightsFormat.php` | PHP highlights format. | Page-local highlight queries are artifact facets. |
+| `apps/php-sdk/src/Models/JsonFormat.php` | PHP JSON format. | Structured extraction prompt/schema are artifact inputs, not final-answer templates. |
+| `apps/php-sdk/src/Models/LocationConfig.php` | PHP location config. | Country and language are retrieval-scope controls. |
+| `apps/php-sdk/src/Models/MapData.php` | PHP map data. | Map normalizes string/object links into URL rows and degrades malformed link lanes to empty arrays. |
+| `apps/php-sdk/src/Models/MapOptions.php` | PHP map option model. | Map exposes search, sitemap, subdomain, query-dedupe, limit, timeout, integration, and location controls. |
+| `apps/php-sdk/src/Models/Monitor.php` | PHP monitor model. | Monitoring separates schedule, targets, webhook/notification, retention, credit estimate, and summaries from one-shot evidence. |
+| `apps/php-sdk/src/Models/MonitorCheck.php` | PHP monitor check model. | Check state preserves timing, credit/billing, summary, target results, notification status, and errors. |
+| `apps/php-sdk/src/Models/MonitorCheckDetail.php` | PHP monitor check detail. | Monitor check detail paginates pages and next cursor. |
+| `apps/php-sdk/src/Models/QueryFormat.php` | PHP deprecated query format. | Deprecated page-local query answers keep freeform/direct-quote mode as compatibility facets. |
+| `apps/php-sdk/src/Models/QuestionFormat.php` | PHP question format. | Page-local question extraction is an artifact facet. |
+| `apps/php-sdk/src/Models/ScreenshotFormat.php` | PHP screenshot format. | Screenshot requests preserve viewport/full-page/wait controls as visual artifact facets. |
+| `apps/php-sdk/src/Models/WebhookConfig.php` | PHP webhook config. | URL, headers, metadata, and event subscriptions are async side-effect controls. |
+| `apps/php-sdk/src/Version.php` | PHP SDK version source. | Static SDK version is hidden client metadata. |
+| `apps/php-sdk/tests/Pest.php` | PHP Pest bootstrap. | Test harness entrypoint adds no retrieval primitive beyond package verification. |
 | `apps/ruby-sdk/.gitignore` | Ruby SDK local artifact hygiene. | Generated gems, lockfiles, package output, temp files, and vendored bundles are local/build artifacts, not assimilation targets. |
 | `apps/ruby-sdk/Gemfile` | Ruby SDK dependency surface. | Unit tests use WebMock to lock request/transport shapes without live network coupling. |
 | `apps/ruby-sdk/LICENSE` | Ruby SDK licensing boundary. | License reviewed; no direct web-tooling pattern beyond confirming attribution boundary. |
@@ -1653,6 +1696,11 @@
 291. Browser/session models as projection artifacts: CDP/live-view/stdout/stderr/exit-code/session duration are control/projection fields, not source-backed research evidence.
 292. Map tests as discovery-quality gates: map should prove query relevance, sitemap/subdomain/query-dedupe controls, structural URL rows, and nonempty candidates before scrape budget is spent.
 293. Agent capability as bounded primitive: agentic hosted retrieval should preserve URL scope, schema, strict-URL constraints, credit budgets, start/status/cancel, and terminal data as typed fields rather than prompt-only behavior.
+294. Framework integration as shell/adapter boundary: Laravel facades/providers are app integration projections over the SDK client, not places to own retrieval policy or evidence semantics.
+295. Null-field pruning as request hygiene: SDK options should omit unset fields so tool requests remain compact and do not accidentally override CD defaults.
+296. Hydration tolerance as evidence safety: model hydration should accept malformed optional lanes by degrading locally rather than discarding all evidence.
+297. Visual artifact request facets: screenshot viewport/full-page/wait controls are evidence facet inputs, not final-response formatting instructions.
+298. Optional dependency quarantine: framework-specific dependencies and suppressions should stay scoped to adapter integration and never leak into core retrieval primitives.
 
 ## Remaining Work
 
@@ -1675,7 +1723,7 @@
 - .NET SDK client, transport, tests, docs/project metadata, exceptions, and model surface are parsed; no unparsed .NET SDK files remain in the inventory.
 - Elixir and Go SDK surfaces are parsed; Elixir lockfile is marked generated, and useful signals are OpenAPI generation, boundary validation, typed errors, parse multipart lanes, retry/cancellation, and terminal pagination.
 - Java SDK docs, build metadata, exceptions, model surface, and env-gated tests are parsed; the Gradle wrapper jar is marked generated, and useful signals are discovery-quality map gates, browser/session projection boundaries, capability-gated live tests, typed agent controls, and language-stable Tool CD parity fields.
-- PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
+- PHP SDK client, transport, docs, Laravel integration, exceptions, models, and compact test harness are parsed; no unparsed PHP SDK files remain in the inventory.
 - Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
 - JS SDK v2 docs, public entrypoint, compact E2E suites, and remaining compact unit tests are parsed; large legacy v1 SDK and outer example files remain.
 - JS SDK outer examples, v1 E2E retry/status tests, package/audit harness, and watcher/pagination examples are parsed; large `src/v1/index.ts` and `src/index.backup.ts` remain unparsed.
