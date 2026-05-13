@@ -231,7 +231,7 @@ apps/api/src/controllers/v1/scrape.ts	apps	parsed	v1_scrape_execution_controller
 apps/api/src/controllers/v1/search.ts	apps	parsed	search_plus_scrape_bridge	deep research uses small SERP set plus scrape enrichment; content-bearing docs are separated from thin rows
 apps/api/src/controllers/v1/token-usage-historical.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/token-usage.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/types.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/types.ts	apps	parsed	v1_request_response_contracts	url_preprocess_schema_normalization_action_wait_budget_format_option_refines_crawl_map_search_defaults_and_legacy_conversions
 apps/api/src/controllers/v1/x402-search.ts	apps	parsed	v1_x402_search	search_overfetch_optional_scrape_merge_filter_contentful_docs_cost_tracking_and_zdr_block
 apps/api/src/controllers/v2/__tests__/agent-status.test.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/__tests__/browser-billing.test.ts	apps	not_parsed	pending_review	
@@ -304,11 +304,11 @@ apps/api/src/lib/custom-error.ts	apps	not_parsed	pending_review
 apps/api/src/lib/deep-research/deep-research-redis.ts	apps	parsed	ttl_research_state_persistence	TTL-bounded state appends activities/sources/summaries while local manager caps findings
 apps/api/src/lib/deep-research/deep-research-service.ts	apps	parsed	iterative_gap_research_loop	parallel query lanes, scrape/read, seen-URL dedupe, gap analysis, bounded continuation, final synthesis
 apps/api/src/lib/deep-research/research-manager.ts	apps	parsed	research_state_and_gap_planning	tracks seen URLs/findings/depth/failures and generates specific follow-up queries from prior evidence
-apps/api/src/lib/default-values.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/default-values.ts	apps	parsed	retrieval_default_values	default_origin_timeout_page_crawl_and_extractor_options
 apps/api/src/lib/deployment.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/deprecations.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/engpicker.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/entities.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/entities.ts	apps	parsed	legacy_entity_shapes	page_search_document_search_v2_result_types_and_action_artifact_fields
 apps/api/src/lib/error-serde.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/error.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/build-document.ts	apps	parsed	metadata_bounded_llm_input	appends sanitized capped metadata to markdown for extraction context
@@ -370,7 +370,7 @@ apps/api/src/lib/map-cosine.ts	apps	parsed	lexical_cosine_candidate_ranking	chea
 apps/api/src/lib/map-utils.ts	apps	parsed	map_and_search_candidate_discovery	index_sitemap_search_map_merge_semantic_rank_same_domain_filter_title_preserving_dedupe
 apps/api/src/lib/native-logging.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/otel-tracer.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/parseApi.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/parseApi.ts	apps	parsed	api_key_shape_compatibility	fc_prefixed_key_to_uuid_and_uuid_to_fc_key_compatibility
 apps/api/src/lib/permissions.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/permu-refactor.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/ranker.test.ts	apps	parsed	ranking_behavior_tests	semantic rerank exposes score/original index, handles empty input, and preserves stable tie order
@@ -394,7 +394,7 @@ apps/api/src/lib/validateUrl.test.ts	apps	parsed	validate_url_tests	same_domain_
 apps/api/src/lib/validateUrl.ts	apps	parsed	url_validation_and_redirect_utils	protocol_completion_http_https_only_www_protocol_duplication_guard_redirect_resolution
 apps/api/src/lib/withAuth.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/x402.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/zdr-helpers.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/zdr-helpers.ts	apps	parsed	zdr_flag_resolution	legacy_boolean_and_new_enum_flag_resolution_for_scrape_search_robots_modes
 apps/api/src/main/runWebScraper.ts	apps	not_parsed	pending_review	
 apps/api/src/natives.ts	apps	not_parsed	pending_review	
 apps/api/src/routes/admin.ts	apps	not_parsed	pending_review	

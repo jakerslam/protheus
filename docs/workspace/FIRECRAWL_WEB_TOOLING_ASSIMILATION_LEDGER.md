@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 257
-- Not parsed: 1021
+- Parsed: 262
+- Not parsed: 1016
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -66,6 +66,11 @@
 | `apps/api/src/__tests__/lib/search-query-builder.test.ts` | Query builder behavior tests. | Tests show exact user query text should be preserved while source-category, include-domain, and exclude-domain filters compile into explicit query lanes with category metadata. |
 | `apps/api/src/lib/search-index-client.ts` | Managed search-index client. | Optional index search/index writes fail closed to empty candidates or logged diagnostics, carry score/freshness/quality/rank metadata, and must not block scraping. |
 | `apps/api/src/controllers/v2/types.ts` | Request schema and search options. | Strict request schema supports sources, categories, domains, scrape options, timeout bounds, and format defaults as typed input rather than prompt phrasing. |
+| `apps/api/src/controllers/v1/types.ts` | Legacy request/response contracts. | URL preprocessing, schema normalization, action wait budgets, format/option refine rules, crawl/map/search defaults, and legacy conversion helpers keep request shape deterministic before execution. |
+| `apps/api/src/lib/entities.ts` | Legacy entity shapes. | Page/search/document result types preserve content variants, action artifacts, search-result lanes, and metadata fields as typed structures. |
+| `apps/api/src/lib/default-values.ts` | Retrieval default values. | Origin, timeout, page/crawl/extractor defaults should be declared centrally instead of scattered across request handlers. |
+| `apps/api/src/lib/zdr-helpers.ts` | ZDR flag resolution. | Scrape/search/robots policy should resolve legacy booleans and newer enum flags into one effective mode before adapter execution. |
+| `apps/api/src/lib/parseApi.ts` | API key compatibility. | Credential-shape compatibility can be normalized at the boundary without affecting retrieval behavior or evidence semantics. |
 | `apps/api/src/controllers/v2/browser.ts` | Browser session controller. | Dynamic browser work is TTL/concurrency bounded, owner checked, retried on creation, cleaned up if persistence fails, and finalized with idempotent destroyed-state claiming. |
 | `apps/api/src/controllers/v2/scrape-browser.ts` | Scrape interaction controller. | Interactive work can replay a prior scrape context, adopt or create a bounded session, then run prompt/code interaction with trace hygiene and explicit cleanup. |
 | `apps/api/src/controllers/v2/agent.ts` | Agent passthrough controller. | Agent jobs are admitted as async handles with request logging and status polling, while unsupported zero-retention and unavailable beta services fail closed. |
@@ -354,6 +359,7 @@
 - URL-scoped extraction should not stop after one sparse map/search pass. A bounded broader discovery pass plus rerank is a general way to avoid false "no evidence" results without asking the user to narrow.
 - Compatibility controllers confirm the same primitives should hold across old and new surfaces: overfetch before filtering, preserve original search metadata when enrichment succeeds, and project partial/failed work as bounded status rather than raw queue state.
 - Queue and engine admin endpoints are useful only as observability/reconciliation primitives. They should not become user-facing research evidence or provider-specific workflow branches.
+- Request schemas are a retrieval-quality control surface: normalize URLs, defaults, output format contracts, extraction options, wait/action budgets, and privacy modes before tool execution so downstream gates do not compensate for malformed inputs.
 
 ## Candidate Assimilation Targets
 
@@ -380,6 +386,7 @@
 21. Structured extraction evidence artifacts: classify single-answer vs multi-entity evidence needs, rerank mapped candidates by extraction value, merge partial extracted facts safely, and preserve source refs through dedupe. Implemented CD/tool-policy update; runtime execution remains future work.
 22. Relevance-gated extraction and repair boundary: before expensive structured extraction, gate candidate pages for likely usefulness; trim oversized inputs to context budget; normalize/repair structured outputs inside the evidence layer; preserve hidden warnings for synthesis calibration. Implemented CD/tool-policy update; runtime execution remains future work.
 23. Compatibility projection invariants: ensure legacy and new search/crawl/scrape paths share overfetch, enrichment, bounded status, owner/ZDR checks, queue cleanup, and raw payload pruning semantics. Ledger captured; no new CD change needed unless runtime drift appears.
+24. Request-shape normalization: keep URL preprocessing, option defaults, format/extraction coupling, action budgets, and ZDR mode resolution as typed boundary contracts before retrieval starts. Ledger captured; existing policy already points this direction.
 
 ## Remaining Work
 
