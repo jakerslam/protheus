@@ -14,6 +14,51 @@ struct QueryPlanSelection {
     rewrite_applied: bool,
     rerank_query: String,
     query_plan_source: &'static str,
+    query_metadata: BatchQueryKeywordPack,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct BatchQueryKeywordPack {
+    keywords: Vec<String>,
+    entities: Vec<String>,
+    facets: Vec<String>,
+    aliases: Vec<String>,
+    negative_terms: Vec<String>,
+}
+
+impl BatchQueryKeywordPack {
+    fn is_empty(&self) -> bool {
+        self.keywords.is_empty()
+            && self.entities.is_empty()
+            && self.facets.is_empty()
+            && self.aliases.is_empty()
+            && self.negative_terms.is_empty()
+    }
+
+    fn has_positive_terms(&self) -> bool {
+        !self.keywords.is_empty()
+            || !self.entities.is_empty()
+            || !self.facets.is_empty()
+            || !self.aliases.is_empty()
+    }
+
+    fn to_value(&self) -> Value {
+        json!({
+            "keywords": self.keywords.clone(),
+            "required_coverage": {
+                "entities": self.entities.clone(),
+                "facets": self.facets.clone()
+            },
+            "aliases": self.aliases.clone(),
+            "negative_terms": self.negative_terms.clone(),
+            "compilation": {
+                "authority": "agent_submitted_request_metadata",
+                "hidden_query_expansion": false,
+                "quote_policy": "quote_exact_entity_or_alias_phrases_only",
+                "negative_term_policy": "append_safe_negative_filters_to_compiled_lanes"
+            }
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -692,6 +737,338 @@ fn extract_request_query_row(row: &Value, max_len: usize) -> Option<String> {
     }
 }
 
+fn push_query_dedup(value: String, dedup: &mut HashSet<String>, queries: &mut Vec<String>) {
+    if value.is_empty() {
+        return;
+    }
+    let key = value.to_ascii_lowercase();
+    if dedup.insert(key) {
+        queries.push(value);
+    }
+}
+
+fn push_metadata_term(raw: &str, seen: &mut HashSet<String>, out: &mut Vec<String>, max: usize) {
+    if out.len() >= max {
+        return;
+    }
+    let mut value = clean_text(raw, 160);
+    value = value.trim_matches(|ch| matches!(ch, '"' | '\'' | '`')).to_string();
+    if value.is_empty() {
+        return;
+    }
+    let key = value.to_ascii_lowercase();
+    if seen.insert(key) {
+        out.push(value);
+    }
+}
+
+fn collect_metadata_terms_from_value(
+    value: &Value,
+    seen: &mut HashSet<String>,
+    out: &mut Vec<String>,
+    max: usize,
+) {
+    if out.len() >= max {
+        return;
+    }
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                collect_metadata_terms_from_value(row, seen, out, max);
+                if out.len() >= max {
+                    break;
+                }
+            }
+        }
+        Value::String(raw) => {
+            for part in raw.split([',', ';', '\n', '\t']) {
+                push_metadata_term(part, seen, out, max);
+                if out.len() >= max {
+                    break;
+                }
+            }
+        }
+        Value::Object(map) => {
+            for key in ["term", "keyword", "query", "text", "name", "label", "value"] {
+                if let Some(raw) = map.get(key).and_then(Value::as_str) {
+                    push_metadata_term(raw, seen, out, max);
+                }
+                if out.len() >= max {
+                    break;
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_request_terms(
+    request: &Value,
+    keys: &[&str],
+    seen: &mut HashSet<String>,
+    out: &mut Vec<String>,
+    max: usize,
+) {
+    for key in keys {
+        if let Some(value) = request.get(*key) {
+            collect_metadata_terms_from_value(value, seen, out, max);
+        }
+        if out.len() >= max {
+            break;
+        }
+    }
+}
+
+fn collect_coverage_terms(
+    coverage: Option<&Value>,
+    keys: &[&str],
+    seen: &mut HashSet<String>,
+    out: &mut Vec<String>,
+    max: usize,
+) {
+    let Some(Value::Object(map)) = coverage else {
+        return;
+    };
+    for key in keys {
+        if let Some(value) = map.get(*key) {
+            collect_metadata_terms_from_value(value, seen, out, max);
+        }
+        if out.len() >= max {
+            break;
+        }
+    }
+}
+
+fn batch_query_keyword_pack(request: &Value, budget: ApertureBudget) -> BatchQueryKeywordPack {
+    let max_terms = budget.max_candidates.clamp(4, 12);
+    let coverage = request
+        .get("required_coverage")
+        .or_else(|| request.get("coverage_targets"))
+        .or_else(|| request.get("coverage"));
+
+    let mut pack = BatchQueryKeywordPack::default();
+    let mut seen = HashSet::<String>::new();
+    collect_request_terms(
+        request,
+        &["keywords", "keyword_pack", "key_terms", "terms"],
+        &mut seen,
+        &mut pack.keywords,
+        max_terms,
+    );
+
+    seen.clear();
+    collect_coverage_terms(
+        coverage,
+        &["entities", "entity", "candidates", "named_entities", "subjects"],
+        &mut seen,
+        &mut pack.entities,
+        max_terms,
+    );
+    collect_request_terms(
+        request,
+        &["entities", "candidates", "named_entities", "subjects"],
+        &mut seen,
+        &mut pack.entities,
+        max_terms,
+    );
+
+    seen.clear();
+    collect_coverage_terms(
+        coverage,
+        &[
+            "facets",
+            "facet",
+            "aspects",
+            "criteria",
+            "source_classes",
+            "time_windows",
+            "coverage_lanes",
+        ],
+        &mut seen,
+        &mut pack.facets,
+        max_terms,
+    );
+    collect_request_terms(
+        request,
+        &["facets", "aspects", "criteria", "coverage_lanes"],
+        &mut seen,
+        &mut pack.facets,
+        max_terms,
+    );
+
+    seen.clear();
+    collect_request_terms(
+        request,
+        &["aliases", "alias_terms", "alternate_names"],
+        &mut seen,
+        &mut pack.aliases,
+        max_terms,
+    );
+
+    seen.clear();
+    collect_request_terms(
+        request,
+        &["negative_terms", "exclude_terms", "ambiguity_filters"],
+        &mut seen,
+        &mut pack.negative_terms,
+        max_terms.min(6),
+    );
+    pack
+}
+
+fn quote_exact_query_term(raw: &str) -> Option<String> {
+    let cleaned = clean_text(raw, 160);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let unquoted = cleaned.replace('"', "");
+    if unquoted.is_empty() {
+        return None;
+    }
+    if unquoted.split_whitespace().count() > 1 {
+        Some(format!("\"{unquoted}\""))
+    } else {
+        Some(unquoted)
+    }
+}
+
+fn plain_query_term(raw: &str) -> Option<String> {
+    let cleaned = clean_text(raw, 120).replace('"', "");
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
+    }
+}
+
+fn negative_query_filter(raw: &str) -> Option<String> {
+    let cleaned = clean_text(raw, 80).replace('"', "");
+    if cleaned.is_empty() || cleaned.starts_with('-') {
+        return None;
+    }
+    if cleaned.split_whitespace().count() > 1 {
+        Some(format!("-\"{cleaned}\""))
+    } else {
+        Some(format!("-{cleaned}"))
+    }
+}
+
+fn append_negative_filters(candidate: &str, pack: &BatchQueryKeywordPack) -> String {
+    let filters = pack
+        .negative_terms
+        .iter()
+        .filter_map(|term| negative_query_filter(term))
+        .take(2)
+        .collect::<Vec<_>>();
+    if filters.is_empty() {
+        clean_text(candidate, 600)
+    } else {
+        clean_text(&format!("{candidate} {}", filters.join(" ")), 600)
+    }
+}
+
+fn push_compiled_metadata_query(
+    candidate: String,
+    pack: &BatchQueryKeywordPack,
+    dedup: &mut HashSet<String>,
+    queries: &mut Vec<String>,
+    max_queries: usize,
+) {
+    if queries.len() >= max_queries {
+        return;
+    }
+    let candidate = append_negative_filters(&candidate, pack);
+    push_query_dedup(candidate, dedup, queries);
+}
+
+fn compile_keyword_pack_queries(
+    primary_query: &str,
+    pack: &BatchQueryKeywordPack,
+    budget: ApertureBudget,
+) -> Vec<String> {
+    if !pack.has_positive_terms() {
+        return Vec::new();
+    }
+    let max_queries = max_explicit_queries_for_budget(primary_query, budget);
+    let mut dedup = HashSet::<String>::new();
+    let mut queries = Vec::<String>::new();
+
+    let exact_subjects = pack
+        .entities
+        .iter()
+        .chain(pack.aliases.iter())
+        .filter_map(|term| quote_exact_query_term(term))
+        .collect::<Vec<_>>();
+    let facets = pack
+        .facets
+        .iter()
+        .filter_map(|term| plain_query_term(term))
+        .collect::<Vec<_>>();
+    let keywords = pack
+        .keywords
+        .iter()
+        .filter_map(|term| plain_query_term(term))
+        .collect::<Vec<_>>();
+
+    for subject in &exact_subjects {
+        if facets.is_empty() {
+            let tail = keywords.iter().take(3).cloned().collect::<Vec<_>>().join(" ");
+            let candidate = clean_text(&format!("{subject} {tail}"), 600);
+            push_compiled_metadata_query(candidate, pack, &mut dedup, &mut queries, max_queries);
+        } else {
+            for facet in &facets {
+                let candidate = clean_text(&format!("{subject} {facet}"), 600);
+                push_compiled_metadata_query(
+                    candidate,
+                    pack,
+                    &mut dedup,
+                    &mut queries,
+                    max_queries,
+                );
+                if queries.len() >= max_queries {
+                    return queries;
+                }
+            }
+        }
+        if queries.len() >= max_queries {
+            return queries;
+        }
+    }
+
+    if exact_subjects.len() >= 2 && queries.len() < max_queries {
+        let subject_terms = exact_subjects.iter().take(3).cloned().collect::<Vec<_>>();
+        let mut pieces = subject_terms;
+        pieces.push("comparison".to_string());
+        if let Some(facet) = facets.first() {
+            pieces.push(facet.clone());
+        }
+        push_compiled_metadata_query(
+            pieces.join(" "),
+            pack,
+            &mut dedup,
+            &mut queries,
+            max_queries,
+        );
+    }
+
+    if queries.len() < max_queries && !keywords.is_empty() {
+        let mut pieces = Vec::<String>::new();
+        if let Some(subject) = exact_subjects.first() {
+            pieces.push(subject.clone());
+        }
+        pieces.extend(keywords.iter().take(4).cloned());
+        push_compiled_metadata_query(
+            pieces.join(" "),
+            pack,
+            &mut dedup,
+            &mut queries,
+            max_queries,
+        );
+    }
+
+    queries
+}
+
 fn max_explicit_queries_for_budget(primary_query: &str, budget: ApertureBudget) -> usize {
     let _ = primary_query;
     budget.max_candidates.clamp(2, 12)
@@ -701,22 +1078,13 @@ fn normalize_requested_queries(
     request: &Value,
     primary_query: &str,
     budget: ApertureBudget,
+    keyword_pack: &BatchQueryKeywordPack,
 ) -> Vec<String> {
     let mut dedup = HashSet::<String>::new();
     let mut queries = Vec::<String>::new();
-    let push_query =
-        |value: String, dedup: &mut HashSet<String>, queries: &mut Vec<String>| {
-            if value.is_empty() {
-                return;
-            }
-            let key = value.to_ascii_lowercase();
-            if dedup.insert(key) {
-                queries.push(value);
-            }
-        };
     let normalized_primary = clean_text(primary_query, 600);
     if !normalized_primary.is_empty() {
-        push_query(normalized_primary, &mut dedup, &mut queries);
+        push_query_dedup(normalized_primary, &mut dedup, &mut queries);
     }
     let max_queries = max_explicit_queries_for_budget(primary_query, budget);
     if let Some(rows) = request.get("queries").and_then(Value::as_array) {
@@ -725,9 +1093,15 @@ fn normalize_requested_queries(
                 break;
             }
             if let Some(value) = extract_request_query_row(row, 600) {
-                push_query(value, &mut dedup, &mut queries);
+                push_query_dedup(value, &mut dedup, &mut queries);
             }
         }
+    }
+    for value in compile_keyword_pack_queries(primary_query, keyword_pack, budget) {
+        if queries.len() >= max_queries {
+            break;
+        }
+        push_query_dedup(value, &mut dedup, &mut queries);
     }
     queries
 }
@@ -1250,7 +1624,8 @@ fn resolve_query_plan(
     query: &str,
     budget: ApertureBudget,
 ) -> QueryPlanSelection {
-    let explicit_queries = normalize_requested_queries(request, query, budget);
+    let query_metadata = batch_query_keyword_pack(request, budget);
+    let explicit_queries = normalize_requested_queries(request, query, budget, &query_metadata);
     let explicit_query_pack_used = !explicit_queries.is_empty()
         && (query.is_empty()
             || explicit_queries.len() > 1
@@ -1274,7 +1649,12 @@ fn resolve_query_plan(
             queries: explicit_queries,
             rewrite_set,
             rerank_query,
-            query_plan_source: "explicit_request_pack",
+            query_plan_source: if query_metadata.is_empty() {
+                "explicit_request_pack"
+            } else {
+                "explicit_request_pack_with_metadata"
+            },
+            query_metadata,
         };
     }
     let recovery_queries = general_research_recovery_queries(policy, query, budget);
@@ -1290,6 +1670,7 @@ fn resolve_query_plan(
             rewrite_set,
             rerank_query,
             query_plan_source: "policy_general_research_recovery",
+            query_metadata,
         };
     }
     let recovery_queries = broad_current_research_recovery_queries(policy, query, budget);
@@ -1305,6 +1686,7 @@ fn resolve_query_plan(
             rewrite_set,
             rerank_query,
             query_plan_source: "policy_broad_current_research_recovery",
+            query_metadata,
         };
     }
     let queries = cache_identity_query_plan(query, &explicit_queries);
@@ -1318,5 +1700,6 @@ fn resolve_query_plan(
         rewrite_applied: false,
         rerank_query,
         query_plan_source: "agent_submitted_single_query",
+        query_metadata,
     }
 }

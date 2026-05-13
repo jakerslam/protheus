@@ -109,6 +109,115 @@ mod quality_tests {
         with_fixture(fixture, || run_request(tmp.path(), request))
     }
 
+    #[test]
+    fn keyword_metadata_compiles_into_visible_query_plan_lanes() {
+        let query = "Assess Alpha Runtime and Beta Search deployment fit.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "keywords": ["deployment readiness", "observability", "release notes"],
+            "required_coverage": {
+                "entities": ["Alpha Runtime", "Beta Search"],
+                "facets": ["deployment readiness", "observability"]
+            },
+            "aliases": ["AlphaRT"],
+            "negative_terms": ["fashion model"],
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "explicit_request_pack_with_metadata"
+        );
+        assert_eq!(plan.queries.first().map(String::as_str), Some(query));
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("\"Alpha Runtime\" deployment readiness")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("\"Beta Search\" observability")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("-\"fashion model\"")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            !plan
+                .queries
+                .iter()
+                .any(|row| row.contains("\"deployment readiness\"")),
+            "{:#?}",
+            plan.queries
+        );
+        assert_eq!(plan.query_metadata.entities, vec!["Alpha Runtime", "Beta Search"]);
+    }
+
+    #[test]
+    fn batch_query_output_retains_query_metadata_for_synthesis() {
+        let query = "Research Alpha Runtime deployment readiness.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "keywords": ["Alpha Runtime", "deployment readiness", "official docs"],
+            "required_coverage": {
+                "entities": ["Alpha Runtime"],
+                "facets": ["deployment readiness"]
+            },
+            "aliases": [],
+            "negative_terms": [],
+            "aperture": "medium"
+        });
+        let out = run_request_with_fixture(
+            json!({
+                "*": {
+                    "ok": true,
+                    "summary": "Alpha Runtime deployment readiness documentation covers release controls, production rollout checks, and observability evidence for operators.",
+                    "requested_url": "https://docs.alpha.example.com/deployment-readiness",
+                    "status_code": 200
+                }
+            }),
+            &request,
+        );
+
+        assert_eq!(
+            out.get("query_plan_source").and_then(Value::as_str),
+            Some("explicit_request_pack_with_metadata")
+        );
+        assert_eq!(
+            out.pointer("/query_metadata/required_coverage/entities/0")
+                .and_then(Value::as_str),
+            Some("Alpha Runtime")
+        );
+        assert_eq!(
+            out.pointer("/query_contract/hidden_query_expansion")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(
+            out.get("query_plan")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.as_str()
+                        .map(|value| value.contains("\"Alpha Runtime\" deployment readiness"))
+                        .unwrap_or(false)
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
     fn summary_lowered(out: &Value) -> String {
         out.get("summary")
             .and_then(Value::as_str)

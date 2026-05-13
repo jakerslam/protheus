@@ -913,6 +913,22 @@ mod workflow_reader_tests {
                 .unwrap_or(false),
             "{batch_query}"
         );
+        assert!(
+            batch_query
+                .pointer("/request_format/keywords")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false),
+            "{batch_query}"
+        );
+        assert!(
+            batch_query
+                .pointer("/request_format/required_coverage/entities")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false),
+            "{batch_query}"
+        );
     }
 
     #[test]

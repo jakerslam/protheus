@@ -38,6 +38,7 @@
       "source_class_coverage.classes",
       "evidence_pack_quality.status",
       "query_plan",
+      "query_metadata",
       "query_plan_source",
       "provider_result_count",
       "partial_failure_details"
@@ -1427,7 +1428,16 @@
       "capability_family": "web_retrieval",
       "required_args": ["query"],
       "aliases": ["web_research"],
-      "optional_args": ["aperture", "timeout_ms", "source_scope"],
+      "optional_args": [
+        "aperture",
+        "timeout_ms",
+        "source_scope",
+        "queries",
+        "keywords",
+        "required_coverage",
+        "aliases",
+        "negative_terms"
+      ],
       "request_quality_floor": {
         "broad_research_requires_query_pack_or_followup": true,
         "initial_discovery_only_allowed": true,
@@ -1445,6 +1455,33 @@
           "do_not_hardcode_domain_candidates",
           "do_not_force_output_format",
           "do_not_expand_queries_without_recording_them"
+        ]
+      },
+      "query_metadata_contract": {
+        "version": "query_metadata_contract_v1",
+        "authority": "workflow_cd_declares_request_shape_tool_cd_declares_compilation",
+        "purpose": "Let the agent submit compact retrieval metadata separately from prose queries so the primitive can cast a wider, auditable net without hardcoding a research domain or user-visible answer format.",
+        "accepted_fields": {
+          "keywords": "important entity, alias, phrase, aspect, source-class, date, or decision terms",
+          "required_coverage.entities": "named entities, candidates, subjects, or options final synthesis should cover or mark as weak/missing",
+          "required_coverage.facets": "user-stated criteria, aspects, source classes, time windows, or decision dimensions final synthesis should cover or mark as weak/missing",
+          "aliases": "alternate names or exact phrases for named entities",
+          "negative_terms": "ambiguity filters to exclude low-signal interpretations"
+        },
+        "compilation_policy": [
+          "preserve the top-level user query as the first query lane",
+          "preserve agent-submitted query lanes before compiled metadata lanes",
+          "dedupe and cap metadata terms according to the active aperture budget",
+          "quote exact entity and alias phrases when compiling metadata lanes",
+          "do not quote generic facets or keywords by default",
+          "append safe negative filters only to compiled metadata lanes",
+          "record query_metadata, submitted_query_plan, executed query_plan, and query_plan_source in tool output"
+        ],
+        "non_goals": [
+          "do_not_hardcode_domain_candidates",
+          "do_not_force_user_visible_answer_format",
+          "do_not_require_provider_specific_query_syntax",
+          "do_not_hide_compiled_query_lanes_from_trace"
         ]
       },
       "operations": ["search_pack"],

@@ -246,6 +246,10 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             .get("parallel_retrieval_used")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+        let query_metadata = cached
+            .get("query_metadata")
+            .cloned()
+            .unwrap_or_else(|| query_plan.query_metadata.to_value());
         let provider_snapshot = json!({
             "id": crate::deterministic_receipt_hash(&json!({"source": source, "query": query, "cache_key": cache_lookup_key, "search_scope": search_scope_value.clone()})),
             "source": source,
@@ -263,11 +267,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "rewrite_set": rewrite_set,
             "query_plan": query_plan_value,
             "query_plan_source": query_plan_source,
+            "query_metadata": query_metadata.clone(),
             "query_contract": {
                 "authority": "agent_submitted",
                 "query_used": query,
                 "hidden_query_expansion": false,
                 "query_plan_source": query_plan_source,
+                "query_metadata": query_metadata.clone(),
                 "search_scope": search_scope_value.clone()
             },
             "adapter_version": "web_conduit_v1",
@@ -319,11 +325,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 .get("query_plan_source")
                 .cloned()
                 .unwrap_or_else(|| json!(query_plan.query_plan_source)),
+            "query_metadata": query_metadata.clone(),
             "query_contract": {
                 "authority": "agent_submitted",
                 "query_used": query,
                 "hidden_query_expansion": false,
                 "query_plan_source": query_plan_source,
+                "query_metadata": query_metadata.clone(),
                 "search_scope": search_scope_value.clone()
             },
             "partial_failure_details": partial_failure_details,
@@ -956,11 +964,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "submitted_query_plan": queries,
         "second_pass_recovery": second_pass_recovery.clone(),
         "query_plan_source": query_plan.query_plan_source,
+        "query_metadata": query_plan.query_metadata.to_value(),
         "query_contract": {
             "authority": "agent_submitted",
             "query_used": query,
             "hidden_query_expansion": false,
             "query_plan_source": query_plan.query_plan_source,
+            "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value.clone()
         },
         "adapter_version": "web_conduit_v1",
@@ -1009,11 +1019,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         "submitted_query_plan": queries.clone(),
         "second_pass_recovery": second_pass_recovery.clone(),
         "query_plan_source": query_plan.query_plan_source,
+        "query_metadata": query_plan.query_metadata.to_value(),
         "query_contract": {
             "authority": "agent_submitted",
             "query_used": query,
             "hidden_query_expansion": false,
             "query_plan_source": query_plan.query_plan_source,
+            "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value.clone()
         },
         "partial_failure_details": hard_partial_failures.clone(),
@@ -1057,6 +1069,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             "submitted_query_plan": queries,
             "second_pass_recovery": second_pass_recovery,
             "query_plan_source": query_plan.query_plan_source,
+            "query_metadata": query_plan.query_metadata.to_value(),
             "search_scope": search_scope_value,
             "partial_failure_details": hard_partial_failures,
             "retrieval_telemetry": retrieval_telemetry,
