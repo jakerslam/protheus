@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 432
-- Not parsed: 845
+- Parsed: 439
+- Not parsed: 838
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -416,6 +416,13 @@
 | `apps/api/src/lib/branding/merge.ts` | Branding result merger. | JS and LLM branding artifacts are merged with logo red-flag checks, confidence thresholds, button index mapping, color confidence gates, font cleanup, and debug reasoning refs. |
 | `apps/api/src/lib/branding/transformer.ts` | Branding transformation orchestrator. | The transformer runs heuristic logo selection, filters candidates/buttons before LLM, maps filtered indices back, falls back to heuristics, records LLM metadata, and prunes debug artifacts unless enabled. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/index.ts` | Browser branding extractor entrypoint. | Browser-side artifact extraction gathers CSS data, element snapshots, images/logo candidates, typography, framework hints, color scheme, background candidates, page title, URL, and errors into one payload. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/constants.ts` | Browser branding thresholds. | DOM artifact extraction uses explicit size, alpha, traversal, background-sampling, button, and logo thresholds instead of implicit magic in downstream synthesis. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/print-script.js` | Browser extraction bundler helper. | The browser artifact collector can be bundled as an IIFE for manual/debug replay without changing runtime extraction behavior. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/buttons.ts` | Button-like element detector. | Button detection combines semantic selectors, class patterns, size, padding, border radius, and border signals while failing closed on DOM/style errors. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/css-data.ts` | CSS rule sampler. | CSS harvesting tolerates CORS stylesheet failures and extracts colors, radii, margins, padding, and gap values from accessible style rules. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/helpers.ts` | Browser DOM helper utilities. | Browser extraction caches native computed styles, guards against patched page APIs, records local errors, converts CSS units, and handles SVG class names. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/svg-utils.ts` | SVG normalization utilities. | Inline SVG artifacts resolve `<use>` references, copy computed styles into clones, preserve symbol viewboxes, and strip internal alignment markers after normalization. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/elements.ts` | Element snapshot sampler. | DOM sampling caps query results, preserves logo/button/form/text candidates, resolves transparent backgrounds through parent traversal, separates navigation from CTA, and captures bounded text/input/style snapshots. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -609,6 +616,9 @@
 - Heuristic picks and LLM choices should be reconciled by stable index maps, confidence gates, red-flag checks, and debug-only reasoning metadata. Do not let the LLM invent artifact identity.
 - Hardcoded model routing in a feature module is not portable for Infring user-facing agents. The reusable primitive is provider abstraction plus artifact complexity metadata, while model choice stays externally selected or policy-bound.
 - Debug artifacts such as snapshots, candidates, framework hints, prompts, and reasoning should be pruned from normal evidence projection unless an explicit debug lane is active.
+- Browser-side artifact collectors should defend against hostile or patched page JavaScript by using native DOM APIs where possible, caching style reads, and recording extraction-local errors.
+- Rich DOM snapshots should be capped, typed, and role-aware: navigation, CTA buttons, form controls, text samples, logos, colors, typography, and backgrounds are separate evidence facets.
+- SVG and CSS are not raw strings if used as evidence. Resolve references, computed styles, CSS units, transparency, and CORS-inaccessible sheets into explicit quality flags or normalized artifacts.
 
 ## Candidate Assimilation Targets
 
@@ -682,6 +692,8 @@
 68. Staged rich-artifact extraction: collect deterministic browser-side style/media/metadata artifacts, then optionally run schema-bound LLM clarification over a capped untrusted packet. Ledger captured; candidate rich evidence Tool CD lane.
 69. Heuristic/LLM reconciliation: map filtered candidate indices back to stable source artifact IDs and require confidence/red-flag checks before accepting LLM artifact selections. Ledger captured; candidate verifier/evidence artifact target.
 70. Debug artifact pruning: keep prompts, raw snapshots, candidates, reasoning, and framework hints behind debug refs rather than normal synthesis evidence. Ledger captured; candidate evidence projection hygiene target.
+71. Defensive DOM artifact collection: use native DOM API bindings, cached style reads, capped queries, extraction-local error capture, and role-aware snapshots for browser-derived evidence. Ledger captured; candidate browser retrieval artifact target.
+72. SVG/CSS normalization: resolve SVG references and computed styles, tolerate inaccessible stylesheets, normalize CSS units/colors, and attach quality flags for unresolved artifacts. Ledger captured; candidate rich evidence normalization target.
 
 ## Remaining Work
 
