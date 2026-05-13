@@ -1,0 +1,227 @@
+{
+  "name": "forge_promotion_readiness_scoring",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_execute_evals",
+      "do_not_claim_runtime_parity_without_executable_receipts",
+      "do_not_promote_lab_workflows_without_operator_approval",
+      "do_not_publish_or_mutate_external_release_surfaces"
+    ]
+  },
+  "default": false,
+  "description": "ForgeCode-derived promotion-readiness scoring primitive for local coding governance: scores structural assimilation, executable eval evidence, blockers, and promotion gaps without running validation or release actions.",
+  "stages": [
+    "readiness_input_collection",
+    "structural_receipt_normalization",
+    "executable_evidence_assessment",
+    "blocker_gap_scoring",
+    "promotion_readiness_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_promotion_readiness_scoring_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "structural_readiness_status",
+      "executable_readiness_status",
+      "promotion_readiness_status",
+      "missing_required_evidence",
+      "blocking_findings",
+      "recommended_next_gate"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "produce a calibrated promotion-readiness receipt from existing ForgeCode assimilation and eval evidence",
+      "scope_boundary": "do not run evals, execute tests, modify files, publish releases, or mutate external systems",
+      "validation_calibration": "separate structural assimilation from executable proof and operator approval",
+      "visibility": "summarize receipts and blockers without exposing secrets or full internal traces"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact promotion-readiness receipts for local coding workflow promotion decisions.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_provider_or_release_secrets",
+      "do_not_store_unbounded_eval_logs",
+      "do_not_treat_configured_checks_as_executed_checks"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "structured_receipt_bundle_or_text_input",
+    "allowed_transitions": [
+      "readiness_input_collection->structural_receipt_normalization",
+      "structural_receipt_normalization->executable_evidence_assessment",
+      "executable_evidence_assessment->blocker_gap_scoring",
+      "blocker_gap_scoring->promotion_readiness_receipt_packaging",
+      "promotion_readiness_receipt_packaging->completed",
+      "readiness_input_collection->needs_input",
+      "structural_receipt_normalization->blocked",
+      "executable_evidence_assessment->blocked",
+      "blocker_gap_scoring->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 2,
+      "max_tool_calls": 4,
+      "token_budget": 8000,
+      "loop_signature_detector": "forge_promotion_readiness_scoring_v1"
+    }
+  },
+  "promotion_readiness_scoring_contract": {
+    "version": "forge_promotion_readiness_scoring_v1",
+    "source": "forgecode_assimilated_governance_evaluation_layer",
+    "required_input_receipts": [
+      "project_local_governance_receipt",
+      "ci_release_boundary_receipt",
+      "benchmark_eval_harness_receipt",
+      "distribution_package_inventory_receipt"
+    ],
+    "required_output_receipt": "promotion_readiness_receipt",
+    "evidence_classes": [
+      "configured_surface",
+      "assimilated_structural_contract",
+      "observed_runtime_trace",
+      "executed_eval_result",
+      "operator_approval"
+    ],
+    "score_dimensions": [
+      {
+        "dimension": "source_family_coverage",
+        "minimum_for_structural_ready": "all_p0_source_families_have_assimilated_contracts"
+      },
+      {
+        "dimension": "runtime_execution_evidence",
+        "minimum_for_executable_ready": "required_runtime_eval_receipts_exist_and_pass"
+      },
+      {
+        "dimension": "tooling_behavior_evidence",
+        "minimum_for_executable_ready": "read_write_patch_parallel_tooling_evals_have_passing_receipts"
+      },
+      {
+        "dimension": "release_external_action_boundary",
+        "minimum_for_promotable": "release_and_github_mutation_routes_are_gated_and_secret_redacted"
+      },
+      {
+        "dimension": "operator_promotion_boundary",
+        "minimum_for_promotable": "operator_approval_receipt_present"
+      }
+    ],
+    "status_bands": [
+      {
+        "status": "promotable",
+        "criteria": "all_p0_structural_receipts_present_and_required_executable_evals_passed_and_operator_approval_present"
+      },
+      {
+        "status": "structurally_ready_not_executably_proven",
+        "criteria": "all_p0_structural_receipts_present_but_required_executable_eval_results_missing_or_not_current"
+      },
+      {
+        "status": "needs_targeted_eval",
+        "criteria": "structural_receipts_present_for_target_area_but_specific_runtime_or_tooling_eval_receipts_missing"
+      },
+      {
+        "status": "blocked",
+        "criteria": "missing_p0_structural_receipts_or_external_mutation_boundary_conflict_or_unresolved_secret_exposure_risk"
+      }
+    ],
+    "hard_blockers": [
+      "missing_required_input_receipt",
+      "production_parity_claim_without_executed_eval_result",
+      "release_or_github_mutation_not_behind_explicit_route",
+      "provider_or_release_secret_exposure",
+      "ownership_boundary_conflict_between_workflow_modules",
+      "operator_approval_required_but_absent"
+    ],
+    "receipt_requirements": [
+      "list_input_receipts_seen",
+      "list_missing_required_receipts",
+      "classify_each_evidence_item_by_evidence_class",
+      "separate_structural_ready_from_executable_ready",
+      "emit_next_gate_recommendation",
+      "emit_no_promotion_claim_if_executable_evidence_missing"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

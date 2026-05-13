@@ -48,6 +48,14 @@
         "output_artifact": "forge_distribution_package_inventory_result_artifact_v1",
         "return_policy": "return_single_terminal_artifact_to_parent",
         "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "promotion_readiness_scoring",
+        "workflow_id": "forge_promotion_readiness_scoring",
+        "input_contract": "forge_promotion_readiness_scoring_input_envelope_v1",
+        "output_artifact": "forge_promotion_readiness_scoring_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
       }
     ],
     "non_goals": [
@@ -58,13 +66,14 @@
     ]
   },
   "default": false,
-  "description": "Composite ForgeCode-derived governance/evaluation guard for local coding promotion: isolates project-local governance, CI/release automation, and benchmark eval harnesses from raw coding execution.",
+  "description": "Composite ForgeCode-derived governance/evaluation guard for local coding promotion: isolates project-local governance, CI/release automation, benchmark eval harnesses, distribution inventory, and promotion-readiness scoring from raw coding execution.",
   "stages": [
     "governance_evaluation_need_assessment",
     "project_local_governance_route",
     "ci_release_boundary_route",
     "benchmark_eval_harness_route",
     "distribution_package_inventory_route",
+    "promotion_readiness_scoring_route",
     "governance_evaluation_receipt_packaging"
   ],
   "workflow_composition": {
@@ -73,7 +82,8 @@
       "forge_project_local_governance",
       "forge_ci_release_boundary",
       "forge_benchmark_eval_harness",
-      "forge_distribution_package_inventory"
+      "forge_distribution_package_inventory",
+      "forge_promotion_readiness_scoring"
     ]
   },
   "final_response_policy": "control_plane_packaged_response",
@@ -127,12 +137,14 @@
       "project_local_governance_route->ci_release_boundary_route",
       "ci_release_boundary_route->benchmark_eval_harness_route",
       "benchmark_eval_harness_route->distribution_package_inventory_route",
-      "distribution_package_inventory_route->governance_evaluation_receipt_packaging",
+      "distribution_package_inventory_route->promotion_readiness_scoring_route",
+      "promotion_readiness_scoring_route->governance_evaluation_receipt_packaging",
       "governance_evaluation_receipt_packaging->completed",
       "project_local_governance_route->blocked",
       "ci_release_boundary_route->needs_input",
       "benchmark_eval_harness_route->failed",
-      "distribution_package_inventory_route->blocked"
+      "distribution_package_inventory_route->blocked",
+      "promotion_readiness_scoring_route->needs_input"
     ],
     "timeout_ms": 180000,
     "retry_policy": {
@@ -163,7 +175,7 @@
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
-      "max_stages": 8,
+      "max_stages": 9,
       "max_model_turns": 2,
       "max_tool_calls": 10,
       "token_budget": 12000,
@@ -177,7 +189,8 @@
       "forge_project_local_governance",
       "forge_ci_release_boundary",
       "forge_benchmark_eval_harness",
-      "forge_distribution_package_inventory"
+      "forge_distribution_package_inventory",
+      "forge_promotion_readiness_scoring"
     ],
     "required_receipts": [
       "project_local_governance_receipt",
@@ -186,12 +199,13 @@
       "distribution_package_inventory_receipt",
       "promotion_readiness_receipt"
     ],
-    "activation_policy": "local coding workflow promotion may route project-local governance, CI/release automation, and benchmark/eval harness evidence through this guard; raw coding execution remains owned by local coding and runtime primitives",
+    "activation_policy": "local coding workflow promotion may route project-local governance, CI/release automation, benchmark/eval harness, distribution/package inventory, and promotion-readiness scoring evidence through this guard; raw coding execution remains owned by local coding and runtime primitives",
     "stop_or_route_conditions": [
       "governance_fixture_invalid",
       "release_or_github_mutation_requires_explicit_route",
       "benchmark_eval_requires_external_clone_or_provider_credentials",
       "distribution_metadata_conflicts_with_release_boundary",
+      "promotion_readiness_score_below_threshold",
       "production_parity_claim_requires_executable_eval_results"
     ],
     "non_goals": [

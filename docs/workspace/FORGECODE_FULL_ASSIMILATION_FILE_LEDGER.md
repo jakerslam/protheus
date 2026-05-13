@@ -98,6 +98,7 @@ Top-level source areas:
 | `FC-A17` | Extract embedded prompt template and command-template semantics | active | Prompt-template contract pass added for embedded template registration, XML-like prompt element rendering, system/skill prompt projection, recovery templates, summary frames, title prompts, command frontmatter, and the `local_coding_prompt_template_guard` composite. |
 | `FC-A18` | Extract project governance, CI/release, and benchmark/eval semantics | active | Governance/evaluation contract pass added for project-local commands/skills, plan validation, dev/test fixtures, generated CI/release boundaries, bounty automation, benchmark eval tasks, and the `local_coding_governance_evaluation_guard` composite. |
 | `FC-A19` | Extract top-level package, distribution, config-schema, and public-mode metadata | active | Distribution/package inventory contract pass added for Cargo/package/toolchain/Cross/Nix/format/lint/snapshot/config-schema/README/AGENTS/provider model metadata. |
+| `FC-A20` | Extract promotion-readiness scoring semantics | active | Promotion-readiness scoring contract pass added to separate structural assimilation, executable eval evidence, blockers, missing receipts, and operator approval. |
 
 ## Assimilated workflow contracts created
 
@@ -177,7 +178,8 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `forge_ci_release_boundary` | 0 | `.github/workflows`, `.github/release-drafter.yml`, `.github/dependabot.yml`, `.github/labels.json`, `.github/scripts/bounty`, `.forge/skills/write-release-notes` | lab contract created | Captures generated workflow boundaries, CI validation, release target matrix, package distribution, bounty label rules, release-note generation, and secret redaction. |
 | `forge_benchmark_eval_harness` | 0 | `benchmarks`, `benchmarks/evals`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Projects eval task parsing, execution logging, timeout/early-exit behavior, tool-use validation rules, performance thresholds, and porcelain inventory checks. |
 | `forge_distribution_package_inventory` | 0 | `Cargo.toml`, `package.json`, `rust-toolchain.toml`, `Cross.toml`, `flake.nix`, `.rustfmt.toml`, `clippy.toml`, `insta.yaml`, `forge.schema.json`, `README.md`, `AGENTS.md`, `vertex.json`, `renovate.json` | lab contract created | Captures top-level workspace/package metadata, distribution/toolchain boundaries, formatting/lint/snapshot config, public CLI/TUI/zsh modes, local coding guidance, config schema, and provider model inventory. |
-| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, and distribution/package inventory evidence from raw coding execution. |
+| `forge_promotion_readiness_scoring` | 0 | Assimilated governance/evaluation receipts from `forge_project_local_governance`, `forge_ci_release_boundary`, `forge_benchmark_eval_harness`, and `forge_distribution_package_inventory` | lab contract created | Scores structural readiness, executable readiness, promotion blockers, missing evidence, and operator-approval requirements without running evals or mutating release surfaces. |
+| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata, promotion-readiness receipts | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, distribution/package inventory, and promotion-readiness scoring evidence from raw coding execution. |
 
 ## Runtime behavior harnesses created
 
@@ -259,7 +261,7 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, distribution/package inventory, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, distribution/package inventory, promotion-readiness scoring, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
 
 Next source pass:
 - Structural assimilation is effectively closed; next work is executable eval coverage, promotion-readiness scoring, and spot-checking any newly discovered source families.
@@ -692,3 +694,24 @@ Parity requirements added:
 | Keep public README modes visible to higher-level coding workflows so routing can distinguish interactive, one-shot, zsh, shell, git, skill, and semantic-search behavior | `forge_distribution_package_inventory` | P0 |
 | Use the Forge config schema and provider model inventory as contract references for configuration/model routing, while avoiding claims that every provider/model path has executable parity | `forge_distribution_package_inventory` | P0 |
 | Route distribution/package conflicts through governance/evaluation evidence instead of raw coding execution | `local_coding_governance_evaluation_guard` | P0 |
+
+## Sixteenth source pass: promotion-readiness scoring behavior
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| Assimilated governance receipts | Governance, CI/release, benchmark/eval, and distribution/package inventory surfaces now produce separate receipts. | `forge_promotion_readiness_scoring` |
+| Benchmark/eval source contracts | ForgeCode benchmark tasks distinguish configured evals, executed traces, validation results, timeout/early-exit metadata, and tool-use behavior. | `forge_promotion_readiness_scoring` |
+| Release/external-action boundaries | CI/release and GitHub automation require explicit routes, secrets, and operator-controlled publication/mutation boundaries. | `forge_promotion_readiness_scoring` |
+| Operator promotion policy | Lab contracts need schema validity, parity review, executable eval coverage, and operator approval before promotion. | `forge_promotion_readiness_scoring` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Score structural readiness separately from executable readiness so structural assimilation cannot be mistaken for runtime parity | `forge_promotion_readiness_scoring` | P0 |
+| Require explicit receipts for project governance, CI/release boundaries, benchmark/eval harnesses, and distribution/package inventory | `forge_promotion_readiness_scoring` | P0 |
+| Classify evidence as configured, structurally assimilated, observed, executed, or operator-approved | `forge_promotion_readiness_scoring` | P0 |
+| Hard-block promotion claims when executable eval results or operator approval are missing | `forge_promotion_readiness_scoring` | P0 |
+| Emit the next recommended promotion gate rather than silently continuing when blockers remain | `forge_promotion_readiness_scoring` | P1 |
