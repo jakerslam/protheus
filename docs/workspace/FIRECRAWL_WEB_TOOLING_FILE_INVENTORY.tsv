@@ -664,8 +664,8 @@ apps/java-sdk/gradle/wrapper/gradle-wrapper.jar	apps	not_parsed	pending_review
 apps/java-sdk/gradle/wrapper/gradle-wrapper.properties	apps	not_parsed	pending_review	
 apps/java-sdk/gradlew	apps	not_parsed	pending_review	
 apps/java-sdk/settings.gradle.kts	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlClient.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlHttpClient.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlClient.java	apps	parsed	java_sdk_client_facade	primitive_facade_with_batch_option_flattening_idempotency_header_polling_pagination_and_sync_async_convenience_methods
+apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlHttpClient.java	apps	parsed	java_sdk_http_adapter	base_url_normalization_object_mapper_json_multipart_retryable_status_network_retries_and_typed_error_mapping
 apps/java-sdk/src/main/java/com/firecrawl/errors/AuthenticationException.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/errors/FirecrawlException.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/errors/JobTimeoutException.java	apps	not_parsed	pending_review	
@@ -683,10 +683,10 @@ apps/java-sdk/src/main/java/com/firecrawl/models/BrowserListResponse.java	apps	n
 apps/java-sdk/src/main/java/com/firecrawl/models/BrowserSession.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/ConcurrencyCheck.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/CrawlJob.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/CrawlOptions.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/CrawlOptions.java	apps	parsed	java_crawl_options	prompt_paths_depth_sitemap_dedupe_domain_robots_delay_concurrency_webhook_scrape_options_zdr_controls
 apps/java-sdk/src/main/java/com/firecrawl/models/CrawlResponse.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/CreditUsage.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/Document.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/Document.java	apps	parsed	java_document_model	separate_markdown_html_raw_json_summary_metadata_links_images_screenshot_audio_actions_answers_warnings_change_tracking_and_branding_facets
 apps/java-sdk/src/main/java/com/firecrawl/models/HighlightsFormat.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/JsonFormat.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/LocationConfig.java	apps	not_parsed	pending_review	
@@ -699,22 +699,22 @@ apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheckPage.java	apps	not_
 apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSchedule.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSummary.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/ParseFile.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/ParseOptions.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/ParseOptions.java	apps	parsed	java_parse_options	parse_only_option_lane_rejects_browser_formats_bad_proxy_values_and_nonpositive_timeout
 apps/java-sdk/src/main/java/com/firecrawl/models/QueryFormat.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/models/QuestionFormat.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/ScrapeOptions.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/ScrapeOptions.java	apps	parsed	java_scrape_options	typed_artifact_formats_tag_filters_main_content_waits_parsers_actions_location_proxy_cache_lockdown_and_cleanup_flags
 apps/java-sdk/src/main/java/com/firecrawl/models/SearchData.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/SearchOptions.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/SearchOptions.java	apps	parsed	java_search_options	source_category_domain_freshness_location_invalid_url_timeout_and_optional_scrape_enrichment_controls
 apps/java-sdk/src/main/java/com/firecrawl/models/WebhookConfig.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/main/java/com/firecrawl/package-info.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/test/java/com/firecrawl/AgentTest.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/test/java/com/firecrawl/BrowserTest.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/test/java/com/firecrawl/CrawlTest.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/test/java/com/firecrawl/FirecrawlClientTest.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/test/java/com/firecrawl/CrawlTest.java	apps	parsed	java_crawl_tests	async_start_status_cancel_blocking_poll_scrape_options_paths_external_links_webhooks_and_content_relevance_checks
+apps/java-sdk/src/test/java/com/firecrawl/FirecrawlClientTest.java	apps	parsed	java_client_tests	builder_credential_validation_parse_file_immutability_parse_option_rejection_required_fields_and_env_gated_live_checks
 apps/java-sdk/src/test/java/com/firecrawl/FirecrawlLiveSiteTest.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/test/java/com/firecrawl/MapTest.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/test/java/com/firecrawl/ScrapeTest.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/test/java/com/firecrawl/SearchTest.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/test/java/com/firecrawl/ScrapeTest.java	apps	parsed	java_scrape_tests	nonempty_markdown_html_source_metadata_main_content_timeout_wait_and_invalid_url_failure_checks
+apps/java-sdk/src/test/java/com/firecrawl/SearchTest.java	apps	parsed	java_search_tests	source_limit_location_time_url_validity_relevance_and_search_plus_scrape_markdown_enrichment_checks
 apps/js-sdk/.env.example	apps	not_parsed	pending_review	
 apps/js-sdk/LICENSE	apps	not_parsed	pending_review	
 apps/js-sdk/audit-ci.jsonc	apps	not_parsed	pending_review	

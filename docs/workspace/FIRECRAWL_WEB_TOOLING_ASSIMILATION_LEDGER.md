@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 612
-- Not parsed: 664
+- Parsed: 623
+- Not parsed: 653
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -661,6 +661,17 @@
 | `apps/rust-sdk/examples/example.rs` | Rust SDK example program. | Example usage keeps search, map, scrape, crawl, batch, and agent as separate primitives that callers compose intentionally. |
 | `apps/rust-sdk/tests/.env.example` | Rust SDK live-test config. | Live tests are capability-gated by API URL and optional key, matching the hosted/self-host profile split. |
 | `apps/rust-sdk/tests/v2_e2e.rs` | Rust SDK v2 E2E tests. | E2E asserts content-bearing scrape/parse/search/map/crawl/batch/agent behavior, ignored-by-default API access, cleanup cancellation, and self-host credential semantics. |
+| `apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlClient.java` | Java SDK client facade. | Java repeats the primitive facade contract, flattens nested batch scrape options, preserves idempotency as an HTTP header, polls/paginates terminal jobs, and exposes sync/async convenience methods. |
+| `apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlHttpClient.java` | Java SDK HTTP adapter. | Transport normalizes base URLs, serializes requests through one object mapper, sends multipart uploads, retries only retryable status/network failures, and maps auth/rate-limit/client errors to typed exceptions. |
+| `apps/java-sdk/src/test/java/com/firecrawl/FirecrawlClientTest.java` | Java SDK client tests. | Tests assert builder credential validation, immutable parse file bytes, parse option rejection, browser/interaction required fields, and env-gated live content checks. |
+| `apps/java-sdk/src/test/java/com/firecrawl/SearchTest.java` | Java SDK search tests. | Live search tests verify source lanes, limits, location/time filters, URL validity, relevance checks, and search-plus-scrape markdown enrichment. |
+| `apps/java-sdk/src/test/java/com/firecrawl/ScrapeTest.java` | Java SDK scrape tests. | Scrape tests require nonempty markdown/HTML, source metadata, main-content extraction, timeout/wait controls, and typed invalid-URL failure. |
+| `apps/java-sdk/src/test/java/com/firecrawl/CrawlTest.java` | Java SDK crawl tests. | Crawl tests cover async start/status/cancel, blocking poll completion, scrape options per crawled page, include/exclude paths, external links, webhooks, and relevance-bearing crawled content. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/SearchOptions.java` | Java search option model. | Search request shape preserves source/category/domain/freshness/location/invalid-URL/timeout controls plus optional scrape enrichment. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/ScrapeOptions.java` | Java scrape option model. | Scrape options preserve artifact formats, include/exclude tags, main-content extraction, waits, parsers, actions, location, proxy/cache/lockdown, and cleanup flags as typed fields. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/CrawlOptions.java` | Java crawl option model. | Crawl options expose prompt, include/exclude paths, depth, sitemap, dedupe, domain expansion, robots/user-agent, delay, concurrency, webhook, scrape options, ZDR, and integration controls. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/Document.java` | Java document model. | Document projection keeps markdown, HTML, raw HTML, structured JSON, summary, metadata, links, images, screenshots, audio, actions, answers, warnings, change tracking, and branding as separate facets. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/ParseOptions.java` | Java parse option model. | Parse options explicitly reject browser-rendering formats and unsupported proxy/timeout values, keeping file parsing a narrower lane than web scraping. |
 
 ## Decisions So Far
 
@@ -963,6 +974,11 @@
 123. Docs-as-parity signal: public docs/examples can reveal intended primitive composition, but source and tests should win when documentation method names or legacy snippets drift. Ledger captured; candidate doc/test authority rule.
 124. Capability-gated live tests: network/API retrieval tests should be opt-in, environment-gated, and classified separately from deterministic workflow regressions. Ledger captured; candidate eval harness target.
 125. Primitive example coverage: SDK examples should exercise search, scrape, map, crawl, batch, parse, and agent as independent primitives so workflow CDs can compose them without client-side hidden policy. Ledger captured; candidate adapter parity target.
+126. Nested option flattening guard: batch/multi-target tool adapters must flatten nested per-item scrape options while preserving batch-level fields and idempotency headers. Ledger captured; candidate Tool CD request-shape guard.
+127. Retryability taxonomy: transport retries should be limited to declared retryable status/network failures, while auth, rate-limit, and nonretryable client errors become typed terminal failures. Ledger captured; candidate tool-adapter error policy.
+128. Async facade proof: if a tool surface claims async, tests should prove it is not merely blocking work wrapped in a future where runtime nonblocking behavior matters. Ledger captured; candidate runtime/tool-adapter eval target.
+129. Search-plus-scrape quality check: retrieval evals should assert enriched markdown content when scrape options are requested, not only SERP row presence. Ledger captured; candidate golden/eval target.
+130. Parse lane rejection guard: parse/document adapters should reject browser-only formats/options at schema time instead of sending ambiguous requests downstream. Ledger captured; candidate Tool CD schema validation target.
 
 ## Remaining Work
 
