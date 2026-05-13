@@ -536,12 +536,12 @@ apps/api/src/services/monitoring/cron.ts	apps	parsed	monitoring_cron	schedule_te
 apps/api/src/services/monitoring/diff.ts	apps	parsed	monitoring_diff	normalized_markdown_comparison_and_text_json_diff_artifacts
 apps/api/src/services/monitoring/queue.ts	apps	parsed	monitoring_queue	durable_monitor_check_queue_with_dlq_single_delivery_and_ack_nack
 apps/api/src/services/monitoring/results.ts	apps	parsed	monitoring_results	monitor_page_result_recording_diff_artifacts_webhooks_and_error_projection
-apps/api/src/services/monitoring/runner.test.ts	apps	not_parsed	pending_review	
-apps/api/src/services/monitoring/runner.ts	apps	not_parsed	pending_review	
-apps/api/src/services/monitoring/scheduler.test.ts	apps	not_parsed	pending_review	
+apps/api/src/services/monitoring/runner.test.ts	apps	parsed	monitoring_runner_stale_tests	stale_check_timeout_boundary_and_started_updated_fallback
+apps/api/src/services/monitoring/runner.ts	apps	parsed	monitoring_runner	full_monitor_check_execution_expected_job_tracking_reconcile_billing_notifications_and_stale_failure
+apps/api/src/services/monitoring/scheduler.test.ts	apps	parsed	monitoring_scheduler_tests	dispatch_before_enqueue_enqueue_failure_overlap_and_stale_current_check_recovery
 apps/api/src/services/monitoring/scheduler.ts	apps	parsed	monitoring_scheduler	due_monitor_claiming_overlap_skip_stale_release_and_enqueue
-apps/api/src/services/monitoring/stale.ts	apps	not_parsed	pending_review	
-apps/api/src/services/monitoring/store.ts	apps	not_parsed	pending_review	
+apps/api/src/services/monitoring/stale.ts	apps	parsed	monitoring_stale	one_hour_stale_threshold_with_started_updated_created_fallback
+apps/api/src/services/monitoring/store.ts	apps	parsed	monitoring_store	monitor_target_ids_credit_estimates_page_hashing_due_claims_status_windows_and_page_state_upsert
 apps/api/src/services/monitoring/types.ts	apps	parsed	monitoring_types	monitor_request_target_schedule_pagination_and_summary_contracts
 apps/api/src/services/notification/email_notification.ts	apps	not_parsed	pending_review	
 apps/api/src/services/notification/monitoring_email.ts	apps	not_parsed	pending_review	

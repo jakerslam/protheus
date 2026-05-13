@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 297
-- Not parsed: 981
+- Parsed: 302
+- Not parsed: 976
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -320,6 +320,11 @@
 | `apps/api/src/services/monitoring/results.ts` | Monitor result recorder. | Completed pages upsert durable page state, compare against previous scrape artifacts, save diff artifacts out-of-band, insert per-check page rows, and emit sanitized page webhooks. |
 | `apps/api/src/services/monitoring/scheduler.ts` | Monitor scheduler. | Due monitors are claimed with a worker lease, overlapping checks are skipped, stale checks release credit locks and fail closed, and failed enqueue attempts are marked on the check. |
 | `apps/api/src/services/monitoring/types.ts` | Monitor type contracts. | Monitor targets, schedules, notification/webhook filters, pagination, page statuses, summaries, and markdown-format injection are explicit schema contracts. |
+| `apps/api/src/services/monitoring/runner.ts` | Monitor check runner and reconciler. | Monitor execution assigns expected job IDs, enqueues scrape/crawl work with monitor metadata, records page results from worker callbacks, reconciles crawl completion/removals, fails stale checks with resource release, bills only finalized checks, and sends bounded notifications. |
+| `apps/api/src/services/monitoring/store.ts` | Monitor persistence helpers. | Store helpers assign stable target IDs, estimate credits, hash URLs, soft-delete monitors, claim due work, dispatch checks atomically against `current_check_id`, upsert per-page state, and page through large page/check sets. |
+| `apps/api/src/services/monitoring/stale.ts` | Monitor stale-check helper. | Running checks become stale after one hour using `started_at`, then `updated_at`, then `created_at` as fallback timestamps. |
+| `apps/api/src/services/monitoring/runner.test.ts` | Monitor runner stale tests. | Unit tests lock the one-hour stale threshold and timestamp fallback behavior. |
+| `apps/api/src/services/monitoring/scheduler.test.ts` | Monitor scheduler recovery tests. | Tests prove dispatch happens before enqueue, enqueue failure marks and clears checks, overlap becomes `skipped_overlap`, and stale current checks are failed before a new run is admitted. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -416,6 +421,9 @@
 - Scheduled retrieval needs overlap and staleness semantics before it is trustworthy: claim due work, skip overlapping checks, release reserved resources on stale checks, and persist the reason.
 - Change tracking should store diff artifacts behind refs and expose summary/status counts; raw prior/current page bodies should not be the user-facing projection.
 - Queue DLQs and handler ack/nack boundaries are evidence-lifecycle mechanics: failed scheduled retrieval should become a typed terminal state, not repeated invisible retries.
+- Async retrieval completion should be reconciled from expected work IDs and durable page rows, not only immediate worker return values. This gives the system a way to recover if callbacks, queues, or status polling drift.
+- Removed-page detection is part of evidence truth for crawl-style monitoring: a completed crawl should compare current page refs against prior active page state and emit explicit removed artifacts.
+- Resource accounting should be tied to terminalized retrieval checks; stale or failed checks need reserved-resource release before the scheduler admits new work.
 
 ## Candidate Assimilation Targets
 
@@ -453,6 +461,7 @@
 32. Artifact-aware engine eligibility: annotate retrieval engines with required context/capabilities such as browser cookies, retained sessions, source-specialty parser, or no-cache eligibility. Ledger captured; candidate Tool CD capability field.
 33. Async retrieval test harness: maintain raw/success/failure wrappers plus polling helpers for each async retrieval primitive so live workflow failures can be classified as request, execution, status, or synthesis failures. Ledger captured; candidate eval-harness target.
 34. Scheduled retrieval/change tracking primitive: model monitors as due-work claims, overlap/stale handling, durable per-page states, out-of-band diff artifacts, and bounded summary/page projections. Ledger captured; candidate future workflow-memory/monitoring CD.
+35. Async completion reconciliation primitive: track expected job IDs, durable page refs, crawl completion/removal state, stale checks, and terminal resource release so long-running retrieval can recover after partial queue/status failure. Ledger captured; candidate runtime/eval harness target.
 
 ## Remaining Work
 
