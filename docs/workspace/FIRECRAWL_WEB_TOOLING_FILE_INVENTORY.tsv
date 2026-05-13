@@ -180,7 +180,7 @@ apps/api/src/__tests__/snips/v2/wikipedia.test.ts	apps	parsed	v2_wikipedia_snips
 apps/api/src/__tests__/snips/v2/zdr.test.ts	apps	parsed	v2_zdr_snips_team_and_request_scoped_zero_retention_cleanup
 apps/api/src/__tests__/snips/wikipedia-url-parser.test.ts	apps	parsed	wikipedia_url_parser_tests_source_specialty_url_parser_project_language_article_and_rejection_contracts
 apps/api/src/__tests__/snips/zdr-helpers.ts	apps	parsed	zdr_helper_assertions_log_filtering_scrubbed_storage_gcs_cleanup_and_request_scope_status_404
-apps/api/src/config.ts	apps	not_parsed	pending_review	
+apps/api/src/config.ts	apps	parsed	api_typed_runtime_config	capability_provider_retry_worker_privacy_search_index_parser_and_test_policy_schema
 apps/api/src/controllers/__tests__/crawl.test.ts	apps	parsed	legacy_crawl_idempotency_test	duplicate_crawl_kickoff_guard
 apps/api/src/controllers/auth.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v0/admin/acuc-cache-clear.ts	apps	parsed	acuc_cache_clear_endpoint	team_scoped_api_key_and_team_cache_invalidation_sanitized_projection
@@ -268,8 +268,8 @@ apps/api/src/controllers/v2/token-usage-historical.ts	apps	parsed	v2_historical_
 apps/api/src/controllers/v2/token-usage.ts	apps	parsed	v2_token_usage_projection	camelcase_token_compatibility_projection_from_credit_balance
 apps/api/src/controllers/v2/types.ts	apps	parsed	request_schema_and_search_options	strict_schema_sources_categories_domains_scrapeOptions_default_markdown_timeout_bounds
 apps/api/src/controllers/v2/x402-search.ts	apps	parsed	v2_x402_search	multi_source_search_category_labels_per_type_limits_optional_sync_async_scrape_merge_preserve_original_fields
-apps/api/src/harness.ts	apps	not_parsed	pending_review	
-apps/api/src/index.ts	apps	not_parsed	pending_review	
+apps/api/src/harness.ts	apps	parsed	api_local_service_harness	process_container_readiness_restart_cleanup_and_live_eval_lifecycle_patterns
+apps/api/src/index.ts	apps	parsed	api_bootstrap_error_boundary	dns_cache_blocklist_engine_forcing_router_mount_shutdown_and_typed_error_envelopes
 apps/api/src/lib/__tests__/deduplicate-obs-array.test.ts	apps	parsed	extraction_dedupe_tests	exact_duplicate_nested_object_removal_without_merging_distinct_partial_items
 apps/api/src/lib/__tests__/html-to-markdown.test.ts	apps	parsed	html_to_markdown_tests	tolerant_conversion_empty_null_and_malformed_html_inputs_to_stable_markdown
 apps/api/src/lib/__tests__/html-transformer.test.ts	apps	parsed	html_transformer_tests	link_metadata_base_href_malformed_html_and_metadata_backfill_behavior
@@ -305,7 +305,7 @@ apps/api/src/lib/deep-research/deep-research-redis.ts	apps	parsed	ttl_research_s
 apps/api/src/lib/deep-research/deep-research-service.ts	apps	parsed	iterative_gap_research_loop	parallel query lanes, scrape/read, seen-URL dedupe, gap analysis, bounded continuation, final synthesis
 apps/api/src/lib/deep-research/research-manager.ts	apps	parsed	research_state_and_gap_planning	tracks seen URLs/findings/depth/failures and generates specific follow-up queries from prior evidence
 apps/api/src/lib/default-values.ts	apps	parsed	retrieval_default_values	default_origin_timeout_page_crawl_and_extractor_options
-apps/api/src/lib/deployment.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/deployment.ts	apps	parsed	api_deployment_profile_helpers	self_hosted_vs_hosted_error_contact_projection
 apps/api/src/lib/deprecations.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/engpicker.ts	apps	parsed	engine_quality_picker	sampled_urls_multi_transport_content_success_similarity_verdicts_uncertain_on_low_confidence
 apps/api/src/lib/entities.ts	apps	parsed	legacy_entity_shapes	page_search_document_search_v2_result_types_and_action_artifact_fields
@@ -385,7 +385,7 @@ apps/api/src/lib/scrape-interact/langsmith.ts	apps	parsed	interaction_trace_wrap
 apps/api/src/lib/scrape-interact/scrape-replay.ts	apps	parsed	scrape_replay_context	retained_url_options_only_action_sanitization_wait_clamping_output_action_skip_page_sync
 apps/api/src/lib/search-index-client.ts	apps	parsed	managed_search_index_client	optional_index_search_empty_on_failure_score_quality_freshness_rank_metadata_index_write_nonblocking
 apps/api/src/lib/search-query-builder.ts	apps	parsed	structured_query_filter_builder	category_to_site_filter_include_domains_exclude_domains_pdf_filter_category_map
-apps/api/src/lib/strings.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/strings.ts	apps	parsed	api_shared_boundary_strings	unsupported_source_message_as_gateway_boundary_projection_not_synthesis
 apps/api/src/lib/supabase-jobs.ts	apps	parsed	durable_job_lookup_helpers	null_or_empty_on_no_row_error_and_lightweight_ownership_lookup_separation
 apps/api/src/lib/tracking.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/url-utils.ts	apps	parsed	public_suffix_url_utils	psl_base_domain_extraction_root_domain_detection
@@ -396,7 +396,7 @@ apps/api/src/lib/withAuth.ts	apps	not_parsed	pending_review
 apps/api/src/lib/x402.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/zdr-helpers.ts	apps	parsed	zdr_flag_resolution	legacy_boolean_and_new_enum_flag_resolution_for_scrape_search_robots_modes
 apps/api/src/main/runWebScraper.ts	apps	parsed	api_worker_scrape_execution_wrapper	crawl_retry_non2xx_status_bounded_failure_and_hidden_job_metadata
-apps/api/src/natives.ts	apps	not_parsed	pending_review	
+apps/api/src/natives.ts	apps	parsed	api_native_helper_paths	platform_specific_native_parser_artifact_resolution
 apps/api/src/routes/admin.ts	apps	parsed	api_admin_route_wiring	privileged_health_metrics_queue_zdr_index_and_integration_key_control_projections
 apps/api/src/routes/shared.ts	apps	parsed	api_shared_route_middleware	auth_credit_idempotency_blocklist_country_jobid_timing_and_wrap_membrane_policies
 apps/api/src/routes/v0.ts	apps	not_parsed	pending_review	
@@ -573,7 +573,7 @@ apps/api/src/services/worker/nuq.ts	apps	parsed	durable_queue_primitive	backlog_
 apps/api/src/services/worker/redis.ts	apps	parsed	worker_redis_lua_scripts	atomic_semaphore_acquire_release_heartbeat_loaded_scripts_and_lease_zset
 apps/api/src/services/worker/scrape-worker.ts	apps	parsed	retrieval_worker_incremental_crawl	filtered_deduped_link_discovery_enqueue_robots_denial_cancellation_cleanup
 apps/api/src/services/worker/team-semaphore.ts	apps	parsed	team_capacity_semaphore	blocking_lease_acquire_jitter_heartbeat_abort_timeout_metrics_active_job_projection_release_cleanup
-apps/api/src/types.ts	apps	not_parsed	pending_review	
+apps/api/src/types.ts	apps	parsed	api_job_and_response_types	queue_mode_internal_options_monitoring_trace_billing_and_rate_limit_type_surface
 apps/api/src/types/branding.ts	apps	not_parsed	pending_review	
 apps/api/src/types/parse-diff.d.ts	apps	not_parsed	pending_review	
 apps/api/src/utils/integration.ts	apps	not_parsed	pending_review	

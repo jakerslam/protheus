@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 572
-- Not parsed: 705
+- Parsed: 579
+- Not parsed: 698
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -621,6 +621,13 @@
 | `apps/api/src/routes/v1.ts` | V1 API route wiring. | Legacy routes compose auth/rate-limit/credits/blocklist/idempotency/status/cancel/stream middleware around primitive controllers while keeping account projections separate from retrieval evidence. |
 | `apps/api/src/routes/v2.ts` | V2 API route wiring. | Current routes add parse uploads, browser/monitor/agent lanes, strict job-id validation for status/cancel/stream paths, and versioned endpoint composition without moving tool logic into routing. |
 | `apps/api/src/routes/admin.ts` | Admin route wiring. | Admin/debug endpoints expose health, metrics, queue, ZDR cleanup, index search, and integration key operations as privileged control-plane projections rather than research evidence. |
+| `apps/api/src/config.ts` | Typed runtime configuration schema. | Environment config declares capability/profile switches, provider endpoints, retry budgets, worker topology, cache/search/index toggles, privacy flags, and test settings as typed policy inputs. |
+| `apps/api/src/lib/deployment.ts` | Deployment-profile helpers. | Self-hosted vs hosted modes shape error-contact projection without changing retrieval evidence semantics. |
+| `apps/api/src/lib/strings.ts` | Shared unsupported-site message. | Canned unsupported-source text is a boundary error string, not a synthesis fallback or retrieval-quality signal. |
+| `apps/api/src/types.ts` | API job and response type surface. | Queue jobs separate scrape/crawl/sitemap modes, internal options, monitoring IDs, trace context, billing metadata, and rate-limiter modes before worker execution. |
+| `apps/api/src/natives.ts` | Native helper path resolver. | Native parser/helper artifacts are resolved by platform-specific extension and repository-relative path, keeping parser availability as capability metadata. |
+| `apps/api/src/index.ts` | API bootstrap and error boundary. | Startup installs DNS caching, initializes blocklist/engine forcing, mounts versioned routers, drains queues on shutdown, and maps validation/unknown errors into typed response envelopes. |
+| `apps/api/src/harness.ts` | Local service harness. | Harness starts/stops API, workers, queues, parser build, Postgres/RabbitMQ containers, waits for readiness, forwards logs, and guarantees cleanup for live/e2e tests. |
 
 ## Decisions So Far
 
@@ -788,6 +795,9 @@
 - Route wiring is not tool behavior. Versioned routers should compose membrane policies and delegate to primitive controllers/adapters, so workflow/CD logic does not drift into HTTP route registration.
 - Status, cancel, stream, queue, account, and admin endpoints are projections over stored work/control state. They can guide recovery and budgets but should not be treated as citable research evidence.
 - Worker retry wrappers can retry crawl/page extraction on failed or bad-status outcomes, but the terminal artifact must remain a bounded success/failure object with hidden diagnostics.
+- Capability/profile switches should be typed config or Tool CD fields, not prompt text. Provider URLs, retry budgets, privacy modes, worker counts, parser availability, and test capabilities all need explicit typed homes.
+- Live retrieval/eval harnesses need first-class lifecycle cleanup: process groups, readiness waits, queue shutdown, container ownership, and failure propagation are part of reliable workflow measurement.
+- Unsupported-source messages and deployment contact text are boundary projections. They should not become low-signal research phrasing or evidence-quality judgments.
 
 ## Candidate Assimilation Targets
 
@@ -894,6 +904,9 @@
 101. Change-tracking evidence lane: model previous/current/diff/json change artifacts as optional evidence facets behind refs. Ledger captured; candidate evidence-pack enrichment target.
 102. Route membrane parity guard: prove route/tool adapters only compose declared auth/budget/idempotency/status policies and never introduce hidden workflow/tool-selection behavior. Ledger captured; candidate architecture guard.
 103. Worker terminal artifact contract: retries should end in one normalized success/failure artifact with partial/gap metadata, not thrown traces or silent missing output. Ledger captured; candidate runtime/eval target.
+104. Typed capability config bridge: map runtime env/provider/parser/workers/privacy toggles into admitted Tool CD/profile fields so retrieval behavior is explicit and testable. Ledger captured; candidate Tool CD/config target.
+105. Live workflow harness lifecycle: workflow evals should own service startup/readiness/shutdown/cleanup and classify harness failures apart from retrieval or synthesis failures. Ledger captured; candidate eval-runner target.
+106. Boundary-message quarantine: static unsupported/deployment/contact strings should stay in Gateway/control projections and never be reused as synthesis fallbacks. Ledger captured; candidate projection hygiene guard.
 
 ## Remaining Work
 
