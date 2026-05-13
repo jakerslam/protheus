@@ -40,10 +40,10 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 967
-- Not parsed: 306
+- Parsed: 1014
+- Not parsed: 255
 - Skipped generated: 13
-- Skipped media or sample: 71
+- Skipped media or sample: 75
 
 ## Parsed Files
 
@@ -1016,6 +1016,53 @@
 | `.github/workflows/test-rust-sdk.yml` | Rust SDK test workflow. | Formatting, build, clippy, unit tests, and example builds provide a layered adapter-quality gate. |
 | `.github/workflows/test-server.yml` | Full-stack self-host retrieval CI. | Matrixes engine/proxy/search/AI profiles, starts local SearXNG/test site/browser/parser/DB/queue services, and uploads logs for hard/soft retrieval classification. |
 | `.github/workflows/validate-lockfiles.yml` | Lockfile validation workflow. | Frozen lockfile validation is a small upstream dependency-integrity gate, not workflow behavior. |
+| `.gitignore` | Repository ignore policy. | Local env files, logs, debug output, generated crawl/link dumps, SDK venvs, and running docs are quarantined from tracked source. |
+| `.gitmodules` | External SDK example surface. | Go SDK and example repos are externalized as submodules, reinforcing SDK/examples as compatibility surfaces rather than core retrieval logic. |
+| `CONTRIBUTING.md` | Local stack setup guide. | Reliable local retrieval needs Redis, Postgres, workers, optional parser/render/AI services, and snips tests as explicit harness pieces. |
+| `LICENSE` | License metadata. | AGPL license only; no retrieval primitive beyond dependency/license governance awareness. |
+| `apps/api/.dockerignore` | API container ignore policy. | Node/dist/target/env/CSV artifacts are omitted from builds, keeping runtime images focused. |
+| `apps/api/.env.example` | Capability profile surface. | Search provider, rendered fetch, proxy, concurrency, billing, logging, parser, and webhook capabilities are explicit config fields. |
+| `apps/api/.env.local` | Local env placeholder. | Blank local capability surface; no reusable retrieval mechanics. |
+| `apps/api/.gitattributes` | API text normalization. | LF normalization only. |
+| `apps/api/.gitignore` | API local artifact hygiene. | Env files, logs, test results, generated branding bundles, and runtime artifacts stay local. |
+| `apps/api/.husky/pre-commit` | Precommit scope. | Local guard runs API dead-code and lint-staged checks only. |
+| `apps/api/.prettierrc` | API format config. | Formatting metadata only. |
+| `apps/api/Dockerfile` | API container build. | Builds Go markdown parser and native artifacts in separate stages, then runs a production harness with copied built artifacts. |
+| `apps/api/audit-ci.jsonc` | API dependency audit config. | Advisory allowlists are explicit governance exceptions, not runtime behavior or synthesis fallback. |
+| `apps/api/jest.config.ts` | API test reporting config. | JUnit reports, open-handle detection, and forced exit make long-running retrieval tests measurable. |
+| `apps/api/knip.config.ts` | API dead-code guard. | Worker/test entries and legacy billing exceptions are explicit so cleanup does not erase active queue/runtime paths. |
+| `apps/api/native/.cargo/config.toml` | Native build config. | Static Windows CRT flag only; no retrieval primitive. |
+| `apps/api/native/.editorconfig` | Native style config. | LF/UTF-8/whitespace hygiene only. |
+| `apps/api/native/.gitattributes` | Native text/generated artifact policy. | Generated NAPI/WASI outputs are hidden from language detection while source files keep LF merge behavior. |
+| `apps/api/native/.gitignore` | Native local artifact hygiene. | Node, Rust, NAPI, and WASI build outputs remain generated/local. |
+| `apps/api/native/.prettierignore` | Native formatter hygiene. | Node modules only. |
+| `apps/api/native/.taplo.toml` | Native TOML format policy. | Formatting metadata only. |
+| `apps/api/native/.yarnrc.yml` | Native package manager config. | Node-modules linker and registry setup are build tooling details. |
+| `apps/api/native/Cargo.toml` | Native dependency surface. | Native parser module depends on HTML cleanup, robots, URL/domain, PDF, Office document, ZIP, and tracing crates as capability lanes. |
+| `apps/api/native/README.md` | NAPI template docs. | Platform-native packages can be prebuilt per target; useful as distribution pattern, not runtime retrieval logic. |
+| `apps/api/native/build.rs` | Native build hook. | NAPI setup only. |
+| `apps/api/native/package.json` | Native package contract. | Declares binary name, supported native targets, generated files, and build scripts for platform-specific parser artifacts. |
+| `apps/api/native/rustfmt.toml` | Native Rust formatting. | Formatting metadata only. |
+| `apps/api/native/src/logging.rs` | Native trace bridge. | Captures native logs on success, error, and panic, and can embed them across the NAPI boundary while keeping them diagnostic. |
+| `apps/api/native/tsconfig.json` | Native TypeScript config. | Nodenext binding build config only. |
+| `apps/api/native/wasi-worker-browser.mjs` | Native WASI browser worker. | Browser-side NAPI/WASI worker instantiation is a capability packaging detail, not workflow policy. |
+| `apps/api/openapi-v0.json` | Legacy API schema snapshot. | Legacy scrape/crawl/search schemas confirm older compatibility shape; useful as parity evidence only. |
+| `apps/api/openapi.json` | Current API schema surface. | Search, scrape, batch, crawl, map, extract, deep research, and usage endpoints expose typed options/status shapes that can seed Tool CD contracts. |
+| `apps/api/package.json` | API runtime manifest. | Scripts split server, workers, reconciler, prefetch, extract, index, snips, and prod modes; dependency policies explicitly bound install/build behavior. |
+| `apps/api/pnpm-workspace.yaml` | API workspace dependency policy. | Native workspace package and dependency minimum release age gate reduce supply-chain churn. |
+| `apps/api/requests.http` | API request scratchpad. | Executable examples cover scrape-interact, crawl/status/cancel, extract/status, batch/status, map, search, active crawls, and LLMs TXT. |
+| `apps/api/requests.kulala.http` | API request scratchpad variant. | Live/local examples include parse-PDF and endpoint parity probes. |
+| `apps/api/requests/branding.requests.http` | Branding request scratchpad. | Branding artifact examples remain optional rich evidence facets. |
+| `apps/api/requests/v2/browser.requests.http` | Browser request scratchpad. | Browser sessions expose TTL, streaming, execute-code, screenshot, content extraction, and deletion as explicit capability actions. |
+| `apps/api/requests/v2/crawl.requests.http` | Crawl request scratchpad. | Start/status/cancel examples reinforce async handle lifecycle. |
+| `apps/api/requests/v2/map.requests.http` | Map request scratchpad. | Simple map endpoint example only. |
+| `apps/api/requests/v2/scrape.requests.http` | Scrape request scratchpad. | Summary, JSON, change-tracking, and parser options show artifact facets as tool inputs, not answer formats. |
+| `apps/api/requests/v2/search.requests.http` | Search request scratchpad. | Search source lanes accept web/images/news as typed inputs, with object-form source options. |
+| `apps/api/sharedLibs/go-html-to-md/.gitignore` | Go parser local hygiene. | Built shared library remains generated. |
+| `apps/api/sharedLibs/go-html-to-md/go.mod` | Go parser dependency surface. | Markdown converter pins/replaces parser module and depends on GoQuery/Cascadia-style HTML traversal. |
+| `apps/api/tsconfig.json` | API TypeScript config. | Strict NodeNext plus custom type roots/paths for typed runtime boundaries. |
+| `apps/api/utils/find_uncovered_files.sh` | Ownership coverage utility. | Diffing tracked files against CODEOWNERS patterns can detect unowned surfaces before workflow debt hides there. |
+| `apps/api/utils/logview.js` | Crawl log visualizer. | Converts crawl logs into URL/job graph artifacts for debugging queue/crawl behavior, but those artifacts are diagnostic-only. |
 
 ## Decisions So Far
 
@@ -1448,6 +1495,18 @@
 253. Secret/capability-gated E2E: hosted or private-network SDK tests should be admitted by explicit capability/profile fields instead of silently weakening generic workflow quality metrics.
 254. Layered SDK/tool quality gates: format/build/lint/unit/example/E2E checks catch adapter regressions before synthesis sees malformed or missing evidence.
 255. Failure-report metadata shape: bug/self-host templates reinforce that useful failure archives need reproduction, environment/profile, logs, configuration, and expected-vs-actual behavior.
+256. Capability profile env surface: search engines, rendered fetch, proxies, concurrency, parsers, logging, billing, and webhooks should be typed profile fields, not prompt or synthesis behavior.
+257. Containerized parser/runtime assembly: production web tooling can build parser/native artifacts separately and copy only runtime artifacts into the service image.
+258. Native trace bridge: parser/native modules should preserve logs across success, error, and panic paths as hidden diagnostics without turning traces into evidence.
+259. API schema as Tool CD source: OpenAPI request/response shapes are useful raw material for Tool CD fields such as formats, cache age, actions, status handles, and search source lanes.
+260. Executable request scratchpads: HTTP request examples can seed deterministic adapter fixtures for scrape, browser, crawl, extract, batch, map, and search parity.
+261. Search source lanes as primitive input: web/images/news and object-form sources should remain typed discovery lanes, not hardcoded query phrasing.
+262. Artifact facets as request fields: summary, JSON, change tracking, parser toggles, screenshots, and branding are optional evidence facets, not mandated final-answer formats.
+263. Async service split: API server, queue workers, prefetch/reconciler workers, extract worker, index worker, and parser service are separate lifecycle roles that evals should start/observe explicitly.
+264. Supply-chain release-age gate: minimum dependency release age can reduce churn and malicious-package exposure without affecting retrieval semantics.
+265. Ownership coverage guard: CODEOWNERS gap detection can surface unowned retrieval/tooling areas before regressions lose clear responsibility.
+266. Crawl graph debug artifact: queue/crawl logs can be transformed into graph artifacts for diagnosing coverage, lock, and expansion behavior while remaining diagnostic-only.
+267. Document fixture corpus: DOCX, ODT, RTF, and XLSX samples are fixture material for document extraction quality, not source code to assimilate.
 
 ## Remaining Work
 
@@ -1464,6 +1523,7 @@
 - Screenshot editor, internal-link, topic-visualization, Llama crawler, realtime pointer, and OpenAI Swarm examples are parsed; useful signals are visual artifact facets, corpus-derived analysis artifacts, composite handoff shape, and avoiding top-link-only candidate collapse.
 - AI-news/podcast/full-app pointers and the readable deployment/scheduling/price/GitHub Actions articles are parsed; useful signals are recurring retrieval lifecycle, historical baselines, health checks, retention cleanup, and deployment profile separation.
 - GitHub CI/deploy/publish/test workflows and issue templates are parsed; useful signals are capability matrices, exact verification sidecars, hidden dedupe markers, version-gated side effects, registry retention ceilings, and full-stack retrieval CI with local dependency fixtures.
+- Root/API config, native parser packaging, OpenAPI schema surfaces, request scratchpads, document samples, and local utility scripts are parsed; useful signals are typed capability profiles, parser/runtime assembly, hidden native diagnostics, Tool CD schema seeds, executable request fixtures, and crawl graph debug artifacts.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.

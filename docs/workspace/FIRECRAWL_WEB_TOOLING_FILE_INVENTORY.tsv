@@ -43,36 +43,36 @@ path	top_level	status	reason	patterns
 .github/workflows/test-rust-sdk.yml	.github	parsed	sdk_test_workflow	format_build_lint_unit_examples_layered_gate
 .github/workflows/test-server.yml	.github	parsed	full_stack_retrieval_ci	engine_proxy_search_ai_matrix_local_services_and_logs
 .github/workflows/validate-lockfiles.yml	.github	parsed	lockfile_integrity_gate	frozen_lockfile_validation
-.gitignore	.gitignore	not_parsed	pending_review	
-.gitmodules	.gitmodules	not_parsed	pending_review	
+.gitignore	.gitignore	parsed	repo_hygiene	local_logs_debug_env_samples_ignored
+.gitmodules	.gitmodules	parsed	submodule_surface	go_sdk_examples_externalized
 CLAUDE.md	CLAUDE.md	parsed	repo_workflow_and_test_guidance	snips_e2e_preferred_failure_path_tests
-CONTRIBUTING.md	CONTRIBUTING.md	not_parsed	pending_review	
-LICENSE	LICENSE	not_parsed	pending_review	
+CONTRIBUTING.md	CONTRIBUTING.md	parsed	local_stack_contributor_guide	redis_postgres_workers_optional_services_and_snips_tests
+LICENSE	LICENSE	parsed	license_metadata	agpl_only_no_retrieval_primitive
 README.md	README.md	parsed	overview_docs_feature_surface	search_scrape_interact_llm_ready_outputs
 SELF_HOST.md	SELF_HOST.md	parsed	deployment_constraints_and_provider_options	self_host_google_searxng_fire_engine_proxy_limits
-apps/api/.dockerignore	apps	not_parsed	pending_review	
-apps/api/.env.example	apps	not_parsed	pending_review	
-apps/api/.env.local	apps	not_parsed	pending_review	
-apps/api/.gitattributes	apps	not_parsed	pending_review	
-apps/api/.gitignore	apps	not_parsed	pending_review	
-apps/api/.husky/pre-commit	apps	not_parsed	pending_review	
-apps/api/.prettierrc	apps	not_parsed	pending_review	
-apps/api/Dockerfile	apps	not_parsed	pending_review	
-apps/api/audit-ci.jsonc	apps	not_parsed	pending_review	
-apps/api/jest.config.ts	apps	not_parsed	pending_review	
-apps/api/knip.config.ts	apps	not_parsed	pending_review	
-apps/api/native/.cargo/config.toml	apps	not_parsed	pending_review	
-apps/api/native/.editorconfig	apps	not_parsed	pending_review	
-apps/api/native/.gitattributes	apps	not_parsed	pending_review	
-apps/api/native/.gitignore	apps	not_parsed	pending_review	
-apps/api/native/.prettierignore	apps	not_parsed	pending_review	
-apps/api/native/.taplo.toml	apps	not_parsed	pending_review	
-apps/api/native/.yarnrc.yml	apps	not_parsed	pending_review	
-apps/api/native/Cargo.toml	apps	not_parsed	pending_review	
-apps/api/native/README.md	apps	not_parsed	pending_review	
-apps/api/native/build.rs	apps	not_parsed	pending_review	
-apps/api/native/package.json	apps	not_parsed	pending_review	
-apps/api/native/rustfmt.toml	apps	not_parsed	pending_review	
+apps/api/.dockerignore	apps	parsed	container_build_hygiene	omit_node_dist_target_env_csv
+apps/api/.env.example	apps	parsed	capability_profile_config	search_render_proxy_concurrency_billing_logging_flags
+apps/api/.env.local	apps	parsed	local_env_placeholder	blank_local_capability_surface
+apps/api/.gitattributes	apps	parsed	text_normalization	lf_normalization_only
+apps/api/.gitignore	apps	parsed	api_local_hygiene	env_logs_results_generated_branding_ignored
+apps/api/.husky/pre-commit	apps	parsed	precommit_scope	api_knip_and_lint_staged_only
+apps/api/.prettierrc	apps	parsed	format_config	repo_style_only_no_retrieval_primitive
+apps/api/Dockerfile	apps	parsed	api_container_build	go_parser_native_artifacts_built_then_runtime_harness_started
+apps/api/audit-ci.jsonc	apps	parsed	api_dependency_audit	allowlisted_advisories_are_governance_only
+apps/api/jest.config.ts	apps	parsed	test_report_config	junit_output_open_handle_detection_and_force_exit
+apps/api/knip.config.ts	apps	parsed	dead_code_guard	worker_test_entries_and_legacy_billing_exceptions
+apps/api/native/.cargo/config.toml	apps	parsed	native_build_config	static_windows_crt_only
+apps/api/native/.editorconfig	apps	parsed	native_style_config	lf_utf8_trim_insert_final_newline
+apps/api/native/.gitattributes	apps	parsed	native_text_config	generated_native_outputs_hidden_from_linguist
+apps/api/native/.gitignore	apps	parsed	native_local_hygiene	node_rust_napi_wasi_outputs_ignored
+apps/api/native/.prettierignore	apps	parsed	native_format_hygiene	node_modules_only
+apps/api/native/.taplo.toml	apps	parsed	native_toml_format_hygiene	taplo_formatting_only
+apps/api/native/.yarnrc.yml	apps	parsed	native_package_manager_config	node_modules_linker_and_registry
+apps/api/native/Cargo.toml	apps	parsed	native_dependency_surface	html_pdf_document_robots_url_and_parser_capability_crate_deps
+apps/api/native/README.md	apps	parsed	napi_template_doc	platform_native_package_release_pattern_only
+apps/api/native/build.rs	apps	parsed	napi_build_hook	napi_setup_only
+apps/api/native/package.json	apps	parsed	native_package_contract	napi_targets_binary_name_and_platform_artifact_files
+apps/api/native/rustfmt.toml	apps	parsed	native_rustfmt_config	format_style_only
 apps/api/native/src/crawler.rs	apps	parsed	native_crawler_filtering	denial_reasons_depth_domain_file_protocol_robots_include_exclude_sitemap_instruction_compilation
 apps/api/native/src/document/mod.rs	apps	parsed	document_conversion_entry	
 apps/api/native/src/document/model/mod.rs	apps	parsed	normalized_document_model	
@@ -88,31 +88,31 @@ apps/api/native/src/document/renderers/mod.rs	apps	parsed	document_renderer_modu
 apps/api/native/src/engpicker.rs	apps	parsed	engine_picker_quality_probe	compare_low_cost_fetch_against_rendered_gold_standard_similarity_threshold_uncertain_verdict
 apps/api/native/src/html.rs	apps	parsed	native_html_transformer	main_content_cleanup_metadata_backfill_base_href_srcset_largest_image_absolute_links_attributes
 apps/api/native/src/lib.rs	apps	parsed	native_module_exports	explicit_native_boundary_exports_for_crawler_html_pdf_engpicker_document
-apps/api/native/src/logging.rs	apps	not_parsed	pending_review	
+apps/api/native/src/logging.rs	apps	parsed	native_trace_bridge	capture_logs_on_success_error_and_panic_across_napi_boundary
 apps/api/native/src/pdf.rs	apps	parsed	native_pdf_processor	detect_only_vs_process_modes_confidence_page_count_structured_logs
 apps/api/native/src/utils.rs	apps	parsed	native_error_adapter	convert_native_errors_to_napi_boundary_errors
-apps/api/native/tsconfig.json	apps	not_parsed	pending_review	
-apps/api/native/wasi-worker-browser.mjs	apps	not_parsed	pending_review	
-apps/api/openapi-v0.json	apps	not_parsed	pending_review	
-apps/api/openapi.json	apps	not_parsed	pending_review	
-apps/api/package.json	apps	not_parsed	pending_review	
+apps/api/native/tsconfig.json	apps	parsed	native_tsconfig	nodenext_binding_build_config
+apps/api/native/wasi-worker-browser.mjs	apps	parsed	native_wasi_worker	browser_wasi_napi_worker_instantiation
+apps/api/openapi-v0.json	apps	parsed	legacy_api_schema	scrape_crawl_search_contract_snapshot
+apps/api/openapi.json	apps	parsed	api_schema_surface	search_scrape_batch_crawl_typed_options_and_status_shapes
+apps/api/package.json	apps	parsed	api_runtime_manifest	separate_server_worker_reconciler_extract_index_scripts_and_dependency_policies
 apps/api/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
-apps/api/pnpm-workspace.yaml	apps	not_parsed	pending_review	
-apps/api/requests.http	apps	not_parsed	pending_review	
-apps/api/requests.kulala.http	apps	not_parsed	pending_review	
-apps/api/requests/branding.requests.http	apps	not_parsed	pending_review	
-apps/api/requests/v2/browser.requests.http	apps	not_parsed	pending_review	
-apps/api/requests/v2/crawl.requests.http	apps	not_parsed	pending_review	
-apps/api/requests/v2/map.requests.http	apps	not_parsed	pending_review	
-apps/api/requests/v2/scrape.requests.http	apps	not_parsed	pending_review	
-apps/api/requests/v2/search.requests.http	apps	not_parsed	pending_review	
-apps/api/samples/sample.docx	apps	not_parsed	pending_review	
-apps/api/samples/sample.odt	apps	not_parsed	pending_review	
-apps/api/samples/sample.rtf	apps	not_parsed	pending_review	
-apps/api/samples/sample.xlsx	apps	not_parsed	pending_review	
-apps/api/sharedLibs/go-html-to-md/.gitignore	apps	not_parsed	pending_review	
+apps/api/pnpm-workspace.yaml	apps	parsed	workspace_dependency_policy	native_workspace_and_release_age_dependency_gate
+apps/api/requests.http	apps	parsed	request_fixture_scratchpad	v2_scrape_interact_crawl_extract_batch_map_search_status_examples
+apps/api/requests.kulala.http	apps	parsed	request_fixture_scratchpad	parse_pdf_and_live_endpoint_examples
+apps/api/requests/branding.requests.http	apps	parsed	request_fixture_scratchpad	branding_artifact_endpoint_examples
+apps/api/requests/v2/browser.requests.http	apps	parsed	browser_request_fixture	ttl_webview_execute_screenshot_content_and_delete_examples
+apps/api/requests/v2/crawl.requests.http	apps	parsed	crawl_request_fixture	crawl_start_status_cancel_examples
+apps/api/requests/v2/map.requests.http	apps	parsed	map_request_fixture	map_endpoint_example
+apps/api/requests/v2/scrape.requests.http	apps	parsed	scrape_request_fixture	summary_json_change_tracking_and_parser_option_examples
+apps/api/requests/v2/search.requests.http	apps	parsed	search_request_fixture	source_lane_web_images_news_examples
+apps/api/samples/sample.docx	apps	skipped_media_or_sample	document_fixture_sample	binary_docx_sample_for_document_extraction
+apps/api/samples/sample.odt	apps	skipped_media_or_sample	document_fixture_sample	binary_odt_sample_for_document_extraction
+apps/api/samples/sample.rtf	apps	skipped_media_or_sample	document_fixture_sample	rtf_sample_for_document_extraction
+apps/api/samples/sample.xlsx	apps	skipped_media_or_sample	document_fixture_sample	binary_xlsx_sample_for_document_extraction
+apps/api/sharedLibs/go-html-to-md/.gitignore	apps	parsed	go_parser_local_hygiene	built_shared_library_ignored
 apps/api/sharedLibs/go-html-to-md/README.md	apps	parsed	html_to_markdown_native_build_note	platform_specific_shared_library_build_boundary
-apps/api/sharedLibs/go-html-to-md/go.mod	apps	not_parsed	pending_review	
+apps/api/sharedLibs/go-html-to-md/go.mod	apps	parsed	go_parser_dependency_surface	firecrawl_html_to_markdown_replace_and_parser_deps
 apps/api/sharedLibs/go-html-to-md/go.sum	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
 apps/api/sharedLibs/go-html-to-md/html-to-markdown.go	apps	parsed	native_html_to_markdown_bridge	c_shared_go_converter_gfm_robust_code_blocks_and_explicit_c_string_free
 apps/api/src/__tests__/deep-research/unit/deep-research-redis.test.ts	apps	parsed	deep_research_state_tests	ttl_save_null_miss_append_activities_and_expiry_projection
@@ -577,9 +577,9 @@ apps/api/src/types.ts	apps	parsed	api_job_and_response_types	queue_mode_internal
 apps/api/src/types/branding.ts	apps	not_parsed	pending_review	
 apps/api/src/types/parse-diff.d.ts	apps	not_parsed	pending_review	
 apps/api/src/utils/integration.ts	apps	not_parsed	pending_review	
-apps/api/tsconfig.json	apps	not_parsed	pending_review	
-apps/api/utils/find_uncovered_files.sh	apps	not_parsed	pending_review	
-apps/api/utils/logview.js	apps	not_parsed	pending_review	
+apps/api/tsconfig.json	apps	parsed	api_tsconfig	strict_nodenext_with_custom_type_roots
+apps/api/utils/find_uncovered_files.sh	apps	parsed	ownership_gap_script	codeowners_coverage_diff_for_unowned_files
+apps/api/utils/logview.js	apps	parsed	crawl_log_visualizer	crawl_job_graph_from_logs_debug_only
 apps/api/utils/urldump-redis.js	apps	not_parsed	pending_review	
 apps/api/utils/urldump.js	apps	not_parsed	pending_review	
 apps/api/v1-openapi.json	apps	not_parsed	pending_review	
