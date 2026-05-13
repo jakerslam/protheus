@@ -154,12 +154,12 @@ apps/api/src/__tests__/snips/v2/audio-routing.test.ts	apps	not_parsed	pending_re
 apps/api/src/__tests__/snips/v2/batch-scrape.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/billing.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/concurrency.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts	apps	parsed	crawl_prompt_behavior_placeholder	explicit_option_precedence_intent_placeholder
 apps/api/src/__tests__/snips/v2/crawl.test.ts	apps	parsed	crawl_e2e_behavior_tests	sitemap_mode_include_path_filter_url_normalization_expectations
 apps/api/src/__tests__/snips/v2/document-converter.test.ts	apps	parsed	document_converter_exact_output_tests	
 apps/api/src/__tests__/snips/v2/iframe-selectors.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/lib.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/map.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/map.test.ts	apps	parsed	map_e2e_behavior_tests	timeout_sitemap_limit_base_domain_warning_redirect_expectations
 apps/api/src/__tests__/snips/v2/monitor.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/parse.test.ts	apps	parsed	parse_upload_contract_tests	
 apps/api/src/__tests__/snips/v2/parsers.test.ts	apps	parsed	parser_contract_tests	
@@ -181,7 +181,7 @@ apps/api/src/__tests__/snips/v2/zdr.test.ts	apps	not_parsed	pending_review
 apps/api/src/__tests__/snips/wikipedia-url-parser.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/zdr-helpers.ts	apps	not_parsed	pending_review	
 apps/api/src/config.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/__tests__/crawl.test.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/__tests__/crawl.test.ts	apps	parsed	legacy_crawl_idempotency_test	duplicate_crawl_kickoff_guard
 apps/api/src/controllers/auth.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v0/admin/acuc-cache-clear.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v0/admin/autumn-health.ts	apps	not_parsed	pending_review	
@@ -213,8 +213,8 @@ apps/api/src/controllers/v1/crawl-cancel.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v1/crawl-errors.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/crawl-ongoing.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/crawl-status-ws.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/crawl-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/crawl.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/crawl-status.ts	apps	parsed	v1_crawl_status_projection	bounded_result_window_next_cursor_byte_limit
+apps/api/src/controllers/v1/crawl.ts	apps	parsed	v1_crawl_request_controller	validate_options_robots_ttl_group_queue_handle
 apps/api/src/controllers/v1/credit-usage-historical.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/credit-usage.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/deep-research-status.ts	apps	parsed	deep_research_status_projection	projects final analysis/sources/activities/expiry/depth/status without exposing queue internals
@@ -224,7 +224,7 @@ apps/api/src/controllers/v1/extract.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v1/fireclaw.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/generate-llmstxt-status.ts	apps	parsed	site_corpus_status_projection	returns compact corpus index or compact plus full text with status/expiry/error
 apps/api/src/controllers/v1/generate-llmstxt.ts	apps	parsed	site_corpus_async_request	ZDR-gated async corpus generation initialized with max URL/full text/cache options
-apps/api/src/controllers/v1/map.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/map.ts	apps	parsed	v1_map_discovery_pipeline	index_sitemap_search_merge_path_filter_cosine_rank_dedupe
 apps/api/src/controllers/v1/queue-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/scrape-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/scrape.ts	apps	not_parsed	pending_review	
@@ -243,19 +243,19 @@ apps/api/src/controllers/v2/agent.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v2/batch-scrape.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/browser.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/concurrency-check.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/crawl-cancel.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/crawl-errors.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/crawl-ongoing.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/crawl-params-preview.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/crawl-status-ws.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/crawl-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/crawl.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/crawl-cancel.ts	apps	parsed	v2_crawl_cancel_projection	ownership_checked_cancelled_terminal_state
+apps/api/src/controllers/v2/crawl-errors.ts	apps	parsed	v2_crawl_error_projection	sanitized_per_url_errors_and_robots_blocked_signal
+apps/api/src/controllers/v2/crawl-ongoing.ts	apps	parsed	v2_ongoing_crawl_projection	handle_origin_created_options_without_queue_internals
+apps/api/src/controllers/v2/crawl-params-preview.ts	apps	parsed	v2_crawl_option_preview	site_structure_then_optional_planner_options
+apps/api/src/controllers/v2/crawl-status-ws.ts	apps	parsed	v2_crawl_stream_projection	catchup_document_done_error_messages
+apps/api/src/controllers/v2/crawl-status.ts	apps	parsed	v2_crawl_status_projection	counts_expiry_bounded_windows_next_cursor_warnings
+apps/api/src/controllers/v2/crawl.ts	apps	parsed	v2_crawl_request_controller	option_precedence_regex_validation_robots_ttl_queue_handle
 apps/api/src/controllers/v2/credit-usage-historical.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/credit-usage.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/extract-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/extract.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/f-search.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/map.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/map.ts	apps	parsed	v2_map_discovery_controller	timeout_cancel_avgrab_fallback_base_domain_warning
 apps/api/src/controllers/v2/monitor.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/parse.ts	apps	parsed	parse_only_document_lane	classifies uploaded file kind, rejects browsing/rendering options, forces extraction engine, disables cache
 apps/api/src/controllers/v2/queue-status.ts	apps	not_parsed	pending_review	
@@ -299,7 +299,7 @@ apps/api/src/lib/concurrency-limit.ts	apps	not_parsed	pending_review
 apps/api/src/lib/concurrency-queue-reconciler.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/cost-tracking.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/crawl-redis.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/crawl-redis.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/crawl-redis.ts	apps	parsed	crawl_state_url_locking_ttl	ttl_state_canonical_url_locks_limit_before_work_finish_cleanup
 apps/api/src/lib/custom-error.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/deep-research/deep-research-redis.ts	apps	parsed	ttl_research_state_persistence	TTL-bounded state appends activities/sources/summaries while local manager caps findings
 apps/api/src/lib/deep-research/deep-research-service.ts	apps	parsed	iterative_gap_research_loop	parallel query lanes, scrape/read, seen-URL dedupe, gap analysis, bounded continuation, final synthesis
@@ -402,7 +402,7 @@ apps/api/src/routes/shared.ts	apps	not_parsed	pending_review
 apps/api/src/routes/v0.ts	apps	not_parsed	pending_review	
 apps/api/src/routes/v1.ts	apps	not_parsed	pending_review	
 apps/api/src/routes/v2.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/WebScraper/__tests__/crawler.test.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/WebScraper/__tests__/crawler.test.ts	apps	parsed	webcrawler_unit_tests	limit_enforcement_subdomain_path_full_url_regex_filtering
 apps/api/src/scraper/WebScraper/__tests__/dns.test.ts	apps	parsed	dns_cache_test	cached_dns_lookup_installed_at_transport_boundary
 apps/api/src/scraper/WebScraper/__tests__/utils.test.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/WebScraper/crawler.ts	apps	parsed	crawl_candidate_filtering	link_filters_before_budget_domain_depth_include_exclude_robots_sitemap_dedupe_iframe_link_fallback
@@ -565,7 +565,7 @@ apps/api/src/services/webhook/index.ts	apps	not_parsed	pending_review
 apps/api/src/services/webhook/queue.ts	apps	not_parsed	pending_review	
 apps/api/src/services/webhook/schema.ts	apps	not_parsed	pending_review	
 apps/api/src/services/webhook/types.ts	apps	not_parsed	pending_review	
-apps/api/src/services/worker/crawl-logic.ts	apps	not_parsed	pending_review	
+apps/api/src/services/worker/crawl-logic.ts	apps	parsed	crawl_finish_aggregation	completed_page_count_webhook_projection_without_full_data_for_newer_path
 apps/api/src/services/worker/nuq-prefetch-worker.ts	apps	not_parsed	pending_review	
 apps/api/src/services/worker/nuq-reconciler-worker.ts	apps	not_parsed	pending_review	
 apps/api/src/services/worker/nuq-worker.ts	apps	not_parsed	pending_review	

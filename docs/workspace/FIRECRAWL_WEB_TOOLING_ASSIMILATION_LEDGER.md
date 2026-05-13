@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 104
-- Not parsed: 1174
+- Parsed: 121
+- Not parsed: 1157
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -153,6 +153,23 @@
 | `apps/api/src/lib/generate-llmstxt/generate-llmstxt-supabase.ts` | Site corpus cache. | Cache lookup normalizes to hostname, can reuse a larger cached corpus for a smaller requested limit, and rejects week-old corpus entries. |
 | `apps/api/src/controllers/v1/generate-llmstxt.ts` | Site corpus request controller. | Corpus generation is async, ZDR-gated, initialized with max URL/show-full/cache options, and projected by job ID. |
 | `apps/api/src/controllers/v1/generate-llmstxt-status.ts` | Site corpus status controller. | Status projection can return only compact index or compact plus full text based on request, with expiry and failure state. |
+| `apps/api/src/controllers/v2/crawl.ts` | V2 crawl request controller. | Explicit crawler options override agent/planner-generated options, invalid path regexes fail early, robots are fetched before queueing, and crawl groups get TTL-bounded handles. |
+| `apps/api/src/controllers/v2/map.ts` | V2 map request controller. | Map is treated as lightweight URL discovery with timeout/cancel support, optional index/search/sitemap sources, and low-result warnings that can drive broader retrieval. |
+| `apps/api/src/controllers/v2/crawl-params-preview.ts` | Crawl option preview controller. | Site structure can be discovered before option planning, but option generation should remain optional and never override explicit request fields. |
+| `apps/api/src/controllers/v2/crawl-status.ts` | V2 crawl status projection. | Status returns counts, expiry, bounded result windows, next cursors, and warnings rather than raw queue state or unbounded crawl payloads. |
+| `apps/api/src/controllers/v2/crawl-cancel.ts` | Crawl cancellation controller. | Cancellation is persisted as crawl state after ownership checks and should project as a terminal workflow state. |
+| `apps/api/src/controllers/v2/crawl-errors.ts` | Crawl error projection. | Failed page errors are projected as sanitized per-URL summaries, while robots-blocked URLs are separated as access-policy evidence. |
+| `apps/api/src/controllers/v2/crawl-ongoing.ts` | Ongoing crawl projection. | Ongoing async work is listed by handle, origin URL, creation time, and options without exposing queue internals. |
+| `apps/api/src/controllers/v2/crawl-status-ws.ts` | Streaming crawl status projection. | Streaming results begin with a catchup projection, then emit bounded document events and done/error terminal messages. |
+| `apps/api/src/lib/crawl-redis.ts` | Crawl state and URL locking. | Crawl state is TTL-bounded; URL locks normalize/canonicalize variants, enforce limits before work, track visited sets, and clear visited memory at finish. |
+| `apps/api/src/services/worker/crawl-logic.ts` | Crawl finish aggregation. | Completion aggregates finished page refs/counts and emits completion events without embedding full data in newer webhook-style projections. |
+| `apps/api/src/controllers/v1/map.ts` | V1 map implementation. | Discovery merges index, sitemap, and search-map results, uses path/domain filters, dedupes URL variants, and optionally ranks links against a search term. |
+| `apps/api/src/controllers/v1/crawl.ts` | V1 crawl controller. | The older crawl path confirms the same primitive: validate options, fetch robots, create a TTL group, save crawl state, enqueue kickoff, and return a handle. |
+| `apps/api/src/controllers/v1/crawl-status.ts` | V1 crawl status projection. | Status pagination enforces a byte ceiling and cursor-style next URL so large crawls do not become unbounded chat-visible payloads. |
+| `apps/api/src/__tests__/snips/v2/map.test.ts` | Map E2E behavior tests. | Tests cover timeout handling, query-parameter preservation, sitemap-only limits, base-domain warnings, and redirect-normalized mapping. |
+| `apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts` | Crawl prompt test placeholder. | The intended behavior is explicit-option precedence, graceful invalid-prompt handling, and schema acceptance, but this file is currently a weak placeholder. |
+| `apps/api/src/controllers/__tests__/crawl.test.ts` | Legacy crawl controller test. | Idempotency keys prevent duplicate crawl kickoff requests, a useful retry-safety primitive for async retrieval. |
+| `apps/api/src/scraper/WebScraper/__tests__/crawler.test.ts` | WebCrawler unit tests. | Tests lock limit enforcement plus include/exclude behavior across subdomains and full-URL regex modes. |
 
 ## Decisions So Far
 
@@ -178,6 +195,8 @@
 - Broad research benefits from a stateful but bounded gap loop: retain seen locators, evidence refs, source refs, current gaps, depth, elapsed time, and failed attempts; generate follow-up query lanes from collected evidence; stop by sufficiency or explicit gap reasons.
 - Firecrawl's deep-research final synthesis contains report-format and model-selection choices that are not good assimilation targets for Infring. The valid pattern is the retrieval/planning loop, not the fixed markdown report style or hardcoded final model.
 - Site-level research can benefit from a hidden corpus-pack primitive: map candidate URLs, scrape/read selected pages in batches, keep compact page summaries for navigation and full text behind evidence refs, then let synthesis pull from refs. The valid primitive is the corpus pack, not a forced `llms.txt` visible output.
+- Async crawl/map is best treated as three primitives, not one opaque tool: URL discovery, selected page/document extraction, and bounded status/result projection. A handle, queue state, or completed count is not evidence until completed pages are converted into evidence refs.
+- Agent/planner-generated crawl options are safe only as optional proposals. Explicit user/workflow fields must win, and failures in option planning should not be required for ordinary research retrieval.
 
 ## Candidate Assimilation Targets
 
@@ -191,13 +210,12 @@
 8. Iterative gap loop: for broad/current/comparative research, run discovery, read/fetch promising candidates, derive gaps from evidence, issue bounded follow-up lanes, then synthesize from collected evidence and recorded gaps. Implemented CD-level policy update; runtime execution remains to verify.
 9. Parse-only document lane: uploaded or fetched document-like artifacts should reject browsing/rendering options, bypass normal web cache unless explicit, and emit normalized document evidence. Implemented CD-level policy update plus PDF fetch handoff; office-document runtime extraction remains future work.
 10. Site corpus pack: when the target is a site/docs set/URL collection, map a bounded URL set, batch-read pages, expose compact page rows and full-text evidence refs, and reuse fresh larger cache entries for smaller limits when privacy policy permits. Implemented CD-level policy update; runtime execution remains future work.
+11. Async map/crawl status projection: for site-scale research, separate discovery, crawl/read execution, and bounded result windows; make final synthesis consume completed page evidence refs, not raw handles or queue status. Implemented CD-level policy update; runtime execution remains future work.
 
 ## Remaining Work
 
-- Parse the provider implementations under `apps/api/src/search/v2/*`.
-- Parse request schema/types under `apps/api/src/controllers/v2/types.ts`.
-- Parse scrape engines under `apps/api/src/scraper/scrapeURL/engines*`.
-- Continue parsing HTML/markdown conversion and metadata extraction in both TS and native Rust paths; native document conversion is now parsed, but TS document/upload controller plumbing remains.
-- Continue parsing crawler/map URL filtering, sitemap, robots, and blocklist utilities; `crawler.ts`, `map-utils.ts`, `canonical-url.ts`, and `robots-txt.ts` are now parsed, but tests and utility helpers remain.
-- Continue parsing deep-research queue/worker/logging paths if we choose to assimilate async job lifecycle beyond the state/loop/controller surface already parsed.
-- Parse relevant snips/e2e tests for behavior expectations and failure modes.
+- Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
+- Continue parsing batch scrape, extract, browser, and agent controllers for reusable async/batch/result-projection patterns.
+- Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
+- Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
+- Keep scanning remaining files for any general web-tooling primitive that improves discovery quality, extraction quality, evidence packing, lifecycle bounds, or retry safety.

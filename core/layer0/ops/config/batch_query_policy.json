@@ -100,6 +100,44 @@
         "do_not_hardcode_model_selection"
       ]
     },
+    "async_site_slice": {
+      "enabled": true,
+      "source_pattern": "firecrawl_async_map_crawl_status_projection",
+      "purpose": "Use map/discovery and bounded page reads as separate stages for site-scale evidence instead of treating a crawl handle or search result count as evidence.",
+      "trigger": "site_docs_corpus_or_same_domain_coverage_gap_after_search",
+      "pipeline": [
+        "map_candidate_urls_from_index_sitemap_and_search",
+        "filter_by_domain_path_depth_robots_file_type_and_budget",
+        "dedupe_canonical_urls_before_fetch_budget",
+        "read_selected_pages_with_ttl_and_concurrency_bounds",
+        "project_status_counts_expiry_cursor_warnings_and_completed_page_refs",
+        "package_completed_pages_as_evidence_pack_items"
+      ],
+      "budget": {
+        "default_max_urls": 50,
+        "hard_max_urls": 500,
+        "default_window_items": 100,
+        "max_window_bytes": 10485760
+      },
+      "option_precedence": "explicit_user_or_workflow_fields_override_agent_planned_fields",
+      "projection_fields": [
+        "task_id",
+        "status",
+        "completed",
+        "total",
+        "expires_at",
+        "next_cursor",
+        "warning",
+        "page_evidence_refs"
+      ],
+      "non_goals": [
+        "do_not_make_handle_creation_count_as_evidence",
+        "do_not_return_raw_queue_state_to_chat",
+        "do_not_require_prompt_to_generate_crawl_options",
+        "do_not_cache_private_or_zero_retention_corpora",
+        "do_not_force_visible_answer_format"
+      ]
+    },
     "evidence_pack_quality": {
       "enabled": true,
       "min_usable_items": 2,

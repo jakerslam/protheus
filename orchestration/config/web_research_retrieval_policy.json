@@ -16,7 +16,8 @@
     "firecrawl_unsupported_binary_lane_split",
     "firecrawl_parse_upload_as_no_browse_document_lane",
     "firecrawl_deep_research_gap_loop_without_final_format_hardcoding",
-    "firecrawl_llmstxt_map_scrape_corpus_pack_without_output_shape_hardcoding"
+    "firecrawl_llmstxt_map_scrape_corpus_pack_without_output_shape_hardcoding",
+    "firecrawl_async_map_crawl_status_projection"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -285,7 +286,39 @@
       "crawl_breadth",
       "crawl_limit",
       "instruction_ref"
-    ]
+    ],
+    "async_corpus_slice": {
+      "source_pattern": "firecrawl_async_map_crawl_status_projection",
+      "purpose": "For site-scale or corpus-scale research, discover candidate URLs first, select bounded crawl/read targets, and expose progress/result windows as internal artifacts before synthesis.",
+      "steps": [
+        "map_candidate_urls_from_index_sitemap_and_search",
+        "dedupe_and_filter_by_domain_path_depth_robots_and_budget",
+        "enqueue_or_run_selected_reads_with_concurrency_and_ttl_bounds",
+        "return_status_projection_with_counts_expiry_next_cursor_and_warnings",
+        "package_completed_pages_as_evidence_refs_before_final_synthesis"
+      ],
+      "status_values": [
+        "queued",
+        "scraping",
+        "completed",
+        "failed",
+        "cancelled",
+        "expired"
+      ],
+      "windowing_rules": [
+        "status_projection_may_page_or_cursor_completed_documents",
+        "projection_must_bound_bytes_and_item_count_per_window",
+        "raw_queue_state_and_raw_payloads_are_not_chat_visible",
+        "robots_or_low_coverage_warnings_are_quality_signals_not_final_answer_text"
+      ],
+      "option_precedence": "explicit_user_or_workflow_options_override_agent_planned_options",
+      "non_goals": [
+        "do_not_make_natural_language_crawl_option_generation_required",
+        "do_not_prescribe_visible_answer_format",
+        "do_not_treat_async_handle_creation_as_evidence",
+        "do_not_cache_or_reuse_private_or_zero_retention_corpora"
+      ]
+    }
   },
   "reader_page_conversion": {
     "enabled": true,
@@ -573,6 +606,7 @@
   "async_result_lifecycle": {
     "enabled": true,
     "use_for_large_or_long_running_batches": true,
+    "source_pattern": "firecrawl_async_map_crawl_status_projection",
     "handle_fields": [
       "task_id",
       "status",
@@ -584,6 +618,12 @@
       "poll_interval_ms",
       "poll_backoff_factor",
       "poll_duration_budget_ms"
+    ],
+    "projection_rules": [
+      "status_calls_return_projection_counts_and_bounded_result_windows",
+      "followup_windows_use_cursor_or_next_ref_instead_of_full_payload_replay",
+      "terminal_failures_include_structured_error_summary_without_raw_provider_payload",
+      "cancelled_or_expired_runs_are_failure_states_for_verifier_calibration"
     ],
     "raw_result_payload_chat_visible": false
   },
