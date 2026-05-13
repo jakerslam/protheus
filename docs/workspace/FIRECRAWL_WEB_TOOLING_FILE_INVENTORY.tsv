@@ -761,23 +761,23 @@ apps/js-sdk/firecrawl/src/utils/zodSchemaToJson.ts	apps	not_parsed	pending_revie
 apps/js-sdk/firecrawl/src/v1/index.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/v2/client.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/v2/methods/agent.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/batch.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/browser.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/methods/batch.ts	apps	parsed	sdk_batch_scrape_method	url_list_validation_idempotency_status_cancel_errors_poll_autopagination_and_chunking
+apps/js-sdk/firecrawl/src/v2/methods/browser.ts	apps	parsed	sdk_browser_method	explicit_ttl_activity_profile_create_execute_delete_list_and_command_timeout
 apps/js-sdk/firecrawl/src/v2/methods/crawl.ts	apps	parsed	sdk_crawl_method	start_status_cancel_poll_autopagination_retryable_poll_errors_timeout_and_error_summary
-apps/js-sdk/firecrawl/src/v2/methods/extract.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/methods/extract.ts	apps	parsed	sdk_extract_method	deprecated_schema_conversion_web_search_source_flags_scrape_validation_and_status_polling
 apps/js-sdk/firecrawl/src/v2/methods/map.ts	apps	parsed	sdk_map_method	typed_map_options_and_legacy_string_link_to_structured_web_row_normalization
-apps/js-sdk/firecrawl/src/v2/methods/monitor.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/parse.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/methods/monitor.ts	apps	parsed	sdk_monitor_method	scheduled_retrieval_crud_manual_run_check_listing_detail_pagination_and_query_shaping
+apps/js-sdk/firecrawl/src/v2/methods/parse.ts	apps	parsed	sdk_parse_method	file_carrier_normalization_empty_rejection_parse_option_validation_multipart_origin_metadata
 apps/js-sdk/firecrawl/src/v2/methods/scrape.ts	apps	parsed	sdk_scrape_method	url_options_validation_retained_interaction_job_id_prompt_or_code_and_timeout_error_boundary
 apps/js-sdk/firecrawl/src/v2/methods/search.ts	apps	parsed	sdk_search_method	query_limit_timeout_domain_filter_validation_scrape_option_validation_and_mixed_row_normalization
 apps/js-sdk/firecrawl/src/v2/methods/usage.ts	apps	parsed	sdk_usage_methods	usage_token_credit_concurrency_queue_control_plane_projection_normalization
-apps/js-sdk/firecrawl/src/v2/types.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/types.ts	apps	parsed	sdk_public_type_schema	artifact_formats_actions_document_metadata_search_crawl_batch_map_monitor_error_browser_shapes
 apps/js-sdk/firecrawl/src/v2/utils/errorHandler.ts	apps	parsed	sdk_error_normalization	typed_errors_retryable_status_network_timeout_classification_and_terminal_job_timeout
 apps/js-sdk/firecrawl/src/v2/utils/getVersion.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/v2/utils/httpClient.ts	apps	parsed	sdk_http_client	origin_metadata_multipart_header_cleanup_502_backoff_per_request_timeout_and_idempotency_header
 apps/js-sdk/firecrawl/src/v2/utils/pagination.ts	apps	parsed	sdk_pagination_helper	max_pages_results_wait_partial_followup_failure_keeps_initial_evidence
 apps/js-sdk/firecrawl/src/v2/utils/validation.ts	apps	parsed	sdk_request_validation	format_dependencies_schema_conversion_parse_option_rejection_and_artifact_shape_guards
-apps/js-sdk/firecrawl/src/v2/watcher.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/watcher.ts	apps	parsed	sdk_watcher	websocket_or_polling_async_snapshots_document_dedupe_and_terminal_done_error_events
 apps/js-sdk/firecrawl/tsconfig.json	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/tsup.config.ts	apps	not_parsed	pending_review	
 apps/js-sdk/package.json	apps	not_parsed	pending_review	

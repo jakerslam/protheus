@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 399
-- Not parsed: 879
+- Parsed: 406
+- Not parsed: 872
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -383,6 +383,13 @@
 | `.github/workflows/scrape-evals.yml` | Opt-in scrape eval workflow. | Expensive quality/OCR evals are opt-in by PR title/body/comment token and permission-gated before dispatching an external eval run with commit metadata. |
 | `.github/workflows/eval-prod.yml` | Production eval workflow. | Post-deploy evals wait for rollout, label runs with commit SHA, and call a separate eval service rather than mixing benchmark execution into the product runtime. |
 | `.github/scripts/eval_run.py` | Eval dispatch script. | Eval execution is a narrow dispatch client with explicit API URL/key/experiment/label inputs and fail-closed nonzero exit on request failure. |
+| `apps/js-sdk/firecrawl/src/v2/methods/batch.ts` | SDK batch scrape method. | Batch work validates URL lists, carries idempotency keys, separates start/status/cancel/errors/poll, auto-paginates result windows, and chunks URLs for bounded submission. |
+| `apps/js-sdk/firecrawl/src/v2/methods/extract.ts` | SDK extract method. | Deprecated extraction still shows a useful compatibility pattern: schema conversion, web-search/source flags, scrape option validation, start/status/wait separation, and bounded status polling. |
+| `apps/js-sdk/firecrawl/src/v2/methods/parse.ts` | SDK parse method. | File parsing accepts several data carriers, rejects empty files and unsupported parse options, sends multipart with origin metadata, and keeps parse-only constraints separate from scrape/browser options. |
+| `apps/js-sdk/firecrawl/src/v2/methods/browser.ts` | SDK browser method. | Browser sessions are explicit create/execute/delete/list operations with TTL/activity/profile inputs and per-command timeout propagation, not implicit search behavior. |
+| `apps/js-sdk/firecrawl/src/v2/methods/monitor.ts` | SDK monitor method. | Scheduled retrieval exposes CRUD, manual run, check listing, check detail pagination, and query shaping while keeping monitor pages/results behind typed status/detail calls. |
+| `apps/js-sdk/firecrawl/src/v2/watcher.ts` | SDK watcher. | Long-running crawl/batch work can stream snapshots/documents over WebSocket, fall back to polling, dedupe emitted documents by stable key, and emit terminal done/error snapshots. |
+| `apps/js-sdk/firecrawl/src/v2/types.ts` | SDK public type schema. | Public types model artifact formats, actions, scrape/parse/search/crawl/batch/map/monitor/error/browser shapes, terminal job statuses, pagination bounds, and document metadata as a single typed contract. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -558,6 +565,10 @@
 - Pagination should be evidence-preserving: keep initial result windows, stop on max pages/results/wait, and record partial follow-up failure instead of discarding usable retrieved data.
 - Idempotency keys, typed retryability, and terminal timeout errors belong at the transport/tool boundary so retries do not duplicate side effects or blur hard vs soft retrieval failures.
 - Expensive eval lanes should be explicit, permission/capability-gated, and labeled by commit/run metadata. Quality evals are system evidence, not product behavior.
+- Batch retrieval should be a first-class primitive with URL chunking, idempotency keys, status/error endpoints, and paginated result windows instead of forcing all breadth into one synchronous search response.
+- Parse/document lanes should explicitly reject scrape/browser-only options and preserve file/content-type/origin metadata before conversion. That keeps document evidence trustworthy and cheap to diagnose.
+- Streaming and polling should be equivalent projections over the same async retrieval state; streams may improve UX, but polling fallback plus document dedupe protects correctness.
+- Public tool schemas are themselves quality controls. Artifact formats, dynamic actions, source lanes, metadata, terminal statuses, and error details should be typed inputs/outputs before the LLM sees the evidence pack.
 
 ## Candidate Assimilation Targets
 
@@ -614,6 +625,10 @@
 51. Evidence-preserving pagination: aggregate paginated crawl/map/search results with max page/result/wait limits and partial-result gap metadata. Ledger captured; candidate evidence pack/runtime target.
 52. Retry/idempotency transport contract: carry idempotency keys, typed retryability, retry-scoped backoff, and terminal timeout semantics through tool calls. Ledger captured; candidate tool broker/adapter target.
 53. Eval dispatch lifecycle: keep expensive retrieval quality/OCR evals opt-in or scheduled, permission-gated, commit-labeled, and separate from product runtime. Ledger captured; candidate governance/eval runner target.
+54. Batch retrieval primitive: admit multi-URL scrape/read work with chunking, idempotent start, status/error retrieval, paginated result windows, and terminal timeout semantics. Ledger captured; candidate web Tool CD primitive.
+55. Parse/document primitive: accept file-like evidence with strict parse-only options, content-type/filename metadata, multipart transport, and document-artifact outputs. Ledger captured; candidate document/web evidence bridge.
+56. Stream/poll equivalence: expose async retrieval progress through either WebSocket-style streams or polling over the same durable state with stable document dedupe keys. Ledger captured; candidate Shell Socket/status projection target.
+57. Unified public tool schema: keep web retrieval artifact formats, dynamic actions, search lanes, crawl/map/batch/result/error/metadata shapes in one typed contract generated or validated from Tool CDs. Ledger captured; candidate Tool CD/schema generation target.
 
 ## Remaining Work
 
