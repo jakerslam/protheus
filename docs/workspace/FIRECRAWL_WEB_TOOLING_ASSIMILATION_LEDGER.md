@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 652
-- Not parsed: 624
+- Parsed: 686
+- Not parsed: 590
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -701,6 +701,40 @@
 | `apps/php-sdk/src/Models/ParseFile.php` | PHP parse file model. | Parse files validate nonempty filename/content, read local files safely, and infer content types for common document formats. |
 | `apps/php-sdk/tests/Unit/ModelsTest.php` | PHP model tests. | Tests cover nested/flat account projections, malformed map links, numeric credit coercion, null credit preservation, scrape option positional safety, lockdown serialization, format objects, and invalid query modes. |
 | `apps/php-sdk/tests/Unit/ParseTest.php` | PHP parse tests. | Parse tests assert byte payload validation, JSON-format serialization, unsupported format rejection, proxy rejection, and timeout validation. |
+| `apps/ruby-sdk/.gitignore` | Ruby SDK local artifact hygiene. | Generated gems, lockfiles, package output, temp files, and vendored bundles are local/build artifacts, not assimilation targets. |
+| `apps/ruby-sdk/Gemfile` | Ruby SDK dependency surface. | Unit tests use WebMock to lock request/transport shapes without live network coupling. |
+| `apps/ruby-sdk/LICENSE` | Ruby SDK licensing boundary. | License reviewed; no direct web-tooling pattern beyond confirming attribution boundary. |
+| `apps/ruby-sdk/README.md` | Ruby SDK public primitive overview. | Docs present scrape, parse, crawl, batch, map, search, and agent as independent primitives with configuration, retry, and error handling exposed at the client boundary. |
+| `apps/ruby-sdk/Rakefile` | Ruby SDK test task. | SDK tests are runnable as a bounded unit suite over the client facade and WebMock request fixtures. |
+| `apps/ruby-sdk/firecrawl-sdk.gemspec` | Ruby SDK package contract. | Public package describes the same primitive retrieval scope, reinforcing that SDKs should remain facades over primitive web operations. |
+| `apps/ruby-sdk/lib/firecrawl.rb` | Ruby SDK facade imports. | Thin entrypoint exports models and client without embedding workflow sequencing or hidden tool selection policy. |
+| `apps/ruby-sdk/lib/firecrawl/client.rb` | Ruby SDK client facade. | Facade validates credentials/base URLs, keeps primitives separate, flattens batch scrape options, sends idempotency as a header, polls/paginates terminal jobs, and isolates monitor/usage/control projections from research evidence. |
+| `apps/ruby-sdk/lib/firecrawl/errors.rb` | Ruby SDK error model. | Errors preserve status, provider code/details, and job timeout metadata as typed hidden failure context. |
+| `apps/ruby-sdk/lib/firecrawl/http_client.rb` | Ruby SDK HTTP adapter. | Transport validates same-origin absolute cursors before attaching credentials, rebuilds multipart requests on retry, maps auth/rate-limit/client failures separately, and bounds retryable status/network failures. |
+| `apps/ruby-sdk/lib/firecrawl/models/agent_options.rb` | Ruby agent option model. | Agent capability requires an explicit prompt and can carry URL constraints, schema, budget, model, webhook, and strict URL-constrain flags as advanced tool inputs. |
+| `apps/ruby-sdk/lib/firecrawl/models/agent_response.rb` | Ruby agent start response. | Agent start is a handle-producing async primitive, not final evidence until status returns data. |
+| `apps/ruby-sdk/lib/firecrawl/models/agent_status_response.rb` | Ruby agent status response. | Agent status separates processing/completed/failed/cancelled from returned data, credits, and expiry. |
+| `apps/ruby-sdk/lib/firecrawl/models/batch_scrape_job.rb` | Ruby batch scrape job model. | Batch job state carries progress, credit, expiry, next cursor, documents, and terminal-state classification. |
+| `apps/ruby-sdk/lib/firecrawl/models/batch_scrape_options.rb` | Ruby batch scrape option model. | Batch scrape separates nested per-page scrape options, append target, invalid-URL tolerance, concurrency, ZDR, integration, and idempotency metadata. |
+| `apps/ruby-sdk/lib/firecrawl/models/batch_scrape_response.rb` | Ruby batch scrape start response. | Batch start response preserves invalid URL reporting separately from the async job handle. |
+| `apps/ruby-sdk/lib/firecrawl/models/concurrency_check.rb` | Ruby concurrency projection. | Capacity state is a control-plane/budget artifact, not citable research evidence. |
+| `apps/ruby-sdk/lib/firecrawl/models/crawl_job.rb` | Ruby crawl job model. | Crawl job state mirrors batch terminal/pagination semantics over document artifacts. |
+| `apps/ruby-sdk/lib/firecrawl/models/crawl_options.rb` | Ruby crawl option model. | Crawl options expose prompt, path filters, discovery depth, sitemap, query/similar URL dedupe, limits, domain expansion, delay, concurrency, webhook, scrape options, regex scope, ZDR, and integration. |
+| `apps/ruby-sdk/lib/firecrawl/models/crawl_response.rb` | Ruby crawl start response. | Crawl start produces an async handle and status URL rather than pretending crawl output exists immediately. |
+| `apps/ruby-sdk/lib/firecrawl/models/credit_usage.rb` | Ruby credit usage projection. | Account/credit data belongs to budget/admission control and should not enter synthesis as source evidence. |
+| `apps/ruby-sdk/lib/firecrawl/models/document.rb` | Ruby document model. | Document artifacts preserve markdown, HTML, raw HTML, JSON, summary, metadata, links, images, screenshot, audio, attributes, actions, answer, highlights, warning, change tracking, and branding as distinct optional fields. |
+| `apps/ruby-sdk/lib/firecrawl/models/map_data.rb` | Ruby map result model. | Map results normalize string links and object links into a stable URL object lane before downstream fetch/ranking. |
+| `apps/ruby-sdk/lib/firecrawl/models/map_options.rb` | Ruby map option model. | Map supports cheap discovery controls for search text, sitemap policy, subdomains, query-parameter dedupe, limit, timeout, integration, and location. |
+| `apps/ruby-sdk/lib/firecrawl/models/monitor.rb` | Ruby monitor models. | Monitor schedules/checks/pages/credit summaries/diffs are change/control artifacts that should flow into research only through explicit evidence refs. |
+| `apps/ruby-sdk/lib/firecrawl/models/parse_file.rb` | Ruby parse file model. | Parse files validate nonempty filename/content, can read bytes from disk, and infer content types for common document formats. |
+| `apps/ruby-sdk/lib/firecrawl/models/parse_options.rb` | Ruby parse option model. | Parse options reject nonpositive timeout, unsupported proxy values, and browser-only formats before multipart request creation. |
+| `apps/ruby-sdk/lib/firecrawl/models/query_format.rb` | Ruby question/highlights/query format models. | Targeted page-question and highlight extraction are typed document artifact formats, not user-visible answer templates. |
+| `apps/ruby-sdk/lib/firecrawl/models/scrape_options.rb` | Ruby scrape option model. | Scrape options preserve artifact formats, tag filters, main-content extraction, waits, mobile, parsers, actions, location, TLS, image scrub, ads, proxy, cache, lockdown, and integration controls. |
+| `apps/ruby-sdk/lib/firecrawl/models/search_data.rb` | Ruby search result model. | Search result projection keeps web/news/image lanes distinct and countable. |
+| `apps/ruby-sdk/lib/firecrawl/models/search_options.rb` | Ruby search option model. | Search options preserve sources, categories, include/exclude domains, limit, freshness, location, invalid-URL, timeout, scrape enrichment, and integration fields. |
+| `apps/ruby-sdk/lib/firecrawl/version.rb` | Ruby SDK version metadata. | SDK version is diagnostic origin metadata and should stay hidden from synthesis evidence. |
+| `apps/ruby-sdk/test/firecrawl/client_test.rb` | Ruby SDK client tests. | Tests assert credential/base URL admission, JSON/multipart request bodies, retryable recovery, option serialization, idempotency header handling, same-origin pagination rejection, parse lane validation, and map/search result normalization. |
+| `apps/ruby-sdk/test/test_helper.rb` | Ruby SDK test helper. | WebMock-backed unit tests keep network behavior deterministic while still proving outbound request shape. |
 
 ## Decisions So Far
 
@@ -1018,6 +1052,16 @@
 138. Malformed lane normalization: result lane hydrators can degrade malformed optional lanes to empty lists while preserving required artifact failures. Ledger captured; candidate evidence-pack normalization target.
 139. SDK origin metadata: adapter user-agent/client-version metadata belongs in hidden transport diagnostics, not synthesis evidence. Ledger captured; candidate observability/tool-adapter schema.
 140. Positional option regression tests: fluent/positional SDK surfaces need tests that option ordering does not misplace cache/integration/lockdown fields. Ledger captured; candidate adapter parity guard.
+141. Request fixture as contract: WebMock-style request assertions are useful for proving JSON, multipart, headers, and cursor behavior without relying on live retrieval. Ledger captured; candidate gate-3/gate-4 regression harness.
+142. Absolute cursor credential guard: cursor pagination must validate same scheme/host/port as the admitted API origin before attaching credentials. Ledger reinforced; candidate adapter security invariant.
+143. Terminal handle separation: async start responses should remain handles until status/pagination produces document artifacts. Ledger reinforced; candidate synthesis handoff guard.
+144. Control artifact quarantine: usage, credit, concurrency, monitor schedules, and billing summaries can influence budgets/admission but should not become research evidence. Ledger reinforced; candidate evidence/projection guard.
+145. Map link lane normalization: discovery tools should normalize heterogeneous URL rows into stable URL objects before ranking, enrichment, or evidence packing. Ledger captured; candidate candidate-set primitive.
+146. Typed page-question artifacts: page-specific question/highlight/query outputs can be evidence artifact formats, but they must not prescribe final answer structure. Ledger captured; candidate evidence-pack format lane.
+147. Agent capability isolation: autonomous web-agent behavior should remain an explicit advanced capability with prompt/schema/URL/budget controls rather than hidden fallback inside ordinary search. Ledger reinforced; candidate Tool CD capability lane.
+148. Unit-live split for SDK parity: SDKs should prove request-shape and serialization deterministically, then leave expensive/live content quality to separate capability-gated evals. Ledger captured; candidate eval layering rule.
+149. Null-omission/default guard: option serializers should omit unset fields while preserving explicit false/default safety values when the downstream API depends on them. Ledger captured; candidate Tool CD serialization guard.
+150. Ruby SDK parity closure: the Ruby SDK repeats the same primitive/tool boundary as Rust, Java, .NET, and PHP; remaining web-quality work should focus on retrieval planning/enrichment internals, not more SDK facade semantics. Ledger captured; candidate prioritization note.
 
 ## Remaining Work
 
@@ -1025,6 +1069,7 @@
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
+- Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.

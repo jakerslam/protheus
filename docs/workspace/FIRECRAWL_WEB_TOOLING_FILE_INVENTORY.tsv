@@ -971,40 +971,40 @@ apps/redis/scripts/bump_version.sh	apps	not_parsed	pending_review
 apps/redis/scripts/semver	apps	not_parsed	pending_review	
 apps/redis/scripts/version.sh	apps	not_parsed	pending_review	
 apps/redis/start-redis-server.sh	apps	not_parsed	pending_review	
-apps/ruby-sdk/.gitignore	apps	not_parsed	pending_review	
-apps/ruby-sdk/Gemfile	apps	not_parsed	pending_review	
-apps/ruby-sdk/LICENSE	apps	not_parsed	pending_review	
-apps/ruby-sdk/README.md	apps	not_parsed	pending_review	
-apps/ruby-sdk/Rakefile	apps	not_parsed	pending_review	
-apps/ruby-sdk/firecrawl-sdk.gemspec	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/client.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/errors.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/http_client.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/agent_options.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/agent_response.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/agent_status_response.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/batch_scrape_job.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/batch_scrape_options.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/batch_scrape_response.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/concurrency_check.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/crawl_job.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/crawl_options.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/crawl_response.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/credit_usage.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/document.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/map_data.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/map_options.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/monitor.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/parse_file.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/parse_options.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/query_format.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/scrape_options.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/search_data.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/models/search_options.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/lib/firecrawl/version.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/test/firecrawl/client_test.rb	apps	not_parsed	pending_review	
-apps/ruby-sdk/test/test_helper.rb	apps	not_parsed	pending_review	
+apps/ruby-sdk/.gitignore	apps	parsed	ruby_sdk_local_artifact_hygiene	generated_gem_bundle_temp_artifacts_excluded
+apps/ruby-sdk/Gemfile	apps	parsed	ruby_sdk_test_dependency_surface	webmock_request_fixture_contract
+apps/ruby-sdk/LICENSE	apps	parsed	ruby_sdk_license_boundary	no_direct_retrieval_pattern
+apps/ruby-sdk/README.md	apps	parsed	ruby_sdk_public_primitive_overview	primitive_facade_docs
+apps/ruby-sdk/Rakefile	apps	parsed	ruby_sdk_test_task	bounded_unit_test_task
+apps/ruby-sdk/firecrawl-sdk.gemspec	apps	parsed	ruby_sdk_package_contract	primitive_scope_package_metadata
+apps/ruby-sdk/lib/firecrawl.rb	apps	parsed	ruby_sdk_thin_entrypoint	no_hidden_workflow_policy
+apps/ruby-sdk/lib/firecrawl/client.rb	apps	parsed	ruby_sdk_client_facade	primitive_facade_poll_paginate_idempotency_control_quarantine
+apps/ruby-sdk/lib/firecrawl/errors.rb	apps	parsed	ruby_sdk_error_model	typed_hidden_failure_context
+apps/ruby-sdk/lib/firecrawl/http_client.rb	apps	parsed	ruby_sdk_http_adapter	same_origin_cursor_retry_taxonomy_multipart_rebuild
+apps/ruby-sdk/lib/firecrawl/models/agent_options.rb	apps	parsed	ruby_sdk_agent_options	explicit_advanced_agent_capability_controls
+apps/ruby-sdk/lib/firecrawl/models/agent_response.rb	apps	parsed	ruby_sdk_agent_start_response	async_handle_not_evidence
+apps/ruby-sdk/lib/firecrawl/models/agent_status_response.rb	apps	parsed	ruby_sdk_agent_status_response	terminal_status_data_expiry_split
+apps/ruby-sdk/lib/firecrawl/models/batch_scrape_job.rb	apps	parsed	ruby_sdk_batch_scrape_job	paginated_terminal_document_state
+apps/ruby-sdk/lib/firecrawl/models/batch_scrape_options.rb	apps	parsed	ruby_sdk_batch_scrape_options	nested_scrape_options_batch_controls_idempotency
+apps/ruby-sdk/lib/firecrawl/models/batch_scrape_response.rb	apps	parsed	ruby_sdk_batch_scrape_response	invalid_url_reporting_separate_from_handle
+apps/ruby-sdk/lib/firecrawl/models/concurrency_check.rb	apps	parsed	ruby_sdk_concurrency_projection	control_artifact_quarantine
+apps/ruby-sdk/lib/firecrawl/models/crawl_job.rb	apps	parsed	ruby_sdk_crawl_job	paginated_terminal_document_state
+apps/ruby-sdk/lib/firecrawl/models/crawl_options.rb	apps	parsed	ruby_sdk_crawl_options	discovery_depth_dedupe_domain_budget_controls
+apps/ruby-sdk/lib/firecrawl/models/crawl_response.rb	apps	parsed	ruby_sdk_crawl_response	async_handle_not_immediate_output
+apps/ruby-sdk/lib/firecrawl/models/credit_usage.rb	apps	parsed	ruby_sdk_credit_projection	budget_artifact_not_evidence
+apps/ruby-sdk/lib/firecrawl/models/document.rb	apps	parsed	ruby_sdk_document_model	rich_optional_evidence_facets
+apps/ruby-sdk/lib/firecrawl/models/map_data.rb	apps	parsed	ruby_sdk_map_data	heterogeneous_url_row_normalization
+apps/ruby-sdk/lib/firecrawl/models/map_options.rb	apps	parsed	ruby_sdk_map_options	cheap_discovery_controls
+apps/ruby-sdk/lib/firecrawl/models/monitor.rb	apps	parsed	ruby_sdk_monitor_models	change_control_artifacts_via_explicit_refs
+apps/ruby-sdk/lib/firecrawl/models/parse_file.rb	apps	parsed	ruby_sdk_parse_file	file_payload_validation_content_type_guess
+apps/ruby-sdk/lib/firecrawl/models/parse_options.rb	apps	parsed	ruby_sdk_parse_options	parse_lane_schema_rejection
+apps/ruby-sdk/lib/firecrawl/models/query_format.rb	apps	parsed	ruby_sdk_query_formats	typed_question_highlight_artifacts_not_final_format
+apps/ruby-sdk/lib/firecrawl/models/scrape_options.rb	apps	parsed	ruby_sdk_scrape_options	rich_scrape_artifact_and_behavior_controls
+apps/ruby-sdk/lib/firecrawl/models/search_data.rb	apps	parsed	ruby_sdk_search_data	web_news_image_lane_split
+apps/ruby-sdk/lib/firecrawl/models/search_options.rb	apps	parsed	ruby_sdk_search_options	source_domain_freshness_location_scrape_controls
+apps/ruby-sdk/lib/firecrawl/version.rb	apps	parsed	ruby_sdk_version_metadata	hidden_origin_metadata
+apps/ruby-sdk/test/firecrawl/client_test.rb	apps	parsed	ruby_sdk_client_tests	request_shape_retry_cursor_parse_validation_tests
+apps/ruby-sdk/test/test_helper.rb	apps	parsed	ruby_sdk_test_helper	webmock_deterministic_transport_tests
 apps/rust-sdk/.gitignore	apps	parsed	rust_sdk_generated_boundary	target_build_output_excluded_from_assimilation_and_evidence_artifacts
 apps/rust-sdk/CHANGELOG.md	apps	parsed	rust_sdk_release_notes	minimal_release_note_no_unique_retrieval_primitive
 apps/rust-sdk/Cargo.lock	apps	skipped_generated	generated_lockfile	no_pattern_review_needed
