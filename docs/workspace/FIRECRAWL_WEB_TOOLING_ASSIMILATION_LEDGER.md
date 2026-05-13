@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 492
-- Not parsed: 785
+- Parsed: 504
+- Not parsed: 773
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -525,6 +525,18 @@
 | `apps/python-sdk/firecrawl/v2/__init__.py` | Python SDK v2 public exports. | Public package surface re-exports the client classes so callers share one typed facade boundary instead of bypassing the contract layer. |
 | `apps/python-sdk/firecrawl/v2/utils/__init__.py` | Python SDK v2 utility exports. | Utility package exposes HTTP clients, typed error mapping, validation, normalization, and version helpers as boundary primitives rather than orchestration behavior. |
 | `apps/python-sdk/firecrawl/v2/utils/get_version.py` | Python SDK version helper. | Version helper reads package metadata with a static fallback, useful for origin/user-agent diagnostics but not retrieval semantics or synthesis evidence. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/__init__.py` | Python async SDK method package marker. | Async method modules are grouped as parity adapters for the same v2 retrieval primitives rather than a separate workflow family. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/search.py` | Python async SDK search method. | Async search mirrors sync validation, domain/source/time/scrape-option shaping, and preserves enriched document rows separately from thin web/news/image result rows. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/scrape.py` | Python async SDK scrape and retained-browser methods. | Async scrape validates URL/options before transport, normalizes returned documents, and keeps retained-browser interaction behind explicit job ID plus code-or-prompt validation. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/map.py` | Python async SDK map method. | Async map validates URL/limit, preserves search/subdomain/query-parameter/location lanes, and projects discovered links as typed rows. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/crawl.py` | Python async SDK crawl methods. | Async crawl request prep mirrors sync camel-case shaping, auto-paginates with max page/result/wait limits, preserves initial documents on later page failure, and exposes single-page/cancel/error/active-crawl projections. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/batch.py` | Python async SDK batch scrape methods. | Async batch validates URL sets, maps batch-specific fields, preserves paginated partial documents under bounds, and exposes status page, cancel, and error projections. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/parse.py` | Python async SDK parse method. | Async parse reuses sync multipart/file and parse-option shaping through an executor before emitting normalized document output. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/extract.py` | Python async SDK extract methods. | Deprecated async extraction keeps start/status/wait lifecycle, option shaping, source/show flags, and terminal timeout returning the latest status rather than hiding partial state. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/agent.py` | Python async SDK agent methods. | Async agent start/status/wait/cancel models schema normalization, budget/model metadata, terminal polling, and status normalization as a handle lifecycle. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/browser.py` | Python async SDK browser methods. | Async browser sessions normalize create/list/execute/delete projections, TTL/activity/profile fields, and camel/snake response compatibility. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/monitor.py` | Python async SDK monitor methods. | Async monitor recursively prepares targets/options, paginates check pages under bounds, and keeps scheduled change tracking as typed control-plane projections. |
+| `apps/python-sdk/firecrawl/v2/methods/aio/usage.py` | Python async SDK usage methods. | Async usage endpoints normalize concurrency, queue, credit, and token metrics as account-control projections, not evidence-bearing retrieval results. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_request_preparation.py` | Python SDK search request-prep tests. | Tests lock default search limits/timeouts, alias removal, domain-filter exclusivity, scrape option conversion, and integration label trimming. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_validation.py` | Python SDK search validation tests. | Query/limit/timeout/source/location/freshness/scrape-option constraints are enforced before transport while valid time filter strings pass through unchanged. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_scrape_request_preparation.py` | Python SDK scrape request-prep tests. | Tests cover URL validation, scrape option/action conversion, retained-browser code/prompt input validation, success-false handling, and response field normalization. |
@@ -686,6 +698,9 @@
 - Typed SDK/API surfaces are good raw material for Tool CDs: artifact formats, source lanes, pagination, cache/privacy flags, job statuses, and error models can be declared once and validated across adapters instead of rediscovered through prompt contracts.
 - Sync, async, streaming, and polling clients should be lifecycle variants over one primitive tool contract; divergence between their request shapes is a gate-regression risk.
 - Client origin/version labels are diagnostic metadata for transport observability. They should be hidden from synthesis evidence and must not steer user-facing model/tool behavior.
+- Async adapters are useful parity probes because they duplicate request-shaping and pagination behavior; any drift between sync/async/API/workflow adapters should be treated as an upstream gate failure, not a synthesis issue.
+- Later-page failures should not erase earlier retrieved documents. They should produce a partial evidence artifact plus hidden gap/stop metadata so synthesis can still use the good evidence.
+- Usage, queue, monitor, and browser lifecycle projections are control-plane/status artifacts. They can guide budgets and recovery, but they are not citable research evidence unless converted into explicit retrieval artifacts.
 
 ## Candidate Assimilation Targets
 
@@ -774,6 +789,9 @@
 83. Typed tool contract extraction: derive Tool CD schemas from stable SDK/API type surfaces and keep aliases/defaults tested for parity. Ledger captured; candidate Tool CD/schema generation target.
 84. Client lifecycle parity: keep sync, async, stream, and polling facades as equivalent projections over the same primitive tool contract. Ledger captured; candidate adapter parity target.
 85. Diagnostic origin metadata: attach client/tool/runtime version metadata to hidden transport diagnostics while excluding it from synthesis evidence. Ledger captured; candidate observability/tool-adapter target.
+86. Adapter parity drift guard: compare sync, async, API, and workflow adapter request payloads for equivalent tool intents. Ledger captured; candidate gate-3/gate-4 regression guard.
+87. Partial evidence with stop metadata: when pagination or async follow-up fetches fail, preserve already-retrieved documents and attach hidden stop reasons. Ledger captured; candidate evidence-pack/runtime target.
+88. Control-plane projection quarantine: keep usage, queue, browser session, monitor, and account status artifacts out of synthesis evidence unless explicitly converted to evidence refs. Ledger captured; candidate projection/evidence guard.
 
 ## Remaining Work
 

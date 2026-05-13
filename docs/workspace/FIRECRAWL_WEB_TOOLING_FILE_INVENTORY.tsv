@@ -923,18 +923,18 @@ apps/python-sdk/firecrawl/v2/__init__.py	apps	parsed	python_sdk_v2_public_export
 apps/python-sdk/firecrawl/v2/client.py	apps	parsed	python_sdk_v2_sync_client_facade	thin_method_delegation_start_status_cancel_wait_watcher_and_config_lifecycle
 apps/python-sdk/firecrawl/v2/client_async.py	apps	parsed	python_sdk_v2_async_client_facade	async_method_delegation_close_context_manager_waiters_and_watcher_creation
 apps/python-sdk/firecrawl/v2/methods/agent.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/__init__.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/agent.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/batch.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/browser.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/crawl.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/extract.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/map.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/monitor.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/parse.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/scrape.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/search.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/v2/methods/aio/usage.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/v2/methods/aio/__init__.py	apps	parsed	python_async_sdk_method_package	empty_async_method_package_marker_for_parity_adapters
+apps/python-sdk/firecrawl/v2/methods/aio/agent.py	apps	parsed	python_async_sdk_agent_methods	start_status_wait_cancel_schema_budget_model_metadata_and_terminal_polling
+apps/python-sdk/firecrawl/v2/methods/aio/batch.py	apps	parsed	python_async_sdk_batch_methods	url_set_validation_batch_fields_partial_pagination_status_cancel_errors
+apps/python-sdk/firecrawl/v2/methods/aio/browser.py	apps	parsed	python_async_sdk_browser_methods	ttl_activity_profile_create_execute_delete_list_projection_normalization
+apps/python-sdk/firecrawl/v2/methods/aio/crawl.py	apps	parsed	python_async_sdk_crawl_methods	request_shaping_partial_pagination_single_page_cancel_errors_active_crawls
+apps/python-sdk/firecrawl/v2/methods/aio/extract.py	apps	parsed	python_async_sdk_extract_methods	deprecated_start_status_wait_option_shaping_and_latest_status_timeout
+apps/python-sdk/firecrawl/v2/methods/aio/map.py	apps	parsed	python_async_sdk_map_method	url_limit_search_subdomain_query_location_lanes_and_link_rows
+apps/python-sdk/firecrawl/v2/methods/aio/monitor.py	apps	parsed	python_async_sdk_monitor_methods	recursive_target_prep_bounded_check_pagination_and_control_plane_projection
+apps/python-sdk/firecrawl/v2/methods/aio/parse.py	apps	parsed	python_async_sdk_parse_method	executor_backed_file_payload_parse_option_shaping_and_document_normalization
+apps/python-sdk/firecrawl/v2/methods/aio/scrape.py	apps	parsed	python_async_sdk_scrape_methods	url_option_validation_document_normalization_and_retained_browser_interaction
+apps/python-sdk/firecrawl/v2/methods/aio/search.py	apps	parsed	python_async_sdk_search_method	source_domain_time_validation_enriched_document_vs_result_row_shapes
+apps/python-sdk/firecrawl/v2/methods/aio/usage.py	apps	parsed	python_async_sdk_usage_methods	concurrency_queue_credit_token_account_control_projection_normalization
 apps/python-sdk/firecrawl/v2/methods/batch.py	apps	parsed	python_sdk_batch_methods	url_validation_chunking_idempotency_status_pagination_terminal_polling_cancel_errors
 apps/python-sdk/firecrawl/v2/methods/browser.py	apps	parsed	python_sdk_browser_methods	ttl_activity_profile_session_create_list_execute_delete_projection_normalization
 apps/python-sdk/firecrawl/v2/methods/crawl.py	apps	parsed	python_sdk_crawl_methods	request_prep_status_pagination_terminal_polling_cancel_errors_active_crawls
