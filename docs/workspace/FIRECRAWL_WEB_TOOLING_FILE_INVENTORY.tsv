@@ -235,13 +235,13 @@ apps/api/src/controllers/v1/types.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v1/x402-search.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/__tests__/agent-status.test.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/__tests__/browser-billing.test.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/agent-cancel.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/agent-cancel.ts	apps	parsed	agent_cancel_projection	ownership_check_refuse_finished_work_forward_cancel_to_backing_service
 apps/api/src/controllers/v2/agent-signup-confirm.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/agent-signup.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/agent-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/agent.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/agent-status.ts	apps	parsed	agent_status_projection	ownership_check_processing_completed_failed_expiry_result_loaded_only_when_terminal
+apps/api/src/controllers/v2/agent.ts	apps	parsed	agent_async_handle_admission	request_logging_zdr_fail_closed_beta_service_passthrough_status_handle
 apps/api/src/controllers/v2/batch-scrape.ts	apps	parsed	v2_batch_scrape_controller	ignore_invalid_urls_append_to_handle_lock_urls_queue_jobs
-apps/api/src/controllers/v2/browser.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/browser.ts	apps	parsed	browser_session_lifecycle	ttl_activity_concurrency_owner_checks_create_retry_cleanup_claim_destroyed_billing_guard
 apps/api/src/controllers/v2/concurrency-check.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/crawl-cancel.ts	apps	parsed	v2_crawl_cancel_projection	ownership_checked_cancelled_terminal_state
 apps/api/src/controllers/v2/crawl-errors.ts	apps	parsed	v2_crawl_error_projection	sanitized_per_url_errors_and_robots_blocked_signal
@@ -259,7 +259,7 @@ apps/api/src/controllers/v2/map.ts	apps	parsed	v2_map_discovery_controller	timeo
 apps/api/src/controllers/v2/monitor.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/parse.ts	apps	parsed	parse_only_document_lane	classifies uploaded file kind, rejects browsing/rendering options, forces extraction engine, disables cache
 apps/api/src/controllers/v2/queue-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/scrape-browser.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/scrape-browser.ts	apps	parsed	scrape_interaction_controller	replay_prior_scrape_context_adopt_or_create_session_prompt_or_code_execution_trace_hygiene_cleanup
 apps/api/src/controllers/v2/scrape-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/scrape.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/search.ts	apps	parsed	public_search_endpoint_control_flow	schema_parse_zdr_agent_interop_executeSearch_billing_logging
@@ -290,8 +290,8 @@ apps/api/src/lib/branding/schema.ts	apps	not_parsed	pending_review
 apps/api/src/lib/branding/transformer.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/branding/types.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/browser-billing.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/browser-session-activity.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/browser-sessions.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/browser-session-activity.ts	apps	parsed	browser_activity_batching	internal_execution_activity_queue_batch_insert_not_retrieval_evidence
+apps/api/src/lib/browser-sessions.ts	apps	parsed	browser_session_state	ttl_owner_status_cdp_view_handles_prompt_flag_cached_active_count_idempotent_destroy_claim
 apps/api/src/lib/canonical-url.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/canonical-url.ts	apps	parsed	url_normalization	canonical_url_strips_protocol_www_trailing_slash_for_dedupe
 apps/api/src/lib/clickhouse-client.ts	apps	not_parsed	pending_review	
@@ -378,11 +378,11 @@ apps/api/src/lib/ranker.ts	apps	parsed	semantic_ranking	embedding_cosine_rerank_
 apps/api/src/lib/retry-utils.ts	apps	parsed	generic_retry_helper	abortable_backoff_valid_result_predicate_failure_observability
 apps/api/src/lib/robots-txt.ts	apps	parsed	robots_policy	robots_fetch_engine_waterfall_404_as_empty_trailing_slash_disallow_crawl_delay_sitemap_metadata
 apps/api/src/lib/scrape-billing.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/scrape-interact/browser-agent.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/scrape-interact/browser-service-client.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/scrape-interact/langsmith.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/scrape-interact/langsmith.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/scrape-interact/scrape-replay.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/scrape-interact/browser-agent.ts	apps	parsed	browser_agent_snapshot_loop	current_url_initial_snapshot_step_timeout_bound_resnapshot_new_tab_block_extracted_output
+apps/api/src/lib/scrape-interact/browser-service-client.ts	apps	parsed	browser_service_adapter	narrow_typed_http_client_non_2xx_typed_errors_service_headers_internal
+apps/api/src/lib/scrape-interact/langsmith.test.ts	apps	parsed	interaction_trace_hygiene_tests	disabled_by_default_whitespace_key_zero_retention_skip_url_sanitize_raw_sdk_fallback
+apps/api/src/lib/scrape-interact/langsmith.ts	apps	parsed	interaction_trace_wrapper	opt_in_external_trace_query_fragment_strip_zero_retention_disable_raw_sdk_fallback
+apps/api/src/lib/scrape-interact/scrape-replay.ts	apps	parsed	scrape_replay_context	retained_url_options_only_action_sanitization_wait_clamping_output_action_skip_page_sync
 apps/api/src/lib/search-index-client.ts	apps	parsed	managed_search_index_client	optional_index_search_empty_on_failure_score_quality_freshness_rank_metadata_index_write_nonblocking
 apps/api/src/lib/search-query-builder.ts	apps	parsed	structured_query_filter_builder	category_to_site_filter_include_domains_exclude_domains_pdf_filter_category_map
 apps/api/src/lib/strings.ts	apps	not_parsed	pending_review	

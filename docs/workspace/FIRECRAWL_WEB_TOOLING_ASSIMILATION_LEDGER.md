@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 149
-- Not parsed: 1129
+- Parsed: 161
+- Not parsed: 1117
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -64,6 +64,11 @@
 | `apps/api/src/lib/search-query-builder.ts` | Structured query filter builder. | Categories, include domains, exclude domains, and PDF filters compile into query/filter lanes while preserving a category map for result metadata. |
 | `apps/api/src/lib/search-index-client.ts` | Managed search-index client. | Optional index search/index writes fail closed to empty candidates or logged diagnostics, carry score/freshness/quality/rank metadata, and must not block scraping. |
 | `apps/api/src/controllers/v2/types.ts` | Request schema and search options. | Strict request schema supports sources, categories, domains, scrape options, timeout bounds, and format defaults as typed input rather than prompt phrasing. |
+| `apps/api/src/controllers/v2/browser.ts` | Browser session controller. | Dynamic browser work is TTL/concurrency bounded, owner checked, retried on creation, cleaned up if persistence fails, and finalized with idempotent destroyed-state claiming. |
+| `apps/api/src/controllers/v2/scrape-browser.ts` | Scrape interaction controller. | Interactive work can replay a prior scrape context, adopt or create a bounded session, then run prompt/code interaction with trace hygiene and explicit cleanup. |
+| `apps/api/src/controllers/v2/agent.ts` | Agent passthrough controller. | Agent jobs are admitted as async handles with request logging and status polling, while unsupported zero-retention and unavailable beta services fail closed. |
+| `apps/api/src/controllers/v2/agent-status.ts` | Agent status projection. | Agent status returns processing/completed/failed plus expiry and result data only after ownership checks and terminal job lookup. |
+| `apps/api/src/controllers/v2/agent-cancel.ts` | Agent cancellation controller. | Cancellation checks ownership and refuses already-finished work before forwarding a delete to the backing service. |
 | `apps/api/src/__tests__/snips/v2/search.test.ts` | Search E2E behavior tests. | Tests cover include/exclude domain behavior, limits, multi-source search, and search-plus-scrape enrichment with partial scrape tolerance. |
 | `apps/api/src/scraper/scrapeURL/engines/index.ts` | Scrape engine waterfall. | Engines declare feature support and quality; selection ranks by requested capabilities and quality, with special-case engines hidden behind capability policy. |
 | `apps/api/src/scraper/scrapeURL/engines/fetch/index.ts` | Plain fetch engine. | Fetch path detects charset from headers/meta, uses secure dispatcher, preserves status/content-type, and runs specialty-content checks. |
@@ -132,6 +137,13 @@
 | `apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts` | Lockdown mode tests. | Lockdown should serve only admitted cached artifacts, avoid outbound side-effect lanes, and behave as ZDR. |
 | `apps/api/src/__tests__/snips/v2/scrape-query.test.ts` | Page query format tests. | Page-local question/highlight extraction is a format lane over retrieved content, distinct from broad web search and bounded by prompt-length validation. |
 | `apps/api/src/controllers/v2/parse.ts` | Upload parse controller. | Parse-only lanes classify uploaded HTML/PDF/office files by filename/content type, force the matching extraction engine, disable cache storage, reject browsing/rendering options, and log sanitized file metadata. |
+| `apps/api/src/lib/browser-sessions.ts` | Browser session state helpers. | Session rows track TTL, owner, status, CDP/view handles, prompt-use flags, cached active counts, and idempotent destroyed-state claiming. |
+| `apps/api/src/lib/browser-session-activity.ts` | Browser activity batching. | Browser execution telemetry is queued and batch-inserted as internal activity records instead of becoming retrieval evidence. |
+| `apps/api/src/lib/scrape-interact/browser-service-client.ts` | Browser service client. | Browser service calls are behind a narrow typed adapter that throws typed non-2xx errors and keeps service URLs/headers internal. |
+| `apps/api/src/lib/scrape-interact/scrape-replay.ts` | Scrape replay builder. | Prior scrape context is reconstructed only from retained URL/options, actions are sanitized and waits clamped, and replay scripts skip output-only actions. |
+| `apps/api/src/lib/scrape-interact/browser-agent.ts` | Browser agent loop. | Interaction starts from current URL plus accessibility snapshot, bounds steps/time, resnapshots after state changes, blocks new tabs/out-of-scope opens, and returns extracted output rather than raw trees. |
+| `apps/api/src/lib/scrape-interact/langsmith.ts` | Interaction trace wrapper. | External tracing is opt-in, strips URL query/fragment metadata, and is disabled for zero-retention contexts. |
+| `apps/api/src/lib/scrape-interact/langsmith.test.ts` | Trace hygiene tests. | Tests verify disabled-by-default tracing, whitespace-key handling, zero-retention skip behavior, raw SDK fallback, and URL sanitization. |
 | `apps/api/src/lib/format-utils.ts` | Format option helper. | Format checks need to support both string and typed object declarations while staying extraction-contract logic, not final-answer formatting. |
 | `apps/api/src/lib/extract/build-document.ts` | Extract document builder. | LLM extraction input appends sanitized, bounded page metadata to markdown so source context travels with content without raw metadata bloat. |
 | `apps/api/src/lib/extract/document-scraper.ts` | Extraction scrape bridge. | Scrape-for-extract retries single URLs with a larger timeout, tracks URL traces/content stats, bypasses billing internally, and removes transient queue jobs after completion. |
@@ -232,6 +244,8 @@
 - Managed or local search indexes are useful candidate-discovery lanes, especially with hybrid/keyword/semantic/BM25 modes and freshness/quality/rank metadata. They are not source-of-truth lanes; live page/document evidence still backs claims.
 - Background corpus warming can improve real-user retrieval when public/storage-permitted sources are safe to cache, but warming queues, demand scores, and index hit counts stay internal and never imply evidence sufficiency.
 - Crashed or dead-lettered extraction work should become explicit terminal failure artifacts with sanitized error summaries and missing-evidence reasons, so synthesis gets a gap reason instead of silence or endless retries.
+- Dynamic browser interaction is a capability lane, not the default retrieval path. It should activate from evidence-state need or explicit workflow intent, replay safe prior context, bound session lifetime/concurrency/steps, and package extracted evidence rather than raw browser traces.
+- Interactive trace/logging data must be opt-in, privacy-sanitized, and disabled for zero-retention or private contexts; trace metadata is diagnostic context, not citable evidence.
 
 ## Candidate Assimilation Targets
 
@@ -250,11 +264,12 @@
 13. Retrieval execution lifecycle: high-volume retrieval needs owner/run grouping, bounded backlog, lock ownership, drift reconciliation, and internal-only queue metrics before completed page refs become evidence. Implemented CD-level policy update; runtime execution remains future work.
 14. Managed search-index lane: use admitted indexes as optional candidate discovery with hybrid/keyword/semantic/BM25 modes, quality/freshness/rank metadata, and empty-candidate failure behavior. Implemented CD-level policy update; runtime execution remains future work.
 15. Terminal failure projection: convert dead-lettered, crashed, expired, or cancelled retrieval/extraction work into bounded failed artifacts with sanitized gap reasons instead of retries or silent missing output. Implemented CD-level policy update; runtime execution remains future work.
+16. Dynamic interaction lane: use bounded browser sessions only when static/reader/rendered retrieval is insufficient, replay retained context safely, run snapshot/action loops with step and timeout limits, and expose only extracted evidence refs. Implemented CD-level policy update; runtime execution remains future work.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
-- Continue parsing batch scrape, extract, browser, and agent controllers for reusable async/batch/result-projection patterns.
+- Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
 - Keep scanning remaining files for any general web-tooling primitive that improves discovery quality, extraction quality, evidence packing, lifecycle bounds, or retry safety.

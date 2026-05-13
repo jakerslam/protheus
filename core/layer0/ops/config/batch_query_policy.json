@@ -740,9 +740,16 @@
       "dynamic_escalation": {
         "enabled": true,
         "default": "off",
+        "source_patterns": [
+          "firecrawl_browser_session_ttl_concurrency_claim_cleanup",
+          "firecrawl_scrape_replay_before_interact",
+          "firecrawl_browser_agent_snapshot_action_loop",
+          "firecrawl_trace_zdr_sanitization"
+        ],
         "allowed_when_quality_flags_include": [
           "needs_js",
           "needs_dynamic",
+          "needs_interaction",
           "blocked_but_retryable"
         ],
         "requires_capability": "web_fetch.dynamic_page_allowed"
@@ -757,6 +764,49 @@
         "parallel_session_reuse_allowed": false,
         "close_or_expire_on_completion": true,
         "record_session_state": "handle_only"
+      },
+      "dynamic_browser_interaction": {
+        "enabled": true,
+        "purpose": "Bounded browser interaction can enrich evidence when a normal fetch/read lane cannot surface the needed content.",
+        "activation": [
+          "static_or_rendered_page_evidence_is_missing_required_interactive_content",
+          "prior_page_context_is_replayable_or_user_explicitly_supplies_an_interaction_goal",
+          "tool_cd_declares_browser_interaction_capability"
+        ],
+        "session_lifecycle": [
+          "enforce_owner_concurrency_and_ttl_before_session_creation",
+          "retry_session_creation_with_short_backoff",
+          "persist_session_handle_before_exposing_it_to_followup_execution",
+          "delete_remote_session_if_persistence_fails",
+          "claim_destroyed_state_before_cleanup_or_billing_side_effects",
+          "invalidate_active_session_counts_after_create_destroy_or_webhook"
+        ],
+        "replay_policy": [
+          "build_replay_from_prior_fetch_or_scrape_context_when_available",
+          "sanitize_actions_and_clamp_waits_before_execution",
+          "skip_output_only_actions_during_replay",
+          "synchronize_to_one_foreground_content_page_after_replay"
+        ],
+        "action_loop_policy": [
+          "use_current_url_and_interactive_snapshot_as_initial_state",
+          "treat_element_refs_as_invalid_after_page_changes",
+          "resnapshot_after_state_changing_actions",
+          "bound_step_count_and_per_step_timeout",
+          "block_new_tabs_and_out_of_scope_navigation_by_default",
+          "package_extracted_text_or_action_result_as_evidence_refs_not_raw_browser_trace"
+        ],
+        "privacy_policy": [
+          "external_trace_opt_in_only",
+          "disable_external_trace_when_zero_retention_or_private_context_applies",
+          "strip_query_string_and_fragment_from_trace_urls",
+          "keep_debug_logs_internal"
+        ],
+        "non_goals": [
+          "do_not_make_dynamic_interaction_default_for_all_queries",
+          "do_not_prescribe_final_answer_format",
+          "do_not_bind_to_specific_browser_agent_model",
+          "do_not_expose_raw_cdp_urls_accessibility_trees_or_tool_refs_to_chat"
+        ]
       }
     },
     "structured_results": {
