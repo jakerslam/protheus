@@ -181,6 +181,7 @@
       "stripped_ansi_log_artifact_refs",
       "tool_trace_artifact_refs",
       "pass_fail_status",
+      "normalized_by_executable_eval_result_ingestion_before_promotion",
       "promotion_claims_allowed",
       "promotion_claims_blocked"
     ],

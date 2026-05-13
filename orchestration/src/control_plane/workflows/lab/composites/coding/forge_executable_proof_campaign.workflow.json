@@ -1,0 +1,258 @@
+{
+  "name": "forge_executable_proof_campaign",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "controlled_eval_run_boundary",
+        "workflow_id": "forge_controlled_eval_run_boundary",
+        "input_contract": "forge_controlled_eval_run_boundary_input_envelope_v1",
+        "output_artifact": "forge_controlled_eval_run_boundary_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "executable_eval_result_ingestion",
+        "workflow_id": "forge_executable_eval_result_ingestion",
+        "input_contract": "forge_executable_eval_result_ingestion_input_envelope_v1",
+        "output_artifact": "forge_executable_eval_result_ingestion_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "executable_eval_coverage_matrix",
+        "workflow_id": "forge_executable_eval_coverage_matrix",
+        "input_contract": "forge_executable_eval_coverage_matrix_input_envelope_v1",
+        "output_artifact": "forge_executable_eval_coverage_matrix_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "promotion_readiness_scoring",
+        "workflow_id": "forge_promotion_readiness_scoring",
+        "input_contract": "forge_promotion_readiness_scoring_input_envelope_v1",
+        "output_artifact": "forge_promotion_readiness_scoring_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "promotion_decision_report",
+        "workflow_id": "forge_promotion_decision_report",
+        "input_contract": "forge_promotion_decision_report_input_envelope_v1",
+        "output_artifact": "forge_promotion_decision_report_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_run_evals_without_explicit_operator_authorization",
+      "do_not_claim_runtime_parity_without_normalized_eval_result_receipts",
+      "do_not_mutate_external_systems",
+      "do_not_promote_lab_workflows_directly"
+    ]
+  },
+  "default": false,
+  "description": "ForgeCode-derived executable proof campaign composite: plans and packages the controlled eval-run, result ingestion, coverage, readiness, and decision chain needed to prove local coding workflow parity.",
+  "stages": [
+    "proof_campaign_scope_collection",
+    "controlled_eval_run_boundary_route",
+    "executable_eval_result_ingestion_route",
+    "executable_eval_coverage_matrix_route",
+    "promotion_readiness_scoring_route",
+    "promotion_decision_report_route",
+    "proof_campaign_handoff_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "forge_controlled_eval_run_boundary",
+      "forge_executable_eval_result_ingestion",
+      "forge_executable_eval_coverage_matrix",
+      "forge_promotion_readiness_scoring",
+      "forge_promotion_decision_report"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_executable_proof_campaign_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "proof_campaign_status",
+      "eval_axes_in_scope",
+      "eval_run_authorization_status",
+      "normalized_result_status",
+      "coverage_status",
+      "promotion_readiness_status",
+      "promotion_decision",
+      "operator_next_action"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "prepare an executable proof campaign that can prove or block ForgeCode-derived coding workflow promotion",
+      "scope_boundary": "do not execute evals, run tests, publish artifacts, mutate files under test, or promote workflows unless a separate explicit run path authorizes it",
+      "validation_calibration": "campaign readiness is not executable proof; only normalized executed-result receipts can prove behavior",
+      "visibility": "return concise campaign status, missing receipts, and next operator action"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact executable proof-campaign receipts for ForgeCode-derived local coding workflow promotion.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_unbounded_eval_logs",
+      "do_not_store_provider_credentials",
+      "do_not_store_secret_release_inputs"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "proof_campaign_scope_or_text_input",
+    "allowed_transitions": [
+      "proof_campaign_scope_collection->controlled_eval_run_boundary_route",
+      "controlled_eval_run_boundary_route->executable_eval_result_ingestion_route",
+      "executable_eval_result_ingestion_route->executable_eval_coverage_matrix_route",
+      "executable_eval_coverage_matrix_route->promotion_readiness_scoring_route",
+      "promotion_readiness_scoring_route->promotion_decision_report_route",
+      "promotion_decision_report_route->proof_campaign_handoff_packaging",
+      "proof_campaign_handoff_packaging->completed",
+      "proof_campaign_scope_collection->needs_input",
+      "controlled_eval_run_boundary_route->blocked",
+      "executable_eval_result_ingestion_route->blocked",
+      "executable_eval_coverage_matrix_route->blocked",
+      "promotion_readiness_scoring_route->blocked",
+      "promotion_decision_report_route->blocked"
+    ],
+    "timeout_ms": 180000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory",
+      "shell"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 7,
+      "max_model_turns": 3,
+      "max_tool_calls": 8,
+      "token_budget": 12000,
+      "loop_signature_detector": "forge_executable_proof_campaign_v1"
+    }
+  },
+  "executable_proof_campaign_contract": {
+    "version": "forge_executable_proof_campaign_v1",
+    "source": "forgecode_assimilated_executable_proof_layer",
+    "required_child_receipts": [
+      "controlled_eval_run_boundary_receipt",
+      "executable_eval_result_receipt",
+      "executable_eval_coverage_receipt",
+      "promotion_readiness_receipt",
+      "promotion_decision_report_receipt"
+    ],
+    "required_output_receipt": "executable_proof_campaign_receipt",
+    "default_eval_axes": [
+      "local_file_reading",
+      "single_file_code_write",
+      "exact_patch_editing",
+      "parallel_tool_orchestration",
+      "multi_file_coding_execution",
+      "bounded_repair_and_validation"
+    ],
+    "campaign_modes": [
+      "plan_only",
+      "authorized_run_preparation",
+      "result_ingestion_only",
+      "decision_report_only"
+    ],
+    "proof_rules": [
+      "each_eval_axis_requires_controlled_eval_run_boundary_before_execution",
+      "each_executed_result_requires_normalized_eval_result_receipt_before_coverage_credit",
+      "coverage_gaps_block_promotion_readiness",
+      "promotion_decision_report_is_the_only_decision_artifact",
+      "operator_approval_is_required_after_technical_promotability"
+    ],
+    "blocked_conditions": [
+      "campaign_scope_ambiguous",
+      "eval_axis_missing_controlled_run_boundary",
+      "executed_result_missing_normalized_receipt",
+      "coverage_gap_not_reflected_in_readiness",
+      "promotion_decision_missing_or_inconsistent",
+      "operator_attempted_to_treat_plan_only_campaign_as_executed_proof"
+    ],
+    "report_requirements": [
+      "list_eval_axes_in_scope",
+      "list_required_eval_runs",
+      "list_available_normalized_result_receipts",
+      "list_missing_or_stale_receipts",
+      "list_blocked_promotion_claims",
+      "emit_operator_next_action"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

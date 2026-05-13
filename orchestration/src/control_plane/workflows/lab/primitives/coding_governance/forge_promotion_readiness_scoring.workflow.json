@@ -134,6 +134,7 @@
       "ci_release_boundary_receipt",
       "benchmark_eval_harness_receipt",
       "controlled_eval_run_boundary_receipt",
+      "executable_eval_result_receipt",
       "distribution_package_inventory_receipt",
       "executable_eval_coverage_receipt"
     ],
@@ -157,6 +158,10 @@
       {
         "dimension": "controlled_eval_execution_boundary",
         "minimum_for_executable_ready": "eval_runs_are_authorized_scoped_and_receipted_before_executed_results_are_used_for_promotion"
+      },
+      {
+        "dimension": "normalized_executable_eval_results",
+        "minimum_for_executable_ready": "executed_eval_results_are_normalized_into_claim_allowance_and_blocker_receipts_before_promotion_scoring"
       },
       {
         "dimension": "tooling_behavior_evidence",
@@ -197,6 +202,7 @@
       "missing_required_input_receipt",
       "claim_has_no_eval_coverage_axis",
       "eval_result_used_without_controlled_run_boundary_receipt",
+      "raw_eval_log_used_without_executable_eval_result_receipt",
       "production_parity_claim_without_executed_eval_result",
       "release_or_github_mutation_not_behind_explicit_route",
       "provider_or_release_secret_exposure",
@@ -208,6 +214,7 @@
       "list_missing_required_receipts",
       "classify_each_evidence_item_by_evidence_class",
       "separate_structural_ready_from_executable_ready",
+      "emit_decision_ready_status_for_promotion_decision_report",
       "emit_next_gate_recommendation",
       "emit_no_promotion_claim_if_executable_evidence_missing"
     ]

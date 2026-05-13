@@ -1,0 +1,217 @@
+{
+  "name": "forge_executable_eval_result_ingestion",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_run_evals",
+      "do_not_recompute_or_fabricate_eval_results",
+      "do_not_store_raw_unbounded_logs",
+      "do_not_promote_workflows_without_scoring"
+    ]
+  },
+  "default": false,
+  "description": "ForgeCode-derived executable eval result ingestion primitive: normalizes executed eval logs, validation output, trace refs, timing, pass/fail, and promotion-claim allowances into a compact receipt.",
+  "stages": [
+    "executed_eval_artifact_collection",
+    "result_metadata_normalization",
+    "validation_and_trace_evidence_binding",
+    "promotion_claim_allowance_projection",
+    "executable_eval_result_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_executable_eval_result_ingestion_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "eval_result_ingestion_status",
+      "eval_target",
+      "coverage_axis",
+      "pass_fail_status",
+      "validation_summary",
+      "promotion_claim_allowances",
+      "promotion_claim_blockers"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "normalize executed ForgeCode-like eval evidence into a compact promotion-safe receipt",
+      "scope_boundary": "do not execute evals, edit eval definitions, mutate source code, publish artifacts, or expose raw secret-bearing logs",
+      "validation_calibration": "only executed-result artifacts can produce executable evidence; planned commands and configured evals remain non-executed evidence",
+      "visibility": "return summarized pass/fail and artifact references, not full logs by default"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact executable eval-result receipts for ForgeCode-derived local coding promotion.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_unbounded_eval_logs",
+      "do_not_store_provider_credentials",
+      "do_not_store_secret_release_inputs"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "executed_eval_artifact_bundle_or_text_input",
+    "allowed_transitions": [
+      "executed_eval_artifact_collection->result_metadata_normalization",
+      "result_metadata_normalization->validation_and_trace_evidence_binding",
+      "validation_and_trace_evidence_binding->promotion_claim_allowance_projection",
+      "promotion_claim_allowance_projection->executable_eval_result_receipt_packaging",
+      "executable_eval_result_receipt_packaging->completed",
+      "executed_eval_artifact_collection->needs_input",
+      "result_metadata_normalization->blocked",
+      "validation_and_trace_evidence_binding->blocked",
+      "promotion_claim_allowance_projection->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 2,
+      "max_tool_calls": 4,
+      "token_budget": 8000,
+      "loop_signature_detector": "forge_executable_eval_result_ingestion_v1"
+    }
+  },
+  "executable_eval_result_ingestion_contract": {
+    "version": "forge_executable_eval_result_ingestion_v1",
+    "source": "forgecode_benchmark_result_patterns",
+    "source_evidence": [
+      "benchmarks/task-executor.ts",
+      "benchmarks/evals/*/task.yml",
+      "scripts/benchmark.sh",
+      "scripts/list-all-porcelain.sh"
+    ],
+    "required_input_receipts": [
+      "controlled_eval_run_boundary_receipt"
+    ],
+    "required_output_receipt": "executable_eval_result_receipt",
+    "artifact_inputs": [
+      "eval_target",
+      "coverage_axis",
+      "source_revision_or_snapshot_ref",
+      "command_ref",
+      "start_time",
+      "end_time",
+      "duration_ms",
+      "exit_code_or_signal",
+      "timeout_or_early_exit_status",
+      "validation_results",
+      "stripped_ansi_log_artifact_refs",
+      "tool_trace_artifact_refs"
+    ],
+    "normalization_rules": [
+      "reject_artifacts_without_controlled_eval_run_boundary_receipt",
+      "separate_stdout_stderr_log_refs_from_validation_summary",
+      "preserve_timeout_and_early_exit_as_distinct_status_fields",
+      "preserve_duration_ms_and_threshold_metadata",
+      "bind_tool_trace_evidence_to_eval_axis_requirements",
+      "redact_or_reference_secret_bearing_artifacts",
+      "mark_partial_or_missing_validation_as_blocking_for_promotion_claims"
+    ],
+    "promotion_claim_projection_rules": [
+      "allow_claim_only_when_required_validation_results_pass",
+      "allow_tooling_behavior_claim_only_when_trace_refs_support_required_tool_events",
+      "block_performance_claim_when_threshold_or_duration_receipt_missing",
+      "block_multi_file_coding_claim_when task_artifacts_do_not_show_multi_file_execution",
+      "block_validation_claim_when_validation_receipt_is_not_current",
+      "emit_claim_allowances_and_blockers_separately"
+    ],
+    "blocked_conditions": [
+      "missing_controlled_eval_run_boundary_receipt",
+      "missing_eval_target_or_coverage_axis",
+      "missing_exit_status",
+      "missing_validation_results_for_claimed_axis",
+      "missing_required_tool_trace_refs",
+      "secret_bearing_raw_log_without_redacted_artifact_ref",
+      "configured_or_planned_eval_submitted_as_executed_result"
+    ],
+    "receipt_requirements": [
+      "list_artifacts_ingested",
+      "list_artifacts_rejected",
+      "summarize_validation_results",
+      "summarize_timing_and_exit_status",
+      "bind_trace_refs_to_claims",
+      "emit_promotion_claim_allowances",
+      "emit_promotion_claim_blockers"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

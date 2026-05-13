@@ -1,0 +1,227 @@
+{
+  "name": "forge_promotion_decision_report",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_override_promotion_scoring",
+      "do_not_claim_executable_parity_without_receipts",
+      "do_not_promote_without_operator_approval",
+      "do_not_run_evals_or_mutate_workflows"
+    ]
+  },
+  "default": false,
+  "description": "ForgeCode-derived promotion decision/report primitive: packages governance, eval, coverage, result-ingestion, and readiness evidence into a deterministic promote / do-not-promote / needs-evals decision artifact.",
+  "stages": [
+    "decision_input_receipt_collection",
+    "decision_evidence_consistency_check",
+    "promotion_decision_classification",
+    "operator_action_report_projection",
+    "promotion_decision_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_promotion_decision_report_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "promotion_decision",
+      "decision_confidence",
+      "evidence_receipts_seen",
+      "missing_or_stale_evidence",
+      "blocking_findings",
+      "operator_next_action"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "return a concise promotion decision artifact with evidence refs and next operator action",
+      "scope_boundary": "do not execute evals, rewrite workflows, promote lab contracts, publish releases, or mutate external systems",
+      "validation_calibration": "decision labels must reflect available receipts, not desired maturity",
+      "visibility": "surface concise blockers and evidence refs while keeping internal traces and raw logs referenced only"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact promotion decision reports for ForgeCode-derived local coding workflow promotion.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_unbounded_eval_logs",
+      "do_not_store_provider_credentials",
+      "do_not_store_secret_release_inputs"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "promotion_readiness_bundle_or_text_input",
+    "allowed_transitions": [
+      "decision_input_receipt_collection->decision_evidence_consistency_check",
+      "decision_evidence_consistency_check->promotion_decision_classification",
+      "promotion_decision_classification->operator_action_report_projection",
+      "operator_action_report_projection->promotion_decision_receipt_packaging",
+      "promotion_decision_receipt_packaging->completed",
+      "decision_input_receipt_collection->needs_input",
+      "decision_evidence_consistency_check->blocked",
+      "promotion_decision_classification->blocked",
+      "operator_action_report_projection->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 2,
+      "max_tool_calls": 4,
+      "token_budget": 8000,
+      "loop_signature_detector": "forge_promotion_decision_report_v1"
+    }
+  },
+  "promotion_decision_report_contract": {
+    "version": "forge_promotion_decision_report_v1",
+    "source": "forgecode_assimilated_promotion_governance_layer",
+    "required_input_receipts": [
+      "project_local_governance_receipt",
+      "ci_release_boundary_receipt",
+      "benchmark_eval_harness_receipt",
+      "controlled_eval_run_boundary_receipt",
+      "executable_eval_result_receipt",
+      "distribution_package_inventory_receipt",
+      "executable_eval_coverage_receipt",
+      "promotion_readiness_receipt"
+    ],
+    "required_output_receipt": "promotion_decision_report_receipt",
+    "decision_labels": [
+      "promote",
+      "do_not_promote",
+      "needs_executable_evals",
+      "needs_operator_approval",
+      "needs_structural_assimilation",
+      "blocked"
+    ],
+    "decision_rules": [
+      {
+        "decision": "promote",
+        "criteria": "all_required_receipts_present_current_and_consistent_and_promotion_readiness_status_is_promotable_and_operator_approval_present"
+      },
+      {
+        "decision": "needs_executable_evals",
+        "criteria": "structural_receipts_present_but_executable_eval_result_or_coverage_receipts_missing_stale_or_blocked"
+      },
+      {
+        "decision": "needs_operator_approval",
+        "criteria": "required_receipts_present_and_promotable_except_operator_approval_missing"
+      },
+      {
+        "decision": "needs_structural_assimilation",
+        "criteria": "one_or_more_required_structural_receipts_missing_or_inconsistent"
+      },
+      {
+        "decision": "do_not_promote",
+        "criteria": "required_receipts_present_but_promotion_readiness_status_is_blocked_or_failed"
+      },
+      {
+        "decision": "blocked",
+        "criteria": "secret_exposure_external_mutation_boundary_conflict_or_unresolvable_receipt_inconsistency_detected"
+      }
+    ],
+    "consistency_checks": [
+      "every_promotion_claim_allowance_has_matching_eval_coverage_axis",
+      "every_executable_claim_has_executable_eval_result_receipt",
+      "every_executable_result_has_controlled_eval_run_boundary_receipt",
+      "coverage_matrix_gaps_are_reflected_in_promotion_readiness",
+      "release_or_github_mutation_claims_remain_behind_explicit_boundaries",
+      "operator_approval_is_separate_from_technical_readiness"
+    ],
+    "report_requirements": [
+      "list_receipts_seen",
+      "list_receipts_missing_or_stale",
+      "list_blocking_findings",
+      "list_non_blocking_warnings",
+      "emit_single_decision_label",
+      "emit_operator_next_action",
+      "emit_no_promotion_claim_when_decision_is_not_promote"
+    ],
+    "blocked_conditions": [
+      "receipt_bundle_inconsistent",
+      "raw_eval_log_used_without_normalized_result_receipt",
+      "promotion_readiness_status_missing",
+      "operator_approval_required_but_not_modeled",
+      "external_mutation_boundary_conflict",
+      "secret_exposure_risk"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

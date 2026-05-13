@@ -101,6 +101,10 @@ Top-level source areas:
 | `FC-A20` | Extract promotion-readiness scoring semantics | active | Promotion-readiness scoring contract pass added to separate structural assimilation, executable eval evidence, blockers, missing receipts, and operator approval. |
 | `FC-A21` | Extract executable eval coverage matrix semantics | active | Eval coverage matrix contract pass added to map parity claims to required ForgeCode benchmark/eval receipts before promotion scoring. |
 | `FC-A22` | Extract controlled eval-run boundary semantics | active | Controlled eval-run boundary contract pass added for explicit authorization, target scope, environment checks, command projection, and result receipt requirements. |
+| `FC-A23` | Extract executable eval-result ingestion semantics | active | Eval-result ingestion contract pass added for normalizing executed logs, validation output, timing, trace refs, pass/fail, claim allowances, and blockers. |
+| `FC-A24` | Extract promotion decision/report semantics | active | Promotion decision/report contract pass added to package governance, eval, coverage, result-ingestion, readiness, blockers, and operator next action into one deterministic promotion artifact. |
+| `FC-A25` | Extract structural assimilation closure semantics | active | Closure report contract pass added for source-family coverage, registry/ledger/receipt-chain coherence, structural gap classification, executable proof gaps, and next operator action. |
+| `FC-A26` | Create executable proof campaign composite | active | Proof-campaign composite added to move from structural assimilation into authorized eval planning, result ingestion, coverage mapping, readiness scoring, decision reporting, and operator handoff. |
 
 ## Assimilated workflow contracts created
 
@@ -180,10 +184,14 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `forge_ci_release_boundary` | 0 | `.github/workflows`, `.github/release-drafter.yml`, `.github/dependabot.yml`, `.github/labels.json`, `.github/scripts/bounty`, `.forge/skills/write-release-notes` | lab contract created | Captures generated workflow boundaries, CI validation, release target matrix, package distribution, bounty label rules, release-note generation, and secret redaction. |
 | `forge_benchmark_eval_harness` | 0 | `benchmarks`, `benchmarks/evals`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Projects eval task parsing, execution logging, timeout/early-exit behavior, tool-use validation rules, performance thresholds, and porcelain inventory checks. |
 | `forge_controlled_eval_run_boundary` | 0 | `benchmarks/task-executor.ts`, `benchmarks/parse.ts`, `benchmarks/evals/*/task.yml`, `scripts/benchmark.sh`, `package.json` | lab contract created | Defines explicit eval-run authorization, target binding, environment checks, command projection, log retention, and executed-result receipt requirements without running evals by default. |
+| `forge_executable_eval_result_ingestion` | 0 | `benchmarks/task-executor.ts`, `benchmarks/evals/*/task.yml`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Normalizes executed eval artifacts into compact result receipts with timing, exit status, validation summaries, trace refs, artifact refs, promotion-claim allowances, and blockers. |
 | `forge_distribution_package_inventory` | 0 | `Cargo.toml`, `package.json`, `rust-toolchain.toml`, `Cross.toml`, `flake.nix`, `.rustfmt.toml`, `clippy.toml`, `insta.yaml`, `forge.schema.json`, `README.md`, `AGENTS.md`, `vertex.json`, `renovate.json` | lab contract created | Captures top-level workspace/package metadata, distribution/toolchain boundaries, formatting/lint/snapshot config, public CLI/TUI/zsh modes, local coding guidance, config schema, and provider model inventory. |
 | `forge_executable_eval_coverage_matrix` | 0 | `benchmarks/task-executor.ts`, `benchmarks/parse.ts`, `benchmarks/evals/read_over_cat/task.yml`, `benchmarks/evals/patch_exact_match/task.yml`, `benchmarks/evals/parallel_tool_calls/task.yml`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Maps local coding parity claims to required executable eval receipts for local file reading, exact patch editing, parallel tool orchestration, multi-file coding, bounded repair/validation, performance, and porcelain inventory. |
 | `forge_promotion_readiness_scoring` | 0 | Assimilated governance/evaluation receipts from `forge_project_local_governance`, `forge_ci_release_boundary`, `forge_benchmark_eval_harness`, and `forge_distribution_package_inventory` | lab contract created | Scores structural readiness, executable readiness, promotion blockers, missing evidence, and operator-approval requirements without running evals or mutating release surfaces. |
-| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata, controlled eval-run receipts, eval coverage receipts, promotion-readiness receipts | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, controlled eval-run boundaries, distribution/package inventory, executable eval coverage, and promotion-readiness scoring evidence from raw coding execution. |
+| `forge_promotion_decision_report` | 0 | Assimilated promotion evidence receipts from governance, CI/release, benchmark/eval, controlled eval-run, eval-result ingestion, distribution inventory, coverage matrix, and readiness scoring primitives | lab contract created | Packages a deterministic promote / do-not-promote / needs-evals / needs-approval / blocked decision with evidence refs, blockers, stale evidence, and operator next action. |
+| `forge_structural_assimilation_closure_report` | 0 | Assimilation ledger, workflow registry, governance/eval receipt chain, and source-family coverage map | lab contract created | Confirms structural source-family coverage, registry/ledger/chain coherence, remaining structural gaps, executable proof gaps, promotion gaps, and next action without claiming runtime parity. |
+| `forge_executable_proof_campaign` | 1 | `forge_controlled_eval_run_boundary`, `forge_executable_eval_result_ingestion`, `forge_executable_eval_coverage_matrix`, `forge_promotion_readiness_scoring`, `forge_promotion_decision_report` | lab contract created | Composite proof campaign that coordinates eval-axis scope, controlled run authorization, normalized result ingestion, coverage, readiness scoring, promotion decision reporting, and operator next action without executing evals by default. |
+| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata, controlled eval-run receipts, eval-result receipts, eval coverage receipts, promotion-readiness receipts, promotion decision receipts, structural closure receipts | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, controlled eval-run boundaries, executable eval-result ingestion, distribution/package inventory, executable eval coverage, promotion-readiness scoring, promotion decision reporting, and structural assimilation closure evidence from raw coding execution. |
 
 ## Runtime behavior harnesses created
 
@@ -265,10 +273,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, controlled eval-run boundaries, distribution/package inventory, executable eval coverage, promotion-readiness scoring, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, controlled eval-run boundaries, executable eval-result ingestion, distribution/package inventory, executable eval coverage, promotion-readiness scoring, promotion decision reporting, structural assimilation closure, and promotion/eval evidence separately. Structural assimilation is closed pending executable runtime-backed eval proof before any production-parity claim.
 
 Next source pass:
-- Structural assimilation is effectively closed; next work is executable eval coverage, promotion-readiness scoring, and spot-checking any newly discovered source families.
+- Structural assimilation is closed unless a new ForgeCode source family is discovered; next work is running the executable proof campaign, ingesting normalized result receipts, producing promotion decisions, and completing operator promotion review.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -763,3 +771,87 @@ Parity requirements added:
 | Record environment, provider/model, credential route, timeout, retry, network, and log-retention boundaries before execution | `forge_controlled_eval_run_boundary` | P0 |
 | Project commands without executing them by default and redact credential inputs as references | `forge_controlled_eval_run_boundary` | P0 |
 | Require executed-result receipts with duration, exit status, timeout/early-exit status, validation output, stripped-log refs, tool-trace refs, and promotion-claim allowances/blockers | `forge_controlled_eval_run_boundary` | P0 |
+
+## Nineteenth source pass: executable eval-result ingestion behavior
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| `benchmarks/task-executor.ts` | Captures duration/error metadata, timeout/early-exit state, stdout/stderr logs, stripped ANSI output, and validation status. | `forge_executable_eval_result_ingestion` |
+| `benchmarks/evals/*/task.yml` | Eval tasks define the behavior claim under test and validation requirements that must support any pass/fail claim. | `forge_executable_eval_result_ingestion` |
+| `scripts/benchmark.sh` | Produces repeat timing summaries and optional threshold failures that must stay distinct from generic pass/fail. | `forge_executable_eval_result_ingestion` |
+| `scripts/list-all-porcelain.sh` | Produces command inventory timing and output-shape evidence that supports shell/completion and porcelain claims. | `forge_executable_eval_result_ingestion` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Reject configured or planned evals when submitted as executed results | `forge_executable_eval_result_ingestion` | P0 |
+| Require a controlled eval-run boundary receipt before accepting executed-result artifacts | `forge_executable_eval_result_ingestion` | P0 |
+| Normalize timing, exit status, timeout/early-exit state, validation summaries, stripped-log refs, and tool-trace refs into one compact receipt | `forge_executable_eval_result_ingestion` | P0 |
+| Bind trace refs to coverage-axis requirements before allowing tooling-behavior claims | `forge_executable_eval_result_ingestion` | P0 |
+| Emit promotion-claim allowances and blockers separately so promotion scoring can stay deterministic | `forge_executable_eval_result_ingestion` | P0 |
+
+## Twentieth source pass: promotion decision/report behavior
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| Assimilated governance/eval receipts | Project governance, CI/release, benchmark/eval, controlled eval-run, eval-result ingestion, distribution inventory, coverage, and readiness scoring now produce separate measurable receipts. | `forge_promotion_decision_report` |
+| Promotion readiness scoring | Structural readiness, executable readiness, blocker status, missing receipts, and operator approval are separated before final decision. | `forge_promotion_decision_report` |
+| Eval-result ingestion | Executed eval evidence is normalized into claim allowances and blockers instead of raw log interpretation. | `forge_promotion_decision_report` |
+| External-action boundaries | Release/GitHub/provider mutation and secret-bearing paths remain gated and must block promotion when inconsistent. | `forge_promotion_decision_report` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Emit one deterministic decision label: promote, do-not-promote, needs-executable-evals, needs-operator-approval, needs-structural-assimilation, or blocked | `forge_promotion_decision_report` | P0 |
+| Require every executable promotion claim to trace through controlled eval-run, normalized result, coverage axis, and readiness receipts | `forge_promotion_decision_report` | P0 |
+| Keep operator approval separate from technical readiness so lab contracts are not promoted implicitly | `forge_promotion_decision_report` | P0 |
+| Convert coverage gaps, stale evidence, raw logs, or missing receipts into explicit blocking findings | `forge_promotion_decision_report` | P0 |
+| Return operator next action as the final human-facing handoff for promotion work | `forge_promotion_decision_report` | P1 |
+
+## Twenty-first source pass: structural assimilation closure behavior
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| Assimilation ledger | Source-family passes and workflow contracts now enumerate core coding execution, ingress/session/prompt context, policy/tooling, runtime/observability, operator/shell/remote/template integration, governance/CI/release, benchmark/eval/promotion, and distribution/provider inventory. | `forge_structural_assimilation_closure_report` |
+| Workflow registry | ForgeCode-derived lab primitives are registered separately from raw coding execution and remain non-runtime-selectable pending promotion evidence. | `forge_structural_assimilation_closure_report` |
+| Governance/eval composite | Promotion evidence is routed through the governance/evaluation guard instead of the raw `local_coding_program_builder`. | `forge_structural_assimilation_closure_report` |
+| Promotion decision chain | Controlled eval-run, normalized result ingestion, coverage matrix, readiness scoring, and decision report establish the executable-proof path. | `forge_structural_assimilation_closure_report` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Mark missing workflow, registry, ledger, or receipt-chain entries as structural gaps | `forge_structural_assimilation_closure_report` | P0 |
+| Mark missing executed eval receipts as executable proof gaps, not structural assimilation gaps | `forge_structural_assimilation_closure_report` | P0 |
+| Confirm governance/eval evidence remains separate from raw coding execution | `forge_structural_assimilation_closure_report` | P0 |
+| Confirm workflow level tracking remains consistent with composed workflow IDs | `forge_structural_assimilation_closure_report` | P0 |
+| End structural assimilation with a next-action handoff to executable eval proof and operator promotion review | `forge_structural_assimilation_closure_report` | P1 |
+
+## Twenty-second source pass: executable proof campaign behavior
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| Controlled eval-run boundary | Eval execution requires explicit authorization, target binding, environment checks, command projection, and receipt requirements. | `forge_executable_proof_campaign` |
+| Executable eval-result ingestion | Executed artifacts must be normalized before any coverage or promotion claim can use them. | `forge_executable_proof_campaign` |
+| Executable eval coverage matrix | Promotion claims must map to concrete eval axes and missing receipts must block promotion. | `forge_executable_proof_campaign` |
+| Promotion readiness and decision reporting | Readiness scoring and final decision reporting are separate from raw eval logs and operator approval. | `forge_executable_proof_campaign` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Provide a plan-only executable proof campaign mode so eval scope can be prepared without running tests or benchmarks | `forge_executable_proof_campaign` | P0 |
+| Require controlled eval-run boundaries before execution for each eval axis | `forge_executable_proof_campaign` | P0 |
+| Require normalized result receipts before coverage credit or promotion scoring | `forge_executable_proof_campaign` | P0 |
+| Treat missing result receipts as blockers, not warnings or assumed passes | `forge_executable_proof_campaign` | P0 |
+| Emit operator next action after campaign planning, ingestion, readiness scoring, and decision reporting | `forge_executable_proof_campaign` | P1 |

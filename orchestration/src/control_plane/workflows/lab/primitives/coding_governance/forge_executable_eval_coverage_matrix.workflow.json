@@ -214,6 +214,7 @@
       "list_claims_under_review",
       "map_each_claim_to_coverage_axis",
       "bind_coverage_axis_to_controlled_eval_run_boundary_receipt_when_execution_is_requested",
+      "bind_executed_results_to_executable_eval_result_receipt_before_marking_axis_covered",
       "list_required_eval_receipts_per_axis",
       "mark_configured_eval_inventory_separately_from_executed_results",
       "identify_new_eval_tasks_needed_for_uncovered_claims",
