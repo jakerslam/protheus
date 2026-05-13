@@ -861,28 +861,28 @@ apps/python-sdk/example_v2.py	apps	not_parsed	pending_review
 apps/python-sdk/example_ws.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/TODO.md	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__init__.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/.env.example	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/conftest.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_batch_scrape.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_crawl.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_extract.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_map.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_parse.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_scrape.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_search.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_usage.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_watcher.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/conftest.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_async.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_batch_scrape.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_crawl.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_extract.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_map.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_parse.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_scrape.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_search.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_usage.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/e2e/v2/test_watcher.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/e2e/v2/.env.example	apps	parsed	python_sdk_e2e_env_example	api_key_api_url_and_identity_broker_live_capability_setup
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/conftest.py	apps	parsed	python_async_sdk_e2e_harness	env_loading_required_capability_fixtures_and_skip_behavior
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_batch_scrape.py	apps	parsed	python_async_sdk_batch_e2e	start_status_wait_all_params_cancel_multi_url_collection
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_crawl.py	apps	parsed	python_async_sdk_crawl_e2e	start_status_wait_options_cancel_errors_active_crawls_params_preview
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_extract.py	apps	parsed	python_async_sdk_extract_e2e	minimal_schema_option_extract_requests_over_deprecated_endpoint
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_map.py	apps	parsed	python_async_sdk_map_e2e	link_shape_sitemap_search_subdomain_limit_timeout_integration
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_parse.py	apps	parsed	python_async_sdk_parse_e2e	uploaded_html_to_markdown_parse_only_content_proof
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_scrape.py	apps	parsed	python_async_sdk_scrape_e2e	content_or_artifact_proof_format_fields_and_invalid_url_handling
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_search.py	apps	parsed	python_async_sdk_search_e2e	query_relevance_source_lanes_enriched_documents_and_format_flexibility
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_usage.py	apps	parsed	python_async_sdk_usage_e2e	account_control_projection_shapes_for_concurrency_credit_token_queue
+apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_watcher.py	apps	parsed	python_async_sdk_watcher_e2e	async_progress_iteration_and_terminal_snapshot_states
+apps/python-sdk/firecrawl/__tests__/e2e/v2/conftest.py	apps	parsed	python_sdk_e2e_harness	identity_broker_client_injection_and_explicit_live_capability_setup
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_async.py	apps	parsed	python_sdk_async_smoke_e2e	content_bearing_scrape_vs_lifecycle_status_smoke_checks
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_batch_scrape.py	apps	parsed	python_sdk_batch_e2e	multi_url_start_status_wait_page_cancel_json_change_tracking_options
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_crawl.py	apps	parsed	python_sdk_crawl_e2e	start_status_page_cancel_errors_active_wait_scrape_options_and_params_preview
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_extract.py	apps	parsed	python_sdk_extract_e2e	schema_backed_extract_output_optional_sources_and_backend_dependent_success
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_map.py	apps	parsed	python_sdk_map_e2e	typed_http_links_sitemap_modes_limit_search_and_integration_labels
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_parse.py	apps	parsed	python_sdk_parse_e2e	uploaded_html_file_metadata_to_markdown_content_proof
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_scrape.py	apps	parsed	python_sdk_scrape_e2e	content_artifact_metadata_format_images_cache_and_invalid_url_assertions
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_search.py	apps	parsed	python_sdk_search_e2e	query_relevance_source_lanes_enriched_documents_and_search_plus_scrape
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_usage.py	apps	parsed	python_sdk_usage_e2e	concurrency_credit_token_shape_control_projection_checks
+apps/python-sdk/firecrawl/__tests__/e2e/v2/test_watcher.py	apps	parsed	python_sdk_watcher_e2e	crawl_batch_progress_listener_terminal_state_checks
 apps/python-sdk/firecrawl/__tests__/unit/test_recursive_schema_v1.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_params.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_request_preparation.py	apps	parsed	python_async_sdk_crawl_request_prep_tests	field_mapping_webhook_none_exclusion_and_integration_trimming

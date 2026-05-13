@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 504
-- Not parsed: 773
+- Parsed: 526
+- Not parsed: 751
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -553,6 +553,28 @@
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_request_preparation.py` | Python async SDK crawl request-prep tests. | Async crawl prep locks path/depth/sitemap/query/external/subdomain/concurrency/ZDR/webhook/integration field mapping. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_batch_request_preparation_async.py` | Python async SDK batch request-prep tests. | Async batch prep mirrors URL validation, flattened scrape options, webhook/append/concurrency/ZDR/integration fields. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_parse_request_preparation.py` | Python async SDK parse request-prep tests. | Async parse prep mirrors multipart bytes/path handling, origin injection, and missing-path rejection. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/.env.example` | Python SDK E2E environment example. | E2E tests declare API key/API URL plus optional identity broker as environment requirements, keeping live capability setup explicit. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/conftest.py` | Python SDK sync E2E harness. | Live tests resolve credentials through an identity broker when present, inject clients consistently, and fail/skip based on explicit environment capabilities. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/conftest.py` | Python SDK async E2E harness. | Async E2E setup loads environment once, validates required variables, and provides per-test API key/API URL fixtures. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_async.py` | Python SDK async smoke E2E. | Smoke tests separate content-bearing scrape assertions from lifecycle-only crawl/batch/usage status assertions. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_scrape.py` | Python SDK scrape E2E tests. | Scrape E2E asserts at least one content artifact plus metadata, tests format-specific artifacts, images beyond obvious links, invalid URL rejection, and cache/control options. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_search.py` | Python SDK search E2E tests. | Search E2E asserts relevant query terms in result text, source-lane shape, enriched document-vs-row distinction, time/location/domain-ish options, and search-plus-scrape enrichment. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_map.py` | Python SDK map E2E tests. | Map E2E requires typed HTTP links, sitemap modes, bounded limits, search filtering, and integration labels for site-discovery behavior. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_crawl.py` | Python SDK crawl E2E tests. | Crawl E2E checks start/status/page/cancel/errors/active-crawl/wait paths, prompt-derived crawl params, nested scrape options, and paginated result windows. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_batch_scrape.py` | Python SDK batch scrape E2E tests. | Batch E2E covers multi-URL start/status/wait/cancel, next-page fetches, JSON/change-tracking format options, concurrency, ZDR, and integration labels. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_parse.py` | Python SDK parse E2E tests. | Parse E2E proves uploaded HTML becomes markdown content with file/content-type metadata rather than a web URL fetch. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_extract.py` | Python SDK extract E2E tests. | Extract E2E requires schema-backed output and optional source maps while treating success/source presence as backend-dependent. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_usage.py` | Python SDK usage E2E tests. | Usage E2E asserts account-control projection shape only, keeping concurrency/credits/tokens out of evidence quality checks. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/test_watcher.py` | Python SDK watcher E2E tests. | Watcher E2E requires crawl/batch progress streams to emit at least one status and terminal completion/failure/cancellation state. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_scrape.py` | Python async SDK scrape E2E tests. | Async scrape mirrors sync content/artifact assertions across markdown/html/raw/links/screenshot/summary/json and invalid URL handling. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_search.py` | Python async SDK search E2E tests. | Async search mirrors sync relevance, source-lane, enriched-document, format-flexibility, and search-plus-scrape checks. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_map.py` | Python async SDK map E2E tests. | Async map mirrors link-shape, sitemap, search, subdomain, limit, timeout, and integration behavior. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_crawl.py` | Python async SDK crawl E2E tests. | Async crawl mirrors start/status/wait/prompt/options/cancel/errors/active-crawl/params-preview behavior with terminal polling. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_batch_scrape.py` | Python async SDK batch scrape E2E tests. | Async batch mirrors start/status/wait/all-params/cancel behavior over multi-URL evidence collection. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_parse.py` | Python async SDK parse E2E tests. | Async parse proves uploaded HTML becomes markdown content under parse-only file metadata. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_extract.py` | Python async SDK extract E2E tests. | Async extract mirrors minimal and schema/options requests while treating the endpoint as deprecated. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_usage.py` | Python async SDK usage E2E tests. | Async usage asserts concurrency, credit, token, and queue status shapes as control-plane projections. |
+| `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_watcher.py` | Python async SDK watcher E2E tests. | Async watcher requires crawl/batch async iteration to produce progress and terminal state snapshots. |
 
 ## Decisions So Far
 
@@ -701,6 +723,9 @@
 - Async adapters are useful parity probes because they duplicate request-shaping and pagination behavior; any drift between sync/async/API/workflow adapters should be treated as an upstream gate failure, not a synthesis issue.
 - Later-page failures should not erase earlier retrieved documents. They should produce a partial evidence artifact plus hidden gap/stop metadata so synthesis can still use the good evidence.
 - Usage, queue, monitor, and browser lifecycle projections are control-plane/status artifacts. They can guide budgets and recovery, but they are not citable research evidence unless converted into explicit retrieval artifacts.
+- E2E tests should separate lifecycle proof from answer-bearing evidence proof. A crawl or batch status reaching `completed`/`failed` proves the handle loop; markdown/content/relevance assertions prove research usefulness.
+- Live retrieval capability should be explicit in the eval harness through environment/capability fixtures, so unavailable hosted services are skipped or classified rather than counted as product regressions.
+- Search-plus-scrape E2E tests are the right shape for research quality: check source lanes and query relevance first, then accept enriched documents when scrape options ask for page content.
 
 ## Candidate Assimilation Targets
 
@@ -792,6 +817,9 @@
 86. Adapter parity drift guard: compare sync, async, API, and workflow adapter request payloads for equivalent tool intents. Ledger captured; candidate gate-3/gate-4 regression guard.
 87. Partial evidence with stop metadata: when pagination or async follow-up fetches fail, preserve already-retrieved documents and attach hidden stop reasons. Ledger captured; candidate evidence-pack/runtime target.
 88. Control-plane projection quarantine: keep usage, queue, browser session, monitor, and account status artifacts out of synthesis evidence unless explicitly converted to evidence refs. Ledger captured; candidate projection/evidence guard.
+89. E2E quality strata: report separate live eval strata for lifecycle success, evidence presence, relevance/content quality, and synthesis usefulness. Ledger captured; candidate workflow eval reporting target.
+90. Capability-explicit live evals: gate hosted/expensive retrieval tests by declared capability fixtures and classify missing capability separately from workflow failure. Ledger captured; candidate eval harness target.
+91. Search enrichment relevance test: require search-plus-fetch paths to prove both query relevance and content-bearing enriched documents. Ledger captured; candidate golden/eval target.
 
 ## Remaining Work
 
