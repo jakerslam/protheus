@@ -1144,6 +1144,112 @@ mod quality_tests {
     }
 
     #[test]
+    fn general_research_query_fetches_links_when_search_snippet_is_too_thin() {
+        let query = "scientific breakthroughs april 2026";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Science News — https://science.example.org/april-2026-breakthroughs — breakthroughs roundup.",
+                    "content": "",
+                    "links": [
+                        "https://science.example.org/april-2026-breakthroughs",
+                        "https://research.example.org/2026-april-materials-paper"
+                    ],
+                    "requested_url": "https://search.example.com/science",
+                    "status_code": 200
+                },
+                "fetch::https://science.example.org/april-2026-breakthroughs": {
+                    "ok": true,
+                    "summary": "Scientific breakthroughs April 2026 source-backed evidence includes cancer vaccine trial data, quantum error correction records, and a room-temperature materials synthesis method under independent review.",
+                    "requested_url": "https://science.example.org/april-2026-breakthroughs",
+                    "status_code": 200
+                },
+                "fetch::https://research.example.org/2026-april-materials-paper": {
+                    "ok": true,
+                    "summary": "A research institute release describes an April 2026 materials paper with replication notes, measurement uncertainty, and links to peer-review status.",
+                    "requested_url": "https://research.example.org/2026-april-materials-paper",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "small",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("quantum") || lowered.contains("materials"), "{lowered}");
+        assert!(!lowered.contains("breakthroughs roundup"), "{lowered}");
+    }
+
+    #[test]
+    fn page_extraction_skips_non_document_links_before_fetch_budget() {
+        let query = "scientific breakthroughs april 2026";
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_policy();
+        policy["batch_query"]["page_extraction"]["max_links_per_stage"] = json!(1);
+        policy["batch_query"]["page_extraction"]["max_total_fetches"] = json!(1);
+        write_json_atomic(&tmp.path().join(POLICY_REL), &policy).expect("write policy");
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "science.example.org: April 2026 — https://www.science.example.org/april-2026-breakthroughs",
+                    "content": "",
+                    "links": [
+                        "https://science.example.org/april-2026-breakthroughs.png",
+                        "https://science.example.org/april-2026-breakthroughs#summary",
+                        "https://science.example.org/april-2026-breakthroughs"
+                    ],
+                    "requested_url": "https://search.example.com/science",
+                    "status_code": 200
+                },
+                "fetch::https://science.example.org/april-2026-breakthroughs": {
+                    "ok": true,
+                    "summary": "Scientific breakthroughs April 2026 evidence includes cancer vaccine trial data and quantum error correction records.",
+                    "requested_url": "https://science.example.org/april-2026-breakthroughs",
+                    "status_code": 200
+                }
+            }),
+            || run_query(tmp.path(), query, "small"),
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("quantum error correction"), "{lowered}");
+        let evidence_refs = out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(evidence_refs.iter().any(|row| {
+            row.get("locator")
+                .and_then(Value::as_str)
+                .map(|value| value == "https://science.example.org/april-2026-breakthroughs")
+                .unwrap_or(false)
+        }));
+    }
+
+    #[test]
+    fn page_extraction_dedupes_canonical_url_variants_before_fetch_budget() {
+        let query = "scientific breakthroughs april 2026";
+        let policy = default_policy();
+        let links = payload_links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "links": [
+                    "http://www.science.example.org/april-2026-breakthroughs#summary",
+                    "https://science.example.org/april-2026-breakthroughs"
+                ]
+            }),
+            1,
+        );
+        assert_eq!(
+            links,
+            vec!["https://science.example.org/april-2026-breakthroughs"]
+        );
+    }
+
+    #[test]
     fn framework_catalog_fresh_summary_rewrites_noisy_mirror_snippet_when_official_evidence_exists()
     {
         let out = run_query_with_fixture(

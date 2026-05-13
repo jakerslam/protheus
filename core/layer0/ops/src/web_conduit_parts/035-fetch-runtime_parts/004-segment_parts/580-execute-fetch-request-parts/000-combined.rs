@@ -1276,6 +1276,11 @@
             }
         )
     };
+    let unsupported_content_type_error = if content_is_textual {
+        String::new()
+    } else {
+        unsupported_fetch_content_type_error(&content_type)
+    };
     let response_hash = if content.is_empty() {
         String::new()
     } else {
@@ -1291,18 +1296,17 @@
         None
     };
     let fetch_ok = fetched.get("ok").and_then(Value::as_bool).unwrap_or(false)
-        && if content_is_textual {
-            !content.is_empty()
-        } else {
-            status_code >= 200 && status_code < 400
-        };
+        && content_is_textual
+        && !content.is_empty();
     let error_value = fetched
         .get("stderr")
         .and_then(Value::as_str)
         .map(|v| clean_text(v, 320))
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| {
-            if status_code >= 400 {
+            if !unsupported_content_type_error.is_empty() {
+                unsupported_content_type_error.clone()
+            } else if status_code >= 400 {
                 let detail = format_web_fetch_error_detail(fetched_body, &content_type, 4000);
                 if detail.is_empty() {
                     String::new()

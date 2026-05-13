@@ -6,7 +6,14 @@
   "source_pattern_provenance": [
     "exa_advanced_search_surface",
     "tavily_map_crawl_capability_split",
-    "jina_reader_search_plus_read"
+    "jina_reader_search_plus_read",
+    "firecrawl_search_result_scrape_merge",
+    "firecrawl_url_hygiene_before_fetch_budget",
+    "firecrawl_canonical_url_dedupe_before_fetch_budget",
+    "firecrawl_crawler_filtering_and_metadata_signals",
+    "firecrawl_link_filter_denial_reasons",
+    "firecrawl_engine_quality_probe_before_render_budget",
+    "firecrawl_unsupported_binary_lane_split"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -207,7 +214,8 @@
     "skip_when": [
       "narrow_lookup_is_directly_supported_by_result_metadata",
       "candidate_is_duplicate_or_off_topic",
-      "source_access_policy_or_budget_blocks_fetch"
+      "source_access_policy_or_budget_blocks_fetch",
+      "candidate_content_type_belongs_to_a_non_web_document_or_media_lane"
     ],
     "artifact_variants": [
       "reader_content",

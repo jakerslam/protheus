@@ -101,14 +101,18 @@ fn collect_candidates_from_stage_payload(
     if contains_web_junk_marker(&summary) || contains_web_junk_marker(&content) {
         issues.push(format!("{stage}:junk_page"));
     }
+    let usable_candidate_count = candidates
+        .iter()
+        .filter(|candidate| !candidate_is_low_confidence_retained(candidate))
+        .count();
     let should_fetch_links = page_extraction_enabled(policy)
         && page_extraction_max_links_per_stage(policy) > 0
         && page_extraction_max_total_fetches(policy) > fetched_links.len()
-        && (!has_usable_synthesis_candidate(&candidates)
+        && (usable_candidate_count < page_extraction_min_usable_items_before_skip(policy)
             || looks_like_low_signal_search_summary(&summary)
             || candidates
                 .iter()
-                .all(|candidate| candidate_needs_link_fetch(query, candidate)));
+                .any(|candidate| candidate_needs_link_fetch(query, policy, candidate)));
     if should_fetch_links {
         for link in payload_links_for_page_extraction(
             query,
@@ -143,8 +147,9 @@ fn collect_candidates_from_stage_payload(
                     {
                         candidate.locator = link.clone();
                     }
+                    mark_candidate_as_page_enriched(&mut candidate);
                     if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
-                        candidates.push(candidate);
+                        merge_or_push_page_enriched_candidate(query, policy, &mut candidates, candidate);
                     } else if let Some(candidate) = retain_low_confidence_candidate(
                         policy,
                         &candidate,
@@ -173,6 +178,81 @@ fn collect_candidates_from_stage_payload(
     let provider_result =
         hidden_provider_result_artifact(stage, query, payload, synthesis_candidate_count, &issues);
     (candidates, issues, provider_result)
+}
+
+fn mark_candidate_as_page_enriched(candidate: &mut Candidate) {
+    if !candidate
+        .source_kind
+        .to_ascii_lowercase()
+        .contains("page_enriched")
+    {
+        candidate.source_kind = format!("{}_page_enriched", candidate.source_kind);
+    }
+    let permissions = candidate.permissions.clone().unwrap_or_default();
+    candidate.permissions = Some(if permissions.is_empty() {
+        "public_web;page_enriched".to_string()
+    } else if permissions.contains("page_enriched") {
+        permissions
+    } else {
+        format!("{permissions};page_enriched")
+    });
+}
+
+fn page_enriched_candidate_value(query: &str, candidate: &Candidate) -> usize {
+    let snippet = clean_text(&candidate.snippet, 2_400);
+    let word_count = snippet.split_whitespace().count().min(220);
+    let overlap = query_overlap_terms(query, candidate);
+    let status_bonus = if (200..400).contains(&candidate.status_code) {
+        12
+    } else {
+        0
+    };
+    let substance_bonus = if !looks_like_low_signal_search_summary(&snippet)
+        && !looks_like_source_only_snippet(&snippet)
+        && !looks_like_ack_only(&snippet)
+    {
+        24
+    } else {
+        0
+    };
+    word_count + overlap.saturating_mul(18) + status_bonus + substance_bonus
+}
+
+fn candidates_share_locator(a: &Candidate, b: &Candidate) -> bool {
+    let left = clean_text(&a.locator, 2_200).to_ascii_lowercase();
+    let right = clean_text(&b.locator, 2_200).to_ascii_lowercase();
+    !left.is_empty() && left == right
+}
+
+fn should_replace_with_page_enriched_candidate(
+    query: &str,
+    policy: &Value,
+    existing: &Candidate,
+    enriched: &Candidate,
+) -> bool {
+    if !candidates_share_locator(existing, enriched) {
+        return false;
+    }
+    if candidate_needs_link_fetch(query, policy, existing) {
+        return true;
+    }
+    page_enriched_candidate_value(query, enriched)
+        > page_enriched_candidate_value(query, existing).saturating_add(8)
+}
+
+fn merge_or_push_page_enriched_candidate(
+    query: &str,
+    policy: &Value,
+    candidates: &mut Vec<Candidate>,
+    enriched: Candidate,
+) {
+    if let Some(existing) = candidates.iter_mut().find(|candidate| {
+        should_replace_with_page_enriched_candidate(query, policy, candidate, &enriched)
+    }) {
+        *existing = enriched;
+        return;
+    }
+    candidates.push(enriched);
 }
 
 fn candidate_is_low_confidence_retained(candidate: &Candidate) -> bool {

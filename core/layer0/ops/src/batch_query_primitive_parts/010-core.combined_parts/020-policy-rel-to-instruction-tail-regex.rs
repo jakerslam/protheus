@@ -98,7 +98,39 @@ fn default_policy() -> Value {
                 "max_links_per_stage": 3,
                 "max_total_fetches": 8,
                 "min_link_score": 0.0,
-                "trigger": "low_or_empty_candidates"
+                "min_usable_items_before_skip": 2,
+                "min_snippet_words_before_skip": 22,
+                "min_query_overlap_terms_before_skip": 2,
+                "trigger": "low_thin_or_coverage_weak_candidates",
+                "url_hygiene": {
+                    "enabled": true,
+                    "drop_fragment_for_dedupe": true,
+                    "canonical_dedupe_prefer_https_and_non_www": true,
+                    "require_http_protocol": true,
+                    "excluded_file_extensions": [
+                        ".png",
+                        ".jpg",
+                        ".jpeg",
+                        ".gif",
+                        ".webp",
+                        ".svg",
+                        ".ico",
+                        ".css",
+                        ".js",
+                        ".woff",
+                        ".woff2",
+                        ".ttf",
+                        ".mp3",
+                        ".mp4",
+                        ".avi",
+                        ".mov",
+                        ".zip",
+                        ".gz",
+                        ".tar",
+                        ".dmg",
+                        ".exe"
+                    ]
+                }
             },
             "structured_results": {
                 "enabled": true,
@@ -394,6 +426,83 @@ fn page_extraction_min_link_score(policy: &Value) -> f64 {
         .and_then(Value::as_f64)
         .unwrap_or(0.08)
         .clamp(-1.0, 1.0)
+}
+
+fn page_extraction_min_usable_items_before_skip(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/min_usable_items_before_skip")
+        .and_then(Value::as_u64)
+        .unwrap_or(2)
+        .clamp(0, 12) as usize
+}
+
+fn page_extraction_min_snippet_words_before_skip(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/min_snippet_words_before_skip")
+        .and_then(Value::as_u64)
+        .unwrap_or(22)
+        .clamp(0, 120) as usize
+}
+
+fn page_extraction_min_query_overlap_terms_before_skip(policy: &Value) -> usize {
+    policy
+        .pointer("/batch_query/page_extraction/min_query_overlap_terms_before_skip")
+        .and_then(Value::as_u64)
+        .unwrap_or(2)
+        .clamp(0, 12) as usize
+}
+
+fn page_extraction_url_hygiene_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/url_hygiene/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_drop_fragment_for_dedupe(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/url_hygiene/drop_fragment_for_dedupe")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_canonical_dedupe_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/url_hygiene/canonical_dedupe_prefer_https_and_non_www")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_require_http_protocol(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/url_hygiene/require_http_protocol")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_excluded_file_extensions(policy: &Value) -> Vec<String> {
+    let configured = policy
+        .pointer("/batch_query/page_extraction/url_hygiene/excluded_file_extensions")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|value| clean_text(value, 32).to_ascii_lowercase())
+                .filter(|value| value.starts_with('.') && value.len() > 1)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if !configured.is_empty() {
+        return configured;
+    }
+    [
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".css", ".js", ".woff",
+        ".woff2", ".ttf", ".mp3", ".mp4", ".avi", ".mov", ".zip", ".gz", ".tar", ".dmg",
+        ".exe",
+    ]
+    .iter()
+    .map(|value| value.to_string())
+    .collect()
 }
 
 fn structured_results_enabled(policy: &Value) -> bool {

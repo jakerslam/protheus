@@ -91,12 +91,150 @@ fn payload_links_for_page_extraction(
     payload: &Value,
     max_links: usize,
 ) -> Vec<String> {
-    ranked_payload_links_for_fallback_with_min_score(
+    let limit = max_links.max(1);
+    let mut selected = Vec::<String>::new();
+    let mut selected_by_key = HashMap::<String, usize>::new();
+    for link in ranked_payload_links_for_fallback_with_min_score(
         query,
         payload,
-        max_links,
+        max_links.saturating_mul(4).max(max_links),
         page_extraction_min_link_score(policy),
     )
+    .into_iter()
+    .filter_map(|link| normalize_page_extraction_link(policy, &link))
+    {
+        let dedupe_key = page_extraction_link_dedupe_key(policy, &link);
+        if dedupe_key.is_empty() {
+            continue;
+        }
+        if let Some(index) = selected_by_key.get(&dedupe_key).copied() {
+            if should_prefer_page_extraction_link(&link, &selected[index]) {
+                selected[index] = link;
+            }
+            continue;
+        }
+        if selected.len() >= limit {
+            continue;
+        }
+        selected_by_key.insert(dedupe_key, selected.len());
+        selected.push(link);
+    }
+    selected
+}
+
+fn normalize_page_extraction_link(policy: &Value, link: &str) -> Option<String> {
+    let mut cleaned = clean_text(link, 2_200);
+    if cleaned.is_empty() {
+        return None;
+    }
+    if !page_extraction_url_hygiene_enabled(policy) {
+        return Some(cleaned);
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if page_extraction_require_http_protocol(policy)
+        && !(lowered.starts_with("http://") || lowered.starts_with("https://"))
+    {
+        return None;
+    }
+    if let Some((without_fragment, _)) = cleaned.split_once('#') {
+        if page_extraction_drop_fragment_for_dedupe(policy) {
+            cleaned = without_fragment.to_string();
+        }
+    }
+    let without_query = cleaned
+        .split_once('?')
+        .map(|(value, _)| value)
+        .unwrap_or(cleaned.as_str())
+        .to_ascii_lowercase();
+    if page_extraction_excluded_file_extensions(policy)
+        .iter()
+        .any(|extension| without_query.ends_with(extension))
+    {
+        return None;
+    }
+    let domain = extract_domains_from_text(&cleaned, 1)
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    if domain.is_empty() || is_search_engine_domain(&domain) {
+        return None;
+    }
+    Some(cleaned)
+}
+
+fn page_extraction_link_dedupe_key(policy: &Value, link: &str) -> String {
+    if !page_extraction_canonical_dedupe_enabled(policy) {
+        return link.to_ascii_lowercase();
+    }
+    let Some((_, host, path, query)) = parse_page_extraction_http_url(link) else {
+        return link.to_ascii_lowercase();
+    };
+    let host = host.trim_start_matches("www.").to_ascii_lowercase();
+    if host.is_empty() {
+        return link.to_ascii_lowercase();
+    }
+    let mut path = path.trim_end_matches('/').to_string();
+    if path.is_empty() {
+        path = "/".to_string();
+    }
+    match query {
+        Some(query) if !query.is_empty() => format!("{host}{path}?{query}"),
+        _ => format!("{host}{path}"),
+    }
+}
+
+fn should_prefer_page_extraction_link(candidate: &str, current: &str) -> bool {
+    let (Some((candidate_scheme, candidate_host, _, _)), Some((current_scheme, current_host, _, _))) = (
+        parse_page_extraction_http_url(candidate),
+        parse_page_extraction_http_url(current),
+    ) else {
+        return false;
+    };
+    if candidate_scheme == "https" && current_scheme == "http" {
+        return true;
+    }
+    if candidate_scheme != current_scheme {
+        return false;
+    }
+    current_host.starts_with("www.") && !candidate_host.starts_with("www.")
+}
+
+fn parse_page_extraction_http_url(link: &str) -> Option<(&str, &str, &str, Option<&str>)> {
+    let trimmed = link.trim();
+    let lowered = trimmed.to_ascii_lowercase();
+    let (scheme, after_scheme) = if lowered.starts_with("https://") {
+        ("https", &trimmed[8..])
+    } else if lowered.starts_with("http://") {
+        ("http", &trimmed[7..])
+    } else {
+        return None;
+    };
+    let host_end = after_scheme
+        .find(['/', '?'])
+        .unwrap_or(after_scheme.len());
+    let host_with_port = &after_scheme[..host_end];
+    let host = host_with_port
+        .rsplit_once('@')
+        .map(|(_, value)| value)
+        .unwrap_or(host_with_port)
+        .split_once(':')
+        .map(|(value, _)| value)
+        .unwrap_or(host_with_port);
+    if host.is_empty() {
+        return None;
+    }
+    let remainder = &after_scheme[host_end..];
+    if remainder.is_empty() {
+        return Some((scheme, host, "/", None));
+    }
+    if let Some(query) = remainder.strip_prefix('?') {
+        return Some((scheme, host, "/", Some(query)));
+    }
+    let (path, query) = remainder
+        .split_once('?')
+        .map(|(path, query)| (path, Some(query)))
+        .unwrap_or((remainder, None));
+    Some((scheme, host, path, query))
 }
 
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {

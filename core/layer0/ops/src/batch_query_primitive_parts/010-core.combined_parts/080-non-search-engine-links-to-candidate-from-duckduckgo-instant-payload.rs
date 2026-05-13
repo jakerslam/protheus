@@ -12,7 +12,10 @@ fn non_search_engine_links(payload: &Value, max_links: usize) -> Vec<String> {
         .unwrap_or_default()
     {
         let link = clean_text(row.as_str().unwrap_or(""), 2_200);
-        if link.is_empty() || !seen.insert(link.clone()) {
+        let Some(link) = normalize_document_candidate_link(&link) else {
+            continue;
+        };
+        if link.is_empty() || !seen.insert(link.to_ascii_lowercase()) {
             continue;
         }
         let domain = extract_domains_from_text(&link, 1)
@@ -28,6 +31,37 @@ fn non_search_engine_links(payload: &Value, max_links: usize) -> Vec<String> {
         }
     }
     out
+}
+
+fn normalize_document_candidate_link(link: &str) -> Option<String> {
+    let mut cleaned = clean_text(link, 2_200);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if !(lowered.starts_with("http://") || lowered.starts_with("https://")) {
+        return None;
+    }
+    if let Some((without_fragment, _)) = cleaned.split_once('#') {
+        cleaned = without_fragment.to_string();
+    }
+    let without_query = cleaned
+        .split_once('?')
+        .map(|(value, _)| value)
+        .unwrap_or(cleaned.as_str())
+        .to_ascii_lowercase();
+    let excluded_extensions = [
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".css", ".js", ".woff",
+        ".woff2", ".ttf", ".mp3", ".mp4", ".avi", ".mov", ".zip", ".gz", ".tar", ".dmg",
+        ".exe",
+    ];
+    if excluded_extensions
+        .iter()
+        .any(|extension| without_query.ends_with(extension))
+    {
+        return None;
+    }
+    Some(cleaned)
 }
 
 fn first_non_search_engine_link(payload: &Value) -> String {

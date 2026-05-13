@@ -85,6 +85,15 @@ fn content_type_is_textual(content_type: &str) -> bool {
         || lowered.contains("csv")
 }
 
+fn unsupported_fetch_content_type_error(content_type: &str) -> String {
+    let normalized = normalize_fetch_content_type(content_type);
+    if normalized.is_empty() {
+        "unsupported_content_type:binary/unknown".to_string()
+    } else {
+        format!("unsupported_content_type:{normalized}")
+    }
+}
+
 fn parse_fetch_u64(value: Option<&Value>, fallback: u64, min: u64, max: u64) -> u64 {
     value.and_then(Value::as_u64).unwrap_or(fallback).clamp(min, max)
 }

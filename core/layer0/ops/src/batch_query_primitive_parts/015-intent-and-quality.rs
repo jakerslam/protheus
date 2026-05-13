@@ -179,12 +179,26 @@ fn looks_like_competitive_programming_dump(text: &str) -> bool {
     marker_hits >= 3
 }
 
-fn candidate_needs_link_fetch(query: &str, candidate: &Candidate) -> bool {
+fn candidate_needs_link_fetch(query: &str, policy: &Value, candidate: &Candidate) -> bool {
     let snippet = clean_text(&candidate.snippet, 1_600);
     if snippet.is_empty() {
         return true;
     }
+    if looks_like_low_signal_search_summary(&snippet)
+        || looks_like_source_only_snippet(&snippet)
+        || contains_web_junk_marker(&snippet)
+    {
+        return true;
+    }
     if looks_like_competitive_programming_dump(&format!("{} {}", candidate.title, snippet)) {
+        return true;
+    }
+    let min_words = page_extraction_min_snippet_words_before_skip(policy);
+    if min_words > 0 && snippet.split_whitespace().count() < min_words {
+        return true;
+    }
+    let min_overlap = page_extraction_min_query_overlap_terms_before_skip(policy);
+    if min_overlap > 0 && query_overlap_terms(query, candidate) < min_overlap {
         return true;
     }
     if is_framework_catalog_intent(query) {
