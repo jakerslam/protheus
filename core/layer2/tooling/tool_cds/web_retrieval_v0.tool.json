@@ -1436,7 +1436,8 @@
         "keywords",
         "required_coverage",
         "aliases",
-        "negative_terms"
+        "negative_terms",
+        "query_metadata_policy"
       ],
       "request_quality_floor": {
         "broad_research_requires_query_pack_or_followup": true,
@@ -1466,7 +1467,8 @@
           "required_coverage.entities": "named entities, candidates, subjects, or options final synthesis should cover or mark as weak/missing",
           "required_coverage.facets": "user-stated criteria, aspects, source classes, time windows, or decision dimensions final synthesis should cover or mark as weak/missing",
           "aliases": "alternate names or exact phrases for named entities",
-          "negative_terms": "ambiguity filters to exclude low-signal interpretations"
+          "negative_terms": "ambiguity filters to exclude low-signal interpretations",
+          "query_metadata_policy": "request-path marker that explains whether metadata was expanded or intentionally narrow"
         },
         "compilation_policy": [
           "preserve the top-level user query as the first query lane",

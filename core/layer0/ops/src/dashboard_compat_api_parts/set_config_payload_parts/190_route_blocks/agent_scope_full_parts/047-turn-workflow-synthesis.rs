@@ -2920,6 +2920,57 @@ mod workflow_fallback_tests {
             pending.pointer("/input/query").and_then(Value::as_str),
             Some("compare retrieval tools")
         );
+        assert!(
+            pending.pointer("/input/keywords/0").is_some(),
+            "recovered batch query should carry keyword metadata: {pending:?}"
+        );
+        assert!(
+            pending.pointer("/input/required_coverage").is_some(),
+            "recovered batch query should carry coverage metadata: {pending:?}"
+        );
+        let entities = pending
+            .pointer("/input/required_coverage/entities")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for expected in ["Firecrawl", "Tavily", "Exa"] {
+            assert!(
+                entities.iter().any(|value| value.as_str() == Some(expected)),
+                "entity {expected} should be preserved as its own query-pack target: {pending:?}"
+            );
+        }
+        assert_eq!(
+            pending
+                .pointer("/input/query_metadata_policy/classification")
+                .and_then(Value::as_str),
+            Some("expanded_query_pack")
+        );
+    }
+
+    #[test]
+    fn latent_candidate_recovery_marks_narrow_batch_query_without_forcing_metadata() {
+        let candidates = json!([{
+            "workflow_only": true,
+            "selected_tool_family": "web_research",
+            "selected_tool_key": "batch_query",
+            "selected_tool_label": "Research query pack",
+            "input": {
+                "source": "web",
+                "query": "weather in Denver today",
+                "aperture": "medium"
+            }
+        }]);
+
+        let pending =
+            manual_toolbox_pending_request_from_latent_candidates(&candidates, "weather in Denver today")
+                .expect("single valid latent candidate");
+
+        assert_eq!(
+            pending
+                .pointer("/input/query_metadata_policy/classification")
+                .and_then(Value::as_str),
+            Some("narrow_lookup_or_initial_discovery")
+        );
     }
 
     #[test]

@@ -72,7 +72,40 @@
       "promotion_scope": "single_valid_workflow_only_candidate_after_private_gate_failure_or_terminal_invariant_recovery",
       "ambiguity_policy": "do_not_promote_when_zero_or_multiple_valid_candidates",
       "chat_injection_allowed": false,
-      "execution_mode": "respect_declared_tool_execution_policy"
+      "execution_mode": "respect_declared_tool_execution_policy",
+      "request_contract_repair": {
+        "batch_query": {
+          "enabled": true,
+          "purpose": "Recovered research requests must preserve the same retrieval-planning shape as the normal Gate 4 request contract. This is a generic request-shape repair, not a topic-specific shortcut.",
+          "metadata_fields": [
+            "queries",
+            "keywords",
+            "required_coverage",
+            "aliases",
+            "negative_terms"
+          ],
+          "narrow_lookup_marker_field": "query_metadata_policy",
+          "broad_request_requires_metadata_or_marker": true,
+          "source_class_terms": [
+            "primary sources",
+            "official documentation",
+            "release notes or announcements",
+            "independent analysis",
+            "benchmarks or methodology",
+            "risk or security evidence"
+          ],
+          "generic_facet_terms": [
+            "reliability",
+            "maturity",
+            "risk",
+            "security",
+            "deployment",
+            "observability",
+            "cost",
+            "tradeoffs"
+          ]
+        }
+      }
     },
     "tool_invocation_markup_repair_contract": {
       "version": "tool_invocation_markup_repair_v1",

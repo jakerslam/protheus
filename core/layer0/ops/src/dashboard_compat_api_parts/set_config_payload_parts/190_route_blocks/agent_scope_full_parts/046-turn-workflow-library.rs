@@ -1461,7 +1461,12 @@ fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -
         if !family.is_empty() && !tool_label.is_empty() && payload.is_some() {
             let tool_name = canonical_manual_toolbox_tool_name(&family, &tool_label);
             if !tool_name.is_empty() {
-                let input = payload.unwrap_or_else(|| json!({}));
+                let input = workflow_repair_recovered_request_payload(
+                    &family,
+                    &tool_label,
+                    payload.unwrap_or_else(|| json!({})),
+                    message,
+                );
                 let receipt_binding = crate::deterministic_receipt_hash(&json!({
                     "type": "manual_toolbox_pending_tool_request",
                     "tool_name": tool_name,
@@ -1525,6 +1530,7 @@ fn manual_toolbox_pending_request_from_response(response: &str, message: &str) -
     if !input.is_object() {
         return None;
     }
+    let input = workflow_repair_recovered_request_payload(&family, &tool_label, input, message);
     let receipt_binding = crate::deterministic_receipt_hash(&json!({
         "type": "manual_toolbox_pending_tool_request",
         "tool_name": tool_name,

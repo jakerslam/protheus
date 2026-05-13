@@ -307,6 +307,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "setup_failures": case_setup_failures,
             "response_preview": clean_text(&grade.response_text, 500),
             "response_diagnostics": response_diagnostics(&payload, &grade.response_text),
+            "query_metadata_diagnostics": query_metadata_diagnostics(&payload),
             "gate_transition_diagnostics": transition_diagnostics,
             "turn_sequence": {
                 "confirm_pending_tool": confirm_pending_tool,
@@ -598,6 +599,101 @@ fn record_gate_counts(
     }
 }
 
+fn query_metadata_diagnostics(payload: &Value) -> Value {
+    let request = research_pending_request(payload);
+    let Some(request) = request else {
+        return json!({
+            "eligible_batch_query_request": false,
+            "metadata_present": false,
+            "rich_query_pack_or_narrow_marker": false,
+            "fields_present": [],
+            "source": "none"
+        });
+    };
+    let mut tool = str_at(request, &["selected_tool_key"], "");
+    if tool.is_empty() {
+        tool = str_at(request, &["tool_key"], "");
+    }
+    if tool.is_empty() {
+        tool = str_at(request, &["tool_name"], "");
+    }
+    let input = request.get("input").unwrap_or(&Value::Null);
+    let eligible = normalize_for_compare(&tool) == "batch_query";
+    let fields_present = input
+        .as_object()
+        .map(|map| {
+            [
+                "queries",
+                "keywords",
+                "required_coverage",
+                "aliases",
+                "negative_terms",
+                "query_metadata_policy",
+            ]
+            .iter()
+            .filter(|field| map.contains_key(**field))
+            .map(|field| (*field).to_string())
+            .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let metadata_present = fields_present.iter().any(|field| {
+        matches!(
+            field.as_str(),
+            "keywords"
+                | "required_coverage"
+                | "aliases"
+                | "negative_terms"
+                | "query_metadata_policy"
+        )
+    });
+    let rich_query_pack = !json_array_empty(input.get("queries"))
+        && (!json_array_empty(input.get("keywords"))
+            || required_coverage_nonempty(input.get("required_coverage")));
+    let narrow_or_expanded_marker = input
+        .pointer("/query_metadata_policy/classification")
+        .and_then(Value::as_str)
+        .map(|raw| {
+            matches!(
+                raw,
+                "expanded_query_pack" | "narrow_lookup_or_initial_discovery"
+            )
+        })
+        .unwrap_or(false);
+    json!({
+        "eligible_batch_query_request": eligible,
+        "metadata_present": eligible && metadata_present,
+        "rich_query_pack_or_narrow_marker": eligible && (rich_query_pack || narrow_or_expanded_marker),
+        "fields_present": fields_present,
+        "source": str_at(request, &["source"], "unknown"),
+        "classification": input
+            .pointer("/query_metadata_policy/classification")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+    })
+}
+
+fn research_pending_request(payload: &Value) -> Option<&Value> {
+    payload
+        .get("pending_tool_request")
+        .or_else(|| payload.pointer("/response_workflow/pending_tool_request"))
+        .or_else(|| payload.pointer("/response_workflow/manual_toolbox_pending_tool_request"))
+        .or_else(|| payload.pointer("/response_finalization/pending_tool_request"))
+}
+
+fn json_array_empty(value: Option<&Value>) -> bool {
+    value
+        .and_then(Value::as_array)
+        .map(|rows| rows.is_empty())
+        .unwrap_or(true)
+}
+
+fn required_coverage_nonempty(value: Option<&Value>) -> bool {
+    let Some(map) = value.and_then(Value::as_object) else {
+        return false;
+    };
+    !json_array_empty(map.get("entities")) || !json_array_empty(map.get("facets"))
+}
+
 fn transition_first_failed_checkpoint(diagnostics: &Value) -> Option<String> {
     diagnostics
         .pointer("/first_failed_checkpoint")
@@ -720,6 +816,39 @@ fn measurement_split_report(
                 && case_has_retrieval_quality_signal(row)
         })
         .count() as u64;
+    let query_metadata_eligible_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &["query_metadata_diagnostics", "eligible_batch_query_request"],
+                false,
+            )
+        })
+        .count() as u64;
+    let query_metadata_present_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &["query_metadata_diagnostics", "metadata_present"],
+                false,
+            )
+        })
+        .count() as u64;
+    let rich_query_pack_or_marker_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &[
+                    "query_metadata_diagnostics",
+                    "rich_query_pack_or_narrow_marker",
+                ],
+                false,
+            )
+        })
+        .count() as u64;
     let retrieval_status = if !live {
         "not_live"
     } else if tool_execution_rate < workflow_gate_pass_min || hard_failure_cases > 0 {
@@ -761,6 +890,14 @@ fn measurement_split_report(
             "evidence_context_rate": evidence_context_rate,
             "soft_retrieval_or_coverage_cases": retrieval_soft_cases,
             "note": "this lane measures evidence availability and coverage; it should move with provider/data quality and cache state"
+        },
+        "query_metadata_planning": {
+            "eligible_batch_query_requests": query_metadata_eligible_cases,
+            "metadata_present_cases": query_metadata_present_cases,
+            "rich_query_pack_or_narrow_marker_cases": rich_query_pack_or_marker_cases,
+            "metadata_present_rate": ratio(query_metadata_present_cases, query_metadata_eligible_cases),
+            "rich_query_pack_or_narrow_marker_rate": ratio(rich_query_pack_or_marker_cases, query_metadata_eligible_cases),
+            "note": "measures whether live batch_query requests exercised the CD-declared query metadata primitive instead of silently falling back to minimal query/source/aperture"
         },
         "end_to_end_golden": {
             "ok": research_success_rate >= research_success_min,
