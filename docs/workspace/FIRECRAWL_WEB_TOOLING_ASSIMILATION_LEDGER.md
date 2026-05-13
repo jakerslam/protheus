@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 537
-- Not parsed: 740
+- Parsed: 539
+- Not parsed: 738
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -564,6 +564,8 @@
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_metadata_extras.py` | Python SDK metadata extras tests. | Unknown metadata keys, repeated fields, status coercions, and queue metadata are preserved through typed and dict projections. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_metadata_extras_multivalue.py` | Python SDK metadata multivalue tests. | Known single-value metadata lists are coerced deterministically while arbitrary unknown lists remain preserved. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_validation.py` | Python SDK scrape validation tests. | Validation tests lock positive timeout/wait budgets, snake-to-camel conversion, query/question/highlight format constraints, parser max-page conversion, cache/lockdown/action fields, and invalid structured fields. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_recursive_schema.py` | Python SDK v2 recursive schema tests. | Tests recursive/circular `$ref` detection, ref resolution depth bounds, OpenAI-schema normalization, invalid required/additionalProperties cleanup, JSON-format validation, and malformed-ref no-crash behavior. |
+| `apps/python-sdk/firecrawl/__tests__/unit/test_recursive_schema_v1.py` | Python SDK v1 recursive schema tests. | Legacy recursive-schema tests cover the same schema normalization, ref-resolution, model-complexity, and no-crash behavior across the v1 boundary, locking compatibility semantics. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/.env.example` | Python SDK E2E environment example. | E2E tests declare API key/API URL plus optional identity broker as environment requirements, keeping live capability setup explicit. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/conftest.py` | Python SDK sync E2E harness. | Live tests resolve credentials through an identity broker when present, inject clients consistently, and fail/skip based on explicit environment capabilities. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/conftest.py` | Python SDK async E2E harness. | Async E2E setup loads environment once, validates required variables, and provides per-test API key/API URL fixtures. |
@@ -740,6 +742,9 @@
 - Agent-style structured extraction is useful only as a typed tool primitive: schemas, URL constraints, budgets, webhooks, and model metadata are request fields, not workflow-hardcoded research behavior.
 - Rich visual/branding extraction belongs in optional artifact lanes. It should enrich evidence packs when requested or useful, without forcing answer format or visible style prose.
 - Unknown page metadata should be preserved with typed known-field normalization; metadata loss can reduce source quality and make synthesis under-calibrated.
+- Recursive and complex schema support is a tool-boundary quality primitive: normalize, classify, and validate schema complexity before extraction starts so schema mistakes do not degrade into weak synthesis.
+- Hardcoded model names in Firecrawl schema tests are not portable. The transferable pattern is schema-complexity metadata and externally selected capability routing, with model choice staying policy-bound.
+- Broken, unsupported, or malformed schema refs should become typed request/gap failures or bounded warnings, not crashes, invisible empty artifacts, or user-facing low-signal apologies.
 
 ## Candidate Assimilation Targets
 
@@ -837,6 +842,8 @@
 92. Structured extraction request lane: expose schema, URL-constraint, budget, and source-map controls as typed tool/CD fields while keeping model choice policy-bound. Ledger captured; candidate Tool CD/evidence extraction target.
 93. Rich artifact optionality: model branding/visual metadata as optional evidence artifacts with normalization and quality flags, not as required research output. Ledger captured; candidate evidence-pack enrichment target.
 94. Metadata preservation guard: preserve unknown metadata and deterministic known-field coercions through evidence packing and source refs. Ledger captured; candidate evidence-pack quality target.
+95. Schema complexity classifier: detect recursive refs, circular refs, malformed refs, nested combinators, and cleanup limits as hidden schema-complexity metadata before structured extraction. Ledger captured; candidate Tool CD/schema validation target.
+96. Structured extraction no-crash contract: broken or unsupported schema refs should become typed request/gap failures rather than crashes or weak synthesis. Ledger captured; candidate validation/eval target.
 
 ## Remaining Work
 
