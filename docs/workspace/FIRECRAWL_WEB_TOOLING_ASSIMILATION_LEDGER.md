@@ -40,10 +40,10 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 744
-- Not parsed: 532
+- Parsed: 782
+- Not parsed: 492
 - Skipped generated: 12
-- Skipped media or sample: 69
+- Skipped media or sample: 71
 
 ## Parsed Files
 
@@ -382,6 +382,44 @@
 | `apps/playwright-service-ts/helpers/get_error.ts` | Playwright service page-error mapper. | HTTP status codes are mapped to page-error strings so non-200 pages become typed evidence quality rather than opaque transport exceptions. |
 | `apps/playwright-service-ts/package.json` | Playwright service package manifest. | Rendered-fetch dependencies are isolated to Express, Playwright, user-agent rotation, IP parsing, and environment configuration. |
 | `apps/playwright-service-ts/tsconfig.json` | Playwright service TypeScript config. | The rendered-fetch service is compiled as strict CommonJS output with build artifacts kept in `dist`. |
+| `apps/test-site/.gitignore` | Test-site ignore rules. | Static test-site build output, generated types, dependencies, logs, env files, and IDE files stay outside source tracking. |
+| `apps/test-site/.npmrc` | Test-site package install policy. | Package install aging/exclusion policy is explicit test-site governance, not retrieval behavior. |
+| `apps/test-site/.prettierrc` | Test-site formatting config. | Astro formatting is local project hygiene for deterministic fixtures. |
+| `apps/test-site/README.md` | Test-site overview. | The test-site is intentionally a small, stable scrape/crawl target. |
+| `apps/test-site/astro.config.mjs` | Test-site build config. | Static site generation sets canonical site URL from deployment/test env and emits sitemap integration. |
+| `apps/test-site/audit-ci.jsonc` | Test-site audit config. | Dependency audit threshold is package-scoped governance. |
+| `apps/test-site/package.json` | Test-site package manifest. | Test target supports build plus strict-port local preview so evals can bind a deterministic fixture origin. |
+| `apps/test-site/public/example.json` | Test-site JSON fixture. | Non-HTML fixtures should remain typed content samples for parser/evidence tests. |
+| `apps/test-site/src/components/BaseHead.astro` | Test-site metadata head. | Fixture pages emit canonical URLs, sitemap/RSS refs, title/description, OpenGraph, Twitter card, favicon, and font preloads for metadata extraction tests. |
+| `apps/test-site/src/components/Footer.astro` | Test-site footer component. | Stable navigation/legal/social links create predictable boilerplate/noise for content-cleaning tests. |
+| `apps/test-site/src/components/FormattedDate.astro` | Test-site date renderer. | Dates are projected into semantic `<time>` tags for metadata/date extraction fixtures. |
+| `apps/test-site/src/components/Header.astro` | Test-site header component. | Header contains internal navigation plus external/social links, useful for link extraction and boilerplate filtering. |
+| `apps/test-site/src/components/HeaderLink.astro` | Test-site active-link component. | Active navigation state is derived from the current path, giving deterministic route-specific markup. |
+| `apps/test-site/src/consts.ts` | Test-site constants. | Site title/description are centralized so metadata fixtures stay stable. |
+| `apps/test-site/src/content.config.ts` | Test-site content schema. | Blog fixtures have typed title, description, dates, hero image, and category/category-list fields for metadata and route tests. |
+| `apps/test-site/src/content/blog/firecrawl-v2-series-a-announcement.md` | Test-site blog fixture. | Long-form product narrative provides realistic paragraph/list/link evidence with dated metadata. |
+| `apps/test-site/src/content/blog/introducing-firecrawl-templates.md` | Test-site blog fixture. | Template-library content provides examples of categorized web-extraction use cases and external links. |
+| `apps/test-site/src/content/blog/introducing-search-endpoint.md` | Test-site search endpoint post. | Fixture explicitly describes search-plus-scrape as one discovery/enrichment primitive with language/location/time/output options. |
+| `apps/test-site/src/content/blog/launch-week-iii-day-1-introducing-change-tracking.md` | Test-site change-tracking post. | Monitoring fixtures include status fields, structured diff modes, URL/option consistency warnings, and beta missing-object caveats. |
+| `apps/test-site/src/content/blog/launch-week-iii-day-2-announcing-fire-1.md` | Test-site interaction-agent post. | Interaction-agent examples reinforce that dynamic navigation should be explicit, prompt/budgeted, and higher-cost than ordinary scrape. |
+| `apps/test-site/src/content/blog/launch-week-iii-day-3-extract-v2.md` | Test-site extraction post. | Extraction fixtures describe pagination, interaction, schema-guided output, and search-backed extraction as advanced lanes. |
+| `apps/test-site/src/content/blog/launch-week-iii-day-4-announcing-llmstxt-new.md` | Test-site LLM text post. | Consolidated text fixtures distinguish summary output from full-page output without making either a final-answer format. |
+| `apps/test-site/src/content/blog/launch-week-iii-day-5-dev-day.md` | Test-site developer-day post. | SDK/update content is low retrieval signal but useful as realistic dated blog text. |
+| `apps/test-site/src/content/blog/launch-week-iii-day-6-firecrawl-mcp.md` | Test-site MCP post. | MCP/SSE fixture reinforces real-time tool/event projection as a separate integration surface. |
+| `apps/test-site/src/content/blog/launch-week-iii-day-7-integrations.md` | Test-site integrations post. | Integration fixture provides link-rich, categorized content for crawler/link extraction tests. |
+| `apps/test-site/src/content/blog/open-researcher-interleaved-thinking.md` | Test-site research-agent post. | Research-agent fixture argues for adaptive tool choice after observation, while keeping predictable workflows for high-volume tasks. |
+| `apps/test-site/src/content/blog/unicode-post.md` | Test-site Unicode fixture. | Multilingual, symbol, and emoji text is a fixture for encoding, normalization, and international evidence preservation. |
+| `apps/test-site/src/layouts/BlogPost.astro` | Test-site blog layout. | Blog pages expose hero images, semantic article/prose structure, dates, updated-date hints, and slot content. |
+| `apps/test-site/src/pages/about.astro` | Test-site about page. | Static about content is a stable page-level crawl target with internal/external links. |
+| `apps/test-site/src/pages/blog/[...slug].astro` | Test-site blog detail route. | Dynamic static paths map blog collection IDs into article pages. |
+| `apps/test-site/src/pages/blog/category/[...slug].astro` | Test-site category route. | Category pages provide deterministic filtered-link sets for map/crawl scope tests. |
+| `apps/test-site/src/pages/blog/category/deep/nested/path/index.astro` | Test-site deep nested route. | Deep nested path fixture gives a stable target for depth and relative-scope tests. |
+| `apps/test-site/src/pages/blog/index.astro` | Test-site blog index. | Blog index exposes sorted posts, category tabs, card links, and disclaimer text for discovery and boilerplate tests. |
+| `apps/test-site/src/pages/code-block.astro` | Test-site code-block fixture. | Inline code with backticks and table-like code markup provides parser regressions for markdown fence/backtick handling. |
+| `apps/test-site/src/pages/index.astro` | Test-site home page. | Home page is a deterministic crawl seed with internal/external links and explicit non-production disclaimers. |
+| `apps/test-site/src/pages/robots.txt.ts` | Test-site robots route. | Robots fixture allows all crawling and points to sitemap, useful for robots/sitemap planner tests. |
+| `apps/test-site/src/styles/global.css` | Test-site global styles. | Fixture styles define hidden accessibility text, fonts, tables, code, blockquotes, and responsive layout for DOM/metadata extraction tests. |
+| `apps/test-site/tsconfig.json` | Test-site TypeScript config. | Strict Astro config keeps fixture build behavior deterministic. |
 | `apps/api/src/__tests__/e2e_map/index.test.ts` | V1 map E2E tests. | Map quality tests check search-filtered links, subdomain inclusion, sitemap-only exclusion, limit enforcement, and large sitemap discovery volume. |
 | `apps/api/src/__tests__/e2e_map/v2_map.test.ts` | V2 map E2E tests. | V2 map tests require structured `web` rows with title/description metadata, backwards-compatible links, transformed sitemap flags, search query echoing, and explicit timeout failure. |
 | `apps/api/src/__tests__/e2e_extract/index.test.ts` | Extract E2E behavior tests. | Extraction quality is checked against known facts across sites, wildcard scopes, external links, schemas/no-schema output, waitFor dynamic content, and malformed UUID rejection for status handles. |
@@ -1152,12 +1190,19 @@
 180. ZDR log suppression in converters: parser/converter services should suppress request IDs and size logs under zero-retention, not just omit stored artifacts. Ledger reinforced; candidate privacy guard.
 181. Markdown quality element tests: parser evals should assert headings, lists, links, code, tables, task lists, complex structure, and invalid-input behavior rather than a single nonempty markdown check. Ledger captured; candidate evidence-quality eval expansion.
 182. Parser output plugins as policy: GFM and robust code-block behavior belong in parser configuration, not synthesis prompts. Ledger captured; candidate extraction primitive setting.
+183. Deterministic fixture origin: a local static test site with strict-port preview gives retrieval evals a stable target outside live-web variability. Ledger captured; candidate eval harness improvement.
+184. Metadata-rich fixture pages: canonical/OG/Twitter/sitemap/font metadata should be present in test fixtures so metadata extraction can be scored independently of body extraction. Ledger captured; candidate evidence-pack metadata gate.
+185. Route-shape fixtures: category, dynamic slug, and deep nested routes let crawl/map depth and include/exclude behavior be tested without domain-specific hardcoding. Ledger captured; candidate crawl-scope eval target.
+186. Unicode fixture coverage: multilingual and symbol-heavy content should be part of retrieval evals so parser/search/evidence layers preserve non-ASCII content. Ledger captured; candidate cross-domain quality guard.
+187. Code-fence regression fixture: inline code containing backticks and table-like code blocks should be in parser evals to prevent markdown escaping regressions. Ledger captured; candidate markdown parser test.
+188. Adaptive research is a workflow property: research-agent examples support adaptive follow-up after observation, but examples remain non-authoritative and should inform CD policy rather than hardcoded paths. Ledger reinforced; candidate research CD design note.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
 - API E2E breadth suites for authenticated v0/v1/all-params paths are parsed; remaining API tests are now narrower snips/helpers/control-plane slices.
 - Standalone rendered-fetch and HTML-to-Markdown service primitives are parsed; remaining deployment YAML can be treated as lower-priority unless operational wiring becomes relevant.
+- Test-site text fixtures and routes are parsed; binary font fixtures are marked skipped.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.

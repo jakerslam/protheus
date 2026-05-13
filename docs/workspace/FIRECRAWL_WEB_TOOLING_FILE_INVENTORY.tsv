@@ -1026,22 +1026,22 @@ apps/rust-sdk/src/serde_helpers.rs	apps	parsed	rust_sdk_tolerant_metadata_deseri
 apps/rust-sdk/src/types.rs	apps	parsed	rust_sdk_shared_type_contract	typed_formats_documents_metadata_search_lanes_categories_job_statuses_errors_actions_and_change_tracking_facets
 apps/rust-sdk/tests/.env.example	apps	parsed	rust_sdk_live_test_config	api_url_and_optional_test_api_key_capability_gate
 apps/rust-sdk/tests/v2_e2e.rs	apps	parsed	rust_sdk_v2_e2e_tests	content_bearing_retrieval_parse_map_crawl_batch_agent_checks_with_ignored_api_access_and_selfhost_credential_semantics
-apps/test-site/.gitignore	apps	not_parsed	pending_review	
-apps/test-site/.npmrc	apps	not_parsed	pending_review	
-apps/test-site/.prettierrc	apps	not_parsed	pending_review	
-apps/test-site/README.md	apps	not_parsed	pending_review	
-apps/test-site/astro.config.mjs	apps	not_parsed	pending_review	
-apps/test-site/audit-ci.jsonc	apps	not_parsed	pending_review	
-apps/test-site/package.json	apps	not_parsed	pending_review	
+apps/test-site/.gitignore	apps	parsed	test_site_ignore_rules	build_generated_deps_logs_env_and_ide_files_excluded
+apps/test-site/.npmrc	apps	parsed	test_site_install_policy	minimum_release_age_package_policy_with_parser_exception
+apps/test-site/.prettierrc	apps	parsed	test_site_format_config	astro_prettier_plugin_and_stable_formatting_options
+apps/test-site/README.md	apps	parsed	test_site_overview	stable_static_test_site_for_scrape_and_crawl_targets
+apps/test-site/astro.config.mjs	apps	parsed	test_site_build_config	static_output_site_url_from_env_and_sitemap_mdx_integrations
+apps/test-site/audit-ci.jsonc	apps	parsed	test_site_audit_config	package_scoped_dependency_audit_threshold
+apps/test-site/package.json	apps	parsed	test_site_manifest	strict_port_preview_and_static_build_for_deterministic_fixture_origin
 apps/test-site/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
 apps/test-site/public/example-long.pdf	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
-apps/test-site/public/example.json	apps	not_parsed	pending_review	
+apps/test-site/public/example.json	apps	parsed	test_site_json_fixture	typed_non_html_content_sample_for_parser_and_evidence_tests
 apps/test-site/public/example.pdf	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-site/public/favicon.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-site/public/firecrawl-logo.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-site/public/firecrawl-wordmark.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
-apps/test-site/public/fonts/atkinson-bold.woff	apps	not_parsed	pending_review	
-apps/test-site/public/fonts/atkinson-regular.woff	apps	not_parsed	pending_review	
+apps/test-site/public/fonts/atkinson-bold.woff	apps	skipped_media_or_sample	binary_font_fixture	not_applicable
+apps/test-site/public/fonts/atkinson-regular.woff	apps	skipped_media_or_sample	binary_font_fixture	not_applicable
 apps/test-site/src/assets/blog-placeholder.jpg	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-site/src/assets/blog/changeTracking.jpg	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-site/src/assets/blog/lw3-d2-3.webp	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
@@ -1065,36 +1065,36 @@ apps/test-site/src/assets/firecrawl-logo.png	apps	skipped_media_or_sample	binary
 apps/test-site/src/assets/firecrawl-logo.svg	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-site/src/assets/firecrawl-wordmark.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-site/src/assets/firecrawl-wordmark.svg	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
-apps/test-site/src/components/BaseHead.astro	apps	not_parsed	pending_review	
-apps/test-site/src/components/Footer.astro	apps	not_parsed	pending_review	
-apps/test-site/src/components/FormattedDate.astro	apps	not_parsed	pending_review	
-apps/test-site/src/components/Header.astro	apps	not_parsed	pending_review	
-apps/test-site/src/components/HeaderLink.astro	apps	not_parsed	pending_review	
-apps/test-site/src/consts.ts	apps	not_parsed	pending_review	
-apps/test-site/src/content.config.ts	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/firecrawl-v2-series-a-announcement.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/introducing-firecrawl-templates.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/introducing-search-endpoint.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/launch-week-iii-day-1-introducing-change-tracking.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/launch-week-iii-day-2-announcing-fire-1.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/launch-week-iii-day-3-extract-v2.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/launch-week-iii-day-4-announcing-llmstxt-new.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/launch-week-iii-day-5-dev-day.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/launch-week-iii-day-6-firecrawl-mcp.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/launch-week-iii-day-7-integrations.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/open-researcher-interleaved-thinking.md	apps	not_parsed	pending_review	
-apps/test-site/src/content/blog/unicode-post.md	apps	not_parsed	pending_review	
-apps/test-site/src/layouts/BlogPost.astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/about.astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/blog/[...slug].astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/blog/category/[...slug].astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/blog/category/deep/nested/path/index.astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/blog/index.astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/code-block.astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/index.astro	apps	not_parsed	pending_review	
-apps/test-site/src/pages/robots.txt.ts	apps	not_parsed	pending_review	
-apps/test-site/src/styles/global.css	apps	not_parsed	pending_review	
-apps/test-site/tsconfig.json	apps	not_parsed	pending_review	
+apps/test-site/src/components/BaseHead.astro	apps	parsed	test_site_metadata_head	canonical_sitemap_rss_title_description_og_twitter_favicon_and_font_preload_fixtures
+apps/test-site/src/components/Footer.astro	apps	parsed	test_site_footer_fixture	stable_social_legal_and_external_links_for_boilerplate_cleaning_tests
+apps/test-site/src/components/FormattedDate.astro	apps	parsed	test_site_date_fixture	semantic_time_tags_for_date_metadata_extraction
+apps/test-site/src/components/Header.astro	apps	parsed	test_site_header_fixture	internal_nav_external_social_links_logo_assets_and_mobile_hidden_links
+apps/test-site/src/components/HeaderLink.astro	apps	parsed	test_site_active_link_fixture	path_derived_active_navigation_state
+apps/test-site/src/consts.ts	apps	parsed	test_site_constants	stable_title_and_description_for_metadata_fixtures
+apps/test-site/src/content.config.ts	apps	parsed	test_site_content_schema	typed_blog_title_description_dates_hero_image_and_category_fields
+apps/test-site/src/content/blog/firecrawl-v2-series-a-announcement.md	apps	parsed	test_site_blog_series_a_fixture	realistic_long_form_lists_links_dates_and_product_narrative
+apps/test-site/src/content/blog/introducing-firecrawl-templates.md	apps	parsed	test_site_blog_templates_fixture	categorized_template_and_external_link_content_for_discovery_tests
+apps/test-site/src/content/blog/introducing-search-endpoint.md	apps	parsed	test_site_blog_search_fixture	search_plus_scrape_discovery_enrichment_language_location_time_and_format_options
+apps/test-site/src/content/blog/launch-week-iii-day-1-introducing-change-tracking.md	apps	parsed	test_site_blog_change_tracking_fixture	change_status_diff_json_modes_url_option_consistency_and_beta_missing_object_caveats
+apps/test-site/src/content/blog/launch-week-iii-day-2-announcing-fire-1.md	apps	parsed	test_site_blog_fire1_fixture	explicit_agent_navigation_prompt_budget_and_interaction_cost_signals
+apps/test-site/src/content/blog/launch-week-iii-day-3-extract-v2.md	apps	parsed	test_site_blog_extract_v2_fixture	pagination_interaction_schema_guided_output_and_search_backed_extraction_lanes
+apps/test-site/src/content/blog/launch-week-iii-day-4-announcing-llmstxt-new.md	apps	parsed	test_site_blog_llmstxt_fixture	summary_vs_full_page_clean_text_outputs_for_llm_ready_content
+apps/test-site/src/content/blog/launch-week-iii-day-5-dev-day.md	apps	parsed	test_site_blog_dev_day_fixture	realistic_dated_sdk_update_text
+apps/test-site/src/content/blog/launch-week-iii-day-6-firecrawl-mcp.md	apps	parsed	test_site_blog_mcp_fixture	mcp_fire1_sse_and_realtime_tool_projection_content
+apps/test-site/src/content/blog/launch-week-iii-day-7-integrations.md	apps	parsed	test_site_blog_integrations_fixture	link_rich_integration_and_category_content_for_crawler_tests
+apps/test-site/src/content/blog/open-researcher-interleaved-thinking.md	apps	parsed	test_site_blog_open_researcher_fixture	adaptive_tool_choice_after_observation_and_workflow_vs_exploration_tradeoff
+apps/test-site/src/content/blog/unicode-post.md	apps	parsed	test_site_blog_unicode_fixture	multilingual_symbols_emoji_encoding_and_unicode_normalization_fixture
+apps/test-site/src/layouts/BlogPost.astro	apps	parsed	test_site_blog_layout	semantic_article_hero_image_date_updated_date_and_prose_structure
+apps/test-site/src/pages/about.astro	apps	parsed	test_site_about_page	stable_static_page_with_internal_external_links
+apps/test-site/src/pages/blog/[...slug].astro	apps	parsed	test_site_blog_detail_route	collection_ids_rendered_as_static_article_routes
+apps/test-site/src/pages/blog/category/[...slug].astro	apps	parsed	test_site_blog_category_route	filtered_category_link_sets_for_map_and_crawl_scope_tests
+apps/test-site/src/pages/blog/category/deep/nested/path/index.astro	apps	parsed	test_site_deep_nested_route	stable_depth_and_relative_scope_fixture
+apps/test-site/src/pages/blog/index.astro	apps	parsed	test_site_blog_index	sorted_posts_category_tabs_card_links_and_disclaimer_boilerplate
+apps/test-site/src/pages/code-block.astro	apps	parsed	test_site_code_block_fixture	inline_code_backticks_entities_and_table_like_code_markup
+apps/test-site/src/pages/index.astro	apps	parsed	test_site_home_page	deterministic_crawl_seed_internal_external_links_and_non_production_disclaimer
+apps/test-site/src/pages/robots.txt.ts	apps	parsed	test_site_robots_route	allow_all_robots_and_sitemap_pointer_fixture
+apps/test-site/src/styles/global.css	apps	parsed	test_site_global_styles	accessibility_hidden_text_fonts_tables_code_blockquotes_and_responsive_layout_fixtures
+apps/test-site/tsconfig.json	apps	parsed	test_site_tsconfig	strict_astro_typescript_fixture_build_config
 apps/test-suite/.env.example	apps	not_parsed	pending_review	
 apps/test-suite/README.md	apps	not_parsed	pending_review	
 apps/test-suite/audit-ci.jsonc	apps	not_parsed	pending_review	
