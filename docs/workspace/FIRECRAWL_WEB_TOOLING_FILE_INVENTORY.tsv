@@ -632,18 +632,18 @@ apps/elixir-sdk/mix.exs	apps	not_parsed	pending_review
 apps/elixir-sdk/mix.lock	apps	not_parsed	pending_review	
 apps/elixir-sdk/test/firecrawl_test.exs	apps	not_parsed	pending_review	
 apps/elixir-sdk/test/test_helper.exs	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/.dockerignore	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/.gitignore	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/Dockerfile	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/Makefile	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/converter.go	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/docker-compose.yml	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/go.mod	apps	not_parsed	pending_review	
+apps/go-html-to-md-service/.dockerignore	apps	parsed	go_markdown_service_container_ignore	excludes_build_tests_docs_git_ide_logs_and_temp_files_from_container_context
+apps/go-html-to-md-service/.gitignore	apps	parsed	go_markdown_service_repo_ignore	excludes_binaries_coverage_logs_ide_workspace_and_vendor_outputs
+apps/go-html-to-md-service/Dockerfile	apps	parsed	go_markdown_service_container	multi_stage_static_go_service_with_healthcheck_and_minimal_runtime_image
+apps/go-html-to-md-service/Makefile	apps	parsed	go_markdown_service_harness	build_test_coverage_lint_fmt_docker_and_precommit_targets_for_parser_service
+apps/go-html-to-md-service/converter.go	apps	parsed	go_markdown_converter_wrapper	gfm_and_robust_code_block_plugins_behind_narrow_converter_boundary
+apps/go-html-to-md-service/docker-compose.yml	apps	parsed	go_markdown_service_compose	local_service_healthcheck_restart_policy_and_port_binding
+apps/go-html-to-md-service/go.mod	apps	parsed	go_markdown_service_deps	pinned_firecrawl_html_to_markdown_module_and_parser_service_dependencies
 apps/go-html-to-md-service/go.sum	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
-apps/go-html-to-md-service/handler.go	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/handler_test.go	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/main.go	apps	not_parsed	pending_review	
-apps/go-html-to-md-service/requests.http	apps	not_parsed	pending_review	
+apps/go-html-to-md-service/handler.go	apps	parsed	go_markdown_service_handler	max_body_schema_envelope_zdr_log_suppression_request_id_logging_and_success_error_responses
+apps/go-html-to-md-service/handler_test.go	apps	parsed	go_markdown_service_tests	health_index_markdown_elements_complex_html_invalid_input_and_zdr_logging_behavior
+apps/go-html-to-md-service/main.go	apps	parsed	go_markdown_service_runtime	bounded_read_write_shutdown_timeouts_body_caps_structured_logging_and_graceful_shutdown
+apps/go-html-to-md-service/requests.http	apps	parsed	go_markdown_service_manual_probes	manual_coverage_for_elements_invalid_json_empty_input_and_large_document_conversion
 apps/go-sdk/README.md	apps	not_parsed	pending_review	
 apps/go-sdk/firecrawl.go	apps	not_parsed	pending_review	
 apps/go-sdk/firecrawl_error.go	apps	not_parsed	pending_review	
@@ -838,16 +838,16 @@ apps/php-sdk/src/Version.php	apps	not_parsed	pending_review
 apps/php-sdk/tests/Pest.php	apps	not_parsed	pending_review	
 apps/php-sdk/tests/Unit/ModelsTest.php	apps	parsed	php_model_tests	account_projection_map_link_normalization_credit_coercion_scrape_option_ordering_lockdown_format_objects_and_query_mode_validation
 apps/php-sdk/tests/Unit/ParseTest.php	apps	parsed	php_parse_tests	parse_file_payload_validation_json_format_serialization_unsupported_format_proxy_and_timeout_rejection
-apps/playwright-service-ts/.dockerignore	apps	not_parsed	pending_review	
-apps/playwright-service-ts/.gitignore	apps	not_parsed	pending_review	
-apps/playwright-service-ts/Dockerfile	apps	not_parsed	pending_review	
-apps/playwright-service-ts/README.md	apps	not_parsed	pending_review	
-apps/playwright-service-ts/api.ts	apps	not_parsed	pending_review	
-apps/playwright-service-ts/audit-ci.jsonc	apps	not_parsed	pending_review	
-apps/playwright-service-ts/helpers/get_error.ts	apps	not_parsed	pending_review	
-apps/playwright-service-ts/package.json	apps	not_parsed	pending_review	
+apps/playwright-service-ts/.dockerignore	apps	parsed	playwright_service_container_ignore	node_modules_dist_and_env_excluded_from_rendered_fetch_image
+apps/playwright-service-ts/.gitignore	apps	parsed	playwright_service_repo_ignore	dist_output_excluded_from_rendered_fetch_source
+apps/playwright-service-ts/Dockerfile	apps	parsed	playwright_service_container	chromium_runtime_image_with_playwright_browser_install_and_configured_port
+apps/playwright-service-ts/README.md	apps	parsed	playwright_service_usage	rendered_scrape_microservice_endpoint_with_wait_timeout_headers_and_selector_inputs
+apps/playwright-service-ts/api.ts	apps	parsed	playwright_rendered_fetch_service	concurrency_limit_dns_private_target_guard_media_ad_blocking_proxy_user_agent_selector_page_error_and_cleanup_contract
+apps/playwright-service-ts/audit-ci.jsonc	apps	parsed	playwright_service_audit_config	package_scoped_dependency_audit_threshold
+apps/playwright-service-ts/helpers/get_error.ts	apps	parsed	playwright_page_error_mapper	http_status_to_page_error_mapping_for_typed_evidence_quality
+apps/playwright-service-ts/package.json	apps	parsed	playwright_service_manifest	express_playwright_user_agent_ipaddr_env_config_dependencies_isolated_to_rendered_fetch
 apps/playwright-service-ts/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
-apps/playwright-service-ts/tsconfig.json	apps	not_parsed	pending_review	
+apps/playwright-service-ts/tsconfig.json	apps	parsed	playwright_service_tsconfig	strict_commonjs_build_to_dist_for_rendered_fetch_service
 apps/python-sdk/.env.example	apps	parsed	python_sdk_env_example	api_key_api_url_and_identity_broker_capability_inputs
 apps/python-sdk/.gitignore	apps	parsed	python_sdk_ignore_rules	local_env_and_build_output_exclusions
 apps/python-sdk/.pylintrc	apps	parsed	python_sdk_lint_config	format_width_only

@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 724
-- Not parsed: 552
+- Parsed: 744
+- Not parsed: 532
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -362,6 +362,26 @@
 | `apps/api/src/__tests__/deep-research/unit/deep-research-redis.test.ts` | Deep research state tests. | Research state is TTL-bounded, retrieval returns null for misses, updates append activities instead of replacing them, and expiry is projected from Redis TTL. |
 | `apps/api/sharedLibs/go-html-to-md/html-to-markdown.go` | Native HTML-to-Markdown bridge. | A small C-shared Go bridge converts HTML to markdown with GitHub-flavored and robust-code-block plugins, and exposes explicit C string cleanup. |
 | `apps/api/sharedLibs/go-html-to-md/README.md` | HTML-to-Markdown build note. | The markdown converter is built as a platform-specific shared library, keeping parser implementation behind a narrow native boundary. |
+| `apps/go-html-to-md-service/.dockerignore` | Go markdown service container ignore rules. | The service excludes build artifacts, tests, docs, git metadata, IDE files, and logs from the container boundary. |
+| `apps/go-html-to-md-service/.gitignore` | Go markdown service repo ignore rules. | Local binaries, coverage outputs, logs, IDE files, and workspace files are kept outside source tracking. |
+| `apps/go-html-to-md-service/Dockerfile` | Go markdown service deployment image. | Markdown conversion can run as a small multi-stage service with health checks and no compiler/runtime baggage in the final image. |
+| `apps/go-html-to-md-service/Makefile` | Go markdown service developer harness. | Build/test/coverage/lint/fmt/docker targets keep parser-service validation explicit and separate from API orchestration. |
+| `apps/go-html-to-md-service/converter.go` | Go markdown converter wrapper. | Conversion uses a narrow wrapper over the parser with GitHub-flavored Markdown and robust code-block plugins enabled as parser policy. |
+| `apps/go-html-to-md-service/docker-compose.yml` | Go markdown service local deployment. | Local parser service exposes a health check and restart policy without coupling conversion to the main API process. |
+| `apps/go-html-to-md-service/go.mod` | Go markdown service dependency manifest. | Parser implementation is pinned behind a module boundary with a Firecrawl-maintained html-to-markdown replacement. |
+| `apps/go-html-to-md-service/handler.go` | Go markdown service HTTP handler. | Conversion requests are schema-bound, max-size-limited, ZDR-aware, request-id logged only when allowed, and return explicit success/error envelopes. |
+| `apps/go-html-to-md-service/handler_test.go` | Go markdown service behavior tests. | Tests prove health/index responses, core markdown elements, complex HTML preservation, invalid-input failures, and ZDR log suppression. |
+| `apps/go-html-to-md-service/main.go` | Go markdown service runtime. | Runtime sets bounded read/write/shutdown timeouts, global body caps, structured logging, and graceful shutdown around a single parser service. |
+| `apps/go-html-to-md-service/requests.http` | Go markdown service manual request suite. | Manual probes cover headings, lists, code, links, images, tables, task lists, invalid JSON, empty input, and large-document conversion. |
+| `apps/playwright-service-ts/.dockerignore` | Playwright service container ignore rules. | Node modules, built output, and local env files stay outside the rendered-fetch container context. |
+| `apps/playwright-service-ts/.gitignore` | Playwright service repo ignore rules. | Built output is local-only for the rendered-fetch microservice. |
+| `apps/playwright-service-ts/Dockerfile` | Playwright service deployment image. | Rendered extraction installs only Chromium dependencies, exposes a configured port, and keeps browser runtime isolated in its own image. |
+| `apps/playwright-service-ts/README.md` | Playwright service usage guide. | Rendered scraping is configured as a separate microservice endpoint with wait, timeout, headers, and selector-readiness inputs. |
+| `apps/playwright-service-ts/api.ts` | Playwright rendered-fetch service. | Browser scraping is concurrency-limited, private-network guarded with DNS caching, media/ad filtered, proxy-aware, user-agent configurable, selector-gated, page-error-normalized, and always cleans page/context. |
+| `apps/playwright-service-ts/audit-ci.jsonc` | Playwright service audit config. | Dependency audit thresholds are scoped to the rendered-fetch package rather than retrieval policy. |
+| `apps/playwright-service-ts/helpers/get_error.ts` | Playwright service page-error mapper. | HTTP status codes are mapped to page-error strings so non-200 pages become typed evidence quality rather than opaque transport exceptions. |
+| `apps/playwright-service-ts/package.json` | Playwright service package manifest. | Rendered-fetch dependencies are isolated to Express, Playwright, user-agent rotation, IP parsing, and environment configuration. |
+| `apps/playwright-service-ts/tsconfig.json` | Playwright service TypeScript config. | The rendered-fetch service is compiled as strict CommonJS output with build artifacts kept in `dist`. |
 | `apps/api/src/__tests__/e2e_map/index.test.ts` | V1 map E2E tests. | Map quality tests check search-filtered links, subdomain inclusion, sitemap-only exclusion, limit enforcement, and large sitemap discovery volume. |
 | `apps/api/src/__tests__/e2e_map/v2_map.test.ts` | V2 map E2E tests. | V2 map tests require structured `web` rows with title/description metadata, backwards-compatible links, transformed sitemap flags, search query echoing, and explicit timeout failure. |
 | `apps/api/src/__tests__/e2e_extract/index.test.ts` | Extract E2E behavior tests. | Extraction quality is checked against known facts across sites, wildcard scopes, external links, schemas/no-schema output, waitFor dynamic content, and malformed UUID rejection for status handles. |
@@ -1124,11 +1144,20 @@
 172. Artifact-lane separation: markdown, html, rawHtml, links, screenshots, actions, and extraction artifacts are selectable evidence facets; final synthesis should consume them without forcing a response format. Ledger reinforced; candidate evidence-pack facet policy.
 173. Relative scope budgets: crawl max-depth, include/exclude paths, external links, and backward crawling are scope controls that bound candidate expansion before cost is spent. Ledger captured; candidate retrieval-planning budget policy.
 174. Fast-path result bounds: fast crawl modes should still assert minimum/maximum candidate counts and content-bearing artifacts, keeping speed optimizations quality-aware. Ledger captured; candidate performance/evidence tradeoff guard.
+175. Rendered-fetch service isolation: browser rendering can be its own capability adapter with concurrency, health, proxy, and cleanup boundaries rather than mixed into search orchestration. Ledger captured; candidate Tool CD adapter split.
+176. DNS-backed private-target guard: rendered fetch must validate scheme, hostname, and resolved addresses before navigation and again for subrequests. Ledger reinforced; candidate SSRF safety invariant.
+177. Selector readiness as input quality gate: a requested selector can be an extraction precondition, turning dynamic-page readiness into a typed failure instead of weak content. Ledger captured; candidate request-shape field.
+178. Context-level user-agent handling: browser adapters should apply user-agent at context creation and avoid duplicate header paths that engines ignore. Ledger captured; candidate rendered-fetch adapter detail.
+179. Parser service boundary: HTML-to-Markdown conversion can be a bounded service primitive with request size limits, schema envelopes, health checks, and graceful shutdown. Ledger captured; candidate parser adapter primitive.
+180. ZDR log suppression in converters: parser/converter services should suppress request IDs and size logs under zero-retention, not just omit stored artifacts. Ledger reinforced; candidate privacy guard.
+181. Markdown quality element tests: parser evals should assert headings, lists, links, code, tables, task lists, complex structure, and invalid-input behavior rather than a single nonempty markdown check. Ledger captured; candidate evidence-quality eval expansion.
+182. Parser output plugins as policy: GFM and robust code-block behavior belong in parser configuration, not synthesis prompts. Ledger captured; candidate extraction primitive setting.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
 - API E2E breadth suites for authenticated v0/v1/all-params paths are parsed; remaining API tests are now narrower snips/helpers/control-plane slices.
+- Standalone rendered-fetch and HTML-to-Markdown service primitives are parsed; remaining deployment YAML can be treated as lower-priority unless operational wiring becomes relevant.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
