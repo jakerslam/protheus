@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 704
-- Not parsed: 572
+- Parsed: 720
+- Not parsed: 556
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -417,6 +417,22 @@
 | `apps/js-sdk/firecrawl/src/__tests__/unit/v2/branding.test.ts` | JS SDK branding unit tests. | Branding artifacts are optional structured evidence facets that can coexist with markdown and preserve nested visual metadata without becoming required research output. |
 | `apps/js-sdk/firecrawl/src/__tests__/unit/v2/clientOptions.test.ts` | JS SDK client option tests. | Client options expose timeout/retry/backoff and base URL as typed admission/config fields. |
 | `apps/js-sdk/firecrawl/src/__tests__/unit/v2/zodSchemaToJson.test.ts` | JS SDK Zod conversion tests. | Schema conversion detects Zod schemas, passes through JSON schemas, and catches accidental `.shape` usage before extraction requests run. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v1/monitor-job-status-retry.test.ts` | Legacy JS monitor retry tests. | Polling retries are limited to transient network/timeout failures with exponential backoff, while auth/client failures remain terminal. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v1/index.test.ts` | Legacy JS v1 E2E tests. | Legacy E2E asserts cloud-vs-self-host credential differences, unsupported URL failures, content-bearing scrape/crawl/search output, PDF text extraction, idempotency conflicts, and no legacy partial fields in current status. |
+| `apps/js-sdk/example.ts` | JS SDK mixed v2/v1 TypeScript example. | Examples compose primitives manually and demonstrate watcher events, but legacy snippets should remain usage docs rather than workflow policy. |
+| `apps/js-sdk/example.js` | JS SDK mixed v2/v1 JavaScript example. | Same primitive composition appears in plain JS, reinforcing that examples are facade usage, not hidden orchestration behavior. |
+| `apps/js-sdk/example_pagination.ts` | JS SDK pagination example. | Auto vs manual pagination is documented as an explicit caller choice with max page/result/wait budgets for memory and processing control. |
+| `apps/js-sdk/example_watcher.ts` | JS SDK watcher example. | Watchers project document/snapshot/done events and should be closed as status streams, not treated as synthesis content. |
+| `apps/js-sdk/example_v1.ts` | JS SDK v1 TypeScript example. | Feature-frozen v1 usage remains isolated behind `.v1` and should not guide new workflow/tool contracts. |
+| `apps/js-sdk/example_v1.js` | JS SDK v1 JavaScript example. | Legacy example reinforces the need to quarantine old method names from current primitive CDs. |
+| `apps/js-sdk/package.json` | Outer JS SDK example package metadata. | Example package pins current SDK and transport deps and carries dependency overrides, but has no authoritative tests. |
+| `apps/js-sdk/.env.example` | Outer JS SDK env example. | API key and API URL are explicit capability inputs. |
+| `apps/js-sdk/firecrawl/.env.example` | JS SDK package env example. | E2E identity/provisioning can be configured separately from the API key/API URL. |
+| `apps/js-sdk/audit-ci.jsonc` | Outer JS SDK audit config. | Dependency audit allowlists are explicit package-bound exceptions. |
+| `apps/js-sdk/firecrawl/audit-ci.jsonc` | JS SDK package audit config. | Same audit exception is scoped to packaging/security policy, not retrieval behavior. |
+| `apps/js-sdk/firecrawl/jest.config.js` | JS SDK Jest config. | Unit/E2E test harness resolves ESM TypeScript modules under Node, keeping SDK tests deterministic. |
+| `apps/js-sdk/firecrawl/tsup.config.ts` | JS SDK build config. | Package builds CJS/ESM/d.ts outputs from a single entrypoint and pins runtime target to Node 22. |
+| `apps/js-sdk/firecrawl/src/types/node-undici.d.ts` | JS SDK WebSocket type shim. | WebSocket transport typing is isolated behind a minimal shim instead of leaking environment assumptions into retrieval logic. |
 | `apps/api/src/lib/avgrab-resolve.ts` | Source-specialty resolver helper. | Optional resolver capabilities can cache supported URL patterns, delegate matching URLs to a specialty service, and project returned posts into generic map documents with hidden metadata. |
 | `apps/api/src/lib/permu-refactor.test.ts` | URL permutation stability test. | URL equivalence closures should be stable across permutations of protocol, `www`, slash, and common index-file variants so dedupe/locks are deterministic. |
 | `apps/api/src/__tests__/snips/generateDomainSplits.test.ts` | Domain split tests. | Public-suffix-aware domain splitting supports fake domains for test/mocking while preserving subdomain rollup behavior. |
@@ -1088,6 +1104,14 @@
 156. Visual artifact optionality: image and branding extraction can improve evidence richness, but tests should treat them as requested optional facets rather than mandatory research answers. Ledger reinforced; candidate evidence-pack optional facet policy.
 157. Schema conversion as admission: Zod/object schema conversion and mistaken-shape detection belong before execution, preventing malformed extraction requests from becoming weak answers. Ledger reinforced; candidate Tool CD schema validator.
 158. Async soft-failure observability: tests that accept completed/failed terminal states still require structured data/errors arrays, preventing runtime failure from masquerading as missing output. Ledger captured; candidate gate/eval split.
+159. Polling retry narrowness: status polling should retry transient socket/timeout/408-style failures with bounded backoff and never retry auth/client failures. Ledger reinforced; candidate async retrieval runtime guard.
+160. Legacy profile split: tests should explicitly distinguish cloud credential requirements from self-host behavior so missing auth is not misclassified as retrieval quality. Ledger captured; candidate profile-aware eval classification.
+161. PDF/document quality assertion: document retrieval evals should assert known text extraction for PDFs and extensionless PDF URLs, plus distinct behavior for raw/base64 modes. Ledger captured; candidate document evidence gate.
+162. Manual pagination budget choice: caller/workflow policy should choose auto-pagination or bounded manual pagination with max pages/results/wait, not let adapters fetch unboundedly. Ledger reinforced; candidate Tool CD budget field.
+163. Usage examples are non-authoritative: examples reveal intended primitive composition, but current source/tests remain the contract when legacy snippets drift. Ledger reinforced; candidate assimilation rule.
+164. Dependency/security exception scope: audit allowlists and dependency overrides belong to package governance, not tool behavior or synthesis fallback. Ledger captured; candidate packaging guard.
+165. Status-stream projection boundary: watcher examples are useful proof of real-time projection, but snapshots/documents/done events still need evidence conversion before final answer synthesis. Ledger captured; candidate Shell Socket/evidence bridge.
+166. Legacy method quarantine: feature-frozen v1 method names should remain compatibility surface and not leak into new workflow CDs or tool key selection. Ledger captured; candidate gate-3 stability guard.
 
 ## Remaining Work
 
@@ -1097,6 +1121,7 @@
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
 - Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
 - JS SDK v2 docs, public entrypoint, compact E2E suites, and remaining compact unit tests are parsed; large legacy v1 SDK and outer example files remain.
+- JS SDK outer examples, v1 E2E retry/status tests, package/audit harness, and watcher/pagination examples are parsed; large `src/v1/index.ts` and `src/index.backup.ts` remain unparsed.
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.

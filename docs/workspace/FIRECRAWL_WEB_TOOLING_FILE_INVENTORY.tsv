@@ -715,24 +715,24 @@ apps/java-sdk/src/test/java/com/firecrawl/FirecrawlLiveSiteTest.java	apps	not_pa
 apps/java-sdk/src/test/java/com/firecrawl/MapTest.java	apps	not_parsed	pending_review	
 apps/java-sdk/src/test/java/com/firecrawl/ScrapeTest.java	apps	parsed	java_scrape_tests	nonempty_markdown_html_source_metadata_main_content_timeout_wait_and_invalid_url_failure_checks
 apps/java-sdk/src/test/java/com/firecrawl/SearchTest.java	apps	parsed	java_search_tests	source_limit_location_time_url_validity_relevance_and_search_plus_scrape_markdown_enrichment_checks
-apps/js-sdk/.env.example	apps	not_parsed	pending_review	
+apps/js-sdk/.env.example	apps	parsed	js_sdk_outer_env_example	api_key_and_api_url_capability_inputs
 apps/js-sdk/LICENSE	apps	not_parsed	pending_review	
-apps/js-sdk/audit-ci.jsonc	apps	not_parsed	pending_review	
-apps/js-sdk/example.js	apps	not_parsed	pending_review	
-apps/js-sdk/example.ts	apps	not_parsed	pending_review	
-apps/js-sdk/example_pagination.ts	apps	not_parsed	pending_review	
-apps/js-sdk/example_v1.js	apps	not_parsed	pending_review	
-apps/js-sdk/example_v1.ts	apps	not_parsed	pending_review	
-apps/js-sdk/example_watcher.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/.env.example	apps	not_parsed	pending_review	
+apps/js-sdk/audit-ci.jsonc	apps	parsed	js_sdk_outer_audit_config	explicit_dependency_exception_scope
+apps/js-sdk/example.js	apps	parsed	js_sdk_outer_js_example	manual_primitive_composition_and_legacy_usage_demo
+apps/js-sdk/example.ts	apps	parsed	js_sdk_outer_ts_example	manual_primitive_composition_and_legacy_usage_demo
+apps/js-sdk/example_pagination.ts	apps	parsed	js_sdk_pagination_example	auto_vs_manual_pagination_budget_controls
+apps/js-sdk/example_v1.js	apps	parsed	js_sdk_v1_js_example	legacy_method_quarantine_signal
+apps/js-sdk/example_v1.ts	apps	parsed	js_sdk_v1_ts_example	legacy_method_quarantine_signal
+apps/js-sdk/example_watcher.ts	apps	parsed	js_sdk_watcher_example	status_stream_projection_boundary
+apps/js-sdk/firecrawl/.env.example	apps	parsed	js_sdk_package_env_example	idmux_and_api_capability_inputs
 apps/js-sdk/firecrawl/.gitignore	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/LICENSE	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/README.md	apps	parsed	js_sdk_public_docs	primitive_llm_ready_output_contract
-apps/js-sdk/firecrawl/audit-ci.jsonc	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/jest.config.js	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/audit-ci.jsonc	apps	parsed	js_sdk_package_audit_config	explicit_dependency_exception_scope
+apps/js-sdk/firecrawl/jest.config.js	apps	parsed	js_sdk_jest_config	deterministic_esm_typescript_test_harness
 apps/js-sdk/firecrawl/package.json	apps	parsed	js_sdk_package_metadata	separate_e2e_unit_scripts_and_dependency_security_overrides
 apps/js-sdk/firecrawl/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
-apps/js-sdk/firecrawl/src/__tests__/e2e/v1/index.test.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/__tests__/e2e/v1/index.test.ts	apps	parsed	js_sdk_v1_e2e_tests	legacy_profile_pdf_search_crawl_idempotency_quality_checks
 apps/js-sdk/firecrawl/src/__tests__/e2e/v2/batch.test.ts	apps	parsed	js_sdk_v2_batch_e2e	terminal_job_error_lookup_robots_blocked_and_batch_artifacts
 apps/js-sdk/firecrawl/src/__tests__/e2e/v2/crawl.test.ts	apps	parsed	js_sdk_v2_crawl_e2e	start_status_cancel_errors_active_wait_and_param_preview
 apps/js-sdk/firecrawl/src/__tests__/e2e/v2/extract.test.ts	apps	parsed	js_sdk_v2_extract_e2e	prompt_schema_zod_source_projection_quality
@@ -743,7 +743,7 @@ apps/js-sdk/firecrawl/src/__tests__/e2e/v2/search.test.ts	apps	parsed	js_sdk_v2_
 apps/js-sdk/firecrawl/src/__tests__/e2e/v2/usage.test.ts	apps	parsed	js_sdk_v2_usage_e2e	control_projection_numeric_shape
 apps/js-sdk/firecrawl/src/__tests__/e2e/v2/utils/idmux.ts	apps	parsed	js_sdk_v2_e2e_identity_helper	per_suite_capability_identity_budget_setup
 apps/js-sdk/firecrawl/src/__tests__/e2e/v2/watcher.test.ts	apps	parsed	js_sdk_v2_watcher_e2e	snapshot_document_done_terminal_event_contract
-apps/js-sdk/firecrawl/src/__tests__/unit/v1/monitor-job-status-retry.test.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/__tests__/unit/v1/monitor-job-status-retry.test.ts	apps	parsed	js_sdk_v1_monitor_retry_tests	transient_polling_retry_and_nonretryable_auth_failure
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/agent.test.ts	apps	parsed	js_sdk_v2_agent_unit_tests	capability_specific_webhook_events
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/branding.test.ts	apps	parsed	js_sdk_v2_branding_tests	optional_visual_evidence_facets
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/clientOptions.test.ts	apps	parsed	js_sdk_v2_client_options_tests	timeout_retry_backoff_base_url_config
@@ -756,7 +756,7 @@ apps/js-sdk/firecrawl/src/__tests__/unit/v2/validation.test.ts	apps	parsed	js_sd
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/zodSchemaToJson.test.ts	apps	parsed	js_sdk_v2_zod_schema_tests	schema_conversion_and_shape_misuse_detection
 apps/js-sdk/firecrawl/src/index.backup.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/index.ts	apps	parsed	js_sdk_unified_entrypoint	v2_default_v1_lazy_feature_frozen
-apps/js-sdk/firecrawl/src/types/node-undici.d.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/types/node-undici.d.ts	apps	parsed	js_sdk_websocket_type_shim	minimal_transport_type_boundary
 apps/js-sdk/firecrawl/src/utils/zodSchemaToJson.ts	apps	parsed	js_sdk_zod_schema_converter	zod_v3_v4_detection_json_schema_conversion_and_shape_misuse_detection
 apps/js-sdk/firecrawl/src/v1/index.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/v2/client.ts	apps	parsed	js_sdk_v2_client_facade	thin_typed_method_delegation_api_key_gate_start_status_cancel_wait_and_watcher_creation
@@ -779,8 +779,8 @@ apps/js-sdk/firecrawl/src/v2/utils/pagination.ts	apps	parsed	sdk_pagination_help
 apps/js-sdk/firecrawl/src/v2/utils/validation.ts	apps	parsed	sdk_request_validation	format_dependencies_schema_conversion_parse_option_rejection_and_artifact_shape_guards
 apps/js-sdk/firecrawl/src/v2/watcher.ts	apps	parsed	sdk_watcher	websocket_or_polling_async_snapshots_document_dedupe_and_terminal_done_error_events
 apps/js-sdk/firecrawl/tsconfig.json	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/tsup.config.ts	apps	not_parsed	pending_review	
-apps/js-sdk/package.json	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/tsup.config.ts	apps	parsed	js_sdk_build_config	single_entry_cjs_esm_dts_package_build
+apps/js-sdk/package.json	apps	parsed	js_sdk_outer_package_metadata	example_dependency_and_override_scope
 apps/js-sdk/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
 apps/js-sdk/tsconfig.json	apps	not_parsed	pending_review	
 apps/nuq-postgres/Dockerfile	apps	not_parsed	pending_review	
