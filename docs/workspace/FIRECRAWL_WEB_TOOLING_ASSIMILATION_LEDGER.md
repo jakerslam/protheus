@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1199
-- Not parsed: 68
+- Parsed: 1227
+- Not parsed: 40
 - Skipped generated: 15
 - Skipped media or sample: 75
 
@@ -1032,6 +1032,34 @@
 | `apps/redis/scripts/semver` | Redis semver helper. | Semver helper validates, compares, gets, and bumps version components in release automation. |
 | `apps/redis/scripts/version.sh` | Redis version script. | Static version file reader; no retrieval primitive. |
 | `apps/redis/start-redis-server.sh` | Redis startup script. | Runtime sets password, memory policy, persistence, maxmemory from VM memory, and Redis kernel/sysctl hints. |
+| `apps/ui/ingestion-ui/.gitignore` | Ingestion UI local hygiene. | Build, dependency, editor, and log artifacts are excluded at the demo app boundary; no retrieval primitive. |
+| `apps/ui/ingestion-ui/LICENSE` | Ingestion UI license. | License metadata reviewed; no web-tooling primitive. |
+| `apps/ui/ingestion-ui/README.md` | Ingestion UI docs. | Browser demos expose useful request-shaping ergonomics, but the docs warn API calls and keys should move server-side for production. |
+| `apps/ui/ingestion-ui/audit-ci.jsonc` | Ingestion UI audit config. | Package audit tolerance is app-scoped metadata, not retrieval behavior. |
+| `apps/ui/ingestion-ui/components.json` | Ingestion UI component config. | Shadcn/Tailwind aliases are presentation scaffolding only. |
+| `apps/ui/ingestion-ui/eslint.config.js` | Ingestion UI lint config. | React/TypeScript linting is local UI quality control, not web retrieval logic. |
+| `apps/ui/ingestion-ui/index.html` | Ingestion UI shell. | Static browser shell reviewed; no retrieval primitive beyond confirming this is a demo surface. |
+| `apps/ui/ingestion-ui/package.json` | Ingestion UI package manifest. | Vite/React/Radix dependencies are presentation dependencies and should remain outside core/tooling authority. |
+| `apps/ui/ingestion-ui/postcss.config.js` | Ingestion UI PostCSS config. | Styling pipeline config reviewed; no retrieval primitive. |
+| `apps/ui/ingestion-ui/src/App.tsx` | Ingestion UI app toggle. | V0/V1 compatibility toggles are useful for migration demos/tests, but live workflow choice should stay in CD/tool policy. |
+| `apps/ui/ingestion-ui/src/components/ingestion.tsx` | V0 ingestion component. | V0 demo composes scrape vs crawl, include/exclude paths, max depth, limit, main-content extraction, link selection, and selected-URL scraping as separable request fields. |
+| `apps/ui/ingestion-ui/src/components/ingestionV1.tsx` | V1 ingestion component. | V1 demo uses map as a cheap URL-discovery phase with search/limit, then scrapes selected links into markdown; search/limit automatically imply discovery mode. |
+| `apps/ui/ingestion-ui/src/components/ui/button.tsx` | UI primitive. | Presentation primitive reviewed; no retrieval behavior. |
+| `apps/ui/ingestion-ui/src/components/ui/card.tsx` | UI primitive. | Presentation primitive reviewed; no retrieval behavior. |
+| `apps/ui/ingestion-ui/src/components/ui/checkbox.tsx` | UI primitive. | Presentation primitive reviewed; no retrieval behavior. |
+| `apps/ui/ingestion-ui/src/components/ui/collapsible.tsx` | UI primitive. | Collapsible advanced options show request controls can stay optional without becoming synthesis format requirements. |
+| `apps/ui/ingestion-ui/src/components/ui/input.tsx` | UI primitive. | Presentation primitive reviewed; no retrieval behavior. |
+| `apps/ui/ingestion-ui/src/components/ui/label.tsx` | UI primitive. | Presentation primitive reviewed; no retrieval behavior. |
+| `apps/ui/ingestion-ui/src/components/ui/radio-group.tsx` | UI primitive. | Presentation primitive reviewed; no retrieval behavior. |
+| `apps/ui/ingestion-ui/src/index.css` | Ingestion UI styling. | Theme variables are presentation concerns and should not influence retrieval/synthesis behavior. |
+| `apps/ui/ingestion-ui/src/lib/utils.ts` | Ingestion UI class helper. | Class merge helper reviewed; no retrieval primitive. |
+| `apps/ui/ingestion-ui/src/main.tsx` | Ingestion UI bootstrap. | React bootstrap reviewed; no retrieval primitive. |
+| `apps/ui/ingestion-ui/src/vite-env.d.ts` | Ingestion UI type shim. | Vite type shim reviewed; no retrieval primitive. |
+| `apps/ui/ingestion-ui/tailwind.config.js` | Ingestion UI Tailwind config. | Presentation config reviewed; no retrieval primitive. |
+| `apps/ui/ingestion-ui/tsconfig.app.json` | Ingestion UI TS app config. | Strict TS settings support UI quality only. |
+| `apps/ui/ingestion-ui/tsconfig.json` | Ingestion UI TS project config. | TS references reviewed; no retrieval primitive. |
+| `apps/ui/ingestion-ui/tsconfig.node.json` | Ingestion UI TS node config. | Vite config typing reviewed; no retrieval primitive. |
+| `apps/ui/ingestion-ui/vite.config.ts` | Ingestion UI Vite config. | Alias/build config reviewed; no retrieval primitive. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/.env.template` | Airbnb analysis capability config. | Firecrawl, code-interpreter, and LLM credentials are external capability inputs and must not become workflow logic. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/.prettierignore` | Example artifact hygiene. | Generated dependency directories are local artifacts, not assimilation targets. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/README.md` | Airbnb analysis example overview. | Example composes retrieval, structured extraction, code execution, and visualization as separate phases. |
@@ -1731,6 +1759,11 @@
 303. Predicate-matched indexes as performance guardrails: cleanup/status queries need partial indexes matching their predicates so maintenance work does not starve retrieval workers.
 304. Cache/index evals should measure quality and latency: cache benchmarks should track scrape latency, map latency, and URL-count coverage so cache speedups do not hide stale or lower-coverage results.
 305. Release automation is side-effect workflow material: clean-tree checks, branch gates, version validation, and tag pushes are governance side effects, not retrieval behavior.
+306. Browser ingestion demos are an authority anti-pattern: they reveal useful input ergonomics, but API keys, provider calls, and tool execution must live behind Gateway/server-side adapters rather than client runtime.
+307. UI request builders are Tool CD schema hints: URL, discovery toggle, search, limit, include/exclude paths, depth, and main-content controls should map to typed fields instead of prompt-only behavior.
+308. Map-select-scrape is a reusable retrieval primitive: cheap URL discovery can fan out to selectable candidates before spending page-enrichment budget on selected links.
+309. Compatibility toggles are migration surfaces: V0/V1 switches are useful for parity tests and fixture comparison, but production workflow selection should remain declared in CDs/tool policy.
+310. Advanced controls should be optional request facets: exposing retrieval knobs is good, but they should not force any final-answer structure or user-visible workflow prose.
 
 ## Remaining Work
 
@@ -1760,4 +1793,5 @@
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
 - NUQ Postgres, Redis deployment, and remaining test-suite config/index benchmark surfaces are parsed; useful signals are queue lifecycle bounds, predicate-matched indexes, cache/index quality metrics, and operational release gates.
+- Ingestion UI template is parsed; useful signals are client-side-key anti-patterns, request-shaping field ergonomics, map-select-scrape composition, and migration toggle boundaries rather than crawler mechanics.
 - Keep scanning remaining files for any general web-tooling primitive that improves discovery quality, extraction quality, evidence packing, lifecycle bounds, or retry safety.

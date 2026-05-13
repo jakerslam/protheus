@@ -1127,37 +1127,37 @@ apps/test-suite/load-test-results/tests-6-7/load-test-8.md	apps	parsed	crawl_loa
 apps/test-suite/load-test.yml	apps	parsed	test_suite_load_config	crawl_handle_polling_load_scenario_with_terminal_status_wait
 apps/test-suite/package.json	apps	parsed	test_suite_package	artillery_load_harness_and_dependency_governance_metadata
 apps/test-suite/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
-apps/ui/ingestion-ui/.gitignore	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/LICENSE	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/README.md	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/audit-ci.jsonc	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/components.json	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/eslint.config.js	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/index.html	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/package.json	apps	not_parsed	pending_review	
+apps/ui/ingestion-ui/.gitignore	apps	parsed	local_hygiene_no_retrieval_primitive	local_artifact_boundary
+apps/ui/ingestion-ui/LICENSE	apps	parsed	license_metadata_no_retrieval_primitive	no_unique_pattern
+apps/ui/ingestion-ui/README.md	apps	parsed	client_side_key_warning_request_ergonomics	client_key_anti_pattern_server_side_gateway
+apps/ui/ingestion-ui/audit-ci.jsonc	apps	parsed	audit_config_app_scoped	app_scoped_dependency_audit
+apps/ui/ingestion-ui/components.json	apps	parsed	presentation_component_config	presentation_only_surface
+apps/ui/ingestion-ui/eslint.config.js	apps	parsed	ui_lint_config_only	presentation_quality_control
+apps/ui/ingestion-ui/index.html	apps	parsed	static_ui_shell	presentation_only_surface
+apps/ui/ingestion-ui/package.json	apps	parsed	presentation_dependency_surface	client_dependency_quarantine
 apps/ui/ingestion-ui/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
-apps/ui/ingestion-ui/postcss.config.js	apps	not_parsed	pending_review	
+apps/ui/ingestion-ui/postcss.config.js	apps	parsed	styling_pipeline_config	presentation_only_surface
 apps/ui/ingestion-ui/public/favicon.ico	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/ui/ingestion-ui/public/vite.svg	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
-apps/ui/ingestion-ui/src/App.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ingestion.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ingestionV1.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ui/button.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ui/card.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ui/checkbox.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ui/collapsible.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ui/input.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ui/label.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/components/ui/radio-group.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/index.css	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/lib/utils.ts	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/main.tsx	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/src/vite-env.d.ts	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/tailwind.config.js	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/tsconfig.app.json	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/tsconfig.json	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/tsconfig.node.json	apps	not_parsed	pending_review	
-apps/ui/ingestion-ui/vite.config.ts	apps	not_parsed	pending_review	
+apps/ui/ingestion-ui/src/App.tsx	apps	parsed	v0_v1_compatibility_toggle_boundary	compatibility_toggle_as_test_surface
+apps/ui/ingestion-ui/src/components/ingestion.tsx	apps	parsed	v0_scrape_crawl_request_builder	typed_request_fields_and_selected_url_enrichment
+apps/ui/ingestion-ui/src/components/ingestionV1.tsx	apps	parsed	v1_map_select_scrape_request_builder	map_select_scrape_primitive
+apps/ui/ingestion-ui/src/components/ui/button.tsx	apps	parsed	presentation_primitive_only	no_unique_pattern
+apps/ui/ingestion-ui/src/components/ui/card.tsx	apps	parsed	presentation_primitive_only	no_unique_pattern
+apps/ui/ingestion-ui/src/components/ui/checkbox.tsx	apps	parsed	presentation_primitive_only	no_unique_pattern
+apps/ui/ingestion-ui/src/components/ui/collapsible.tsx	apps	parsed	optional_advanced_controls_surface	optional_request_facets
+apps/ui/ingestion-ui/src/components/ui/input.tsx	apps	parsed	presentation_primitive_only	no_unique_pattern
+apps/ui/ingestion-ui/src/components/ui/label.tsx	apps	parsed	presentation_primitive_only	no_unique_pattern
+apps/ui/ingestion-ui/src/components/ui/radio-group.tsx	apps	parsed	presentation_primitive_only	no_unique_pattern
+apps/ui/ingestion-ui/src/index.css	apps	parsed	presentation_theme_config	presentation_only_surface
+apps/ui/ingestion-ui/src/lib/utils.ts	apps	parsed	class_merge_helper_only	no_unique_pattern
+apps/ui/ingestion-ui/src/main.tsx	apps	parsed	ui_bootstrap_only	presentation_only_surface
+apps/ui/ingestion-ui/src/vite-env.d.ts	apps	parsed	vite_type_shim_only	no_unique_pattern
+apps/ui/ingestion-ui/tailwind.config.js	apps	parsed	presentation_theme_config	presentation_only_surface
+apps/ui/ingestion-ui/tsconfig.app.json	apps	parsed	ts_strict_config_only	presentation_quality_control
+apps/ui/ingestion-ui/tsconfig.json	apps	parsed	ts_project_config_only	presentation_quality_control
+apps/ui/ingestion-ui/tsconfig.node.json	apps	parsed	ts_node_config_only	presentation_quality_control
+apps/ui/ingestion-ui/vite.config.ts	apps	parsed	vite_alias_config_only	presentation_only_surface
 docker-compose.yaml	docker-compose.yaml	not_parsed	pending_review	
 examples/R1_company_researcher/r1_company_researcher.py	examples	parsed	r1_company_researcher_example	serp_discovery_model_url_selection_firecrawl_extract_async_polling_and_json_fallbacks
 examples/R1_web_crawler/R1_web_crawler.py	examples	parsed	r1_web_crawler_example	serp_discovery_model_url_selection_firecrawl_extract_short_polling_budget_and_json_fallbacks
