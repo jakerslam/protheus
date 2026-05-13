@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 486
-- Not parsed: 791
+- Parsed: 492
+- Not parsed: 785
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -519,6 +519,12 @@
 | `apps/python-sdk/firecrawl/v2/utils/validation.py` | Python SDK validation helpers. | Scrape option prep normalizes artifact formats, schema refs, OpenAI-compatible structured extraction schemas, query/question/highlight formats, actions, parsers, location, and profile fields before execution. |
 | `apps/python-sdk/firecrawl/v2/watcher.py` | Python SDK sync watcher. | Job watching treats WebSocket events and HTTP polling as equivalent projections, accumulates document events, dispatches terminal done/error states once, and normalizes final job snapshots. |
 | `apps/python-sdk/firecrawl/v2/watcher_async.py` | Python SDK async watcher. | Async watcher pre-yields status, falls back from WebSocket failure/quiet periods to bounded HTTP polling, accumulates documents, and yields normalized terminal crawl/batch snapshots. |
+| `apps/python-sdk/firecrawl/v2/client.py` | Python SDK v2 sync client facade. | Top-level client is a typed convenience facade over primitive methods, preserving start/status/cancel/wait splits, watcher creation, request option shaping, and construction-time transport config without making workflow-policy decisions. |
+| `apps/python-sdk/firecrawl/v2/client_async.py` | Python SDK v2 async client facade. | Async client mirrors sync retrieval primitives with explicit async HTTP lifecycle, wait loops, polling/status methods, watcher creation, and the same typed request boundaries. |
+| `apps/python-sdk/firecrawl/v2/types.py` | Python SDK v2 type surface. | Type models declare retrieval artifacts, source/category lanes, scrape formats, pagination controls, cache/privacy knobs, job/status/error shapes, browser actions, monitor data, and response unions as reusable contracts. |
+| `apps/python-sdk/firecrawl/v2/__init__.py` | Python SDK v2 public exports. | Public package surface re-exports the client classes so callers share one typed facade boundary instead of bypassing the contract layer. |
+| `apps/python-sdk/firecrawl/v2/utils/__init__.py` | Python SDK v2 utility exports. | Utility package exposes HTTP clients, typed error mapping, validation, normalization, and version helpers as boundary primitives rather than orchestration behavior. |
+| `apps/python-sdk/firecrawl/v2/utils/get_version.py` | Python SDK version helper. | Version helper reads package metadata with a static fallback, useful for origin/user-agent diagnostics but not retrieval semantics or synthesis evidence. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_request_preparation.py` | Python SDK search request-prep tests. | Tests lock default search limits/timeouts, alias removal, domain-filter exclusivity, scrape option conversion, and integration label trimming. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_validation.py` | Python SDK search validation tests. | Query/limit/timeout/source/location/freshness/scrape-option constraints are enforced before transport while valid time filter strings pass through unchanged. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_scrape_request_preparation.py` | Python SDK scrape request-prep tests. | Tests cover URL validation, scrape option/action conversion, retained-browser code/prompt input validation, success-false handling, and response field normalization. |
@@ -677,6 +683,9 @@
 - Pagination tests should explicitly assert partial-result preservation on later page failures. That behavior matters for research because weak results are often caused by discarding useful early evidence after one downstream fetch/status miss.
 - Thin typed client facades are useful only when they delegate to primitive method/adaptor contracts. They should not become orchestration policy or hidden tool-selection logic.
 - Schema conversion helpers should validate and normalize user-supplied structured extraction schemas at the tool boundary, with mistakes becoming request-shape failures rather than low-quality synthesis failures.
+- Typed SDK/API surfaces are good raw material for Tool CDs: artifact formats, source lanes, pagination, cache/privacy flags, job statuses, and error models can be declared once and validated across adapters instead of rediscovered through prompt contracts.
+- Sync, async, streaming, and polling clients should be lifecycle variants over one primitive tool contract; divergence between their request shapes is a gate-regression risk.
+- Client origin/version labels are diagnostic metadata for transport observability. They should be hidden from synthesis evidence and must not steer user-facing model/tool behavior.
 
 ## Candidate Assimilation Targets
 
@@ -762,6 +771,9 @@
 80. Cross-adapter request-prep tests: add parity tests that prove workflow CD/tool adapter request shapes match SDK/API request normalization for search, scrape, map, crawl, batch, and parse. Ledger captured; candidate gate-3/gate-4 regression target.
 81. Thin facade boundary: keep user-facing tool clients as typed facades over primitive adapters, with workflow selection/order remaining in CDs/orchestration. Ledger captured; candidate architecture guard target.
 82. Structured schema validation lane: normalize schema objects and reject ambiguous structured-extraction shapes before tool execution. Ledger captured; candidate Tool CD/schema target.
+83. Typed tool contract extraction: derive Tool CD schemas from stable SDK/API type surfaces and keep aliases/defaults tested for parity. Ledger captured; candidate Tool CD/schema generation target.
+84. Client lifecycle parity: keep sync, async, stream, and polling facades as equivalent projections over the same primitive tool contract. Ledger captured; candidate adapter parity target.
+85. Diagnostic origin metadata: attach client/tool/runtime version metadata to hidden transport diagnostics while excluding it from synthesis evidence. Ledger captured; candidate observability/tool-adapter target.
 
 ## Remaining Work
 
