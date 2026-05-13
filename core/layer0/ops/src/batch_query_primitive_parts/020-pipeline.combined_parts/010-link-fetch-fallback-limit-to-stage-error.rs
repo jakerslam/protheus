@@ -71,14 +71,177 @@ fn stage_fetch_payload(root: &Path, stage: &str, url: &str, extract_mode: &str) 
     if fixture_mode_enabled() {
         return fixture_missing_payload();
     }
-    crate::web_conduit::api_fetch(
+    let fetch_payload = crate::web_conduit::api_fetch(
         root,
         &json!({
             "url": url,
             "extract_mode": extract_mode,
             "summary_only": false
         }),
+    );
+    document_lane_fetch_payload(root, url, extract_mode, &fetch_payload).unwrap_or(fetch_payload)
+}
+
+fn fetch_payload_error(fetch_payload: &Value) -> String {
+    clean_text(
+        fetch_payload
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        240,
     )
+    .to_ascii_lowercase()
+}
+
+fn fetch_payload_content_type(fetch_payload: &Value) -> String {
+    clean_text(
+        fetch_payload
+            .get("content_type")
+            .or_else(|| fetch_payload.get("contentType"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        160,
+    )
+    .to_ascii_lowercase()
+    .split(';')
+    .next()
+    .unwrap_or("")
+    .trim()
+    .to_string()
+}
+
+fn fetch_payload_is_pdf_document_lane_candidate(fetch_payload: &Value) -> bool {
+    let error = fetch_payload_error(fetch_payload);
+    let content_type = fetch_payload_content_type(fetch_payload);
+    error == "unsupported_content_type:application/pdf" || content_type == "application/pdf"
+}
+
+fn document_lane_fetch_payload(
+    root: &Path,
+    url: &str,
+    extract_mode: &str,
+    fetch_payload: &Value,
+) -> Option<Value> {
+    if !fetch_payload_is_pdf_document_lane_candidate(fetch_payload) {
+        return None;
+    }
+    let pdf_payload = crate::web_conduit::api_pdf_extract(
+        root,
+        &json!({
+            "url": url,
+            "summary_only": false,
+            "max_pages": 5,
+            "min_text_chars": 0
+        }),
+    );
+    document_lane_fetch_payload_from_pdf_extract(url, extract_mode, fetch_payload, &pdf_payload)
+}
+
+fn document_lane_fetch_payload_from_pdf_extract(
+    url: &str,
+    extract_mode: &str,
+    fetch_payload: &Value,
+    pdf_payload: &Value,
+) -> Option<Value> {
+    if !fetch_payload_is_pdf_document_lane_candidate(fetch_payload) {
+        return None;
+    }
+    let requested_url = clean_text(
+        fetch_payload
+            .get("requested_url")
+            .or_else(|| fetch_payload.get("final_url"))
+            .and_then(Value::as_str)
+            .unwrap_or(url),
+        2_200,
+    );
+    let resolved_url = clean_text(
+        pdf_payload
+            .get("resolved_source")
+            .or_else(|| fetch_payload.get("resolved_url"))
+            .or_else(|| fetch_payload.get("final_url"))
+            .and_then(Value::as_str)
+            .unwrap_or(requested_url.as_str()),
+        2_200,
+    );
+    let status_code = fetch_payload
+        .get("status_code")
+        .and_then(Value::as_i64)
+        .unwrap_or(200);
+    if !pdf_payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        let mut out = fetch_payload.clone();
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert("document_lane_attempted".to_string(), json!(true));
+            obj.insert("document_type".to_string(), json!("pdf"));
+            obj.insert(
+                "document_lane_error".to_string(),
+                pdf_payload
+                    .get("error")
+                    .cloned()
+                    .unwrap_or_else(|| json!("pdf_extract_failed")),
+            );
+        }
+        return Some(out);
+    }
+    let text = clean_text(
+        pdf_payload.get("text").and_then(Value::as_str).unwrap_or(""),
+        6_000,
+    );
+    if text.is_empty() {
+        let mut out = fetch_payload.clone();
+        if let Some(obj) = out.as_object_mut() {
+            obj.insert("document_lane_attempted".to_string(), json!(true));
+            obj.insert("document_type".to_string(), json!("pdf"));
+            obj.insert(
+                "document_lane_error".to_string(),
+                json!("pdf_extract_empty_text"),
+            );
+        }
+        return Some(out);
+    }
+    let page_count = pdf_payload
+        .get("page_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let text_chars = pdf_payload
+        .get("text_chars")
+        .and_then(Value::as_u64)
+        .unwrap_or_else(|| text.chars().count() as u64);
+    let summary = if let Some(summary) = pdf_payload
+        .get("summary")
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 600))
+        .filter(|row| !row.is_empty())
+    {
+        summary
+    } else {
+        format!("Extracted {text_chars} characters from PDF document.")
+    };
+    Some(json!({
+        "ok": true,
+        "type": "web_conduit_fetch_document_lane",
+        "requested_url": requested_url,
+        "resolved_url": resolved_url,
+        "final_url": resolved_url,
+        "provider": "web_media_pdf_extract",
+        "source_kind": "document_page_artifact",
+        "document_type": "pdf",
+        "extract_mode": extract_mode,
+        "extractor": "pdf_text",
+        "status_code": status_code,
+        "content_type": "application/pdf",
+        "summary": summary,
+        "content": text,
+        "text_chars": text_chars,
+        "page_count": page_count,
+        "page_numbers": pdf_payload.get("page_numbers").cloned().unwrap_or_else(|| json!([])),
+        "document_lane_attempted": true,
+        "permissions": "public_web;document_lane",
+        "external_content": {
+            "untrusted": true,
+            "source": "web_media_pdf_extract",
+            "wrapped": false
+        }
+    }))
 }
 
 fn payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {

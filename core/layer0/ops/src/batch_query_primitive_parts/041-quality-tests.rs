@@ -1250,6 +1250,67 @@ mod quality_tests {
     }
 
     #[test]
+    fn pdf_fetch_document_lane_returns_processible_document_evidence() {
+        let fetch_payload = json!({
+            "ok": false,
+            "error": "unsupported_content_type:application/pdf",
+            "requested_url": "https://science.example.org/report.pdf",
+            "resolved_url": "https://science.example.org/report.pdf",
+            "final_url": "https://science.example.org/report.pdf",
+            "content_type": "application/pdf; charset=binary",
+            "status_code": 200
+        });
+        let pdf_payload = json!({
+            "ok": true,
+            "resolved_source": "https://science.example.org/report.pdf",
+            "text": "April 2026 science report describes a quantum error correction milestone and a cancer vaccine trial update.",
+            "text_chars": 101,
+            "page_count": 4,
+            "page_numbers": [1, 2],
+            "summary": "Extracted 101 characters from 2 PDF page(s)."
+        });
+        let out = document_lane_fetch_payload_from_pdf_extract(
+            "https://science.example.org/report.pdf",
+            "markdown",
+            &fetch_payload,
+            &pdf_payload,
+        )
+        .expect("document lane payload");
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("source_kind").and_then(Value::as_str),
+            Some("document_page_artifact")
+        );
+        assert_eq!(out.get("document_type").and_then(Value::as_str), Some("pdf"));
+        let candidate = candidate_from_search_payload("scientific breakthroughs april 2026", &out)
+            .expect("candidate from pdf document lane");
+        assert_eq!(candidate.source_kind, "document_page_artifact");
+        assert!(candidate.snippet.contains("quantum error correction"));
+    }
+
+    #[test]
+    fn document_lane_ignores_non_pdf_unsupported_fetches() {
+        let fetch_payload = json!({
+            "ok": false,
+            "error": "unsupported_content_type:image/png",
+            "requested_url": "https://science.example.org/plot.png",
+            "content_type": "image/png",
+            "status_code": 200
+        });
+        let pdf_payload = json!({
+            "ok": true,
+            "text": "not used"
+        });
+        assert!(document_lane_fetch_payload_from_pdf_extract(
+            "https://science.example.org/plot.png",
+            "markdown",
+            &fetch_payload,
+            &pdf_payload,
+        )
+        .is_none());
+    }
+
+    #[test]
     fn framework_catalog_fresh_summary_rewrites_noisy_mirror_snippet_when_official_evidence_exists()
     {
         let out = run_query_with_fixture(

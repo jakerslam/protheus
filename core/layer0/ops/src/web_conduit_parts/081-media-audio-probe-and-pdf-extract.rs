@@ -265,7 +265,7 @@ fn api_audio_probe(root: &Path, request: &Value) -> Value {
     }
 }
 
-fn api_pdf_extract(root: &Path, request: &Value) -> Value {
+pub fn api_pdf_extract(root: &Path, request: &Value) -> Value {
     let requested_source = media_request_source(request);
     let summary_only = request.get("summary_only").and_then(Value::as_bool).unwrap_or(false);
     let extract_images = request.get("extract_images").and_then(Value::as_bool).unwrap_or(false);

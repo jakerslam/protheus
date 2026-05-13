@@ -13,7 +13,10 @@
     "firecrawl_crawler_filtering_and_metadata_signals",
     "firecrawl_link_filter_denial_reasons",
     "firecrawl_engine_quality_probe_before_render_budget",
-    "firecrawl_unsupported_binary_lane_split"
+    "firecrawl_unsupported_binary_lane_split",
+    "firecrawl_parse_upload_as_no_browse_document_lane",
+    "firecrawl_deep_research_gap_loop_without_final_format_hardcoding",
+    "firecrawl_llmstxt_map_scrape_corpus_pack_without_output_shape_hardcoding"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -31,6 +34,48 @@
     "depth_first_path_probe",
     "best_first_candidate_expansion"
   ],
+  "site_corpus_pack": {
+    "enabled": true,
+    "source_pattern": "firecrawl_llmstxt_map_scrape_corpus_pack",
+    "purpose": "When the user asks about a site, organization, docs set, or URL collection, retrieval may build a bounded corpus pack by mapping candidate URLs, scraping selected pages in batches, and packaging compact page summaries plus full-text refs for synthesis.",
+    "pipeline": [
+      "map_candidate_urls",
+      "dedupe_and_limit_urls",
+      "scrape_or_read_pages_in_batches",
+      "derive_compact_page_descriptions_for_navigation",
+      "store_full_text_as_internal_evidence_refs",
+      "expose_ranked_compact_index_plus_detail_refs_to_synthesis"
+    ],
+    "budget_controls": {
+      "default_max_urls": 50,
+      "hard_max_urls": 500,
+      "default_batch_size": 10,
+      "cache_allowed_only_when_policy_and_privacy_permit": true
+    },
+    "artifact_contract": {
+      "compact_index_fields": [
+        "title",
+        "locator",
+        "short_description",
+        "source_domain",
+        "evidence_ref"
+      ],
+      "full_text_ref_fields": [
+        "locator",
+        "heading",
+        "text_ref",
+        "token_estimate",
+        "freshness"
+      ],
+      "raw_full_text_chat_visible": false
+    },
+    "non_goals": [
+      "do_not_force_llms_txt_as_user_visible_output",
+      "do_not_hardcode_page_description_word_counts",
+      "do_not_hardcode_model_selection",
+      "do_not_cache_when_zero_retention_or_no_storage_policy_applies"
+    ]
+  },
   "web_research_broker": {
     "enabled": true,
     "primitive_id": "web_research",
@@ -71,6 +116,48 @@
       "do_not_require_every_source_class_for_every_question",
       "do_not_hardcode_domain_topics",
       "do_not_replace relevance_with_diversity"
+    ]
+  },
+  "iterative_gap_research_loop": {
+    "enabled": true,
+    "source_pattern": "firecrawl_deep_research_state_manager",
+    "purpose": "For broad, current, comparative, or under-covered research, let retrieval learn from collected evidence, generate bounded follow-up lanes, and stop by sufficiency, depth, time, and explicit gap reasons rather than asking the user to narrow immediately.",
+    "state_fields": [
+      "original_user_goal",
+      "current_research_topic",
+      "seen_locators",
+      "source_refs",
+      "finding_refs",
+      "coverage_gaps",
+      "next_query_lanes",
+      "depth",
+      "elapsed_time",
+      "failed_attempts"
+    ],
+    "loop_steps": [
+      "generate_initial_discovery_lanes_from_user_goal",
+      "retrieve_and_read_promising_candidates",
+      "dedupe_seen_locators_before_spending_fetch_budget",
+      "derive_coverage_gaps_from_evidence_not_provider_telemetry",
+      "generate_specific_followup_lanes_from_gaps_and_findings",
+      "stop_when_sufficient_or_when_budget_exhausted_with_recorded_gaps",
+      "synthesize_only_from_the_collected_evidence_and_recorded_gaps"
+    ],
+    "budget_controls": {
+      "default_depth": 2,
+      "max_depth": 4,
+      "default_parallel_query_lanes": 3,
+      "max_parallel_query_lanes": 4,
+      "reserve_final_synthesis_time": true,
+      "max_failed_planning_attempts": 3
+    },
+    "non_goals": [
+      "do_not_hardcode_final_report_format",
+      "do_not_hardcode_model_selection",
+      "do_not_make_all_questions_deep_research",
+      "do_not_replace_user_goal_with_unrelated_followup_topics",
+      "do_not_hide_followup_lanes_from_trace",
+      "do_not_treat_activity_or_provider_logs_as_citable_evidence"
     ]
   },
   "evidence_pack_quality": {
@@ -261,6 +348,10 @@
     }
   },
   "document_extraction": {
+    "source_patterns": [
+      "firecrawl_parse_upload_as_no_browse_document_lane",
+      "firecrawl_native_document_normalized_model"
+    ],
     "handled_types": [
       "html",
       "pdf",
@@ -271,6 +362,23 @@
       "image",
       "xml"
     ],
+    "artifact_model": "normalize_document_like_content_before_synthesis",
+    "artifact_contract": "document parsers produce structural text/table/metadata/page artifacts for evidence packing; final answer shape remains unconstrained",
+    "parse_only_lane_contract": {
+      "purpose": "When the user supplies document bytes or a fetched URL resolves to a document-like artifact, extraction should route through document parsing rather than web browsing controls.",
+      "reject_browsing_or_rendering_options": [
+        "actions",
+        "screenshot",
+        "wait_for_interaction",
+        "location_override",
+        "mobile_rendering"
+      ],
+      "cache_policy": "no_storage_without_explicit_cache_permission",
+      "non_goals": [
+        "do_not_prescribe_final_answer_format",
+        "do_not_treat_unsupported_binary_as_successful_empty_evidence"
+      ]
+    },
     "page_artifact_fields": [
       "document_type",
       "page_count",

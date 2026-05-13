@@ -71,6 +71,35 @@
         "do_not_force_visible_answer_format"
       ]
     },
+    "site_corpus_pack": {
+      "enabled": true,
+      "source_pattern": "firecrawl_llmstxt_map_scrape_corpus_pack_without_output_shape_hardcoding",
+      "trigger": "user_goal_targets_a_site_docs_set_url_collection_or_known_corpus",
+      "pipeline": [
+        "map_candidate_urls",
+        "dedupe_and_limit_urls_before_fetch_budget",
+        "fetch_or_read_selected_pages_in_batches",
+        "derive_compact_page_summary_rows",
+        "keep_full_text_as_internal_detail_refs",
+        "rank_compact_index_for_synthesis"
+      ],
+      "budget": {
+        "default_max_urls": 50,
+        "hard_max_urls": 500,
+        "default_batch_size": 10
+      },
+      "cache": {
+        "reuse_larger_cached_corpus_for_smaller_requested_limits": true,
+        "stale_after_days": 7,
+        "respect_zero_retention_and_no_store_policy": true
+      },
+      "non_goals": [
+        "do_not_force_llms_txt_as_final_output",
+        "do_not_hardcode_description_word_counts",
+        "do_not_hide_full_text_payloads_in_chat",
+        "do_not_hardcode_model_selection"
+      ]
+    },
     "evidence_pack_quality": {
       "enabled": true,
       "min_usable_items": 2,
@@ -123,6 +152,10 @@
     "coverage_aware_query_planning": {
       "enabled": true,
       "authority": "agent_submitted_query_pack_with_policy_scoring",
+      "source_patterns": [
+        "firecrawl_search_result_scrape_merge",
+        "firecrawl_deep_research_gap_loop_without_final_format_hardcoding"
+      ],
       "trigger": "multi_entity_or_multi_aspect_or_open_ended_research",
       "budget": {
         "min_lanes_for_multi_entity": 4,
@@ -170,6 +203,40 @@
         "when the prompt is open-ended, use discovery lanes for category, source class, and decision criteria before relying on prior-memory candidates",
         "do not drop a major entity, criterion, or requested scope without recording a coverage gap"
       ],
+      "iterative_gap_loop": {
+        "enabled": true,
+        "state_fields": [
+          "original_user_goal",
+          "seen_locators",
+          "evidence_refs",
+          "coverage_gaps",
+          "followup_query_lanes",
+          "depth",
+          "failed_attempts",
+          "stop_reason"
+        ],
+        "step_contract": [
+          "start_with_concise_discovery_lanes",
+          "read_or_fetch_promising_candidate_urls",
+          "dedupe_seen_locators_before_fetch_budget",
+          "derive_gap_lanes_from_current_evidence",
+          "issue_specific_followups_when_coverage_is_weak",
+          "reserve_budget_for_final_synthesis",
+          "finish_with_sufficient_evidence_or_explicit_gap_reasons"
+        ],
+        "stop_controls": {
+          "default_depth": 2,
+          "max_depth": 4,
+          "default_parallel_followup_lanes": 3,
+          "max_parallel_followup_lanes": 4,
+          "max_failed_planning_attempts": 3
+        },
+        "non_goals": [
+          "do_not_hardcode_domains_topics_or_output_sections",
+          "do_not_use_provider_activity_as_source_evidence",
+          "do_not_override_the_user_selected_model"
+        ]
+      },
       "coverage_buckets": {
         "enabled": true,
         "bucket_kinds": [
@@ -358,13 +425,41 @@
           "pdf",
           "text"
         ],
+        "source_patterns": [
+          "firecrawl_parse_upload_as_no_browse_document_lane",
+          "firecrawl_native_document_normalized_model"
+        ],
+        "artifact_model": "normalize_document_like_content_before_synthesis",
+        "artifact_fields": [
+          "document_type",
+          "page_count",
+          "page_numbers",
+          "text_chars",
+          "metadata_title",
+          "metadata_author",
+          "extraction_quality"
+        ],
         "pdf": {
+          "route_unsupported_fetch_content_type_to_pdf_extract": true,
           "extract_text": true,
           "extract_metadata": true,
           "extract_links": true,
           "extract_images_default": false,
           "page_batching": true,
           "scanned_pdf_without_ocr_quality_flag": "image_only_pdf"
+        },
+        "parse_upload_lane": {
+          "authority": "tooling_capability_lane_not_web_browse",
+          "supported_when_declared_by_tool_cd": true,
+          "reject_browsing_options": [
+            "actions",
+            "screenshot",
+            "waitFor",
+            "location",
+            "mobile_rendering"
+          ],
+          "cache_policy": "do_not_store_uploaded_or_parse_only_artifacts_without_explicit_cache_permission",
+          "output_contract": "normalized_document_artifact"
         }
       },
       "head_preview": {

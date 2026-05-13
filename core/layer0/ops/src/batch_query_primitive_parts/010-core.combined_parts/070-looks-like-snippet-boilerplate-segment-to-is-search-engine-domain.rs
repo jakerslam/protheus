@@ -101,6 +101,9 @@ fn summary_should_defer_to_content(summary: &str) -> bool {
     lowered.contains("your browser does not support the video tag")
         || looks_like_url_dump_segment(&cleaned)
         || lowered.starts_with("security notice:")
+        || (lowered.starts_with("extracted ")
+            && lowered.contains(" characters from ")
+            && (lowered.contains("pdf") || lowered.contains("document")))
 }
 
 fn normalize_snippet_text(raw: &str, query: &str, locator_hint: &str) -> String {

@@ -74,17 +74,17 @@ apps/api/native/build.rs	apps	not_parsed	pending_review
 apps/api/native/package.json	apps	not_parsed	pending_review	
 apps/api/native/rustfmt.toml	apps	not_parsed	pending_review	
 apps/api/native/src/crawler.rs	apps	parsed	native_crawler_filtering	denial_reasons_depth_domain_file_protocol_robots_include_exclude_sitemap_instruction_compilation
-apps/api/native/src/document/mod.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/model/mod.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/providers/doc.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/providers/docx.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/providers/factory.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/providers/mod.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/providers/odt.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/providers/rtf.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/providers/xlsx.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/renderers/html.rs	apps	not_parsed	pending_review	
-apps/api/native/src/document/renderers/mod.rs	apps	not_parsed	pending_review	
+apps/api/native/src/document/mod.rs	apps	parsed	document_conversion_entry	
+apps/api/native/src/document/model/mod.rs	apps	parsed	normalized_document_model	
+apps/api/native/src/document/providers/doc.rs	apps	parsed	legacy_doc_text_extraction	
+apps/api/native/src/document/providers/docx.rs	apps	parsed	docx_structural_parser	
+apps/api/native/src/document/providers/factory.rs	apps	parsed	document_provider_factory	
+apps/api/native/src/document/providers/mod.rs	apps	parsed	document_provider_trait	
+apps/api/native/src/document/providers/odt.rs	apps	parsed	odt_structural_parser	
+apps/api/native/src/document/providers/rtf.rs	apps	parsed	rtf_structural_parser	
+apps/api/native/src/document/providers/xlsx.rs	apps	parsed	spreadsheet_to_table_blocks	
+apps/api/native/src/document/renderers/html.rs	apps	parsed	document_html_renderer	
+apps/api/native/src/document/renderers/mod.rs	apps	parsed	document_renderer_module	
 apps/api/native/src/engpicker.rs	apps	parsed	engine_picker_quality_probe	compare_low_cost_fetch_against_rendered_gold_standard_similarity_threshold_uncertain_verdict
 apps/api/native/src/html.rs	apps	parsed	native_html_transformer	main_content_cleanup_metadata_backfill_base_href_srcset_largest_image_absolute_links_attributes
 apps/api/native/src/lib.rs	apps	parsed	native_module_exports	explicit_native_boundary_exports_for_crawler_html_pdf_engpicker_document
@@ -156,19 +156,19 @@ apps/api/src/__tests__/snips/v2/billing.test.ts	apps	not_parsed	pending_review
 apps/api/src/__tests__/snips/v2/concurrency.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/crawl-prompt.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/crawl.test.ts	apps	parsed	crawl_e2e_behavior_tests	sitemap_mode_include_path_filter_url_normalization_expectations
-apps/api/src/__tests__/snips/v2/document-converter.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/document-converter.test.ts	apps	parsed	document_converter_exact_output_tests	
 apps/api/src/__tests__/snips/v2/iframe-selectors.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/lib.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/map.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/monitor.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/parse.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/parsers.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/parse.test.ts	apps	parsed	parse_upload_contract_tests	
+apps/api/src/__tests__/snips/v2/parsers.test.ts	apps	parsed	parser_contract_tests	
 apps/api/src/__tests__/snips/v2/scrape-branding.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/scrape-browser.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/scrape-cache.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/scrape-formats.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v2/scrape-query.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/scrape-cache.test.ts	apps	parsed	cache_age_contract_tests	
+apps/api/src/__tests__/snips/v2/scrape-formats.test.ts	apps	parsed	format_shape_contract_tests	
+apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts	apps	parsed	lockdown_cache_zdr_tests	
+apps/api/src/__tests__/snips/v2/scrape-query.test.ts	apps	parsed	page_query_format_tests	
 apps/api/src/__tests__/snips/v2/scrape-skip-tls.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/scrape-viewport.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/scrape.test.ts	apps	not_parsed	pending_review	
@@ -217,18 +217,18 @@ apps/api/src/controllers/v1/crawl-status.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v1/crawl.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/credit-usage-historical.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/credit-usage.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/deep-research-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/deep-research.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/deep-research-status.ts	apps	parsed	deep_research_status_projection	projects final analysis/sources/activities/expiry/depth/status without exposing queue internals
+apps/api/src/controllers/v1/deep-research.ts	apps	parsed	deep_research_request_bounds	bounds max depth/max URLs/time limit and initializes async research state
 apps/api/src/controllers/v1/extract-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/extract.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/fireclaw.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/generate-llmstxt-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/generate-llmstxt.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/generate-llmstxt-status.ts	apps	parsed	site_corpus_status_projection	returns compact corpus index or compact plus full text with status/expiry/error
+apps/api/src/controllers/v1/generate-llmstxt.ts	apps	parsed	site_corpus_async_request	ZDR-gated async corpus generation initialized with max URL/full text/cache options
 apps/api/src/controllers/v1/map.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/queue-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/scrape-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/scrape.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/search.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/search.ts	apps	parsed	search_plus_scrape_bridge	deep research uses small SERP set plus scrape enrichment; content-bearing docs are separated from thin rows
 apps/api/src/controllers/v1/token-usage-historical.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/token-usage.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/types.ts	apps	not_parsed	pending_review	
@@ -257,7 +257,7 @@ apps/api/src/controllers/v2/extract.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v2/f-search.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/map.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/monitor.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/parse.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/parse.ts	apps	parsed	parse_only_document_lane	classifies uploaded file kind, rejects browsing/rendering options, forces extraction engine, disables cache
 apps/api/src/controllers/v2/queue-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/scrape-browser.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/scrape-status.ts	apps	not_parsed	pending_review	
@@ -301,9 +301,9 @@ apps/api/src/lib/cost-tracking.ts	apps	not_parsed	pending_review
 apps/api/src/lib/crawl-redis.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/crawl-redis.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/custom-error.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/deep-research/deep-research-redis.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/deep-research/deep-research-service.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/deep-research/research-manager.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/deep-research/deep-research-redis.ts	apps	parsed	ttl_research_state_persistence	TTL-bounded state appends activities/sources/summaries while local manager caps findings
+apps/api/src/lib/deep-research/deep-research-service.ts	apps	parsed	iterative_gap_research_loop	parallel query lanes, scrape/read, seen-URL dedupe, gap analysis, bounded continuation, final synthesis
+apps/api/src/lib/deep-research/research-manager.ts	apps	parsed	research_state_and_gap_planning	tracks seen URLs/findings/depth/failures and generates specific follow-up queries from prior evidence
 apps/api/src/lib/default-values.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/deployment.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/deprecations.ts	apps	not_parsed	pending_review	
@@ -311,22 +311,22 @@ apps/api/src/lib/engpicker.ts	apps	not_parsed	pending_review
 apps/api/src/lib/entities.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/error-serde.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/error.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/build-document.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/build-document.ts	apps	parsed	metadata_bounded_llm_input	appends sanitized capped metadata to markdown for extraction context
 apps/api/src/lib/extract/build-prompts.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/completions/analyzeSchemaAndPrompt.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/completions/batchExtract.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/completions/singleAnswer.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/config.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/document-scraper.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/document-scraper.ts	apps	parsed	extract_scrape_bridge	scrape-for-extract retries single URLs, traces content stats, bypasses billing, cleans queue jobs
 apps/api/src/lib/extract/extract-redis.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/extraction-service.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/build-document-f0.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/fire-0/build-document-f0.ts	apps	parsed	metadata_bounded_llm_input	alternate extraction lane preserves same sanitized metadata boundary
 apps/api/src/lib/extract/fire-0/build-prompts-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/completions/analyzeSchemaAndPrompt-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/completions/batchExtract-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/completions/checkShouldExtract-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/completions/singleAnswer-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/document-scraper-f0.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/fire-0/document-scraper-f0.ts	apps	parsed	extract_scrape_bridge	alternate provider path preserves blocklist, queue, wait, cleanup, and trace behavior
 apps/api/src/lib/extract/fire-0/extraction-service-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/helpers/deduplicate-objs-array-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/helpers/dereference-schema-f0.ts	apps	not_parsed	pending_review	
@@ -352,13 +352,13 @@ apps/api/src/lib/extract/team-id-sync.ts	apps	not_parsed	pending_review
 apps/api/src/lib/extract/url-processor.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/usage/llm-cost.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/usage/model-prices.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/format-utils.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/format-utils.ts	apps	parsed	format_option_contract_helper	supports string and object format declarations as extraction contracts
 apps/api/src/lib/gcs-jobs.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/gcs-monitoring.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/gcs-pdf-cache.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/generate-llmstxt/generate-llmstxt-redis.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/generate-llmstxt/generate-llmstxt-service.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/generate-llmstxt/generate-llmstxt-supabase.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/generate-llmstxt/generate-llmstxt-redis.ts	apps	parsed	ttl_site_corpus_state	TTL-bounded async corpus-pack state with compact text/full text/status/error
+apps/api/src/lib/generate-llmstxt/generate-llmstxt-service.ts	apps	parsed	map_scrape_site_corpus_pack	maps bounded URLs, batch-scrapes pages, creates compact page rows, stores full text separately, updates progress
+apps/api/src/lib/generate-llmstxt/generate-llmstxt-supabase.ts	apps	parsed	site_corpus_cache_reuse	reuses fresh larger hostname-normalized corpus for smaller limits and rejects stale entries
 apps/api/src/lib/generic-ai.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/html-to-markdown-client.ts	apps	parsed	html_to_markdown_service_client	http_converter_timeout_zdr_headers_request_id_suppression_service_error_metadata
 apps/api/src/lib/html-to-markdown.ts	apps	parsed	html_to_markdown_waterfall	http_service_go_parser_turndown_fallback_postprocess_markdown_zdr_safe_logging
@@ -373,7 +373,7 @@ apps/api/src/lib/otel-tracer.ts	apps	not_parsed	pending_review
 apps/api/src/lib/parseApi.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/permissions.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/permu-refactor.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/ranker.test.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/ranker.test.ts	apps	parsed	ranking_behavior_tests	semantic rerank exposes score/original index, handles empty input, and preserves stable tie order
 apps/api/src/lib/ranker.ts	apps	parsed	semantic_ranking	embedding_cosine_rerank_stable_sort_embedding_failure_score_zero
 apps/api/src/lib/retry-utils.ts	apps	parsed	generic_retry_helper	abortable_backoff_valid_result_predicate_failure_observability
 apps/api/src/lib/robots-txt.ts	apps	parsed	robots_policy	robots_fetch_engine_waterfall_404_as_empty_trailing_slash_disallow_crawl_delay_sitemap_metadata
@@ -454,7 +454,7 @@ apps/api/src/scraper/scrapeURL/engines/utils/safeFetch.ts	apps	parsed	secure_fet
 apps/api/src/scraper/scrapeURL/engines/utils/specialtyHandler.ts	apps	parsed	specialty_content_lane_split	content_type_and_magic_signature_pdf_document_detection_unsupported_binary_rejection
 apps/api/src/scraper/scrapeURL/engines/wikipedia/index.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/x-twitter/index.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/error.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/error.ts	apps	parsed	typed_scrape_error_taxonomy	distinguishes unsupported binary, cache miss, lockdown, ZDR, PDF OCR/time, document/PDF antibot, retry limits
 apps/api/src/scraper/scrapeURL/index.ts	apps	parsed	scrape_pipeline_entrypoint	feature_flags_engine_waterfall_prefetch_robots_transformers_postprocessors
 apps/api/src/scraper/scrapeURL/lib/__tests__/extractImages.test.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/lib/__tests__/extractLinks.test.ts	apps	not_parsed	pending_review	
@@ -492,12 +492,12 @@ apps/api/src/scraper/scrapeURL/transformers/removeBase64Images.ts	apps	not_parse
 apps/api/src/scraper/scrapeURL/transformers/sendToSearchIndex.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/transformers/uploadScreenshot.ts	apps	not_parsed	pending_review	
 apps/api/src/search/execute.ts	apps	parsed	search_orchestration_and_optional_scrape_merge	query_builder_overfetch_limit_x2_category_map_scrapeOptions_merge
-apps/api/src/search/fireEngine.ts	apps	not_parsed	pending_review	
-apps/api/src/search/index.ts	apps	not_parsed	pending_review	
+apps/api/src/search/fireEngine.ts	apps	parsed	adapter_retry_valid_result_predicate	provider retries until valid non-empty result predicate or empty fallback
+apps/api/src/search/index.ts	apps	parsed	provider_fallback_order	Fire Engine then SearXNG then DuckDuckGo with provider failures hidden behind empty result fallback
 apps/api/src/search/scrape.test.ts	apps	not_parsed	pending_review	
 apps/api/src/search/scrape.ts	apps	parsed	search_result_scrape_merge_pipeline	blocked_url_filter_direct_scrape_concurrent_merge_scraped_content
-apps/api/src/search/searxng.ts	apps	not_parsed	pending_review	
-apps/api/src/search/transform.ts	apps	not_parsed	pending_review	
+apps/api/src/search/searxng.ts	apps	parsed	multipage_result_satisfaction	fetches enough pages to satisfy requested result count and stops on empty pages
+apps/api/src/search/transform.ts	apps	parsed	multi_source_document_normalization	normalizes web/news/image rows into a common document shape and filters content-bearing docs
 apps/api/src/search/v2/ddgsearch.ts	apps	parsed	duckduckgo_provider_impl	html_endpoint_pagination_seen_url_dedupe_antibot_retry_timeout_user_agent_rotation
 apps/api/src/search/v2/fireEngine-v2.ts	apps	parsed	premium_search_provider_impl	retry_wrapper_requested_source_types_partial_response_allowed
 apps/api/src/search/v2/index.ts	apps	parsed	search_provider_fallback_order	fire_engine_searxng_duckduckgo_empty_response_fallback
@@ -548,7 +548,7 @@ apps/api/src/services/notification/monitoring_email.ts	apps	not_parsed	pending_r
 apps/api/src/services/notification/notification-check.ts	apps	not_parsed	pending_review	
 apps/api/src/services/notification/notification_string.ts	apps	not_parsed	pending_review	
 apps/api/src/services/queue-jobs.ts	apps	not_parsed	pending_review	
-apps/api/src/services/queue-service.ts	apps	not_parsed	pending_review	
+apps/api/src/services/queue-service.ts	apps	parsed	async_queue_lifecycle_bounds	queue job completion/failure retention ages bound async artifact growth
 apps/api/src/services/queue-worker.ts	apps	not_parsed	pending_review	
 apps/api/src/services/rate-limiter.test.ts	apps	not_parsed	pending_review	
 apps/api/src/services/rate-limiter.ts	apps	not_parsed	pending_review	

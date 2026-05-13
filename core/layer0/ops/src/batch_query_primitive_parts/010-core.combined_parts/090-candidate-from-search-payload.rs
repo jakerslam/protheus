@@ -110,8 +110,20 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
     } else {
         format!("Web result from {}", clean_text(&locator, 120))
     };
+    let source_kind = clean_text(
+        payload
+            .get("source_kind")
+            .or_else(|| payload.get("sourceKind"))
+            .and_then(Value::as_str)
+            .unwrap_or("web"),
+        80,
+    );
     Ok(Candidate {
-        source_kind: "web".to_string(),
+        source_kind: if source_kind.is_empty() {
+            "web".to_string()
+        } else {
+            source_kind
+        },
         title,
         locator,
         snippet: snippet.clone(),
