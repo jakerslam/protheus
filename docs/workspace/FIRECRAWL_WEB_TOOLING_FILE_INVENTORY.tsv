@@ -120,7 +120,7 @@ apps/api/src/__tests__/e2e_extract/index.test.ts	apps	parsed	extract_e2e_quality
 apps/api/src/__tests__/e2e_full_withAuth/index.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/e2e_map/index.test.ts	apps	parsed	v1_map_e2e_quality_tests	search_filtered_links_subdomains_sitemap_only_limits_large_sitemap_volume
 apps/api/src/__tests__/e2e_map/v2_map.test.ts	apps	parsed	v2_map_e2e_quality_tests	structured_web_rows_metadata_compat_links_sitemap_flags_search_echo_timeout_failure
-apps/api/src/__tests__/e2e_noAuth/index.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/e2e_noAuth/index.test.ts	apps	parsed	no_auth_e2e_behavior	unsupported_sites_invalid_jobs_valid_handles_completed_crawl_data_shape_without_auth
 apps/api/src/__tests__/e2e_v1_withAuth/index.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/e2e_v1_withAuth_all_params/index.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/e2e_withAuth/index.test.ts	apps	not_parsed	pending_review	
@@ -132,16 +132,16 @@ apps/api/src/__tests__/snips/metadata-concat.test.ts	apps	parsed	metadata_extrac
 apps/api/src/__tests__/snips/mocks/map-query-params.json	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/mocks/mocking-works-properly.json	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/utils/collect-mocks.js	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v0/lib.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v0/scrape.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v0/lib.ts	apps	parsed	v0_snips_helper	legacy_raw_scrape_transport_helper_shared_identity_timeout_reexports
+apps/api/src/__tests__/snips/v0/scrape.test.ts	apps	parsed	v0_scrape_url_validation_tests	invalid_empty_unsupported_protocol_no_tld_rejection_and_profile_sensitive_valid_url_acceptance
 apps/api/src/__tests__/snips/v1/batch-scrape.test.ts	apps	parsed	v1_batch_scrape_snips	contentful_batch_markdown_source_url_preservation_and_json_extract_format
 apps/api/src/__tests__/snips/v1/billing.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v1/concurrency.test.ts	apps	parsed	v1_concurrency_snips	account_and_request_concurrency_limits_with_stacked_group_behavior
 apps/api/src/__tests__/snips/v1/crawl.test.ts	apps	parsed	v1_crawl_snips	uuid_validation_include_paths_domain_subdomain_protocol_filtering_and_ongoing_lifecycle
 apps/api/src/__tests__/snips/v1/deep-research.test.ts	apps	parsed	v1_deep_research_snips	end_to_end_final_analysis_sources_and_activity_projection
-apps/api/src/__tests__/snips/v1/deprecation.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v1/deprecation.test.ts	apps	parsed	v1_deprecation_projection_tests	headers_body_warnings_successor_link_and_clean_non_deprecated_endpoint_projection
 apps/api/src/__tests__/snips/v1/extract.test.ts	apps	parsed	v1_extract_snips	schema_typing_and_unsupported_json_schema_parameter_normalization
-apps/api/src/__tests__/snips/v1/iframe-selectors.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v1/iframe-selectors.test.ts	apps	parsed	iframe_selector_schema_tests	include_exclude_selector_rewrite_for_transformed_dom_markers_without_partial_match_damage
 apps/api/src/__tests__/snips/v1/json-extract-format.test.ts	apps	parsed	v1_json_extract_format_snips_extract_json_field_compatibility_and_multi_format_projection
 apps/api/src/__tests__/snips/v1/lib.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v1/map.test.ts	apps	parsed	v1_map_snips	timeout_failure_and_query_parameter_preservation

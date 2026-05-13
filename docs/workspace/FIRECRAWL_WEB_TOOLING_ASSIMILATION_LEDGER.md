@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 417
-- Not parsed: 861
+- Parsed: 422
+- Not parsed: 856
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -401,6 +401,11 @@
 | `apps/api/src/services/ledger/data-schemas.ts` | Side-effect event schemas. | Ledger events use typed provider-definition slugs and event payload shapes instead of ad hoc event blobs. |
 | `apps/api/src/services/ledger/supabase-ledger.ts` | Ledger client boundary. | Ledger database access is isolated behind a schema-specific client/proxy that fails clearly when unavailable. |
 | `apps/api/src/services/ledger/tracking.ts` | Ledger event tracking. | Side-effect event tracking caches provider definitions, inserts typed track rows, and returns null on tracking failure so non-evidence telemetry does not break retrieval. |
+| `apps/api/src/__tests__/e2e_noAuth/index.test.ts` | No-auth E2E behavior tests. | Auth-disabled mode still enforces unsupported-site errors, returns valid crawl handles, projects invalid job IDs as 404, and checks completed crawl data shape. |
+| `apps/api/src/__tests__/snips/v0/lib.ts` | V0 snips helper. | Legacy scrape tests keep raw transport helpers separate from assertions, preserving compatibility while sharing identity/timeouts. |
+| `apps/api/src/__tests__/snips/v0/scrape.test.ts` | V0 scrape URL validation tests. | Legacy scrape rejects invalid, empty, unsupported-protocol, and no-TLD URLs while allowing self-hosted/test-suite exceptions to be environment-sensitive. |
+| `apps/api/src/__tests__/snips/v1/deprecation.test.ts` | Deprecation projection tests. | Deprecated endpoints emit headers/body warnings and successor links while non-deprecated endpoints stay clean, including warning behavior on 404 status calls. |
+| `apps/api/src/__tests__/snips/v1/iframe-selectors.test.ts` | Iframe selector schema tests. | Request schemas rewrite iframe selectors to transformed DOM markers across include/exclude, combinators, and attribute selectors without touching partial-name matches. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -585,6 +590,9 @@
 - Capacity control is retrieval quality infrastructure: atomic leases, TTL heartbeats, abort-aware blocking waits, active-job projections, and metrics prevent overload from degrading evidence into timeouts.
 - Index-backed discovery should return bounded partial candidates when the index is degraded and should keep metadata-bearing variants available for ranking before fetch.
 - Side-effect ledgers are useful for observability and billing, but they should be typed, best-effort, and unable to block or pollute evidence synthesis.
+- Authentication mode is a capability/profile setting, not a reason to weaken retrieval validation. Unsupported URLs, invalid job IDs, and completed evidence shapes still need stable behavior.
+- Deprecation and compatibility warnings belong in headers/status metadata, not final research synthesis. They can guide client migration without contaminating evidence.
+- DOM-normalization rewrites such as iframe placeholders should happen in request/schema/extraction layers so selectors continue to work against transformed evidence artifacts.
 
 ## Candidate Assimilation Targets
 
@@ -650,6 +658,9 @@
 60. Optional source-specialty resolver lane: allow admitted resolvers to declare support patterns, return generic map/evidence rows, and stay hidden as provider diagnostics. Ledger captured; candidate Tool CD capability lane.
 61. Partial index discovery: query URL/domain split indexes for candidate links with metadata, return partial candidates on index errors, and use cheap engine verdicts only as hidden capability hints. Ledger captured; candidate retrieval discovery target.
 62. Typed side-effect ledger: track billing/usage/notification/control events as best-effort typed records with cached definitions, independent from evidence artifact creation. Ledger captured; candidate observability/ledger target.
+63. Profile-invariant validation: keep URL validation, unsupported-source policy, handle shape checks, and completed artifact shape assertions stable across auth/no-auth/self-host/test profiles. Ledger captured; candidate eval harness profile matrix.
+64. Compatibility warning projection: route deprecation/successor warnings through headers/status metadata, never as evidence or final answer text. Ledger captured; candidate projection hygiene guard.
+65. Selector transform contract: centralize DOM rewrites such as iframe marker transforms in request/schema extraction layers and test complex selector preservation. Ledger captured; candidate scrape option schema target.
 
 ## Remaining Work
 
