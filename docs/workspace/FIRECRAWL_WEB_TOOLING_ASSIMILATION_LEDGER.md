@@ -40,9 +40,9 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1065
-- Not parsed: 204
-- Skipped generated: 13
+- Parsed: 1087
+- Not parsed: 181
+- Skipped generated: 14
 - Skipped media or sample: 75
 
 ## Parsed Files
@@ -822,6 +822,29 @@
 | `apps/dot-net-sdk/Firecrawl/Models/QuestionFormat.cs` | .NET question format. | Page-local questions are selectable artifact facets and remain narrower than final synthesis. |
 | `apps/dot-net-sdk/Firecrawl/Models/WebhookConfig.cs` | .NET webhook config. | URL, headers, metadata, and event list define async projection side effects. |
 | `apps/dot-net-sdk/README.md` | .NET SDK README. | Usage examples reinforce separate scrape, crawl, batch, parse, map, search, usage, and typed error-handling primitives. |
+| `apps/elixir-sdk/.formatter.exs` | Elixir formatter scope. | Formatting covers generated client, generator, config/lib/test sources only. |
+| `apps/elixir-sdk/.gitignore` | Elixir local artifact hygiene. | Build, dependency, docs, temp, crash dump, and package artifacts are kept local. |
+| `apps/elixir-sdk/LICENSE` | Elixir license boundary. | MIT metadata only. |
+| `apps/elixir-sdk/README.md` | Elixir SDK usage surface. | The client is generated from OpenAPI, validates params with NimbleOptions, supports config/option API keys, self-host base URLs, and bang/non-bang variants. |
+| `apps/elixir-sdk/generate.exs` | Elixir OpenAPI generator. | Fetches spec, generates validated wrappers, supports multipart parse, resolves refs/allOf, maps camelCase, and bumps semver by public-function diff. |
+| `apps/elixir-sdk/lib/firecrawl.ex` | Elixir generated client. | Keyword params validate before requests, snake_case maps to API fields, parse uses multipart options/file parts, and monitor checks can auto-paginate pages. |
+| `apps/elixir-sdk/lib/firecrawl/error.ex` | Elixir error model. | HTTP status and decoded body are preserved in a typed exception message. |
+| `apps/elixir-sdk/mix.exs` | Elixir package manifest. | Req, NimbleOptions, docs metadata, and package files define a small generated-client surface. |
+| `apps/elixir-sdk/mix.lock` | Elixir dependency lockfile. | Generated dependency lockfile skipped after dependency-surface review. |
+| `apps/elixir-sdk/test/firecrawl_test.exs` | Elixir client contract tests. | Tests cover API-key resolution, unknown-key and type validation, enum atom/string tolerance, parse validation, API error mapping, and bang variants. |
+| `apps/elixir-sdk/test/test_helper.exs` | Elixir test helper. | ExUnit bootstrap only. |
+| `apps/go-sdk/README.md` | Go SDK usage surface. | Docs expose scrape, parse, crawl, batch, map, search, agent, browser, usage, context cancellation, retry, and typed errors as separate primitives. |
+| `apps/go-sdk/firecrawl.go` | Go client facade. | Keeps start/status/cancel primitives, auto-polling, context cancellation, timeout errors, terminal pagination, and control projections separate. |
+| `apps/go-sdk/firecrawl_error.go` | Go error model. | Errors preserve status code, API code, message, auth/rate-limit types, and async job timeout metadata. |
+| `apps/go-sdk/go.mod` | Go module manifest. | Nested Go module boundary only. |
+| `apps/go-sdk/http_client.go` | Go HTTP adapter. | Requests rebuild bodies for retries, map retryable vs non-retryable status codes, preserve context cancellation, attach user agent, and support multipart uploads. |
+| `apps/go-sdk/models.go` | Go model surface. | Documents, search lanes, jobs, monitors, browser sessions, usage, and link string/object tolerance are represented as typed data. |
+| `apps/go-sdk/option/option.go` | Go functional options. | API key, API URL, HTTP client, retry count, backoff, timeout, and headers are explicit client configuration. |
+| `apps/go-sdk/options.go` | Go request options. | Scrape/crawl/batch/map/search/agent options preserve format objects, location, webhook, cache, ZDR, source, and domain controls. |
+| `apps/go-sdk/options_test.go` | Go format option tests. | Tests assert page-local query, question, highlights, and string formats serialize without forcing answer format. |
+| `apps/go-sdk/parse.go` | Go parse primitive. | File path/bytes upload, MIME inference, parse-only options, multipart encoding, and document extraction stay in the file-parse lane. |
+| `apps/go-sdk/parse_test.go` | Go parse tests. | Tests assert multipart request shape, option payload, filename/content type, and empty-input rejection. |
+| `apps/go-sdk/version.go` | Go release version source. | SDK version feeds user-agent metadata and nested module tag workflow. |
 | `apps/php-sdk/src/Client/FirecrawlClient.php` | PHP SDK client facade. | The PHP facade validates API URL shape, keeps primitives separate, passes idempotency as a header, validates poll intervals, enforces same-origin pagination, and composes polling/pagination internally. |
 | `apps/php-sdk/src/Client/FirecrawlHttpClient.php` | PHP SDK HTTP adapter. | Transport sets JSON/multipart headers, adds SDK user-agent metadata, retries retryable status/connect/request failures, maps auth/rate-limit errors, and fails JSON parse errors as typed client failures. |
 | `apps/php-sdk/src/Models/SearchOptions.php` | PHP search option model. | Search options preserve source, category, domain, limit, freshness, location, invalid-URL, timeout, scrape enrichment, and integration controls while omitting nulls. |
@@ -1574,6 +1597,11 @@
 281. Typed boundary failures: auth, rate-limit, timeout, and general client errors should preserve status/code/details/job metadata so evals can classify hard failures cleanly.
 282. Page-local artifact formats: highlights, questions, direct quotes, and JSON extraction are selectable evidence facets, not instructions for final answer format.
 283. Location and webhook controls: country/language affect retrieval scope, while webhook metadata/events are async side effects; neither should steer synthesis phrasing.
+284. OpenAPI-generated client parity: generated SDKs can serve as executable schema drift guards when they validate input fields and regenerate from admitted Tool CD/API schemas.
+285. Bang/non-bang or raise/return split: client surfaces can expose both exception and result-tuple modes, but orchestration should normalize them into typed tool outcomes.
+286. Multipart parse as primitive lane: file parsing should validate filename/content/options before upload, carry MIME hints, and return document evidence instead of browser scrape artifacts.
+287. Retry and cancellation mechanics: client adapters should rebuild request bodies across retries, stop immediately on cancellation, and retry only transient statuses or transport failures.
+288. Terminal pagination after status: polling should wait for a terminal state, then follow next cursors to gather the full document set before evidence packing.
 
 ## Remaining Work
 
@@ -1594,6 +1622,7 @@
 - API control-plane helpers, billing/notification side-effect surfaces, agent key admission, and legacy v1 schema are parsed; useful signals are side-effect/evidence separation, async terminal artifact assertions, optional observability sinks, billing leases, bounded caches, and diagnostic-only URL dumps.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK client, transport, tests, docs/project metadata, exceptions, and model surface are parsed; no unparsed .NET SDK files remain in the inventory.
+- Elixir and Go SDK surfaces are parsed; Elixir lockfile is marked generated, and useful signals are OpenAPI generation, boundary validation, typed errors, parse multipart lanes, retry/cancellation, and terminal pagination.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
 - Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
 - JS SDK v2 docs, public entrypoint, compact E2E suites, and remaining compact unit tests are parsed; large legacy v1 SDK and outer example files remain.

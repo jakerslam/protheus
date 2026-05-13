@@ -621,17 +621,17 @@ apps/dot-net-sdk/Firecrawl/Models/SearchData.cs	apps	parsed	dotnet_search_data	w
 apps/dot-net-sdk/Firecrawl/Models/SearchOptions.cs	apps	parsed	dotnet_search_options	source_category_domain_freshness_location_country_invalid_url_timeout_scrape_enrichment_enterprise_and_integration_controls
 apps/dot-net-sdk/Firecrawl/Models/WebhookConfig.cs	apps	parsed	dotnet_webhook_config	url_headers_metadata_events_async_projection_contract
 apps/dot-net-sdk/README.md	apps	parsed	dotnet_readme_usage_surface	async_polling_parse_map_search_usage_and_typed_error_handling_examples
-apps/elixir-sdk/.formatter.exs	apps	not_parsed	pending_review	
-apps/elixir-sdk/.gitignore	apps	not_parsed	pending_review	
-apps/elixir-sdk/LICENSE	apps	not_parsed	pending_review	
-apps/elixir-sdk/README.md	apps	not_parsed	pending_review	
-apps/elixir-sdk/generate.exs	apps	not_parsed	pending_review	
-apps/elixir-sdk/lib/firecrawl.ex	apps	not_parsed	pending_review	
-apps/elixir-sdk/lib/firecrawl/error.ex	apps	not_parsed	pending_review	
-apps/elixir-sdk/mix.exs	apps	not_parsed	pending_review	
-apps/elixir-sdk/mix.lock	apps	not_parsed	pending_review	
-apps/elixir-sdk/test/firecrawl_test.exs	apps	not_parsed	pending_review	
-apps/elixir-sdk/test/test_helper.exs	apps	not_parsed	pending_review	
+apps/elixir-sdk/.formatter.exs	apps	parsed	elixir_formatter_scope	source_generator_and_client_test_format_scope
+apps/elixir-sdk/.gitignore	apps	parsed	elixir_local_artifact_hygiene	build_deps_docs_tmp_and_package_tarball_ignored
+apps/elixir-sdk/LICENSE	apps	parsed	elixir_license_boundary	mit_license_metadata_only
+apps/elixir-sdk/README.md	apps	parsed	elixir_sdk_usage_surface	openapi_generated_req_client_nimble_options_validation_and_bang_variants
+apps/elixir-sdk/generate.exs	apps	parsed	elixir_openapi_generator	spec_fetch_codegen_nimble_validation_multipart_support_and_semver_diff_bump
+apps/elixir-sdk/lib/firecrawl.ex	apps	parsed	elixir_generated_client	validated_keyword_params_camelcase_mapping_errors_parse_multipart_and_monitor_pagination
+apps/elixir-sdk/lib/firecrawl/error.ex	apps	parsed	elixir_error_model	http_status_and_body_preserved_as_exception_message
+apps/elixir-sdk/mix.exs	apps	parsed	elixir_package_manifest	req_nimble_options_docs_package_surface
+apps/elixir-sdk/mix.lock	apps	skipped_generated	generated_dependency_lockfile	lockfile_skipped_after_dependency_surface_review
+apps/elixir-sdk/test/firecrawl_test.exs	apps	parsed	elixir_client_contract_tests	api_key_resolution_unknown_key_type_error_enum_flex_parse_validation_and_api_error_mapping
+apps/elixir-sdk/test/test_helper.exs	apps	parsed	elixir_test_helper	exunit_bootstrap_only
 apps/go-html-to-md-service/.dockerignore	apps	parsed	go_markdown_service_container_ignore	excludes_build_tests_docs_git_ide_logs_and_temp_files_from_container_context
 apps/go-html-to-md-service/.gitignore	apps	parsed	go_markdown_service_repo_ignore	excludes_binaries_coverage_logs_ide_workspace_and_vendor_outputs
 apps/go-html-to-md-service/Dockerfile	apps	parsed	go_markdown_service_container	multi_stage_static_go_service_with_healthcheck_and_minimal_runtime_image
@@ -644,19 +644,19 @@ apps/go-html-to-md-service/handler.go	apps	parsed	go_markdown_service_handler	ma
 apps/go-html-to-md-service/handler_test.go	apps	parsed	go_markdown_service_tests	health_index_markdown_elements_complex_html_invalid_input_and_zdr_logging_behavior
 apps/go-html-to-md-service/main.go	apps	parsed	go_markdown_service_runtime	bounded_read_write_shutdown_timeouts_body_caps_structured_logging_and_graceful_shutdown
 apps/go-html-to-md-service/requests.http	apps	parsed	go_markdown_service_manual_probes	manual_coverage_for_elements_invalid_json_empty_input_and_large_document_conversion
-apps/go-sdk/README.md	apps	not_parsed	pending_review	
-apps/go-sdk/firecrawl.go	apps	not_parsed	pending_review	
-apps/go-sdk/firecrawl_error.go	apps	not_parsed	pending_review	
-apps/go-sdk/go.mod	apps	not_parsed	pending_review	
+apps/go-sdk/README.md	apps	parsed	go_sdk_usage_surface	config_retry_context_primitives_parse_map_search_agent_browser_usage_and_typed_errors
+apps/go-sdk/firecrawl.go	apps	parsed	go_client_facade	async_polling_auto_pagination_context_cancellation_start_status_cancel_primitives
+apps/go-sdk/firecrawl_error.go	apps	parsed	go_error_model	status_code_error_code_message_auth_rate_limit_and_job_timeout_metadata
+apps/go-sdk/go.mod	apps	parsed	go_module_manifest	nested_module_go123_surface
 apps/go-sdk/go.sum	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
-apps/go-sdk/http_client.go	apps	not_parsed	pending_review	
-apps/go-sdk/models.go	apps	not_parsed	pending_review	
-apps/go-sdk/option/option.go	apps	not_parsed	pending_review	
-apps/go-sdk/options.go	apps	not_parsed	pending_review	
-apps/go-sdk/options_test.go	apps	not_parsed	pending_review	
-apps/go-sdk/parse.go	apps	not_parsed	pending_review	
-apps/go-sdk/parse_test.go	apps	not_parsed	pending_review	
-apps/go-sdk/version.go	apps	not_parsed	pending_review	
+apps/go-sdk/http_client.go	apps	parsed	go_http_adapter	request_rebuild_retry_backoff_context_cancel_typed_error_mapping_and_multipart_uploads
+apps/go-sdk/models.go	apps	parsed	go_model_surface	document_facets_job_status_search_lanes_monitor_pages_browser_usage_and_link_object_or_string_tolerance
+apps/go-sdk/option/option.go	apps	parsed	go_functional_options	api_key_url_http_client_retries_backoff_timeout_and_headers
+apps/go-sdk/options.go	apps	parsed	go_request_options	format_object_serialization_scrape_crawl_batch_map_search_agent_location_webhook_and_cache_controls
+apps/go-sdk/options_test.go	apps	parsed	go_format_option_tests	query_question_highlights_and_string_format_serialization
+apps/go-sdk/parse.go	apps	parsed	go_parse_primitive	file_path_or_bytes_mime_inference_parse_options_multipart_upload_and_document_extraction
+apps/go-sdk/parse_test.go	apps	parsed	go_parse_tests	multipart_request_shape_option_payload_filename_content_type_and_empty_input_rejection
+apps/go-sdk/version.go	apps	parsed	go_release_version_source	nested_module_tag_source_and_user_agent_suffix
 apps/java-sdk/.gitignore	apps	not_parsed	pending_review	
 apps/java-sdk/README.md	apps	not_parsed	pending_review	
 apps/java-sdk/build.gradle.kts	apps	not_parsed	pending_review	
