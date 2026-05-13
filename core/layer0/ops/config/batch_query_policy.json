@@ -174,6 +174,57 @@
         "do_not_make_candidate_trace_chat_visible"
       ]
     },
+    "retrieval_execution_lifecycle": {
+      "enabled": true,
+      "source_patterns": [
+        "firecrawl_queue_backlog_lock_reconcile_lifecycle",
+        "firecrawl_incremental_crawl_discovery_enqueue"
+      ],
+      "purpose": "Keep high-volume retrieval dependable by separating work admission, backlog, active locks, completion, cleanup, and reconciliation from evidence packaging.",
+      "work_state_values": [
+        "queued",
+        "backlogged",
+        "active",
+        "completed",
+        "failed",
+        "expired",
+        "cancelled"
+      ],
+      "admission_rules": [
+        "group_work_by_owner_and_optional_retrieval_run",
+        "apply_team_or_run_concurrency_before_enqueueing_more_fetch_work",
+        "bound_backlog_timeout_to_the_parent_retrieval_lifecycle",
+        "prefer_idempotent_or_no_op_add_when_retrying_existing_work"
+      ],
+      "worker_rules": [
+        "claim_work_with_lock_or_owner_token",
+        "renew_active_locks_for_long_running_reads",
+        "only_the_lock_holder_may_mark_work_completed_or_failed",
+        "release_active_concurrency_markers_on_completion_or_failure",
+        "record_transport_or_access_failures_as_error_summaries_not_source_evidence"
+      ],
+      "reconciliation_rules": [
+        "scan_durable_backlog_and_runtime_queue_indexes_for_drift",
+        "requeue_missing_backlog_items_when_capacity_is_unavailable",
+        "promote_eligible_items_when_capacity_is_available",
+        "bound_stale_entry_skips_per_reconciliation_run",
+        "report_recovered_counts_as_diagnostics_only"
+      ],
+      "incremental_discovery_rules": [
+        "discover_links_from_completed_pages_only_when_allowed_by_crawl_policy",
+        "dedupe_and_lock_discovered_urls_before_enqueue",
+        "record_denial_reasons_for_filtered_discovered_urls",
+        "increment_discovery_depth_as_internal_metadata",
+        "do_not_enqueue_after_parent_retrieval_is_cancelled"
+      ],
+      "projection_boundary": "synthesis sees evidence refs, result windows, access summaries, and explicit coverage gaps; queue, lock, priority, and worker internals stay telemetry-only",
+      "non_goals": [
+        "do_not_bind_retrieval_to_a_specific_queue_backend",
+        "do_not_use_job_counts_as_evidence_quality",
+        "do_not_make_retrieval_lifecycle_status_final_answer_text",
+        "do_not_hardcode_provider_or_domain_specific_capacity_rules"
+      ]
+    },
     "evidence_pack_quality": {
       "enabled": true,
       "min_usable_items": 2,

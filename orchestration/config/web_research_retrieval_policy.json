@@ -18,7 +18,9 @@
     "firecrawl_deep_research_gap_loop_without_final_format_hardcoding",
     "firecrawl_llmstxt_map_scrape_corpus_pack_without_output_shape_hardcoding",
     "firecrawl_async_map_crawl_status_projection",
-    "firecrawl_high_volume_candidate_map_rerank_filter"
+    "firecrawl_high_volume_candidate_map_rerank_filter",
+    "firecrawl_queue_backlog_lock_reconcile_lifecycle",
+    "firecrawl_incremental_crawl_discovery_enqueue"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -641,6 +643,26 @@
       "terminal_failures_include_structured_error_summary_without_raw_provider_payload",
       "cancelled_or_expired_runs_are_failure_states_for_verifier_calibration"
     ],
+    "execution_reconciliation": {
+      "source_patterns": [
+        "firecrawl_queue_backlog_lock_reconcile_lifecycle",
+        "firecrawl_incremental_crawl_discovery_enqueue"
+      ],
+      "purpose": "Large retrieval should have bounded backlog state, lock ownership, retry-safe promotion, and drift reconciliation so high-volume reads remain dependable without becoming chat-visible workflow machinery.",
+      "rules": [
+        "backlogged_work_must_have_expiry_or_cleanup_bounds",
+        "worker_claims_must_use_lock_or_owner_tokens_before_mutating_terminal_state",
+        "completion_or_failure_must_release_active_concurrency_markers",
+        "reconciliation_may_requeue_or_promote_missing_work_when_durable_backlog_and_runtime_queue_drift",
+        "incremental_discovery_may_enqueue_new_page_reads_only_after_dedupe_filtering_and_budget_checks"
+      ],
+      "projection_boundary": "queue, lock, reconciler, and worker metrics are internal retrieval diagnostics; synthesis receives only evidence refs, status summaries, and explicit gap reasons.",
+      "non_goals": [
+        "do_not_expose_queue_internals_as_final_answer",
+        "do_not_treat_job_success_count_as_evidence_quality",
+        "do_not_require_a_specific_queue_backend"
+      ]
+    },
     "raw_result_payload_chat_visible": false
   },
   "diagnostics": [

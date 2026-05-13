@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 131
-- Not parsed: 1147
+- Parsed: 142
+- Not parsed: 1136
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -180,6 +180,17 @@
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
 | `apps/api/src/lib/extract/url-processor.ts` | Extract URL discovery and rerank. | Site-scope extraction maps URLs, retries a broader map when unique candidates are too few, caps initial candidates, reranks large pools, and records trace status/used-in-completion flags. |
+| `apps/api/src/services/queue-jobs.ts` | Scrape job admission and wait path. | Jobs are split by team/run concurrency, overflow moves to bounded backlog, trace context is propagated, queue-full states are explicit, and waiters fall back to durable result storage when needed. |
+| `apps/api/src/lib/concurrency-limit.ts` | Concurrency queue state machine. | Active and queued work use TTL-scored sets; crawl-specific limits are checked before promotion; expired/orphaned entries are cleaned; completed jobs release state and promote one eligible successor. |
+| `apps/api/src/lib/concurrency-queue-reconciler.ts` | Backlog/runtime drift repair. | A reconciler scans durable backlog rows and Redis queue indexes, requeues missing jobs, promotes eligible work, separates crawl/extract capacity, and bounds stale-entry skips. |
+| `apps/api/src/services/worker/nuq.ts` | Durable queue primitive. | Queue rows support backlog promotion, idempotent add-if-missing, lock-based active claims, lock renewal, terminal completion/failure, listen/poll wait modes, metrics, and owner-scoped groups. |
+| `apps/api/src/services/worker/nuq-worker.ts` | Queue worker loop. | Workers expose health/metrics, fetch active work with backoff, renew locks during processing, and mark completion/failure only through lock-checked queue APIs. |
+| `apps/api/src/services/worker/nuq-prefetch-worker.ts` | Queue prefetch worker. | Prefetching decouples durable queued rows from worker pickup while keeping health/metrics and graceful shutdown. |
+| `apps/api/src/services/worker/nuq-reconciler-worker.ts` | Queue reconciliation worker. | Reconciliation runs on a bounded interval, avoids overlapping runs, exposes recovery metrics, and waits for in-flight reconciliation before shutdown. |
+| `apps/api/src/services/worker/scrape-worker.ts` | Retrieval worker and incremental crawl expansion. | Completed pages can discover more links, but new work is enqueued only after crawl policy filtering, robots recording, URL locks, priority assignment, and parent-run cancellation checks. |
+| `apps/api/src/lib/job-priority.ts` | Queue priority helper. | Priority adapts to recent per-team queue pressure with a TTL window rather than static one-size scheduling. |
+| `apps/api/src/services/idempotency/create.ts` | Idempotency key creation. | Idempotency keys are persisted at request admission so retries can be detected before duplicate work starts. |
+| `apps/api/src/services/idempotency/validate.ts` | Idempotency key validation. | Request retry safety validates UUID-shaped keys and treats existing keys as duplicate work admission. |
 
 ## Decisions So Far
 
@@ -209,6 +220,8 @@
 - Agent/planner-generated crawl options are safe only as optional proposals. Explicit user/workflow fields must win, and failures in option planning should not be required for ordinary research retrieval.
 - High-volume retrieval should be candidate-first, not answer-first: broaden discovery when coverage is too sparse, cap and rerank large candidate pools, then spend read/scrape budget only on selected candidates with traceable rejection/selection reasons.
 - Structured extraction patterns are useful for evidence tooling, but Firecrawl's prompt-to-schema/model behavior is not an assimilation target for user-facing research; the useful primitive is source-tracked extraction over already-retrieved documents.
+- High-volume retrieval needs an execution lifecycle primitive: admission, backlog, active locks, lock renewal, completion/failure, cleanup, and reconciliation must be internal and bounded before the evidence pack trusts completed page refs.
+- Incremental crawl expansion is useful only after policy filters and dedupe locks. The primitive is "completed evidence can discover more candidate evidence," not uncontrolled recursive crawling.
 
 ## Candidate Assimilation Targets
 
@@ -224,6 +237,7 @@
 10. Site corpus pack: when the target is a site/docs set/URL collection, map a bounded URL set, batch-read pages, expose compact page rows and full-text evidence refs, and reuse fresh larger cache entries for smaller limits when privacy policy permits. Implemented CD-level policy update; runtime execution remains future work.
 11. Async map/crawl status projection: for site-scale research, separate discovery, crawl/read execution, and bounded result windows; make final synthesis consume completed page evidence refs, not raw handles or queue status. Implemented CD-level policy update; runtime execution remains future work.
 12. High-volume candidate filtering: when discovery is sparse or broad research needs coverage, broaden once, keep a capped candidate pool, rerank/filter before fetch, and record selected/rejected candidate traces. Implemented CD-level policy update; runtime execution remains future work.
+13. Retrieval execution lifecycle: high-volume retrieval needs owner/run grouping, bounded backlog, lock ownership, drift reconciliation, and internal-only queue metrics before completed page refs become evidence. Implemented CD-level policy update; runtime execution remains future work.
 
 ## Remaining Work
 

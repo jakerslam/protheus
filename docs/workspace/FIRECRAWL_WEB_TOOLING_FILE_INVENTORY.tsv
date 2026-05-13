@@ -295,8 +295,8 @@ apps/api/src/lib/browser-sessions.ts	apps	not_parsed	pending_review
 apps/api/src/lib/canonical-url.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/canonical-url.ts	apps	parsed	url_normalization	canonical_url_strips_protocol_www_trailing_slash_for_dedupe
 apps/api/src/lib/clickhouse-client.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/concurrency-limit.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/concurrency-queue-reconciler.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/concurrency-limit.ts	apps	parsed	concurrency_queue_state_machine	ttl_scored_active_and_backlog_sets_crawl_limits_cleanup_successor_promotion
+apps/api/src/lib/concurrency-queue-reconciler.ts	apps	parsed	concurrency_queue_reconciler	backlog_runtime_drift_repair_type_capacity_promotion_requeue
 apps/api/src/lib/cost-tracking.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/crawl-redis.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/crawl-redis.ts	apps	parsed	crawl_state_url_locking_ttl	ttl_state_canonical_url_locks_limit_before_work_finish_cleanup
@@ -364,7 +364,7 @@ apps/api/src/lib/html-to-markdown-client.ts	apps	parsed	html_to_markdown_service
 apps/api/src/lib/html-to-markdown.ts	apps	parsed	html_to_markdown_waterfall	http_service_go_parser_turndown_fallback_postprocess_markdown_zdr_safe_logging
 apps/api/src/lib/http-metrics.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/job-metrics.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/job-priority.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/job-priority.ts	apps	parsed	job_priority_helper	ttl_window_team_pressure_priority_adjustment
 apps/api/src/lib/logger.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/map-cosine.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/map-utils.ts	apps	parsed	map_and_search_candidate_discovery	index_sitemap_search_map_merge_semantic_rank_same_domain_filter_title_preserving_dedupe
@@ -523,8 +523,8 @@ apps/api/src/services/billing/stripe.ts	apps	not_parsed	pending_review
 apps/api/src/services/billing/types.ts	apps	not_parsed	pending_review	
 apps/api/src/services/extract-queue.ts	apps	not_parsed	pending_review	
 apps/api/src/services/extract-worker.ts	apps	not_parsed	pending_review	
-apps/api/src/services/idempotency/create.ts	apps	not_parsed	pending_review	
-apps/api/src/services/idempotency/validate.ts	apps	not_parsed	pending_review	
+apps/api/src/services/idempotency/create.ts	apps	parsed	idempotency_key_creation	persist_request_key_before_duplicate_work_admission
+apps/api/src/services/idempotency/validate.ts	apps	parsed	idempotency_key_validation	uuid_key_shape_existing_key_duplicate_admission
 apps/api/src/services/index.ts	apps	not_parsed	pending_review	
 apps/api/src/services/indexing/index-worker.ts	apps	not_parsed	pending_review	
 apps/api/src/services/indexing/indexer-queue.ts	apps	not_parsed	pending_review	
@@ -547,7 +547,7 @@ apps/api/src/services/notification/email_notification.ts	apps	not_parsed	pending
 apps/api/src/services/notification/monitoring_email.ts	apps	not_parsed	pending_review	
 apps/api/src/services/notification/notification-check.ts	apps	not_parsed	pending_review	
 apps/api/src/services/notification/notification_string.ts	apps	not_parsed	pending_review	
-apps/api/src/services/queue-jobs.ts	apps	not_parsed	pending_review	
+apps/api/src/services/queue-jobs.ts	apps	parsed	scrape_job_admission_wait_path	team_run_concurrency_backlog_trace_propagation_queue_full_wait_fallback
 apps/api/src/services/queue-service.ts	apps	parsed	async_queue_lifecycle_bounds	queue job completion/failure retention ages bound async artifact growth
 apps/api/src/services/queue-worker.ts	apps	not_parsed	pending_review	
 apps/api/src/services/rate-limiter.test.ts	apps	not_parsed	pending_review	
@@ -566,12 +566,12 @@ apps/api/src/services/webhook/queue.ts	apps	not_parsed	pending_review
 apps/api/src/services/webhook/schema.ts	apps	not_parsed	pending_review	
 apps/api/src/services/webhook/types.ts	apps	not_parsed	pending_review	
 apps/api/src/services/worker/crawl-logic.ts	apps	parsed	crawl_finish_aggregation	completed_page_count_webhook_projection_without_full_data_for_newer_path
-apps/api/src/services/worker/nuq-prefetch-worker.ts	apps	not_parsed	pending_review	
-apps/api/src/services/worker/nuq-reconciler-worker.ts	apps	not_parsed	pending_review	
-apps/api/src/services/worker/nuq-worker.ts	apps	not_parsed	pending_review	
-apps/api/src/services/worker/nuq.ts	apps	not_parsed	pending_review	
+apps/api/src/services/worker/nuq-prefetch-worker.ts	apps	parsed	nuq_prefetch_worker	durable_queue_prefetch_health_metrics_shutdown
+apps/api/src/services/worker/nuq-reconciler-worker.ts	apps	parsed	nuq_reconciler_worker	interval_reconcile_no_overlap_recovery_metrics_graceful_shutdown
+apps/api/src/services/worker/nuq-worker.ts	apps	parsed	nuq_worker_loop	health_metrics_backoff_lock_renewal_lock_checked_finish_fail
+apps/api/src/services/worker/nuq.ts	apps	parsed	durable_queue_primitive	backlog_promotion_add_if_missing_lock_claim_renew_finish_fail_group_metrics
 apps/api/src/services/worker/redis.ts	apps	not_parsed	pending_review	
-apps/api/src/services/worker/scrape-worker.ts	apps	not_parsed	pending_review	
+apps/api/src/services/worker/scrape-worker.ts	apps	parsed	retrieval_worker_incremental_crawl	filtered_deduped_link_discovery_enqueue_robots_denial_cancellation_cleanup
 apps/api/src/services/worker/team-semaphore.ts	apps	not_parsed	pending_review	
 apps/api/src/types.ts	apps	not_parsed	pending_review	
 apps/api/src/types/branding.ts	apps	not_parsed	pending_review	
