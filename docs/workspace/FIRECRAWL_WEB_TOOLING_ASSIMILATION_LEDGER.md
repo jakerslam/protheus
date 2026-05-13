@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 262
-- Not parsed: 1016
+- Parsed: 268
+- Not parsed: 1010
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -285,6 +285,12 @@
 | `apps/api/src/controllers/v2/extract-status.ts` | V2 extract status projection. | Status loads result data only when complete and projects optional steps/sources/cost/session fields by explicit show flags. |
 | `apps/api/src/controllers/v1/extract.ts` | V1 structured extract controller. | Compatibility extraction can run old direct extraction or queued extraction, but both preserve started/completed/failed events and sanitized request state. |
 | `apps/api/src/controllers/v1/extract-status.ts` | V1 extract status projection. | Extract status enforces ownership, falls back from Redis to durable store, and returns status/result/error/expiry without raw worker state. |
+| `apps/api/src/__tests__/snips/v1/search.test.ts` | V1 search behavior tests. | Search tests lock result limits, reject excessive limits, preserve location/country defaults, and verify search-plus-scrape returns content-bearing documents rather than only SERP rows. |
+| `apps/api/src/__tests__/snips/v1/scrape.test.ts` | V1 scrape behavior tests. | Scrape tests show wait/action budgets, non-UTF-8 handling, unsupported action capability failures, status parity, JSON/rawHtml extraction, and cache keys that vary by artifact shape plus request context. |
+| `apps/api/src/__tests__/snips/v1/crawl.test.ts` | V1 crawl behavior tests. | Crawl tests enforce malformed-handle rejection, include-path filtering, ongoing-work lifecycle, full-domain/subdomain compatibility, max-depth acceptance, and non-web protocol filtering. |
+| `apps/api/src/__tests__/snips/v1/map.test.ts` | V1 map behavior tests. | Map tests verify explicit timeout failures and query-parameter preservation when query stripping is disabled. |
+| `apps/api/src/__tests__/snips/v1/batch-scrape.test.ts` | V1 batch scrape behavior tests. | Batch reads should preserve source URLs, return content-bearing markdown per URL, and support typed JSON extraction in batch mode. |
+| `apps/api/src/__tests__/snips/v1/extract.test.ts` | V1 extract behavior tests. | Extraction request handling should preserve schema field typing while normalizing unsupported JSON schema parameters at the boundary. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -360,6 +366,10 @@
 - Compatibility controllers confirm the same primitives should hold across old and new surfaces: overfetch before filtering, preserve original search metadata when enrichment succeeds, and project partial/failed work as bounded status rather than raw queue state.
 - Queue and engine admin endpoints are useful only as observability/reconciliation primitives. They should not become user-facing research evidence or provider-specific workflow branches.
 - Request schemas are a retrieval-quality control surface: normalize URLs, defaults, output format contracts, extraction options, wait/action budgets, and privacy modes before tool execution so downstream gates do not compensate for malformed inputs.
+- Retrieval behavior tests should assert content-bearing evidence, not merely successful tool status: search-plus-scrape, batch scrape, extraction, and map/crawl handles all need quality-bearing assertions.
+- Retrieval caches must key on artifact shape and request context, including screenshot/full-page options, headers, mobile mode, actions, location, ad-blocking, and freshness, so test speedups do not hide retrieval regressions.
+- Source URL preservation matters for evidence/ref trace even when canonicalized keys are used for dedupe or cache lookup.
+- Status-handle validation and malformed-handle rejection keep async retrieval failures typed and prevent bad IDs from becoming ambiguous missing-evidence states.
 
 ## Candidate Assimilation Targets
 
@@ -387,6 +397,7 @@
 22. Relevance-gated extraction and repair boundary: before expensive structured extraction, gate candidate pages for likely usefulness; trim oversized inputs to context budget; normalize/repair structured outputs inside the evidence layer; preserve hidden warnings for synthesis calibration. Implemented CD/tool-policy update; runtime execution remains future work.
 23. Compatibility projection invariants: ensure legacy and new search/crawl/scrape paths share overfetch, enrichment, bounded status, owner/ZDR checks, queue cleanup, and raw payload pruning semantics. Ledger captured; no new CD change needed unless runtime drift appears.
 24. Request-shape normalization: keep URL preprocessing, option defaults, format/extraction coupling, action budgets, and ZDR mode resolution as typed boundary contracts before retrieval starts. Ledger captured; existing policy already points this direction.
+25. Retrieval behavior test invariants: preserve content-bearing search-plus-scrape, cache-key correctness, status-handle validation, source URL preservation, schema normalization, and timeout semantics as regression tests. Ledger captured; no new CD change needed unless current tests lack equivalent coverage.
 
 ## Remaining Work
 
