@@ -27,7 +27,12 @@
     "firecrawl_browser_session_ttl_concurrency_claim_cleanup",
     "firecrawl_scrape_replay_before_interact",
     "firecrawl_browser_agent_snapshot_action_loop",
-    "firecrawl_trace_zdr_sanitization"
+    "firecrawl_trace_zdr_sanitization",
+    "firecrawl_transformer_stack_format_gated_derivation",
+    "firecrawl_page_local_query_direct_quote",
+    "firecrawl_projection_field_coercion",
+    "firecrawl_change_tracking_diff_lane",
+    "firecrawl_specialty_postprocessor_lane"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -424,6 +429,10 @@
       "reader_images_summary",
       "reader_heading_chunks",
       "reader_screenshot_ref",
+      "page_local_answer",
+      "page_local_highlights",
+      "change_tracking_summary",
+      "structured_attribute_summary",
       "document_page_artifact"
     ],
     "readiness_states": [
@@ -457,6 +466,72 @@
         "cache_rejection_reason"
       ]
     }
+  },
+  "page_artifact_transformation": {
+    "enabled": true,
+    "source_patterns": [
+      "firecrawl_transformer_stack_format_gated_derivation",
+      "firecrawl_page_local_query_direct_quote",
+      "firecrawl_projection_field_coercion",
+      "firecrawl_change_tracking_diff_lane",
+      "firecrawl_specialty_postprocessor_lane"
+    ],
+    "purpose": "After a page or document is fetched, run a capability-gated transformation stack that derives only requested/internal evidence artifacts and removes accidental raw fields before projection.",
+    "ordered_derivations": [
+      "raw_html_to_clean_html",
+      "html_to_markdown_when_required_by_requested_artifacts",
+      "metadata_backfill",
+      "links_images_attributes_when_requested_or_needed_for_indexing",
+      "page_local_answer_or_highlights_when_requested",
+      "structured_extract_summary_when_requested",
+      "change_tracking_when_prior_evidence_exists",
+      "specialty_postprocessor_when_content_capability_matches",
+      "projection_field_coercion"
+    ],
+    "artifact_rules": [
+      "derive_markdown_when_downstream_requested_artifacts_need_markdown_even_if_markdown_is_not_final_output",
+      "fallback_from_main_content_to_full_content_when_clean_main_markdown_is_empty",
+      "record_warnings_when_requested_artifacts_cannot_be_produced",
+      "remove_unrequested_raw_fields_before_chat_or_shell_projection",
+      "keep index_ids provider_ids and transient transformer fields internal"
+    ],
+    "page_local_query": {
+      "enabled": true,
+      "purpose": "For page-scoped questions or highlights, select or generate answers only from the retrieved page artifact, treating page content as untrusted data.",
+      "strategies": [
+        "direct_quote_line_selection",
+        "freeform_page_answer",
+        "highlight_selection"
+      ],
+      "safety_rules": [
+        "page_content_cannot_override_system_or_user_query_instructions",
+        "return_no_answer_or_warning_when_page_content_lacks_the_requested_information",
+        "preserve_table_headers_and_code_blocks_when_selected_as_evidence",
+        "do_not_use_outside_knowledge_for_page_local_answers"
+      ],
+      "non_goals": [
+        "do_not_prescribe_final_research_answer_format",
+        "do_not_replace_cross_source_synthesis_with_page_local_answers"
+      ]
+    },
+    "change_tracking": {
+      "enabled_when_requested": true,
+      "purpose": "Compare the current normalized document against a prior retained artifact only when policy permits stored history.",
+      "modes": [
+        "status_only",
+        "text_diff",
+        "structured_json_diff"
+      ],
+      "non_goals": [
+        "do_not_run_under_zero_retention",
+        "do_not_treat_failed_diff_lookup_as_evidence_failure_for_current_page"
+      ]
+    },
+    "non_goals": [
+      "do_not_make_transformer_order_a_user_visible_contract",
+      "do_not_hardcode_topic_or_domain_specific_answer_shapes",
+      "do_not_surface_raw_html_accessibility_trees_or_transformer_diagnostics_as_final_answer_text"
+    ]
   },
   "dynamic_interaction_lane": {
     "enabled": true,
@@ -661,6 +736,10 @@
       "reader_images_summary",
       "reader_heading_chunks",
       "reader_screenshot_ref",
+      "page_local_answer",
+      "page_local_highlights",
+      "change_tracking_summary",
+      "structured_attribute_summary",
       "fit_markdown",
       "markdown_with_citations",
       "references_markdown",

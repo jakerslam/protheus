@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 161
-- Not parsed: 1117
+- Parsed: 170
+- Not parsed: 1108
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -137,6 +137,15 @@
 | `apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts` | Lockdown mode tests. | Lockdown should serve only admitted cached artifacts, avoid outbound side-effect lanes, and behave as ZDR. |
 | `apps/api/src/__tests__/snips/v2/scrape-query.test.ts` | Page query format tests. | Page-local question/highlight extraction is a format lane over retrieved content, distinct from broad web search and bounded by prompt-length validation. |
 | `apps/api/src/controllers/v2/parse.ts` | Upload parse controller. | Parse-only lanes classify uploaded HTML/PDF/office files by filename/content type, force the matching extraction engine, disable cache storage, reject browsing/rendering options, and log sanitized file metadata. |
+| `apps/api/src/scraper/scrapeURL/transformers/index.ts` | Page transformer stack. | Page artifacts move through ordered, format-gated derivations; markdown is produced when downstream artifacts need it, warnings record missing requested fields, and unrequested heavy fields are pruned before projection. |
+| `apps/api/src/scraper/scrapeURL/transformers/query.ts` | Page-local query/highlights. | Page-local answers select lines or answer only from the fetched markdown, preserve tables/code when selected, and treat page content as untrusted data rather than instructions. |
+| `apps/api/src/scraper/scrapeURL/transformers/diff.ts` | Change-tracking transformer. | Stored prior artifacts can produce status, text diff, or structured diff lanes, but the feature is disabled under zero retention and failed diff lookup becomes a warning. |
+| `apps/api/src/scraper/scrapeURL/transformers/llmExtract.ts` | LLM structured/summary/clean transformer. | Extraction normalizes schemas, trims to token limits with warnings, retries fallback models internally, and blocks JSON/summary/clean modes under zero-retention policy. |
+| `apps/api/src/scraper/scrapeURL/transformers/sendToSearchIndex.ts` | Search-index write transformer. | Index writes are sampled, async, non-blocking, and admitted only for public/cacheable/substantial successful content with private headers and ZDR excluded. |
+| `apps/api/src/scraper/scrapeURL/transformers/performAttributes.ts` | Attribute extraction transformer. | Selector/attribute extraction is explicit-format gated and records compact count diagnostics rather than raw selector payloads. |
+| `apps/api/src/scraper/scrapeURL/transformers/removeBase64Images.ts` | Base64 image scrubber. | Large inline base64 image payloads can be replaced by placeholders before evidence packing. |
+| `apps/api/src/scraper/scrapeURL/postprocessors/index.ts` | Postprocessor registry. | Specialty postprocessors are explicit capability entries, not hidden default behavior. |
+| `apps/api/src/scraper/scrapeURL/postprocessors/youtube.ts` | Specialty media postprocessor. | A matched content postprocessor can convert media metadata/transcripts into normalized markdown behind policy, lockdown, and service-availability gates. |
 | `apps/api/src/lib/browser-sessions.ts` | Browser session state helpers. | Session rows track TTL, owner, status, CDP/view handles, prompt-use flags, cached active counts, and idempotent destroyed-state claiming. |
 | `apps/api/src/lib/browser-session-activity.ts` | Browser activity batching. | Browser execution telemetry is queued and batch-inserted as internal activity records instead of becoming retrieval evidence. |
 | `apps/api/src/lib/scrape-interact/browser-service-client.ts` | Browser service client. | Browser service calls are behind a narrow typed adapter that throws typed non-2xx errors and keeps service URLs/headers internal. |
@@ -246,6 +255,8 @@
 - Crashed or dead-lettered extraction work should become explicit terminal failure artifacts with sanitized error summaries and missing-evidence reasons, so synthesis gets a gap reason instead of silence or endless retries.
 - Dynamic browser interaction is a capability lane, not the default retrieval path. It should activate from evidence-state need or explicit workflow intent, replay safe prior context, bound session lifetime/concurrency/steps, and package extracted evidence rather than raw browser traces.
 - Interactive trace/logging data must be opt-in, privacy-sanitized, and disabled for zero-retention or private contexts; trace metadata is diagnostic context, not citable evidence.
+- Page transformation is a distinct evidence-readiness layer: derive markdown, summaries, page-local answers, attributes, links, images, diffs, and specialty normalized content only when requested or needed downstream, then prune unrequested heavy fields before projection.
+- Page-local query/highlight answers are useful evidence artifacts but are not cross-source synthesis. They must use only retrieved page content and treat external page text as untrusted data.
 
 ## Candidate Assimilation Targets
 
@@ -265,6 +276,7 @@
 14. Managed search-index lane: use admitted indexes as optional candidate discovery with hybrid/keyword/semantic/BM25 modes, quality/freshness/rank metadata, and empty-candidate failure behavior. Implemented CD-level policy update; runtime execution remains future work.
 15. Terminal failure projection: convert dead-lettered, crashed, expired, or cancelled retrieval/extraction work into bounded failed artifacts with sanitized gap reasons instead of retries or silent missing output. Implemented CD-level policy update; runtime execution remains future work.
 16. Dynamic interaction lane: use bounded browser sessions only when static/reader/rendered retrieval is insufficient, replay retained context safely, run snapshot/action loops with step and timeout limits, and expose only extracted evidence refs. Implemented CD-level policy update; runtime execution remains future work.
+17. Page artifact transformation stack: run format-gated transformation after fetch/read to produce evidence-ready variants, page-local answers/highlights, structured attributes, change summaries, and specialty normalized content while pruning raw fields before projection. Implemented CD-level policy update; runtime execution remains future work.
 
 ## Remaining Work
 
