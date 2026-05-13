@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 567
-- Not parsed: 710
+- Parsed: 572
+- Not parsed: 705
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -616,6 +616,11 @@
 | `apps/python-sdk/tests/test_api_key_handling.py` | Python SDK API-key handling tests. | Cloud clients require API keys while self-host/local clients allow absent credentials, with async HTTP lifecycle cleanup. |
 | `apps/python-sdk/tests/test_change_tracking.py` | Python SDK change-tracking tests. | Change tracking is a requested artifact lane with git-diff/json modes, schema options, and previous/current/diff data preserved as structured evidence. |
 | `apps/python-sdk/tests/test_timeout_conversion.py` | Python SDK timeout conversion tests. | Request milliseconds are converted to transport seconds with a safety buffer, while missing timeouts remain unbounded at the transport layer. |
+| `apps/api/src/main/runWebScraper.ts` | Worker scrape execution wrapper. | Queue jobs expand crawl scrape formats, carry hidden team/crawl/job metadata, retry crawl page fetches on failed/non-2xx outcomes, and return bounded failure objects instead of throwing raw worker traces. |
+| `apps/api/src/routes/shared.ts` | Shared route middleware. | Auth, credits, idempotency, blocklist, country restrictions, UUID job validation, request timing, and controller wrapping are membrane policies before tool controllers, not evidence or synthesis behavior. |
+| `apps/api/src/routes/v1.ts` | V1 API route wiring. | Legacy routes compose auth/rate-limit/credits/blocklist/idempotency/status/cancel/stream middleware around primitive controllers while keeping account projections separate from retrieval evidence. |
+| `apps/api/src/routes/v2.ts` | V2 API route wiring. | Current routes add parse uploads, browser/monitor/agent lanes, strict job-id validation for status/cancel/stream paths, and versioned endpoint composition without moving tool logic into routing. |
+| `apps/api/src/routes/admin.ts` | Admin route wiring. | Admin/debug endpoints expose health, metrics, queue, ZDR cleanup, index search, and integration key operations as privileged control-plane projections rather than research evidence. |
 
 ## Decisions So Far
 
@@ -780,6 +785,9 @@
 - Timeouts are layered budgets: user/tool timeout, transport safety buffer, polling interval, and terminal wait should be separate contract fields rather than one ambiguous number.
 - Change tracking is an evidence artifact lane: previous/current/diff/json change artifacts should travel as refs/facets, not final-answer prose or required response format.
 - Credential requirements are capability/profile policy: cloud-hosted adapters may require credentials, while declared local/self-host adapters can remain usable without API keys.
+- Route wiring is not tool behavior. Versioned routers should compose membrane policies and delegate to primitive controllers/adapters, so workflow/CD logic does not drift into HTTP route registration.
+- Status, cancel, stream, queue, account, and admin endpoints are projections over stored work/control state. They can guide recovery and budgets but should not be treated as citable research evidence.
+- Worker retry wrappers can retry crawl/page extraction on failed or bad-status outcomes, but the terminal artifact must remain a bounded success/failure object with hidden diagnostics.
 
 ## Candidate Assimilation Targets
 
@@ -884,6 +892,8 @@
 99. Profile-aware credential gate: declare per-adapter credential requirements by deployment profile so cloud tools fail early while self-host/local lanes remain usable. Ledger captured; candidate Tool CD/admission target.
 100. Layered timeout budget: keep user/workflow timeout, transport safety buffer, polling interval, and terminal wait as separate fields with eval coverage. Ledger captured; candidate Tool CD/runtime target.
 101. Change-tracking evidence lane: model previous/current/diff/json change artifacts as optional evidence facets behind refs. Ledger captured; candidate evidence-pack enrichment target.
+102. Route membrane parity guard: prove route/tool adapters only compose declared auth/budget/idempotency/status policies and never introduce hidden workflow/tool-selection behavior. Ledger captured; candidate architecture guard.
+103. Worker terminal artifact contract: retries should end in one normalized success/failure artifact with partial/gap metadata, not thrown traces or silent missing output. Ledger captured; candidate runtime/eval target.
 
 ## Remaining Work
 

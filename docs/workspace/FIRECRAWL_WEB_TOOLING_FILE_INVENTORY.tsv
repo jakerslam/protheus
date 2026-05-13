@@ -395,13 +395,13 @@ apps/api/src/lib/validateUrl.ts	apps	parsed	url_validation_and_redirect_utils	pr
 apps/api/src/lib/withAuth.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/x402.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/zdr-helpers.ts	apps	parsed	zdr_flag_resolution	legacy_boolean_and_new_enum_flag_resolution_for_scrape_search_robots_modes
-apps/api/src/main/runWebScraper.ts	apps	not_parsed	pending_review	
+apps/api/src/main/runWebScraper.ts	apps	parsed	api_worker_scrape_execution_wrapper	crawl_retry_non2xx_status_bounded_failure_and_hidden_job_metadata
 apps/api/src/natives.ts	apps	not_parsed	pending_review	
-apps/api/src/routes/admin.ts	apps	not_parsed	pending_review	
-apps/api/src/routes/shared.ts	apps	not_parsed	pending_review	
+apps/api/src/routes/admin.ts	apps	parsed	api_admin_route_wiring	privileged_health_metrics_queue_zdr_index_and_integration_key_control_projections
+apps/api/src/routes/shared.ts	apps	parsed	api_shared_route_middleware	auth_credit_idempotency_blocklist_country_jobid_timing_and_wrap_membrane_policies
 apps/api/src/routes/v0.ts	apps	not_parsed	pending_review	
-apps/api/src/routes/v1.ts	apps	not_parsed	pending_review	
-apps/api/src/routes/v2.ts	apps	not_parsed	pending_review	
+apps/api/src/routes/v1.ts	apps	parsed	api_v1_route_wiring	legacy_retrieval_status_cancel_stream_and_account_projection_endpoint_composition
+apps/api/src/routes/v2.ts	apps	parsed	api_v2_route_wiring	current_parse_browser_monitor_agent_retrieval_status_cancel_stream_endpoint_composition
 apps/api/src/scraper/WebScraper/__tests__/crawler.test.ts	apps	parsed	webcrawler_unit_tests	limit_enforcement_subdomain_path_full_url_regex_filtering
 apps/api/src/scraper/WebScraper/__tests__/dns.test.ts	apps	parsed	dns_cache_test	cached_dns_lookup_installed_at_transport_boundary
 apps/api/src/scraper/WebScraper/__tests__/utils.test.ts	apps	parsed	section_hash_route_tests	hash_anchor_dedupe_hash_route_preservation_application_path_detection
