@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 406
-- Not parsed: 872
+- Parsed: 417
+- Not parsed: 861
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -390,6 +390,17 @@
 | `apps/js-sdk/firecrawl/src/v2/methods/monitor.ts` | SDK monitor method. | Scheduled retrieval exposes CRUD, manual run, check listing, check detail pagination, and query shaping while keeping monitor pages/results behind typed status/detail calls. |
 | `apps/js-sdk/firecrawl/src/v2/watcher.ts` | SDK watcher. | Long-running crawl/batch work can stream snapshots/documents over WebSocket, fall back to polling, dedupe emitted documents by stable key, and emit terminal done/error snapshots. |
 | `apps/js-sdk/firecrawl/src/v2/types.ts` | SDK public type schema. | Public types model artifact formats, actions, scrape/parse/search/crawl/batch/map/monitor/error/browser shapes, terminal job statuses, pagination bounds, and document metadata as a single typed contract. |
+| `apps/api/src/lib/avgrab-resolve.ts` | Source-specialty resolver helper. | Optional resolver capabilities can cache supported URL patterns, delegate matching URLs to a specialty service, and project returned posts into generic map documents with hidden metadata. |
+| `apps/api/src/lib/permu-refactor.test.ts` | URL permutation stability test. | URL equivalence closures should be stable across permutations of protocol, `www`, slash, and common index-file variants so dedupe/locks are deterministic. |
+| `apps/api/src/__tests__/snips/generateDomainSplits.test.ts` | Domain split tests. | Public-suffix-aware domain splitting supports fake domains for test/mocking while preserving subdomain rollup behavior. |
+| `apps/api/src/scraper/scrapeURL/README.md` | Scrape pipeline note. | Scrape URL pipeline is framed as validate above, build fallback engine list, scrape/parse, check quality, then try next engine before terminal failure. |
+| `apps/api/src/services/worker/redis.ts` | Worker Redis Lua scripts. | Semaphore acquire/release/heartbeat run as loaded Lua scripts over a lease zset, removing expired holders and making capacity claims atomic. |
+| `apps/api/src/services/worker/team-semaphore.ts` | Team capacity semaphore. | Retrieval workers use blocking lease acquisition with jittered backoff, abort/timeout handling, heartbeat, active-job projection, metrics, and guaranteed release. |
+| `apps/api/src/services/logging/log_job.ts` | Request/job logging side effects. | Logging sanitizes null bytes, retries inserts when forced, redacts ZDR fields, stores bulky results in artifact storage, and records request/search/scrape/map/extract costs separately from evidence. |
+| `apps/api/src/services/index.ts` | Index storage and discovery service. | Index discovery normalizes URLs, hashes URL/domain split levels, returns partial candidate sets on query errors, includes metadata variants, and exposes cheap cached engine verdicts. |
+| `apps/api/src/services/ledger/data-schemas.ts` | Side-effect event schemas. | Ledger events use typed provider-definition slugs and event payload shapes instead of ad hoc event blobs. |
+| `apps/api/src/services/ledger/supabase-ledger.ts` | Ledger client boundary. | Ledger database access is isolated behind a schema-specific client/proxy that fails clearly when unavailable. |
+| `apps/api/src/services/ledger/tracking.ts` | Ledger event tracking. | Side-effect event tracking caches provider definitions, inserts typed track rows, and returns null on tracking failure so non-evidence telemetry does not break retrieval. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -569,6 +580,11 @@
 - Parse/document lanes should explicitly reject scrape/browser-only options and preserve file/content-type/origin metadata before conversion. That keeps document evidence trustworthy and cheap to diagnose.
 - Streaming and polling should be equivalent projections over the same async retrieval state; streams may improve UX, but polling fallback plus document dedupe protects correctness.
 - Public tool schemas are themselves quality controls. Artifact formats, dynamic actions, source lanes, metadata, terminal statuses, and error details should be typed inputs/outputs before the LLM sees the evidence pack.
+- Source-specialty resolvers should be optional capability lanes discovered by declared support patterns and projected back into generic evidence shapes. The specialty service is not a workflow branch.
+- URL and domain equivalence should be deterministic and test-backed because crawler locks, index lookups, cache reuse, and dedupe all depend on the same canonical identity.
+- Capacity control is retrieval quality infrastructure: atomic leases, TTL heartbeats, abort-aware blocking waits, active-job projections, and metrics prevent overload from degrading evidence into timeouts.
+- Index-backed discovery should return bounded partial candidates when the index is degraded and should keep metadata-bearing variants available for ranking before fetch.
+- Side-effect ledgers are useful for observability and billing, but they should be typed, best-effort, and unable to block or pollute evidence synthesis.
 
 ## Candidate Assimilation Targets
 
@@ -629,6 +645,11 @@
 55. Parse/document primitive: accept file-like evidence with strict parse-only options, content-type/filename metadata, multipart transport, and document-artifact outputs. Ledger captured; candidate document/web evidence bridge.
 56. Stream/poll equivalence: expose async retrieval progress through either WebSocket-style streams or polling over the same durable state with stable document dedupe keys. Ledger captured; candidate Shell Socket/status projection target.
 57. Unified public tool schema: keep web retrieval artifact formats, dynamic actions, search lanes, crawl/map/batch/result/error/metadata shapes in one typed contract generated or validated from Tool CDs. Ledger captured; candidate Tool CD/schema generation target.
+58. Deterministic URL/domain identity: share canonical URL/domain split/permutation behavior across locks, cache keys, index lookup, dedupe, and tests. Ledger captured; candidate retrieval identity primitive.
+59. Atomic capacity lease: add tool-worker capacity control with Redis-style atomic acquire/release/heartbeat, timeout-aware blocking wait, active-job projection, and guaranteed cleanup. Ledger captured; candidate tool broker capacity primitive.
+60. Optional source-specialty resolver lane: allow admitted resolvers to declare support patterns, return generic map/evidence rows, and stay hidden as provider diagnostics. Ledger captured; candidate Tool CD capability lane.
+61. Partial index discovery: query URL/domain split indexes for candidate links with metadata, return partial candidates on index errors, and use cheap engine verdicts only as hidden capability hints. Ledger captured; candidate retrieval discovery target.
+62. Typed side-effect ledger: track billing/usage/notification/control events as best-effort typed records with cached definitions, independent from evidence artifact creation. Ledger captured; candidate observability/ledger target.
 
 ## Remaining Work
 
