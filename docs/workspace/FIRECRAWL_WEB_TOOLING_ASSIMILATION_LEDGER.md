@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 477
-- Not parsed: 800
+- Parsed: 486
+- Not parsed: 791
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -388,6 +388,15 @@
 | `apps/js-sdk/firecrawl/src/v2/methods/parse.ts` | SDK parse method. | File parsing accepts several data carriers, rejects empty files and unsupported parse options, sends multipart with origin metadata, and keeps parse-only constraints separate from scrape/browser options. |
 | `apps/js-sdk/firecrawl/src/v2/methods/browser.ts` | SDK browser method. | Browser sessions are explicit create/execute/delete/list operations with TTL/activity/profile inputs and per-command timeout propagation, not implicit search behavior. |
 | `apps/js-sdk/firecrawl/src/v2/methods/monitor.ts` | SDK monitor method. | Scheduled retrieval exposes CRUD, manual run, check listing, check detail pagination, and query shaping while keeping monitor pages/results behind typed status/detail calls. |
+| `apps/js-sdk/firecrawl/src/v2/client.ts` | JS SDK v2 client facade. | Top-level client is a thin typed facade over methods, enforces cloud API key presence at construction, preserves start/status/cancel/wait separation, and exposes watcher creation without embedding workflow policy. |
+| `apps/js-sdk/firecrawl/src/v2/methods/agent.ts` | JS SDK agent method. | Agent jobs are admitted as async start/status/cancel/wait operations with schema conversion and optional credit/URL constraints; hardcoded model enum is a product contract, not a portable user-facing model policy. |
+| `apps/js-sdk/firecrawl/src/utils/zodSchemaToJson.ts` | JS SDK schema conversion helper. | Zod schema handling detects v3/v4 schemas, converts to JSON schema when possible, and detects accidental `.shape` usage as request-shape validation. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/pagination.test.ts` | JS SDK pagination tests. | Tests mirror crawl/batch/monitor pagination contracts: auto vs manual pagination, aggregation, next-nulling, max page/result/wait limits, and bounded page projections. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/validation.test.ts` | JS SDK validation tests. | Format validation rejects ambiguous JSON strings, validates schema/prompt-bearing JSON, screenshot bounds, query/question/highlight fields, parser passthrough, and mistaken Zod shape inputs. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/scrape-browser.unit.test.ts` | JS SDK scrape-browser tests. | Retained browser tests cover code/prompt execution payloads, required input validation, non-200 typed errors, delete calls, and seconds-to-milliseconds timeout propagation. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/parse.unit.test.ts` | JS SDK parse tests. | Parse tests reject empty filenames, unsupported change-tracking output, and cache/index lockdown options before transport. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/scrape.unit.test.ts` | JS SDK scrape smoke test. | Cloud-client construction requires an API key, keeping auth/profile failure upstream of retrieval execution. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/errorHandler.test.ts` | JS SDK error handler tests. | Error tests assert response-body errors beat generic transport messages and become typed SDK errors. |
 | `apps/js-sdk/firecrawl/src/v2/watcher.ts` | SDK watcher. | Long-running crawl/batch work can stream snapshots/documents over WebSocket, fall back to polling, dedupe emitted documents by stable key, and emit terminal done/error snapshots. |
 | `apps/js-sdk/firecrawl/src/v2/types.ts` | SDK public type schema. | Public types model artifact formats, actions, scrape/parse/search/crawl/batch/map/monitor/error/browser shapes, terminal job statuses, pagination bounds, and document metadata as a single typed contract. |
 | `apps/api/src/lib/avgrab-resolve.ts` | Source-specialty resolver helper. | Optional resolver capabilities can cache supported URL patterns, delegate matching URLs to a specialty service, and project returned posts into generic map documents with hidden metadata. |
@@ -666,6 +675,8 @@
 - SDK-level model/schema helpers are not portable model-routing rules. The useful primitive is artifact/schema complexity metadata plus externally selected or policy-bound model choice.
 - Contract tests should cover request-shaping parity across sync, async, API, and workflow adapters. This is a better guard against upstream gate regressions than tuning final synthesis after malformed tool inputs slip through.
 - Pagination tests should explicitly assert partial-result preservation on later page failures. That behavior matters for research because weak results are often caused by discarding useful early evidence after one downstream fetch/status miss.
+- Thin typed client facades are useful only when they delegate to primitive method/adaptor contracts. They should not become orchestration policy or hidden tool-selection logic.
+- Schema conversion helpers should validate and normalize user-supplied structured extraction schemas at the tool boundary, with mistakes becoming request-shape failures rather than low-quality synthesis failures.
 
 ## Candidate Assimilation Targets
 
@@ -749,6 +760,8 @@
 78. Stream/poll terminal snapshot parity: normalize WebSocket events, catchup/document/done messages, and polling snapshots into one terminal artifact contract. Ledger captured; candidate Shell Socket/status projection target.
 79. Typed transport error boundary: map HTTP/non-JSON/network/status failures into stable internal error classes with bounded snippets and action context before synthesis sees gap reasons. Ledger captured; candidate tool adapter target.
 80. Cross-adapter request-prep tests: add parity tests that prove workflow CD/tool adapter request shapes match SDK/API request normalization for search, scrape, map, crawl, batch, and parse. Ledger captured; candidate gate-3/gate-4 regression target.
+81. Thin facade boundary: keep user-facing tool clients as typed facades over primitive adapters, with workflow selection/order remaining in CDs/orchestration. Ledger captured; candidate architecture guard target.
+82. Structured schema validation lane: normalize schema objects and reject ambiguous structured-extraction shapes before tool execution. Ledger captured; candidate Tool CD/schema target.
 
 ## Remaining Work
 

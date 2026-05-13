@@ -747,20 +747,20 @@ apps/js-sdk/firecrawl/src/__tests__/unit/v1/monitor-job-status-retry.test.ts	app
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/agent.test.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/branding.test.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/clientOptions.test.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/__tests__/unit/v2/errorHandler.test.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/__tests__/unit/v2/pagination.test.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/__tests__/unit/v2/parse.unit.test.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/__tests__/unit/v2/scrape-browser.unit.test.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/__tests__/unit/v2/scrape.unit.test.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/__tests__/unit/v2/validation.test.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/__tests__/unit/v2/errorHandler.test.ts	apps	parsed	js_sdk_error_handler_tests	response_body_error_precedence_over_transport_message
+apps/js-sdk/firecrawl/src/__tests__/unit/v2/pagination.test.ts	apps	parsed	js_sdk_pagination_tests	crawl_batch_monitor_auto_manual_aggregation_next_nulling_max_limits
+apps/js-sdk/firecrawl/src/__tests__/unit/v2/parse.unit.test.ts	apps	parsed	js_sdk_parse_tests	empty_filename_change_tracking_and_cache_lockdown_rejection_before_transport
+apps/js-sdk/firecrawl/src/__tests__/unit/v2/scrape-browser.unit.test.ts	apps	parsed	js_sdk_scrape_browser_tests	code_prompt_payload_validation_non_200_errors_delete_and_timeout_ms_propagation
+apps/js-sdk/firecrawl/src/__tests__/unit/v2/scrape.unit.test.ts	apps	parsed	js_sdk_scrape_smoke_test	cloud_client_requires_api_key_before_retrieval_execution
+apps/js-sdk/firecrawl/src/__tests__/unit/v2/validation.test.ts	apps	parsed	js_sdk_validation_tests	format_schema_screenshot_query_question_highlight_parser_and_zod_shape_validation
 apps/js-sdk/firecrawl/src/__tests__/unit/v2/zodSchemaToJson.test.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/index.backup.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/index.ts	apps	not_parsed	pending_review	
 apps/js-sdk/firecrawl/src/types/node-undici.d.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/utils/zodSchemaToJson.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/utils/zodSchemaToJson.ts	apps	parsed	js_sdk_zod_schema_converter	zod_v3_v4_detection_json_schema_conversion_and_shape_misuse_detection
 apps/js-sdk/firecrawl/src/v1/index.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/client.ts	apps	not_parsed	pending_review	
-apps/js-sdk/firecrawl/src/v2/methods/agent.ts	apps	not_parsed	pending_review	
+apps/js-sdk/firecrawl/src/v2/client.ts	apps	parsed	js_sdk_v2_client_facade	thin_typed_method_delegation_api_key_gate_start_status_cancel_wait_and_watcher_creation
+apps/js-sdk/firecrawl/src/v2/methods/agent.ts	apps	parsed	js_sdk_agent_method	async_start_status_cancel_wait_schema_conversion_credit_url_constraints_model_enum_not_portable
 apps/js-sdk/firecrawl/src/v2/methods/batch.ts	apps	parsed	sdk_batch_scrape_method	url_list_validation_idempotency_status_cancel_errors_poll_autopagination_and_chunking
 apps/js-sdk/firecrawl/src/v2/methods/browser.ts	apps	parsed	sdk_browser_method	explicit_ttl_activity_profile_create_execute_delete_list_and_command_timeout
 apps/js-sdk/firecrawl/src/v2/methods/crawl.ts	apps	parsed	sdk_crawl_method	start_status_cancel_poll_autopagination_retryable_poll_errors_timeout_and_error_summary
