@@ -113,6 +113,139 @@
       ]
     },
     {
+      "workflow_id": "local_coding_program_builder",
+      "tier": "lab",
+      "source_framework": "local_coding",
+      "source_path": "orchestration/src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "candidate",
+      "test_scenarios": [
+        "single_file_utility",
+        "small_multi_file_app",
+        "initialized_project_modification"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "workflow_cd_composition_contract",
+        "lab_replay_proof_passes",
+        "checkpoint_loop_replay_passes",
+        "architecture_drift_guard_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "repo_context_assessment",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_safety_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/repo_context_assessment.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "ignore_aware_repo_walk",
+        "stack_and_command_detection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_safety_layer_parity_reviewed",
+        "budgeted_repo_walk_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "safe_file_read",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_safety_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/safe_file_read.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "range_read_hash_receipt",
+        "binary_file_rejected_for_text_read"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_safety_layer_parity_reviewed",
+        "bounded_read_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "safe_file_write",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_safety_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/safe_file_write.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "new_file_write_hash_receipt",
+        "overwrite_requires_snapshot"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_safety_layer_parity_reviewed",
+        "guarded_write_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "safe_file_patch",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_safety_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/safe_file_patch.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "exact_match_patch",
+        "multiple_match_rejected",
+        "stale_context_rejected"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_safety_layer_parity_reviewed",
+        "exact_patch_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "validation_command_runner",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_safety_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/validation_command_runner.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "stdout_stderr_exit_code_receipt",
+        "empty_command_rejected"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_safety_layer_parity_reviewed",
+        "validation_receipt_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_code_edit_execution",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_safety_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_safety/local_code_edit_execution.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "bounded_slice_edit",
+        "safe_patch_then_validation",
+        "stale_context_routes_to_repair"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_safety_layer_parity_reviewed",
+        "local_code_edit_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "forgecode_raw_capability_assimilation",
       "tier": "lab",
       "source_framework": "forgecode",

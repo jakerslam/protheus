@@ -1,0 +1,453 @@
+{
+  "name": "local_coding_program_builder",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "research_context",
+        "workflow_id": "research_synthesize_verify",
+        "input_contract": "workflow_input_envelope_v1",
+        "output_artifact": "research_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "implementation_planning",
+        "workflow_id": "plan_execute_review",
+        "input_contract": "workflow_input_envelope_v1",
+        "output_artifact": "plan_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "local_code_execution",
+        "workflow_id": "local_code_edit_execution",
+        "input_contract": "local_code_edit_slice_input_envelope_v1",
+        "output_artifact": "local_code_edit_execution_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "focused_repair",
+        "workflow_id": "diagnose_retry_escalate",
+        "input_contract": "workflow_input_envelope_v1",
+        "output_artifact": "repair_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_inline_child_workflow_internals",
+      "do_not_return_raw_tool_payloads_to_parent",
+      "do_not_expand_beyond_current_checkpoint"
+    ]
+  },
+  "default": false,
+  "description": "Higher-level local coding workflow that defines a bounded checkpoint, initializes or stabilizes project architecture, decomposes work into slices, routes implementation through safe local code-edit execution, validates the result, and loops only within explicit stop constraints.",
+  "stages": [
+    "intake_normalization",
+    "checkpoint_definition",
+    "project_initialization_assessment",
+    "architecture_contract_definition",
+    "slice_planning",
+    "local_code_execution_loop",
+    "integration_review",
+    "validation_routing",
+    "repair_loop",
+    "result_packaging",
+    "verification_closure"
+  ],
+  "workflow_composition": {
+    "primitive_level": 2,
+    "composed_of_workflow_ids": [
+      "research_synthesize_verify",
+      "plan_execute_review",
+      "repo_context_assessment",
+      "local_code_edit_execution",
+      "safe_file_read",
+      "safe_file_write",
+      "safe_file_patch",
+      "validation_command_runner",
+      "diagnose_retry_escalate"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_coding_program_builder_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "completed_checkpoint",
+      "changed_files",
+      "validation_results",
+      "known_risks",
+      "intentionally_excluded_scope",
+      "recommended_next_checkpoint"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "final handoff states what was built or why the checkpoint stopped",
+      "scope_boundary": "final handoff distinguishes completed scope from excluded future scope",
+      "validation_calibration": "final handoff reports validation performed, skipped, failed, or blocked without overstating confidence",
+      "architecture_calibration": "final handoff reports material architecture decisions and any drift risks",
+      "visibility": "do not expose raw workflow state, private reasoning, or raw tool payloads as visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact workflow observations for coding checkpoints, project initialization, architecture contracts, safe local code-edit slices, validation, repair loops, and terminal outcomes; keep raw payloads out of lifecycle storage.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_force_response_formats"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "intake_normalization->checkpoint_definition",
+      "checkpoint_definition->project_initialization_assessment",
+      "project_initialization_assessment->architecture_contract_definition",
+      "architecture_contract_definition->slice_planning",
+      "slice_planning->local_code_execution_loop",
+      "local_code_execution_loop->integration_review",
+      "integration_review->validation_routing",
+      "validation_routing->repair_loop",
+      "repair_loop->local_code_execution_loop",
+      "validation_routing->result_packaging",
+      "repair_loop->result_packaging",
+      "result_packaging->verification_closure",
+      "verification_closure->completed",
+      "project_initialization_assessment->needs_input",
+      "architecture_contract_definition->needs_input",
+      "slice_planning->needs_input",
+      "repair_loop->blocked",
+      "local_code_execution_loop->failed",
+      "local_code_execution_loop->aborted"
+    ],
+    "timeout_ms": 240000,
+    "retry_policy": {
+      "max_retries": 2,
+      "on_failure": "focused_repair_or_escalate"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 24,
+      "max_model_turns": 16,
+      "max_tool_calls": 24,
+      "token_budget": 32000,
+      "loop_signature_detector": "checkpoint_slice_tool_signature_v1"
+    }
+  },
+  "program_builder_contract": {
+    "version": "local_coding_program_builder_v1",
+    "checkpoint_policy": {
+      "if_user_checkpoint_missing": "define the smallest coherent checkpoint that satisfies the user goal",
+      "checkpoint_required_fields": [
+        "name",
+        "goal",
+        "included_scope",
+        "excluded_scope",
+        "acceptance_criteria",
+        "validation",
+        "stop_conditions"
+      ],
+      "default_checkpoint_bias": "bounded_mvp_or_next_increment_not_full_imagined_product",
+      "scope_expansion_policy": "do not expand beyond the checkpoint unless the user explicitly requests it"
+    },
+    "project_initialization_policy": {
+      "assessment_states": [
+        "initialized",
+        "partial",
+        "uninitialized"
+      ],
+      "if_initialized": "adapt to the existing stack, architecture, package manager, test runner, and naming patterns",
+      "if_partial": "stabilize missing foundations before feature work",
+      "if_uninitialized": "define stack, architecture, directories, validation commands, and growth rules before implementation",
+      "initialization_contract_required_fields": [
+        "project_type",
+        "stack",
+        "runtime",
+        "package_manager",
+        "source_dirs",
+        "test_runner",
+        "formatter",
+        "linter",
+        "validation_commands",
+        "architecture_pattern",
+        "boundary_rules",
+        "dependency_policy"
+      ]
+    },
+    "architecture_contract_policy": {
+      "required": true,
+      "purpose": "prevent codebase decay by giving each code-edit slice explicit module, boundary, dependency, and validation rules",
+      "growth_rules": [
+        "avoid giant files by splitting stable concepts into named modules",
+        "avoid duplicate service layers or parallel state models",
+        "keep domain logic out of UI glue unless the project architecture already requires it",
+        "prefer existing repo conventions over new abstractions",
+        "update the architecture contract before making material boundary changes"
+      ],
+      "dependency_policy": {
+        "allow_if": [
+          "the project already uses the dependency family",
+          "the dependency solves a hard domain problem",
+          "the dependency is maintained, common, and proportionate to the checkpoint"
+        ],
+        "stop_if": [
+          "auth, payment, storage, hosting, analytics, or external service choice is required",
+          "license, security, privacy, or vendor-lock risk is unclear",
+          "dependency choice would effectively choose the product architecture"
+        ]
+      }
+    },
+    "coding_safety_layer_contract": {
+      "source": "forgecode_assimilated_safety_layer",
+      "required_primitive_workflow_ids": [
+        "repo_context_assessment",
+        "safe_file_read",
+        "safe_file_write",
+        "safe_file_patch",
+        "validation_command_runner",
+        "local_code_edit_execution"
+      ],
+      "activation_policy": "local coding execution must route repo assessment, file reads, file writes, file patches, and validation through safety-layer primitives before this workflow can be promoted beyond lab candidate",
+      "required_receipts": [
+        "repo_context_receipt",
+        "read_receipts_with_content_hashes",
+        "write_or_patch_receipts_with_snapshots",
+        "changed_files_receipt",
+        "validation_command_receipts"
+      ],
+      "non_goals": [
+        "do_not_overwrite_files_without_snapshot",
+        "do_not_patch_ambiguous_matches",
+        "do_not_treat_file_materialization_as_agent_coding_parity"
+      ]
+    },
+    "slice_policy": {
+      "default_max_slices": 8,
+      "slice_required_fields": [
+        "name",
+        "goal",
+        "allowed_files_or_areas",
+        "acceptance_criteria",
+        "validation_expectation",
+        "code_edit_prompt_payload"
+      ],
+      "code_edit_payload_required_fields": [
+        "task",
+        "architecture_contract",
+        "slice_acceptance_criteria",
+        "allowed_files_or_areas",
+        "expected_outputs",
+        "validation_expectation",
+        "stop_conditions"
+      ],
+      "completion_rule": "mark a slice complete only when it meets acceptance criteria and does not make the project less coherent"
+    },
+    "loop_policy": {
+      "loop_until": "current_checkpoint_complete",
+      "max_repair_attempts_per_slice": 2,
+      "max_integration_repair_attempts": 2,
+      "max_validation_attempts": 3,
+      "repair_prompt_policy": "route focused failures back through local code-edit execution with the smallest failing scope",
+      "do_not_continue_to": "future product scope outside the checkpoint"
+    },
+    "stop_conditions": [
+      "user decision required for stack, architecture, auth, persistence, payment, deployment, external API, or destructive migration",
+      "existing project architecture conflicts with requested implementation",
+      "required local files or dependencies are missing and cannot be inferred safely",
+      "validation fails after repair budget is exhausted",
+      "implementation exceeds slice or complexity budget",
+      "tooling cannot read, write, or execute required local work",
+      "security, privacy, licensing, or data-loss risk is discovered",
+      "request expands beyond the current checkpoint"
+    ],
+    "unexpected_discovery_policy": {
+      "continue_if": [
+        "discovery only changes implementation details",
+        "existing project pattern clearly answers the decision",
+        "a conservative local default is safe"
+      ],
+      "stop_if": [
+        "discovery changes product scope",
+        "discovery changes architecture or stack",
+        "discovery introduces migration or data-loss risk",
+        "discovery invalidates the checkpoint"
+      ]
+    },
+    "validation_tiers": [
+      "syntax",
+      "behavioral",
+      "product_smoke",
+      "architecture_drift",
+      "release"
+    ],
+    "metrics": [
+      "slices_planned",
+      "slices_completed",
+      "repair_attempts",
+      "validation_failures",
+      "stop_reason",
+      "files_created",
+      "files_edited",
+      "architecture_drift_events",
+      "user_decisions_required"
+    ]
+  },
+  "state_tracking_contract": {
+    "version": "local_coding_program_builder_state_v1",
+    "required_state_fields": [
+      "checkpoint",
+      "architecture_contract",
+      "completed_slices",
+      "active_slice",
+      "known_issues",
+      "validation_results",
+      "files_changed",
+      "decisions_made",
+      "next_actions"
+    ],
+    "code_edit_slice_return_contract": {
+      "changed_files": "path, reason, and kind for each created, edited, or deleted file",
+      "interfaces_changed": "exports, APIs, schemas, commands, or data contracts changed by the slice",
+      "validation_run": "commands or manual checks run, skipped, failed, or blocked",
+      "remaining_risks": "known issues that affect the checkpoint or future slices"
+    }
+  },
+  "default_for_request_classes": [
+    "mutation",
+    "task_proposal"
+  ],
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "repair_loop",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  }
+}

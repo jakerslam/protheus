@@ -1,0 +1,231 @@
+{
+  "name": "local_code_edit_execution",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "file_context_read",
+        "workflow_id": "safe_file_read",
+        "input_contract": "safe_file_read_input_envelope_v1",
+        "output_artifact": "safe_file_read_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "file_creation_or_overwrite",
+        "workflow_id": "safe_file_write",
+        "input_contract": "safe_file_write_input_envelope_v1",
+        "output_artifact": "safe_file_write_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "contextual_file_patch",
+        "workflow_id": "safe_file_patch",
+        "input_contract": "safe_file_patch_input_envelope_v1",
+        "output_artifact": "safe_file_patch_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "validation_command",
+        "workflow_id": "validation_command_runner",
+        "input_contract": "validation_command_runner_input_envelope_v1",
+        "output_artifact": "validation_command_runner_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_inline_file_tool_internals",
+      "do_not_write_outside_allowed_files_or_areas",
+      "do_not_skip_validation_when_validation_is_available"
+    ]
+  },
+  "default": false,
+  "description": "ForgeCode-derived local code edit execution primitive that routes reads, writes, patches, and validation through safety-layer primitives.",
+  "stages": [
+    "slice_input_normalization",
+    "allowed_scope_check",
+    "context_reading",
+    "edit_strategy_selection",
+    "safe_write_or_patch",
+    "validation_execution",
+    "edit_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "safe_file_read",
+      "safe_file_write",
+      "safe_file_patch",
+      "validation_command_runner"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_code_edit_execution_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "slice_name",
+      "changed_files",
+      "read_receipts",
+      "write_receipts",
+      "patch_receipts",
+      "validation_results",
+      "known_risks"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "complete the bounded coding slice or return the exact blocker",
+      "scope_boundary": "only read or edit allowed files and areas",
+      "validation_calibration": "report validation results and skipped validation explicitly",
+      "architecture_calibration": "preserve architecture contract and report drift risk",
+      "visibility": "do not expose raw tool payloads or internal reasoning in final chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact local-code-edit receipts for bounded coding slices.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_raw_file_bodies",
+      "do_not_hide_stale_context_failures"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "local_code_edit_slice_input_envelope_v1",
+    "allowed_transitions": [
+      "slice_input_normalization->allowed_scope_check",
+      "allowed_scope_check->context_reading",
+      "context_reading->edit_strategy_selection",
+      "edit_strategy_selection->safe_write_or_patch",
+      "safe_write_or_patch->validation_execution",
+      "validation_execution->edit_receipt_packaging",
+      "edit_receipt_packaging->completed",
+      "allowed_scope_check->blocked",
+      "context_reading->blocked",
+      "safe_write_or_patch->stale_context",
+      "safe_write_or_patch->ambiguous_match",
+      "validation_execution->failed"
+    ],
+    "timeout_ms": 180000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure_for_repair_loop"
+    },
+    "terminal_states": [
+      "completed",
+      "stale_context",
+      "ambiguous_match",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "shell"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 12,
+      "max_model_turns": 6,
+      "max_tool_calls": 16,
+      "token_budget": 24000,
+      "loop_signature_detector": "local_code_edit_execution_v1"
+    }
+  },
+  "safety_primitive_contract": {
+    "version": "local_code_edit_execution_v1",
+    "source_evidence": [
+      "crates/forge_services/src/tool_services/fs_read.rs",
+      "crates/forge_services/src/tool_services/fs_write.rs",
+      "crates/forge_services/src/tool_services/fs_patch.rs",
+      "crates/forge_services/src/tool_services/shell.rs"
+    ],
+    "required_behaviors": [
+      "allowed_files_or_areas_required",
+      "read_before_patch_for_existing_files",
+      "prefer_patch_for_existing_files",
+      "use_write_for_new_files_or_explicit_overwrite",
+      "snapshot_before_destructive_edits",
+      "preserve_line_endings",
+      "return_changed_files",
+      "return_validation_results",
+      "route_stale_context_to_repair_loop",
+      "route_ambiguous_match_to_repair_loop"
+    ],
+    "output_receipts": [
+      "slice_scope_receipt",
+      "read_receipts",
+      "write_receipts",
+      "patch_receipts",
+      "validation_receipts",
+      "changed_files_receipt"
+    ],
+    "stop_conditions": [
+      "slice_scope_missing",
+      "requested_edit_outside_allowed_scope",
+      "stale_context_after_read",
+      "ambiguous_patch_match",
+      "validation_failed_after_edit"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

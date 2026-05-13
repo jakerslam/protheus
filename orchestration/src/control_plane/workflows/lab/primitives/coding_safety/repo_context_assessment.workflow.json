@@ -1,0 +1,161 @@
+{
+  "name": "repo_context_assessment",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for budgeted, ignore-aware repository assessment before local coding.",
+  "stages": [
+    "input_normalization",
+    "root_path_validation",
+    "ignore_aware_walk",
+    "budget_filtering",
+    "stack_and_command_detection",
+    "context_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "repo_context_assessment_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "repo_root",
+      "detected_stack",
+      "detected_source_dirs",
+      "detected_validation_commands",
+      "walk_budgets",
+      "excluded_paths",
+      "context_receipts"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "return bounded repo context needed for a coding slice",
+      "scope_boundary": "do not recursively enumerate beyond declared budgets",
+      "validation_calibration": "report unknown stack or commands as unknown instead of guessing",
+      "visibility": "do not expose raw internal walk traces as visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact repo-context observations for coding workflows while avoiding raw file dumps.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_raw_tool_payloads",
+      "do_not_bypass_repo_walk_budgets"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "workflow_input_envelope_v1",
+    "allowed_transitions": [
+      "input_normalization->root_path_validation",
+      "root_path_validation->ignore_aware_walk",
+      "ignore_aware_walk->budget_filtering",
+      "budget_filtering->stack_and_command_detection",
+      "stack_and_command_detection->context_receipt_packaging",
+      "context_receipt_packaging->completed",
+      "root_path_validation->blocked",
+      "ignore_aware_walk->blocked"
+    ],
+    "timeout_ms": 60000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "shell"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 2,
+      "max_tool_calls": 8,
+      "token_budget": 8000,
+      "loop_signature_detector": "repo_context_assessment_v1"
+    }
+  },
+  "safety_primitive_contract": {
+    "version": "repo_context_assessment_v1",
+    "source_evidence": [
+      "crates/forge_walker/src/walker.rs",
+      "crates/forge_services/src/tool_services/fs_search.rs",
+      "crates/forge_repo/src/context_engine.rs"
+    ],
+    "required_behaviors": [
+      "respect_ignore_rules",
+      "exclude_git_directory",
+      "avoid_symlink_traversal",
+      "enforce_max_depth",
+      "enforce_max_breadth",
+      "enforce_max_files",
+      "enforce_max_file_size",
+      "enforce_max_total_size",
+      "skip_binary_files_by_default",
+      "package_detected_commands_as_receipts"
+    ],
+    "output_receipts": [
+      "repo_root_receipt",
+      "walk_budget_receipt",
+      "file_inventory_receipt",
+      "stack_detection_receipt",
+      "validation_command_receipt"
+    ],
+    "stop_conditions": [
+      "repo_root_missing_or_not_directory",
+      "walk_budget_exhausted_before_required_context",
+      "stack_detection_ambiguous_requires_user_or_planning_decision"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

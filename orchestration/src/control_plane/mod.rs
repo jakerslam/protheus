@@ -21,6 +21,7 @@ pub mod workflow_contract_guard;
 pub mod workflow_contracts;
 pub mod workflow_graph_compilation;
 pub mod workflow_graph_dependency;
+pub mod workflow_lab_replay;
 pub mod workflow_runtime;
 pub mod workflow_runtime_fixtures;
 pub mod workflow_runtime_types;

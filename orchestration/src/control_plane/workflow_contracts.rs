@@ -711,6 +711,10 @@ pub fn workflow_registry_contract_ok() -> bool {
         || !registry
             .promotion_lifecycle
             .iter()
+            .any(|row| row == "candidate")
+        || !registry
+            .promotion_lifecycle
+            .iter()
             .any(|row| row == "official")
     {
         return false;
@@ -752,7 +756,7 @@ pub fn workflow_registry_contract_ok() -> bool {
             "lab" => {
                 lab_count += 1;
                 if entry.runtime_selectable
-                    || entry.promotion_status != "lab"
+                    || !matches!(entry.promotion_status.as_str(), "lab" | "candidate")
                     || !entry
                         .source_path
                         .starts_with("orchestration/src/control_plane/workflows/lab/frameworks/")

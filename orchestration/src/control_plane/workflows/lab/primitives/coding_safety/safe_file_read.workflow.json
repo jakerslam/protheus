@@ -1,0 +1,164 @@
+{
+  "name": "safe_file_read",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for bounded local file reads with line-range and content-hash receipts.",
+  "stages": [
+    "input_normalization",
+    "absolute_path_validation",
+    "file_size_guard",
+    "mime_and_binary_detection",
+    "line_range_resolution",
+    "content_read",
+    "read_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "safe_file_read_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "path",
+      "content_kind",
+      "start_line",
+      "end_line",
+      "total_lines",
+      "content_hash",
+      "truncation_notes"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "return only the bounded file context requested",
+      "scope_boundary": "do not read unbounded files or binary content as text",
+      "validation_calibration": "include hash and line metadata needed for stale-context detection",
+      "visibility": "do not expose hidden internal tool payloads as final answer"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact file-read receipts for coding workflows without storing full raw file bodies.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_large_file_bodies",
+      "do_not_bypass_binary_detection"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "safe_file_read_input_envelope_v1",
+    "allowed_transitions": [
+      "input_normalization->absolute_path_validation",
+      "absolute_path_validation->file_size_guard",
+      "file_size_guard->mime_and_binary_detection",
+      "mime_and_binary_detection->line_range_resolution",
+      "line_range_resolution->content_read",
+      "content_read->read_receipt_packaging",
+      "read_receipt_packaging->completed",
+      "absolute_path_validation->blocked",
+      "file_size_guard->blocked",
+      "mime_and_binary_detection->blocked"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "safe_file_read_v1"
+    }
+  },
+  "safety_primitive_contract": {
+    "version": "safe_file_read_v1",
+    "source_evidence": [
+      "crates/forge_fs/src/read.rs",
+      "crates/forge_fs/src/read_range.rs",
+      "crates/forge_services/src/tool_services/fs_read.rs"
+    ],
+    "required_behaviors": [
+      "absolute_path_required",
+      "max_file_size_enforced",
+      "max_image_size_enforced",
+      "binary_files_rejected_for_text_reads",
+      "visual_content_classified_separately",
+      "line_ranges_are_one_based_and_inclusive",
+      "zero_line_indexes_rejected",
+      "long_lines_truncated",
+      "full_file_content_hash_returned_even_for_range_reads"
+    ],
+    "output_receipts": [
+      "path_receipt",
+      "content_kind_receipt",
+      "line_range_receipt",
+      "content_hash_receipt",
+      "truncation_receipt"
+    ],
+    "stop_conditions": [
+      "path_not_absolute",
+      "file_missing",
+      "file_size_exceeds_budget",
+      "binary_text_read_requested",
+      "invalid_line_range"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

@@ -136,7 +136,7 @@ fn build_checks(
         json!({"id": "workflow_registry_tier_contract", "ok": workflow_registry_contract_ok() && graphs.iter().all(workflow_registry_graph_ok), "detail": "official workflows are runtime-selectable; lab/framework workflows are parseable comparison profiles only"}),
         json!({"id": "workflow_role_typing_contract", "ok": graphs.iter().all(workflow_role_ok), "detail": "workflow_role must be assistant_response_workflow or assimilation_workflow_template"}),
         json!({"id": "assistant_workflow_presence_contract", "ok": graphs.iter().any(|row| row.workflow_role == "assistant_response_workflow"), "detail": "at least one assistant-response workflow must remain available"}),
-        json!({"id": "assimilation_template_role_contract", "ok": graphs.iter().filter(|row| row.workflow_id.contains("assimilation") || row.workflow_id.contains("codex") || row.workflow_id.contains("forgecode") || row.workflow_id.contains("openhands")).all(|row| row.workflow_role == "assimilation_workflow_template"), "detail": "assimilation/codex/forgecode/openhands workflow specs must not masquerade as normal assistant response workflows"}),
+        json!({"id": "assimilation_template_role_contract", "ok": graphs.iter().filter(|row| assimilation_template_id(row)).all(|row| row.workflow_role == "assimilation_workflow_template"), "detail": "assimilation template specs must not masquerade as normal assistant response workflows; non-assimilation ForgeCode coding workflows may use assistant_response_workflow"}),
         json!({"id": "assimilation_template_structure_contract", "ok": graphs.iter().all(assimilation_template_structure_ok), "detail": "assimilation templates must declare at least one subtemplate and assistant-response workflows must not carry assimilation subtemplates"}),
         json!({"id": "structured_gate_contract", "ok": graphs.iter().all(|row| row.gate_contract.allowed_input_shapes == ["multiple_choice", "text_input"] && row.gate_contract.resume_token_required), "detail": "gates expose only multiple_choice or text_input with resume tokens"}),
         json!({"id": "tool_family_contracts_complete", "ok": tool_contracts_cover_required(tool_contracts), "detail": format!("families={}", tool_contracts.len())}),
@@ -149,7 +149,7 @@ fn build_checks(
         json!({"id": "workflow_runtime_inspector_contract", "ok": replay_reports.iter().all(runtime_inspector_ok), "detail": "workflow_state, agent_internal_notes, tool_trace, eval_trace, and final_answer are separated from visible chat"}),
         json!({"id": "workflow_runtime_graph_binding_contract", "ok": replay_reports.iter().all(|row| !row.graph_hash.is_empty() && row.inspector.selected_graph_source == "json_workflow_source_of_truth_v1"), "detail": "runtime selection consumes JSON source-of-truth orchestration graph bindings"}),
         json!({"id": "workflow_json_source_metadata_contract", "ok": graphs.iter().all(graph_json_source_metadata_ok), "detail": "typed graphs carry workflow id, source JSON path, contract schema version, and graph hash metadata"}),
-        json!({"id": "workflow_composition_metadata_contract", "ok": graphs.iter().all(workflow_composition_metadata_ok), "detail": "primitive workflow levels and composition references are present and valid"}),
+        json!({"id": "workflow_composition_metadata_contract", "ok": workflow_composition_metadata_ok(graphs), "detail": "primitive workflow levels and composition references are present and valid"}),
         json!({"id": "workflow_runtime_registered_json_source_contract", "ok": replay_reports.iter().all(runtime_registered_json_source_ok), "detail": "runtime telemetry exposes selected workflow id, source JSON path, contract schema version, and graph hash from a registered JSON workflow"}),
         json!({"id": "workflow_cd_composition_contract", "ok": composition_report.get("ok").and_then(Value::as_bool).unwrap_or(false), "detail": "workflow CDs declare primitive/composite boundaries, typed child workflow calls, and exactly one terminal artifact return"}),
         json!({"id": "workflow_format_policy_contract", "ok": all_present(&format_policy, &["workflow_source_of_truth_contract", "typed_execution_contract", "burnable CD", "json_workflow_spec", "llm_final_only_no_system_injection"]), "detail": FORMAT_POLICY_PATH}),
@@ -275,7 +275,7 @@ fn workflow_registry_graph_ok(graph: &NormalizedWorkflowGraph) -> bool {
         }
         "lab" => {
             !graph.runtime_selectable
-                && graph.promotion_status == "lab"
+                && matches!(graph.promotion_status.as_str(), "lab" | "candidate")
                 && graph
                     .source_json_path
                     .starts_with("orchestration/src/control_plane/workflows/lab/")
@@ -292,12 +292,40 @@ fn assimilation_template_structure_ok(graph: &NormalizedWorkflowGraph) -> bool {
     }
 }
 
-fn workflow_composition_metadata_ok(graph: &NormalizedWorkflowGraph) -> bool {
-    if graph.primitive_level == 0 {
-        graph.composed_of_workflow_ids.is_empty()
-    } else {
-        true
-    }
+fn assimilation_template_id(graph: &NormalizedWorkflowGraph) -> bool {
+    graph.workflow_id.contains("assimilation")
+        || graph.workflow_id == "codex_tooling_synthesis"
+        || graph.workflow_id == "forgecode_agent_composition"
+        || graph.workflow_id == "openhands_control_plane_assimilation"
+}
+
+fn workflow_composition_metadata_ok(graphs: &[NormalizedWorkflowGraph]) -> bool {
+    let level_by_id = graphs
+        .iter()
+        .map(|graph| (graph.workflow_id.as_str(), graph.primitive_level))
+        .collect::<HashMap<_, _>>();
+    graphs.iter().all(|graph| {
+        if graph.primitive_level == 0 {
+            return graph.composed_of_workflow_ids.is_empty();
+        }
+        if graph.composed_of_workflow_ids.is_empty() {
+            return true;
+        }
+        let child_levels = graph
+            .composed_of_workflow_ids
+            .iter()
+            .map(|child_id| level_by_id.get(child_id.as_str()).copied())
+            .collect::<Option<Vec<_>>>();
+        let Some(child_levels) = child_levels else {
+            return false;
+        };
+        graph.primitive_level
+            == child_levels
+                .into_iter()
+                .max()
+                .map(|level| level + 1)
+                .unwrap_or(0)
+    })
 }
 
 fn runtime_budget_ok(report: &WorkflowReplayReport) -> bool {
