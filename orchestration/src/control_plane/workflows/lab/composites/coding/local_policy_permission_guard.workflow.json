@@ -1,0 +1,190 @@
+{
+  "name": "local_policy_permission_guard",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "config_resolution",
+        "workflow_id": "forge_config_resolution",
+        "input_contract": "forge_config_resolution_input_envelope_v1",
+        "output_artifact": "forge_config_resolution_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "operation_permission",
+        "workflow_id": "operation_permission_gate",
+        "input_contract": "operation_permission_gate_input_envelope_v1",
+        "output_artifact": "operation_permission_gate_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_execute_authorized_operations",
+      "do_not_replace_file_safety_receipts",
+      "do_not_silently_mutate_policy_without_accept_and_remember"
+    ]
+  },
+  "default": false,
+  "description": "Composite local coding policy guard derived from ForgeCode configuration and permission behavior.",
+  "stages": [
+    "runtime_config_resolution",
+    "restricted_mode_assessment",
+    "operation_permission_gate",
+    "policy_guard_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "forge_config_resolution",
+      "operation_permission_gate"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_policy_permission_guard_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "config_status",
+      "restricted_mode",
+      "tool_supported",
+      "operation_permission_status",
+      "policy_path",
+      "blocked_operations"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "ensure local coding operations are both configured and permitted before execution",
+      "scope_boundary": "do not perform file edits, shell commands, or fetches directly",
+      "validation_calibration": "report config-derived budgets and policy decisions without overstating execution safety",
+      "visibility": "do not expose secrets, raw config payloads, or hidden policy internals"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact config and policy receipts for local coding checkpoints.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_permission_denials",
+      "do_not_treat_allow_as_successful_execution",
+      "do_not_store_raw_environment_secrets"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "local_policy_permission_guard_input_envelope_v1",
+    "allowed_transitions": [
+      "runtime_config_resolution->restricted_mode_assessment",
+      "restricted_mode_assessment->operation_permission_gate",
+      "operation_permission_gate->policy_guard_receipt_packaging",
+      "policy_guard_receipt_packaging->completed",
+      "runtime_config_resolution->failed",
+      "restricted_mode_assessment->blocked",
+      "operation_permission_gate->blocked",
+      "operation_permission_gate->failed"
+    ],
+    "timeout_ms": 60000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "shell",
+      "web",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 4,
+      "max_model_turns": 2,
+      "max_tool_calls": 6,
+      "token_budget": 9000,
+      "loop_signature_detector": "local_policy_permission_guard_v1"
+    }
+  },
+  "policy_guard_contract": {
+    "version": "local_policy_permission_guard_v1",
+    "source": "forgecode_assimilated_policy_layer",
+    "required_primitive_workflow_ids": [
+      "forge_config_resolution",
+      "operation_permission_gate"
+    ],
+    "required_receipts": [
+      "config_resolution_receipt",
+      "operation_permission_receipt",
+      "restricted_mode_receipt",
+      "policy_path_receipt"
+    ],
+    "activation_policy": "local coding workflows must resolve runtime config and gate read/write/execute/fetch operations through operation permissions before invoking local code-edit, validation, fetch, or shell primitives",
+    "non_goals": [
+      "do_not_replace_local_code_edit_execution",
+      "do_not_replace_validation_command_runner",
+      "do_not_replace_context_loop_guard"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

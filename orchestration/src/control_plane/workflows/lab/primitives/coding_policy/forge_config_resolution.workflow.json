@@ -1,0 +1,169 @@
+{
+  "name": "forge_config_resolution",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for resolving local coding runtime configuration from defaults, legacy config, global config, environment variables, and runtime updates.",
+  "stages": [
+    "base_path_resolution",
+    "dotenv_walk_loading",
+    "legacy_config_layer",
+    "embedded_default_layer",
+    "global_config_layer",
+    "environment_override_layer",
+    "runtime_config_projection",
+    "config_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_config_resolution_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "config_base_path",
+      "loaded_layers",
+      "tool_supported",
+      "restricted_mode",
+      "run_budgets",
+      "model_config",
+      "reasoning_config",
+      "compaction_config"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "resolve the runtime limits and feature flags that shape local coding behavior",
+      "scope_boundary": "do not mutate config unless an explicit config update operation is requested",
+      "validation_calibration": "report which layers were loaded and which critical coding flags were derived",
+      "visibility": "do not expose credentials or raw environment secrets as visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact resolved-config receipts for local coding workflows without storing secrets.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_env_secrets",
+      "do_not_hide_restricted_mode",
+      "do_not_override_user_config_silently"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "forge_config_resolution_input_envelope_v1",
+    "allowed_transitions": [
+      "base_path_resolution->dotenv_walk_loading",
+      "dotenv_walk_loading->legacy_config_layer",
+      "legacy_config_layer->embedded_default_layer",
+      "embedded_default_layer->global_config_layer",
+      "global_config_layer->environment_override_layer",
+      "environment_override_layer->runtime_config_projection",
+      "runtime_config_projection->config_receipt_packaging",
+      "config_receipt_packaging->completed",
+      "base_path_resolution->failed",
+      "runtime_config_projection->failed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 1,
+      "max_tool_calls": 3,
+      "token_budget": 5000,
+      "loop_signature_detector": "forge_config_resolution_v1"
+    }
+  },
+  "policy_primitive_contract": {
+    "version": "forge_config_resolution_v1",
+    "source_evidence": [
+      "crates/forge_config/src/config.rs",
+      "crates/forge_config/src/reader.rs",
+      "crates/forge_config/src/writer.rs",
+      "crates/forge_config/.forge.toml",
+      "crates/forge_services/src/app_config.rs",
+      "crates/forge_app/src/agent.rs"
+    ],
+    "required_behaviors": [
+      "resolve_config_base_path_from_forge_config_env_legacy_or_default",
+      "load_dotenv_files_walking_up_from_cwd_once_per_process",
+      "merge_legacy_defaults_global_and_environment_layers_in_order",
+      "preserve_default_budget_values_when_legacy_config_is_sparse",
+      "project_tool_supported_and_restricted_flags",
+      "project_file_read_search_shell_fetch_and_tool_timeout_budgets",
+      "project_session_commit_suggest_model_configs",
+      "project_reasoning_compaction_and_subagent_flags",
+      "write_config_with_schema_header_only_when_explicitly_requested"
+    ],
+    "output_receipts": [
+      "config_layer_receipt",
+      "budget_projection_receipt",
+      "tool_support_receipt",
+      "restricted_mode_receipt",
+      "model_reasoning_compaction_receipt"
+    ],
+    "stop_conditions": [
+      "config_parse_failed",
+      "config_base_path_unavailable",
+      "tool_supported_false_for_local_coding_task",
+      "restricted_mode_requires_policy_gate"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

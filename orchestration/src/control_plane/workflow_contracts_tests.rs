@@ -93,6 +93,9 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
     assert_eq!(graph.primitive_level, 3);
     for child_id in [
         "research_synthesize_verify",
+        "local_policy_permission_guard",
+        "forge_config_resolution",
+        "operation_permission_gate",
         "local_context_loop_guard",
         "tool_access_resolver",
         "doom_loop_interrupt",
@@ -142,7 +145,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(7)
+        Some(8)
     );
 
     let contract = source
@@ -239,6 +242,10 @@ fn local_coding_program_builder_lab_execution_harness_emits_coding_task_plans() 
             .slice_invocations
             .iter()
             .any(|slice| slice.child_workflow_id == "local_code_edit_execution"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "local_policy_permission_guard"));
         assert!(execution
             .slice_invocations
             .iter()

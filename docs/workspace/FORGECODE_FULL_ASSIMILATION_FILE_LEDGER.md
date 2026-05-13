@@ -86,6 +86,7 @@ Top-level source areas:
 | `FC-A05` | Extract validation/repair loop semantics from `forge_ci`, `forge_services`, and `forge_tracker` | active | Loop-layer contract pass added for plan artifacts, undo, followup clarification, failure diagnosis, bounded repair, and checkpoint handoff. |
 | `FC-A06` | Implement measurable coding safety behavior in eval ownership | active | `eval_coding_safety_layer` now exercises safe reads, guarded writes, exact-match patches, stale-context rejection, snapshots, hashes, and validation command receipts. |
 | `FC-A07` | Extract prompt, context, tool-routing, and agent-delegation semantics | active | Context-layer contract pass added for tool access resolution, doom-loop interruption, pending todo gating, compaction summaries, tool-error reflection, delegated agent tasks, and the `local_context_loop_guard` composite. |
+| `FC-A08` | Extract config and operation-permission semantics | active | Policy-layer contract pass added for ForgeCode config resolution, operation permission gating, and the `local_policy_permission_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -112,6 +113,9 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `tool_error_reflection` | 0 | `forge-tool-retry-message.md`, `forge-partial-tool-error-reflection.md` | lab contract created | Requires root-cause reflection and corrected call planning before retrying failed tool calls. |
 | `agent_task_delegation` | 0 | `forge_app/agent_executor`, `forge_app/agent` | lab contract created | Executes agent-as-tool tasks with conversation reuse, nested event forwarding, interruption handling, and empty-output rejection. |
 | `local_context_loop_guard` | 1 | `forge_app/system_prompt`, `forge_app/tool_resolver`, `forge_app/hooks/*`, `forge_app/agent_executor` | lab contract created | Composite guard that wires tool access, loop interruption, todo gating, compaction, tool-error reflection, and delegation around long coding runs. |
+| `forge_config_resolution` | 0 | `forge_config/config`, `forge_config/reader`, `forge_config/writer`, defaults, `forge_services/app_config`, `forge_app/agent` | lab contract created | Resolves layered config, runtime budgets, tool support, restricted mode, model config, reasoning, compaction, and subagent flags. |
+| `operation_permission_gate` | 0 | `forge_services/policy`, `permissions.default.yaml`, `forge_domain/policies/*`, `forge_app/services` | lab contract created | Gates read/write/execute/fetch operations through allow, deny, confirm, and accept-and-remember policy behavior. |
+| `local_policy_permission_guard` | 1 | `forge_config`, `forge_services/policy`, `forge_domain/policies` | lab contract created | Composite guard that resolves runtime config and operation permissions before local coding execution. |
 
 ## Runtime behavior harnesses created
 
@@ -127,7 +131,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | loop/context-layer dependency declared | The neutral master workflow now references `local_context_loop_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | policy/context/loop-layer dependency declared | The neutral master workflow now references `local_policy_permission_guard`, `local_context_loop_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -227,3 +231,32 @@ Context-layer parity requirements extracted:
 | Context compaction preserving latest file operations and reasoning continuity | `context_compaction_summary` | P0 |
 | Tool failure reflection before retry | `tool_error_reflection` | P0 |
 | Delegated agent tasks with conversation reuse and interruption receipts | `agent_task_delegation` | P1 |
+
+## Fourth source pass: config and permission behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_config/src/config.rs` | Defines runtime budgets, tool support, restricted mode, session/commit/suggest model configs, reasoning, compaction, provider overrides, todo verification, research subagent, and subagent flags. | The coding workflow needs a config-resolution primitive that projects budgets and feature flags before local coding begins. |
+| `crates/forge_config/src/reader.rs` | Resolves base path from `FORGE_CONFIG`, legacy `~/forge`, or `~/.forge`; loads `.env` files walking up from cwd; merges legacy, defaults, global TOML, and `FORGE_` env variables. | Config must be layered and receipt-backed, not treated as a static constant. |
+| `crates/forge_config/src/writer.rs` | Writes config TOML with a schema header and creates parent directories. | Config mutation should be explicit and auditable, not a side effect of reading config. |
+| `crates/forge_config/.forge.toml` | Establishes defaults for read/search/shell/fetch budgets, max requests/tool failures, tool timeout, tool support, todo verification, compaction, retry, HTTP, and reasoning. | Runtime coding limits should be derived from config instead of hardcoded in the master workflow. |
+| `crates/forge_services/src/app_config.rs` | Projects session, commit, suggest, and reasoning config through service methods and supports runtime config updates. | Model/reasoning selection belongs in config projection, not prompt text. |
+| `crates/forge_app/src/agent.rs` | Applies config to agents, with config filling unset agent fields and explicit reasoning disable overriding agent settings. | Agent execution should receive config-applied budgets and reasoning behavior before task loops. |
+| `crates/forge_services/src/policy.rs` | Loads or creates permission policies, evaluates operations, prompts user on confirm, and can accept-and-remember by writing a derived policy. | Authorization needs a separate operation permission primitive before file, shell, or fetch execution. |
+| `crates/forge_services/src/permissions.default.yaml` | Defaults allow reads, writes, commands, and fetches broadly. | Default policy behavior must be explicit so restricted mode can be measured and changed safely. |
+| `crates/forge_domain/src/policies/engine.rs` | Deny and confirm return immediately; allow is remembered and returned if no deny/confirm matches; no match defaults to confirm. | The permission gate must preserve ForgeCode rule precedence exactly. |
+| `crates/forge_domain/src/policies/operation.rs` | Policy operations are read, write, execute, and fetch with cwd/message context. | Permission receipts should classify operation kind and target before execution. |
+
+Policy-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Layered config resolution with defaults/global/env receipts | `forge_config_resolution` | P0 |
+| Project tool-supported and restricted-mode flags before local coding | `forge_config_resolution` | P0 |
+| Project read/search/shell/fetch/tool-timeout budgets from config | `forge_config_resolution` | P0 |
+| Gate read/write/execute/fetch before execution | `operation_permission_gate` | P0 |
+| Preserve deny/confirm precedence and allow fallback behavior | `operation_permission_gate` | P0 |
+| Support accept, reject, and accept-and-remember user choices | `operation_permission_gate` | P0 |
+| Derive remembered policy rules from extension, host, or command prefix | `operation_permission_gate` | P1 |

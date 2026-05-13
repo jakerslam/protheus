@@ -1,0 +1,182 @@
+{
+  "name": "operation_permission_gate",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for evaluating read, write, execute, and fetch operations against policy rules with allow, deny, confirm, and accept-and-remember behavior.",
+  "stages": [
+    "operation_normalization",
+    "policy_file_resolution",
+    "default_policy_initialization",
+    "policy_engine_evaluation",
+    "confirmation_routing",
+    "accept_and_remember_policy_derivation",
+    "policy_decision_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "operation_permission_gate_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "operation_kind",
+      "operation_target",
+      "policy_path",
+      "matched_rules",
+      "permission",
+      "user_confirmation_required",
+      "remembered_policy_written"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "decide whether a local operation may proceed before it reaches file, shell, or fetch execution",
+      "scope_boundary": "do not execute the operation; only authorize, deny, or request confirmation",
+      "validation_calibration": "report the matched rules, default behavior, and remember-policy path",
+      "visibility": "do not expose raw hidden policy internals or credentials as visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact operation-permission receipts for local coding workflows.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_execute_denied_operations",
+      "do_not_treat_safety_validation_as_permission",
+      "do_not_silently_remember_user_choices"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "operation_permission_gate_input_envelope_v1",
+    "allowed_transitions": [
+      "operation_normalization->policy_file_resolution",
+      "policy_file_resolution->default_policy_initialization",
+      "default_policy_initialization->policy_engine_evaluation",
+      "policy_engine_evaluation->confirmation_routing",
+      "confirmation_routing->accept_and_remember_policy_derivation",
+      "confirmation_routing->policy_decision_packaging",
+      "accept_and_remember_policy_derivation->policy_decision_packaging",
+      "policy_decision_packaging->completed",
+      "policy_engine_evaluation->blocked",
+      "confirmation_routing->blocked",
+      "default_policy_initialization->failed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "shell",
+      "web"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 7,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 5000,
+      "loop_signature_detector": "operation_permission_gate_v1"
+    }
+  },
+  "policy_primitive_contract": {
+    "version": "operation_permission_gate_v1",
+    "source_evidence": [
+      "crates/forge_services/src/policy.rs",
+      "crates/forge_services/src/permissions.default.yaml",
+      "crates/forge_domain/src/policies/engine.rs",
+      "crates/forge_domain/src/policies/config.rs",
+      "crates/forge_domain/src/policies/types.rs",
+      "crates/forge_domain/src/policies/operation.rs",
+      "crates/forge_app/src/services.rs"
+    ],
+    "operation_kinds": [
+      "read",
+      "write",
+      "execute",
+      "fetch"
+    ],
+    "required_behaviors": [
+      "load_existing_policy_file_when_present",
+      "initialize_default_policy_file_when_missing",
+      "default_to_confirm_when_no_policies_match",
+      "return_deny_immediately",
+      "return_confirm_immediately",
+      "remember_last_allow_when_only_allow_rules_match",
+      "request_user_confirmation_for_confirm_policy",
+      "support_accept_reject_and_accept_and_remember",
+      "derive_remembered_read_write_rules_from_file_extension",
+      "derive_remembered_fetch_rules_from_url_host",
+      "derive_remembered_execute_rules_from_command_or_command_subcommand",
+      "return_decision_with_policy_path"
+    ],
+    "output_receipts": [
+      "operation_receipt",
+      "policy_path_receipt",
+      "matched_rule_receipt",
+      "permission_decision_receipt",
+      "confirmation_receipt",
+      "remembered_policy_receipt"
+    ],
+    "stop_conditions": [
+      "permission_denied",
+      "user_rejected_confirmation",
+      "policy_file_parse_failed",
+      "operation_kind_unknown",
+      "remember_policy_write_failed"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

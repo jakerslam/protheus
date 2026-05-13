@@ -117,6 +117,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "syntax_and_behavior_validation",
         ],
         required_child_capabilities: &[
+            "policy_permission_guard",
             "context_loop_guard",
             "implementation_planning",
             "plan_artifact",
@@ -141,6 +142,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         ],
         required_child_capabilities: &[
             "research_context",
+            "policy_permission_guard",
             "context_loop_guard",
             "implementation_planning",
             "plan_artifact",
@@ -163,6 +165,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "architecture_drift_validation",
         ],
         required_child_capabilities: &[
+            "policy_permission_guard",
             "context_loop_guard",
             "implementation_planning",
             "plan_artifact",
@@ -576,6 +579,11 @@ fn slices_for_scenario(
         "context_loop_guard",
         "local_context_loop_guard",
     );
+    let policy_guard = child_call(
+        child_calls,
+        "policy_permission_guard",
+        "local_policy_permission_guard",
+    );
     let plan_artifact = child_call(
         child_calls,
         "plan_artifact",
@@ -600,6 +608,14 @@ fn slices_for_scenario(
 
     match scenario.id {
         "single_file_utility" => vec![
+            slice(
+                "policy_permission_guard_initialization",
+                "Resolve ForgeCode-style config and operation permission guardrails before exposing local coding tools.",
+                policy_guard,
+                vec!["config layers", "permissions policy"],
+                vec!["tool support is known", "restricted mode and operation policy are receipt-backed"],
+                "policy guard artifact is available before context guard",
+            ),
             slice(
                 "context_loop_guard_initialization",
                 "Resolve local coding tools and initialize context-loop guards before planning.",
@@ -653,6 +669,14 @@ fn slices_for_scenario(
             ),
         ],
         "small_multi_file_app" => vec![
+            slice(
+                "policy_permission_guard_initialization",
+                "Resolve ForgeCode-style config and operation permission guardrails before exposing local coding tools.",
+                policy_guard,
+                vec!["config layers", "permissions policy"],
+                vec!["tool support is known", "restricted mode and operation policy are receipt-backed"],
+                "policy guard artifact is available before context guard",
+            ),
             slice(
                 "context_loop_guard_initialization",
                 "Resolve local coding tools and initialize context-loop guards before planning.",
@@ -719,6 +743,14 @@ fn slices_for_scenario(
             ),
         ],
         _ => vec![
+            slice(
+                "policy_permission_guard_initialization",
+                "Resolve ForgeCode-style config and operation permission guardrails before exposing local coding tools.",
+                policy_guard,
+                vec!["config layers", "permissions policy"],
+                vec!["tool support is known", "restricted mode and operation policy are receipt-backed"],
+                "policy guard artifact is available before context guard",
+            ),
             slice(
                 "context_loop_guard_initialization",
                 "Resolve local coding tools and initialize context-loop guards before planning.",
@@ -901,6 +933,7 @@ fn child_call(
 fn static_child_value(value: &str) -> &'static str {
     match value {
         "research_context" => "research_context",
+        "policy_permission_guard" => "policy_permission_guard",
         "context_loop_guard" => "context_loop_guard",
         "implementation_planning" => "implementation_planning",
         "plan_artifact" => "plan_artifact",
@@ -908,6 +941,13 @@ fn static_child_value(value: &str) -> &'static str {
         "focused_repair" => "focused_repair",
         "checkpoint_handoff" => "checkpoint_handoff",
         "research_synthesize_verify" => "research_synthesize_verify",
+        "local_policy_permission_guard" => "local_policy_permission_guard",
+        "local_policy_permission_guard_input_envelope_v1" => {
+            "local_policy_permission_guard_input_envelope_v1"
+        },
+        "local_policy_permission_guard_result_artifact_v1" => {
+            "local_policy_permission_guard_result_artifact_v1"
+        }
         "local_context_loop_guard" => "local_context_loop_guard",
         "local_context_loop_guard_input_envelope_v1" => "local_context_loop_guard_input_envelope_v1",
         "local_context_loop_guard_result_artifact_v1" => "local_context_loop_guard_result_artifact_v1",
