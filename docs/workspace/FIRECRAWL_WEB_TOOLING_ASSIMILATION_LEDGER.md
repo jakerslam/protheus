@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 720
-- Not parsed: 556
+- Parsed: 724
+- Not parsed: 552
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -365,6 +365,10 @@
 | `apps/api/src/__tests__/e2e_map/index.test.ts` | V1 map E2E tests. | Map quality tests check search-filtered links, subdomain inclusion, sitemap-only exclusion, limit enforcement, and large sitemap discovery volume. |
 | `apps/api/src/__tests__/e2e_map/v2_map.test.ts` | V2 map E2E tests. | V2 map tests require structured `web` rows with title/description metadata, backwards-compatible links, transformed sitemap flags, search query echoing, and explicit timeout failure. |
 | `apps/api/src/__tests__/e2e_extract/index.test.ts` | Extract E2E behavior tests. | Extraction quality is checked against known facts across sites, wildcard scopes, external links, schemas/no-schema output, waitFor dynamic content, and malformed UUID rejection for status handles. |
+| `apps/api/src/__tests__/e2e_withAuth/index.test.ts` | Legacy authenticated API E2E suite. | V0 live tests treat retrieval success as content plus markdown plus metadata, classify HTTP page errors as page evidence, verify PDF text with and without extension hints, and preserve partial crawl data after cancellation. |
+| `apps/api/src/__tests__/e2e_full_withAuth/index.test.ts` | Broad authenticated API E2E suite. | Full-path tests add unsupported-site typing, idempotency conflicts, raw-vs-rendered artifact lanes, relative depth semantics, external-link discovery controls, raw-HTML extraction, fast crawl bounds, and preview rate-limit behavior. |
+| `apps/api/src/__tests__/e2e_v1_withAuth_all_params/index.test.ts` | V1 scrape all-params E2E suite. | Parameter coverage is proven by content deltas: formats include/exclude fields, headers echo into page evidence, include/exclude tags change markdown, mobile/wait/actions alter observed content, and screenshots/actions return typed artifacts. |
+| `apps/api/src/__tests__/e2e_v1_withAuth/index.test.ts` | V1 authenticated API E2E suite. | V1 tests reinforce current artifact contracts: metadata-rich arXiv evidence, map search/subdomain discovery, crawl include/exclude/depth scopes, invalid handle failures, and status responses that keep terminal data separate from control handles. |
 | `apps/api/src/services/rate-limiter.ts` | Rate limiter service. | Per-capability limits are declared by mode with Redis-backed one-minute windows; search/scrape get minimum floors so critical retrieval primitives are not starved by low plan defaults. |
 | `apps/api/src/services/rate-limiter.test.ts` | Historical rate-limit tests. | The file is commented out and should not be treated as proof, but it records expected rate-limit checks across crawl/scrape/search/status/preview/account modes and reset behavior. |
 | `apps/api/src/lib/cost-tracking.ts` | Cost tracking helper. | LLM/tool cost accounting records typed calls, model, metadata, token counts, call stack, NaN-safe totals, and a fail-fast limit exception. |
@@ -1112,10 +1116,19 @@
 164. Dependency/security exception scope: audit allowlists and dependency overrides belong to package governance, not tool behavior or synthesis fallback. Ledger captured; candidate packaging guard.
 165. Status-stream projection boundary: watcher examples are useful proof of real-time projection, but snapshots/documents/done events still need evidence conversion before final answer synthesis. Ledger captured; candidate Shell Socket/evidence bridge.
 166. Legacy method quarantine: feature-frozen v1 method names should remain compatibility surface and not leak into new workflow CDs or tool key selection. Ledger captured; candidate gate-3 stability guard.
+167. Page-error evidence, not transport failure: 4xx/5xx page statuses can still produce useful content/metadata artifacts, so retrieval should distinguish page evidence quality from adapter/request failure. Ledger captured; candidate evidence-quality classifier.
+168. Unsupported-site typing: policy/permission denials should be explicit terminal tool failures, not low-signal evidence. Ledger reinforced; candidate hard-vs-soft failure guard.
+169. Idempotency conflict contract: duplicate admitted retrieval starts should return a typed conflict before duplicate work begins. Ledger reinforced; candidate async job admission invariant.
+170. Parameter-delta quality tests: request options should be proven by observable output deltas, not only schema acceptance. Ledger captured; candidate Tool CD eval rule.
+171. Map-before-crawl discovery lane: URL discovery with search/subdomain/sitemap controls is a separate primitive from page extraction and should feed ranked candidate sets before crawl/scrape. Ledger reinforced; candidate research CD primitive split.
+172. Artifact-lane separation: markdown, html, rawHtml, links, screenshots, actions, and extraction artifacts are selectable evidence facets; final synthesis should consume them without forcing a response format. Ledger reinforced; candidate evidence-pack facet policy.
+173. Relative scope budgets: crawl max-depth, include/exclude paths, external links, and backward crawling are scope controls that bound candidate expansion before cost is spent. Ledger captured; candidate retrieval-planning budget policy.
+174. Fast-path result bounds: fast crawl modes should still assert minimum/maximum candidate counts and content-bearing artifacts, keeping speed optimizations quality-aware. Ledger captured; candidate performance/evidence tradeoff guard.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
+- API E2E breadth suites for authenticated v0/v1/all-params paths are parsed; remaining API tests are now narrower snips/helpers/control-plane slices.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
