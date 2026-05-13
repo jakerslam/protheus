@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 309
-- Not parsed: 969
+- Parsed: 314
+- Not parsed: 964
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -332,6 +332,11 @@
 | `apps/api/src/scraper/scrapeURL/transformers/agent.ts` | Smart interaction transformer. | Agent/interactive transformation is zero-retention gated, cost-limit aware, and only rewrites markdown/html artifacts when the requested formats need them. |
 | `apps/api/src/scraper/scrapeURL/transformers/llmExtract.test.ts` | LLM extraction transformer tests. | Tests cover schema cleanup, token-limit trimming with warnings/fallbacks, empty-summary warnings, and skipping clean-content generation when input exceeds model output budget. |
 | `apps/api/src/scraper/scrapeURL/transformers/uploadScreenshot.ts` | Screenshot upload transformer. | Inline screenshot data URLs are converted to stored media refs when database-backed storage is enabled. |
+| `apps/api/src/scraper/scrapeURL/scrapeURL.test.ts` | Standalone scrapeURL suite. | The scrape core is tested across engine choices for status-code evidence, redirects preserving source/final URLs, screenshots as stored refs, PDF/DOCX/XLSX document extraction, schema extraction, high concurrency, and sitemap raw-HTML behavior without markdown conversion. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/firePDF.test.ts` | PDF page-count reconcile tests. | Secondary PDF processors may fill missing page counts but should never shrink an already-established upstream page count. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/isPdfBuffer.test.ts` | PDF magic detection tests. | PDF detection should look for `%PDF` within a bounded initial window, tolerate BOM/whitespace/junk prefixes, and reject HTML/JSON/plain-text error bodies. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/markdownToHtml.test.ts` | PDF markdown-to-HTML safety tests. | Markdown conversion for PDF fallbacks should tolerate deep/large inputs and fall back to escaped `<pre>` HTML with logged diagnostics if parsing fails. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/shadowComparison.test.ts` | PDF extractor comparison tests. | PDF quality comparison can score length ratio, numeric preservation, table count, and overall verdicts to classify extraction quality. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -435,6 +440,9 @@
 - External artifact generation should honor privacy and cache boundaries before touching the source URL or forwarding cookies; lockdown and zero-retention are upstream gates, not post-hoc warnings.
 - Oversized LLM transformation inputs should become preserved original evidence plus hidden warnings, not empty outputs or forced truncation without provenance.
 - Large inline artifacts should be converted into refs before evidence packaging so synthesis receives stable artifact references rather than bulky raw payloads.
+- Core scrape tests should treat non-2xx status pages as successful retrieval artifacts when the server response itself is evidence; status code and error metadata calibrate synthesis rather than causing silent drops.
+- Document extraction quality needs measurable comparisons, not just non-empty text: page count reconciliation, magic-byte validation, table/number preservation, and safe HTML fallback all improve trust in evidence artifacts.
+- Sitemap/XML and other machine-readable sources should keep requested raw forms when markdown conversion would distort the artifact.
 
 ## Candidate Assimilation Targets
 
@@ -474,6 +482,7 @@
 34. Scheduled retrieval/change tracking primitive: model monitors as due-work claims, overlap/stale handling, durable per-page states, out-of-band diff artifacts, and bounded summary/page projections. Ledger captured; candidate future workflow-memory/monitoring CD.
 35. Async completion reconciliation primitive: track expected job IDs, durable page refs, crawl completion/removal state, stale checks, and terminal resource release so long-running retrieval can recover after partial queue/status failure. Ledger captured; candidate runtime/eval harness target.
 36. Artifact transformer lane contract: make page postprocessors/transformers idempotent, request-gated, privacy-gated, context-budget-aware, and ref-producing for bulky artifacts. Ledger captured; compare against current evidence-pack transformation layer.
+37. Document extraction quality metrics: attach page-count confidence, magic-byte validation, table/number preservation, length-ratio verdicts, and safe conversion fallback metadata to document evidence. Ledger captured; candidate evidence-pack quality refinement.
 
 ## Remaining Work
 
