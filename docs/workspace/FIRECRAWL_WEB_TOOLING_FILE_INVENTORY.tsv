@@ -1159,8 +1159,8 @@ apps/ui/ingestion-ui/tsconfig.json	apps	not_parsed	pending_review
 apps/ui/ingestion-ui/tsconfig.node.json	apps	not_parsed	pending_review	
 apps/ui/ingestion-ui/vite.config.ts	apps	not_parsed	pending_review	
 docker-compose.yaml	docker-compose.yaml	not_parsed	pending_review	
-examples/R1_company_researcher/r1_company_researcher.py	examples	not_parsed	pending_review	
-examples/R1_web_crawler/R1_web_crawler.py	examples	not_parsed	pending_review	
+examples/R1_company_researcher/r1_company_researcher.py	examples	parsed	r1_company_researcher_example	serp_discovery_model_url_selection_firecrawl_extract_async_polling_and_json_fallbacks
+examples/R1_web_crawler/R1_web_crawler.py	examples	parsed	r1_web_crawler_example	serp_discovery_model_url_selection_firecrawl_extract_short_polling_budget_and_json_fallbacks
 examples/aginews-ai-newsletter/README.md	examples	not_parsed	pending_review	
 examples/ai-podcast-generator/README.md	examples	not_parsed	pending_review	
 examples/attributes-extraction-js-sdk.js	examples	not_parsed	pending_review	
@@ -1211,10 +1211,10 @@ examples/claude3.7-web-extractor/claude-3.7-web-extractor.py	examples	not_parsed
 examples/claude_stock_analyzer/claude_stock_analyzer.py	examples	not_parsed	pending_review	
 examples/contradiction_testing/web-data-contradiction-testing-using-llms.mdx	examples	not_parsed	pending_review	
 examples/crm_lead_enrichment/crm_lead_enrichment.py	examples	not_parsed	pending_review	
-examples/deep-research-apartment-finder/.env.example	examples	not_parsed	pending_review	
-examples/deep-research-apartment-finder/README.md	examples	not_parsed	pending_review	
-examples/deep-research-apartment-finder/apartment_finder.py	examples	not_parsed	pending_review	
-examples/deep-research-apartment-finder/requirements.txt	examples	not_parsed	pending_review	
+examples/deep-research-apartment-finder/.env.example	examples	parsed	apartment_finder_env_example	explicit_firecrawl_and_anthropic_capability_keys
+examples/deep-research-apartment-finder/README.md	examples	parsed	apartment_finder_readme	preference_collection_deep_research_analysis_and_json_save_flow
+examples/deep-research-apartment-finder/apartment_finder.py	examples	parsed	apartment_finder_example	query_from_constraints_bounded_deep_research_activity_callbacks_source_slice_json_parse_and_fallback_results
+examples/deep-research-apartment-finder/requirements.txt	examples	parsed	apartment_finder_dependencies	anthropic_firecrawl_and_dotenv_example_dependencies_only
 examples/deepseek-v3-company-researcher/.gitignore	examples	not_parsed	pending_review	
 examples/deepseek-v3-company-researcher/README.md	examples	not_parsed	pending_review	
 examples/deepseek-v3-company-researcher/deepseek-v3-extract.py	examples	not_parsed	pending_review	
@@ -1241,16 +1241,16 @@ examples/gemini-2.5-web-extractor/README.md	examples	not_parsed	pending_review
 examples/gemini-2.5-web-extractor/gemini-2.5-web-extractor.py	examples	not_parsed	pending_review	
 examples/gemini-2.5-web-extractor/requirements.txt	examples	not_parsed	pending_review	
 examples/gemini-github-analyzer/gemini-github-analyzer.py	examples	not_parsed	pending_review	
-examples/gpt-4.1-company-researcher/.env.example	examples	not_parsed	pending_review	
-examples/gpt-4.1-company-researcher/.gitignore	examples	not_parsed	pending_review	
-examples/gpt-4.1-company-researcher/README.md	examples	not_parsed	pending_review	
-examples/gpt-4.1-company-researcher/gpt-4.1-company-researcher.py	examples	not_parsed	pending_review	
-examples/gpt-4.1-company-researcher/requirements.txt	examples	not_parsed	pending_review	
-examples/gpt-4.1-web-crawler/.env.example	examples	not_parsed	pending_review	
-examples/gpt-4.1-web-crawler/.gitignore	examples	not_parsed	pending_review	
-examples/gpt-4.1-web-crawler/README.md	examples	not_parsed	pending_review	
-examples/gpt-4.1-web-crawler/gpt-4.1-web-crawler.py	examples	not_parsed	pending_review	
-examples/gpt-4.1-web-crawler/requirements.txt	examples	not_parsed	pending_review	
+examples/gpt-4.1-company-researcher/.env.example	examples	parsed	gpt_company_researcher_env_example	explicit_openai_firecrawl_and_serpapi_capability_keys
+examples/gpt-4.1-company-researcher/.gitignore	examples	parsed	gpt_company_researcher_ignore	python_env_build_cache_log_notebook_and_tool_output_exclusions
+examples/gpt-4.1-company-researcher/README.md	examples	parsed	gpt_company_researcher_readme	search_url_selection_firecrawl_extract_dedupe_consolidation_and_json_output_sequence
+examples/gpt-4.1-company-researcher/gpt-4.1-company-researcher.py	examples	parsed	gpt_company_researcher_example	fallback_search_url_cap_source_bound_extract_async_poll_dedupe_and_consolidation
+examples/gpt-4.1-company-researcher/requirements.txt	examples	parsed	gpt_company_researcher_dependencies	requests_serpapi_openai_dotenv_and_firecrawl_example_dependencies_only
+examples/gpt-4.1-web-crawler/.env.example	examples	parsed	gpt_web_crawler_env_example	explicit_firecrawl_and_openai_capability_keys
+examples/gpt-4.1-web-crawler/.gitignore	examples	parsed	gpt_web_crawler_ignore	python_cache_env_build_log_ide_and_os_file_exclusions
+examples/gpt-4.1-web-crawler/README.md	examples	parsed	gpt_web_crawler_readme	map_rank_scrape_analyze_and_structured_json_output_phases
+examples/gpt-4.1-web-crawler/gpt-4.1-web-crawler.py	examples	parsed	gpt_web_crawler_example	objective_to_map_search_query_url_ranking_top_page_scrape_and_objective_satisfaction_loop
+examples/gpt-4.1-web-crawler/requirements.txt	examples	parsed	gpt_web_crawler_dependencies	firecrawl_openai_and_dotenv_example_dependencies_only
 examples/gpt-4.5-web-crawler/gpt-4.5-crawler.py	examples	not_parsed	pending_review	
 examples/grok_web_crawler/grok_web_crawler.py	examples	not_parsed	pending_review	
 examples/groq_web_crawler/groq_website_analyzer.py	examples	not_parsed	pending_review	

@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 782
-- Not parsed: 492
+- Parsed: 798
+- Not parsed: 476
 - Skipped generated: 12
 - Skipped media or sample: 71
 
@@ -420,6 +420,22 @@
 | `apps/test-site/src/pages/robots.txt.ts` | Test-site robots route. | Robots fixture allows all crawling and points to sitemap, useful for robots/sitemap planner tests. |
 | `apps/test-site/src/styles/global.css` | Test-site global styles. | Fixture styles define hidden accessibility text, fonts, tables, code, blockquotes, and responsive layout for DOM/metadata extraction tests. |
 | `apps/test-site/tsconfig.json` | Test-site TypeScript config. | Strict Astro config keeps fixture build behavior deterministic. |
+| `examples/R1_company_researcher/r1_company_researcher.py` | R1 company research example. | Example composes SERP discovery, model URL selection, Firecrawl extraction, async polling, and JSON parsing fallbacks, but its prompt/domain/model choices are example-only. |
+| `examples/R1_web_crawler/R1_web_crawler.py` | R1 web crawler example. | Example repeats URL selection plus extract polling with a shorter polling budget, reinforcing the same discovery-to-extract composition. |
+| `examples/gpt-4.1-company-researcher/.env.example` | GPT company researcher env example. | Capability inputs are explicit OpenAI, Firecrawl, and SerpAPI keys. |
+| `examples/gpt-4.1-company-researcher/.gitignore` | GPT company researcher ignore rules. | Local Python build, env, cache, logs, notebooks, and tool output are excluded. |
+| `examples/gpt-4.1-company-researcher/README.md` | GPT company researcher README. | Example documents search, URL selection, Firecrawl extraction, dedupe, consolidation, and JSON output as a practical research sequence. |
+| `examples/gpt-4.1-company-researcher/gpt-4.1-company-researcher.py` | GPT company researcher implementation. | Example searches with fallback queries, selects up to three URLs, disables web search during source-bound extraction, polls async results, dedupes repeated items, and consolidates lower-quality entries. |
+| `examples/gpt-4.1-company-researcher/requirements.txt` | GPT company researcher dependencies. | Example depends on requests, SerpAPI, OpenAI, dotenv, and Firecrawl; dependency choices are not a runtime target. |
+| `examples/gpt-4.1-web-crawler/.env.example` | GPT web crawler env example. | Capability inputs are explicit Firecrawl and OpenAI keys. |
+| `examples/gpt-4.1-web-crawler/.gitignore` | GPT web crawler ignore rules. | Python cache/env/build/log/IDE files are excluded. |
+| `examples/gpt-4.1-web-crawler/README.md` | GPT web crawler README. | Example describes map, rank, scrape/analyze, and structured JSON output as separate phases. |
+| `examples/gpt-4.1-web-crawler/gpt-4.1-web-crawler.py` | GPT web crawler implementation. | Example derives a short map-search query from the objective, maps a website, ranks URLs, scrapes top pages, and stops once evidence satisfies the objective. |
+| `examples/gpt-4.1-web-crawler/requirements.txt` | GPT web crawler dependencies. | Example depends on Firecrawl, OpenAI, and dotenv only. |
+| `examples/deep-research-apartment-finder/.env.example` | Apartment finder env example. | Capability inputs are explicit Firecrawl and Anthropic keys. |
+| `examples/deep-research-apartment-finder/README.md` | Apartment finder README. | Example documents user preference collection, deep research, analysis, and optional JSON saving for a domain-specific task. |
+| `examples/deep-research-apartment-finder/apartment_finder.py` | Apartment finder implementation. | Example builds a query from user constraints, runs bounded deep research with activity callbacks, limits sources before LLM analysis, parses JSON, and emits fallback structured results when source quality is insufficient. |
+| `examples/deep-research-apartment-finder/requirements.txt` | Apartment finder dependencies. | Example depends on Anthropic, Firecrawl, and dotenv; dependency choices are not a runtime target. |
 | `apps/api/src/__tests__/e2e_map/index.test.ts` | V1 map E2E tests. | Map quality tests check search-filtered links, subdomain inclusion, sitemap-only exclusion, limit enforcement, and large sitemap discovery volume. |
 | `apps/api/src/__tests__/e2e_map/v2_map.test.ts` | V2 map E2E tests. | V2 map tests require structured `web` rows with title/description metadata, backwards-compatible links, transformed sitemap flags, search query echoing, and explicit timeout failure. |
 | `apps/api/src/__tests__/e2e_extract/index.test.ts` | Extract E2E behavior tests. | Extraction quality is checked against known facts across sites, wildcard scopes, external links, schemas/no-schema output, waitFor dynamic content, and malformed UUID rejection for status handles. |
@@ -1196,6 +1212,12 @@
 186. Unicode fixture coverage: multilingual and symbol-heavy content should be part of retrieval evals so parser/search/evidence layers preserve non-ASCII content. Ledger captured; candidate cross-domain quality guard.
 187. Code-fence regression fixture: inline code containing backticks and table-like code blocks should be in parser evals to prevent markdown escaping regressions. Ledger captured; candidate markdown parser test.
 188. Adaptive research is a workflow property: research-agent examples support adaptive follow-up after observation, but examples remain non-authoritative and should inform CD policy rather than hardcoded paths. Ledger reinforced; candidate research CD design note.
+189. Discovery-selection-extraction sequence: practical research examples split SERP/map discovery, source selection/ranking, extraction, and final consolidation into separate phases. Ledger reinforced; candidate research CD phase model.
+190. Source-bound extraction mode: once sources are chosen, extraction can disable additional web search to preserve provenance and prevent untracked evidence drift. Ledger captured; candidate synthesis/evidence contract option.
+191. Bounded source fan-in: examples cap selected URLs or source slices before LLM analysis; this should become a budgeted evidence-pack setting, not prompt prose. Ledger reinforced; candidate evidence-pack budget.
+192. Post-extraction dedupe/consolidation: extracted structured data needs duplicate removal and quality consolidation before final synthesis. Ledger captured; candidate evidence normalizer.
+193. Activity callbacks as observability: deep research examples surface search/scrape/analyze activities separately from final answers. Ledger reinforced; candidate Shell Socket/tool-status projection.
+194. Example prompt/model quarantine: examples contain useful composition patterns but hardcoded model IDs, company/apartment-specific prompts, and output templates should not be copied into user-facing workflow CDs. Ledger reinforced; candidate anti-hardcoding guard.
 
 ## Remaining Work
 
@@ -1203,6 +1225,7 @@
 - API E2E breadth suites for authenticated v0/v1/all-params paths are parsed; remaining API tests are now narrower snips/helpers/control-plane slices.
 - Standalone rendered-fetch and HTML-to-Markdown service primitives are parsed; remaining deployment YAML can be treated as lower-priority unless operational wiring becomes relevant.
 - Test-site text fixtures and routes are parsed; binary font fixtures are marked skipped.
+- First high-signal research/crawler examples are parsed; remaining examples should be sampled for new composition patterns, not repeated model-specific syntax.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
