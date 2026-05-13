@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 182
-- Not parsed: 1096
+- Parsed: 193
+- Not parsed: 1085
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -158,6 +158,17 @@
 | `apps/api/src/scraper/scrapeURL/engines/pdf/shadowComparison.ts` | PDF extractor quality probe. | Extractor comparisons use generic completeness signals such as length ratio, number preservation, and table counts rather than topic-specific labels. |
 | `apps/api/src/scraper/scrapeURL/engines/pdf/markdownToHtml.ts` | Markdown-to-HTML safety fallback. | Markdown conversion should degrade to escaped preformatted text on parser failure instead of dropping extracted content. |
 | `apps/api/src/scraper/scrapeURL/engines/pdf/types.ts` | PDF processor metadata contract. | Processor metadata distinguishes pages processed from total page count and treats missing processor counts as no signal rather than zero. |
+| `apps/api/src/scraper/crawler/sitemap.ts` | Sitemap scrape utility. | Sitemap fetches use forced low-JS engines, gzip handling, structured sitemap processing, and explicit user-facing error categories while keeping status diagnostics internal. |
+| `apps/api/src/scraper/WebScraper/utils/ENGINE_FORCING.md` | Engine override documentation. | Explicit policy overrides can force a single engine or ordered fallback list by domain/wildcard, but must yield to already supplied internal force-engine choices. |
+| `apps/api/src/scraper/WebScraper/utils/__tests__/engine-forcing.test.ts` | Engine override tests. | Override matching is case-insensitive, supports exact domains/subdomains/wildcards, handles arrays, and ignores invalid URLs/config gracefully. |
+| `apps/api/src/scraper/WebScraper/utils/__tests__/maxDepthUtils.test.ts` | Depth utility tests. | Crawl depth budgets are root-relative and adjustable by starting path depth. |
+| `apps/api/src/scraper/WebScraper/__tests__/utils.test.ts` | Section/hash route tests. | Plain hash anchors should be deduped, while hash routes that look like app paths should remain crawlable. |
+| `apps/api/src/scraper/scrapeURL/lib/abortManager.ts` | Tiered abort manager. | Retrieval timeouts are separated into external, scrape, and engine tiers and mapped into a single abort signal carrying tier-specific failure context. |
+| `apps/api/src/scraper/scrapeURL/lib/mock.ts` | Deterministic mock replay. | Mock capture/replay uses ordered request matching and guarded fixture paths as a test harness, not runtime evidence. |
+| `apps/api/src/scraper/scrapeURL/lib/__tests__/extractLinks.test.ts` | Link extraction tests. | Link extraction must resolve relative URLs through `<base href>` and page URL fallback while preserving external absolute links. |
+| `apps/api/src/scraper/scrapeURL/lib/__tests__/extractImages.test.ts` | Image extraction tests. | Image extraction should include lazy images, srcset, picture/source, metadata, icons, backgrounds, video posters, protocol-relative URLs, and dedupe invalid candidates. |
+| `apps/api/src/scraper/scrapeURL/lib/__tests__/rewriteUrl.test.ts` | URL rewrite tests. | Document-host rewrites should preserve public-published URLs, preserve sheet tab hints, and only rewrite known processible document/share forms. |
+| `apps/api/src/scraper/scrapeURL/__tests__/shouldCheckRobots.test.ts` | Robots policy tests. | Robots checks must stay policy-controlled and remain disabled for lockdown paths. |
 | `apps/api/src/lib/browser-sessions.ts` | Browser session state helpers. | Session rows track TTL, owner, status, CDP/view handles, prompt-use flags, cached active counts, and idempotent destroyed-state claiming. |
 | `apps/api/src/lib/browser-session-activity.ts` | Browser activity batching. | Browser execution telemetry is queued and batch-inserted as internal activity records instead of becoming retrieval evidence. |
 | `apps/api/src/lib/scrape-interact/browser-service-client.ts` | Browser service client. | Browser service calls are behind a narrow typed adapter that throws typed non-2xx errors and keeps service URLs/headers internal. |
@@ -271,6 +282,8 @@
 - Page-local query/highlight answers are useful evidence artifacts but are not cross-source synthesis. They must use only retrieved page content and treat external page text as untrusted data.
 - Retrieval engine choice should be a capability-scored ladder over evidence needs, budgets, content type, privacy, and failure state. Engine/provider identity is hidden diagnostic context, not a user-visible answer shape or domain route.
 - Specialty source engines are optional source-class lanes for artifacts that generic fetch/search often handles poorly; their availability should improve evidence quality but not become required for general research.
+- Transport lifecycle is part of retrieval quality: request ids, bounded retries, schema validation, tiered aborts, sanitized logs, and deterministic mock replay should support evidence diagnosis without becoming citable evidence.
+- URL/link/image normalization should happen before budget is spent: processible document rewrites, base-href resolution, hash-anchor dedupe, hash-route preservation, and media candidate dedupe all improve candidate quality without domain-specific research rules.
 
 ## Candidate Assimilation Targets
 
@@ -292,6 +305,7 @@
 16. Dynamic interaction lane: use bounded browser sessions only when static/reader/rendered retrieval is insufficient, replay retained context safely, run snapshot/action loops with step and timeout limits, and expose only extracted evidence refs. Implemented CD-level policy update; runtime execution remains future work.
 17. Page artifact transformation stack: run format-gated transformation after fetch/read to produce evidence-ready variants, page-local answers/highlights, structured attributes, change summaries, and specialty normalized content while pruning raw fields before projection. Implemented CD-level policy update; runtime execution remains future work.
 18. Capability-scored engine ladder: choose index/static/rendered/dynamic/document/PDF/source-specialty engines from requested artifacts, content type, source class, privacy, and failure state; poll/cleanup remote jobs and retain only hidden engine diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
+19. Transport and normalization lifecycle: carry request IDs, schema validation, tiered aborts, safe logging, deterministic mock replay, document-share rewrites, base-href media resolution, and hash-anchor/hash-route handling into hidden retrieval diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
 
 ## Remaining Work
 

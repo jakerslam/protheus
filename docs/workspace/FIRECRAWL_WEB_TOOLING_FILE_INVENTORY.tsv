@@ -404,19 +404,19 @@ apps/api/src/routes/v1.ts	apps	not_parsed	pending_review
 apps/api/src/routes/v2.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/WebScraper/__tests__/crawler.test.ts	apps	parsed	webcrawler_unit_tests	limit_enforcement_subdomain_path_full_url_regex_filtering
 apps/api/src/scraper/WebScraper/__tests__/dns.test.ts	apps	parsed	dns_cache_test	cached_dns_lookup_installed_at_transport_boundary
-apps/api/src/scraper/WebScraper/__tests__/utils.test.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/WebScraper/__tests__/utils.test.ts	apps	parsed	section_hash_route_tests	hash_anchor_dedupe_hash_route_preservation_application_path_detection
 apps/api/src/scraper/WebScraper/crawler.ts	apps	parsed	crawl_candidate_filtering	link_filters_before_budget_domain_depth_include_exclude_robots_sitemap_dedupe_iframe_link_fallback
 apps/api/src/scraper/WebScraper/sitemap.ts	apps	parsed	sitemap_discovery_pipeline	recursive_sitemap_hit_cap_gzip_support_xml_fallback_file_filter_urls_handler
-apps/api/src/scraper/WebScraper/utils/ENGINE_FORCING.md	apps	not_parsed	pending_review	
-apps/api/src/scraper/WebScraper/utils/__tests__/engine-forcing.test.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/WebScraper/utils/__tests__/maxDepthUtils.test.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/WebScraper/utils/ENGINE_FORCING.md	apps	parsed	engine_override_documentation	explicit_domain_wildcard_ordered_engine_fallback_override_precedence_and_invalid_config_handling
+apps/api/src/scraper/WebScraper/utils/__tests__/engine-forcing.test.ts	apps	parsed	engine_override_tests	case_insensitive_exact_subdomain_wildcard_array_invalid_url_and_config_handling
+apps/api/src/scraper/WebScraper/utils/__tests__/maxDepthUtils.test.ts	apps	parsed	depth_utility_tests	root_relative_depth_adjustment_from_seed_path
 apps/api/src/scraper/WebScraper/utils/blocklist.ts	apps	parsed	blocklist_policy	domain_subdomain_related_tld_blocking_allowed_keyword_regex_exemptions
 apps/api/src/scraper/WebScraper/utils/engine-forcing.ts	apps	parsed	engine_forcing_policy	domain_wildcard_engine_override_from_env_policy
 apps/api/src/scraper/WebScraper/utils/maxDepthUtils.ts	apps	parsed	crawl_depth_utility	relative_depth_budget_ignores_index_pages
-apps/api/src/scraper/crawler/sitemap.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/crawler/sitemap.ts	apps	parsed	sitemap_scrape_utility	forced_low_js_engine_order_gzip_structured_sitemap_processing_explicit_error_categories
 apps/api/src/scraper/scrapeURL/.gitignore	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/README.md	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/__tests__/shouldCheckRobots.test.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/__tests__/shouldCheckRobots.test.ts	apps	parsed	robots_policy_tests	lockdown_disables_robots_check_team_flag_controls_normal_scrape_robot_probe
 apps/api/src/scraper/scrapeURL/engines/document/index.ts	apps	parsed	document_engine	content_type_or_extension_document_detection_tempfile_cleanup_docx_doc_xlsx_odt_rtf_to_html
 apps/api/src/scraper/scrapeURL/engines/fetch/index.ts	apps	parsed	plain_fetch_engine	secure_dispatcher_charset_detection_meta_charset_specialty_check_status_content_type
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/brand-utils.ts	apps	not_parsed	pending_review	
@@ -456,10 +456,10 @@ apps/api/src/scraper/scrapeURL/engines/wikipedia/index.ts	apps	parsed	authoritat
 apps/api/src/scraper/scrapeURL/engines/x-twitter/index.ts	apps	parsed	social_source_specialty_engine	normalized_profile_post_url_parsing_structured_schema_safe_markdown_html_source_artifact
 apps/api/src/scraper/scrapeURL/error.ts	apps	parsed	typed_scrape_error_taxonomy	distinguishes unsupported binary, cache miss, lockdown, ZDR, PDF OCR/time, document/PDF antibot, retry limits
 apps/api/src/scraper/scrapeURL/index.ts	apps	parsed	scrape_pipeline_entrypoint	feature_flags_engine_waterfall_prefetch_robots_transformers_postprocessors
-apps/api/src/scraper/scrapeURL/lib/__tests__/extractImages.test.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/lib/__tests__/extractLinks.test.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/lib/__tests__/rewriteUrl.test.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/lib/abortManager.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/lib/__tests__/extractImages.test.ts	apps	parsed	image_extraction_tests	lazy_srcset_picture_meta_icon_background_video_poster_protocol_relative_data_uri_base_href_dedupe_invalid_scheme
+apps/api/src/scraper/scrapeURL/lib/__tests__/extractLinks.test.ts	apps	parsed	link_extraction_tests	base_href_absolute_relative_resolution_external_link_preservation_page_url_fallback
+apps/api/src/scraper/scrapeURL/lib/__tests__/rewriteUrl.test.ts	apps	parsed	url_rewrite_tests	document_share_export_rewrite_published_url_preservation_sheet_gid_preservation_download_rewrite
+apps/api/src/scraper/scrapeURL/lib/abortManager.ts	apps	parsed	tiered_abort_manager	external_scrape_engine_abort_tiers_mapped_signal_timeout_remaining_and_dispose
 apps/api/src/scraper/scrapeURL/lib/cacheableLookup.ts	apps	parsed	dns_lookup_cache	dev_bypass_transport_level_cacheable_lookup
 apps/api/src/scraper/scrapeURL/lib/extractAttributes.ts	apps	parsed	attribute_extraction	rust_fast_path_cheerio_fallback_selector_attribute_arrays
 apps/api/src/scraper/scrapeURL/lib/extractImages.ts	apps	parsed	image_extraction	html_base_href_resolution_srcset_meta_icon_background_poster_url_hygiene
@@ -467,7 +467,7 @@ apps/api/src/scraper/scrapeURL/lib/extractLinks.ts	apps	parsed	link_extraction	r
 apps/api/src/scraper/scrapeURL/lib/extractMetadata.ts	apps	parsed	metadata_extraction	rust_fast_path_cheerio_fallback_title_description_favicon_lang_keywords_robots_og_dc_article_meta
 apps/api/src/scraper/scrapeURL/lib/extractSmartScrape.ts	apps	parsed	interactive_extraction_decider	schema_wrapping_ref_resolution_missing_data_agent_escalation_cost_budget
 apps/api/src/scraper/scrapeURL/lib/fetch.ts	apps	parsed	robust_fetch_wrapper	retry_status_schema_validation_abort_cacheable_dns_mock_recording_sensitive_body_log_redaction
-apps/api/src/scraper/scrapeURL/lib/mock.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/lib/mock.ts	apps	parsed	deterministic_mock_replay	guarded_fixture_path_ordered_request_matching_tracker_optional_capture_not_runtime_evidence
 apps/api/src/scraper/scrapeURL/lib/removeUnwantedElements.ts	apps	parsed	html_cleanup_transform	rust_transform_fallback_include_exclude_tags_main_content_noise_removal_absolute_links_srcset_largest_image
 apps/api/src/scraper/scrapeURL/lib/rewriteUrl.ts	apps	parsed	url_rewrite_exports	document_host_export_rewrites_for_processible_html_or_download_artifacts
 apps/api/src/scraper/scrapeURL/lib/smartScrape.ts	apps	parsed	interactive_scrape_adapter	validated_agent_endpoint_cost_tracking_error_mapping

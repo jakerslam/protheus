@@ -755,7 +755,8 @@
           "cache_or_index_eligibility",
           "freshness_requirement",
           "transport_or_render_failure_state",
-          "remaining_time_budget"
+          "remaining_time_budget",
+          "explicit_policy_override"
         ],
         "capability_classes": [
           "index_read",
@@ -1139,6 +1140,37 @@
         "do_not_expose_credentials_or_raw_provider_errors_to_chat",
         "do_not_treat_protocol_success_as_evidence_usefulness",
         "do_not_require_provider_specific_routes"
+      ]
+    },
+    "transport_and_normalization_lifecycle": {
+      "enabled": true,
+      "source_patterns": [
+        "firecrawl_tiered_abort_transport_schema_validation",
+        "firecrawl_processible_url_export_rewrite",
+        "firecrawl_link_image_base_resolution"
+      ],
+      "purpose": "Make network reads and page normalization deterministic enough for evidence packaging without exposing transport details as final answer content.",
+      "transport_rules": [
+        "carry_request_id_across_retries",
+        "validate_structured_provider_responses_against_declared_schema_when_available",
+        "retry_only_within_declared_attempt_and_cooldown_budget",
+        "scrub_large_binary_or_document_payload_fields_from_logs",
+        "separate_external_scrape_and_engine_abort_tiers",
+        "map_abort_tier_to_internal_status_for_recovery_or_gap_reporting",
+        "keep_mock_replay_state_as_test_harness_not_runtime_evidence"
+      ],
+      "normalization_rules": [
+        "rewrite_known_document_share_urls_to_processible_export_or_download_forms_when_policy_allows",
+        "preserve_published_public_html_forms_when_already_processible",
+        "resolve_links_images_and_media_candidates_against_base_href_and_page_url",
+        "preserve_useful_srcset_meta_icon_background_and_poster_image_candidates",
+        "dedupe_resolved_links_and_images_before_fetch_budget",
+        "treat_single_section_hashes_as_duplicate_page_anchors_but_allow_hash_routes_when_they_look_like_application_paths"
+      ],
+      "non_goals": [
+        "do_not_make_transport_errors_final_answer_text",
+        "do_not_hardcode_research_domains",
+        "do_not_store_raw_binary_payloads_in_chat_visible_state"
       ]
     },
     "adaptive_sufficiency": {
