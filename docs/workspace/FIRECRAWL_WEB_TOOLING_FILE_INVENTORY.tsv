@@ -1158,7 +1158,7 @@ apps/ui/ingestion-ui/tsconfig.app.json	apps	parsed	ts_strict_config_only	present
 apps/ui/ingestion-ui/tsconfig.json	apps	parsed	ts_project_config_only	presentation_quality_control
 apps/ui/ingestion-ui/tsconfig.node.json	apps	parsed	ts_node_config_only	presentation_quality_control
 apps/ui/ingestion-ui/vite.config.ts	apps	parsed	vite_alias_config_only	presentation_only_surface
-docker-compose.yaml	docker-compose.yaml	not_parsed	pending_review	
+docker-compose.yaml	docker-compose.yaml	parsed	local_service_stack	api_worker_renderer_queue_resource_and_log_bounds
 examples/R1_company_researcher/r1_company_researcher.py	examples	parsed	r1_company_researcher_example	serp_discovery_model_url_selection_firecrawl_extract_async_polling_and_json_fallbacks
 examples/R1_web_crawler/R1_web_crawler.py	examples	parsed	r1_web_crawler_example	serp_discovery_model_url_selection_firecrawl_extract_short_polling_budget_and_json_fallbacks
 examples/aginews-ai-newsletter/README.md	examples	parsed	aginews_newsletter_readme	external_recurring_newsletter_workflow_pointer_only
@@ -1175,7 +1175,7 @@ examples/blog-articles/amazon-price-tracking/amazon-price-tracking-images/new-se
 examples/blog-articles/amazon-price-tracking/amazon-price-tracking-images/sneak-peek.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/amazon-price-tracking/amazon-price-tracking-images/supabase_connect.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/amazon-price-tracking/amazon-price-tracking-images/webhook.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
-examples/blog-articles/amazon-price-tracking/notebook.ipynb	examples	not_parsed	pending_review	
+examples/blog-articles/amazon-price-tracking/notebook.ipynb	examples	parsed	price_tracking_article_notebook	recurring_schema_extraction_history_threshold_notifications
 examples/blog-articles/amazon-price-tracking/notebook.md	examples	parsed	amazon_price_tracking_article	recurring_extraction_time_series_baseline_compare_and_notification_side_effects
 examples/blog-articles/deploying_web_scrapers/deploying-web-scrapers-images/heroku-scheduler.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/deploying_web_scrapers/deploying-web-scrapers-images/meme.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
@@ -1184,17 +1184,17 @@ examples/blog-articles/deploying_web_scrapers/deploying-web-scrapers-images/pa-s
 examples/blog-articles/deploying_web_scrapers/deploying-web-scrapers-images/ph-homepage.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/deploying_web_scrapers/deploying-web-scrapers-images/ph-sample.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/deploying_web_scrapers/deploying-web-scrapers-images/workflow.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
-examples/blog-articles/deploying_web_scrapers/notebook.ipynb	examples	not_parsed	pending_review	
+examples/blog-articles/deploying_web_scrapers/notebook.ipynb	examples	parsed	deployment_article_notebook	scale_profile_secrets_retries_logging_monitoring
 examples/blog-articles/deploying_web_scrapers/notebook.md	examples	parsed	deploying_web_scrapers_article	scale_budget_deployment_profiles_retry_validation_logging_alerts_and_cleanup
 examples/blog-articles/github-actions-tutorial/github-actions-tutorial-images/cron-syntax.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
-examples/blog-articles/github-actions-tutorial/notebook.ipynb	examples	not_parsed	pending_review	
+examples/blog-articles/github-actions-tutorial/notebook.ipynb	examples	parsed	github_actions_article_notebook	scheduled_scraper_secrets_env_validation_artifact_commit
 examples/blog-articles/github-actions-tutorial/notebook.md	examples	parsed	github_actions_tutorial_article	scheduled_manual_triggers_secrets_env_validation_and_artifact_commits
-examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.ipynb	examples	not_parsed	pending_review	
+examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.ipynb	examples	parsed	map_endpoint_notebook	cheap_discovery_search_sitemap_subdomain_limit
 examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.md	examples	parsed	mastering_map_endpoint_article	fast_url_discovery_coverage_tradeoff_search_sitemap_subdomain_and_limit_controls
-examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.ipynb	examples	not_parsed	pending_review	
+examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.ipynb	examples	parsed	scrape_endpoint_notebook	enrichment_facets_schema_batch_async_dynamic_actions
 examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.md	examples	parsed	mastering_scrape_endpoint_article	page_enrichment_artifact_facets_schema_extraction_batch_status_and_dynamic_actions
 examples/blog-articles/mastering-the-crawl-endpoint/mastering-the-crawl-endpoint.ipynb	examples	parsed	mastering_crawl_endpoint_notebook	site_scale_discovery_scope_page_extraction_async_status_incremental_storage_and_rag_chunking
-examples/blog-articles/scheduling_scrapers/notebook.ipynb	examples	not_parsed	pending_review	
+examples/blog-articles/scheduling_scrapers/notebook.ipynb	examples	parsed	scheduling_article_notebook	schedule_async_cron_actions_rate_limit_proxy_logging
 examples/blog-articles/scheduling_scrapers/notebook.md	examples	parsed	scheduling_scrapers_article	local_schedule_async_cron_hosted_scheduler_health_logs_and_retention
 examples/blog-articles/scheduling_scrapers/scheduling-scrapers-images/actions.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/scheduling_scrapers/scheduling-scrapers-images/finished_actions.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
@@ -1261,38 +1261,38 @@ examples/hacker_news_scraper/requirements.txt	examples	parsed	hacker_news_depend
 examples/haiku_web_crawler/haiku_web_crawler.py	examples	parsed	haiku_web_crawler_example	batch_top_link_scrape_objective_extraction_with_observability_only_tracing
 examples/internal_link_assistant/internal_link_assistant.py	examples	parsed	internal_link_assistant_example	scrape_original_map_same_site_links_rewrite_and_link_count_quality_delta
 examples/job-resource-analyzer/job-resources-analyzer.py	examples	parsed	job_resource_analyzer_example	extract_task_profile_then_search_rank_resources_and_plan
-examples/kubernetes/cluster-install/README.md	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/api.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/configmap.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/nuq-postgres.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/nuq-worker.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/playwright-service.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/redis.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/secret.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/cluster-install/worker.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/.helmignore	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/Chart.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/README.md	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/overlays/dev/values.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/overlays/prod/values.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/_helpers.tpl	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/configmap.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/extract-worker-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/nuq-postgres-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/nuq-postgres-pvc.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/nuq-prefetch-worker-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/nuq-worker-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/playwright-configmap.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/playwright-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/playwright-service.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/rabbitmq-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/redis-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/redis-service.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/secret.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/service.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/templates/worker-deployment.yaml	examples	not_parsed	pending_review	
-examples/kubernetes/firecrawl-helm/values.yaml	examples	not_parsed	pending_review	
+examples/kubernetes/cluster-install/README.md	examples	parsed	k8s_simple_install_docs	config_secret_service_install_delete_order
+examples/kubernetes/cluster-install/api.yaml	examples	parsed	k8s_api_deployment	resource_limits_health_grace_config_secret_refs
+examples/kubernetes/cluster-install/configmap.yaml	examples	parsed	k8s_configmap	profile_config_service_urls_logging_queue_db
+examples/kubernetes/cluster-install/nuq-postgres.yaml	examples	parsed	k8s_queue_postgres	distinct_queue_db_service_storage_resources
+examples/kubernetes/cluster-install/nuq-worker.yaml	examples	parsed	k8s_nuq_worker	scaled_queue_worker_health_process_group
+examples/kubernetes/cluster-install/playwright-service.yaml	examples	parsed	k8s_playwright_service	separate_renderer_service_health_policy_config
+examples/kubernetes/cluster-install/redis.yaml	examples	parsed	k8s_redis	optional_secret_backed_auth
+examples/kubernetes/cluster-install/secret.yaml	examples	parsed	k8s_secret	provider_and_webhook_credentials_secret_inputs
+examples/kubernetes/cluster-install/worker.yaml	examples	parsed	k8s_queue_worker	separate_legacy_worker_health_resources
+examples/kubernetes/firecrawl-helm/.helmignore	examples	parsed	helm_ignore	chart_package_artifact_boundary
+examples/kubernetes/firecrawl-helm/Chart.yaml	examples	parsed	helm_chart_metadata	no_unique_pattern
+examples/kubernetes/firecrawl-helm/README.md	examples	parsed	helm_docs	role_topology_optional_components_resource_toggle
+examples/kubernetes/firecrawl-helm/overlays/dev/values.yaml	examples	parsed	helm_dev_overlay	profile_overlay_placeholder
+examples/kubernetes/firecrawl-helm/overlays/prod/values.yaml	examples	parsed	helm_prod_overlay	profile_overlay_placeholder
+examples/kubernetes/firecrawl-helm/templates/_helpers.tpl	examples	parsed	helm_helpers	deterministic_release_scoped_names
+examples/kubernetes/firecrawl-helm/templates/configmap.yaml	examples	parsed	helm_configmap_template	derived_service_urls_and_provider_profile_fields
+examples/kubernetes/firecrawl-helm/templates/deployment.yaml	examples	parsed	helm_api_deployment	config_secret_health_resource_profile
+examples/kubernetes/firecrawl-helm/templates/extract-worker-deployment.yaml	examples	parsed	helm_extract_worker	optional_extraction_role_health_resources
+examples/kubernetes/firecrawl-helm/templates/nuq-postgres-deployment.yaml	examples	parsed	helm_queue_postgres	ephemeral_or_pvc_queue_storage
+examples/kubernetes/firecrawl-helm/templates/nuq-postgres-pvc.yaml	examples	parsed	helm_queue_postgres_pvc	optional_durable_queue_db_storage
+examples/kubernetes/firecrawl-helm/templates/nuq-prefetch-worker-deployment.yaml	examples	parsed	helm_nuq_prefetch_worker	optional_prefetch_role_health_replicas
+examples/kubernetes/firecrawl-helm/templates/nuq-worker-deployment.yaml	examples	parsed	helm_nuq_worker	scaled_queue_worker_health_resources
+examples/kubernetes/firecrawl-helm/templates/playwright-configmap.yaml	examples	parsed	helm_playwright_config	renderer_concurrency_media_webhook_controls
+examples/kubernetes/firecrawl-helm/templates/playwright-deployment.yaml	examples	parsed	helm_playwright_deployment	separate_renderer_service_health_config_refs
+examples/kubernetes/firecrawl-helm/templates/playwright-service.yaml	examples	parsed	helm_playwright_service	internal_renderer_service_discovery
+examples/kubernetes/firecrawl-helm/templates/rabbitmq-deployment.yaml	examples	parsed	helm_rabbitmq	optional_broker_health_and_ports
+examples/kubernetes/firecrawl-helm/templates/redis-deployment.yaml	examples	parsed	helm_redis_deployment	secret_backed_redis_auth_policy
+examples/kubernetes/firecrawl-helm/templates/redis-service.yaml	examples	parsed	helm_redis_service	internal_cache_service_discovery
+examples/kubernetes/firecrawl-helm/templates/secret.yaml	examples	parsed	helm_secret_template	provider_parser_proxy_webhook_secret_inputs
+examples/kubernetes/firecrawl-helm/templates/service.yaml	examples	parsed	helm_api_service	gateway_service_discovery_only
+examples/kubernetes/firecrawl-helm/templates/worker-deployment.yaml	examples	parsed	helm_worker_deployment	queue_worker_health_config_secret_refs
+examples/kubernetes/firecrawl-helm/values.yaml	examples	parsed	helm_values	centralized_role_resources_config_secrets_and_ports
 examples/llama-4-maverick-web-crawler/.env.example	examples	parsed	llama_web_crawler_env_example	firecrawl_and_provider_credentials_as_capability_inputs
 examples/llama-4-maverick-web-crawler/.gitignore	examples	parsed	llama_web_crawler_ignore	environment_cache_build_log_coverage_temp_and_editor_artifacts
 examples/llama-4-maverick-web-crawler/README.md	examples	parsed	llama_web_crawler_readme	map_rank_scrape_analyze_json_extraction_provider_variant
@@ -1355,4 +1355,4 @@ examples/website_qa_with_gemini_caching/website_qa_with_gemini_flash_caching.ipy
 img/firecrawl_logo.png	img	skipped_media_or_sample	binary_media_or_fixture_sample	
 img/firecrawl_logo_v1.png	img	skipped_media_or_sample	binary_media_or_fixture_sample	
 img/open-source-cloud.png	img	skipped_media_or_sample	binary_media_or_fixture_sample	
-requests.http	requests.http	not_parsed	pending_review	
+requests.http	requests.http	parsed	empty_request_scratchpad	no_unique_pattern

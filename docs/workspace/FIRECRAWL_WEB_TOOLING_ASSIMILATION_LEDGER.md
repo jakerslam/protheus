@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1227
-- Not parsed: 40
+- Parsed: 1267
+- Not parsed: 0
 - Skipped generated: 15
 - Skipped media or sample: 75
 
@@ -1001,8 +1001,14 @@
 | `examples/sales_web_crawler/app.py` | Multi-agent sales crawler example. | A bounded crawl can analyze each page independently into JSON candidates, tolerate per-page parse failures, and aggregate structured results behind an explicit objective. |
 | `examples/sales_web_crawler/requirements.txt` | Sales crawler dependency file. | Example depends on external search, Firecrawl, OpenAI, and Swarm; composition pattern is useful, concrete model/library choices are not. |
 | `examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.md` | Map endpoint documentation article. | Fast URL discovery is a candidate-set primitive with search, sitemap-only, subdomain, and limit controls; its speed/coverage tradeoff should be explicit. |
+| `examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.ipynb` | Map endpoint documentation notebook. | Notebook reinforces map as cheap discovery with query search, sitemap-only, include-subdomains, limit, XML sitemap output, and visual sitemap analysis before scrape. |
 | `examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.md` | Scrape endpoint documentation article. | Scrape is the page-enrichment primitive: selectable artifact facets, main-content/tag filters, schema extraction, batch/async status, and explicit dynamic actions. |
+| `examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.ipynb` | Scrape endpoint documentation notebook. | Notebook shows scrape as enrichment over single/batch URLs with markdown/html/PDF/screenshot/schema/actions facets, tag filters, async batch status, and dynamic-site handling. |
 | `examples/blog-articles/mastering-the-crawl-endpoint/mastering-the-crawl-endpoint.ipynb` | Crawl endpoint documentation notebook. | Crawl composes URL discovery, scoped traversal, page extraction, async status, incremental saves, and downstream RAG chunking into a site-scale evidence primitive. |
+| `examples/blog-articles/amazon-price-tracking/notebook.ipynb` | Price-tracking article notebook. | Recurring product monitoring composes URL validation, schema extraction, price-history persistence, threshold comparison, notification side effects, and scheduled reruns. |
+| `examples/blog-articles/deploying_web_scrapers/notebook.ipynb` | Deployment article notebook. | Deployment guidance classifies scraper execution by scale/complexity/budget and keeps secrets, retries, logging, monitoring, persistence, and platform limits explicit. |
+| `examples/blog-articles/github-actions-tutorial/notebook.ipynb` | GitHub Actions article notebook. | Scheduled scraper workflows use cron/manual triggers, repository secrets, environment validation, artifact persistence, and controlled commit side effects. |
+| `examples/blog-articles/scheduling_scrapers/notebook.ipynb` | Scheduling article notebook. | Scheduling examples separate local loops, asyncio concurrency, cron, Windows Task Scheduler, GitHub Actions, rate limits, proxy rotation, storage, logging, and maintenance. |
 | `apps/test-suite/README.md` | Test-suite overview. | Retrieval quality measurement should separate crawling accuracy, response time, and error handling; old observed accuracy gaps are first-class eval signal. |
 | `apps/test-suite/data/crawl.json` | Crawl accuracy fixture set. | Fixtures encode expected crawled and not-crawled URL sets, including backward-link and domain-scope failures, as measurable crawl-scope contracts. |
 | `apps/test-suite/data/scrape.json` | Scrape answerability fixture set. | Scrape evals use page-local yes/no prompts over diverse domains to test whether retrieved content can answer concrete questions. |
@@ -1060,6 +1066,7 @@
 | `apps/ui/ingestion-ui/tsconfig.json` | Ingestion UI TS project config. | TS references reviewed; no retrieval primitive. |
 | `apps/ui/ingestion-ui/tsconfig.node.json` | Ingestion UI TS node config. | Vite config typing reviewed; no retrieval primitive. |
 | `apps/ui/ingestion-ui/vite.config.ts` | Ingestion UI Vite config. | Alias/build config reviewed; no retrieval primitive. |
+| `docker-compose.yaml` | Root local service stack. | Local retrieval harness separates API, queue workers, renderer, Redis, RabbitMQ, queue Postgres, provider config, resource limits, tmpfs, and log rotation. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/.env.template` | Airbnb analysis capability config. | Firecrawl, code-interpreter, and LLM credentials are external capability inputs and must not become workflow logic. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/.prettierignore` | Example artifact hygiene. | Generated dependency directories are local artifacts, not assimilation targets. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/README.md` | Airbnb analysis example overview. | Example composes retrieval, structured extraction, code execution, and visualization as separate phases. |
@@ -1115,6 +1122,39 @@
 | `examples/claude3.7-web-extractor/claude-3.7-web-extractor.py` | Model-variant extraction example. | SERP rows are compacted to title/link/snippet, selected URLs are cleaned, and extraction is polled to terminal data; example-specific output shape is not authoritative. |
 | `examples/gemini-2.0-crawler/gemini-2.0-crawler.py` | Model-variant crawler example. | Repeats map/rank/scrape/objective-check loop and adds linked PDF/image MIME probing as optional secondary evidence enrichment. |
 | `examples/gemini-2.0-web-extractor/gemini-2.0-web-extractor.py` | Model-variant extraction example. | SERP discovery, selected URL cleanup, Firecrawl extract job handles, and polling mirror the generic search-select-extract-poll primitive. |
+| `examples/kubernetes/cluster-install/README.md` | Simple Kubernetes install docs. | Install/delete order keeps config, secrets, renderer, API, workers, queue DB, and Redis as explicit deployment artifacts. |
+| `examples/kubernetes/cluster-install/api.yaml` | Simple Kubernetes API deployment. | API pod declares memory/CPU limits, long termination grace, config/secret injection, liveness, and readiness as operational retrieval guardrails. |
+| `examples/kubernetes/cluster-install/configmap.yaml` | Simple Kubernetes config. | Service URLs, auth mode, logging level, Kubernetes flag, and queue database URL are profile/config fields. |
+| `examples/kubernetes/cluster-install/nuq-postgres.yaml` | Simple Kubernetes queue Postgres. | Queue database runs as a distinct internal dependency with explicit service, storage, and resource profile. |
+| `examples/kubernetes/cluster-install/nuq-worker.yaml` | Simple Kubernetes NUQ worker. | Queue workers scale separately from API and expose health probes plus worker-specific process-group/port metadata. |
+| `examples/kubernetes/cluster-install/playwright-service.yaml` | Simple Kubernetes renderer service. | Rendered-page capability is a separate service with local-webhook policy and health checks. |
+| `examples/kubernetes/cluster-install/redis.yaml` | Simple Kubernetes Redis. | Redis authentication is secret-backed and optional at deployment profile level. |
+| `examples/kubernetes/cluster-install/secret.yaml` | Simple Kubernetes secrets. | Provider keys, webhook keys, auth, beta URLs, and Redis password are secret inputs rather than workflow behavior. |
+| `examples/kubernetes/cluster-install/worker.yaml` | Simple Kubernetes queue worker. | Legacy queue worker is distinct from API with separate memory/CPU, termination, process group, and liveness handling. |
+| `examples/kubernetes/firecrawl-helm/.helmignore` | Helm package ignore file. | Chart packaging excludes VCS/editor/temp artifacts; no retrieval primitive. |
+| `examples/kubernetes/firecrawl-helm/Chart.yaml` | Helm chart metadata. | Chart metadata reviewed; no unique retrieval primitive. |
+| `examples/kubernetes/firecrawl-helm/README.md` | Helm deployment docs. | Helm docs make service roles, image strategy, optional components, resources toggle, render/install/test/cleanup, and private registry behavior explicit. |
+| `examples/kubernetes/firecrawl-helm/overlays/dev/values.yaml` | Helm dev overlay placeholder. | Overlay placeholder reviewed; profile-specific values are the pattern, not this empty content. |
+| `examples/kubernetes/firecrawl-helm/overlays/prod/values.yaml` | Helm prod overlay placeholder. | Overlay placeholder reviewed; profile-specific values are the pattern, not this empty content. |
+| `examples/kubernetes/firecrawl-helm/templates/_helpers.tpl` | Helm naming helpers. | Deterministic release-scoped naming keeps service references stable across generated manifests. |
+| `examples/kubernetes/firecrawl-helm/templates/configmap.yaml` | Helm config template. | Derived default service URLs bind Redis, Playwright, queue Postgres, RabbitMQ, API host, model/provider, proxy, and SearXNG settings into typed profile config. |
+| `examples/kubernetes/firecrawl-helm/templates/deployment.yaml` | Helm API deployment template. | API deployment uses optional image-pull secrets, pod identity metadata, config/secret refs, resource toggles, and liveness/readiness. |
+| `examples/kubernetes/firecrawl-helm/templates/extract-worker-deployment.yaml` | Helm extract worker template. | Extract worker is an optional independent role with port, process group, health, and resource profile. |
+| `examples/kubernetes/firecrawl-helm/templates/nuq-postgres-deployment.yaml` | Helm queue Postgres deployment template. | Queue storage can be ephemeral or PVC-backed while preserving internal service identity. |
+| `examples/kubernetes/firecrawl-helm/templates/nuq-postgres-pvc.yaml` | Helm queue Postgres PVC template. | Durable queue DB storage is an explicit optional profile field. |
+| `examples/kubernetes/firecrawl-helm/templates/nuq-prefetch-worker-deployment.yaml` | Helm NUQ prefetch worker template. | Prefetch is an optional worker role with replica count, port, pod identity, and health probes. |
+| `examples/kubernetes/firecrawl-helm/templates/nuq-worker-deployment.yaml` | Helm NUQ worker template. | Main queue workers scale separately and expose process group, pod identity, health, and optional resources. |
+| `examples/kubernetes/firecrawl-helm/templates/playwright-configmap.yaml` | Helm Playwright config template. | Renderer concurrency, media blocking, and local-webhook allowance are renderer capability settings. |
+| `examples/kubernetes/firecrawl-helm/templates/playwright-deployment.yaml` | Helm Playwright deployment template. | Rendered-page capability remains a separately deployable service with health probes and config/secret refs. |
+| `examples/kubernetes/firecrawl-helm/templates/playwright-service.yaml` | Helm Playwright service template. | Renderer service discovery is explicit and internal. |
+| `examples/kubernetes/firecrawl-helm/templates/rabbitmq-deployment.yaml` | Helm RabbitMQ deployment template. | Queue broker is optional with AMQP/management ports, TCP readiness/liveness, and resource profile. |
+| `examples/kubernetes/firecrawl-helm/templates/redis-deployment.yaml` | Helm Redis deployment template. | Redis deployment supports secret-backed password policy without changing tool semantics. |
+| `examples/kubernetes/firecrawl-helm/templates/redis-service.yaml` | Helm Redis service template. | Redis service discovery is explicit and internal. |
+| `examples/kubernetes/firecrawl-helm/templates/secret.yaml` | Helm secret template. | Provider keys, parser keys, auth keys, proxy credentials, webhook HMAC, and extra secrets are encoded as deployment secrets. |
+| `examples/kubernetes/firecrawl-helm/templates/service.yaml` | Helm API service template. | API service discovery stays a Gateway/deployment concern, not retrieval evidence. |
+| `examples/kubernetes/firecrawl-helm/templates/worker-deployment.yaml` | Helm legacy worker deployment template. | Queue worker remains a separate role with process-group metadata, health probes, optional resources, and config/secret refs. |
+| `examples/kubernetes/firecrawl-helm/values.yaml` | Helm default values. | Values file centralizes role replica counts, resource profiles, image strategy, service ports, provider/search/parser/proxy config, renderer controls, and secrets. |
+| `requests.http` | Empty request scratchpad. | Empty fixture reviewed; no retrieval primitive. |
 | `examples/gemini-github-analyzer/gemini-github-analyzer.py` | Source-specific profile analysis example. | Source-specific extract prompts can produce profile/repository/activity artifacts before analysis, but platform-specific sections remain example-only. |
 | `examples/gpt-4.5-web-crawler/gpt-4.5-crawler.py` | Model-variant crawler example. | Confirms map search parameter proposal, ranked URL selection, top-page scrape, and objective-met loop across another provider wrapper. |
 | `examples/grok_web_crawler/grok_web_crawler.py` | Model-variant crawler example. | Repeats the same map/scrape/objective loop with more debug leakage; debug/status text is a non-assimilated anti-pattern. |
@@ -1764,34 +1804,20 @@
 308. Map-select-scrape is a reusable retrieval primitive: cheap URL discovery can fan out to selectable candidates before spending page-enrichment budget on selected links.
 309. Compatibility toggles are migration surfaces: V0/V1 switches are useful for parity tests and fixture comparison, but production workflow selection should remain declared in CDs/tool policy.
 310. Advanced controls should be optional request facets: exposing retrieval knobs is good, but they should not force any final-answer structure or user-visible workflow prose.
+311. Deployment topology is retrieval quality infrastructure: API, queue workers, extract workers, prefetch workers, renderer, Redis, broker, and queue database should be separately admitted, observed, and scaled.
+312. Health probes and graceful termination are evidence-quality guardrails: readiness/liveness and termination windows prevent unhealthy workers from turning retrieval into empty or partial evidence.
+313. Resource ceilings and concurrency knobs are Tool CD/profile fields: memory, CPU, browser pages, workers per queue, crawl concurrency, and max concurrent jobs shape reliability and latency.
+314. Config/secret separation is mandatory for crawler primitives: provider URLs, proxy settings, search engines, parser keys, model/provider endpoints, and webhook credentials belong in profile config or secrets.
+315. Optional components should degrade capability, not workflow meaning: RabbitMQ, extract workers, prefetch workers, renderer, persistence, and image strategy should classify available lanes rather than alter final answer style.
+316. Map remains the cheapest high-volume candidate primitive: search, sitemap-only, include-subdomains, limit, and sitemap output give candidate breadth before scrape enrichment.
+317. Scrape remains the page-enrichment primitive: markdown/html/PDF/screenshot/schema/action facets, tag filters, and async batch status should attach to evidence artifacts, not final-answer templates.
+318. Recurring retrieval is its own workflow shape: scheduling, history, thresholds, notifications, storage, and commit side effects are downstream lifecycle concerns over validated evidence.
+319. Deployment scale should be explicit in eval/profile metadata: local, GitHub Actions, PaaS, Kubernetes, and serverless profiles carry different persistence, timeout, retry, and monitoring expectations.
+320. Empty fixtures are still ledger evidence: a zero-byte scratchpad should be marked parsed/no-pattern so remaining counts cannot hide behind uninspected placeholders.
 
 ## Remaining Work
 
-- Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
-- API E2E breadth suites for authenticated v0/v1/all-params paths are parsed; remaining API tests are now narrower snips/helpers/control-plane slices.
-- Standalone rendered-fetch and HTML-to-Markdown service primitives are parsed; remaining deployment YAML can be treated as lower-priority unless operational wiring becomes relevant.
-- Test-site text fixtures and routes are parsed; binary font fixtures are marked skipped.
-- First high-signal research/crawler examples are parsed; remaining examples should be sampled for new composition patterns, not repeated model-specific syntax.
-- Map, scrape, and crawl endpoint articles are fully parsed; broader deployment/scheduling articles were only sampled and remain unmarked until a complete read.
-- Test-suite overview, crawl/scrape fixtures, load config, and markdown load reports are parsed; generated Artillery JSON report is skipped as generated after aggregate inspection.
-- Airbnb data-analysis example is parsed; it contributes retrieval-to-analysis artifact separation and discovery fallback patterns, not model/tool permission choices.
-- Model-variant crawler/extractor clusters through Claude, Gemini, GPT-4.5, Grok, Groq, Haiku, Mistral, O1, O3-mini, and Sonnet are parsed; they mostly reinforce map/rank/scrape/extract, linked media/document lanes, and source-bound extraction while provider choices remain quarantined.
-- Company/product/job/source-specific examples are parsed enough to capture extract-then-discover, candidate confidence sidecars, source verification, action preconditions, and downstream analysis-over-evidence patterns.
-- Screenshot editor, internal-link, topic-visualization, Llama crawler, realtime pointer, and OpenAI Swarm examples are parsed; useful signals are visual artifact facets, corpus-derived analysis artifacts, composite handoff shape, and avoiding top-link-only candidate collapse.
-- AI-news/podcast/full-app pointers and the readable deployment/scheduling/price/GitHub Actions articles are parsed; useful signals are recurring retrieval lifecycle, historical baselines, health checks, retention cleanup, and deployment profile separation.
-- GitHub CI/deploy/publish/test workflows and issue templates are parsed; useful signals are capability matrices, exact verification sidecars, hidden dedupe markers, version-gated side effects, registry retention ceilings, and full-stack retrieval CI with local dependency fixtures.
-- Root/API config, native parser packaging, OpenAPI schema surfaces, request scratchpads, document samples, and local utility scripts are parsed; useful signals are typed capability profiles, parser/runtime assembly, hidden native diagnostics, Tool CD schema seeds, executable request fixtures, and crawl graph debug artifacts.
-- API control-plane helpers, billing/notification side-effect surfaces, agent key admission, and legacy v1 schema are parsed; useful signals are side-effect/evidence separation, async terminal artifact assertions, optional observability sinks, billing leases, bounded caches, and diagnostic-only URL dumps.
-- Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
-- .NET SDK client, transport, tests, docs/project metadata, exceptions, and model surface are parsed; no unparsed .NET SDK files remain in the inventory.
-- Elixir and Go SDK surfaces are parsed; Elixir lockfile is marked generated, and useful signals are OpenAPI generation, boundary validation, typed errors, parse multipart lanes, retry/cancellation, and terminal pagination.
-- Java SDK docs, build metadata, exceptions, model surface, and env-gated tests are parsed; the Gradle wrapper jar is marked generated, and useful signals are discovery-quality map gates, browser/session projection boundaries, capability-gated live tests, typed agent controls, and language-stable Tool CD parity fields.
-- PHP SDK client, transport, docs, Laravel integration, exceptions, models, and compact test harness are parsed; no unparsed PHP SDK files remain in the inventory.
-- Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
-- JS SDK v2 docs, public entrypoint, compact E2E suites, remaining compact unit tests, outer examples, v1 E2E retry/status tests, package/audit harness, watcher/pagination examples, legacy `src/v1/index.ts`, and `src/index.backup.ts` are parsed; no unparsed JS SDK files remain in the inventory.
-- Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
-- Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
-- Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
-- NUQ Postgres, Redis deployment, and remaining test-suite config/index benchmark surfaces are parsed; useful signals are queue lifecycle bounds, predicate-matched indexes, cache/index quality metrics, and operational release gates.
-- Ingestion UI template is parsed; useful signals are client-side-key anti-patterns, request-shaping field ergonomics, map-select-scrape composition, and migration toggle boundaries rather than crawler mechanics.
-- Keep scanning remaining files for any general web-tooling primitive that improves discovery quality, extraction quality, evidence packing, lifecycle bounds, or retry safety.
+- All 1357 tracked Firecrawl files are now accounted for: 1266 parsed source/config/docs files, 1 parsed static table, 15 generated files skipped, and 75 media/sample fixtures skipped.
+- Firecrawl assimilation is complete for this checkout at revision `3afe6df`.
+- Next work should shift from parsing to implementation and eval: apply the captured primitives to Infring web retrieval, especially high-volume map/search candidate generation, page enrichment, evidence packing, async/batch status, deployment-profile capability flags, and lifecycle cleanup.
+- If a new Firecrawl revision is pulled later, regenerate or extend the inventory first, then repeat the same direct-read ledger discipline for any new files.
