@@ -108,6 +108,17 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "tool_call_normalization",
         "mcp_tool_bridge",
         "custom_command_skill_loader",
+        "local_runtime_execution_loop",
+        "agent_request_transform_pipeline",
+        "turn_retry_stream_runner",
+        "tool_call_execution_dispatch",
+        "lifecycle_hook_dispatch",
+        "conversation_state_persistence",
+        "local_runtime_observability_guard",
+        "chat_response_visibility_router",
+        "streaming_markdown_projection",
+        "tool_output_display_format",
+        "trace_event_rate_limiter",
         "plan_execute_review",
         "plan_artifact_create",
         "local_code_edit_execution",
@@ -150,7 +161,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(9)
+        Some(11)
     );
 
     let contract = source
@@ -164,6 +175,8 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "checkpoint_policy",
         "project_initialization_policy",
         "architecture_contract_policy",
+        "runtime_execution_loop_contract",
+        "runtime_observability_guard_contract",
         "slice_policy",
         "loop_policy",
     ] {
@@ -259,6 +272,14 @@ fn local_coding_program_builder_lab_execution_harness_emits_coding_task_plans() 
             .slice_invocations
             .iter()
             .any(|slice| slice.child_workflow_id == "local_tooling_surface_guard"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "local_runtime_execution_loop"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "local_runtime_observability_guard"));
         assert!(execution
             .slice_invocations
             .iter()

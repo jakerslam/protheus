@@ -1,15 +1,18 @@
 {
-  "name": "doom_loop_interrupt",
+  "name": "lifecycle_hook_dispatch",
   "workflow_type": "control_plane_orchestration_workflow",
   "workflow_role": "assistant_response_workflow",
   "default": false,
-  "description": "ForgeCode-derived primitive for detecting repeated tool-call signatures and injecting a progress-reset reminder before the next request.",
+  "description": "ForgeCode-derived primitive for dispatching ordered lifecycle hooks around start, request, response, tool call, and end events.",
   "stages": [
-    "assistant_tool_signature_extraction",
-    "recent_pattern_detection",
-    "threshold_gate",
-    "alternate_approach_prompting",
-    "doom_loop_receipt_packaging"
+    "hook_chain_resolution",
+    "start_event_dispatch",
+    "request_event_dispatch",
+    "response_event_dispatch",
+    "toolcall_start_event_dispatch",
+    "toolcall_end_event_dispatch",
+    "end_event_dispatch",
+    "hook_mutation_receipt_packaging"
   ],
   "workflow_composition": {
     "primitive_level": 0,
@@ -17,15 +20,15 @@
   },
   "final_response_policy": "control_plane_packaged_response",
   "final_output_contract": {
-    "schema_version": "doom_loop_interrupt_final_output_contract_v1",
+    "schema_version": "lifecycle_hook_dispatch_final_output_contract_v1",
     "source": "workflow_cd",
     "visible_chat_source": "llm_final_answer_only",
     "required_summary_fields": [
-      "loop_detected",
-      "pattern_length",
-      "repetition_count",
-      "interruption_action",
-      "next_action_bias"
+      "registered_hooks",
+      "events_dispatched",
+      "conversation_mutations",
+      "end_hook_continuation_status",
+      "hook_failure_status"
     ],
     "internal_streams": [
       "workflow_state",
@@ -34,17 +37,17 @@
       "eval_trace"
     ],
     "quality_contract": {
-      "answer_user_goal": "prevent repeated identical or patterned tool attempts from wasting coding budget",
-      "scope_boundary": "do not interrupt productive distinct tool progress",
-      "validation_calibration": "report the signature pattern and reminder action",
-      "visibility": "do not expose raw hidden tool arguments beyond compact receipts"
+      "answer_user_goal": "run ordered lifecycle hooks and capture their conversation effects",
+      "scope_boundary": "do not perform the provider request or tool execution directly",
+      "validation_calibration": "report hook ordering, hook failures, and whether end hooks extended the run",
+      "visibility": "do not expose private hook payloads or raw internal conversation state"
     }
   },
   "gate_contract": "control_plane_lifecycle_v1",
   "observation_lifecycle_contract": {
     "version": "run_observation_lifecycle_v1",
     "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
-    "purpose": "Record compact loop-interruption receipts for local coding workflows.",
+    "purpose": "Record compact lifecycle hook receipts for local coding runtime loops.",
     "required_lanes": [
       "compact_ledger",
       "hot_ring_buffer",
@@ -52,8 +55,9 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_mask_real_failures",
-      "do_not_continue_repeating_failed_tool_calls",
+      "do_not_store_raw_conversation_messages",
+      "do_not_hide_hook_inserted_messages",
+      "do_not_replace_context_loop_guard",
       "do_not_hide_current_failures",
       "do_not_store_raw_tool_payloads"
     ]
@@ -62,23 +66,29 @@
     "gate_kind": "structured_control_plane_gate",
     "input_kind": "multiple_choice_or_text_input",
     "allowed_transitions": [
-      "assistant_tool_signature_extraction->recent_pattern_detection",
-      "recent_pattern_detection->threshold_gate",
-      "threshold_gate->alternate_approach_prompting",
-      "alternate_approach_prompting->doom_loop_receipt_packaging",
-      "threshold_gate->doom_loop_receipt_packaging",
-      "doom_loop_receipt_packaging->completed"
+      "hook_chain_resolution->start_event_dispatch",
+      "start_event_dispatch->request_event_dispatch",
+      "request_event_dispatch->response_event_dispatch",
+      "response_event_dispatch->toolcall_start_event_dispatch",
+      "toolcall_start_event_dispatch->toolcall_end_event_dispatch",
+      "toolcall_end_event_dispatch->end_event_dispatch",
+      "end_event_dispatch->hook_mutation_receipt_packaging",
+      "hook_mutation_receipt_packaging->completed",
+      "hook_chain_resolution->blocked",
+      "request_event_dispatch->failed",
+      "response_event_dispatch->failed",
+      "end_event_dispatch->failed"
     ],
-    "timeout_ms": 15000,
+    "timeout_ms": 60000,
     "retry_policy": {
       "max_retries": 0,
-      "on_failure": "continue_without_interruption"
+      "on_failure": "return_structured_failure"
     },
     "terminal_states": [
       "completed",
+      "blocked",
       "failed",
       "needs_input",
-      "blocked",
       "aborted"
     ],
     "telemetry_streams": [
@@ -89,44 +99,52 @@
       "final_answer"
     ],
     "tool_family_contracts": [
+      "agent",
       "memory",
       "workspace",
       "web",
-      "agent",
       "shell",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
-      "max_stages": 5,
+      "max_stages": 8,
       "max_model_turns": 1,
       "max_tool_calls": 1,
-      "token_budget": 2000,
-      "loop_signature_detector": "doom_loop_interrupt_v1"
+      "token_budget": 6000,
+      "loop_signature_detector": "lifecycle_hook_dispatch_v1"
     }
   },
-  "context_primitive_contract": {
-    "version": "doom_loop_interrupt_v1",
+  "runtime_primitive_contract": {
+    "version": "lifecycle_hook_dispatch_v1",
     "source_evidence": [
-      "crates/forge_app/src/hooks/doom_loop.rs",
-      "templates/forge-doom-loop-reminder.md"
+      "crates/forge_app/src/app.rs",
+      "crates/forge_app/src/hooks/mod.rs",
+      "crates/forge_domain/src/hook.rs",
+      "crates/forge_app/src/orch.rs"
     ],
     "required_behaviors": [
-      "extract_assistant_tool_call_name_and_arguments",
-      "detect_consecutive_identical_calls",
-      "detect_repeating_recent_call_patterns",
-      "trigger_at_threshold_three_by_default",
-      "inject_system_reminder_before_next_request",
-      "bias_agent_toward_different_tool_arguments_or_clarification"
+      "compose_hook_handlers_sequentially",
+      "dispatch_start_before_first_request",
+      "dispatch_request_with_request_count_before_each_model_call",
+      "dispatch_response_with_full_message_after_each_model_call",
+      "dispatch_toolcall_start_and_toolcall_end_around_each_tool_execution",
+      "dispatch_end_when_the_runtime_is_about_to_yield",
+      "persist_conversation_after_hook_mutations",
+      "continue_runtime_loop_when_end_hook_adds_messages",
+      "support_tracing_title_generation_doom_loop_compaction_pending_todo_handlers"
     ],
     "output_receipts": [
-      "tool_signature_receipt",
-      "pattern_detection_receipt",
-      "interruption_receipt"
+      "hook_chain_receipt",
+      "lifecycle_event_receipt",
+      "hook_mutation_receipt",
+      "end_hook_continuation_receipt",
+      "hook_failure_receipt"
     ],
     "stop_conditions": [
-      "loop_detected_and_no_safe_alternate_available",
-      "clarification_required_to_escape_loop"
+      "hook_chain_missing_required_handler",
+      "hook_execution_failed",
+      "end_hook_repeatedly_extends_without_progress"
     ]
   },
   "workflow_source_of_truth_contract": {
@@ -159,7 +177,7 @@
     "tool_request_payload_stage": "gate_4_request_payload_input",
     "tool_observation_stage": "tool_observation",
     "final_answer_stage": "gate_6_llm_final_output",
-    "recovery_stage": "doom_loop_receipt_packaging",
+    "recovery_stage": "hook_mutation_receipt_packaging",
     "gates": [
       {
         "stage": "gate_1_need_tool_access_menu",

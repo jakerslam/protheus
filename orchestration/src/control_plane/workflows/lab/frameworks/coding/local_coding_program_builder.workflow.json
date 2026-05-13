@@ -50,6 +50,22 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "runtime_execution_loop",
+        "workflow_id": "local_runtime_execution_loop",
+        "input_contract": "local_runtime_execution_loop_input_envelope_v1",
+        "output_artifact": "local_runtime_execution_loop_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "runtime_observability_guard",
+        "workflow_id": "local_runtime_observability_guard",
+        "input_contract": "local_runtime_observability_guard_input_envelope_v1",
+        "output_artifact": "local_runtime_observability_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "implementation_planning",
         "workflow_id": "plan_execute_review",
         "input_contract": "workflow_input_envelope_v1",
@@ -103,6 +119,8 @@
     "policy_permission_guard_initialization",
     "context_and_tool_guard_initialization",
     "tooling_surface_guard_initialization",
+    "runtime_execution_loop_initialization",
+    "runtime_observability_guard_initialization",
     "checkpoint_definition",
     "project_initialization_assessment",
     "architecture_contract_definition",
@@ -133,6 +151,17 @@
       "tool_call_normalization",
       "mcp_tool_bridge",
       "custom_command_skill_loader",
+      "local_runtime_execution_loop",
+      "agent_request_transform_pipeline",
+      "turn_retry_stream_runner",
+      "tool_call_execution_dispatch",
+      "lifecycle_hook_dispatch",
+      "conversation_state_persistence",
+      "local_runtime_observability_guard",
+      "chat_response_visibility_router",
+      "streaming_markdown_projection",
+      "tool_output_display_format",
+      "trace_event_rate_limiter",
       "plan_execute_review",
       "plan_artifact_create",
       "repo_context_assessment",
@@ -203,6 +232,10 @@
       "context_and_tool_guard_initialization->checkpoint_definition",
       "context_and_tool_guard_initialization->tooling_surface_guard_initialization",
       "tooling_surface_guard_initialization->checkpoint_definition",
+      "tooling_surface_guard_initialization->runtime_execution_loop_initialization",
+      "runtime_execution_loop_initialization->checkpoint_definition",
+      "runtime_execution_loop_initialization->runtime_observability_guard_initialization",
+      "runtime_observability_guard_initialization->checkpoint_definition",
       "checkpoint_definition->project_initialization_assessment",
       "project_initialization_assessment->architecture_contract_definition",
       "architecture_contract_definition->slice_planning",
@@ -218,6 +251,10 @@
       "policy_permission_guard_initialization->blocked",
       "context_and_tool_guard_initialization->blocked",
       "tooling_surface_guard_initialization->blocked",
+      "runtime_execution_loop_initialization->blocked",
+      "runtime_execution_loop_initialization->failed",
+      "runtime_observability_guard_initialization->blocked",
+      "runtime_observability_guard_initialization->failed",
       "project_initialization_assessment->needs_input",
       "architecture_contract_definition->needs_input",
       "slice_planning->needs_input",
@@ -453,6 +490,62 @@
         "do_not_treat_tool_surface_readiness_as_permission",
         "do_not_execute_loaded_commands_without_explicit routing",
         "do_not_skip_operation_permission_or_safety_receipts"
+      ]
+    },
+    "runtime_execution_loop_contract": {
+      "source": "forgecode_assimilated_runtime_layer",
+      "required_composite_workflow_id": "local_runtime_execution_loop",
+      "required_primitive_workflow_ids": [
+        "agent_request_transform_pipeline",
+        "turn_retry_stream_runner",
+        "tool_call_execution_dispatch",
+        "lifecycle_hook_dispatch",
+        "conversation_state_persistence"
+      ],
+      "activation_policy": "live local coding execution must route provider request transforms, retry streaming, tool dispatch, lifecycle hooks, and conversation persistence through ForgeCode-assimilated runtime primitives after policy, context, and tooling guards are initialized",
+      "required_receipts": [
+        "request_transform_receipt",
+        "retry_stream_turn_receipt",
+        "tool_dispatch_receipt",
+        "lifecycle_hook_receipt",
+        "conversation_state_receipt",
+        "yield_or_interrupt_receipt"
+      ],
+      "stop_or_yield_conditions": [
+        "finish_reason_stop_with_no_tool_calls",
+        "tool_call_requests_parent_followup",
+        "max_request_per_turn_reached",
+        "max_tool_failure_per_turn_reached",
+        "end_hook_added_messages_and_loop_continues",
+        "provider_retry_budget_exhausted",
+        "conversation_persistence_failed"
+      ],
+      "non_goals": [
+        "do_not_choose_product_architecture_inside_runtime_loop",
+        "do_not_bypass_policy_permission_or_safe_file_primitives",
+        "do_not_hide_retry_attempts_tool_failures_or_interruptions"
+      ]
+    },
+    "runtime_observability_guard_contract": {
+      "source": "forgecode_assimilated_observability_layer",
+      "required_composite_workflow_id": "local_runtime_observability_guard",
+      "required_primitive_workflow_ids": [
+        "chat_response_visibility_router",
+        "streaming_markdown_projection",
+        "tool_output_display_format",
+        "trace_event_rate_limiter"
+      ],
+      "activation_policy": "live local coding execution must attach ForgeCode-assimilated observability primitives that route ChatResponse visibility, render streaming markdown, format compact tool display output, and bound telemetry volume without owning planning, coding, validation, or checkpoint handoff",
+      "required_receipts": [
+        "visibility_route_receipt",
+        "markdown_projection_receipt",
+        "display_format_receipt",
+        "trace_rate_limit_receipt"
+      ],
+      "non_goals": [
+        "do_not_treat_display_artifacts_as_execution_receipts",
+        "do_not_store_raw_tool_payloads_or_full_markdown_streams",
+        "do_not_run_tests_or_validation_from_observability"
       ]
     },
     "stop_conditions": [

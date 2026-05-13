@@ -47,16 +47,20 @@
     "purpose": "Record compact follow-up gates and blocking reasons for coding workflows.",
     "required_lanes": [
       "compact_ledger",
-      "failure_lifecycle_archive"
+      "failure_lifecycle_archive",
+      "hot_ring_buffer",
+      "artifact_ref_retention"
     ],
     "non_goals": [
       "do_not_ask_open_ended_questions_when_options_are_available",
-      "do_not_continue_past_blocking_user_decisions"
+      "do_not_continue_past_blocking_user_decisions",
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads"
     ]
   },
   "typed_execution_contract": {
     "gate_kind": "structured_control_plane_gate",
-    "input_kind": "followup_clarification_gate_input_envelope_v1",
+    "input_kind": "multiple_choice_or_text_input",
     "allowed_transitions": [
       "ambiguity_detection->question_scope_check",
       "question_scope_check->option_packaging",
@@ -72,7 +76,10 @@
     },
     "terminal_states": [
       "completed",
-      "blocked"
+      "blocked",
+      "needs_input",
+      "failed",
+      "aborted"
     ],
     "telemetry_streams": [
       "workflow_state",
@@ -82,7 +89,12 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory"
+      "memory",
+      "workspace",
+      "web",
+      "agent",
+      "shell",
+      "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
@@ -133,6 +145,82 @@
       "receipt_binding",
       "trace_export",
       "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "answer_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace"
     ]
   }
 }

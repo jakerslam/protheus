@@ -88,6 +88,8 @@ Top-level source areas:
 | `FC-A07` | Extract prompt, context, tool-routing, and agent-delegation semantics | active | Context-layer contract pass added for tool access resolution, doom-loop interruption, pending todo gating, compaction summaries, tool-error reflection, delegated agent tasks, and the `local_context_loop_guard` composite. |
 | `FC-A08` | Extract config and operation-permission semantics | active | Policy-layer contract pass added for ForgeCode config resolution, operation permission gating, and the `local_policy_permission_guard` composite. |
 | `FC-A09` | Extract tool schema, tool-call normalization, MCP, command, and skill loading semantics | active | Tooling-layer contract pass added for tool schema registry, tool-call normalization, MCP bridge, custom command/skill loading, and the `local_tooling_surface_guard` composite. |
+| `FC-A10` | Extract live runtime loop semantics | active | Runtime-layer contract pass added for request transforms, retry streaming, tool dispatch, lifecycle hooks, conversation persistence, and the `local_runtime_execution_loop` composite. |
+| `FC-A11` | Extract user-visible output and observability semantics | active | Observability-layer contract pass added for ChatResponse visibility routing, streaming markdown projection, tool output formatting, trace rate limiting, and the `local_runtime_observability_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -122,6 +124,17 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `mcp_tool_bridge` | 0 | `forge_domain/mcp`, `forge_services/mcp/manager`, `forge_services/mcp/service`, `forge_services/mcp/tool` | lab contract created | Loads scoped MCP configs, merges/caches by config hash, registers sanitized MCP tool names, captures failed servers, and routes MCP calls. |
 | `custom_command_skill_loader` | 0 | `forge_services/command`, `forge_domain/command`, `forge_services/tool_services/skill`, `forge_domain/skill` | lab contract created | Loads built-in/global/local commands with precedence and loads repository skills with exact lookup and cache receipts. |
 | `local_tooling_surface_guard` | 1 | `forge_tool_macros`, `forge_domain/tools/*`, `forge_domain/mcp`, `forge_services/mcp/*`, `forge_services/command`, `forge_services/tool_services/skill` | lab contract created | Composite guard that prepares tool schemas, normalized call routing, MCP tools, commands, and skills for local coding. |
+| `agent_request_transform_pipeline` | 0 | `forge_app/orch`, `forge_domain/transformer/*` | lab contract created | Applies ForgeCode request transforms before each model call: tool sorting, argument normalization, native/non-native tool projection, image handling, and reasoning/provider transforms. |
+| `turn_retry_stream_runner` | 0 | `forge_app/orch`, `forge_app/retry`, `forge_domain/chat_response` | lab contract created | Runs one provider chat turn with configured exponential retry, retry attempt events, streaming delta forwarding, and full message reconstruction. |
+| `tool_call_execution_dispatch` | 0 | `forge_app/orch`, `forge_app/tool_registry`, `forge_domain/chat_response`, `forge-tool-retry-message.md` | lab contract created | Dispatches tool calls with task parallelism, non-task sequencing, system-tool UI handshakes, lifecycle events, result ordering, and tool-error attempt tracking. |
+| `lifecycle_hook_dispatch` | 0 | `forge_app/app`, `forge_app/hooks/mod`, `forge_domain/hook`, `forge_app/orch` | lab contract created | Dispatches start, request, response, toolcall start/end, and end hooks in order, including end-hook continuation behavior. |
+| `conversation_state_persistence` | 0 | `forge_app/app`, `forge_app/orch`, `forge_domain/chat_response` | lab contract created | Persists conversation context, prompts, changed-file notices, metrics, request counts, interruption state, yield decisions, and final upserts. |
+| `local_runtime_execution_loop` | 1 | `forge_app/orch`, `forge_app/app`, `forge_app/retry`, `forge_app/tool_registry`, `forge_domain/hook`, `forge_domain/chat_response` | lab contract created | Composite runtime loop that wires request transforms, retry streaming, tool dispatch, lifecycle hooks, and conversation persistence around live local coding agent execution. |
+| `chat_response_visibility_router` | 0 | `forge_main/ui`, `forge_main/stream_renderer`, `forge_domain/chat_response` | lab contract created | Routes ChatResponse variants to visible markdown, tool status, retry/interrupt display, dimmed reasoning, completion, or telemetry-only lanes. |
+| `streaming_markdown_projection` | 0 | `forge_markdown_stream/lib`, `forge_markdown_stream/renderer`, `forge_markdown_stream/repair`, `forge_main/stream_renderer` | lab contract created | Buffers streamed markdown tokens, repairs malformed code fences, renders parse events, syntax-highlights code, and coordinates spinner-safe output. |
+| `tool_output_display_format` | 0 | `forge_display/markdown`, `forge_display/code`, `forge_display/diff`, `forge_display/grep`, `forge_app/fmt/fmt_output` | lab contract created | Formats compact user-visible tool output such as diffs, grep/search results, markdown/code blocks, todo diffs, and plan creation titles. |
+| `trace_event_rate_limiter` | 0 | `forge_tracker/can_track`, `forge_tracker/rate_limit`, `forge_tracker/log`, `forge_tracker/dispatch`, `forge_tracker/event` | lab contract created | Bounds trace/usage event emission with tracking-enabled rules, fixed-window rate limits, filtered JSON logging, and dropped-event receipts. |
+| `local_runtime_observability_guard` | 1 | `forge_main/ui`, `forge_main/stream_renderer`, `forge_markdown_stream`, `forge_display`, `forge_tracker` | lab contract created | Composite guard that separates visible user output, compact display artifacts, and bounded telemetry from execution receipts. |
 
 ## Runtime behavior harnesses created
 
@@ -137,7 +150,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | policy/context/tooling/loop-layer dependency declared | The neutral master workflow now references `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -203,10 +216,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` has measurable contracts for safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, and checkpoint handoff, but it still does not invoke a live coding agent runtime with real tool calls and iterative repair in production.
+- `local_coding_program_builder` now has measurable contracts for safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
 
 Next source pass:
-- Inspect ForgeCode prompt/template assets and service composition paths to assimilate how the agent is instructed to choose tools, preserve context, and decide when to stop.
+- Inspect ForgeCode templates, custom command flows, and CLI/session entrypoints for how instructions, commands, and user-facing modes are selected before the runtime loop starts.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -300,3 +313,67 @@ Tooling-layer parity requirements extracted:
 | Claude MCP double-underscore legacy lookup support | `mcp_tool_bridge` | P1 |
 | Built-in/global/local command loading with local precedence | `custom_command_skill_loader` | P1 |
 | Exact skill inventory and missing-skill error receipts | `custom_command_skill_loader` | P1 |
+
+## Sixth source pass: live runtime loop behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_app/src/app.rs` | Loads conversation, environment, current files, custom instructions, config-applied agent, provider credentials, model list, tool definitions, system/user prompts, changed-file notices, metrics, tunables, conversation id, hooks, and orchestrator before spawning the response stream. | A real coding workflow needs a runtime preparation layer before the live loop, not only static file-edit primitives. |
+| `crates/forge_app/src/orch.rs` | Runs the core request/tool loop with lifecycle start/request/response/tool/end events, request transforms, retry-streamed chat turns, tool execution, context persistence, max request limits, max tool failure limits, and task-complete signaling. | The master coding workflow needs a dedicated runtime execution loop composite that can be measured separately from planning and safety primitives. |
+| `crates/forge_app/src/retry.rs` | Uses exponential retry with configured delay, factor, max attempts, jitter, and retry only for retryable domain errors. | Provider turn execution should expose retry configuration and retry attempt receipts. |
+| `crates/forge_app/src/tool_registry.rs` | Routes built-in tools, agent tools, and MCP tools; executes Task and agent tools without timeout using parallel joins; checks restricted permissions before Forge tools; applies timeouts to normal Forge/MCP tools; emits MCP output messages. | Tool dispatch must preserve ForgeCode's execution order and timeout/permission boundaries rather than treating tools as opaque calls. |
+| `crates/forge_domain/src/hook.rs` | Defines start, request, response, toolcall start, toolcall end, and end lifecycle events; hooks can be chained and mutate conversation state sequentially. | Runtime lifecycle behavior should be a primitive that records hook ordering and mutation effects. |
+| `crates/forge_domain/src/chat_response.rs` | Defines visible task messages, reasoning, task completion, tool start/end, retry attempts, and interruption reasons for max tool failures and max requests. | Runtime output must distinguish visible assistant content from tool telemetry, retry events, task completion, and interrupts. |
+
+Runtime-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Provider/model request transforms before each chat turn | `agent_request_transform_pipeline` | P0 |
+| Retry-streamed provider turn with retry attempt telemetry | `turn_retry_stream_runner` | P0 |
+| Task calls parallel, non-task calls sequential, results restored to model order | `tool_call_execution_dispatch` | P0 |
+| System tool start/end event handshake before execution | `tool_call_execution_dispatch` | P0 |
+| Start, request, response, toolcall, and end hooks with ordered mutation | `lifecycle_hook_dispatch` | P0 |
+| End hook can add messages and continue the loop | `lifecycle_hook_dispatch`, `conversation_state_persistence` | P0 |
+| Conversation persisted before requests, after tool results, and after runtime completion | `conversation_state_persistence` | P0 |
+| Max request and max tool failure interrupts are explicit terminal or yield reasons | `conversation_state_persistence`, `local_runtime_execution_loop` | P0 |
+| Runtime composite remains separate from architecture/planning decisions | `local_runtime_execution_loop` | P1 |
+
+## Seventh source pass: user-visible output and observability behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_display/src/markdown.rs` | Renders static markdown with termimad, limits excessive newlines, extracts code blocks before markdown rendering, and restores syntax-highlighted code blocks. | Display formatting should be treated as a compact projection layer, not as raw final-answer content. |
+| `crates/forge_display/src/code.rs` | Caches syntax/theme resources, detects terminal light/dark mode once with timeout, falls back to dark, and returns plain text for unknown languages. | Syntax highlighting needs deterministic fallback and should not block coding execution. |
+| `crates/forge_display/src/diff.rs` | Formats grouped context diffs, colors insertions/deletions, tracks added/removed line counts, and sizes line-number columns from displayed diff context rather than total file length. | Tool output formatting should include compact diff receipts and avoid giant raw file payloads. |
+| `crates/forge_display/src/grep.rs` | Parses `path:line:content` rows, groups matches by path, aligns line numbers, highlights regex matches, and treats non-grep rows as raw file paths. | Search output display belongs in an observability/display primitive separate from repo search execution. |
+| `crates/forge_markdown_stream/src/lib.rs` | Buffers streaming tokens until complete lines, repairs each line before parsing, renders streamdown events, and flushes remaining parser state on finish. | Runtime markdown projection should be line-buffered and finish-aware instead of writing arbitrary raw deltas. |
+| `crates/forge_markdown_stream/src/renderer.rs` | Renders headings, code, lists, tables, blockquotes, think blocks, horizontal rules, links, images, and inline styles with width/margin handling. | Visible streaming output needs a dedicated markdown projection primitive with explicit supported constructs. |
+| `crates/forge_markdown_stream/src/repair.rs` | Splits embedded closing code fences only when already inside a code block. | Markdown repair should be scoped and receipt-backed so it does not corrupt normal text. |
+| `crates/forge_stream/src/mpsc_stream.rs` | Spawns a bounded channel stream with capacity one and aborts the producer task when the stream is dropped. | Runtime streams need backpressure and abort semantics in their observability contract. |
+| `crates/forge_tracker/src/can_track.rs` | Disables tracking for dev builds and version `0.1.0`, treating other versions as production-capable. | Telemetry must have an explicit tracking-enabled decision before dispatch. |
+| `crates/forge_tracker/src/rate_limit.rs` | Uses a fixed sixty-second window and drops events after the per-minute limit. | Observability should bound trace volume without blocking execution. |
+| `crates/forge_tracker/src/log.rs` | Filters JSON logs to `forge_` targets, writes to tracker-backed PostHog when tracking is enabled, otherwise writes daily local logs. | Trace destination selection and filtering should be contract-owned by observability, not by coding primitives. |
+| `crates/forge_main/src/stream_renderer.rs` | Pauses the spinner while streaming markdown is written, resumes only at line boundaries, supports dimmed reasoning streams, and preserves writer byte-consumption semantics when ANSI styling changes output length. | Visible streaming needs spinner-safe boundaries and separate styling for reasoning versus answer markdown. |
+| `crates/forge_main/src/ui.rs` | Ignores empty responses, finishes markdown before tool input/output, notifies tool-start guards even on render failure, tracks tool-end events, conditionally suppresses retry errors, prompts continuation on interrupts, and marks conversations finished on task completion. | ChatResponse visibility routing should be its own primitive with explicit visible/telemetry-only channels and continuation stop points. |
+| `crates/forge_app/src/fmt/fmt_output.rs` | Shows diffs for overwrite/patch/multi-patch, plan creation as a debug title, todo output, and intentionally suppresses display for many tool operations. | Display artifacts must not be confused with execution receipts; suppressed output should be explicit. |
+| `crates/forge_domain/src/result_stream_ext.rs` | Emits streaming content deltas as partial markdown TaskMessages and reasoning deltas as TaskReasoning while reconstructing full content. | Runtime/observability split should preserve partial visible output while retaining full turn reconstruction internally. |
+
+Observability-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Route ChatResponse variants to visible, status, continuation, or telemetry-only lanes | `chat_response_visibility_router` | P0 |
+| Preserve tool-start notify handshake even if UI rendering fails | `chat_response_visibility_router` | P0 |
+| Stream answer markdown separately from dimmed reasoning | `chat_response_visibility_router`, `streaming_markdown_projection` | P0 |
+| Buffer and repair streamed markdown line-by-line, including scoped embedded fence repair | `streaming_markdown_projection` | P0 |
+| Pause/resume spinner at safe output boundaries | `streaming_markdown_projection` | P0 |
+| Format write/patch outputs as compact diffs with line-count receipts | `tool_output_display_format` | P0 |
+| Group and highlight search output without treating display as search execution | `tool_output_display_format` | P1 |
+| Suppress display for operations with no compact display artifact while preserving execution receipts | `tool_output_display_format` | P0 |
+| Disable dev-build tracking and bound trace events by fixed windows | `trace_event_rate_limiter` | P0 |
+| Keep observability separate from planning, coding, validation, and checkpoint handoff | `local_runtime_observability_guard` | P0 |

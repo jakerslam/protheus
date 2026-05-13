@@ -93,6 +93,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_hide_permission_denials",
       "do_not_treat_allow_as_successful_execution",
       "do_not_store_raw_environment_secrets"
@@ -100,7 +102,7 @@
   },
   "typed_execution_contract": {
     "gate_kind": "structured_control_plane_gate",
-    "input_kind": "local_policy_permission_guard_input_envelope_v1",
+    "input_kind": "multiple_choice_or_text_input",
     "allowed_transitions": [
       "runtime_config_resolution->restricted_mode_assessment",
       "restricted_mode_assessment->operation_permission_gate",
@@ -118,8 +120,10 @@
     },
     "terminal_states": [
       "completed",
+      "needs_input",
       "blocked",
-      "failed"
+      "failed",
+      "aborted"
     ],
     "telemetry_streams": [
       "workflow_state",
@@ -130,9 +134,11 @@
     ],
     "tool_family_contracts": [
       "workspace",
-      "shell",
       "web",
-      "memory"
+      "memory",
+      "agent",
+      "shell",
+      "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
@@ -185,6 +191,61 @@
       "receipt_binding",
       "trace_export",
       "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "policy_guard_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
     ]
   }
 }

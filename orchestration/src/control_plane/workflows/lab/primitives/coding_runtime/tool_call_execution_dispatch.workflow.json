@@ -1,15 +1,18 @@
 {
-  "name": "doom_loop_interrupt",
+  "name": "tool_call_execution_dispatch",
   "workflow_type": "control_plane_orchestration_workflow",
   "workflow_role": "assistant_response_workflow",
   "default": false,
-  "description": "ForgeCode-derived primitive for detecting repeated tool-call signatures and injecting a progress-reset reminder before the next request.",
+  "description": "ForgeCode-derived primitive for dispatching emitted tool calls with task parallelism, non-task sequencing, lifecycle events, UI handshakes, and retry reflection.",
   "stages": [
-    "assistant_tool_signature_extraction",
-    "recent_pattern_detection",
-    "threshold_gate",
-    "alternate_approach_prompting",
-    "doom_loop_receipt_packaging"
+    "tool_call_partitioning",
+    "task_tool_parallel_dispatch",
+    "non_task_tool_sequential_dispatch",
+    "system_tool_start_handshake",
+    "tool_lifecycle_event_dispatch",
+    "tool_result_order_reconstruction",
+    "tool_error_attempt_tracking",
+    "tool_dispatch_receipt_packaging"
   ],
   "workflow_composition": {
     "primitive_level": 0,
@@ -17,15 +20,16 @@
   },
   "final_response_policy": "control_plane_packaged_response",
   "final_output_contract": {
-    "schema_version": "doom_loop_interrupt_final_output_contract_v1",
+    "schema_version": "tool_call_execution_dispatch_final_output_contract_v1",
     "source": "workflow_cd",
     "visible_chat_source": "llm_final_answer_only",
     "required_summary_fields": [
-      "loop_detected",
-      "pattern_length",
-      "repetition_count",
-      "interruption_action",
-      "next_action_bias"
+      "tool_calls_received",
+      "task_dispatch_status",
+      "sequential_dispatch_status",
+      "system_tool_event_status",
+      "tool_error_status",
+      "ordered_result_status"
     ],
     "internal_streams": [
       "workflow_state",
@@ -34,17 +38,17 @@
       "eval_trace"
     ],
     "quality_contract": {
-      "answer_user_goal": "prevent repeated identical or patterned tool attempts from wasting coding budget",
-      "scope_boundary": "do not interrupt productive distinct tool progress",
-      "validation_calibration": "report the signature pattern and reminder action",
-      "visibility": "do not expose raw hidden tool arguments beyond compact receipts"
+      "answer_user_goal": "execute approved tool calls in ForgeCode-compatible order while preserving receipts",
+      "scope_boundary": "do not authorize operations or repair failed tool calls by itself",
+      "validation_calibration": "report which tool calls succeeded, failed, were denied, or require reflection",
+      "visibility": "do not expose raw hidden tool payloads or private nested-agent internals"
     }
   },
   "gate_contract": "control_plane_lifecycle_v1",
   "observation_lifecycle_contract": {
     "version": "run_observation_lifecycle_v1",
     "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
-    "purpose": "Record compact loop-interruption receipts for local coding workflows.",
+    "purpose": "Record compact tool dispatch receipts for local coding runtime loops.",
     "required_lanes": [
       "compact_ledger",
       "hot_ring_buffer",
@@ -52,8 +56,9 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_mask_real_failures",
-      "do_not_continue_repeating_failed_tool_calls",
+      "do_not_execute_unregistered_tools",
+      "do_not_hide_tool_failures",
+      "do_not_bypass_permission_or_file_safety_primitives",
       "do_not_hide_current_failures",
       "do_not_store_raw_tool_payloads"
     ]
@@ -62,23 +67,30 @@
     "gate_kind": "structured_control_plane_gate",
     "input_kind": "multiple_choice_or_text_input",
     "allowed_transitions": [
-      "assistant_tool_signature_extraction->recent_pattern_detection",
-      "recent_pattern_detection->threshold_gate",
-      "threshold_gate->alternate_approach_prompting",
-      "alternate_approach_prompting->doom_loop_receipt_packaging",
-      "threshold_gate->doom_loop_receipt_packaging",
-      "doom_loop_receipt_packaging->completed"
+      "tool_call_partitioning->task_tool_parallel_dispatch",
+      "tool_call_partitioning->non_task_tool_sequential_dispatch",
+      "task_tool_parallel_dispatch->non_task_tool_sequential_dispatch",
+      "non_task_tool_sequential_dispatch->system_tool_start_handshake",
+      "system_tool_start_handshake->tool_lifecycle_event_dispatch",
+      "tool_lifecycle_event_dispatch->tool_result_order_reconstruction",
+      "tool_result_order_reconstruction->tool_error_attempt_tracking",
+      "tool_error_attempt_tracking->tool_dispatch_receipt_packaging",
+      "tool_dispatch_receipt_packaging->completed",
+      "tool_call_partitioning->blocked",
+      "task_tool_parallel_dispatch->failed",
+      "non_task_tool_sequential_dispatch->failed",
+      "tool_error_attempt_tracking->blocked"
     ],
-    "timeout_ms": 15000,
+    "timeout_ms": 180000,
     "retry_policy": {
       "max_retries": 0,
-      "on_failure": "continue_without_interruption"
+      "on_failure": "return_structured_failure"
     },
     "terminal_states": [
       "completed",
+      "blocked",
       "failed",
       "needs_input",
-      "blocked",
       "aborted"
     ],
     "telemetry_streams": [
@@ -89,44 +101,57 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory",
       "workspace",
-      "web",
-      "agent",
       "shell",
+      "agent",
+      "web",
+      "memory",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
-      "max_stages": 5,
+      "max_stages": 8,
       "max_model_turns": 1,
-      "max_tool_calls": 1,
-      "token_budget": 2000,
-      "loop_signature_detector": "doom_loop_interrupt_v1"
+      "max_tool_calls": 16,
+      "token_budget": 12000,
+      "loop_signature_detector": "tool_call_execution_dispatch_v1"
     }
   },
-  "context_primitive_contract": {
-    "version": "doom_loop_interrupt_v1",
+  "runtime_primitive_contract": {
+    "version": "tool_call_execution_dispatch_v1",
     "source_evidence": [
-      "crates/forge_app/src/hooks/doom_loop.rs",
-      "templates/forge-doom-loop-reminder.md"
+      "crates/forge_app/src/orch.rs",
+      "crates/forge_app/src/tool_registry.rs",
+      "crates/forge_domain/src/chat_response.rs",
+      "templates/forge-tool-retry-message.md"
     ],
     "required_behaviors": [
-      "extract_assistant_tool_call_name_and_arguments",
-      "detect_consecutive_identical_calls",
-      "detect_repeating_recent_call_patterns",
-      "trigger_at_threshold_three_by_default",
-      "inject_system_reminder_before_next_request",
-      "bias_agent_toward_different_tool_arguments_or_clarification"
+      "detect_task_tool_calls_case_insensitively",
+      "execute_task_tool_calls_in_parallel",
+      "execute_non_task_tool_calls_sequentially",
+      "send_tool_call_start_and_end_events_for_system_tools",
+      "wait_for_system_tool_start_notifier_before_executing_to_preserve_ui_order",
+      "dispatch_toolcall_start_and_toolcall_end_lifecycle_events",
+      "reconstruct_tool_results_in_original_model_call_order",
+      "track_tool_error_counts_per_tool_name",
+      "append_attempts_left_retry_guidance_to_tool_error_outputs",
+      "interrupt_when_max_tool_failure_per_turn_is_reached"
     ],
     "output_receipts": [
-      "tool_signature_receipt",
-      "pattern_detection_receipt",
-      "interruption_receipt"
+      "tool_partition_receipt",
+      "task_parallel_dispatch_receipt",
+      "sequential_dispatch_receipt",
+      "system_tool_event_receipt",
+      "lifecycle_toolcall_receipt",
+      "ordered_tool_result_receipt",
+      "tool_error_attempt_receipt"
     ],
     "stop_conditions": [
-      "loop_detected_and_no_safe_alternate_available",
-      "clarification_required_to_escape_loop"
+      "tool_not_registered",
+      "operation_permission_denied",
+      "tool_timeout",
+      "max_tool_failure_per_turn_reached",
+      "system_tool_start_notifier_failed"
     ]
   },
   "workflow_source_of_truth_contract": {
@@ -159,7 +184,7 @@
     "tool_request_payload_stage": "gate_4_request_payload_input",
     "tool_observation_stage": "tool_observation",
     "final_answer_stage": "gate_6_llm_final_output",
-    "recovery_stage": "doom_loop_receipt_packaging",
+    "recovery_stage": "tool_dispatch_receipt_packaging",
     "gates": [
       {
         "stage": "gate_1_need_tool_access_menu",

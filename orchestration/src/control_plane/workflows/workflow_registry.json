@@ -627,6 +627,206 @@
       ]
     },
     {
+      "workflow_id": "agent_request_transform_pipeline",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/agent_request_transform_pipeline.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "provider_capability_transform",
+        "reasoning_and_tool_mode_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_runtime_layer_parity_reviewed",
+        "request_transform_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "turn_retry_stream_runner",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/turn_retry_stream_runner.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "retryable_provider_error",
+        "streamed_message_reconstruction"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_runtime_layer_parity_reviewed",
+        "retry_stream_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "tool_call_execution_dispatch",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/tool_call_execution_dispatch.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "task_parallel_non_task_sequential_dispatch",
+        "tool_error_attempt_reflection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_runtime_layer_parity_reviewed",
+        "tool_dispatch_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "lifecycle_hook_dispatch",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/lifecycle_hook_dispatch.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "ordered_lifecycle_hooks",
+        "end_hook_continuation"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_runtime_layer_parity_reviewed",
+        "lifecycle_hook_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "conversation_state_persistence",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_runtime/conversation_state_persistence.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "conversation_state_updates",
+        "max_request_and_tool_failure_interrupts"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_runtime_layer_parity_reviewed",
+        "conversation_state_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_runtime_execution_loop",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_runtime_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_runtime_execution_loop.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "bounded_live_coding_turn",
+        "runtime_yield_or_interrupt"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_runtime_layer_parity_reviewed",
+        "local_runtime_execution_loop_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "chat_response_visibility_router",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_observability_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_observability/chat_response_visibility_router.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "chat_response_variant_projection",
+        "tool_start_notification_handshake"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_observability_layer_parity_reviewed",
+        "visibility_router_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "streaming_markdown_projection",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_observability_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_observability/streaming_markdown_projection.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "streaming_markdown_line_buffering",
+        "embedded_code_fence_repair"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_observability_layer_parity_reviewed",
+        "streaming_markdown_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "tool_output_display_format",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_observability_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_observability/tool_output_display_format.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "diff_display_projection",
+        "grep_display_grouping"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_observability_layer_parity_reviewed",
+        "tool_output_display_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "trace_event_rate_limiter",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_observability_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_observability/trace_event_rate_limiter.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "dev_tracking_disabled",
+        "fixed_window_trace_rate_limit"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_observability_layer_parity_reviewed",
+        "trace_rate_limit_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_runtime_observability_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_observability_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_runtime_observability_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "runtime_visibility_and_display_projection",
+        "bounded_runtime_trace_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_observability_layer_parity_reviewed",
+        "local_runtime_observability_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "forgecode_raw_capability_assimilation",
       "tier": "lab",
       "source_framework": "forgecode",

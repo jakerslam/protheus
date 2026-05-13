@@ -759,7 +759,7 @@ pub fn workflow_registry_contract_ok() -> bool {
                     || !matches!(entry.promotion_status.as_str(), "lab" | "candidate")
                     || !entry
                         .source_path
-                        .starts_with("orchestration/src/control_plane/workflows/lab/frameworks/")
+                        .starts_with("orchestration/src/control_plane/workflows/lab/")
                 {
                     return false;
                 }

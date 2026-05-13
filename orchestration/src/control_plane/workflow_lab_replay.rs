@@ -120,6 +120,8 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
+            "runtime_execution_loop",
+            "runtime_observability_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -146,6 +148,8 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
+            "runtime_execution_loop",
+            "runtime_observability_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -170,6 +174,8 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
+            "runtime_execution_loop",
+            "runtime_observability_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -375,6 +381,24 @@ fn task_execution(
         .any(|slice| slice.child_workflow_id == "local_code_edit_execution")
     {
         failures.push(format!("missing_local_code_edit_execution_slice:{}", scenario.id));
+    }
+    if !slice_invocations
+        .iter()
+        .any(|slice| slice.child_workflow_id == "local_runtime_execution_loop")
+    {
+        failures.push(format!(
+            "missing_local_runtime_execution_loop_slice:{}",
+            scenario.id
+        ));
+    }
+    if !slice_invocations
+        .iter()
+        .any(|slice| slice.child_workflow_id == "local_runtime_observability_guard")
+    {
+        failures.push(format!(
+            "missing_local_runtime_observability_guard_slice:{}",
+            scenario.id
+        ));
     }
     for key in [
         "task",
@@ -592,6 +616,16 @@ fn slices_for_scenario(
         "tooling_surface_guard",
         "local_tooling_surface_guard",
     );
+    let runtime_loop = child_call(
+        child_calls,
+        "runtime_execution_loop",
+        "local_runtime_execution_loop",
+    );
+    let observability_guard = child_call(
+        child_calls,
+        "runtime_observability_guard",
+        "local_runtime_observability_guard",
+    );
     let plan_artifact = child_call(
         child_calls,
         "plan_artifact",
@@ -639,6 +673,22 @@ fn slices_for_scenario(
                 vec!["tool registry", "mcp config", "commands", "skills"],
                 vec!["tool schemas are explicit", "tool-call normalization is receipt-backed"],
                 "tooling surface artifact is available before implementation planning",
+            ),
+            slice(
+                "runtime_execution_loop_initialization",
+                "Initialize ForgeCode-style request transform, retry streaming, tool dispatch, lifecycle hook, and conversation persistence loop.",
+                runtime_loop,
+                vec!["conversation context", "agent runtime", "tool results", "lifecycle hooks"],
+                vec!["runtime loop receipts are explicit", "yield and interrupt conditions are bounded"],
+                "runtime loop artifact is available before implementation planning",
+            ),
+            slice(
+                "runtime_observability_guard_initialization",
+                "Initialize ForgeCode-style visibility routing, streaming markdown, tool display formatting, and trace rate limiting.",
+                observability_guard,
+                vec!["chat responses", "markdown stream", "tool display output", "trace events"],
+                vec!["visible output is separated from telemetry", "trace volume is bounded"],
+                "observability guard artifact is available before implementation planning",
             ),
             slice(
                 "checkpoint_and_architecture_plan",
@@ -708,6 +758,22 @@ fn slices_for_scenario(
                 vec!["tool registry", "mcp config", "commands", "skills"],
                 vec!["tool schemas are explicit", "tool-call normalization is receipt-backed"],
                 "tooling surface artifact is available before implementation planning",
+            ),
+            slice(
+                "runtime_execution_loop_initialization",
+                "Initialize ForgeCode-style request transform, retry streaming, tool dispatch, lifecycle hook, and conversation persistence loop.",
+                runtime_loop,
+                vec!["conversation context", "agent runtime", "tool results", "lifecycle hooks"],
+                vec!["runtime loop receipts are explicit", "yield and interrupt conditions are bounded"],
+                "runtime loop artifact is available before implementation planning",
+            ),
+            slice(
+                "runtime_observability_guard_initialization",
+                "Initialize ForgeCode-style visibility routing, streaming markdown, tool display formatting, and trace rate limiting.",
+                observability_guard,
+                vec!["chat responses", "markdown stream", "tool display output", "trace events"],
+                vec!["visible output is separated from telemetry", "trace volume is bounded"],
+                "observability guard artifact is available before implementation planning",
             ),
             slice(
                 "context_research",
@@ -790,6 +856,22 @@ fn slices_for_scenario(
                 vec!["tool registry", "mcp config", "commands", "skills"],
                 vec!["tool schemas are explicit", "tool-call normalization is receipt-backed"],
                 "tooling surface artifact is available before implementation planning",
+            ),
+            slice(
+                "runtime_execution_loop_initialization",
+                "Initialize ForgeCode-style request transform, retry streaming, tool dispatch, lifecycle hook, and conversation persistence loop.",
+                runtime_loop,
+                vec!["conversation context", "agent runtime", "tool results", "lifecycle hooks"],
+                vec!["runtime loop receipts are explicit", "yield and interrupt conditions are bounded"],
+                "runtime loop artifact is available before implementation planning",
+            ),
+            slice(
+                "runtime_observability_guard_initialization",
+                "Initialize ForgeCode-style visibility routing, streaming markdown, tool display formatting, and trace rate limiting.",
+                observability_guard,
+                vec!["chat responses", "markdown stream", "tool display output", "trace events"],
+                vec!["visible output is separated from telemetry", "trace volume is bounded"],
+                "observability guard artifact is available before implementation planning",
             ),
             slice(
                 "existing_project_assessment",
@@ -968,6 +1050,8 @@ fn static_child_value(value: &str) -> &'static str {
         "policy_permission_guard" => "policy_permission_guard",
         "context_loop_guard" => "context_loop_guard",
         "tooling_surface_guard" => "tooling_surface_guard",
+        "runtime_execution_loop" => "runtime_execution_loop",
+        "runtime_observability_guard" => "runtime_observability_guard",
         "implementation_planning" => "implementation_planning",
         "plan_artifact" => "plan_artifact",
         "local_code_execution" => "local_code_execution",
@@ -990,6 +1074,20 @@ fn static_child_value(value: &str) -> &'static str {
         },
         "local_tooling_surface_guard_result_artifact_v1" => {
             "local_tooling_surface_guard_result_artifact_v1"
+        },
+        "local_runtime_execution_loop" => "local_runtime_execution_loop",
+        "local_runtime_execution_loop_input_envelope_v1" => {
+            "local_runtime_execution_loop_input_envelope_v1"
+        },
+        "local_runtime_execution_loop_result_artifact_v1" => {
+            "local_runtime_execution_loop_result_artifact_v1"
+        },
+        "local_runtime_observability_guard" => "local_runtime_observability_guard",
+        "local_runtime_observability_guard_input_envelope_v1" => {
+            "local_runtime_observability_guard_input_envelope_v1"
+        },
+        "local_runtime_observability_guard_result_artifact_v1" => {
+            "local_runtime_observability_guard_result_artifact_v1"
         },
         "plan_execute_review" => "plan_execute_review",
         "plan_artifact_create" => "plan_artifact_create",
