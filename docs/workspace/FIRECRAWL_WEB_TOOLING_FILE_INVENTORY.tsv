@@ -1011,19 +1011,19 @@ apps/rust-sdk/Cargo.lock	apps	not_parsed	pending_review
 apps/rust-sdk/Cargo.toml	apps	not_parsed	pending_review	
 apps/rust-sdk/README.md	apps	not_parsed	pending_review	
 apps/rust-sdk/examples/example.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/agent.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/batch_scrape.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/client.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/crawl.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/error.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/lib.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/map.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/monitor.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/parse.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/scrape.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/search.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/serde_helpers.rs	apps	not_parsed	pending_review	
-apps/rust-sdk/src/types.rs	apps	not_parsed	pending_review	
+apps/rust-sdk/src/agent.rs	apps	parsed	rust_sdk_agent_method	bounded_web_agent_with_urls_prompt_schema_budget_strict_url_constraints_timeout_polling_and_status_projection
+apps/rust-sdk/src/batch_scrape.rs	apps	parsed	rust_sdk_batch_scrape_method	multi_url_batch_retrieval_with_idempotency_invalid_url_reporting_pagination_polling_and_per_job_errors
+apps/rust-sdk/src/client.rs	apps	parsed	rust_sdk_client_facade	profile_aware_api_key_gate_selfhost_optional_auth_url_normalization_idempotency_headers_multipart_headers_and_typed_response_handling
+apps/rust-sdk/src/crawl.rs	apps	parsed	rust_sdk_crawl_method	async_start_status_cancel_errors_polling_autopagination_and_robots_blocked_error_projection
+apps/rust-sdk/src/error.rs	apps	parsed	rust_sdk_error_taxonomy	http_transport_status_text_json_api_payload_job_failure_and_misuse_error_classification
+apps/rust-sdk/src/lib.rs	apps	parsed	rust_sdk_module_facade	thin_public_facade_over_primitive_modules_with_policy_outside_client
+apps/rust-sdk/src/map.rs	apps	parsed	rust_sdk_map_method	cheap_link_discovery_with_sitemap_search_subdomain_query_dedupe_limit_and_metadata_controls
+apps/rust-sdk/src/monitor.rs	apps	parsed	rust_sdk_monitor_method	recurring_change_detection_control_surface_with_schedules_retention_summaries_page_diffs_pagination_and_credit_estimates
+apps/rust-sdk/src/parse.rs	apps	parsed	rust_sdk_parse_method	strict_upload_document_lane_with_filename_byte_validation_content_type_multipart_options_and_parse_only_contract
+apps/rust-sdk/src/scrape.rs	apps	parsed	rust_sdk_scrape_method	typed_artifact_formats_cache_age_lockdown_profiles_parser_settings_actions_schema_extraction_and_bounded_interaction
+apps/rust-sdk/src/search.rs	apps	parsed	rust_sdk_search_method	source_category_domain_freshness_location_controls_with_thin_or_enriched_document_result_union
+apps/rust-sdk/src/serde_helpers.rs	apps	parsed	rust_sdk_tolerant_metadata_deserializer	string_array_null_missing_metadata_coercion_with_tests
+apps/rust-sdk/src/types.rs	apps	parsed	rust_sdk_shared_type_contract	typed_formats_documents_metadata_search_lanes_categories_job_statuses_errors_actions_and_change_tracking_facets
 apps/rust-sdk/tests/.env.example	apps	not_parsed	pending_review	
 apps/rust-sdk/tests/v2_e2e.rs	apps	not_parsed	pending_review	
 apps/test-site/.gitignore	apps	not_parsed	pending_review	

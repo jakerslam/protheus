@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 592
-- Not parsed: 685
+- Parsed: 605
+- Not parsed: 672
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -641,6 +641,19 @@
 | `apps/api/src/lib/tracking.ts` | Search/scrape analytics tracker. | Scrape/search analytics extract domains and record request/result metrics only when zero-data-retention is false, keeping analytics separate from citable evidence. |
 | `apps/api/src/lib/deprecations.ts` | Deprecation projection middleware. | Deprecations are emitted as headers and structured warnings/replacements while preserving the underlying response body. |
 | `apps/api/src/lib/withAuth.ts` | Auth bypass wrapper for self-host/test. | Auth bypass is profile-controlled, warning-limited, and returns a declared mock success instead of weakening the normal auth path. |
+| `apps/rust-sdk/src/client.rs` | Rust SDK client facade. | Cloud API-key requirements, self-host optional auth, base-URL normalization, idempotency headers, multipart header shaping, and typed response parsing are kept in the client boundary. |
+| `apps/rust-sdk/src/error.rs` | Rust SDK error taxonomy. | SDK errors distinguish HTTP transport, HTTP status, text/JSON parse, API payload errors, terminal job failures, and misuse before higher layers handle recovery. |
+| `apps/rust-sdk/src/serde_helpers.rs` | Rust SDK tolerant metadata deserializer. | Metadata fields that drift between string, array, null, and missing are normalized predictably so evidence metadata survives provider/API variance. |
+| `apps/rust-sdk/src/types.rs` | Rust SDK shared type contract. | Web evidence is modeled as typed formats, documents, metadata, search source lanes, categories, job statuses, crawl errors, action artifacts, and change-tracking facets. |
+| `apps/rust-sdk/src/search.rs` | Rust SDK search method. | Search accepts source/category/domain/freshness/location controls and can return either thin SERP rows or enriched scraped documents under one result union. |
+| `apps/rust-sdk/src/scrape.rs` | Rust SDK scrape method. | Scrape exposes artifact formats, cache age controls, lockdown, profiles, parser settings, dynamic actions, schema extraction, and bounded browser interaction as typed options. |
+| `apps/rust-sdk/src/crawl.rs` | Rust SDK crawl method. | Crawl separates async start/status/cancel/error calls from synchronous polling, auto-paginates completed documents, and exposes robots-blocked/error details separately. |
+| `apps/rust-sdk/src/batch_scrape.rs` | Rust SDK batch scrape method. | Batch scrape admits multi-URL work with idempotency, ignored-invalid-URL reporting, async status, auto-pagination, terminal polling, and per-job error retrieval. |
+| `apps/rust-sdk/src/map.rs` | Rust SDK map method. | Map is a cheap link-discovery primitive with sitemap/search/subdomain/query-dedupe/limit controls and link metadata before expensive scraping. |
+| `apps/rust-sdk/src/parse.rs` | Rust SDK parse method. | Parse is a strict upload/document lane: validate filename and bytes, attach content type, send options as multipart metadata, and reject browse-only option drift. |
+| `apps/rust-sdk/src/agent.rs` | Rust SDK agent method. | Agent work is an optional bounded capability with start URLs, prompt, schema, strict URL constraints, credit budget, timeout, polling, status projection, and typed schema output. |
+| `apps/rust-sdk/src/monitor.rs` | Rust SDK monitor method. | Monitoring is a separate recurring retrieval/change-detection control surface with schedules, retention, check summaries, page diffs, pagination, and credit estimates. |
+| `apps/rust-sdk/src/lib.rs` | Rust SDK module facade. | Public SDK exports remain a thin typed facade over primitive modules, keeping composition/policy outside the client. |
 
 ## Decisions So Far
 
@@ -928,11 +941,24 @@
 108. ZDR telemetry suppression contract: enforce zero-retention suppression across logs, analytics, tracing, cache writes, and support proxies with tests. Ledger captured; candidate privacy/tool-adapter guard.
 109. Credential mutation invalidation: credential rotation/provisioning should invalidate admission caches and capability state before new requests can use stale keys. Ledger captured; candidate Gateway/tool-admission target.
 110. Trace-correlation metadata lane: carry trace/request/job IDs through internal artifacts for debugging while excluding them from synthesis evidence and final answers. Ledger captured; candidate observability schema target.
+111. Search-result enrichment union: model search results as either thin discovery rows or enriched documents, with enrichment state available to ranking/evidence packing but not final-answer phrasing. Ledger captured; candidate evidence-pack quality target.
+112. Source-lane request controls: expose web/news/image/category/domain/freshness/location controls as typed retrieval inputs so agents can widen or narrow discovery without prompt-template hardcoding. Ledger captured; candidate web Tool CD schema target.
+113. Rich artifact format contract: preserve requested output facets such as markdown, HTML, links, images, summary, JSON, attributes, question/highlight answers, screenshots, audio, and change-tracking as optional typed evidence fields. Ledger captured; candidate evidence-pack enrichment target.
+114. Map-before-fetch primitive: use cheap sitemap/search/link mapping with query/subdomain/dedupe/limit controls to build candidate sets before spending scrape or crawl budget. Ledger captured; candidate retrieval planning target.
+115. Async job lifecycle parity: start/status/cancel/errors/poll facades should converge into the same terminal artifact with auto-pagination and typed terminal states. Ledger captured; candidate tool broker/runtime target.
+116. Batch URL evidence primitive: multi-URL retrieval should track ignored invalid URLs, idempotency, result pagination, terminal timeout, and per-job errors separately from successful documents. Ledger captured; candidate batch retrieval Tool CD.
+117. Strict parse-only document lane: uploaded/file-like evidence should validate bytes/name/content type and accept only parse-compatible options instead of silently becoming a web scrape. Ledger captured; candidate document/web bridge.
+118. Bounded web-agent capability: autonomous web agents should be optional Tool CD capabilities with URL constraints, schema outputs, budget/timeout fields, and status projection, not hidden behavior in ordinary search. Ledger captured; candidate advanced retrieval capability lane.
+119. Monitor/change-detection separation: recurring change checks, page diffs, schedules, retention, and credit estimates are control/change artifacts that can feed evidence only through explicit refs. Ledger captured; candidate monitor/change evidence lane.
+120. Tolerant metadata coercion: evidence packers should normalize provider metadata drift across scalar/list/null/missing shapes while preserving unknown fields and quality flags. Ledger captured; candidate evidence-pack normalization target.
+121. Profile-aware client admission: tool clients should declare cloud/self-host credential requirements and normalize base URLs/headers before any retrieval request reaches workflow logic. Ledger captured; candidate Tool CD/admission guard.
+122. Thin public client facade: SDK/user-facing clients should expose typed primitives while composition order remains in workflow CDs/orchestration. Ledger captured; candidate architecture/CD guard.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
-- Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining agent support files for reusable async/batch/result-projection patterns.
+- Rust SDK source surface is parsed; continue parsing Rust SDK E2E/tests/docs only if parity gaps remain.
+- Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
 - Keep scanning remaining files for any general web-tooling primitive that improves discovery quality, extraction quality, evidence packing, lifecycle bounds, or retry safety.
