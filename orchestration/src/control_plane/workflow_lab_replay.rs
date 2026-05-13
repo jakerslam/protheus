@@ -111,12 +111,14 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         project_state: "uninitialized",
         expected_checkpoint: "single_file_utility_mvp",
         planned_slices: &[
+            "coding_ingress_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "single_file_local_code_execution",
             "syntax_and_behavior_validation",
         ],
         required_child_capabilities: &[
+            "coding_ingress_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -136,6 +138,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         project_state: "uninitialized",
         expected_checkpoint: "bounded_multi_file_app_mvp",
         planned_slices: &[
+            "coding_ingress_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "domain_model_slice",
@@ -145,6 +148,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         ],
         required_child_capabilities: &[
             "research_context",
+            "coding_ingress_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -164,6 +168,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         project_state: "initialized",
         expected_checkpoint: "existing_project_increment",
         planned_slices: &[
+            "coding_ingress_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "targeted_feature_slice",
@@ -171,6 +176,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "architecture_drift_validation",
         ],
         required_child_capabilities: &[
+            "coding_ingress_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -381,6 +387,15 @@ fn task_execution(
         .any(|slice| slice.child_workflow_id == "local_code_edit_execution")
     {
         failures.push(format!("missing_local_code_edit_execution_slice:{}", scenario.id));
+    }
+    if !slice_invocations
+        .iter()
+        .any(|slice| slice.child_workflow_id == "local_coding_ingress_guard")
+    {
+        failures.push(format!(
+            "missing_local_coding_ingress_guard_slice:{}",
+            scenario.id
+        ));
     }
     if !slice_invocations
         .iter()
@@ -647,9 +662,22 @@ fn slices_for_scenario(
         "research_context",
         "research_synthesize_verify",
     );
+    let ingress_guard = child_call(
+        child_calls,
+        "coding_ingress_guard",
+        "local_coding_ingress_guard",
+    );
 
     match scenario.id {
         "single_file_utility" => vec![
+            slice(
+                "coding_ingress_guard_initialization",
+                "Normalize ForgeCode-style CLI/session input, command routes, and user prompt context before policy or planning.",
+                ingress_guard,
+                vec!["prompt source", "conversation state", "command route", "attachments"],
+                vec!["ingress route is known", "prompt context receipts are available"],
+                "ingress guard artifact is available before policy guard",
+            ),
             slice(
                 "policy_permission_guard_initialization",
                 "Resolve ForgeCode-style config and operation permission guardrails before exposing local coding tools.",
@@ -735,6 +763,14 @@ fn slices_for_scenario(
             ),
         ],
         "small_multi_file_app" => vec![
+            slice(
+                "coding_ingress_guard_initialization",
+                "Normalize ForgeCode-style CLI/session input, command routes, and user prompt context before policy or planning.",
+                ingress_guard,
+                vec!["prompt source", "conversation state", "command route", "attachments"],
+                vec!["ingress route is known", "prompt context receipts are available"],
+                "ingress guard artifact is available before policy guard",
+            ),
             slice(
                 "policy_permission_guard_initialization",
                 "Resolve ForgeCode-style config and operation permission guardrails before exposing local coding tools.",
@@ -833,6 +869,14 @@ fn slices_for_scenario(
             ),
         ],
         _ => vec![
+            slice(
+                "coding_ingress_guard_initialization",
+                "Normalize ForgeCode-style CLI/session input, command routes, and user prompt context before policy or planning.",
+                ingress_guard,
+                vec!["prompt source", "conversation state", "command route", "attachments"],
+                vec!["ingress route is known", "prompt context receipts are available"],
+                "ingress guard artifact is available before policy guard",
+            ),
             slice(
                 "policy_permission_guard_initialization",
                 "Resolve ForgeCode-style config and operation permission guardrails before exposing local coding tools.",
@@ -1047,6 +1091,7 @@ fn child_call(
 fn static_child_value(value: &str) -> &'static str {
     match value {
         "research_context" => "research_context",
+        "coding_ingress_guard" => "coding_ingress_guard",
         "policy_permission_guard" => "policy_permission_guard",
         "context_loop_guard" => "context_loop_guard",
         "tooling_surface_guard" => "tooling_surface_guard",
@@ -1058,6 +1103,13 @@ fn static_child_value(value: &str) -> &'static str {
         "focused_repair" => "focused_repair",
         "checkpoint_handoff" => "checkpoint_handoff",
         "research_synthesize_verify" => "research_synthesize_verify",
+        "local_coding_ingress_guard" => "local_coding_ingress_guard",
+        "local_coding_ingress_guard_input_envelope_v1" => {
+            "local_coding_ingress_guard_input_envelope_v1"
+        },
+        "local_coding_ingress_guard_result_artifact_v1" => {
+            "local_coding_ingress_guard_result_artifact_v1"
+        },
         "local_policy_permission_guard" => "local_policy_permission_guard",
         "local_policy_permission_guard_input_envelope_v1" => {
             "local_policy_permission_guard_input_envelope_v1"

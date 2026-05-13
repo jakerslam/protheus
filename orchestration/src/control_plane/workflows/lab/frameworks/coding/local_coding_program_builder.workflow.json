@@ -26,6 +26,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "coding_ingress_guard",
+        "workflow_id": "local_coding_ingress_guard",
+        "input_contract": "local_coding_ingress_guard_input_envelope_v1",
+        "output_artifact": "local_coding_ingress_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "policy_permission_guard",
         "workflow_id": "local_policy_permission_guard",
         "input_contract": "local_policy_permission_guard_input_envelope_v1",
@@ -116,6 +124,7 @@
   "description": "Higher-level local coding workflow that defines a bounded checkpoint, initializes or stabilizes project architecture, decomposes work into slices, routes implementation through safe local code-edit execution, validates the result, and loops only within explicit stop constraints.",
   "stages": [
     "intake_normalization",
+    "coding_ingress_guard_initialization",
     "policy_permission_guard_initialization",
     "context_and_tool_guard_initialization",
     "tooling_surface_guard_initialization",
@@ -136,6 +145,11 @@
     "primitive_level": 3,
     "composed_of_workflow_ids": [
       "research_synthesize_verify",
+      "local_coding_ingress_guard",
+      "cli_intent_argument_ingress",
+      "interactive_input_session_state",
+      "command_prompt_generation",
+      "user_prompt_context_assembly",
       "local_policy_permission_guard",
       "forge_config_resolution",
       "operation_permission_gate",
@@ -225,10 +239,9 @@
     "gate_kind": "structured_control_plane_gate",
     "input_kind": "multiple_choice_or_text_input",
     "allowed_transitions": [
-      "intake_normalization->checkpoint_definition",
-      "intake_normalization->policy_permission_guard_initialization",
+      "intake_normalization->coding_ingress_guard_initialization",
+      "coding_ingress_guard_initialization->policy_permission_guard_initialization",
       "policy_permission_guard_initialization->context_and_tool_guard_initialization",
-      "intake_normalization->context_and_tool_guard_initialization",
       "context_and_tool_guard_initialization->checkpoint_definition",
       "context_and_tool_guard_initialization->tooling_surface_guard_initialization",
       "tooling_surface_guard_initialization->checkpoint_definition",
@@ -248,6 +261,8 @@
       "repair_loop->result_packaging",
       "result_packaging->verification_closure",
       "verification_closure->completed",
+      "coding_ingress_guard_initialization->blocked",
+      "coding_ingress_guard_initialization->failed",
       "policy_permission_guard_initialization->blocked",
       "context_and_tool_guard_initialization->blocked",
       "tooling_surface_guard_initialization->blocked",
@@ -396,7 +411,7 @@
       ]
     },
     "slice_policy": {
-      "default_max_slices": 8,
+      "default_max_slices": 12,
       "slice_required_fields": [
         "name",
         "goal",
@@ -423,6 +438,30 @@
       "max_validation_attempts": 3,
       "repair_prompt_policy": "route focused failures through bounded_repair_loop, diagnose the failure class, retry the smallest failing scope through local_code_edit_execution, rerun the relevant validation command, and undo or escalate if the repair makes the checkpoint worse",
       "do_not_continue_to": "future product scope outside the checkpoint"
+    },
+    "coding_ingress_guard_contract": {
+      "source": "forgecode_assimilated_ingress_layer",
+      "required_composite_workflow_id": "local_coding_ingress_guard",
+      "required_primitive_workflow_ids": [
+        "cli_intent_argument_ingress",
+        "interactive_input_session_state",
+        "command_prompt_generation",
+        "user_prompt_context_assembly"
+      ],
+      "activation_policy": "local coding tasks must normalize ForgeCode-style CLI/session input, interactive state, command prompt generation, and user prompt context assembly before permission, context, tooling, runtime, planning, or local code-edit execution",
+      "required_receipts": [
+        "cli_ingress_receipt",
+        "interactive_session_state_receipt",
+        "command_prompt_generation_receipt",
+        "user_prompt_context_receipt",
+        "ingress_route_receipt"
+      ],
+      "non_goals": [
+        "do_not_execute_generated_commands",
+        "do_not_choose_architecture_inside_ingress",
+        "do_not_apply_permission_policy_inside_ingress",
+        "do_not_mutate_files_inside_ingress"
+      ]
     },
     "context_loop_guard_contract": {
       "source": "forgecode_assimilated_context_layer",
@@ -594,6 +633,7 @@
     "version": "local_coding_program_builder_state_v1",
     "required_state_fields": [
       "checkpoint",
+      "ingress_context",
       "architecture_contract",
       "completed_slices",
       "active_slice",

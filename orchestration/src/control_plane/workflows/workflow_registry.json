@@ -135,6 +135,97 @@
       ]
     },
     {
+      "workflow_id": "cli_intent_argument_ingress",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_ingress_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_ingress/cli_intent_argument_ingress.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "prompt_and_piped_input_normalization",
+        "cwd_sandbox_conversation_route"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_ingress_layer_parity_reviewed",
+        "cli_ingress_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "interactive_input_session_state",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_ingress_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_ingress/interactive_input_session_state.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "prompt_loop_parse_receipt",
+        "conversation_selector_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_ingress_layer_parity_reviewed",
+        "interactive_session_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "command_prompt_generation",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_ingress_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_ingress/command_prompt_generation.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "schema_constrained_shell_suggestion",
+        "custom_command_template_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_ingress_layer_parity_reviewed",
+        "command_prompt_generation_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "user_prompt_context_assembly",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_ingress_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_ingress/user_prompt_context_assembly.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "task_feedback_prompt_rendering",
+        "attachments_and_droppable_context_receipts"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_ingress_layer_parity_reviewed",
+        "user_prompt_context_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_coding_ingress_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_ingress_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_coding_ingress_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "normalized_cli_to_prompt_context",
+        "command_route_stops_before_execution"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_ingress_layer_parity_reviewed",
+        "coding_ingress_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "repo_context_assessment",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_safety_layer",

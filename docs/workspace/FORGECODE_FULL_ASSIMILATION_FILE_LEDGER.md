@@ -90,6 +90,7 @@ Top-level source areas:
 | `FC-A09` | Extract tool schema, tool-call normalization, MCP, command, and skill loading semantics | active | Tooling-layer contract pass added for tool schema registry, tool-call normalization, MCP bridge, custom command/skill loading, and the `local_tooling_surface_guard` composite. |
 | `FC-A10` | Extract live runtime loop semantics | active | Runtime-layer contract pass added for request transforms, retry streaming, tool dispatch, lifecycle hooks, conversation persistence, and the `local_runtime_execution_loop` composite. |
 | `FC-A11` | Extract user-visible output and observability semantics | active | Observability-layer contract pass added for ChatResponse visibility routing, streaming markdown projection, tool output formatting, trace rate limiting, and the `local_runtime_observability_guard` composite. |
+| `FC-A12` | Extract CLI, session, command, and user-prompt ingress semantics | active | Ingress-layer contract pass added for CLI prompt/piped input normalization, interactive session state, command prompt generation, user prompt context assembly, and the `local_coding_ingress_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -135,6 +136,11 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `tool_output_display_format` | 0 | `forge_display/markdown`, `forge_display/code`, `forge_display/diff`, `forge_display/grep`, `forge_app/fmt/fmt_output` | lab contract created | Formats compact user-visible tool output such as diffs, grep/search results, markdown/code blocks, todo diffs, and plan creation titles. |
 | `trace_event_rate_limiter` | 0 | `forge_tracker/can_track`, `forge_tracker/rate_limit`, `forge_tracker/log`, `forge_tracker/dispatch`, `forge_tracker/event` | lab contract created | Bounds trace/usage event emission with tracking-enabled rules, fixed-window rate limits, filtered JSON logging, and dropped-event receipts. |
 | `local_runtime_observability_guard` | 1 | `forge_main/ui`, `forge_main/stream_renderer`, `forge_markdown_stream`, `forge_display`, `forge_tracker` | lab contract created | Composite guard that separates visible user output, compact display artifacts, and bounded telemetry from execution receipts. |
+| `cli_intent_argument_ingress` | 0 | `forge_main/cli`, `forge_main/main`, `forge_main/state` | lab contract created | Normalizes prompt sources, piped input, cwd, sandbox, conversation id, event JSON, and subcommand routing before coding starts. |
+| `interactive_input_session_state` | 0 | `forge_main/input`, `forge_main/prompt`, `forge_main/state`, `forge_main/conversation_selector`, `forge_main/porcelain` | lab contract created | Projects prompt loop outcomes, editor buffer state, app-command parsing, prompt metadata, UI cwd/conversation state, and selectable conversation rows. |
+| `command_prompt_generation` | 0 | `forge_app/command_generator`, `forge-command-generator-prompt.md`, `forge-commit-message-prompt.md`, `commands/github-pr-description.md` | lab contract created | Generates command-route prompt artifacts with environment/file snapshots, suggest model config, terminal trace projection, JSON schema responses, and command templates without executing side effects. |
+| `user_prompt_context_assembly` | 0 | `forge_app/user_prompt`, terminal context, prompt templates | lab contract created | Builds task/feedback user prompt context, command-expanded events, terminal context, droppable piped input, resume todos, attachments, and file-read metrics. |
+| `local_coding_ingress_guard` | 1 | `forge_main`, `forge_app/user_prompt`, `forge_app/command_generator`, templates, commands | lab contract created | Composite guard that wires CLI/session ingress, interactive state, command prompt generation, and user prompt context assembly before policy, tooling, runtime, planning, or coding. |
 
 ## Runtime behavior harnesses created
 
@@ -150,7 +156,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | ingress/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -216,10 +222,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
 
 Next source pass:
-- Inspect ForgeCode templates, custom command flows, and CLI/session entrypoints for how instructions, commands, and user-facing modes are selected before the runtime loop starts.
+- Inspect ForgeCode initialization services, changed-file notices, terminal context, and title/commit helpers for remaining pre-runtime parity gaps.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -377,3 +383,35 @@ Observability-layer parity requirements extracted:
 | Suppress display for operations with no compact display artifact while preserving execution receipts | `tool_output_display_format` | P0 |
 | Disable dev-build tracking and bound trace events by fixed windows | `trace_event_rate_limiter` | P0 |
 | Keep observability separate from planning, coding, validation, and checkpoint handoff | `local_runtime_observability_guard` | P0 |
+
+## Eighth source pass: CLI, session, command, and user-prompt ingress behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_main/src/cli.rs` | Defines direct prompt, piped input, conversation file/id, directory, sandbox, agent, event JSON, interactive-mode detection, and top-level command routes. | Coding workflows need a measurable ingress layer before planning so prompt source, cwd, sandbox, conversation, and subcommand routes are explicit. |
+| `crates/forge_main/src/main.rs` | Reads stdin only when piped, trims empty input away, reads config early, resolves cwd/sandbox/directory, initializes API and UI, and exits cleanly on startup errors. | Local coding should normalize process ingress and stop on invalid cwd/sandbox/config before exposing coding tools. |
+| `crates/forge_main/src/input.rs` | Loops over prompt reads, continues on empty/continue, exits on exit, tracks successful prompt text, and parses app commands. | Interactive coding needs prompt-loop receipts rather than treating every terminal read as a task. |
+| `crates/forge_main/src/prompt.rs` | Projects cwd, git branch, active agent, model, usage tokens, and cost into prompt state. | Session state should preserve compact prompt metadata without leaking hidden prompt internals. |
+| `crates/forge_main/src/state.rs` | Tracks cwd and optional conversation id as UI state. | Conversation continuation and cwd are ingress state, not architecture decisions. |
+| `crates/forge_main/src/conversation_selector.rs` | Filters conversations to titled/contextful rows, renders porcelain columns, hides UUIDs, and starts cursor at current conversation. | Resume selection needs a structured session primitive with selectable conversation receipts. |
+| `crates/forge_main/src/porcelain.rs` | Converts information sections to tabular machine-readable rows with column transforms, truncation, sorting, and uppercase headers. | Ingress/selection display should be a projection layer, not raw conversation state leakage. |
+| `crates/forge_app/src/user_prompt.rs` | Detects resume, classifies task vs feedback, renders command and user prompt templates, injects terminal context, adds droppable piped input and resume todos, parses attachments, and records file attachments as read metrics. | User prompt context assembly must happen before runtime execution and remain separate from file mutation and validation. |
+| `crates/forge_app/src/command_generator.rs` | Generates shell commands using environment and directory snapshots, suggest/default session model config, terminal command traces, schema-constrained JSON, and parsed command responses. | Command-route ingress must stop before execution and hand generated commands to permission/safety layers. |
+| `templates/forge-command-generator-prompt.md` | Converts natural language to safe shell commands, handles malformed/vague/gibberish input, and returns safe echo warnings for destructive operations. | Shell suggestion behavior should be captured as command prompt generation, not confused with shell execution. |
+| `templates/forge-commit-message-prompt.md` | Produces a single raw conventional commit message line from diffs, context, recent commits, and branch name. | Commit prompt generation belongs to ingress/template handling until a later workflow explicitly mutates git. |
+| `commands/github-pr-description.md` | Defines a command frontmatter block and expands parameters into a PR-description task prompt. | Custom command execution starts with markdown/template expansion and should not skip prompt-context receipts. |
+
+Ingress-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Normalize direct prompt, piped input, event JSON, and interactive-mode routes before planning | `cli_intent_argument_ingress` | P0 |
+| Resolve cwd, sandbox, and conversation id before local coding tools are exposed | `cli_intent_argument_ingress` | P0 |
+| Treat interactive prompt outcomes, editor buffer state, app command parsing, and conversation selection as session receipts | `interactive_input_session_state` | P0 |
+| Assemble task/feedback user prompt context with current date, terminal context, command expansion, droppable piped input, and resume todos | `user_prompt_context_assembly` | P0 |
+| Parse rendered prompt attachments and record file attachment reads as metrics with hashes | `user_prompt_context_assembly` | P0 |
+| Generate command-route prompts and shell suggestions without executing generated commands | `command_prompt_generation` | P0 |
+| Prefer suggest config over default session config for shell command generation | `command_prompt_generation` | P1 |
+| Keep ingress separate from policy permission, architecture planning, local file mutation, validation, and runtime loop execution | `local_coding_ingress_guard` | P0 |
