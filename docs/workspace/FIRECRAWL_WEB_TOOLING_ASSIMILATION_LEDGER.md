@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 302
-- Not parsed: 976
+- Parsed: 309
+- Not parsed: 969
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -325,6 +325,13 @@
 | `apps/api/src/services/monitoring/stale.ts` | Monitor stale-check helper. | Running checks become stale after one hour using `started_at`, then `updated_at`, then `created_at` as fallback timestamps. |
 | `apps/api/src/services/monitoring/runner.test.ts` | Monitor runner stale tests. | Unit tests lock the one-hour stale threshold and timestamp fallback behavior. |
 | `apps/api/src/services/monitoring/scheduler.test.ts` | Monitor scheduler recovery tests. | Tests prove dispatch happens before enqueue, enqueue failure marks and clears checks, overlap becomes `skipped_overlap`, and stale current checks are failed before a new run is admitted. |
+| `apps/api/src/scraper/scrapeURL/postprocessors/__tests__/youtube.test.ts` | YouTube postprocessor tests. | Video/transcript postprocessors should run only for supported video URL shapes and skip URLs already processed by the same postprocessor. |
+| `apps/api/src/scraper/scrapeURL/transformers/audio.ts` | Audio artifact transformer. | Audio extraction is format-gated, lockdown-skipped, service-availability-aware, supported-URL-regex cached, browser-cookie forwarding capable, and emits a public audio artifact URL. |
+| `apps/api/src/scraper/scrapeURL/transformers/__tests__/audio.test.ts` | Audio transformer tests. | Tests lock no-outbound behavior under lockdown, no-op behavior when audio is not requested, and cookie forwarding only when browser cookies exist. |
+| `apps/api/src/scraper/scrapeURL/transformers/__tests__/sendToSearchIndex.test.ts` | Search-index transformer tests. | Index publication should not forward lockdown documents, while normal eligible documents can be indexed asynchronously when indexing is enabled. |
+| `apps/api/src/scraper/scrapeURL/transformers/agent.ts` | Smart interaction transformer. | Agent/interactive transformation is zero-retention gated, cost-limit aware, and only rewrites markdown/html artifacts when the requested formats need them. |
+| `apps/api/src/scraper/scrapeURL/transformers/llmExtract.test.ts` | LLM extraction transformer tests. | Tests cover schema cleanup, token-limit trimming with warnings/fallbacks, empty-summary warnings, and skipping clean-content generation when input exceeds model output budget. |
+| `apps/api/src/scraper/scrapeURL/transformers/uploadScreenshot.ts` | Screenshot upload transformer. | Inline screenshot data URLs are converted to stored media refs when database-backed storage is enabled. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -424,6 +431,10 @@
 - Async retrieval completion should be reconciled from expected work IDs and durable page rows, not only immediate worker return values. This gives the system a way to recover if callbacks, queues, or status polling drift.
 - Removed-page detection is part of evidence truth for crawl-style monitoring: a completed crawl should compare current page refs against prior active page state and emit explicit removed artifacts.
 - Resource accounting should be tied to terminalized retrieval checks; stale or failed checks need reserved-resource release before the scheduler admits new work.
+- Postprocessors and transformers should be idempotent capability lanes: run only for matching URL/artifact/request shapes, skip already-processed sources, and keep provider/service details diagnostic-only.
+- External artifact generation should honor privacy and cache boundaries before touching the source URL or forwarding cookies; lockdown and zero-retention are upstream gates, not post-hoc warnings.
+- Oversized LLM transformation inputs should become preserved original evidence plus hidden warnings, not empty outputs or forced truncation without provenance.
+- Large inline artifacts should be converted into refs before evidence packaging so synthesis receives stable artifact references rather than bulky raw payloads.
 
 ## Candidate Assimilation Targets
 
@@ -462,6 +473,7 @@
 33. Async retrieval test harness: maintain raw/success/failure wrappers plus polling helpers for each async retrieval primitive so live workflow failures can be classified as request, execution, status, or synthesis failures. Ledger captured; candidate eval-harness target.
 34. Scheduled retrieval/change tracking primitive: model monitors as due-work claims, overlap/stale handling, durable per-page states, out-of-band diff artifacts, and bounded summary/page projections. Ledger captured; candidate future workflow-memory/monitoring CD.
 35. Async completion reconciliation primitive: track expected job IDs, durable page refs, crawl completion/removal state, stale checks, and terminal resource release so long-running retrieval can recover after partial queue/status failure. Ledger captured; candidate runtime/eval harness target.
+36. Artifact transformer lane contract: make page postprocessors/transformers idempotent, request-gated, privacy-gated, context-budget-aware, and ref-producing for bulky artifacts. Ledger captured; compare against current evidence-pack transformation layer.
 
 ## Remaining Work
 
