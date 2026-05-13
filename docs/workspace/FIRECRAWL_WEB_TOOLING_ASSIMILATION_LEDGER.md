@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 829
-- Not parsed: 444
+- Parsed: 839
+- Not parsed: 434
 - Skipped generated: 13
 - Skipped media or sample: 71
 
@@ -878,6 +878,16 @@
 | `apps/test-suite/load-test-results/tests-6-7/load-test-6.md` | Crawl load result. | Crawl admission can stay fast while worker CPU and memory carry the real cost; status tests need worker-resource observation. |
 | `apps/test-suite/load-test-results/tests-6-7/load-test-7.md` | Crawl fire-engine load result. | Queue admission without failed requests can still hide downstream render-engine resource collapse under sustained processing. |
 | `apps/test-suite/load-test-results/tests-6-7/load-test-8.md` | Crawl autoscaling result. | Worker/render autoscaling and 404/final-status capture failures should be reported separately from retrieval content quality. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/.env.template` | Airbnb analysis capability config. | Firecrawl, code-interpreter, and LLM credentials are external capability inputs and must not become workflow logic. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/.prettierignore` | Example artifact hygiene. | Generated dependency directories are local artifacts, not assimilation targets. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/README.md` | Airbnb analysis example overview. | Example composes retrieval, structured extraction, code execution, and visualization as separate phases. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/airbnb_listings.json` | Extracted listings sample artifact. | Sample shows schema-shaped extracted items with missing optional fields and duplicate-like rows that downstream analysis must tolerate. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/codeInterpreter.ts` | Code-interpreter adapter. | Analysis execution should return stdout/stderr/results/errors as a structured artifact and keep generated code/logs out of normal synthesis evidence. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/index.ts` | Retrieval-to-analysis orchestrator. | Cached extracted data is reused when valid, empty artifacts trigger retrieval, parsed JSON feeds a sandboxed analysis tool, and visual output is saved as a separate artifact. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/model.ts` | Analysis tool/model contract. | The portable pattern is a sandboxed analysis tool schema; hardcoded model ID and broad filesystem/network permissions are example-only and not assimilation targets. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/package.json` | Example package manifest. | Dependency surface confirms this is a composition example, with Firecrawl retrieval and code-interpreter analysis remaining separate capability lanes. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/prettier.config.mjs` | Example formatting config. | Formatting config has no web-tooling pattern beyond local hygiene. |
+| `examples/scrape_and_analyze_airbnb_data_e2b/scraping.ts` | Airbnb extraction implementation. | First extract pagination links, fall back to seed URL if discovery fails, then scrape pages concurrently into schema-shaped records and persist the evidence snapshot. |
 
 ## Decisions So Far
 
@@ -1267,6 +1277,10 @@
 210. Load quality stratification: performance results should report request success, status-code tails, capture failures, latency percentiles, CPU/memory stabilization, and downstream worker collapse as separate strata. Ledger captured; candidate workflow stats model.
 211. Timeout/concurrency tradeoff accounting: changing timeouts or concurrency limits can move failures between timeout, 502, and latency buckets; eval summaries should preserve the tradeoff instead of treating pass rate as the only quality signal. Ledger captured; candidate eval reporting target.
 212. Admission-vs-completion split: crawl/load workflows should distinguish start-handle admission from terminal document production and final evidence availability. Ledger reinforced; candidate Shell Socket/status projection target.
+213. Retrieval-to-analysis artifact split: downstream code/data analysis should consume parsed evidence artifacts and return separate result/image artifacts, not mutate retrieval evidence or final-answer contracts. Ledger captured; candidate analysis Tool CD lane.
+214. Cache validity before reuse: cached extracted evidence can improve latency only when existence, nonempty shape, and freshness/cleanup lifecycle are checked before reuse. Ledger captured; candidate cache lifecycle guard.
+215. Discovery fallback hierarchy: if pagination/link discovery returns empty, fall back to the seed URL with an explicit gap flag rather than failing or pretending full coverage. Ledger captured; candidate retrieval planner target.
+216. Optional-field tolerant analysis: extracted structured records may have missing optional fields and duplicate-like rows; normalizers and analysis tools should tolerate this without discarding all evidence. Ledger captured; candidate evidence normalizer target.
 
 ## Remaining Work
 
@@ -1277,6 +1291,7 @@
 - First high-signal research/crawler examples are parsed; remaining examples should be sampled for new composition patterns, not repeated model-specific syntax.
 - Map, scrape, and crawl endpoint articles are fully parsed; broader deployment/scheduling articles were only sampled and remain unmarked until a complete read.
 - Test-suite overview, crawl/scrape fixtures, load config, and markdown load reports are parsed; generated Artillery JSON report is skipped as generated after aggregate inspection.
+- Airbnb data-analysis example is parsed; it contributes retrieval-to-analysis artifact separation and discovery fallback patterns, not model/tool permission choices.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
