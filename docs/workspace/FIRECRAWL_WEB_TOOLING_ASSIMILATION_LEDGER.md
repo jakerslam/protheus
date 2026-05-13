@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1176
-- Not parsed: 91
+- Parsed: 1183
+- Not parsed: 84
 - Skipped generated: 15
 - Skipped media or sample: 75
 
@@ -511,6 +511,13 @@
 | `apps/js-sdk/firecrawl/jest.config.js` | JS SDK Jest config. | Unit/E2E test harness resolves ESM TypeScript modules under Node, keeping SDK tests deterministic. |
 | `apps/js-sdk/firecrawl/tsup.config.ts` | JS SDK build config. | Package builds CJS/ESM/d.ts outputs from a single entrypoint and pins runtime target to Node 22. |
 | `apps/js-sdk/firecrawl/src/types/node-undici.d.ts` | JS SDK WebSocket type shim. | WebSocket transport typing is isolated behind a minimal shim instead of leaking environment assumptions into retrieval logic. |
+| `apps/js-sdk/LICENSE` | JS SDK outer license. | License reviewed; no direct web-tooling pattern beyond attribution boundary. |
+| `apps/js-sdk/firecrawl/.gitignore` | JS SDK package ignore. | Build output, caches, env files, diagnostics, package artifacts, and dependency trees stay outside source/evidence surfaces. |
+| `apps/js-sdk/firecrawl/LICENSE` | JS SDK package license. | License reviewed; no direct web-tooling pattern beyond attribution boundary. |
+| `apps/js-sdk/firecrawl/src/index.backup.ts` | JS SDK legacy backup facade. | Backup v1 facade repeats document facets, schema conversion, polling/pagination, transient retries, deep-research status callbacks, LLMs.txt handles, usage projections, and websocket watcher events; useful as compatibility confirmation only. |
+| `apps/js-sdk/firecrawl/src/v1/index.ts` | JS SDK v1 legacy facade. | Deprecated v1 facade preserves broad request/response shapes, crawl/batch full-data pagination, retryable network classification, deep-research activity/source callbacks, queue/usage projections, and watcher catch-up/document/done/error events. |
+| `apps/js-sdk/firecrawl/tsconfig.json` | JS SDK package TS config. | Strict no-emit source config excludes tests and reinforces SDK-source/build separation. |
+| `apps/js-sdk/tsconfig.json` | JS SDK outer TS config. | Outer CommonJS declaration build is package tooling, not retrieval behavior. |
 | `apps/api/src/lib/avgrab-resolve.ts` | Source-specialty resolver helper. | Optional resolver capabilities can cache supported URL patterns, delegate matching URLs to a specialty service, and project returned posts into generic map documents with hidden metadata. |
 | `apps/api/src/lib/permu-refactor.test.ts` | URL permutation stability test. | URL equivalence closures should be stable across permutations of protocol, `www`, slash, and common index-file variants so dedupe/locks are deterministic. |
 | `apps/api/src/__tests__/snips/generateDomainSplits.test.ts` | Domain split tests. | Public-suffix-aware domain splitting supports fake domains for test/mocking while preserving subdomain rollup behavior. |
@@ -1701,6 +1708,9 @@
 296. Hydration tolerance as evidence safety: model hydration should accept malformed optional lanes by degrading locally rather than discarding all evidence.
 297. Visual artifact request facets: screenshot viewport/full-page/wait controls are evidence facet inputs, not final-response formatting instructions.
 298. Optional dependency quarantine: framework-specific dependencies and suppressions should stay scoped to adapter integration and never leak into core retrieval primitives.
+299. Legacy facade quarantine: large deprecated/backup facades can confirm compatibility contracts, but current Tool CDs should reference the maintained v2 adapter surface.
+300. Activity/source callbacks as hidden progress streams: deep-research style activity/source deltas are useful observability inputs and should not be rendered as final answer content.
+301. Watcher catch-up/document/done separation: long-running retrieval streams should separate catch-up snapshots, per-document evidence, terminal done, and errors so synthesis consumes only committed evidence.
 
 ## Remaining Work
 
@@ -1725,8 +1735,7 @@
 - Java SDK docs, build metadata, exceptions, model surface, and env-gated tests are parsed; the Gradle wrapper jar is marked generated, and useful signals are discovery-quality map gates, browser/session projection boundaries, capability-gated live tests, typed agent controls, and language-stable Tool CD parity fields.
 - PHP SDK client, transport, docs, Laravel integration, exceptions, models, and compact test harness are parsed; no unparsed PHP SDK files remain in the inventory.
 - Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
-- JS SDK v2 docs, public entrypoint, compact E2E suites, and remaining compact unit tests are parsed; large legacy v1 SDK and outer example files remain.
-- JS SDK outer examples, v1 E2E retry/status tests, package/audit harness, and watcher/pagination examples are parsed; large `src/v1/index.ts` and `src/index.backup.ts` remain unparsed.
+- JS SDK v2 docs, public entrypoint, compact E2E suites, remaining compact unit tests, outer examples, v1 E2E retry/status tests, package/audit harness, watcher/pagination examples, legacy `src/v1/index.ts`, and `src/index.backup.ts` are parsed; no unparsed JS SDK files remain in the inventory.
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
