@@ -136,20 +136,20 @@ apps/api/src/__tests__/snips/v0/lib.ts	apps	not_parsed	pending_review
 apps/api/src/__tests__/snips/v0/scrape.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v1/batch-scrape.test.ts	apps	parsed	v1_batch_scrape_snips	contentful_batch_markdown_source_url_preservation_and_json_extract_format
 apps/api/src/__tests__/snips/v1/billing.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v1/concurrency.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v1/concurrency.test.ts	apps	parsed	v1_concurrency_snips	account_and_request_concurrency_limits_with_stacked_group_behavior
 apps/api/src/__tests__/snips/v1/crawl.test.ts	apps	parsed	v1_crawl_snips	uuid_validation_include_paths_domain_subdomain_protocol_filtering_and_ongoing_lifecycle
-apps/api/src/__tests__/snips/v1/deep-research.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v1/deep-research.test.ts	apps	parsed	v1_deep_research_snips	end_to_end_final_analysis_sources_and_activity_projection
 apps/api/src/__tests__/snips/v1/deprecation.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v1/extract.test.ts	apps	parsed	v1_extract_snips	schema_typing_and_unsupported_json_schema_parameter_normalization
 apps/api/src/__tests__/snips/v1/iframe-selectors.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v1/json-extract-format.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v1/json-extract-format.test.ts	apps	parsed	v1_json_extract_format_snips_extract_json_field_compatibility_and_multi_format_projection
 apps/api/src/__tests__/snips/v1/lib.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v1/map.test.ts	apps	parsed	v1_map_snips	timeout_failure_and_query_parameter_preservation
 apps/api/src/__tests__/snips/v1/scrape.test.ts	apps	parsed	v1_scrape_snips	wait_budget_encoding_action_capability_cache_key_status_json_rawhtml
 apps/api/src/__tests__/snips/v1/search.test.ts	apps	parsed	v1_search_snips	search_limits_search_scrape_enrichment_and_location_defaults
-apps/api/src/__tests__/snips/v1/types-validation.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v1/webhook.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/snips/v1/zdr.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v1/types-validation.test.ts	apps	parsed	v1_types_validation_snips_request_boundary_defaults_format_coupling_budget_limits_and_id_validation
+apps/api/src/__tests__/snips/v1/webhook.test.ts	apps	parsed	v1_webhook_snips_commented_placeholder_started_page_completed_event_contract
+apps/api/src/__tests__/snips/v1/zdr.test.ts	apps	parsed	v1_zdr_snips_team_and_request_scoped_zero_retention_cleanup
 apps/api/src/__tests__/snips/v2/audio-routing.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/v2/batch-scrape.test.ts	apps	parsed	batch_scrape_e2e_tests	content_bearing_docs_source_url_preservation_json_format
 apps/api/src/__tests__/snips/v2/billing.test.ts	apps	not_parsed	pending_review	

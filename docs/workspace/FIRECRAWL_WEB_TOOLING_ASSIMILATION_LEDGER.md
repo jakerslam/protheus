@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 268
-- Not parsed: 1010
+- Parsed: 274
+- Not parsed: 1004
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -291,6 +291,12 @@
 | `apps/api/src/__tests__/snips/v1/map.test.ts` | V1 map behavior tests. | Map tests verify explicit timeout failures and query-parameter preservation when query stripping is disabled. |
 | `apps/api/src/__tests__/snips/v1/batch-scrape.test.ts` | V1 batch scrape behavior tests. | Batch reads should preserve source URLs, return content-bearing markdown per URL, and support typed JSON extraction in batch mode. |
 | `apps/api/src/__tests__/snips/v1/extract.test.ts` | V1 extract behavior tests. | Extraction request handling should preserve schema field typing while normalizing unsupported JSON schema parameters at the boundary. |
+| `apps/api/src/__tests__/snips/v1/types-validation.test.ts` | V1 request schema behavior tests. | Request validation locks defaults, format coupling, timeout escalation, wait/action budgets, extraction URL caps, crawl/map limits, URL depth, location normalization, and UUID handle shape before execution. |
+| `apps/api/src/__tests__/snips/v1/json-extract-format.test.ts` | V1 extraction compatibility tests. | `extract` and `json` formats project into distinct output fields while multi-format requests preserve markdown plus typed extraction artifacts. |
+| `apps/api/src/__tests__/snips/v1/zdr.test.ts` | V1 zero-retention behavior tests. | Team-scoped and request-scoped retention modes require immediate scrape cleanup, no durable job body, no crawl/batch logs, and cleaner-backed removal of child scrape artifacts. |
+| `apps/api/src/__tests__/snips/v1/deep-research.test.ts` | V1 deep research E2E test. | The live research contract expects a terminal analysis plus sources and activities, although this file only proves coarse completion and should not be treated as strong quality coverage. |
+| `apps/api/src/__tests__/snips/v1/concurrency.test.ts` | V1 concurrency behavior tests. | Crawl and batch scrape concurrency should use available account capacity, honor per-request `maxConcurrency`, and stack concurrent work groups without crossing combined limits. |
+| `apps/api/src/__tests__/snips/v1/webhook.test.ts` | V1 webhook placeholder. | Commented tests document an event contract of started/page/completed events whose page payloads must match final results by scrape ID, but current executable coverage is only a placeholder. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -370,6 +376,9 @@
 - Retrieval caches must key on artifact shape and request context, including screenshot/full-page options, headers, mobile mode, actions, location, ad-blocking, and freshness, so test speedups do not hide retrieval regressions.
 - Source URL preservation matters for evidence/ref trace even when canonicalized keys are used for dedupe or cache lookup.
 - Status-handle validation and malformed-handle rejection keep async retrieval failures typed and prevent bad IDs from becoming ambiguous missing-evidence states.
+- Schema/request validation is upstream retrieval quality, not API decoration: format dependencies, timeout inflation, action limits, URL caps, and handle IDs should be resolved before adapters run.
+- Privacy retention modes must affect logs, durable job storage, status access, cache eligibility, and child scrape cleanup as a single policy lane.
+- Async event streams need reconcilable event IDs and page IDs so final result windows, webhooks, and streamed projections can be checked against the same completed evidence artifacts.
 
 ## Candidate Assimilation Targets
 
@@ -398,6 +407,8 @@
 23. Compatibility projection invariants: ensure legacy and new search/crawl/scrape paths share overfetch, enrichment, bounded status, owner/ZDR checks, queue cleanup, and raw payload pruning semantics. Ledger captured; no new CD change needed unless runtime drift appears.
 24. Request-shape normalization: keep URL preprocessing, option defaults, format/extraction coupling, action budgets, and ZDR mode resolution as typed boundary contracts before retrieval starts. Ledger captured; existing policy already points this direction.
 25. Retrieval behavior test invariants: preserve content-bearing search-plus-scrape, cache-key correctness, status-handle validation, source URL preservation, schema normalization, and timeout semantics as regression tests. Ledger captured; no new CD change needed unless current tests lack equivalent coverage.
+26. Request-boundary quality gates: validate format dependencies, timeout/action budgets, URL/input caps, privacy modes, and async handle shapes before retrieval execution. Ledger captured; compare against current CD/tool schema coverage before adding code.
+27. Projection reconciliation: status windows, streamed events, webhook-style events, and final evidence refs should be reconcilable by stable internal IDs without exposing queue internals. Ledger captured; candidate future test target.
 
 ## Remaining Work
 
