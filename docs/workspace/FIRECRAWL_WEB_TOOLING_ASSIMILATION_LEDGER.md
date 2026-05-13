@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1014
-- Not parsed: 255
+- Parsed: 1046
+- Not parsed: 223
 - Skipped generated: 13
 - Skipped media or sample: 75
 
@@ -1063,6 +1063,38 @@
 | `apps/api/tsconfig.json` | API TypeScript config. | Strict NodeNext plus custom type roots/paths for typed runtime boundaries. |
 | `apps/api/utils/find_uncovered_files.sh` | Ownership coverage utility. | Diffing tracked files against CODEOWNERS patterns can detect unowned surfaces before workflow debt hides there. |
 | `apps/api/utils/logview.js` | Crawl log visualizer. | Converts crawl logs into URL/job graph artifacts for debugging queue/crawl behavior, but those artifacts are diagnostic-only. |
+| `apps/api/src/__tests__/snips/v1/billing.test.ts` | Billing/evidence separation tests. | Scrape, batch scrape, crawl, map, search, extract, PDF, and ZDR paths assert side-effect accounting separately from retrieval artifact quality. |
+| `apps/api/src/__tests__/snips/v1/lib.ts` | Async retrieval helper harness. | Start/status/error wrappers and polling helpers assert terminal artifact shapes, useful as reusable workflow eval primitives. |
+| `apps/api/src/__tests__/snips/v2/billing.test.ts` | V2 billing/evidence separation tests. | Search plus scrape, PDF parsing, extract, crawl, batch, and ZDR billing paths keep accounting assertions outside synthesis quality. |
+| `apps/api/src/controllers/v2/agent-signup.ts` | Sandboxed agent key admission. | Agent-created access is rate-limited, sponsor-token/deadline gated, capped to a sandboxed credit budget, and confirmation-bound. |
+| `apps/api/src/controllers/v2/agent-signup-confirm.ts` | Agent key confirmation reconciliation. | Confirmation either merges or blocks sandboxed access, moves keys/usage, bans sandbox teams, and clears related caches after mutation. |
+| `apps/api/src/lib/clickhouse-client.ts` | Optional analytics sink. | Async observability inserts no-op when unconfigured or empty and log failures without blocking retrieval work. |
+| `apps/api/src/lib/extract/team-id-sync.ts` | Soft control lookup. | Read-replica team lookup returns null on failures with diagnostics, keeping control metadata from becoming retrieval failure. |
+| `apps/api/src/lib/x402.ts` | Payment admission boundary. | Optional payment middleware is lazily constructed, explicitly enabled, and maps route networks without becoming evidence. |
+| `apps/api/src/routes/v0.ts` | Legacy route membrane. | Deprecated v0 routes attach deprecation metadata and delegate to controllers; warnings stay at the route boundary. |
+| `apps/api/src/scraper/scrapeURL/.gitignore` | Scrape mock hygiene. | Local scraper mocks are kept local-only. |
+| `apps/api/src/services/ab-test-comparison.ts` | Engine comparison sampler. | Mirror fetch/render outputs can be converted to markdown and similarity-scored as hidden adapter-quality telemetry. |
+| `apps/api/src/services/ab-test.ts` | Background engine mirror control. | Sampled mirror requests compare adapter quality without changing the user-facing retrieval output. |
+| `apps/api/src/services/agent-sponsor.ts` | Sponsor cache reconciliation. | Sponsor status/token lookups cache by API key and expose explicit cache clearing after account-state mutation. |
+| `apps/api/src/services/agentLivecastWS.ts` | Agent livecast projection bridge. | WebSocket status transport proxies agent events but remains projection transport, not evidence. |
+| `apps/api/src/services/alerts/slack.ts` | Optional alert side effect. | Slack alerting no-ops when unconfigured and logs failures as side-effect diagnostics. |
+| `apps/api/src/services/autumn/__tests__/autumn.service.test.ts` | Billing lease behavior tests. | Tests cover bounded maps/sets, experiment gates, preview bypass, locks, checks, tracking, refunds, and compensation paths. |
+| `apps/api/src/services/autumn/__tests__/usage.test.ts` | Usage projection regression tests. | Tests cover entity/customer fallback, sane period derivation, plan-credit calculation, and monthly/API-key usage rollups. |
+| `apps/api/src/services/autumn/autumn.service.ts` | Billing lease service. | Credit locks carry IDs/expiry and support confirm, release, direct tracking, refund, preview bypass, and bounded in-memory caches. |
+| `apps/api/src/services/autumn/client.ts` | Optional billing client. | External billing client is disabled when unconfigured and uses a short timeout to avoid blocking runtime control paths. |
+| `apps/api/src/services/autumn/types.ts` | Billing side-effect types. | Customer, entity, track, lock, and finalize requests are typed as side-effect contracts. |
+| `apps/api/src/services/billing/issue_credits.ts` | Manual credit side effect. | Credit issuance is an explicit insert with team/user/quantity/source metadata. |
+| `apps/api/src/services/billing/stripe.ts` | Payment intent side effect. | Payment creation carries default payment method, metadata, and status projection without touching evidence. |
+| `apps/api/src/services/notification/email_notification.ts` | Notification dedupe side effect. | Email notifications check preferences, category opt-outs, recent-send windows, locks, and ledger-only modes before sending. |
+| `apps/api/src/services/notification/notification-check.ts` | Notification preference gate. | Notification eligibility is a separate check layer over preferences and recent-send state. |
+| `apps/api/src/services/notification/notification_string.ts` | Notification text projection. | Typed notification strings are presentation material, not retrieval evidence. |
+| `apps/api/src/services/subscription/enterprise-check.ts` | Subscription capability gate. | Enterprise subscription checks are admission metadata, not source evidence. |
+| `apps/api/src/types/branding.ts` | Branding artifact type surface. | Visual branding can be an optional evidence facet only when requested. |
+| `apps/api/src/types/parse-diff.d.ts` | Parse-diff type shim. | Type declarations only; no retrieval primitive. |
+| `apps/api/src/utils/integration.ts` | Integration request field validator. | Known integration IDs and private-prefixed internal values are boundary metadata, not behavior selectors for research. |
+| `apps/api/utils/urldump-redis.js` | Redis URL dump utility. | Crawl visited-set dumps are diagnostic artifacts and should remain out of evidence/synthesis. |
+| `apps/api/utils/urldump.js` | Paginated URL dump utility. | Crawl status pagination can be dumped for diagnostics, but not converted directly into final answers. |
+| `apps/api/v1-openapi.json` | Legacy API schema surface. | V1 schema confirms typed scrape/search/crawl/batch/extract/status/usage contracts that can seed Tool CD parity. |
 
 ## Decisions So Far
 
@@ -1507,6 +1539,17 @@
 265. Ownership coverage guard: CODEOWNERS gap detection can surface unowned retrieval/tooling areas before regressions lose clear responsibility.
 266. Crawl graph debug artifact: queue/crawl logs can be transformed into graph artifacts for diagnosing coverage, lock, and expansion behavior while remaining diagnostic-only.
 267. Document fixture corpus: DOCX, ODT, RTF, and XLSX samples are fixture material for document extraction quality, not source code to assimilate.
+268. Side-effect accounting as eval stratum: billing, credit, token, payment, and notification effects should be measured separately from retrieval evidence quality.
+269. Async retrieval helper contract: start/status/errors/poll terminal artifact assertions are reusable eval harness primitives for crawl, batch, extract, map, search, and deep research.
+270. Sandboxed capability admission: agent-created keys should be capped, token/deadline-gated, rate-limited, and reconciled through explicit confirm/block mutations.
+271. Optional observability sinks: analytics, logs, alerting, and notification side effects should no-op or log on failure, never block retrieval evidence generation.
+272. Engine mirror sampling: background A/B comparisons can score adapter quality without changing the user-facing output or evidence artifact selected for synthesis.
+273. Bounded side-effect caches: control-plane maps and sets need FIFO ceilings so identity, sponsor, and billing caches cannot grow without bound.
+274. Billing leases and compensation: credit locks need lock IDs, expiry, confirm/release actions, direct track, refund paths, and dry-run/preview bypass semantics.
+275. Notification dedupe locks: user notifications need preference checks, recent-send windows, locks, and ledger-only modes to keep side effects idempotent.
+276. Legacy route membrane: deprecated route warnings stay in route metadata and compatibility projections, never final-answer synthesis text.
+277. API schema parity source: legacy and current OpenAPI schemas can seed Tool CD request/response parity while leaving execution policy in orchestration.
+278. Diagnostic URL dumps: crawl URL dumps and visited-set exports are useful coverage/debug artifacts, but should be kept separate from source-backed evidence.
 
 ## Remaining Work
 
@@ -1524,6 +1567,7 @@
 - AI-news/podcast/full-app pointers and the readable deployment/scheduling/price/GitHub Actions articles are parsed; useful signals are recurring retrieval lifecycle, historical baselines, health checks, retention cleanup, and deployment profile separation.
 - GitHub CI/deploy/publish/test workflows and issue templates are parsed; useful signals are capability matrices, exact verification sidecars, hidden dedupe markers, version-gated side effects, registry retention ceilings, and full-stack retrieval CI with local dependency fixtures.
 - Root/API config, native parser packaging, OpenAPI schema surfaces, request scratchpads, document samples, and local utility scripts are parsed; useful signals are typed capability profiles, parser/runtime assembly, hidden native diagnostics, Tool CD schema seeds, executable request fixtures, and crawl graph debug artifacts.
+- API control-plane helpers, billing/notification side-effect surfaces, agent key admission, and legacy v1 schema are parsed; useful signals are side-effect/evidence separation, async terminal artifact assertions, optional observability sinks, billing leases, bounded caches, and diagnostic-only URL dumps.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
