@@ -1,0 +1,160 @@
+{
+  "name": "tool_access_resolver",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for resolving the exact local tool catalog exposed to an agent, including aliases, glob patterns, deduplication, ordering, and prompt projection.",
+  "stages": [
+    "input_normalization",
+    "agent_tool_pattern_collection",
+    "deprecated_alias_normalization",
+    "glob_pattern_matching",
+    "tool_deduplication",
+    "agent_tool_ordering",
+    "prompt_projection",
+    "tool_access_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "tool_access_resolver_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "allowed_tool_names",
+      "resolved_tool_order",
+      "alias_normalizations",
+      "unresolved_requested_tools",
+      "prompt_projection_mode"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "return the precise tool set an agent may use",
+      "scope_boundary": "do not expose tools not matched by the agent tool patterns",
+      "validation_calibration": "report aliases, glob matches, dropped duplicates, and missing tools",
+      "visibility": "do not leak raw hidden prompt or tool payloads as visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact tool access receipts for local coding agents without storing full raw prompt payloads.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_expose_unmatched_tools",
+      "do_not_make_tool_access_implicit"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "tool_access_resolver_input_envelope_v1",
+    "allowed_transitions": [
+      "input_normalization->agent_tool_pattern_collection",
+      "agent_tool_pattern_collection->deprecated_alias_normalization",
+      "deprecated_alias_normalization->glob_pattern_matching",
+      "glob_pattern_matching->tool_deduplication",
+      "tool_deduplication->agent_tool_ordering",
+      "agent_tool_ordering->prompt_projection",
+      "prompt_projection->tool_access_receipt_packaging",
+      "tool_access_receipt_packaging->completed",
+      "agent_tool_pattern_collection->blocked",
+      "glob_pattern_matching->blocked"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 1,
+      "max_tool_calls": 2,
+      "token_budget": 4000,
+      "loop_signature_detector": "tool_access_resolver_v1"
+    }
+  },
+  "context_primitive_contract": {
+    "version": "tool_access_resolver_v1",
+    "source_evidence": [
+      "crates/forge_app/src/tool_resolver.rs",
+      "crates/forge_app/src/system_prompt.rs",
+      "templates/forge-custom-agent-template.md",
+      "templates/forge-partial-tool-use-example.md"
+    ],
+    "required_behaviors": [
+      "agent_tool_patterns_are_authoritative",
+      "deprecated_tool_aliases_are_normalized",
+      "glob_patterns_are_supported",
+      "resolved_tools_are_deduplicated",
+      "resolved_tools_follow_agent_tool_order",
+      "unsupported_requested_tools_are_reported",
+      "tool_prompt_projection_matches_model_tool_support"
+    ],
+    "output_receipts": [
+      "allowed_tool_names_receipt",
+      "tool_order_receipt",
+      "alias_normalization_receipt",
+      "missing_tool_receipt",
+      "prompt_projection_receipt"
+    ],
+    "stop_conditions": [
+      "agent_tool_patterns_missing_for_coding_task",
+      "required_local_file_tool_unavailable",
+      "tool_catalog_conflicts_with_agent_policy"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

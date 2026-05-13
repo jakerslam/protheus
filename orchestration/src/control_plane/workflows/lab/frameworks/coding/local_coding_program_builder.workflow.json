@@ -26,6 +26,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "context_loop_guard",
+        "workflow_id": "local_context_loop_guard",
+        "input_contract": "local_context_loop_guard_input_envelope_v1",
+        "output_artifact": "local_context_loop_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "implementation_planning",
         "workflow_id": "plan_execute_review",
         "input_contract": "workflow_input_envelope_v1",
@@ -76,6 +84,7 @@
   "description": "Higher-level local coding workflow that defines a bounded checkpoint, initializes or stabilizes project architecture, decomposes work into slices, routes implementation through safe local code-edit execution, validates the result, and loops only within explicit stop constraints.",
   "stages": [
     "intake_normalization",
+    "context_and_tool_guard_initialization",
     "checkpoint_definition",
     "project_initialization_assessment",
     "architecture_contract_definition",
@@ -91,6 +100,13 @@
     "primitive_level": 3,
     "composed_of_workflow_ids": [
       "research_synthesize_verify",
+      "local_context_loop_guard",
+      "tool_access_resolver",
+      "doom_loop_interrupt",
+      "pending_todo_completion_gate",
+      "context_compaction_summary",
+      "tool_error_reflection",
+      "agent_task_delegation",
       "plan_execute_review",
       "plan_artifact_create",
       "repo_context_assessment",
@@ -155,6 +171,8 @@
     "input_kind": "multiple_choice_or_text_input",
     "allowed_transitions": [
       "intake_normalization->checkpoint_definition",
+      "intake_normalization->context_and_tool_guard_initialization",
+      "context_and_tool_guard_initialization->checkpoint_definition",
       "checkpoint_definition->project_initialization_assessment",
       "project_initialization_assessment->architecture_contract_definition",
       "architecture_contract_definition->slice_planning",
@@ -167,6 +185,7 @@
       "repair_loop->result_packaging",
       "result_packaging->verification_closure",
       "verification_closure->completed",
+      "context_and_tool_guard_initialization->blocked",
       "project_initialization_assessment->needs_input",
       "architecture_contract_definition->needs_input",
       "slice_planning->needs_input",
@@ -203,7 +222,7 @@
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
-      "max_stages": 24,
+      "max_stages": 28,
       "max_model_turns": 16,
       "max_tool_calls": 24,
       "token_budget": 32000,
@@ -335,6 +354,32 @@
       "max_validation_attempts": 3,
       "repair_prompt_policy": "route focused failures through bounded_repair_loop, diagnose the failure class, retry the smallest failing scope through local_code_edit_execution, rerun the relevant validation command, and undo or escalate if the repair makes the checkpoint worse",
       "do_not_continue_to": "future product scope outside the checkpoint"
+    },
+    "context_loop_guard_contract": {
+      "source": "forgecode_assimilated_context_layer",
+      "required_composite_workflow_id": "local_context_loop_guard",
+      "required_primitive_workflow_ids": [
+        "tool_access_resolver",
+        "doom_loop_interrupt",
+        "pending_todo_completion_gate",
+        "context_compaction_summary",
+        "tool_error_reflection",
+        "agent_task_delegation"
+      ],
+      "activation_policy": "long-running local coding tasks must initialize tool access, loop-interruption, pending-todo, compaction, tool-error reflection, and delegated-agent guards before planning or implementation loops",
+      "required_receipts": [
+        "tool_access_receipt",
+        "doom_loop_receipt",
+        "pending_todo_gate_receipt",
+        "compaction_receipt",
+        "tool_error_reflection_receipt",
+        "agent_task_delegation_receipt"
+      ],
+      "non_goals": [
+        "do_not_use_context_guard_for_file_mutation",
+        "do_not_use_context_guard_as_validation_runner",
+        "do_not_hide_blocking_user_decisions"
+      ]
     },
     "stop_conditions": [
       "user decision required for stack, architecture, auth, persistence, payment, deployment, external API, or destructive migration",

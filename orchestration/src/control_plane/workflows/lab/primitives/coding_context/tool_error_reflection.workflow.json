@@ -1,0 +1,154 @@
+{
+  "name": "tool_error_reflection",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for reflecting on failed tool calls, classifying the mistake, and producing a corrected retry plan within an attempt budget.",
+  "stages": [
+    "failed_tool_receipt_ingestion",
+    "attempt_budget_check",
+    "root_cause_classification",
+    "schema_and_context_review",
+    "corrected_call_plan",
+    "retry_or_escalation_decision",
+    "reflection_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "tool_error_reflection_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "failed_tool_name",
+      "attempts_remaining",
+      "root_cause",
+      "corrected_call_plan",
+      "retry_allowed"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "convert failed tool calls into corrected retries or clear escalation",
+      "scope_boundary": "do not blindly retry malformed or contextless calls",
+      "validation_calibration": "state whether the failure was wrong tool, missing parameter, malformed structure, stale context, or blocked policy",
+      "visibility": "do not expose hidden raw payloads beyond safe failure receipts"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact tool-error reflection receipts for retry loops.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_repeat_the_same_failed_call",
+      "do_not_hide_tool_schema_or_context_mismatches"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "tool_error_reflection_input_envelope_v1",
+    "allowed_transitions": [
+      "failed_tool_receipt_ingestion->attempt_budget_check",
+      "attempt_budget_check->root_cause_classification",
+      "root_cause_classification->schema_and_context_review",
+      "schema_and_context_review->corrected_call_plan",
+      "corrected_call_plan->retry_or_escalation_decision",
+      "retry_or_escalation_decision->reflection_receipt_packaging",
+      "reflection_receipt_packaging->completed",
+      "attempt_budget_check->blocked",
+      "corrected_call_plan->blocked"
+    ],
+    "timeout_ms": 20000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 7,
+      "max_model_turns": 1,
+      "max_tool_calls": 1,
+      "token_budget": 3000,
+      "loop_signature_detector": "tool_error_reflection_v1"
+    }
+  },
+  "context_primitive_contract": {
+    "version": "tool_error_reflection_v1",
+    "source_evidence": [
+      "templates/forge-tool-retry-message.md",
+      "templates/forge-partial-tool-error-reflection.md"
+    ],
+    "required_behaviors": [
+      "include_attempts_remaining",
+      "pinpoint_wrong_tool_missing_parameter_malformed_structure_or_context_error",
+      "explain_why_the_mistake_happened",
+      "produce_corrected_tool_call_plan_before_retry",
+      "escalate_when_no_corrected_call_is_safe"
+    ],
+    "output_receipts": [
+      "failed_tool_receipt",
+      "root_cause_receipt",
+      "corrected_call_plan_receipt",
+      "retry_decision_receipt"
+    ],
+    "stop_conditions": [
+      "attempt_budget_exhausted",
+      "required_arguments_unavailable",
+      "policy_blocks_corrected_call",
+      "failure_requires_user_clarification"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

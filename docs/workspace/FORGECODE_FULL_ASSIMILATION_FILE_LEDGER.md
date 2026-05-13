@@ -85,6 +85,7 @@ Top-level source areas:
 | `FC-A04` | Extract `local_code_edit_execution` primitive contract | active | Initial lab workflow contracts created for the coding safety layer. |
 | `FC-A05` | Extract validation/repair loop semantics from `forge_ci`, `forge_services`, and `forge_tracker` | active | Loop-layer contract pass added for plan artifacts, undo, followup clarification, failure diagnosis, bounded repair, and checkpoint handoff. |
 | `FC-A06` | Implement measurable coding safety behavior in eval ownership | active | `eval_coding_safety_layer` now exercises safe reads, guarded writes, exact-match patches, stale-context rejection, snapshots, hashes, and validation command receipts. |
+| `FC-A07` | Extract prompt, context, tool-routing, and agent-delegation semantics | active | Context-layer contract pass added for tool access resolution, doom-loop interruption, pending todo gating, compaction summaries, tool-error reflection, delegated agent tasks, and the `local_context_loop_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -104,6 +105,13 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `failure_diagnosis` | 0 | `forge_services/tool_services`, `forge_ci`, `forge_tracker` | lab contract created | Classifies stale context, ambiguous patch, validation failure, snapshot recovery, user-decision, and unrecoverable blocker cases. |
 | `bounded_repair_loop` | 2 | `forge_services/tool_services`, `forge_tracker`, `forge_ci` | lab contract created | Composite diagnose-repair-validate loop with retry budgets, undo/escalation, and no scope expansion. |
 | `checkpoint_handoff` | 0 | `forge_tracker`, `forge_display`, `forge_stream` | lab contract created | Packages completed checkpoint, changed files, validation receipts, risks, excluded scope, and next checkpoint. |
+| `tool_access_resolver` | 0 | `forge_app/tool_resolver`, `forge_app/system_prompt`, prompt templates | lab contract created | Resolves agent tool access through configured tool patterns, aliases, glob matching, dedupe, ordering, and prompt projection. |
+| `doom_loop_interrupt` | 0 | `forge_app/hooks/doom_loop`, `forge-doom-loop-reminder.md` | lab contract created | Detects repeated tool-call signatures and injects an alternate-approach reminder before the next request. |
+| `pending_todo_completion_gate` | 0 | `forge_app/hooks/pending_todos`, `forge-pending-todos-reminder.md` | lab contract created | Blocks premature completion when pending or in-progress todos remain. |
+| `context_compaction_summary` | 0 | `forge_app/hooks/compaction`, `forge_app/compact`, summary template | lab contract created | Compacts long coding context into summary frames while preserving latest file operations and reasoning continuity. |
+| `tool_error_reflection` | 0 | `forge-tool-retry-message.md`, `forge-partial-tool-error-reflection.md` | lab contract created | Requires root-cause reflection and corrected call planning before retrying failed tool calls. |
+| `agent_task_delegation` | 0 | `forge_app/agent_executor`, `forge_app/agent` | lab contract created | Executes agent-as-tool tasks with conversation reuse, nested event forwarding, interruption handling, and empty-output rejection. |
+| `local_context_loop_guard` | 1 | `forge_app/system_prompt`, `forge_app/tool_resolver`, `forge_app/hooks/*`, `forge_app/agent_executor` | lab contract created | Composite guard that wires tool access, loop interruption, todo gating, compaction, tool-error reflection, and delegation around long coding runs. |
 
 ## Runtime behavior harnesses created
 
@@ -119,7 +127,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | loop-layer dependency declared | The neutral master workflow now references `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level is now 3. |
+| `local_coding_program_builder` | loop/context-layer dependency declared | The neutral master workflow now references `local_context_loop_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -189,3 +197,33 @@ Current blocker for parity:
 
 Next source pass:
 - Inspect ForgeCode prompt/template assets and service composition paths to assimilate how the agent is instructed to choose tools, preserve context, and decide when to stop.
+
+## Third source pass: prompt, context, tool routing, and delegation behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `templates/forge-custom-agent-template.md` | Projects system info, available tools, project guidelines, non-negotiable rules, parallel-tool guidance for supported models, larger reads over tiny reads, no unnecessary file creation, and continuation until objective completion. | Local coding needs an explicit context guard that makes tool access and behavioral constraints measurable before planning/coding starts. |
+| `templates/forge-partial-tool-use-example.md` | Defines strict non-native tool-call formatting, required JSON fields, and one-call-per-message behavior when native tool support is unavailable. | Tool access resolution must record prompt projection mode rather than assuming native tool calling. |
+| `templates/forge-partial-system-info.md` | Emits OS, cwd, shell, home, selected file list, and git-tracked extension statistics. | Repo context should include compact environment and language-shape signals. |
+| `crates/forge_app/src/system_prompt.rs` | Renders static and non-static system blocks, filters tool names to the agent's actual tools, fetches skills, and computes extension statistics with `git ls-files`. | The coding workflow should not expose all tools implicitly; it should resolve agent-specific tool access and record receipts. |
+| `crates/forge_app/src/tool_resolver.rs` | Resolves agent tool lists through aliases, glob patterns, dedupe, and agent-defined order. | Tool routing should be a primitive with measurable allowed-tool outputs. |
+| `crates/forge_app/src/hooks/doom_loop.rs` | Detects repeated tool-call signatures and repeated recent patterns at threshold 3, then injects a reminder before the next request. | Long coding loops need a distinct doom-loop interrupt primitive separate from repair diagnosis. |
+| `crates/forge_app/src/hooks/pending_todos.rs` | Blocks completion when pending or in-progress todos remain, suppressing duplicate reminders unless the todo set changes. | Checkpoint completion must be gated by active task state, not just final answer generation. |
+| `crates/forge_app/src/hooks/compaction.rs` | Triggers compaction after responses when the agent compact policy threshold is met. | Context continuity should be handled as a lifecycle hook, not as ad hoc final-answer summary. |
+| `crates/forge_app/src/compact.rs` | Compacts message ranges into summary frames, filters droppable messages, transforms redundant file operations, preserves the last reasoning chain, and rolls up usage. | Sophisticated long coding requires compaction that preserves actionable file context and avoids reasoning accumulation. |
+| `templates/forge-tool-retry-message.md` and `templates/forge-partial-tool-error-reflection.md` | Failed tool calls include remaining attempts and require explicit reflection on wrong tool, missing parameters, malformed structure, or misread context before retry. | Tool retry should become a reflection primitive instead of blind retry. |
+| `crates/forge_app/src/agent_executor.rs` | Agent-as-tool execution can reuse conversations, create agent-initiated conversations, forward nested tool events, return task-completed output, reject empty output, and surface interruptions. | Delegated agent coding needs a bounded primitive with receipts and explicit empty-output/interruption failures. |
+
+Context-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Agent-specific tool catalog resolution before coding | `tool_access_resolver` | P0 |
+| Explicit prompt projection mode for native vs non-native tool support | `tool_access_resolver` | P0 |
+| Doom-loop detection for identical and patterned tool calls | `doom_loop_interrupt` | P0 |
+| Completion blocked by pending/in-progress todos | `pending_todo_completion_gate` | P0 |
+| Context compaction preserving latest file operations and reasoning continuity | `context_compaction_summary` | P0 |
+| Tool failure reflection before retry | `tool_error_reflection` | P0 |
+| Delegated agent tasks with conversation reuse and interruption receipts | `agent_task_delegation` | P1 |

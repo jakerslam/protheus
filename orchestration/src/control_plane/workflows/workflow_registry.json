@@ -353,6 +353,134 @@
       ]
     },
     {
+      "workflow_id": "tool_access_resolver",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/tool_access_resolver.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "agent_tool_glob_resolution",
+        "deprecated_alias_normalization"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_context_layer_parity_reviewed",
+        "tool_access_resolution_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "context_compaction_summary",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/context_compaction_summary.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "summary_frame_compaction",
+        "reasoning_continuity_preserved"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_context_layer_parity_reviewed",
+        "context_compaction_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "doom_loop_interrupt",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/doom_loop_interrupt.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "repeated_tool_signature_interrupt",
+        "patterned_tool_sequence_interrupt"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_context_layer_parity_reviewed",
+        "doom_loop_interrupt_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "pending_todo_completion_gate",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/pending_todo_completion_gate.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "pending_todos_block_completion",
+        "duplicate_todo_reminder_suppressed"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_context_layer_parity_reviewed",
+        "pending_todo_gate_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "tool_error_reflection",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/tool_error_reflection.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "malformed_tool_call_reflection",
+        "missing_argument_retry_blocked"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_context_layer_parity_reviewed",
+        "tool_error_reflection_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "agent_task_delegation",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_context/agent_task_delegation.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "agent_conversation_reuse",
+        "empty_agent_output_rejected"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_context_layer_parity_reviewed",
+        "agent_task_delegation_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_context_loop_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_context_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_context_loop_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "tool_access_context_guard",
+        "compaction_and_loop_interrupt_guard",
+        "delegated_agent_guard"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_context_layer_parity_reviewed",
+        "context_loop_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "forgecode_raw_capability_assimilation",
       "tier": "lab",
       "source_framework": "forgecode",

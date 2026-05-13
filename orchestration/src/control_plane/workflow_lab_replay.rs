@@ -117,6 +117,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "syntax_and_behavior_validation",
         ],
         required_child_capabilities: &[
+            "context_loop_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -140,6 +141,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         ],
         required_child_capabilities: &[
             "research_context",
+            "context_loop_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -161,6 +163,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "architecture_drift_validation",
         ],
         required_child_capabilities: &[
+            "context_loop_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -568,6 +571,11 @@ fn slices_for_scenario(
         "implementation_planning",
         "plan_execute_review",
     );
+    let context_guard = child_call(
+        child_calls,
+        "context_loop_guard",
+        "local_context_loop_guard",
+    );
     let plan_artifact = child_call(
         child_calls,
         "plan_artifact",
@@ -592,6 +600,14 @@ fn slices_for_scenario(
 
     match scenario.id {
         "single_file_utility" => vec![
+            slice(
+                "context_loop_guard_initialization",
+                "Resolve local coding tools and initialize context-loop guards before planning.",
+                context_guard,
+                vec!["agent tool catalog", "conversation context"],
+                vec!["local file tools are available", "loop guards are receipt-backed"],
+                "context guard artifact is available before planning",
+            ),
             slice(
                 "checkpoint_and_architecture_plan",
                 "Define the single-file utility checkpoint and architecture contract.",
@@ -637,6 +653,14 @@ fn slices_for_scenario(
             ),
         ],
         "small_multi_file_app" => vec![
+            slice(
+                "context_loop_guard_initialization",
+                "Resolve local coding tools and initialize context-loop guards before planning.",
+                context_guard,
+                vec!["agent tool catalog", "conversation context"],
+                vec!["local file tools are available", "loop guards are receipt-backed"],
+                "context guard artifact is available before planning",
+            ),
             slice(
                 "context_research",
                 "Inspect project context or defaults before choosing the app foundation.",
@@ -695,6 +719,14 @@ fn slices_for_scenario(
             ),
         ],
         _ => vec![
+            slice(
+                "context_loop_guard_initialization",
+                "Resolve local coding tools and initialize context-loop guards before planning.",
+                context_guard,
+                vec!["agent tool catalog", "conversation context"],
+                vec!["local file tools are available", "loop guards are receipt-backed"],
+                "context guard artifact is available before planning",
+            ),
             slice(
                 "existing_project_assessment",
                 "Detect existing stack, boundaries, and validation commands.",
@@ -869,12 +901,16 @@ fn child_call(
 fn static_child_value(value: &str) -> &'static str {
     match value {
         "research_context" => "research_context",
+        "context_loop_guard" => "context_loop_guard",
         "implementation_planning" => "implementation_planning",
         "plan_artifact" => "plan_artifact",
         "local_code_execution" => "local_code_execution",
         "focused_repair" => "focused_repair",
         "checkpoint_handoff" => "checkpoint_handoff",
         "research_synthesize_verify" => "research_synthesize_verify",
+        "local_context_loop_guard" => "local_context_loop_guard",
+        "local_context_loop_guard_input_envelope_v1" => "local_context_loop_guard_input_envelope_v1",
+        "local_context_loop_guard_result_artifact_v1" => "local_context_loop_guard_result_artifact_v1",
         "plan_execute_review" => "plan_execute_review",
         "plan_artifact_create" => "plan_artifact_create",
         "plan_artifact_create_input_envelope_v1" => "plan_artifact_create_input_envelope_v1",

@@ -1,0 +1,238 @@
+{
+  "name": "local_context_loop_guard",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "tool_access_resolution",
+        "workflow_id": "tool_access_resolver",
+        "input_contract": "tool_access_resolver_input_envelope_v1",
+        "output_artifact": "tool_access_resolver_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "doom_loop_interruption",
+        "workflow_id": "doom_loop_interrupt",
+        "input_contract": "doom_loop_interrupt_input_envelope_v1",
+        "output_artifact": "doom_loop_interrupt_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "pending_todo_gate",
+        "workflow_id": "pending_todo_completion_gate",
+        "input_contract": "pending_todo_completion_gate_input_envelope_v1",
+        "output_artifact": "pending_todo_completion_gate_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "context_compaction",
+        "workflow_id": "context_compaction_summary",
+        "input_contract": "context_compaction_summary_input_envelope_v1",
+        "output_artifact": "context_compaction_summary_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "tool_error_reflection",
+        "workflow_id": "tool_error_reflection",
+        "input_contract": "tool_error_reflection_input_envelope_v1",
+        "output_artifact": "tool_error_reflection_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "agent_task_delegation",
+        "workflow_id": "agent_task_delegation",
+        "input_contract": "agent_task_delegation_input_envelope_v1",
+        "output_artifact": "agent_task_delegation_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_inline_child_workflow_internals",
+      "do_not_store_raw_compacted_context",
+      "do_not_spawn_unbounded_delegated_agent_work"
+    ]
+  },
+  "default": false,
+  "description": "Composite local coding context guard derived from ForgeCode prompt, tool resolution, doom-loop, pending-todo, compaction, reflection, and agent-delegation behavior.",
+  "stages": [
+    "system_context_projection",
+    "tool_access_resolution",
+    "pre_request_doom_loop_detection",
+    "pending_todo_completion_gate",
+    "context_compaction_routing",
+    "tool_error_reflection_routing",
+    "delegated_agent_task_guard",
+    "context_guard_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "tool_access_resolver",
+      "doom_loop_interrupt",
+      "pending_todo_completion_gate",
+      "context_compaction_summary",
+      "tool_error_reflection",
+      "agent_task_delegation"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_context_loop_guard_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "allowed_tool_names",
+      "loop_interruptions",
+      "pending_todo_gate_status",
+      "compaction_status",
+      "tool_error_recovery_status",
+      "delegation_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "keep long-running coding execution tool-aware, context-stable, and loop-safe",
+      "scope_boundary": "do not perform file edits or validation directly",
+      "validation_calibration": "report which guard mechanisms ran, skipped, blocked, or interrupted",
+      "visibility": "do not expose raw hidden prompt, compacted context, delegated reasoning, or raw tool payloads"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact context-loop guard receipts for local coding checkpoints.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_compacted_context",
+      "do_not_make_tool_access_implicit"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "local_context_loop_guard_input_envelope_v1",
+    "allowed_transitions": [
+      "system_context_projection->tool_access_resolution",
+      "tool_access_resolution->pre_request_doom_loop_detection",
+      "pre_request_doom_loop_detection->pending_todo_completion_gate",
+      "pending_todo_completion_gate->context_compaction_routing",
+      "context_compaction_routing->tool_error_reflection_routing",
+      "tool_error_reflection_routing->delegated_agent_task_guard",
+      "delegated_agent_task_guard->context_guard_receipt_packaging",
+      "context_guard_receipt_packaging->completed",
+      "tool_access_resolution->blocked",
+      "pre_request_doom_loop_detection->blocked",
+      "pending_todo_completion_gate->blocked",
+      "delegated_agent_task_guard->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 4,
+      "max_tool_calls": 8,
+      "token_budget": 16000,
+      "loop_signature_detector": "local_context_loop_guard_v1"
+    }
+  },
+  "context_loop_guard_contract": {
+    "version": "local_context_loop_guard_v1",
+    "source": "forgecode_assimilated_context_layer",
+    "required_primitive_workflow_ids": [
+      "tool_access_resolver",
+      "doom_loop_interrupt",
+      "pending_todo_completion_gate",
+      "context_compaction_summary",
+      "tool_error_reflection",
+      "agent_task_delegation"
+    ],
+    "required_receipts": [
+      "tool_access_receipt",
+      "doom_loop_receipt",
+      "pending_todo_gate_receipt",
+      "compaction_receipt",
+      "tool_error_reflection_receipt",
+      "delegation_receipt"
+    ],
+    "activation_policy": "local coding workflows must establish tool visibility, loop-interruption, todo-completion gating, compaction, tool-error reflection, and delegation receipts before running long multi-slice coding tasks",
+    "non_goals": [
+      "do_not_perform_file_mutation",
+      "do_not_replace_bounded_repair_loop",
+      "do_not_replace_checkpoint_handoff"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

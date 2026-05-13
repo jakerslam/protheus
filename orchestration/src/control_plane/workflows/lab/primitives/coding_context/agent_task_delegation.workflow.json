@@ -1,0 +1,162 @@
+{
+  "name": "agent_task_delegation",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for executing an agent-as-tool task with optional conversation reuse, nested tool event forwarding, interruption handling, and structured completion output.",
+  "stages": [
+    "agent_tool_definition_resolution",
+    "conversation_reuse_or_creation",
+    "delegated_chat_execution",
+    "nested_tool_event_forwarding",
+    "markdown_output_extraction",
+    "interrupt_or_empty_output_handling",
+    "delegation_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "agent_task_delegation_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "agent_id",
+      "task",
+      "conversation_reused",
+      "delegated_output_ref",
+      "nested_tool_events_forwarded",
+      "interruption_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "delegate bounded agentic subtasks while preserving traceability and completion semantics",
+      "scope_boundary": "do not treat empty delegated output as successful completion",
+      "validation_calibration": "report conversation reuse, nested events, interruptions, and output extraction status",
+      "visibility": "do not expose delegated hidden reasoning as visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact delegated-agent task receipts for coding workflows.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_spawn_unbounded_agent_work",
+      "do_not_hide_agent_tool_interruptions"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "agent_task_delegation_input_envelope_v1",
+    "allowed_transitions": [
+      "agent_tool_definition_resolution->conversation_reuse_or_creation",
+      "conversation_reuse_or_creation->delegated_chat_execution",
+      "delegated_chat_execution->nested_tool_event_forwarding",
+      "nested_tool_event_forwarding->markdown_output_extraction",
+      "markdown_output_extraction->interrupt_or_empty_output_handling",
+      "interrupt_or_empty_output_handling->delegation_receipt_packaging",
+      "delegation_receipt_packaging->completed",
+      "agent_tool_definition_resolution->blocked",
+      "delegated_chat_execution->failed",
+      "interrupt_or_empty_output_handling->blocked"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed",
+      "interrupted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 7,
+      "max_model_turns": 4,
+      "max_tool_calls": 8,
+      "token_budget": 12000,
+      "loop_signature_detector": "agent_task_delegation_v1"
+    }
+  },
+  "context_primitive_contract": {
+    "version": "agent_task_delegation_v1",
+    "source_evidence": [
+      "crates/forge_app/src/agent_executor.rs",
+      "crates/forge_app/src/agent.rs"
+    ],
+    "required_behaviors": [
+      "cache_agent_tool_definitions",
+      "reuse_existing_conversation_when_conversation_id_is_provided",
+      "create_agent_initiated_conversation_when_no_conversation_id_is_provided",
+      "forward_nested_tool_start_end_and_retry_events_to_parent_context",
+      "clear_partial_output_around_nested_tool_calls",
+      "return_task_completed_output_with_conversation_ref",
+      "treat_empty_agent_output_as_failure",
+      "surface_agent_tool_interruptions_as structured_failure"
+    ],
+    "output_receipts": [
+      "agent_definition_receipt",
+      "conversation_receipt",
+      "nested_tool_event_receipt",
+      "delegated_output_receipt",
+      "interruption_receipt"
+    ],
+    "stop_conditions": [
+      "agent_not_found",
+      "conversation_not_found",
+      "delegated_agent_interrupted",
+      "delegated_agent_returned_empty_output",
+      "delegated_task_exceeds_budget"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

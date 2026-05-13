@@ -1,0 +1,161 @@
+{
+  "name": "context_compaction_summary",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for compacting long coding context into summary frames while preserving the last relevant operation per file and reasoning continuity.",
+  "stages": [
+    "compaction_trigger_assessment",
+    "eviction_retention_strategy_selection",
+    "droppable_message_filtering",
+    "context_summary_generation",
+    "summary_transformer_cleanup",
+    "reasoning_continuity_preservation",
+    "usage_rollup",
+    "compaction_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "context_compaction_summary_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "compaction_trigger",
+      "retained_window",
+      "evicted_window",
+      "summary_frame_ref",
+      "files_preserved",
+      "reasoning_continuity_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "preserve the actionable coding context needed for the next local step",
+      "scope_boundary": "do not preserve redundant raw tool payloads when a compact summary is enough",
+      "validation_calibration": "report what was compacted, retained, and transformed",
+      "visibility": "do not expose raw private reasoning or hidden context as visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact compaction receipts and summary-frame references for long-running coding tasks.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_full_compacted_context",
+      "do_not_duplicate_redundant_tool_payloads"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "context_compaction_summary_input_envelope_v1",
+    "allowed_transitions": [
+      "compaction_trigger_assessment->eviction_retention_strategy_selection",
+      "eviction_retention_strategy_selection->droppable_message_filtering",
+      "droppable_message_filtering->context_summary_generation",
+      "context_summary_generation->summary_transformer_cleanup",
+      "summary_transformer_cleanup->reasoning_continuity_preservation",
+      "reasoning_continuity_preservation->usage_rollup",
+      "usage_rollup->compaction_receipt_packaging",
+      "compaction_receipt_packaging->completed",
+      "compaction_trigger_assessment->completed",
+      "context_summary_generation->failed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 1,
+      "max_tool_calls": 2,
+      "token_budget": 6000,
+      "loop_signature_detector": "context_compaction_summary_v1"
+    }
+  },
+  "context_primitive_contract": {
+    "version": "context_compaction_summary_v1",
+    "source_evidence": [
+      "crates/forge_app/src/hooks/compaction.rs",
+      "crates/forge_app/src/compact.rs",
+      "templates/forge-partial-summary-frame.md"
+    ],
+    "required_behaviors": [
+      "compact_only_when_agent_policy_threshold_is_met",
+      "choose_eviction_and_retention_windows_from_compaction_policy",
+      "drop_droppable_messages_from_compacted_range",
+      "summarize_tool_operations_as_frames",
+      "keep_only_latest_relevant_operation_per_file_path",
+      "dedupe_consecutive_redundant_messages",
+      "strip_working_directory_prefixes_from_summary_paths",
+      "preserve_latest_reasoning_continuity_without_accumulation",
+      "roll_up_usage_from_compacted_messages"
+    ],
+    "output_receipts": [
+      "compaction_trigger_receipt",
+      "summary_frame_receipt",
+      "retained_context_receipt",
+      "reasoning_continuity_receipt",
+      "usage_rollup_receipt"
+    ],
+    "stop_conditions": [
+      "summary_generation_failed",
+      "compaction_range_out_of_bounds",
+      "summary_would_drop_active_file_context"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}
