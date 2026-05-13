@@ -118,8 +118,10 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         ],
         required_child_capabilities: &[
             "implementation_planning",
+            "plan_artifact",
             "local_code_execution",
             "focused_repair",
+            "checkpoint_handoff",
         ],
         stop_conditions_exercised: &["validation fails after repair budget is exhausted"],
     },
@@ -139,8 +141,10 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         required_child_capabilities: &[
             "research_context",
             "implementation_planning",
+            "plan_artifact",
             "local_code_execution",
             "focused_repair",
+            "checkpoint_handoff",
         ],
         stop_conditions_exercised: &["request expands beyond the current checkpoint"],
     },
@@ -158,8 +162,10 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         ],
         required_child_capabilities: &[
             "implementation_planning",
+            "plan_artifact",
             "local_code_execution",
             "focused_repair",
+            "checkpoint_handoff",
         ],
         stop_conditions_exercised: &["existing project architecture conflicts with requested implementation"],
     },
@@ -192,7 +198,7 @@ pub fn local_coding_program_builder_lab_replay_report() -> LocalCodingProgramBui
     if graph.runtime_selectable {
         failures.push("candidate_lab_workflow_must_not_be_runtime_selectable".to_string());
     }
-    if graph.primitive_level != 2 {
+    if graph.primitive_level != 3 {
         failures.push("local_coding_program_builder_wrong_primitive_level".to_string());
     }
 
@@ -562,12 +568,22 @@ fn slices_for_scenario(
         "implementation_planning",
         "plan_execute_review",
     );
+    let plan_artifact = child_call(
+        child_calls,
+        "plan_artifact",
+        "plan_artifact_create",
+    );
     let code = child_call(
         child_calls,
         "local_code_execution",
         "local_code_edit_execution",
     );
-    let repair = child_call(child_calls, "focused_repair", "diagnose_retry_escalate");
+    let repair = child_call(child_calls, "focused_repair", "bounded_repair_loop");
+    let handoff = child_call(
+        child_calls,
+        "checkpoint_handoff",
+        "checkpoint_handoff",
+    );
     let research = child_call(
         child_calls,
         "research_context",
@@ -583,6 +599,14 @@ fn slices_for_scenario(
                 vec!["project root", "src", "tests"],
                 vec!["checkpoint is bounded", "validation commands are explicit"],
                 "plan artifact is complete before implementation",
+            ),
+            slice(
+                "plan_artifact_checkpoint",
+                "Persist the plan as a non-overwriting checkpoint artifact before writing code.",
+                plan_artifact,
+                vec!["plans"],
+                vec!["plan artifact is dated", "existing plans are not overwritten"],
+                "plan artifact receipt is captured",
             ),
             slice(
                 "single_file_utility_implementation",
@@ -603,6 +627,14 @@ fn slices_for_scenario(
                 vec!["repair does not change checkpoint scope"],
                 "repair is bounded by loop policy",
             ),
+            slice(
+                "checkpoint_handoff",
+                "Package completed checkpoint, changed files, validation receipts, risks, and next checkpoint.",
+                handoff,
+                vec!["final response artifact"],
+                vec!["handoff distinguishes completed scope from excluded scope"],
+                "handoff receipt is complete",
+            ),
         ],
         "small_multi_file_app" => vec![
             slice(
@@ -620,6 +652,14 @@ fn slices_for_scenario(
                 vec!["project root", "src", "tests"],
                 vec!["domain and interface boundaries are explicit"],
                 "plan artifact contains slice acceptance criteria",
+            ),
+            slice(
+                "plan_artifact_checkpoint",
+                "Persist the bounded MVP plan as a non-overwriting checkpoint artifact.",
+                plan_artifact,
+                vec!["plans"],
+                vec!["domain/interface slice plan", "validation plan"],
+                "plan artifact receipt is captured",
             ),
             slice(
                 "domain_model_slice",
@@ -645,6 +685,14 @@ fn slices_for_scenario(
                 vec!["interfaces compose correctly"],
                 "repair remains inside current checkpoint",
             ),
+            slice(
+                "checkpoint_handoff",
+                "Package completed checkpoint, changed files, validation receipts, risks, and next checkpoint.",
+                handoff,
+                vec!["final response artifact"],
+                vec!["handoff distinguishes completed scope from excluded scope"],
+                "handoff receipt is complete",
+            ),
         ],
         _ => vec![
             slice(
@@ -658,6 +706,14 @@ fn slices_for_scenario(
                 ],
                 vec!["existing architecture contract is captured"],
                 "assessment artifact is complete before implementation",
+            ),
+            slice(
+                "plan_artifact_checkpoint",
+                "Persist the existing-project increment plan as a non-overwriting checkpoint artifact.",
+                plan_artifact,
+                vec!["plans"],
+                vec!["existing stack assumptions are captured"],
+                "plan artifact receipt is captured",
             ),
             slice(
                 "targeted_feature_implementation",
@@ -677,6 +733,14 @@ fn slices_for_scenario(
                 vec!["changed feature module", "associated tests"],
                 vec!["project remains at least as coherent as before"],
                 "architecture drift check expected",
+            ),
+            slice(
+                "checkpoint_handoff",
+                "Package completed checkpoint, changed files, validation receipts, risks, and next checkpoint.",
+                handoff,
+                vec!["final response artifact"],
+                vec!["handoff distinguishes completed scope from excluded scope"],
+                "handoff receipt is complete",
             ),
         ],
     }
@@ -806,20 +870,28 @@ fn static_child_value(value: &str) -> &'static str {
     match value {
         "research_context" => "research_context",
         "implementation_planning" => "implementation_planning",
+        "plan_artifact" => "plan_artifact",
         "local_code_execution" => "local_code_execution",
         "focused_repair" => "focused_repair",
+        "checkpoint_handoff" => "checkpoint_handoff",
         "research_synthesize_verify" => "research_synthesize_verify",
         "plan_execute_review" => "plan_execute_review",
+        "plan_artifact_create" => "plan_artifact_create",
+        "plan_artifact_create_input_envelope_v1" => "plan_artifact_create_input_envelope_v1",
+        "plan_artifact_create_result_artifact_v1" => "plan_artifact_create_result_artifact_v1",
         "local_code_edit_execution" => "local_code_edit_execution",
         "local_code_edit_slice_input_envelope_v1" => "local_code_edit_slice_input_envelope_v1",
         "local_code_edit_execution_result_artifact_v1" => {
             "local_code_edit_execution_result_artifact_v1"
         }
-        "diagnose_retry_escalate" => "diagnose_retry_escalate",
+        "bounded_repair_loop" => "bounded_repair_loop",
+        "bounded_repair_loop_input_envelope_v1" => "bounded_repair_loop_input_envelope_v1",
+        "bounded_repair_loop_result_artifact_v1" => "bounded_repair_loop_result_artifact_v1",
+        "checkpoint_handoff_input_envelope_v1" => "checkpoint_handoff_input_envelope_v1",
+        "checkpoint_handoff_result_artifact_v1" => "checkpoint_handoff_result_artifact_v1",
         "workflow_input_envelope_v1" => "workflow_input_envelope_v1",
         "research_result_artifact_v1" => "research_result_artifact_v1",
         "plan_result_artifact_v1" => "plan_result_artifact_v1",
-        "repair_result_artifact_v1" => "repair_result_artifact_v1",
         _ => "unknown_child_workflow_value",
     }
 }

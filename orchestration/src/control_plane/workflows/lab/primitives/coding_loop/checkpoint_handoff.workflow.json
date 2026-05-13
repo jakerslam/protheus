@@ -1,0 +1,145 @@
+{
+  "name": "checkpoint_handoff",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive for packaging a completed or stopped coding checkpoint into changed files, validation results, known risks, excluded scope, and next checkpoint.",
+  "stages": [
+    "checkpoint_state_ingest",
+    "changed_file_receipt_merge",
+    "validation_receipt_merge",
+    "risk_and_excluded_scope_packaging",
+    "next_checkpoint_recommendation",
+    "handoff_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "checkpoint_handoff_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "completed_checkpoint",
+      "changed_files",
+      "validation_results",
+      "known_risks",
+      "intentionally_excluded_scope",
+      "recommended_next_checkpoint"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "state what checkpoint was completed or why it stopped",
+      "scope_boundary": "separate completed scope from excluded or future scope",
+      "validation_calibration": "do not overstate validation confidence",
+      "architecture_calibration": "name architecture drift risks when present",
+      "visibility": "return a concise final handoff only"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact terminal handoff receipts for coding checkpoints.",
+    "required_lanes": [
+      "compact_ledger",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_failed_validation",
+      "do_not_merge_future_scope_into_completed_checkpoint"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "checkpoint_handoff_input_envelope_v1",
+    "allowed_transitions": [
+      "checkpoint_state_ingest->changed_file_receipt_merge",
+      "changed_file_receipt_merge->validation_receipt_merge",
+      "validation_receipt_merge->risk_and_excluded_scope_packaging",
+      "risk_and_excluded_scope_packaging->next_checkpoint_recommendation",
+      "next_checkpoint_recommendation->handoff_packaging",
+      "handoff_packaging->completed",
+      "checkpoint_state_ingest->blocked"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 2,
+      "max_tool_calls": 2,
+      "token_budget": 8000,
+      "loop_signature_detector": "checkpoint_handoff_v1"
+    }
+  },
+  "loop_primitive_contract": {
+    "version": "checkpoint_handoff_v1",
+    "source_evidence": [
+      "crates/forge_display",
+      "crates/forge_tracker/src/event.rs",
+      "crates/forge_services/src/tool_services/plan_create.rs"
+    ],
+    "required_behaviors": [
+      "merge_changed_file_receipts",
+      "merge_validation_receipts",
+      "package_known_risks",
+      "preserve_intentionally_excluded_scope",
+      "recommend_next_checkpoint_without_scope_creep"
+    ],
+    "stop_conditions": [
+      "checkpoint_state_missing",
+      "changed_file_receipts_inconsistent",
+      "validation_receipts_inconsistent"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

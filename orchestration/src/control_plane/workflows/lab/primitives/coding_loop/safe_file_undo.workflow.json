@@ -1,0 +1,145 @@
+{
+  "name": "safe_file_undo",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for reverting the most recent snapshot-backed file operation.",
+  "stages": [
+    "input_normalization",
+    "absolute_path_validation",
+    "before_undo_read",
+    "snapshot_restore",
+    "after_undo_read",
+    "undo_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "safe_file_undo_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "path",
+      "snapshot_restored",
+      "before_undo_ref",
+      "after_undo_ref",
+      "undo_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "restore the last snapshot-backed change or report why undo is unavailable",
+      "scope_boundary": "undo only the requested absolute path",
+      "validation_calibration": "report before and after refs without hiding undo failure",
+      "visibility": "do not expose full file bodies in visible chat"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact undo receipts for repair-loop recovery.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_undo_unrelated_files",
+      "do_not_hide_snapshot_restore_failures"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "safe_file_undo_input_envelope_v1",
+    "allowed_transitions": [
+      "input_normalization->absolute_path_validation",
+      "absolute_path_validation->before_undo_read",
+      "before_undo_read->snapshot_restore",
+      "snapshot_restore->after_undo_read",
+      "after_undo_read->undo_receipt_packaging",
+      "undo_receipt_packaging->completed",
+      "absolute_path_validation->blocked",
+      "snapshot_restore->failed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 0,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "safe_file_undo_v1"
+    }
+  },
+  "loop_primitive_contract": {
+    "version": "safe_file_undo_v1",
+    "source_evidence": [
+      "crates/forge_services/src/tool_services/fs_undo.rs",
+      "crates/forge_services/src/tool_services/fs_remove.rs"
+    ],
+    "required_behaviors": [
+      "absolute_path_required",
+      "read_before_undo_when_file_exists",
+      "restore_from_latest_snapshot",
+      "read_after_undo_when_file_exists",
+      "return_before_after_refs"
+    ],
+    "stop_conditions": [
+      "path_not_absolute",
+      "snapshot_missing",
+      "snapshot_restore_failed"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

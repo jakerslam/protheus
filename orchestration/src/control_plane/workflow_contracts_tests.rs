@@ -90,16 +90,21 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
     assert_eq!(graph.promotion_status, "candidate");
     assert_eq!(graph.workflow_role, "assistant_response_workflow");
     assert!(!graph.runtime_selectable);
-    assert_eq!(graph.primitive_level, 2);
+    assert_eq!(graph.primitive_level, 3);
     for child_id in [
         "research_synthesize_verify",
         "plan_execute_review",
+        "plan_artifact_create",
         "local_code_edit_execution",
         "safe_file_read",
         "safe_file_write",
         "safe_file_patch",
         "validation_command_runner",
-        "diagnose_retry_escalate",
+        "safe_file_undo",
+        "followup_clarification_gate",
+        "failure_diagnosis",
+        "bounded_repair_loop",
+        "checkpoint_handoff",
     ] {
         assert!(graph
             .composed_of_workflow_ids
@@ -130,7 +135,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(4)
+        Some(6)
     );
 
     let contract = source
@@ -194,7 +199,7 @@ fn local_coding_program_builder_candidate_lab_replay_proof_passes() {
     assert_eq!(report.workflow_id, "local_coding_program_builder");
     assert_eq!(report.promotion_status, "candidate");
     assert!(!report.runtime_selectable);
-    assert_eq!(report.primitive_level, 2);
+    assert_eq!(report.primitive_level, 3);
     assert_eq!(report.scenarios.len(), 3);
     for scenario_id in [
         "single_file_utility",
@@ -227,6 +232,14 @@ fn local_coding_program_builder_lab_execution_harness_emits_coding_task_plans() 
             .slice_invocations
             .iter()
             .any(|slice| slice.child_workflow_id == "local_code_edit_execution"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "bounded_repair_loop"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "checkpoint_handoff"));
         assert!(execution
             .final_handoff_fields
             .contains(&"recommended_next_checkpoint"));

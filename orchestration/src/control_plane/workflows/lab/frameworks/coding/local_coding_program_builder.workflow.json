@@ -34,6 +34,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "plan_artifact",
+        "workflow_id": "plan_artifact_create",
+        "input_contract": "plan_artifact_create_input_envelope_v1",
+        "output_artifact": "plan_artifact_create_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "local_code_execution",
         "workflow_id": "local_code_edit_execution",
         "input_contract": "local_code_edit_slice_input_envelope_v1",
@@ -43,9 +51,17 @@
       },
       {
         "capability": "focused_repair",
-        "workflow_id": "diagnose_retry_escalate",
-        "input_contract": "workflow_input_envelope_v1",
-        "output_artifact": "repair_result_artifact_v1",
+        "workflow_id": "bounded_repair_loop",
+        "input_contract": "bounded_repair_loop_input_envelope_v1",
+        "output_artifact": "bounded_repair_loop_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "checkpoint_handoff",
+        "workflow_id": "checkpoint_handoff",
+        "input_contract": "checkpoint_handoff_input_envelope_v1",
+        "output_artifact": "checkpoint_handoff_result_artifact_v1",
         "return_policy": "return_single_terminal_artifact_to_parent",
         "internal_trace_visibility": "refs_only"
       }
@@ -72,17 +88,22 @@
     "verification_closure"
   ],
   "workflow_composition": {
-    "primitive_level": 2,
+    "primitive_level": 3,
     "composed_of_workflow_ids": [
       "research_synthesize_verify",
       "plan_execute_review",
+      "plan_artifact_create",
       "repo_context_assessment",
       "local_code_edit_execution",
       "safe_file_read",
       "safe_file_write",
       "safe_file_patch",
       "validation_command_runner",
-      "diagnose_retry_escalate"
+      "safe_file_undo",
+      "followup_clarification_gate",
+      "failure_diagnosis",
+      "bounded_repair_loop",
+      "checkpoint_handoff"
     ]
   },
   "final_response_policy": "control_plane_packaged_response",
@@ -260,15 +281,25 @@
         "safe_file_write",
         "safe_file_patch",
         "validation_command_runner",
-        "local_code_edit_execution"
+        "safe_file_undo",
+        "plan_artifact_create",
+        "followup_clarification_gate",
+        "failure_diagnosis",
+        "local_code_edit_execution",
+        "bounded_repair_loop",
+        "checkpoint_handoff"
       ],
-      "activation_policy": "local coding execution must route repo assessment, file reads, file writes, file patches, and validation through safety-layer primitives before this workflow can be promoted beyond lab candidate",
+      "activation_policy": "local coding execution must route repo assessment, file reads, file writes, file patches, undo/snapshot recovery, plan artifact creation, bounded failure repair, clarification gates, checkpoint handoff, and validation through ForgeCode-assimilated primitives before this workflow can be promoted beyond lab candidate",
       "required_receipts": [
         "repo_context_receipt",
         "read_receipts_with_content_hashes",
         "write_or_patch_receipts_with_snapshots",
+        "undo_receipts_when_recovery_is_used",
+        "plan_artifact_receipt",
         "changed_files_receipt",
-        "validation_command_receipts"
+        "repair_loop_receipts",
+        "validation_command_receipts",
+        "checkpoint_handoff_receipt"
       ],
       "non_goals": [
         "do_not_overwrite_files_without_snapshot",
@@ -302,7 +333,7 @@
       "max_repair_attempts_per_slice": 2,
       "max_integration_repair_attempts": 2,
       "max_validation_attempts": 3,
-      "repair_prompt_policy": "route focused failures back through local code-edit execution with the smallest failing scope",
+      "repair_prompt_policy": "route focused failures through bounded_repair_loop, diagnose the failure class, retry the smallest failing scope through local_code_edit_execution, rerun the relevant validation command, and undo or escalate if the repair makes the checkpoint worse",
       "do_not_continue_to": "future product scope outside the checkpoint"
     },
     "stop_conditions": [

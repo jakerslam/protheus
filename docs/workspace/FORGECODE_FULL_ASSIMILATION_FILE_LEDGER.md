@@ -83,7 +83,7 @@ Top-level source areas:
 | `FC-A02` | Build source file ledger and crate map | active | This file is the initial ledger. |
 | `FC-A03` | Inspect `forge_fs` and `forge_repo` for real local read/write and repo-context behavior | active | First pass started with `forge_fs`, `forge_services/tool_services`, and `forge_walker`. |
 | `FC-A04` | Extract `local_code_edit_execution` primitive contract | active | Initial lab workflow contracts created for the coding safety layer. |
-| `FC-A05` | Extract validation/repair loop semantics from `forge_ci`, `forge_services`, and `forge_tracker` | active | Initial `validation_command_runner` behavior harness added; repair-loop source pass still pending. |
+| `FC-A05` | Extract validation/repair loop semantics from `forge_ci`, `forge_services`, and `forge_tracker` | active | Loop-layer contract pass added for plan artifacts, undo, followup clarification, failure diagnosis, bounded repair, and checkpoint handoff. |
 | `FC-A06` | Implement measurable coding safety behavior in eval ownership | active | `eval_coding_safety_layer` now exercises safe reads, guarded writes, exact-match patches, stale-context rejection, snapshots, hashes, and validation command receipts. |
 
 ## Assimilated workflow contracts created
@@ -98,6 +98,12 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `safe_file_patch` | 0 | `forge_services/fs_patch` | lab contract created | Exact-match patching with no-match, multiple-match, stale-context, and validation receipts. |
 | `validation_command_runner` | 0 | `forge_services/shell`, `forge_ci` | lab contract created | Structured command validation with stdout, stderr, exit code, ANSI handling, and command receipts. |
 | `local_code_edit_execution` | 1 | `forge_services/tool_services/*` | lab contract created | Composite local code-edit execution through `safe_file_read`, `safe_file_write`, `safe_file_patch`, and `validation_command_runner`. |
+| `safe_file_undo` | 0 | `forge_services/fs_undo`, `forge_services/fs_remove` | lab contract created | Snapshot-backed undo and deletion recovery semantics for repairs that make a checkpoint worse. |
+| `plan_artifact_create` | 0 | `forge_services/plan_create` | lab contract created | Dated, non-overwriting plan artifact creation before implementation slices. |
+| `followup_clarification_gate` | 0 | `forge_services/followup` | lab contract created | Bounded clarification only when ambiguity blocks safe progress. |
+| `failure_diagnosis` | 0 | `forge_services/tool_services`, `forge_ci`, `forge_tracker` | lab contract created | Classifies stale context, ambiguous patch, validation failure, snapshot recovery, user-decision, and unrecoverable blocker cases. |
+| `bounded_repair_loop` | 2 | `forge_services/tool_services`, `forge_tracker`, `forge_ci` | lab contract created | Composite diagnose-repair-validate loop with retry budgets, undo/escalation, and no scope expansion. |
+| `checkpoint_handoff` | 0 | `forge_tracker`, `forge_display`, `forge_stream` | lab contract created | Packages completed checkpoint, changed files, validation receipts, risks, excluded scope, and next checkpoint. |
 
 ## Runtime behavior harnesses created
 
@@ -113,7 +119,34 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | safety-layer dependency declared | The neutral master workflow now references `local_code_edit_execution` and the safety-layer primitives in its composition ledger. |
+| `local_coding_program_builder` | loop-layer dependency declared | The neutral master workflow now references `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level is now 3. |
+
+## Second source pass: planning, repair, undo, and tracker loop behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_services/src/tool_services/fs_undo.rs` | Requires absolute paths, reads before/after state when present, and delegates snapshot restoration through an undo repository. | Repair loops need an explicit undo primitive instead of relying on ad hoc rewrites or blind retries. |
+| `crates/forge_services/src/tool_services/fs_remove.rs` | Requires absolute paths, snapshots current content, removes the file, and returns the removed content. | Destructive file operations must be recoverable and receipt-bearing. |
+| `crates/forge_services/src/tool_services/followup.rs` | Provides free-text, select-one, and select-many clarification tools, with user-selection receipt text. | Coding workflows should ask only when safe progress is blocked by a real decision. |
+| `crates/forge_services/src/tool_services/plan_create.rs` | Writes dated plan artifacts under the plans directory, creates the directory, and refuses to overwrite an existing plan path. | The master coding workflow should persist checkpoint plans before implementation slices. |
+| `crates/forge_tracker/src/event.rs` | Normalizes tracked event names and captures start, tool call, prompt, error, trace, and login events. | Checkpoint execution should produce compact structured lifecycle events without leaking raw internal state. |
+| `crates/forge_tracker/src/dispatch.rs` | Dispatches tracker events with model/conversation/system metadata and rate-limits event volume. | Loop telemetry should be bounded and explicitly non-authoritative for final answer content. |
+| `crates/forge_ci/src/workflows/ci.rs` | Encodes build, test, coverage, prompt benchmark, toolchain, and warning-deny CI conventions. | Validation routing should prefer repo-native checks and preserve command receipts. |
+| `crates/forge_ci/src/jobs/lint.rs` | Defines formatting, clippy, and string-safety lint commands with fix/check modes. | Validation command selection should distinguish read-only checks from fix-capable commands and avoid unapproved mutation. |
+
+Loop-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Non-overwriting dated plan artifacts before implementation | `plan_artifact_create` | P0 |
+| Snapshot-backed undo after destructive or worsening repairs | `safe_file_undo`, `bounded_repair_loop` | P0 |
+| Failure classification before retry | `failure_diagnosis`, `bounded_repair_loop` | P0 |
+| Clarification only for blocking ambiguity or user-owned decisions | `followup_clarification_gate` | P0 |
+| Retry budgets scoped to the current checkpoint and failing slice | `bounded_repair_loop` | P0 |
+| Validation receipts after repair attempts | `bounded_repair_loop`, `validation_command_runner` | P0 |
+| Final checkpoint handoff with changed files, validation, risks, excluded scope, and next checkpoint | `checkpoint_handoff` | P0 |
 
 ## First source pass: local file and repo tooling
 
@@ -152,8 +185,7 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` still uses a lab file materialization harness. It does not yet invoke a live coding agent with repo read/write tools, validation commands, and repair retries.
+- `local_coding_program_builder` has measurable contracts for safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, and checkpoint handoff, but it still does not invoke a live coding agent runtime with real tool calls and iterative repair in production.
 
 Next source pass:
-- Start with `crates/forge_fs`, `crates/forge_repo`, `crates/forge_walker`, and `crates/forge_services`.
-- Extract the minimum contract needed for `local_code_edit_execution`.
+- Inspect ForgeCode prompt/template assets and service composition paths to assimilate how the agent is instructed to choose tools, preserve context, and decide when to stop.

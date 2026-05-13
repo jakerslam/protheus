@@ -246,6 +246,113 @@
       ]
     },
     {
+      "workflow_id": "safe_file_undo",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_loop_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/safe_file_undo.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "snapshot_restore_receipt"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_loop_layer_parity_reviewed",
+        "undo_recovery_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "plan_artifact_create",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_loop_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/plan_artifact_create.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "non_overwriting_plan_artifact"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_loop_layer_parity_reviewed",
+        "plan_artifact_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "followup_clarification_gate",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_loop_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/followup_clarification_gate.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "blocking_ambiguity_followup"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_loop_layer_parity_reviewed",
+        "followup_gate_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "failure_diagnosis",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_loop_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/failure_diagnosis.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "stale_context_classification",
+        "validation_failure_classification"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_loop_layer_parity_reviewed",
+        "failure_diagnosis_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "bounded_repair_loop",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_loop_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/bounded_repair_loop.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "diagnose_repair_validate",
+        "repair_budget_exhausted",
+        "undo_or_escalate_if_worse"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_loop_layer_parity_reviewed",
+        "bounded_repair_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "checkpoint_handoff",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_loop_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/checkpoint_handoff.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "completed_checkpoint_handoff",
+        "blocked_checkpoint_handoff"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_loop_layer_parity_reviewed",
+        "checkpoint_handoff_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "forgecode_raw_capability_assimilation",
       "tier": "lab",
       "source_framework": "forgecode",
