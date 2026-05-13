@@ -1,0 +1,157 @@
+{
+  "name": "tool_schema_registry",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for producing a typed tool catalog with sanitized names, JSON schemas, and compile-time description provenance.",
+  "stages": [
+    "tool_catalog_enumeration",
+    "tool_name_sanitization",
+    "description_source_resolution",
+    "json_schema_generation",
+    "alias_capture",
+    "catalog_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "tool_schema_registry_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "tool_names",
+      "sanitized_names",
+      "description_sources",
+      "input_schema_refs",
+      "aliases",
+      "catalog_version"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "make tool availability and schemas explicit before agent execution",
+      "scope_boundary": "do not execute tools or authorize operations",
+      "validation_calibration": "report schema and description provenance for each exposed tool",
+      "visibility": "do not expose hidden raw prompt payloads or private tool internals"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact tool-schema registry receipts for local coding workflows.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_call_tools",
+      "do_not_hide_schema_generation_failures"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "tool_schema_registry_input_envelope_v1",
+    "allowed_transitions": [
+      "tool_catalog_enumeration->tool_name_sanitization",
+      "tool_name_sanitization->description_source_resolution",
+      "description_source_resolution->json_schema_generation",
+      "json_schema_generation->alias_capture",
+      "alias_capture->catalog_receipt_packaging",
+      "catalog_receipt_packaging->completed",
+      "description_source_resolution->failed",
+      "json_schema_generation->failed"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 6,
+      "max_model_turns": 1,
+      "max_tool_calls": 2,
+      "token_budget": 5000,
+      "loop_signature_detector": "tool_schema_registry_v1"
+    }
+  },
+  "tooling_primitive_contract": {
+    "version": "tool_schema_registry_v1",
+    "source_evidence": [
+      "crates/forge_tool_macros/src/lib.rs",
+      "crates/forge_domain/src/tools/catalog.rs",
+      "crates/forge_domain/src/tools/definition/tool_definition.rs",
+      "crates/forge_domain/src/tools/definition/name.rs"
+    ],
+    "required_behaviors": [
+      "derive_tool_descriptions_from_markdown_files_or_doc_comments",
+      "fail_schema_build_when_description_source_is_missing",
+      "enumerate_builtin_tool_catalog_variants",
+      "preserve_serde_aliases_for_legacy_tool_names",
+      "generate_json_schema_for_each_tool_input",
+      "sanitize_tool_names_to_lower_snake_case",
+      "record_claude_mcp_name_to_legacy_mcp_name_conversion_support"
+    ],
+    "output_receipts": [
+      "tool_catalog_receipt",
+      "description_provenance_receipt",
+      "input_schema_receipt",
+      "alias_receipt",
+      "sanitized_name_receipt"
+    ],
+    "stop_conditions": [
+      "tool_description_missing",
+      "tool_input_schema_unavailable",
+      "sanitized_tool_name_empty",
+      "duplicate_tool_name_after_sanitization"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

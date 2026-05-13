@@ -103,6 +103,11 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "context_compaction_summary",
         "tool_error_reflection",
         "agent_task_delegation",
+        "local_tooling_surface_guard",
+        "tool_schema_registry",
+        "tool_call_normalization",
+        "mcp_tool_bridge",
+        "custom_command_skill_loader",
         "plan_execute_review",
         "plan_artifact_create",
         "local_code_edit_execution",
@@ -145,7 +150,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(8)
+        Some(9)
     );
 
     let contract = source
@@ -250,6 +255,10 @@ fn local_coding_program_builder_lab_execution_harness_emits_coding_task_plans() 
             .slice_invocations
             .iter()
             .any(|slice| slice.child_workflow_id == "local_context_loop_guard"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "local_tooling_surface_guard"));
         assert!(execution
             .slice_invocations
             .iter()

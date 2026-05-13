@@ -87,6 +87,7 @@ Top-level source areas:
 | `FC-A06` | Implement measurable coding safety behavior in eval ownership | active | `eval_coding_safety_layer` now exercises safe reads, guarded writes, exact-match patches, stale-context rejection, snapshots, hashes, and validation command receipts. |
 | `FC-A07` | Extract prompt, context, tool-routing, and agent-delegation semantics | active | Context-layer contract pass added for tool access resolution, doom-loop interruption, pending todo gating, compaction summaries, tool-error reflection, delegated agent tasks, and the `local_context_loop_guard` composite. |
 | `FC-A08` | Extract config and operation-permission semantics | active | Policy-layer contract pass added for ForgeCode config resolution, operation permission gating, and the `local_policy_permission_guard` composite. |
+| `FC-A09` | Extract tool schema, tool-call normalization, MCP, command, and skill loading semantics | active | Tooling-layer contract pass added for tool schema registry, tool-call normalization, MCP bridge, custom command/skill loading, and the `local_tooling_surface_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -116,6 +117,11 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `forge_config_resolution` | 0 | `forge_config/config`, `forge_config/reader`, `forge_config/writer`, defaults, `forge_services/app_config`, `forge_app/agent` | lab contract created | Resolves layered config, runtime budgets, tool support, restricted mode, model config, reasoning, compaction, and subagent flags. |
 | `operation_permission_gate` | 0 | `forge_services/policy`, `permissions.default.yaml`, `forge_domain/policies/*`, `forge_app/services` | lab contract created | Gates read/write/execute/fetch operations through allow, deny, confirm, and accept-and-remember policy behavior. |
 | `local_policy_permission_guard` | 1 | `forge_config`, `forge_services/policy`, `forge_domain/policies` | lab contract created | Composite guard that resolves runtime config and operation permissions before local coding execution. |
+| `tool_schema_registry` | 0 | `forge_tool_macros`, `forge_domain/tools/catalog`, `forge_domain/tools/definition` | lab contract created | Projects tool names, aliases, descriptions, schemas, and sanitization receipts before agent execution. |
+| `tool_call_normalization` | 0 | `forge_domain/tools/call`, `forge_domain/transformer/normalize_tool_args`, `forge_domain/transformer/transform_tool_calls`, `forge_domain/tools/result` | lab contract created | Parses XML/native tool calls, assembles streaming parts, repairs arguments, normalizes names, and attaches reflection to tool errors. |
+| `mcp_tool_bridge` | 0 | `forge_domain/mcp`, `forge_services/mcp/manager`, `forge_services/mcp/service`, `forge_services/mcp/tool` | lab contract created | Loads scoped MCP configs, merges/caches by config hash, registers sanitized MCP tool names, captures failed servers, and routes MCP calls. |
+| `custom_command_skill_loader` | 0 | `forge_services/command`, `forge_domain/command`, `forge_services/tool_services/skill`, `forge_domain/skill` | lab contract created | Loads built-in/global/local commands with precedence and loads repository skills with exact lookup and cache receipts. |
+| `local_tooling_surface_guard` | 1 | `forge_tool_macros`, `forge_domain/tools/*`, `forge_domain/mcp`, `forge_services/mcp/*`, `forge_services/command`, `forge_services/tool_services/skill` | lab contract created | Composite guard that prepares tool schemas, normalized call routing, MCP tools, commands, and skills for local coding. |
 
 ## Runtime behavior harnesses created
 
@@ -131,7 +137,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | policy/context/loop-layer dependency declared | The neutral master workflow now references `local_policy_permission_guard`, `local_context_loop_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | policy/context/tooling/loop-layer dependency declared | The neutral master workflow now references `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -260,3 +266,37 @@ Policy-layer parity requirements extracted:
 | Preserve deny/confirm precedence and allow fallback behavior | `operation_permission_gate` | P0 |
 | Support accept, reject, and accept-and-remember user choices | `operation_permission_gate` | P0 |
 | Derive remembered policy rules from extension, host, or command prefix | `operation_permission_gate` | P1 |
+
+## Fifth source pass: tool schema, tool call normalization, MCP bridge, commands, and skills
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_tool_macros/src/lib.rs` | Derives tool descriptions from a declared markdown file or doc comments and fails if no description source exists. | Tool definitions should preserve description provenance instead of relying on untracked prompt text. |
+| `crates/forge_domain/src/tools/catalog.rs` | Enumerates built-in tool inputs, aliases legacy names, derives JSON schemas, and encodes rich tool-specific input contracts. | The coding workflow needs a schema registry primitive that makes the exact tool surface measurable. |
+| `crates/forge_domain/src/tools/definition/name.rs` | Sanitizes tool names to lower snake-like names and translates Claude MCP `mcp__server__tool` names to Forge legacy MCP names. | Tool routing must normalize names before matching, especially for MCP compatibility. |
+| `crates/forge_domain/src/tools/call/parser.rs` | Parses XML-style `<forge_tool_call>` blocks, extracts tool names and arguments, and coerces argument strings to JSON-like values. | Non-native tool-call mode needs explicit normalization receipts. |
+| `crates/forge_domain/src/tools/call/tool_call.rs` | Assembles streaming tool-call parts, preserves call IDs and thought signatures, and includes a GLM fragment workaround. | Tool-call normalization must be model-aware and preserve hidden metadata internally. |
+| `crates/forge_domain/src/tools/call/args.rs` | Normalizes parsed and unparsed arguments, repairs malformed JSON where possible, and falls back to raw-content objects. | Failed or malformed tool arguments should route through repairable normalization before retry. |
+| `crates/forge_domain/src/transformer/normalize_tool_args.rs` | Converts persisted unparsed tool-call arguments into parsed JSON values across conversation context. | Resumed coding sessions need argument normalization before provider transforms. |
+| `crates/forge_domain/src/transformer/transform_tool_calls.rs` | Converts tool-call contexts to non-tool-supported message format and clears the tools list. | Tooling surface must distinguish native and non-native tool modes. |
+| `crates/forge_domain/src/tools/result.rs` | Tool failures include cause chains and a reflection prompt, while outputs can be text, AI conversation refs, images, or empty values. | Tool error reflection should be attached at the tool-result layer, not only the repair-loop layer. |
+| `crates/forge_domain/src/mcp.rs` | Supports local/user MCP scopes, stdio/http configs, disable flags, OAuth modes, and deterministic config hashing. | MCP availability should be a measurable tool-surface dependency. |
+| `crates/forge_services/src/mcp/manager.rs` | Reads user/local MCP configs, merges them with local precedence, writes configs, and clears caches. | MCP config handling belongs in a dedicated MCP bridge primitive. |
+| `crates/forge_services/src/mcp/service.rs` | Lazily initializes MCP servers, caches grouped tools by config hash, records failed servers, sanitizes generated tool names, and supports legacy lookup. | MCP tool failures and cache state need receipts before coding agents rely on external tools. |
+| `crates/forge_services/src/command.rs` | Loads embedded commands, global commands, local cwd commands, parses YAML frontmatter, caches commands, and lets local override global/built-in. | Command loading should be separate from execution and record precedence/parse failures. |
+| `crates/forge_services/src/tool_services/skill.rs` | Caches repository-loaded skills, returns exact skill matches, and errors clearly when a skill is missing. | Skill availability should be an inventory/lookup primitive, not an implicit prompt assumption. |
+
+Tooling-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Tool schema and description provenance before execution | `tool_schema_registry` | P0 |
+| Tool-name sanitization and legacy alias capture | `tool_schema_registry`, `tool_call_normalization` | P0 |
+| Native/non-native tool-call normalization with argument repair | `tool_call_normalization` | P0 |
+| Streaming tool-call part assembly with hidden thought-signature handling | `tool_call_normalization` | P0 |
+| MCP scoped config merge, disabled-server filtering, cache, and failed-server receipts | `mcp_tool_bridge` | P0 |
+| Claude MCP double-underscore legacy lookup support | `mcp_tool_bridge` | P1 |
+| Built-in/global/local command loading with local precedence | `custom_command_skill_loader` | P1 |
+| Exact skill inventory and missing-skill error receipts | `custom_command_skill_loader` | P1 |

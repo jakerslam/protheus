@@ -42,6 +42,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "tooling_surface_guard",
+        "workflow_id": "local_tooling_surface_guard",
+        "input_contract": "local_tooling_surface_guard_input_envelope_v1",
+        "output_artifact": "local_tooling_surface_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "implementation_planning",
         "workflow_id": "plan_execute_review",
         "input_contract": "workflow_input_envelope_v1",
@@ -94,6 +102,7 @@
     "intake_normalization",
     "policy_permission_guard_initialization",
     "context_and_tool_guard_initialization",
+    "tooling_surface_guard_initialization",
     "checkpoint_definition",
     "project_initialization_assessment",
     "architecture_contract_definition",
@@ -119,6 +128,11 @@
       "context_compaction_summary",
       "tool_error_reflection",
       "agent_task_delegation",
+      "local_tooling_surface_guard",
+      "tool_schema_registry",
+      "tool_call_normalization",
+      "mcp_tool_bridge",
+      "custom_command_skill_loader",
       "plan_execute_review",
       "plan_artifact_create",
       "repo_context_assessment",
@@ -187,6 +201,8 @@
       "policy_permission_guard_initialization->context_and_tool_guard_initialization",
       "intake_normalization->context_and_tool_guard_initialization",
       "context_and_tool_guard_initialization->checkpoint_definition",
+      "context_and_tool_guard_initialization->tooling_surface_guard_initialization",
+      "tooling_surface_guard_initialization->checkpoint_definition",
       "checkpoint_definition->project_initialization_assessment",
       "project_initialization_assessment->architecture_contract_definition",
       "architecture_contract_definition->slice_planning",
@@ -201,6 +217,7 @@
       "verification_closure->completed",
       "policy_permission_guard_initialization->blocked",
       "context_and_tool_guard_initialization->blocked",
+      "tooling_surface_guard_initialization->blocked",
       "project_initialization_assessment->needs_input",
       "architecture_contract_definition->needs_input",
       "slice_planning->needs_input",
@@ -237,7 +254,7 @@
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
-      "max_stages": 28,
+      "max_stages": 32,
       "max_model_turns": 16,
       "max_tool_calls": 24,
       "token_budget": 32000,
@@ -414,6 +431,28 @@
         "do_not_treat_permission_allow_as_execution_success",
         "do_not_skip_safety_receipts_after_permission_allow",
         "do_not_silently_persist_accept_and_remember"
+      ]
+    },
+    "tooling_surface_guard_contract": {
+      "source": "forgecode_assimilated_tooling_layer",
+      "required_composite_workflow_id": "local_tooling_surface_guard",
+      "required_primitive_workflow_ids": [
+        "tool_schema_registry",
+        "tool_call_normalization",
+        "mcp_tool_bridge",
+        "custom_command_skill_loader"
+      ],
+      "activation_policy": "local coding tasks must establish ForgeCode-style tool schemas, call normalization, MCP bridge status, and command/skill inventory before invoking live local coding tools",
+      "required_receipts": [
+        "tool_schema_registry_receipt",
+        "tool_call_normalization_receipt",
+        "mcp_tool_bridge_receipt",
+        "custom_command_skill_loader_receipt"
+      ],
+      "non_goals": [
+        "do_not_treat_tool_surface_readiness_as_permission",
+        "do_not_execute_loaded_commands_without_explicit routing",
+        "do_not_skip_operation_permission_or_safety_receipts"
       ]
     },
     "stop_conditions": [

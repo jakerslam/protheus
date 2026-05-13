@@ -1,0 +1,172 @@
+{
+  "name": "custom_command_skill_loader",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for loading built-in, global, and local custom commands plus repository skills with caching and precedence receipts.",
+  "stages": [
+    "builtin_command_loading",
+    "global_command_directory_loading",
+    "local_command_directory_loading",
+    "command_frontmatter_parse",
+    "command_conflict_resolution",
+    "skill_repository_loading",
+    "skill_lookup_or_listing",
+    "command_skill_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "custom_command_skill_loader_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "commands_loaded",
+      "command_precedence",
+      "command_parse_failures",
+      "skills_loaded",
+      "requested_skill_status",
+      "cache_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "make custom commands and skills available to coding workflows with clear precedence",
+      "scope_boundary": "do not execute command prompts or skill scripts directly",
+      "validation_calibration": "report command frontmatter parse status, overrides, and missing skills",
+      "visibility": "do not expose raw hidden command or skill resource payloads unless requested"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact command and skill loading receipts for local coding workflows.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_execute_loaded_commands",
+      "do_not_autoload_missing_skills",
+      "do_not_ignore_frontmatter_parse_errors"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "custom_command_skill_loader_input_envelope_v1",
+    "allowed_transitions": [
+      "builtin_command_loading->global_command_directory_loading",
+      "global_command_directory_loading->local_command_directory_loading",
+      "local_command_directory_loading->command_frontmatter_parse",
+      "command_frontmatter_parse->command_conflict_resolution",
+      "command_conflict_resolution->skill_repository_loading",
+      "skill_repository_loading->skill_lookup_or_listing",
+      "skill_lookup_or_listing->command_skill_receipt_packaging",
+      "command_skill_receipt_packaging->completed",
+      "command_frontmatter_parse->failed",
+      "skill_lookup_or_listing->blocked"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 6000,
+      "loop_signature_detector": "custom_command_skill_loader_v1"
+    }
+  },
+  "tooling_primitive_contract": {
+    "version": "custom_command_skill_loader_v1",
+    "source_evidence": [
+      "crates/forge_services/src/command.rs",
+      "crates/forge_domain/src/command.rs",
+      "crates/forge_services/src/tool_services/skill.rs",
+      "crates/forge_domain/src/skill.rs",
+      ".forge/commands/check.md",
+      ".forge/commands/fixme.md",
+      ".forge/skills/*/SKILL.md"
+    ],
+    "required_behaviors": [
+      "load_embedded_builtin_commands_first",
+      "load_global_custom_command_markdown_files",
+      "load_local_cwd_command_markdown_files",
+      "parse_command_yaml_frontmatter_and_markdown_prompt_body",
+      "fail_on_empty_or_invalid_command_frontmatter",
+      "resolve_command_name_conflicts_with_local_over_global_over_builtin_precedence",
+      "cache_loaded_commands_for_service_instance",
+      "load_skills_from_skill_repository_once_per_service_instance",
+      "return_requested_skill_by_exact_name",
+      "return_missing_skill_error_with_available_skill_hint",
+      "preserve_skill_path_command_description_and_resource_list"
+    ],
+    "output_receipts": [
+      "command_source_receipt",
+      "command_frontmatter_receipt",
+      "command_override_receipt",
+      "skill_inventory_receipt",
+      "skill_lookup_receipt",
+      "cache_receipt"
+    ],
+    "stop_conditions": [
+      "command_frontmatter_invalid",
+      "command_directory_read_failed",
+      "requested_skill_not_found",
+      "skill_repository_load_failed"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

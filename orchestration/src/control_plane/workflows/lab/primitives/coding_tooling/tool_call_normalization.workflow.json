@@ -1,0 +1,167 @@
+{
+  "name": "tool_call_normalization",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for parsing, repairing, and normalizing native or XML-style tool calls into typed tool-call envelopes.",
+  "stages": [
+    "raw_tool_call_ingestion",
+    "xml_tool_call_parse",
+    "streaming_part_assembly",
+    "argument_type_coercion",
+    "argument_json_repair",
+    "tool_name_normalization",
+    "normalized_call_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "tool_call_normalization_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "input_format",
+      "normalized_tool_name",
+      "arguments_status",
+      "call_id_status",
+      "thought_signature_status",
+      "repair_notes"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "turn model-emitted tool calls into safe typed envelopes before routing",
+      "scope_boundary": "do not execute normalized calls",
+      "validation_calibration": "report parse repairs, argument fallback objects, and model-specific workarounds",
+      "visibility": "do not expose hidden thought signatures or private reasoning"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact tool-call normalization receipts for coding agents.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_execute_normalized_calls",
+      "do_not_discard_parse_failures_without_receipts"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "tool_call_normalization_input_envelope_v1",
+    "allowed_transitions": [
+      "raw_tool_call_ingestion->xml_tool_call_parse",
+      "raw_tool_call_ingestion->streaming_part_assembly",
+      "xml_tool_call_parse->argument_type_coercion",
+      "streaming_part_assembly->argument_type_coercion",
+      "argument_type_coercion->argument_json_repair",
+      "argument_json_repair->tool_name_normalization",
+      "tool_name_normalization->normalized_call_receipt_packaging",
+      "normalized_call_receipt_packaging->completed",
+      "xml_tool_call_parse->failed",
+      "streaming_part_assembly->failed",
+      "argument_json_repair->blocked"
+    ],
+    "timeout_ms": 30000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 7,
+      "max_model_turns": 1,
+      "max_tool_calls": 2,
+      "token_budget": 5000,
+      "loop_signature_detector": "tool_call_normalization_v1"
+    }
+  },
+  "tooling_primitive_contract": {
+    "version": "tool_call_normalization_v1",
+    "source_evidence": [
+      "crates/forge_domain/src/tools/call/parser.rs",
+      "crates/forge_domain/src/tools/call/tool_call.rs",
+      "crates/forge_domain/src/tools/call/args.rs",
+      "crates/forge_domain/src/transformer/normalize_tool_args.rs",
+      "crates/forge_domain/src/transformer/transform_tool_calls.rs",
+      "crates/forge_domain/src/tools/result.rs"
+    ],
+    "required_behaviors": [
+      "parse_xml_forge_tool_call_blocks_when_native_tools_are_unavailable",
+      "coerce_xml_argument_strings_to_numbers_booleans_or_strings",
+      "assemble_streaming_tool_call_parts_by_call_id",
+      "preserve_thought_signature_as_internal_only_metadata",
+      "apply_glm_fragment_workaround_for_empty_name_argument_chunks",
+      "normalize_unparsed_or_malformed_json_arguments",
+      "fallback_to_raw_content_object_when_json_repair_fails",
+      "normalize_tool_names_by_trimming_and_case_insensitive_matching",
+      "convert_tool_results_to_user_messages_when_non_native_tool_mode_is_required",
+      "attach_tool_error_reflection_prompt_to_error_outputs"
+    ],
+    "output_receipts": [
+      "raw_call_format_receipt",
+      "parse_result_receipt",
+      "argument_normalization_receipt",
+      "tool_name_normalization_receipt",
+      "error_reflection_attachment_receipt"
+    ],
+    "stop_conditions": [
+      "tool_call_parse_failed",
+      "required_tool_name_missing",
+      "arguments_unrecoverable",
+      "normalized_tool_not_in_schema_registry"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

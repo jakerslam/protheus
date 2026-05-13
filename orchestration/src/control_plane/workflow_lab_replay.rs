@@ -119,6 +119,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         required_child_capabilities: &[
             "policy_permission_guard",
             "context_loop_guard",
+            "tooling_surface_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -144,6 +145,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "research_context",
             "policy_permission_guard",
             "context_loop_guard",
+            "tooling_surface_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -167,6 +169,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         required_child_capabilities: &[
             "policy_permission_guard",
             "context_loop_guard",
+            "tooling_surface_guard",
             "implementation_planning",
             "plan_artifact",
             "local_code_execution",
@@ -584,6 +587,11 @@ fn slices_for_scenario(
         "policy_permission_guard",
         "local_policy_permission_guard",
     );
+    let tooling_guard = child_call(
+        child_calls,
+        "tooling_surface_guard",
+        "local_tooling_surface_guard",
+    );
     let plan_artifact = child_call(
         child_calls,
         "plan_artifact",
@@ -623,6 +631,14 @@ fn slices_for_scenario(
                 vec!["agent tool catalog", "conversation context"],
                 vec!["local file tools are available", "loop guards are receipt-backed"],
                 "context guard artifact is available before planning",
+            ),
+            slice(
+                "tooling_surface_guard_initialization",
+                "Initialize ForgeCode-style tool schema, call normalization, MCP bridge, and command/skill inventory.",
+                tooling_guard,
+                vec!["tool registry", "mcp config", "commands", "skills"],
+                vec!["tool schemas are explicit", "tool-call normalization is receipt-backed"],
+                "tooling surface artifact is available before implementation planning",
             ),
             slice(
                 "checkpoint_and_architecture_plan",
@@ -684,6 +700,14 @@ fn slices_for_scenario(
                 vec!["agent tool catalog", "conversation context"],
                 vec!["local file tools are available", "loop guards are receipt-backed"],
                 "context guard artifact is available before planning",
+            ),
+            slice(
+                "tooling_surface_guard_initialization",
+                "Initialize ForgeCode-style tool schema, call normalization, MCP bridge, and command/skill inventory.",
+                tooling_guard,
+                vec!["tool registry", "mcp config", "commands", "skills"],
+                vec!["tool schemas are explicit", "tool-call normalization is receipt-backed"],
+                "tooling surface artifact is available before implementation planning",
             ),
             slice(
                 "context_research",
@@ -758,6 +782,14 @@ fn slices_for_scenario(
                 vec!["agent tool catalog", "conversation context"],
                 vec!["local file tools are available", "loop guards are receipt-backed"],
                 "context guard artifact is available before planning",
+            ),
+            slice(
+                "tooling_surface_guard_initialization",
+                "Initialize ForgeCode-style tool schema, call normalization, MCP bridge, and command/skill inventory.",
+                tooling_guard,
+                vec!["tool registry", "mcp config", "commands", "skills"],
+                vec!["tool schemas are explicit", "tool-call normalization is receipt-backed"],
+                "tooling surface artifact is available before implementation planning",
             ),
             slice(
                 "existing_project_assessment",
@@ -935,6 +967,7 @@ fn static_child_value(value: &str) -> &'static str {
         "research_context" => "research_context",
         "policy_permission_guard" => "policy_permission_guard",
         "context_loop_guard" => "context_loop_guard",
+        "tooling_surface_guard" => "tooling_surface_guard",
         "implementation_planning" => "implementation_planning",
         "plan_artifact" => "plan_artifact",
         "local_code_execution" => "local_code_execution",
@@ -951,6 +984,13 @@ fn static_child_value(value: &str) -> &'static str {
         "local_context_loop_guard" => "local_context_loop_guard",
         "local_context_loop_guard_input_envelope_v1" => "local_context_loop_guard_input_envelope_v1",
         "local_context_loop_guard_result_artifact_v1" => "local_context_loop_guard_result_artifact_v1",
+        "local_tooling_surface_guard" => "local_tooling_surface_guard",
+        "local_tooling_surface_guard_input_envelope_v1" => {
+            "local_tooling_surface_guard_input_envelope_v1"
+        },
+        "local_tooling_surface_guard_result_artifact_v1" => {
+            "local_tooling_surface_guard_result_artifact_v1"
+        },
         "plan_execute_review" => "plan_execute_review",
         "plan_artifact_create" => "plan_artifact_create",
         "plan_artifact_create_input_envelope_v1" => "plan_artifact_create_input_envelope_v1",

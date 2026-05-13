@@ -1,0 +1,173 @@
+{
+  "name": "mcp_tool_bridge",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for loading MCP server configs, connecting enabled servers, registering MCP tools, caching server state, and executing MCP tool calls.",
+  "stages": [
+    "mcp_config_scope_resolution",
+    "merged_config_hashing",
+    "cache_lookup",
+    "enabled_server_connection",
+    "mcp_tool_name_generation",
+    "failed_server_capture",
+    "mcp_call_routing",
+    "mcp_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "mcp_tool_bridge_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "config_scopes",
+      "config_hash",
+      "registered_mcp_tools",
+      "failed_servers",
+      "cache_status",
+      "call_routing_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "bridge MCP tools into the local coding tool surface without hiding failed servers",
+      "scope_boundary": "do not grant permissions or execute non-MCP tools",
+      "validation_calibration": "report merged config, cache state, disabled servers, failed servers, and generated tool names",
+      "visibility": "do not expose MCP secrets, OAuth tokens, or raw environment variables"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact MCP bridge receipts for local coding workflows.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_log_mcp_credentials",
+      "do_not_eagerly_oauth_connect_on_reload",
+      "do_not_hide_failed_server_diagnostics"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "mcp_tool_bridge_input_envelope_v1",
+    "allowed_transitions": [
+      "mcp_config_scope_resolution->merged_config_hashing",
+      "merged_config_hashing->cache_lookup",
+      "cache_lookup->enabled_server_connection",
+      "cache_lookup->mcp_receipt_packaging",
+      "enabled_server_connection->mcp_tool_name_generation",
+      "mcp_tool_name_generation->failed_server_capture",
+      "failed_server_capture->mcp_call_routing",
+      "mcp_call_routing->mcp_receipt_packaging",
+      "mcp_receipt_packaging->completed",
+      "mcp_config_scope_resolution->failed",
+      "enabled_server_connection->blocked",
+      "mcp_call_routing->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent",
+      "web",
+      "shell"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 2,
+      "max_tool_calls": 8,
+      "token_budget": 9000,
+      "loop_signature_detector": "mcp_tool_bridge_v1"
+    }
+  },
+  "tooling_primitive_contract": {
+    "version": "mcp_tool_bridge_v1",
+    "source_evidence": [
+      "crates/forge_domain/src/mcp.rs",
+      "crates/forge_services/src/mcp/manager.rs",
+      "crates/forge_services/src/mcp/service.rs",
+      "crates/forge_services/src/mcp/tool.rs"
+    ],
+    "required_behaviors": [
+      "support_local_and_user_mcp_config_scopes",
+      "merge_user_then_local_config_with_local_precedence",
+      "compute_order_independent_config_hash",
+      "skip_disabled_servers",
+      "connect_enabled_servers_with_environment_and_env_vars",
+      "sanitize_server_and_tool_names_into_mcp_server_tool_tool_name_format",
+      "support_legacy_lookup_from_claude_mcp_double_underscore_names",
+      "cache_grouped_server_tool_listing_by_config_hash",
+      "capture_failed_server_error_chains",
+      "clear_cache_without_eager_server_connection_on_reload",
+      "route_mcp_call_arguments_as_parsed_json"
+    ],
+    "output_receipts": [
+      "mcp_config_scope_receipt",
+      "mcp_config_hash_receipt",
+      "mcp_tool_registration_receipt",
+      "failed_server_receipt",
+      "cache_receipt",
+      "mcp_call_receipt"
+    ],
+    "stop_conditions": [
+      "mcp_config_parse_failed",
+      "required_mcp_tool_not_found",
+      "mcp_server_connection_failed",
+      "mcp_tool_call_failed",
+      "mcp_auth_or_oauth_required"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

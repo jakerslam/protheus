@@ -536,6 +536,97 @@
       ]
     },
     {
+      "workflow_id": "tool_schema_registry",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_tooling_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_tooling/tool_schema_registry.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "tool_description_and_schema_projection",
+        "sanitized_tool_name_registry"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_tooling_layer_parity_reviewed",
+        "tool_schema_registry_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "tool_call_normalization",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_tooling_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_tooling/tool_call_normalization.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "xml_tool_call_parse",
+        "malformed_argument_repair"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_tooling_layer_parity_reviewed",
+        "tool_call_normalization_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "mcp_tool_bridge",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_tooling_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_tooling/mcp_tool_bridge.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "mcp_config_merge_and_cache",
+        "mcp_legacy_tool_name_lookup"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_tooling_layer_parity_reviewed",
+        "mcp_tool_bridge_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "custom_command_skill_loader",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_tooling_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_tooling/custom_command_skill_loader.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "command_precedence_resolution",
+        "skill_lookup_and_missing_skill_error"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_tooling_layer_parity_reviewed",
+        "custom_command_skill_loader_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_tooling_surface_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_tooling_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_tooling_surface_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "local_coding_tooling_surface_ready",
+        "missing_required_tooling_surface_blocked"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_tooling_layer_parity_reviewed",
+        "local_tooling_surface_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "forgecode_raw_capability_assimilation",
       "tier": "lab",
       "source_framework": "forgecode",

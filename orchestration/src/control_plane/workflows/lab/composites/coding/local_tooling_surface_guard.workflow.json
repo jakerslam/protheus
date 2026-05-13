@@ -1,0 +1,212 @@
+{
+  "name": "local_tooling_surface_guard",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "tool_schema_registry",
+        "workflow_id": "tool_schema_registry",
+        "input_contract": "tool_schema_registry_input_envelope_v1",
+        "output_artifact": "tool_schema_registry_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "tool_call_normalization",
+        "workflow_id": "tool_call_normalization",
+        "input_contract": "tool_call_normalization_input_envelope_v1",
+        "output_artifact": "tool_call_normalization_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "mcp_tool_bridge",
+        "workflow_id": "mcp_tool_bridge",
+        "input_contract": "mcp_tool_bridge_input_envelope_v1",
+        "output_artifact": "mcp_tool_bridge_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "custom_command_skill_loader",
+        "workflow_id": "custom_command_skill_loader",
+        "input_contract": "custom_command_skill_loader_input_envelope_v1",
+        "output_artifact": "custom_command_skill_loader_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_execute_tools_directly",
+      "do_not_authorize_operations",
+      "do_not_replace_policy_or_context_guards"
+    ]
+  },
+  "default": false,
+  "description": "Composite local coding tooling-surface guard derived from ForgeCode tool schema, tool-call normalization, MCP bridge, and command/skill loading behavior.",
+  "stages": [
+    "tool_schema_registry",
+    "tool_call_normalization_policy",
+    "mcp_tool_bridge",
+    "custom_command_skill_loading",
+    "tooling_surface_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "tool_schema_registry",
+      "tool_call_normalization",
+      "mcp_tool_bridge",
+      "custom_command_skill_loader"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_tooling_surface_guard_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "tool_schema_status",
+      "tool_call_normalization_status",
+      "mcp_bridge_status",
+      "command_skill_status",
+      "blocked_tooling_surface_reasons"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "prepare the tool surface needed for local coding execution",
+      "scope_boundary": "do not perform coding edits, shell validation, permission decisions, or final handoff",
+      "validation_calibration": "report which tooling subsystems are available, blocked, failed, or skipped",
+      "visibility": "do not expose raw hidden tool payloads, credentials, or private skill resources"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact tooling-surface receipts for local coding checkpoints.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_missing_required_tools",
+      "do_not_store_mcp_credentials",
+      "do_not_execute_loaded_commands"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "local_tooling_surface_guard_input_envelope_v1",
+    "allowed_transitions": [
+      "tool_schema_registry->tool_call_normalization_policy",
+      "tool_call_normalization_policy->mcp_tool_bridge",
+      "mcp_tool_bridge->custom_command_skill_loading",
+      "custom_command_skill_loading->tooling_surface_receipt_packaging",
+      "tooling_surface_receipt_packaging->completed",
+      "tool_schema_registry->blocked",
+      "tool_call_normalization_policy->blocked",
+      "mcp_tool_bridge->blocked",
+      "custom_command_skill_loading->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "failed"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "agent",
+      "workspace",
+      "shell",
+      "web",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 2,
+      "max_tool_calls": 8,
+      "token_budget": 12000,
+      "loop_signature_detector": "local_tooling_surface_guard_v1"
+    }
+  },
+  "tooling_surface_guard_contract": {
+    "version": "local_tooling_surface_guard_v1",
+    "source": "forgecode_assimilated_tooling_layer",
+    "required_primitive_workflow_ids": [
+      "tool_schema_registry",
+      "tool_call_normalization",
+      "mcp_tool_bridge",
+      "custom_command_skill_loader"
+    ],
+    "required_receipts": [
+      "tool_schema_registry_receipt",
+      "tool_call_normalization_receipt",
+      "mcp_tool_bridge_receipt",
+      "custom_command_skill_loader_receipt"
+    ],
+    "activation_policy": "local coding workflows must establish the ForgeCode-style tool schema, call normalization, MCP bridge, and command/skill inventory before invoking a live coding agent loop",
+    "non_goals": [
+      "do_not_replace_operation_permission_gate",
+      "do_not_replace_safe_file_tools",
+      "do_not_replace_bounded_repair_loop"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}
