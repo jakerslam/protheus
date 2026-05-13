@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 283
-- Not parsed: 995
+- Parsed: 285
+- Not parsed: 993
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -303,6 +303,8 @@
 | `apps/api/src/__tests__/snips/v2/scrape-browser.test.ts` | V2 browser replay tests. | Interactive browser work replays retained scrape context, retries replica readiness, rejects malformed/missing/foreign job IDs, and fails when zero-retention makes replay context unavailable. |
 | `apps/api/src/__tests__/snips/v2/scrape-viewport.test.ts` | V2 screenshot viewport tests. | Screenshot artifacts carry typed viewport options with positive integer bounds and backwards compatibility for string and object format declarations. |
 | `apps/api/src/__tests__/snips/v2/scrape-skip-tls.test.ts` | V2 TLS and screenshot compatibility tests. | TLS policy has an explicit default and override behavior, and object screenshot formats remain accepted as artifact-shape inputs. |
+| `apps/api/src/__tests__/snips/v2/scrape.test.ts` | V2 scrape behavior suite. | The main scrape suite covers rich artifact lanes, wait/action validation, cache-key dimensions, local-network blocking, status parity, change tracking, location/proxy/screenshot/PDF/video lanes, document-share rewrites, JSON/summary/attribute/audio formats, source URL preservation, and UUID status validation. |
+| `apps/api/src/__tests__/snips/v2/types-validation.test.ts` | V2 request schema behavior suite. | V2 schemas normalize string/object formats, query/question/highlight page-local formats, screenshot/attribute/parser options, lockdown/minAge/maxAge, source/category search lanes, include/exclude domains, scrapeOptions in search, monitor schedule text, and all major request defaults/bounds before execution. |
 | `apps/api/src/__tests__/snips/v2/system-prompt-rejection.test.ts` | V2 extraction boundary test. | User-supplied system prompts in extraction format options are rejected while ordinary extraction prompts remain accepted. |
 | `apps/api/src/__tests__/snips/v2/webhook.test.ts` | V2 webhook placeholder. | The commented event contract mirrors V1 started/page/completed reconciliation, but executable coverage is only a placeholder. |
 | `apps/api/src/__tests__/snips/v2/wikipedia.test.ts` | V2 specialty source behavior tests. | A specialty source engine can provide high-quality article evidence across languages, redirects, special characters, requested formats, metadata, and graceful not-found behavior. |
@@ -392,6 +394,9 @@
 - Source-specialty engines are useful when they improve evidence quality for known content classes, but they must stay declared capability lanes with normal format/metadata/error contracts.
 - Extraction prompts are user/task instructions; system prompts remain internal policy and should be rejected at the request boundary if surfaced through tool input.
 - Artifact-shape options such as screenshots, viewport, TLS behavior, and selector rewrites should be typed tool inputs that influence retrieval artifacts, not final-answer formatting instructions.
+- Rich page artifacts are evidence variants, not answer formats: links, images, attributes, page-local queries, summaries, audio, screenshots, PDFs, and change tracking should be generated only when requested or needed and then cited through evidence refs.
+- Search schemas should expose source lanes, category lanes, include/exclude domains, freshness/location/language hints, and scrape enrichment options as structured inputs instead of relying on prompt-only query text.
+- Cache/status behavior needs explicit assertions across rich artifacts because artifact shape, request context, and source URL preservation determine whether retrieved data can be trusted by synthesis.
 
 ## Candidate Assimilation Targets
 
@@ -424,6 +429,8 @@
 27. Projection reconciliation: status windows, streamed events, webhook-style events, and final evidence refs should be reconcilable by stable internal IDs without exposing queue internals. Ledger captured; candidate future test target.
 28. Retained-context interaction lane: browser follow-up execution should require retained scrape context, ownership, valid handles, ZDR compatibility, readiness retry, and explicit cleanup. Ledger captured; compare against current browser/dynamic retrieval CD contract.
 29. Source-specialty evidence lanes: admit specialized source readers only as capability lanes with the same output-format, metadata, error, and privacy contracts as generic readers. Ledger captured; candidate future tooling-CD refinement.
+30. Rich page-artifact evidence contract: model links, images, attributes, summaries, page-local answers/highlights, audio/video transcripts, screenshots, change tracking, and document rewrites as optional evidence artifacts with cache/status tests. Ledger captured; compare against current evidence-pack item schema.
+31. Structured search lane schema: support source/category/domain/freshness/location/language/scrape-option lanes as general retrieval inputs without hardcoding research domains. Ledger captured; compare against current `web_retrieval_v0` Tool CD.
 
 ## Remaining Work
 

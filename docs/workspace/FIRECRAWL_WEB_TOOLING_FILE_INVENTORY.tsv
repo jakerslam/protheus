@@ -171,10 +171,10 @@ apps/api/src/__tests__/snips/v2/scrape-lockdown.test.ts	apps	parsed	lockdown_cac
 apps/api/src/__tests__/snips/v2/scrape-query.test.ts	apps	parsed	page_query_format_tests	
 apps/api/src/__tests__/snips/v2/scrape-skip-tls.test.ts	apps	parsed	v2_scrape_skip_tls_snips_tls_default_override_and_object_screenshot_compatibility
 apps/api/src/__tests__/snips/v2/scrape-viewport.test.ts	apps	parsed	v2_scrape_viewport_snips_screenshot_viewport_bounds_and_compatibility
-apps/api/src/__tests__/snips/v2/scrape.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/scrape.test.ts	apps	parsed	v2_scrape_snips_rich_artifact_lanes_cache_key_context_pdf_doc_rewrites_and_status_validation
 apps/api/src/__tests__/snips/v2/search.test.ts	apps	parsed	search_e2e_behavior_tests	include_exclude_domain_limit_multi_source_scrape_enrichment_partial_markdown_expectations
 apps/api/src/__tests__/snips/v2/system-prompt-rejection.test.ts	apps	parsed	v2_system_prompt_rejection_snips_reject_user_supplied_system_prompt_in_extract_options
-apps/api/src/__tests__/snips/v2/types-validation.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/snips/v2/types-validation.test.ts	apps	parsed	v2_types_validation_snips_format_objects_search_sources_categories_artifact_options_and_monitor_schedule_validation
 apps/api/src/__tests__/snips/v2/webhook.test.ts	apps	parsed	v2_webhook_snips_commented_placeholder_started_page_completed_event_contract
 apps/api/src/__tests__/snips/v2/wikipedia.test.ts	apps	parsed	v2_wikipedia_snips_specialty_source_engine_formats_redirects_i18n_and_metadata
 apps/api/src/__tests__/snips/v2/zdr.test.ts	apps	parsed	v2_zdr_snips_team_and_request_scoped_zero_retention_cleanup
