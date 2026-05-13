@@ -300,17 +300,17 @@ apps/api/src/lib/concurrency-queue-reconciler.ts	apps	parsed	concurrency_queue_r
 apps/api/src/lib/cost-tracking.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/crawl-redis.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/crawl-redis.ts	apps	parsed	crawl_state_url_locking_ttl	ttl_state_canonical_url_locks_limit_before_work_finish_cleanup
-apps/api/src/lib/custom-error.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/custom-error.ts	apps	parsed	http_custom_error_wrapper	status_code_status_message_and_optional_job_context
 apps/api/src/lib/deep-research/deep-research-redis.ts	apps	parsed	ttl_research_state_persistence	TTL-bounded state appends activities/sources/summaries while local manager caps findings
 apps/api/src/lib/deep-research/deep-research-service.ts	apps	parsed	iterative_gap_research_loop	parallel query lanes, scrape/read, seen-URL dedupe, gap analysis, bounded continuation, final synthesis
 apps/api/src/lib/deep-research/research-manager.ts	apps	parsed	research_state_and_gap_planning	tracks seen URLs/findings/depth/failures and generates specific follow-up queries from prior evidence
 apps/api/src/lib/default-values.ts	apps	parsed	retrieval_default_values	default_origin_timeout_page_crawl_and_extractor_options
 apps/api/src/lib/deployment.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/deprecations.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/engpicker.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/engpicker.ts	apps	parsed	engine_quality_picker	sampled_urls_multi_transport_content_success_similarity_verdicts_uncertain_on_low_confidence
 apps/api/src/lib/entities.ts	apps	parsed	legacy_entity_shapes	page_search_document_search_v2_result_types_and_action_artifact_fields
-apps/api/src/lib/error-serde.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/error.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/error-serde.ts	apps	parsed	transportable_error_serialization	code_to_payload_and_explicit_class_deserialization_map
+apps/api/src/lib/error.ts	apps	parsed	core_transportable_error_taxonomy	stable_codes_for_timeout_map_redirect_sitemap_denial_actions_cancelled_failures
 apps/api/src/lib/extract/build-document.ts	apps	parsed	metadata_bounded_llm_input	appends sanitized capped metadata to markdown for extraction context
 apps/api/src/lib/extract/build-prompts.ts	apps	parsed	extraction_prompt_builders	search_query_optimization_pre_rerank_intent_schema_analysis_untrusted_page_instructions
 apps/api/src/lib/extract/completions/analyzeSchemaAndPrompt.ts	apps	parsed	extraction_mode_classifier	single_answer_vs_multi_entity_schema_prompt_url_context_keys_reasoning_safe_fallback
@@ -353,9 +353,9 @@ apps/api/src/lib/extract/url-processor.ts	apps	parsed	extract_url_discovery_rera
 apps/api/src/lib/extract/usage/llm-cost.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/usage/model-prices.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/format-utils.ts	apps	parsed	format_option_contract_helper	supports string and object format declarations as extraction contracts
-apps/api/src/lib/gcs-jobs.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/gcs-monitoring.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/gcs-pdf-cache.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/gcs-jobs.ts	apps	parsed	durable_artifact_storage	mode_metadata_retries_zdr_redaction_preview_scrub_404_miss_delete_cleanup
+apps/api/src/lib/gcs-monitoring.ts	apps	parsed	monitor_diff_artifact_storage	deterministic_keys_byte_counts_404_missing_artifact_semantics
+apps/api/src/lib/gcs-pdf-cache.ts	apps	parsed	pdf_conversion_cache	content_hash_provider_prefix_metadata_optional_page_count_cache_miss_null
 apps/api/src/lib/generate-llmstxt/generate-llmstxt-redis.ts	apps	parsed	ttl_site_corpus_state	TTL-bounded async corpus-pack state with compact text/full text/status/error
 apps/api/src/lib/generate-llmstxt/generate-llmstxt-service.ts	apps	parsed	map_scrape_site_corpus_pack	maps bounded URLs, batch-scrapes pages, creates compact page rows, stores full text separately, updates progress
 apps/api/src/lib/generate-llmstxt/generate-llmstxt-supabase.ts	apps	parsed	site_corpus_cache_reuse	reuses fresh larger hostname-normalized corpus for smaller limits and rejects stale entries
@@ -371,7 +371,7 @@ apps/api/src/lib/map-utils.ts	apps	parsed	map_and_search_candidate_discovery	ind
 apps/api/src/lib/native-logging.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/otel-tracer.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/parseApi.ts	apps	parsed	api_key_shape_compatibility	fc_prefixed_key_to_uuid_and_uuid_to_fc_key_compatibility
-apps/api/src/lib/permissions.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/permissions.ts	apps	parsed	retrieval_permission_gate	zdr_robots_custom_agent_static_ip_location_feature_denials_before_execution
 apps/api/src/lib/permu-refactor.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/ranker.test.ts	apps	parsed	ranking_behavior_tests	semantic rerank exposes score/original index, handles empty input, and preserves stable tie order
 apps/api/src/lib/ranker.ts	apps	parsed	semantic_ranking	embedding_cosine_rerank_stable_sort_embedding_failure_score_zero
@@ -389,7 +389,7 @@ apps/api/src/lib/strings.ts	apps	not_parsed	pending_review
 apps/api/src/lib/supabase-jobs.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/tracking.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/url-utils.ts	apps	parsed	public_suffix_url_utils	psl_base_domain_extraction_root_domain_detection
-apps/api/src/lib/validate-country.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/validate-country.ts	apps	parsed	location_metadata_table	country_codes_location_validation_data_for_location_aware_retrieval_inputs
 apps/api/src/lib/validateUrl.test.ts	apps	parsed	validate_url_tests	same_domain_subdomain_invalid_url_and_duplicate_variant_preference_behavior
 apps/api/src/lib/validateUrl.ts	apps	parsed	url_validation_and_redirect_utils	protocol_completion_http_https_only_www_protocol_duplication_guard_redirect_resolution
 apps/api/src/lib/withAuth.ts	apps	not_parsed	pending_review	

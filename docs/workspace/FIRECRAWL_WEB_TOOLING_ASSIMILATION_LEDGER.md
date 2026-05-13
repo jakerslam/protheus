@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 324
-- Not parsed: 954
+- Parsed: 333
+- Not parsed: 945
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -187,6 +187,9 @@
 | `apps/api/src/controllers/v1/scrape-status.ts` | V1 scrape status projection. | Status lookup is an ownership-checked stored-artifact projection and is blocked under forced zero retention. |
 | `apps/api/src/controllers/v1/crawl-cancel.ts` | Crawl cancellation controller. | Cancellation marks crawl state as cancelled only after ownership and terminal-state checks. |
 | `apps/api/src/controllers/v1/crawl-errors.ts` | Crawl error projection. | Crawl errors are projected from failed child jobs with typed error deserialization, known noisy failures filtered, robots-blocked URLs separated, and DB fallback under TTL. |
+| `apps/api/src/lib/error.ts` | Core transportable error taxonomy. | Retrieval failures are modeled as typed serializable codes for timeouts, map failures, duplicate redirect races, sitemap failures, crawl denial, unsupported actions, and expected cancellation. |
+| `apps/api/src/lib/error-serde.ts` | Error serialization bridge. | Transportable errors serialize as code plus payload and deserialize through an explicit code-to-class map, keeping worker/status boundaries typed. |
+| `apps/api/src/lib/custom-error.ts` | HTTP custom error wrapper. | API-layer errors can carry status code/status/message plus optional job context without collapsing into untyped strings. |
 | `apps/api/src/controllers/v1/crawl-ongoing.ts` | Ongoing crawl projection. | Ongoing crawl listing returns bounded owner-scoped crawl summaries with normalized options, not raw queue state. |
 | `apps/api/src/controllers/v1/crawl-status-ws.ts` | Crawl status WebSocket projection. | Streaming status starts with a catch-up window, then emits completed documents incrementally while ignoring failed child payloads and closing with bounded status messages. |
 | `apps/api/src/lib/extract/build-prompts.ts` | Extraction prompt builders. | Extraction/query planning separates search-query optimization, pre-rerank intent compression, schema analysis, and untrusted-page extraction instructions. |
@@ -373,6 +376,12 @@
 | `apps/api/src/controllers/v0/admin/check-fire-engine.ts` | Engine health probe. | Optional rendered-fetch engines should have bounded health probes that try multiple neutral URLs, abort by timeout, and return sanitized failure state. |
 | `apps/api/src/controllers/v0/liveness.ts` | Liveness endpoint. | Current implementation is only an always-ok stub; useful lesson is to keep liveness cheap and separate from deeper dependency readiness. |
 | `apps/api/src/controllers/v0/readiness.ts` | Readiness endpoint. | Current implementation is only an always-ok stub; deeper dependency checks belong in readiness/health probes rather than retrieval answer paths. |
+| `apps/api/src/lib/gcs-jobs.ts` | Durable artifact storage helpers. | Scrape/search/extract/map/deep-research/corpus artifacts are saved as JSON refs with mode-specific metadata, retries, ZDR redaction, preview-team scrubbing, 404-as-miss lookup, and delete-with-ignore-not-found cleanup. |
+| `apps/api/src/lib/gcs-monitoring.ts` | Monitor diff artifact storage. | Change-tracking diffs are stored under deterministic team/monitor/check/page keys, return byte-size metadata even without storage, and treat 404 as a missing artifact rather than fatal failure. |
+| `apps/api/src/lib/gcs-pdf-cache.ts` | PDF conversion cache. | PDF cache keys hash document content, separate providers by prefix, include conversion metadata, tolerate older cache entries with missing page-count fields, and return null on cache miss/error. |
+| `apps/api/src/lib/engpicker.ts` | Engine-quality picker. | Engine suitability is sampled across URLs and transport modes, filtered away from non-content files, evaluated for actual page content, then reduced to tls-ok/render-required/uncertain verdicts using similarity and success thresholds. |
+| `apps/api/src/lib/permissions.ts` | Retrieval permission gate. | ZDR, robots overrides, custom robots agents, and static-IP location modes are checked before execution against team flags with explicit denial reasons. |
+| `apps/api/src/lib/validate-country.ts` | Location metadata table. | Country/location support is represented as a structured metadata table; useful only as validation data for location-aware retrieval inputs. |
 
 ## Decisions So Far
 
@@ -456,6 +465,10 @@
 - Retrieval observability should use separate cheap liveness, dependency readiness, synthetic end-to-end probes, queue gauges, and reconciliation endpoints. These are diagnostic/control-plane artifacts, not evidence or final-answer content.
 - Cleanup/reconciliation should be all-or-nothing at the logical request level: partial artifact deletion is recorded, but cleanup markers should clear only after every required artifact is removed.
 - Synthetic health probes should validate semantics, not just transport success: credit balance movement, lock finalization, queue completion, and dependency read-after-write all catch failures that a plain ping misses.
+- Artifact storage should turn bulky retrieval outputs into stable refs plus mode-specific metadata, while redacting or disabling fields under privacy modes. A missing artifact should be distinguishable from a failed storage backend.
+- Error handling should preserve typed failure causes across worker/status/tool boundaries so synthesis receives actionable gap reasons instead of generic missing output.
+- Engine-quality sampling is useful as a hidden capability probe, but hardcoded evaluator models/prompts are not assimilation targets. The transferable primitive is sampling several candidate engines, scoring content success/similarity, and recording an uncertain verdict when evidence is insufficient.
+- Permission checks are upstream retrieval behavior: privacy, robots, static-IP/location, and retained-context modes must be rejected or admitted before tool execution, not repaired during synthesis.
 
 ## Candidate Assimilation Targets
 
@@ -497,6 +510,9 @@
 36. Artifact transformer lane contract: make page postprocessors/transformers idempotent, request-gated, privacy-gated, context-budget-aware, and ref-producing for bulky artifacts. Ledger captured; compare against current evidence-pack transformation layer.
 37. Document extraction quality metrics: attach page-count confidence, magic-byte validation, table/number preservation, length-ratio verdicts, and safe conversion fallback metadata to document evidence. Ledger captured; candidate evidence-pack quality refinement.
 38. Retrieval health/observability split: keep liveness, readiness, dependency probes, synthetic crawl probes, queue gauges, and cleanup reconciliation separate from evidence-bearing retrieval results. Ledger captured; candidate ops/probe contract refinement.
+39. Durable evidence artifact refs: store rich search/scrape/document/corpus outputs behind refs with mode metadata, privacy redaction, cache-miss semantics, and cleanup hooks. Ledger captured; candidate evidence-store/tooling-CD refinement.
+40. Typed retrieval failure bridge: serialize retrieval failures as stable error codes and structured payloads across async/tool/status boundaries. Ledger captured; candidate synthesis-gap and eval-failure classification target.
+41. Engine quality sampler: periodically compare admitted retrieval engines on sampled URLs using content-success and similarity metrics, emitting hidden capability verdicts rather than hardcoded provider routes. Ledger captured; candidate retrieval capability scoring target.
 
 ## Remaining Work
 
