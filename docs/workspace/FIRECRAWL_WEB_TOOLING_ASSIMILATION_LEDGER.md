@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 686
-- Not parsed: 590
+- Parsed: 704
+- Not parsed: 572
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -399,6 +399,24 @@
 | `apps/js-sdk/firecrawl/src/__tests__/unit/v2/errorHandler.test.ts` | JS SDK error handler tests. | Error tests assert response-body errors beat generic transport messages and become typed SDK errors. |
 | `apps/js-sdk/firecrawl/src/v2/watcher.ts` | SDK watcher. | Long-running crawl/batch work can stream snapshots/documents over WebSocket, fall back to polling, dedupe emitted documents by stable key, and emit terminal done/error snapshots. |
 | `apps/js-sdk/firecrawl/src/v2/types.ts` | SDK public type schema. | Public types model artifact formats, actions, scrape/parse/search/crawl/batch/map/monitor/error/browser shapes, terminal job statuses, pagination bounds, and document metadata as a single typed contract. |
+| `apps/js-sdk/firecrawl/README.md` | JS SDK public docs. | Public docs reinforce LLM-ready output as a primitive contract while keeping scrape, parse, crawl, extract, map, watcher, batch, and v1 compatibility as separate operations. |
+| `apps/js-sdk/firecrawl/package.json` | JS SDK package/test metadata. | E2E and unit tests are separate npm scripts; dependency overrides pin transport/transitive security fixes at the package boundary. |
+| `apps/js-sdk/firecrawl/src/index.ts` | JS SDK unified entrypoint. | V2 is the default thin client while v1 is lazy and feature-frozen, avoiding hidden legacy behavior in current tool surfaces. |
+| `apps/js-sdk/firecrawl/src/v2/utils/getVersion.ts` | JS SDK version helper. | Version discovery is best-effort diagnostic origin metadata with a safe fallback, not evidence. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/search.test.ts` | JS SDK v2 search E2E. | Search quality tests require source-lane shape, limit enforcement, relevance-bearing text, search-plus-scrape document enrichment, JSON/summary formats, and web/news/image lane separation. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/scrape.test.ts` | JS SDK v2 scrape E2E. | Scrape quality tests require content-bearing markdown/HTML/raw output, metadata, requested artifact fields, summaries with minimum length, image extraction beyond obvious link extensions, and invalid URL rejection. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/crawl.test.ts` | JS SDK v2 crawl E2E. | Crawl E2E covers start/status/cancel/errors/active/list/wait flows, prompt-derived crawl params preview, terminal job id retention, scrape options per page, and all-parameter request shaping. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/batch.test.ts` | JS SDK v2 batch E2E. | Batch E2E checks wait/status/cancel flows, terminal job ids for later error lookup, robotsBlocked/error arrays, concurrency, ZDR, and complex per-page formats. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/extract.test.ts` | JS SDK v2 extract E2E. | Extraction tests treat prompt/schema/Zod schemas as structured-output controls and verify source projection and schema-safe data when returned. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/map.test.ts` | JS SDK v2 map E2E. | Map tests assert structured HTTP URL rows, sitemap modes, search text, subdomain inclusion, timeout, and result limit enforcement as cheap discovery quality checks. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/parse.test.ts` | JS SDK v2 parse E2E. | Parse tests require uploaded HTML to become markdown with credit metadata and unsupported file types to reject rather than becoming empty evidence. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/watcher.test.ts` | JS SDK v2 watcher E2E. | Watcher tests require snapshot/document/done event sequencing, terminal state projection, and explicit close for crawl and batch jobs. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/usage.test.ts` | JS SDK v2 usage E2E. | Usage tests keep concurrency, credits, tokens, and queue status as numeric control projections separate from retrieval evidence. |
+| `apps/js-sdk/firecrawl/src/__tests__/e2e/v2/utils/idmux.ts` | JS SDK E2E identity helper. | Live tests can provision per-suite identities with concurrency/credit/token flags or fall back to env credentials, separating capability setup from retrieval assertions. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/agent.test.ts` | JS SDK agent unit tests. | Agent webhook events are typed separately from crawl events, reinforcing capability-specific event channels. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/branding.test.ts` | JS SDK branding unit tests. | Branding artifacts are optional structured evidence facets that can coexist with markdown and preserve nested visual metadata without becoming required research output. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/clientOptions.test.ts` | JS SDK client option tests. | Client options expose timeout/retry/backoff and base URL as typed admission/config fields. |
+| `apps/js-sdk/firecrawl/src/__tests__/unit/v2/zodSchemaToJson.test.ts` | JS SDK Zod conversion tests. | Schema conversion detects Zod schemas, passes through JSON schemas, and catches accidental `.shape` usage before extraction requests run. |
 | `apps/api/src/lib/avgrab-resolve.ts` | Source-specialty resolver helper. | Optional resolver capabilities can cache supported URL patterns, delegate matching URLs to a specialty service, and project returned posts into generic map documents with hidden metadata. |
 | `apps/api/src/lib/permu-refactor.test.ts` | URL permutation stability test. | URL equivalence closures should be stable across permutations of protocol, `www`, slash, and common index-file variants so dedupe/locks are deterministic. |
 | `apps/api/src/__tests__/snips/generateDomainSplits.test.ts` | Domain split tests. | Public-suffix-aware domain splitting supports fake domains for test/mocking while preserving subdomain rollup behavior. |
@@ -1062,6 +1080,14 @@
 148. Unit-live split for SDK parity: SDKs should prove request-shape and serialization deterministically, then leave expensive/live content quality to separate capability-gated evals. Ledger captured; candidate eval layering rule.
 149. Null-omission/default guard: option serializers should omit unset fields while preserving explicit false/default safety values when the downstream API depends on them. Ledger captured; candidate Tool CD serialization guard.
 150. Ruby SDK parity closure: the Ruby SDK repeats the same primitive/tool boundary as Rust, Java, .NET, and PHP; remaining web-quality work should focus on retrieval planning/enrichment internals, not more SDK facade semantics. Ledger captured; candidate prioritization note.
+151. Content-bearing E2E assertions: live retrieval tests should assert answer-bearing text, requested artifact fields, relevance terms, summary length, image/link coverage, and metadata rather than only request success. Ledger captured; candidate golden quality gate.
+152. Terminal job id retention: blocking wait helpers should return job IDs so callers can retrieve errors/robotsBlocked/diagnostics after a terminal soft failure. Ledger captured; candidate workflow failure explanation target.
+153. Event-stream contract proof: long-running retrieval should prove snapshot/document/done events, terminal state, document dedupe, and explicit close independently from final synthesis. Ledger captured; candidate Shell Socket/tool-status proof.
+154. Capability identity provisioning: live evals should own per-suite capability identities/budgets and classify missing credentials separately from retrieval quality. Ledger captured; candidate eval runner improvement.
+155. Legacy surface quarantine: current clients may expose feature-frozen legacy APIs lazily, but default paths should stay on current primitive contracts. Ledger captured; candidate architecture guard.
+156. Visual artifact optionality: image and branding extraction can improve evidence richness, but tests should treat them as requested optional facets rather than mandatory research answers. Ledger reinforced; candidate evidence-pack optional facet policy.
+157. Schema conversion as admission: Zod/object schema conversion and mistaken-shape detection belong before execution, preventing malformed extraction requests from becoming weak answers. Ledger reinforced; candidate Tool CD schema validator.
+158. Async soft-failure observability: tests that accept completed/failed terminal states still require structured data/errors arrays, preventing runtime failure from masquerading as missing output. Ledger captured; candidate gate/eval split.
 
 ## Remaining Work
 
@@ -1070,6 +1096,7 @@
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
 - Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
+- JS SDK v2 docs, public entrypoint, compact E2E suites, and remaining compact unit tests are parsed; large legacy v1 SDK and outer example files remain.
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
