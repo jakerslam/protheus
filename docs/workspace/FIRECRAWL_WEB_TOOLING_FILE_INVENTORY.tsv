@@ -1,48 +1,48 @@
 path	top_level	status	reason	patterns
-.gitattributes	.gitattributes	not_parsed	pending_review	
-.github/CODEOWNERS	.github	not_parsed	pending_review	
-.github/ISSUE_TEMPLATE/bug_report.md	.github	not_parsed	pending_review	
-.github/ISSUE_TEMPLATE/feature_request.md	.github	not_parsed	pending_review	
-.github/ISSUE_TEMPLATE/self_host_issue.md	.github	not_parsed	pending_review	
-.github/archive/js-sdk.yml	.github	not_parsed	pending_review	
-.github/archive/publish-rust-sdk.yml	.github	not_parsed	pending_review	
-.github/archive/python-sdk.yml	.github	not_parsed	pending_review	
-.github/archive/rust-sdk.yml	.github	not_parsed	pending_review	
-.github/dependabot.yml	.github	not_parsed	pending_review	
-.github/scripts/audit-ci-vuln-scan.mjs	.github	not_parsed	pending_review	
-.github/scripts/check_version_has_incremented.py	.github	not_parsed	pending_review	
+.gitattributes	.gitattributes	parsed	text_normalization	lf_normalization_only
+.github/CODEOWNERS	.github	parsed	ownership_map	endpoint_family_ownership_for_gate_regression_routing
+.github/ISSUE_TEMPLATE/bug_report.md	.github	parsed	failure_report_template	reproduction_environment_logs_configuration_shape
+.github/ISSUE_TEMPLATE/feature_request.md	.github	parsed	capability_gap_template	problem_alternatives_implementation_use_case_shape
+.github/ISSUE_TEMPLATE/self_host_issue.md	.github	parsed	self_host_failure_template	profile_versions_logs_redacted_config_shape
+.github/archive/js-sdk.yml	.github	parsed	archived_sdk_e2e	legacy_full_stack_client_smoke_test_shape
+.github/archive/publish-rust-sdk.yml	.github	parsed	archived_publish_workflow	legacy_version_gated_publish_pattern
+.github/archive/python-sdk.yml	.github	parsed	archived_sdk_e2e	legacy_full_stack_client_smoke_test_shape
+.github/archive/rust-sdk.yml	.github	parsed	archived_sdk_e2e	legacy_full_stack_client_smoke_test_shape
+.github/dependabot.yml	.github	parsed	dependency_governance	scheduled_security_action_updates_with_version_churn_disabled
+.github/scripts/audit-ci-vuln-scan.mjs	.github	parsed	audit_remediation_evidence_builder	deduped_findings_hidden_pr_markers_exact_verification_prompt
+.github/scripts/check_version_has_incremented.py	.github	parsed	multi_registry_version_gate	local_vs_published_publish_idempotency_check
 .github/scripts/eval_run.py	.github	parsed	eval_dispatch_script	explicit_api_experiment_label_inputs_and_fail_closed_request_error_exit
-.github/scripts/requirements.txt	.github	not_parsed	pending_review	
-.github/workflows/deploy-go-service.yaml	.github	not_parsed	pending_review	
-.github/workflows/deploy-image-staging.yml	.github	not_parsed	pending_review	
-.github/workflows/deploy-image.yml	.github	not_parsed	pending_review	
-.github/workflows/deploy-nuq-postgres.yml	.github	not_parsed	pending_review	
-.github/workflows/deploy-playwright.yml	.github	not_parsed	pending_review	
-.github/workflows/deploy-redis.yml	.github	not_parsed	pending_review	
+.github/scripts/requirements.txt	.github	parsed	version_script_dependencies	requests_packaging_toml_only
+.github/workflows/deploy-go-service.yaml	.github	parsed	service_deploy_profile	path_scoped_parser_service_image_publish
+.github/workflows/deploy-image-staging.yml	.github	parsed	staging_deploy_profile	manual_staging_image_publish
+.github/workflows/deploy-image.yml	.github	parsed	api_deploy_profile	multi_arch_image_manifest_publish
+.github/workflows/deploy-nuq-postgres.yml	.github	parsed	auxiliary_deploy_profile	path_scoped_database_image_publish
+.github/workflows/deploy-playwright.yml	.github	parsed	renderer_deploy_profile	separate_multi_arch_browser_adapter_image_publish
+.github/workflows/deploy-redis.yml	.github	parsed	auxiliary_deploy_profile	queue_cache_image_publish
 .github/workflows/eval-prod.yml	.github	parsed	production_eval_workflow	post_deploy_wait_commit_labeled_external_eval_service_dispatch
-.github/workflows/ghcr-clean.yml	.github	not_parsed	pending_review	
-.github/workflows/npm-audit-claude-remediation.yml	.github	not_parsed	pending_review	
-.github/workflows/npm-audit.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-dotnet-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-elixir-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-go-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-java-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-js-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-php-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-python-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-ruby-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/publish-rust-sdk.yml	.github	not_parsed	pending_review	
+.github/workflows/ghcr-clean.yml	.github	parsed	registry_cleanup	manual_keep_latest_untagged_artifact_retention
+.github/workflows/npm-audit-claude-remediation.yml	.github	parsed	agent_remediation_control	failure_triggered_deduped_bounded_agent_sidecar_with_pr_marker
+.github/workflows/npm-audit.yml	.github	parsed	audit_matrix	package_scoped_continue_on_error_then_aggregate_verdict
+.github/workflows/publish-dotnet-sdk.yml	.github	parsed	sdk_publish_workflow	version_gated_dotnet_release_side_effects
+.github/workflows/publish-elixir-sdk.yml	.github	parsed	sdk_generate_publish_workflow	scheduled_regen_diff_duplicate_pr_skip_and_version_publish_gate
+.github/workflows/publish-go-sdk.yml	.github	parsed	sdk_publish_workflow	build_vet_tag_existence_and_module_proxy_warmup
+.github/workflows/publish-java-sdk.yml	.github	parsed	sdk_publish_workflow	version_gated_java_release_side_effects
+.github/workflows/publish-js-sdk.yml	.github	parsed	sdk_publish_workflow	path_scoped_js_package_publish
+.github/workflows/publish-php-sdk.yml	.github	parsed	sdk_publish_workflow	validate_split_push_and_registry_notify
+.github/workflows/publish-python-sdk.yml	.github	parsed	sdk_publish_workflow	version_gated_python_release_side_effects
+.github/workflows/publish-ruby-sdk.yml	.github	parsed	sdk_publish_workflow	version_gated_ruby_release_side_effects
+.github/workflows/publish-rust-sdk.yml	.github	parsed	sdk_publish_workflow	version_gated_build_test_publish_side_effects
 .github/workflows/scrape-evals.yml	.github	parsed	opt_in_scrape_quality_eval_workflow	pr_comment_title_body_tokens_org_membership_gate_and_external_eval_dispatch
-.github/workflows/test-dotnet-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/test-go-html-to-md-service.yml	.github	not_parsed	pending_review	
-.github/workflows/test-go-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/test-java-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/test-js-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/test-php-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/test-ruby-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/test-rust-sdk.yml	.github	not_parsed	pending_review	
-.github/workflows/test-server.yml	.github	not_parsed	pending_review	
-.github/workflows/validate-lockfiles.yml	.github	not_parsed	pending_review	
+.github/workflows/test-dotnet-sdk.yml	.github	parsed	sdk_test_workflow	path_scoped_build_unit_report_gate
+.github/workflows/test-go-html-to-md-service.yml	.github	parsed	parser_service_test_workflow	independent_build_vet_test_adapter_gate
+.github/workflows/test-go-sdk.yml	.github	parsed	sdk_test_workflow	path_scoped_build_vet_gate
+.github/workflows/test-java-sdk.yml	.github	parsed	sdk_test_workflow	unit_and_secret_gated_e2e_report_gate
+.github/workflows/test-js-sdk.yml	.github	parsed	sdk_test_workflow	private_network_capability_explicit_test_gate
+.github/workflows/test-php-sdk.yml	.github	parsed	sdk_test_workflow	static_analysis_unit_and_secret_gated_e2e
+.github/workflows/test-ruby-sdk.yml	.github	parsed	sdk_test_workflow	path_scoped_unit_gate
+.github/workflows/test-rust-sdk.yml	.github	parsed	sdk_test_workflow	format_build_lint_unit_examples_layered_gate
+.github/workflows/test-server.yml	.github	parsed	full_stack_retrieval_ci	engine_proxy_search_ai_matrix_local_services_and_logs
+.github/workflows/validate-lockfiles.yml	.github	parsed	lockfile_integrity_gate	frozen_lockfile_validation
 .gitignore	.gitignore	not_parsed	pending_review	
 .gitmodules	.gitmodules	not_parsed	pending_review	
 CLAUDE.md	CLAUDE.md	parsed	repo_workflow_and_test_guidance	snips_e2e_preferred_failure_path_tests

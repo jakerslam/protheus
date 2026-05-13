@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 926
-- Not parsed: 347
+- Parsed: 967
+- Not parsed: 306
 - Skipped generated: 13
 - Skipped media or sample: 71
 
@@ -975,6 +975,47 @@
 | `examples/blog-articles/deploying_web_scrapers/notebook.md` | Scraper deployment tutorial article. | Deployment choice should be scale/budget/complexity aware, with retries, validation, logging, alerts, compression, and cleanup treated as lifecycle controls. |
 | `examples/blog-articles/github-actions-tutorial/notebook.md` | GitHub Actions tutorial article. | Scheduled/manual workflow triggers, secrets, environment validation, and artifact commits are recurring-control concerns separate from retrieval evidence. |
 | `examples/blog-articles/scheduling_scrapers/notebook.md` | Scheduler tutorial article. | Local schedule, async loops, cron, and hosted schedulers reinforce exception-isolated recurring retrieval with logs, health checks, rate limits, and retention cleanup. |
+| `.gitattributes` | Repository text normalization. | LF normalization only; useful as repository hygiene but not a retrieval primitive. |
+| `.github/CODEOWNERS` | Ownership map. | Retrieval surfaces have explicit owners by endpoint/family, suggesting ownership metadata can help route gate regressions and workflow debt. |
+| `.github/ISSUE_TEMPLATE/bug_report.md` | Bug report evidence request shape. | User-reported retrieval failures ask for reproduction steps, environment, logs, and configuration, matching hard/soft failure archive metadata. |
+| `.github/ISSUE_TEMPLATE/feature_request.md` | Feature request evidence request shape. | Requests are framed as problem, alternatives, implementation suggestions, and use case; useful for distinguishing capability gaps from workflow bugs. |
+| `.github/ISSUE_TEMPLATE/self_host_issue.md` | Self-host issue evidence request shape. | Self-host failures gather OS, versions, Docker/database, logs, and redacted config, reinforcing profile-aware failure classification. |
+| `.github/archive/js-sdk.yml` | Archived JS SDK E2E workflow. | Old full-stack SDK E2E starts API/workers and Redis; useful only as legacy smoke-test shape, with secrets and beta flags quarantined. |
+| `.github/archive/publish-rust-sdk.yml` | Archived Rust publish workflow. | Archived version-gated publish flow; current workflows supersede it, but it reinforces no-op publish avoidance. |
+| `.github/archive/python-sdk.yml` | Archived Python SDK E2E workflow. | Legacy SDK E2E flow starts API/workers before client tests; useful as compatibility smoke-test history, not current runtime policy. |
+| `.github/archive/rust-sdk.yml` | Archived Rust SDK E2E workflow. | Legacy Rust E2E flow shows client parity testing against live local service but lacks current bounded reporting. |
+| `.github/dependabot.yml` | Dependency governance configuration. | Version updates are intentionally disabled per app while security/action maintenance remains scheduled; dependency churn is governance, not retrieval behavior. |
+| `.github/scripts/audit-ci-vuln-scan.mjs` | Audit remediation evidence builder. | Aggregates audit findings, dedupes already-covered PRs via hidden markers, writes machine artifacts, and builds exact verification commands for an agent sidecar. |
+| `.github/scripts/check_version_has_incremented.py` | Multi-registry version gate. | Checks local vs published versions across package ecosystems before publish, keeping release side effects idempotent and no-op safe. |
+| `.github/scripts/requirements.txt` | Version-check dependencies. | Registry/version checks need only requests, packaging, and toml; dependency surface is small and governance-scoped. |
+| `.github/workflows/deploy-go-service.yaml` | Go parser service image deploy. | Service-specific deploy triggers on path changes and manual dispatch; parser deployment profile stays separate from retrieval CD semantics. |
+| `.github/workflows/deploy-image-staging.yml` | Staging image deploy. | Manual staging image publishing reinforces profile separation between production, staging, and local/test runtime behavior. |
+| `.github/workflows/deploy-image.yml` | API image deploy. | Multi-arch build plus manifest publishing is release infrastructure; artifact architecture belongs to deploy profile metadata, not synthesis. |
+| `.github/workflows/deploy-nuq-postgres.yml` | Postgres image deploy. | Auxiliary service images are path-scoped release artifacts and should not alter retrieval behavior outside profile admission. |
+| `.github/workflows/deploy-playwright.yml` | Rendered-fetch service deploy. | Browser/rendering service is deployed as a separate multi-arch capability adapter, supporting engine separation. |
+| `.github/workflows/deploy-redis.yml` | Redis image deploy. | Queue/cache infrastructure deployment is profile-scoped support surface, not citable evidence. |
+| `.github/workflows/ghcr-clean.yml` | Registry cleanup workflow. | Keeps only the latest untagged images, reinforcing bounded artifact/cache retention. |
+| `.github/workflows/npm-audit-claude-remediation.yml` | Automated audit remediation workflow. | Runs only on audit failure/manual dispatch, dedupes uncovered findings, bounds agent tools/turns, and enforces PR markers after agent execution. |
+| `.github/workflows/npm-audit.yml` | Dependency audit workflow. | Runs package-scoped audits with continue-on-error, captures per-app outputs, then aggregates a single failure summary. |
+| `.github/workflows/publish-dotnet-sdk.yml` | .NET SDK publish workflow. | Path-scoped publish is gated by registry version comparison before restoring/building/packing/publishing. |
+| `.github/workflows/publish-elixir-sdk.yml` | Elixir SDK regeneration/publish workflow. | Scheduled/manual regeneration opens a PR only when generated output changes and skips duplicate open PRs by branch/version. |
+| `.github/workflows/publish-go-sdk.yml` | Go SDK publish workflow. | Build/vet, tag-existence checks, and module-proxy warming make release visibility a verified side effect. |
+| `.github/workflows/publish-java-sdk.yml` | Java SDK publish workflow. | Version gate, build, cache, and publish steps mirror SDK release idempotency across another ecosystem. |
+| `.github/workflows/publish-js-sdk.yml` | JS SDK publish workflow. | Path-scoped JS publish authenticates and publishes only the SDK package; package release is isolated from runtime workflow behavior. |
+| `.github/workflows/publish-php-sdk.yml` | PHP SDK publish workflow. | Validates package metadata, performs subtree split, and notifies registry; downstream release plumbing stays out of retrieval evidence. |
+| `.github/workflows/publish-python-sdk.yml` | Python SDK publish workflow. | Version-gated build/publish keeps package registry side effects idempotent. |
+| `.github/workflows/publish-ruby-sdk.yml` | Ruby SDK publish workflow. | Version-gated gem build/publish reinforces cross-SDK release parity. |
+| `.github/workflows/publish-rust-sdk.yml` | Rust SDK publish workflow. | Version gate, build, test, and publish with cargo cache preserves release confidence before side effects. |
+| `.github/workflows/test-dotnet-sdk.yml` | .NET SDK test workflow. | Path-scoped SDK test publishes machine-readable reports while avoiding unsafe fork reporting side effects. |
+| `.github/workflows/test-go-html-to-md-service.yml` | Go parser service test workflow. | Parser service has its own build/vet/test gate, reinforcing parser capability as an independently testable adapter. |
+| `.github/workflows/test-go-sdk.yml` | Go SDK test workflow. | SDK build/vet is path-scoped and profile-gated, useful as adapter parity hygiene. |
+| `.github/workflows/test-java-sdk.yml` | Java SDK test workflow. | Unit and E2E tests are separated with secret-gated E2E execution and report publishing. |
+| `.github/workflows/test-js-sdk.yml` | JS SDK test workflow. | SDK tests can require private network setup; capability admission should be explicit instead of counted as generic failure. |
+| `.github/workflows/test-php-sdk.yml` | PHP SDK test workflow. | Static analysis, unit tests, and secret-gated E2E tests separate local correctness from hosted capability checks. |
+| `.github/workflows/test-ruby-sdk.yml` | Ruby SDK test workflow. | Path-scoped SDK test reinforces lightweight adapter parity coverage. |
+| `.github/workflows/test-rust-sdk.yml` | Rust SDK test workflow. | Formatting, build, clippy, unit tests, and example builds provide a layered adapter-quality gate. |
+| `.github/workflows/test-server.yml` | Full-stack self-host retrieval CI. | Matrixes engine/proxy/search/AI profiles, starts local SearXNG/test site/browser/parser/DB/queue services, and uploads logs for hard/soft retrieval classification. |
+| `.github/workflows/validate-lockfiles.yml` | Lockfile validation workflow. | Frozen lockfile validation is a small upstream dependency-integrity gate, not workflow behavior. |
 
 ## Decisions So Far
 
@@ -1396,6 +1437,17 @@
 242. Health and completeness monitors: scheduled retrieval should validate expected counts/required fields and alert on empty or incomplete runs before synthesis consumes them. Ledger reinforced; candidate workflow stats/eval target.
 243. Data retention cleanup: recurring scrapers need explicit retention/compression cleanup so cache/history does not become unbounded churn. Ledger reinforced; candidate system data lifecycle policy.
 244. Deployment profile separation: local, CI, PaaS, serverless, and cluster execution profiles should affect budgets/admission/retry expectations, not final answer behavior. Ledger captured; candidate Tool CD profile field.
+245. CI evidence control plane: package/service audits can run independently, collect outputs even after failures, and aggregate one structured verdict; candidate workflow eval reporting pattern.
+246. Agent remediation dedupe marker: hidden stable markers keyed by finding IDs prevent duplicate automated sidecar work and make coverage auditable without leaking into user-visible output.
+247. Exact-verification sidecar prompt: automated repair agents should receive exact reproduction commands, decision policy, and artifact requirements; useful for governance agents, not synthesis formatting.
+248. Version-gated side effects: publish/release workflows should compare local and remote versions before spending build/publish budget or mutating registries.
+249. Generated-artifact drift loop: scheduled regeneration should diff outputs, skip when unchanged, and avoid duplicate PR branches before creating side effects.
+250. Registry/cache retention ceiling: image/cache cleanup should keep bounded recent artifacts and remain manually/profile triggered so storage does not become unbounded churn.
+251. Full-stack retrieval capability matrix: retrieval CI should vary engine, proxy, search, and AI capabilities explicitly so failures are classified by unavailable capability, request/execution, or evidence quality.
+252. Local dependency fixture stack: high-signal retrieval tests benefit from managed local SearXNG, static test site, renderer, parser, queue, and database services with readiness waits and uploaded logs.
+253. Secret/capability-gated E2E: hosted or private-network SDK tests should be admitted by explicit capability/profile fields instead of silently weakening generic workflow quality metrics.
+254. Layered SDK/tool quality gates: format/build/lint/unit/example/E2E checks catch adapter regressions before synthesis sees malformed or missing evidence.
+255. Failure-report metadata shape: bug/self-host templates reinforce that useful failure archives need reproduction, environment/profile, logs, configuration, and expected-vs-actual behavior.
 
 ## Remaining Work
 
@@ -1411,6 +1463,7 @@
 - Company/product/job/source-specific examples are parsed enough to capture extract-then-discover, candidate confidence sidecars, source verification, action preconditions, and downstream analysis-over-evidence patterns.
 - Screenshot editor, internal-link, topic-visualization, Llama crawler, realtime pointer, and OpenAI Swarm examples are parsed; useful signals are visual artifact facets, corpus-derived analysis artifacts, composite handoff shape, and avoiding top-link-only candidate collapse.
 - AI-news/podcast/full-app pointers and the readable deployment/scheduling/price/GitHub Actions articles are parsed; useful signals are recurring retrieval lifecycle, historical baselines, health checks, retention cleanup, and deployment profile separation.
+- GitHub CI/deploy/publish/test workflows and issue templates are parsed; useful signals are capability matrices, exact verification sidecars, hidden dedupe markers, version-gated side effects, registry retention ceilings, and full-stack retrieval CI with local dependency fixtures.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
