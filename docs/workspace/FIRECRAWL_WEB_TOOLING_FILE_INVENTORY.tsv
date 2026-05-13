@@ -657,62 +657,62 @@ apps/go-sdk/options_test.go	apps	parsed	go_format_option_tests	query_question_hi
 apps/go-sdk/parse.go	apps	parsed	go_parse_primitive	file_path_or_bytes_mime_inference_parse_options_multipart_upload_and_document_extraction
 apps/go-sdk/parse_test.go	apps	parsed	go_parse_tests	multipart_request_shape_option_payload_filename_content_type_and_empty_input_rejection
 apps/go-sdk/version.go	apps	parsed	go_release_version_source	nested_module_tag_source_and_user_agent_suffix
-apps/java-sdk/.gitignore	apps	not_parsed	pending_review	
-apps/java-sdk/README.md	apps	not_parsed	pending_review	
-apps/java-sdk/build.gradle.kts	apps	not_parsed	pending_review	
-apps/java-sdk/gradle/wrapper/gradle-wrapper.jar	apps	not_parsed	pending_review	
-apps/java-sdk/gradle/wrapper/gradle-wrapper.properties	apps	not_parsed	pending_review	
-apps/java-sdk/gradlew	apps	not_parsed	pending_review	
-apps/java-sdk/settings.gradle.kts	apps	not_parsed	pending_review	
+apps/java-sdk/.gitignore	apps	parsed	java_local_artifact_hygiene	gradle_build_outputs_ide_files_and_local_config_are_package_boundary_artifacts
+apps/java-sdk/README.md	apps	parsed	java_sdk_usage_surface	public_docs_cover_scrape_parse_json_browser_crawl_batch_map_search_agent_usage_async_errors_and_env_gated_e2e
+apps/java-sdk/build.gradle.kts	apps	parsed	java_build_manifest	java11_jackson_junit_gradle_publish_and_source_javadoc_packaging
+apps/java-sdk/gradle/wrapper/gradle-wrapper.jar	apps	skipped_generated	binary_gradle_wrapper_artifact	generated_binary_skipped
+apps/java-sdk/gradle/wrapper/gradle-wrapper.properties	apps	parsed	java_gradle_wrapper_config	distribution_pin_for_reproducible_sdk_builds
+apps/java-sdk/gradlew	apps	parsed	java_gradle_wrapper_script	reproducible_local_build_entrypoint
+apps/java-sdk/settings.gradle.kts	apps	parsed	java_project_settings	single_sdk_project_identity
 apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlClient.java	apps	parsed	java_sdk_client_facade	primitive_facade_with_batch_option_flattening_idempotency_header_polling_pagination_and_sync_async_convenience_methods
 apps/java-sdk/src/main/java/com/firecrawl/client/FirecrawlHttpClient.java	apps	parsed	java_sdk_http_adapter	base_url_normalization_object_mapper_json_multipart_retryable_status_network_retries_and_typed_error_mapping
-apps/java-sdk/src/main/java/com/firecrawl/errors/AuthenticationException.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/errors/FirecrawlException.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/errors/JobTimeoutException.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/errors/RateLimitException.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/AgentOptions.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/AgentResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/AgentStatusResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeJob.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeOptions.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BrowserCreateResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BrowserDeleteResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BrowserExecuteResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BrowserListResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/BrowserSession.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/ConcurrencyCheck.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/CrawlJob.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/errors/AuthenticationException.java	apps	parsed	java_auth_exception	typed_401_boundary_error_preserves_code_and_details
+apps/java-sdk/src/main/java/com/firecrawl/errors/FirecrawlException.java	apps	parsed	java_base_exception	status_code_error_code_and_details_are_preserved_for_failure_classification
+apps/java-sdk/src/main/java/com/firecrawl/errors/JobTimeoutException.java	apps	parsed	java_job_timeout_exception	job_id_timeout_seconds_and_job_type_are_polling_failure_metadata
+apps/java-sdk/src/main/java/com/firecrawl/errors/RateLimitException.java	apps	parsed	java_rate_limit_exception	typed_429_boundary_error_preserves_code_and_details
+apps/java-sdk/src/main/java/com/firecrawl/models/AgentOptions.java	apps	parsed	java_agent_options	url_scope_prompt_schema_integration_credit_strict_url_model_and_webhook_controls
+apps/java-sdk/src/main/java/com/firecrawl/models/AgentResponse.java	apps	parsed	java_agent_start_response	success_id_error_handle_shape
+apps/java-sdk/src/main/java/com/firecrawl/models/AgentStatusResponse.java	apps	parsed	java_agent_status_response	status_data_model_expiry_credits_and_terminal_detection
+apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeJob.java	apps	parsed	java_batch_scrape_job	status_progress_credits_expiry_cursor_documents_and_terminal_detection
+apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeOptions.java	apps	parsed	java_batch_scrape_options	per_page_options_webhook_append_invalid_url_concurrency_zdr_idempotency_and_integration_controls
+apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeResponse.java	apps	parsed	java_batch_scrape_start_response	id_url_and_invalid_url_handle_shape
+apps/java-sdk/src/main/java/com/firecrawl/models/BrowserCreateResponse.java	apps	parsed	java_browser_create_response	session_id_cdp_live_view_expiry_and_error_projection
+apps/java-sdk/src/main/java/com/firecrawl/models/BrowserDeleteResponse.java	apps	parsed	java_browser_delete_response	success_duration_credits_and_error_projection
+apps/java-sdk/src/main/java/com/firecrawl/models/BrowserExecuteResponse.java	apps	parsed	java_browser_execute_response	stdout_result_stderr_exit_code_killed_and_error_projection
+apps/java-sdk/src/main/java/com/firecrawl/models/BrowserListResponse.java	apps	parsed	java_browser_list_response	session_projection_collection
+apps/java-sdk/src/main/java/com/firecrawl/models/BrowserSession.java	apps	parsed	java_browser_session_model	session_status_cdp_live_view_stream_creation_and_activity_projection
+apps/java-sdk/src/main/java/com/firecrawl/models/ConcurrencyCheck.java	apps	parsed	java_concurrency_projection	current_max_concurrency_control_metadata
+apps/java-sdk/src/main/java/com/firecrawl/models/CrawlJob.java	apps	parsed	java_crawl_job	status_progress_credits_expiry_cursor_documents_and_terminal_detection
 apps/java-sdk/src/main/java/com/firecrawl/models/CrawlOptions.java	apps	parsed	java_crawl_options	prompt_paths_depth_sitemap_dedupe_domain_robots_delay_concurrency_webhook_scrape_options_zdr_controls
-apps/java-sdk/src/main/java/com/firecrawl/models/CrawlResponse.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/CreditUsage.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/CrawlResponse.java	apps	parsed	java_crawl_start_response	id_and_seed_url_handle_shape
+apps/java-sdk/src/main/java/com/firecrawl/models/CreditUsage.java	apps	parsed	java_credit_usage_projection	remaining_plan_and_billing_window_control_metadata
 apps/java-sdk/src/main/java/com/firecrawl/models/Document.java	apps	parsed	java_document_model	separate_markdown_html_raw_json_summary_metadata_links_images_screenshot_audio_actions_answers_warnings_change_tracking_and_branding_facets
-apps/java-sdk/src/main/java/com/firecrawl/models/HighlightsFormat.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/JsonFormat.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/LocationConfig.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/MapData.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/MapOptions.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/Monitor.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheck.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheckDetail.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheckPage.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSchedule.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSummary.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/ParseFile.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/HighlightsFormat.java	apps	parsed	java_highlights_format	page_local_query_highlight_artifact_facet
+apps/java-sdk/src/main/java/com/firecrawl/models/JsonFormat.java	apps	parsed	java_json_format	structured_extraction_prompt_and_schema_artifact_facet
+apps/java-sdk/src/main/java/com/firecrawl/models/LocationConfig.java	apps	parsed	java_location_config	country_and_language_retrieval_scope_controls
+apps/java-sdk/src/main/java/com/firecrawl/models/MapData.java	apps	parsed	java_map_data	string_or_object_link_normalization_to_structured_url_rows
+apps/java-sdk/src/main/java/com/firecrawl/models/MapOptions.java	apps	parsed	java_map_options	search_sitemap_subdomains_query_dedupe_limit_timeout_integration_and_location_controls
+apps/java-sdk/src/main/java/com/firecrawl/models/Monitor.java	apps	parsed	java_monitor_model	recurring_retrieval_schedule_targets_webhook_notification_retention_credit_estimate_and_summary
+apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheck.java	apps	parsed	java_monitor_check_model	status_trigger_scheduled_started_finished_credit_billing_summary_target_notification_and_error_projection
+apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheckDetail.java	apps	parsed	java_monitor_check_detail	paginated_monitor_check_pages
+apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheckPage.java	apps	parsed	java_monitor_check_page	previous_current_scrape_ids_status_code_metadata_diff_and_error_projection
+apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSchedule.java	apps	parsed	java_monitor_schedule	cron_timezone_control_fields
+apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSummary.java	apps	parsed	java_monitor_summary	total_same_changed_new_removed_error_counts
+apps/java-sdk/src/main/java/com/firecrawl/models/ParseFile.java	apps	parsed	java_parse_file	bytes_filename_content_type_immutable_payload_and_empty_input_rejection
 apps/java-sdk/src/main/java/com/firecrawl/models/ParseOptions.java	apps	parsed	java_parse_options	parse_only_option_lane_rejects_browser_formats_bad_proxy_values_and_nonpositive_timeout
-apps/java-sdk/src/main/java/com/firecrawl/models/QueryFormat.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/models/QuestionFormat.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/QueryFormat.java	apps	parsed	java_deprecated_query_format	freeform_or_direct_quote_page_local_answer_facet
+apps/java-sdk/src/main/java/com/firecrawl/models/QuestionFormat.java	apps	parsed	java_question_format	page_local_question_artifact_facet
 apps/java-sdk/src/main/java/com/firecrawl/models/ScrapeOptions.java	apps	parsed	java_scrape_options	typed_artifact_formats_tag_filters_main_content_waits_parsers_actions_location_proxy_cache_lockdown_and_cleanup_flags
-apps/java-sdk/src/main/java/com/firecrawl/models/SearchData.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/SearchData.java	apps	parsed	java_search_data	web_news_and_image_lane_separation
 apps/java-sdk/src/main/java/com/firecrawl/models/SearchOptions.java	apps	parsed	java_search_options	source_category_domain_freshness_location_invalid_url_timeout_and_optional_scrape_enrichment_controls
-apps/java-sdk/src/main/java/com/firecrawl/models/WebhookConfig.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/main/java/com/firecrawl/package-info.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/test/java/com/firecrawl/AgentTest.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/test/java/com/firecrawl/BrowserTest.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/main/java/com/firecrawl/models/WebhookConfig.java	apps	parsed	java_webhook_config	url_headers_metadata_and_event_subscription_side_effect_controls
+apps/java-sdk/src/main/java/com/firecrawl/package-info.java	apps	parsed	java_package_doc	type_safe_v2_scraping_api_facade_doc
+apps/java-sdk/src/test/java/com/firecrawl/AgentTest.java	apps	parsed	java_agent_tests	env_gated_live_agent_prompt_url_schema_strict_scope_credit_budget_start_status_cancel_and_research_checks
+apps/java-sdk/src/test/java/com/firecrawl/BrowserTest.java	apps	parsed	java_browser_tests	env_gated_browser_session_lifecycle_execute_languages_timeout_list_filter_and_required_field_checks
 apps/java-sdk/src/test/java/com/firecrawl/CrawlTest.java	apps	parsed	java_crawl_tests	async_start_status_cancel_blocking_poll_scrape_options_paths_external_links_webhooks_and_content_relevance_checks
 apps/java-sdk/src/test/java/com/firecrawl/FirecrawlClientTest.java	apps	parsed	java_client_tests	builder_credential_validation_parse_file_immutability_parse_option_rejection_required_fields_and_env_gated_live_checks
-apps/java-sdk/src/test/java/com/firecrawl/FirecrawlLiveSiteTest.java	apps	not_parsed	pending_review	
-apps/java-sdk/src/test/java/com/firecrawl/MapTest.java	apps	not_parsed	pending_review	
+apps/java-sdk/src/test/java/com/firecrawl/FirecrawlLiveSiteTest.java	apps	parsed	java_live_site_tests	env_gated_scrape_markdown_html_metadata_and_relevance_against_hosted_public_pages
+apps/java-sdk/src/test/java/com/firecrawl/MapTest.java	apps	parsed	java_map_tests	env_gated_discovery_limit_search_sitemap_subdomain_timeout_structure_and_nonempty_url_quality_checks
 apps/java-sdk/src/test/java/com/firecrawl/ScrapeTest.java	apps	parsed	java_scrape_tests	nonempty_markdown_html_source_metadata_main_content_timeout_wait_and_invalid_url_failure_checks
 apps/java-sdk/src/test/java/com/firecrawl/SearchTest.java	apps	parsed	java_search_tests	source_limit_location_time_url_validity_relevance_and_search_plus_scrape_markdown_enrichment_checks
 apps/js-sdk/.env.example	apps	parsed	js_sdk_outer_env_example	api_key_and_api_url_capability_inputs

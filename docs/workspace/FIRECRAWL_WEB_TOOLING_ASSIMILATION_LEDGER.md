@@ -40,9 +40,9 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1087
-- Not parsed: 181
-- Skipped generated: 14
+- Parsed: 1133
+- Not parsed: 134
+- Skipped generated: 15
 - Skipped media or sample: 75
 
 ## Parsed Files
@@ -784,6 +784,52 @@
 | `apps/java-sdk/src/main/java/com/firecrawl/models/CrawlOptions.java` | Java crawl option model. | Crawl options expose prompt, include/exclude paths, depth, sitemap, dedupe, domain expansion, robots/user-agent, delay, concurrency, webhook, scrape options, ZDR, and integration controls. |
 | `apps/java-sdk/src/main/java/com/firecrawl/models/Document.java` | Java document model. | Document projection keeps markdown, HTML, raw HTML, structured JSON, summary, metadata, links, images, screenshots, audio, actions, answers, warnings, change tracking, and branding as separate facets. |
 | `apps/java-sdk/src/main/java/com/firecrawl/models/ParseOptions.java` | Java parse option model. | Parse options explicitly reject browser-rendering formats and unsupported proxy/timeout values, keeping file parsing a narrower lane than web scraping. |
+| `apps/java-sdk/.gitignore` | Java SDK local artifact hygiene. | Build outputs, IDE files, class/jar artifacts, and local config are package boundary artifacts and should not enter evidence or assimilation. |
+| `apps/java-sdk/README.md` | Java SDK public usage surface. | Public docs cover scrape, parse, JSON extraction, browser interaction, crawl, batch, map, search, agent, usage metrics, async methods, typed errors, and env-gated tests; source/tests remain authority if docs drift. |
+| `apps/java-sdk/build.gradle.kts` | Java SDK build manifest. | Build metadata keeps Java 11, Jackson, JUnit, and publishing/source artifact setup explicit as SDK governance. |
+| `apps/java-sdk/gradle/wrapper/gradle-wrapper.properties` | Java SDK wrapper config. | Wrapper pins a reproducible Gradle distribution for local SDK verification. |
+| `apps/java-sdk/gradlew` | Java SDK wrapper script. | Wrapper script is a reproducible local build entrypoint, not a retrieval primitive. |
+| `apps/java-sdk/settings.gradle.kts` | Java SDK project settings. | Single-project identity confirms the package boundary for Java parity checks. |
+| `apps/java-sdk/src/main/java/com/firecrawl/errors/AuthenticationException.java` | Java auth exception. | 401 responses become typed boundary errors carrying code/details. |
+| `apps/java-sdk/src/main/java/com/firecrawl/errors/FirecrawlException.java` | Java base exception. | SDK errors preserve HTTP status, error code, and details so evals can classify hard failures. |
+| `apps/java-sdk/src/main/java/com/firecrawl/errors/JobTimeoutException.java` | Java job timeout exception. | Async job timeouts preserve job ID and timeout seconds so polling failure is not confused with evidence absence. |
+| `apps/java-sdk/src/main/java/com/firecrawl/errors/RateLimitException.java` | Java rate-limit exception. | 429 responses become typed boundary errors carrying code/details. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/AgentOptions.java` | Java agent option model. | Agent options expose URLs, prompt, schema, integration, credit budget, strict URL constraints, model, and webhook as typed controls. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/AgentResponse.java` | Java agent-start response. | Start responses return success, ID, and error as a handle shape rather than evidence. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/AgentStatusResponse.java` | Java agent-status response. | Agent status carries terminal detection, model, expiry, credits, and data projection after status resolution. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeJob.java` | Java batch scrape job model. | Batch status mirrors crawl with progress, credits, expiry, pagination cursor, documents, and terminal-state classification. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeOptions.java` | Java batch scrape option model. | Batch scrape separates per-page options from webhook, append target, invalid-URL tolerance, concurrency, ZDR, integration, and non-JSON idempotency key controls. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BatchScrapeResponse.java` | Java batch-start response. | Async batch admission returns ID, URL, and invalid URLs; the handle is not evidence until status yields documents. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BrowserCreateResponse.java` | Java browser-create response. | Browser session creation projects session ID, CDP URL, live-view URL, expiry, and error as control metadata. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BrowserDeleteResponse.java` | Java browser-delete response. | Browser cleanup projects success, duration, credits billed, and error separately from page evidence. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BrowserExecuteResponse.java` | Java browser-execute response. | Browser execution returns stdout, result, stderr, exit code, killed flag, and error as diagnostic/projection artifacts. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BrowserListResponse.java` | Java browser-list response. | Browser listing is a session projection collection, not source evidence. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/BrowserSession.java` | Java browser session model. | Session status, CDP/live-view URLs, streaming flag, creation time, and activity are lifecycle projections. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/ConcurrencyCheck.java` | Java concurrency projection. | Current/max concurrency is account control metadata, not retrieval evidence. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/CrawlJob.java` | Java crawl job model. | Crawl status carries progress, credits, expiry, pagination cursor, documents, and terminal-state classification. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/CrawlResponse.java` | Java crawl-start response. | Async crawl admission returns ID and seed URL as a handle shape. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/CreditUsage.java` | Java credit usage projection. | Remaining credits, plan credits, and billing window are usage/control metadata. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/HighlightsFormat.java` | Java highlights format. | Page-local highlight queries are an artifact facet, not a final-answer format. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/JsonFormat.java` | Java JSON format. | Structured extraction prompt/schema are artifact-format inputs and should not become forced final-answer templates. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/LocationConfig.java` | Java location config. | Country and language are typed retrieval-scope controls. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/MapData.java` | Java map data. | Map normalizes string or object link rows into a stable URL-row artifact before enrichment. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/MapOptions.java` | Java map option model. | Map exposes search, sitemap, subdomain, query-dedupe, limit, timeout, integration, and location controls for cheap discovery. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/Monitor.java` | Java monitor model. | Recurring retrieval separates schedule, targets, webhook/notification, retention, credit estimate, and summary from normal research evidence. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheck.java` | Java monitor check model. | Check state preserves trigger, timing, credit/billing, summaries, target results, notification status, and errors as lifecycle metadata. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheckDetail.java` | Java monitor check detail. | Check details paginate page-level monitor results. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/MonitorCheckPage.java` | Java monitor check page. | Page checks preserve previous/current scrape IDs, status code, metadata, diff, and errors for change-detection evidence. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSchedule.java` | Java monitor schedule. | Cron and timezone are recurrence controls. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/MonitorSummary.java` | Java monitor summary. | Total/same/changed/new/removed/error counts are compact recurring-retrieval health metrics. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/ParseFile.java` | Java parse file model. | File parsing validates immutable bytes, nonblank filename, and MIME hints before multipart upload. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/QueryFormat.java` | Java deprecated query format. | Deprecated page-local query answers remain compatibility artifact facets, with direct-quote mode kept distinct from freeform. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/QuestionFormat.java` | Java question format. | Page-local questions are an extraction artifact facet, not cross-source synthesis. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/SearchData.java` | Java search data model. | Search results preserve web, news, and image lanes separately. |
+| `apps/java-sdk/src/main/java/com/firecrawl/models/WebhookConfig.java` | Java webhook config. | URL, headers, metadata, and events are async side-effect controls. |
+| `apps/java-sdk/src/main/java/com/firecrawl/package-info.java` | Java package docs. | Package documentation confirms the SDK as a type-safe facade over v2 web primitives. |
+| `apps/java-sdk/src/test/java/com/firecrawl/AgentTest.java` | Java agent tests. | Agent tests are env-gated and cover prompt, URL scope, schema, strict constraints, credit budgets, start/status/cancel, and live research task behavior. |
+| `apps/java-sdk/src/test/java/com/firecrawl/BrowserTest.java` | Java browser tests. | Browser tests cover create/delete, execution languages, timeout, listing/filtering, lifecycle cleanup, and required-field validation as capability-gated behavior. |
+| `apps/java-sdk/src/test/java/com/firecrawl/FirecrawlLiveSiteTest.java` | Java live site tests. | Live hosted tests verify content-bearing scrape output and relevance against public pages, but require API-key/profile gating. |
+| `apps/java-sdk/src/test/java/com/firecrawl/MapTest.java` | Java map tests. | Map tests assert nonempty URL discovery, limits, search filtering, sitemap modes, subdomain expansion, timeout, and row structure before scrape budget is spent. |
 | `apps/dot-net-sdk/Firecrawl/FirecrawlClient.cs` | .NET SDK client facade. | The .NET facade keeps primitives async end-to-end, flattens batch scrape options, sends idempotency as a header, validates parse input, polls with cancellation, and auto-paginates terminal jobs. |
 | `apps/dot-net-sdk/Firecrawl/FirecrawlHttpClient.cs` | .NET SDK HTTP adapter. | HTTP retry rebuilds each request per attempt, carries cancellation through backoff, maps auth/rate-limit/client errors, handles multipart uploads, and blocks cross-origin pagination credentials. |
 | `apps/dot-net-sdk/Firecrawl.Tests/FirecrawlClientTests.cs` | .NET SDK client tests. | Tests assert credential resolution, required URL/query/job inputs, custom API URL/client injection, and null rejection for primitive calls. |
@@ -1602,6 +1648,11 @@
 286. Multipart parse as primitive lane: file parsing should validate filename/content/options before upload, carry MIME hints, and return document evidence instead of browser scrape artifacts.
 287. Retry and cancellation mechanics: client adapters should rebuild request bodies across retries, stop immediately on cancellation, and retry only transient statuses or transport failures.
 288. Terminal pagination after status: polling should wait for a terminal state, then follow next cursors to gather the full document set before evidence packing.
+289. Java SDK parity surface: Java models reinforce that primitive fields, start/status handles, typed failures, and artifact facets must remain language-stable.
+290. Live-site SDK checks as optional capability evals: hosted public-page tests should be env/profile-gated and not counted as generic retrieval quality when credentials or hosted capability are absent.
+291. Browser/session models as projection artifacts: CDP/live-view/stdout/stderr/exit-code/session duration are control/projection fields, not source-backed research evidence.
+292. Map tests as discovery-quality gates: map should prove query relevance, sitemap/subdomain/query-dedupe controls, structural URL rows, and nonempty candidates before scrape budget is spent.
+293. Agent capability as bounded primitive: agentic hosted retrieval should preserve URL scope, schema, strict-URL constraints, credit budgets, start/status/cancel, and terminal data as typed fields rather than prompt-only behavior.
 
 ## Remaining Work
 
@@ -1623,6 +1674,7 @@
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK client, transport, tests, docs/project metadata, exceptions, and model surface are parsed; no unparsed .NET SDK files remain in the inventory.
 - Elixir and Go SDK surfaces are parsed; Elixir lockfile is marked generated, and useful signals are OpenAPI generation, boundary validation, typed errors, parse multipart lanes, retry/cancellation, and terminal pagination.
+- Java SDK docs, build metadata, exceptions, model surface, and env-gated tests are parsed; the Gradle wrapper jar is marked generated, and useful signals are discovery-quality map gates, browser/session projection boundaries, capability-gated live tests, typed agent controls, and language-stable Tool CD parity fields.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
 - Ruby SDK source, docs, package metadata, and tests are parsed; no unparsed Ruby SDK files remain in the inventory.
 - JS SDK v2 docs, public entrypoint, compact E2E suites, and remaining compact unit tests are parsed; large legacy v1 SDK and outer example files remain.
