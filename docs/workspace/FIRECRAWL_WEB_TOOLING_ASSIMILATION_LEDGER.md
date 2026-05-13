@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 461
-- Not parsed: 816
+- Parsed: 477
+- Not parsed: 800
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -510,6 +510,22 @@
 | `apps/python-sdk/firecrawl/v2/utils/validation.py` | Python SDK validation helpers. | Scrape option prep normalizes artifact formats, schema refs, OpenAI-compatible structured extraction schemas, query/question/highlight formats, actions, parsers, location, and profile fields before execution. |
 | `apps/python-sdk/firecrawl/v2/watcher.py` | Python SDK sync watcher. | Job watching treats WebSocket events and HTTP polling as equivalent projections, accumulates document events, dispatches terminal done/error states once, and normalizes final job snapshots. |
 | `apps/python-sdk/firecrawl/v2/watcher_async.py` | Python SDK async watcher. | Async watcher pre-yields status, falls back from WebSocket failure/quiet periods to bounded HTTP polling, accumulates documents, and yields normalized terminal crawl/batch snapshots. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_request_preparation.py` | Python SDK search request-prep tests. | Tests lock default search limits/timeouts, alias removal, domain-filter exclusivity, scrape option conversion, and integration label trimming. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_validation.py` | Python SDK search validation tests. | Query/limit/timeout/source/location/freshness/scrape-option constraints are enforced before transport while valid time filter strings pass through unchanged. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_scrape_request_preparation.py` | Python SDK scrape request-prep tests. | Tests cover URL validation, scrape option/action conversion, retained-browser code/prompt input validation, success-false handling, and response field normalization. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_map_request_preparation.py` | Python SDK map request-prep tests. | Map prep tests lock sitemap modes, subdomain/search/limit/timeout fields, integration trimming, and empty-URL rejection. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_request_preparation.py` | Python SDK crawl request-prep tests. | Crawl prep tests lock camel-case field mapping, prompt inclusion, nested scrape option conversion, None stripping, and validation coupling. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_validation.py` | Python SDK crawl validation tests. | Crawl validation keeps URL, limit, prompt, and nested scrape-option constraints upstream of crawl execution. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_batch_request_preparation.py` | Python SDK batch request-prep tests. | Batch prep tests lock URL list validation, flattened scrape options, artifact format conversion, batch-specific fields, webhook shapes, and ZDR/concurrency flags. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_parse_request_preparation.py` | Python SDK parse request-prep tests. | Parse tests verify multipart option/file shaping, origin injection, cache/lockdown stripping, missing path rejection, and unsupported artifact rejection. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_pagination.py` | Python SDK pagination tests. | Pagination tests assert auto/manual pagination, single-page access, request-timeout propagation, max page/result/wait limits, sync/async parity, partial preservation, and failed-page tolerance. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/watcher/test_ws_watcher.py` | Python SDK watcher tests. | Watcher tests assert document/done/error/catchup event handling, terminal snapshots, authorization header forwarding, URI shaping, and field normalization across crawl/batch streams. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_search_request_preparation.py` | Python async SDK search request-prep tests. | Async search prep mirrors sync alias conversion, domain-filter exclusivity, empty option handling, and integration trimming. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_scrape_request_preparation.py` | Python async SDK scrape request-prep tests. | Async scrape prep mirrors sync option conversion and retained-browser code/prompt validation plus response normalization. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_map_request_preparation.py` | Python async SDK map request-prep tests. | Async map prep mirrors sync search/subdomain/limit/sitemap/timeout/integration field conversion. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_request_preparation.py` | Python async SDK crawl request-prep tests. | Async crawl prep locks path/depth/sitemap/query/external/subdomain/concurrency/ZDR/webhook/integration field mapping. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_batch_request_preparation_async.py` | Python async SDK batch request-prep tests. | Async batch prep mirrors URL validation, flattened scrape options, webhook/append/concurrency/ZDR/integration fields. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_parse_request_preparation.py` | Python async SDK parse request-prep tests. | Async parse prep mirrors multipart bytes/path handling, origin injection, and missing-path rejection. |
 
 ## Decisions So Far
 
@@ -648,6 +664,8 @@
 - Paginated async retrieval should preserve partial evidence under explicit stop limits. Max pages, max results, max wait, and page-fetch errors should produce a bounded artifact plus gap reason rather than dropping retrieved documents.
 - WebSocket streams and polling should be interchangeable views over the same durable job state. The user-facing workflow should consume normalized terminal snapshots, not depend on a single transport staying healthy.
 - SDK-level model/schema helpers are not portable model-routing rules. The useful primitive is artifact/schema complexity metadata plus externally selected or policy-bound model choice.
+- Contract tests should cover request-shaping parity across sync, async, API, and workflow adapters. This is a better guard against upstream gate regressions than tuning final synthesis after malformed tool inputs slip through.
+- Pagination tests should explicitly assert partial-result preservation on later page failures. That behavior matters for research because weak results are often caused by discarding useful early evidence after one downstream fetch/status miss.
 
 ## Candidate Assimilation Targets
 
@@ -730,6 +748,7 @@
 77. Partial-result pagination contract: return retrieved documents plus stop/gap metadata when pagination hits max pages/results/wait or a later page fails. Ledger captured; candidate evidence-pack/runtime target.
 78. Stream/poll terminal snapshot parity: normalize WebSocket events, catchup/document/done messages, and polling snapshots into one terminal artifact contract. Ledger captured; candidate Shell Socket/status projection target.
 79. Typed transport error boundary: map HTTP/non-JSON/network/status failures into stable internal error classes with bounded snippets and action context before synthesis sees gap reasons. Ledger captured; candidate tool adapter target.
+80. Cross-adapter request-prep tests: add parity tests that prove workflow CD/tool adapter request shapes match SDK/API request normalization for search, scrape, map, crawl, batch, and parse. Ledger captured; candidate gate-3/gate-4 regression target.
 
 ## Remaining Work
 

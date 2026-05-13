@@ -885,35 +885,35 @@ apps/python-sdk/firecrawl/__tests__/e2e/v2/test_usage.py	apps	not_parsed	pending
 apps/python-sdk/firecrawl/__tests__/e2e/v2/test_watcher.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/test_recursive_schema_v1.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_params.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_request_preparation.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_request_preparation.py	apps	parsed	python_async_sdk_crawl_request_prep_tests	field_mapping_webhook_none_exclusion_and_integration_trimming
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_validation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_map_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_parse_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_scrape_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_search_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_batch_request_preparation_async.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_map_request_preparation.py	apps	parsed	python_async_sdk_map_request_prep_tests	search_subdomain_limit_sitemap_timeout_integration_conversion_parity
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_parse_request_preparation.py	apps	parsed	python_async_sdk_parse_request_prep_tests	multipart_bytes_path_origin_and_missing_path_rejection
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_scrape_request_preparation.py	apps	parsed	python_async_sdk_scrape_request_prep_tests	option_conversion_retained_browser_prompt_code_validation_and_response_normalization
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_search_request_preparation.py	apps	parsed	python_async_sdk_search_request_prep_tests	alias_conversion_domain_filter_exclusivity_empty_options_and_integration_trimming
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_batch_request_preparation_async.py	apps	parsed	python_async_sdk_batch_request_prep_tests	url_validation_flattened_options_webhook_append_concurrency_zdr_integration
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_ensure_async.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent_request_preparation.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent_webhook.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_batch_request_preparation.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_batch_request_preparation.py	apps	parsed	python_sdk_batch_request_prep_tests	url_list_validation_flattened_options_webhook_batch_fields_and_zdr_concurrency_flags
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_branding.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_params.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_validation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_map_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_pagination.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_parse_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_scrape_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_request_preparation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_validation.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_request_preparation.py	apps	parsed	python_sdk_crawl_request_prep_tests	field_mapping_prompt_none_stripping_nested_scrape_options_and_validation_coupling
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_validation.py	apps	parsed	python_sdk_crawl_validation_tests	url_limit_prompt_and_nested_scrape_option_constraints
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_map_request_preparation.py	apps	parsed	python_sdk_map_request_prep_tests	sitemap_modes_subdomain_search_limit_timeout_integration_and_empty_url_rejection
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_pagination.py	apps	parsed	python_sdk_pagination_tests	auto_manual_pagination_single_page_access_limits_partial_preservation_failed_page_tolerance_sync_async_parity
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_parse_request_preparation.py	apps	parsed	python_sdk_parse_request_prep_tests	multipart_option_file_shaping_origin_cache_lockdown_stripping_and_unsupported_artifact_rejection
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_scrape_request_preparation.py	apps	parsed	python_sdk_scrape_request_prep_tests	url_validation_option_action_conversion_retained_browser_input_validation_and_response_normalization
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_request_preparation.py	apps	parsed	python_sdk_search_request_prep_tests	defaults_alias_removal_domain_exclusivity_scrape_option_conversion_integration_trimming
+apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_validation.py	apps	parsed	python_sdk_search_validation_tests	query_limit_timeout_source_location_freshness_and_scrape_option_constraints
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_usage_types.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_webhook.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_metadata_extras.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_metadata_extras_multivalue.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_recursive_schema.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_validation.py	apps	not_parsed	pending_review	
-apps/python-sdk/firecrawl/__tests__/unit/v2/watcher/test_ws_watcher.py	apps	not_parsed	pending_review	
+apps/python-sdk/firecrawl/__tests__/unit/v2/watcher/test_ws_watcher.py	apps	parsed	python_sdk_watcher_tests	document_done_error_catchup_terminal_snapshot_auth_uri_and_field_normalization
 apps/python-sdk/firecrawl/client.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/firecrawl.backup.py	apps	not_parsed	pending_review	
 apps/python-sdk/firecrawl/types.py	apps	not_parsed	pending_review	
