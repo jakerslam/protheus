@@ -544,7 +544,7 @@ apps/api/src/services/monitoring/stale.ts	apps	parsed	monitoring_stale	one_hour_
 apps/api/src/services/monitoring/store.ts	apps	parsed	monitoring_store	monitor_target_ids_credit_estimates_page_hashing_due_claims_status_windows_and_page_state_upsert
 apps/api/src/services/monitoring/types.ts	apps	parsed	monitoring_types	monitor_request_target_schedule_pagination_and_summary_contracts
 apps/api/src/services/notification/email_notification.ts	apps	not_parsed	pending_review	
-apps/api/src/services/notification/monitoring_email.ts	apps	not_parsed	pending_review	
+apps/api/src/services/notification/monitoring_email.ts	apps	parsed	monitor_email_summary	skip_disabled_no_change_no_recipient_no_provider_escape_html_bound_pages_attempt_status
 apps/api/src/services/notification/notification-check.ts	apps	not_parsed	pending_review	
 apps/api/src/services/notification/notification_string.ts	apps	not_parsed	pending_review	
 apps/api/src/services/queue-jobs.ts	apps	parsed	scrape_job_admission_wait_path	team_run_concurrency_backlog_trace_propagation_queue_full_wait_fallback
@@ -558,13 +558,13 @@ apps/api/src/services/sentry.ts	apps	not_parsed	pending_review
 apps/api/src/services/subscription/enterprise-check.ts	apps	not_parsed	pending_review	
 apps/api/src/services/supabase.ts	apps	not_parsed	pending_review	
 apps/api/src/services/system-monitor.ts	apps	parsed	resource_pressure_monitor	cached_cpu_ram_kubernetes_cgroup_os_fallback_singleton_accept_connection_gate
-apps/api/src/services/webhook/config.ts	apps	not_parsed	pending_review	
-apps/api/src/services/webhook/delivery.test.ts	apps	not_parsed	pending_review	
-apps/api/src/services/webhook/delivery.ts	apps	not_parsed	pending_review	
-apps/api/src/services/webhook/index.ts	apps	not_parsed	pending_review	
-apps/api/src/services/webhook/queue.ts	apps	not_parsed	pending_review	
-apps/api/src/services/webhook/schema.ts	apps	not_parsed	pending_review	
-apps/api/src/services/webhook/types.ts	apps	not_parsed	pending_review	
+apps/api/src/services/webhook/config.ts	apps	parsed	webhook_config_resolver	request_config_self_hosted_fallback_job_id_substitution_hmac_secret_resolution
+apps/api/src/services/webhook/delivery.test.ts	apps	parsed	webhook_delivery_filter_tests	namespaced_monitor_event_and_legacy_suffix_filter_compatibility
+apps/api/src/services/webhook/delivery.ts	apps	parsed	webhook_sender_and_log_queue	event_filter_private_ip_block_hmac_safe_dispatch_queue_optional_batched_logs
+apps/api/src/services/webhook/index.ts	apps	parsed	webhook_sender_factory	null_when_unconfigured_bind_team_job_version_context
+apps/api/src/services/webhook/queue.ts	apps	parsed	webhook_queue_publisher	rabbitmq_connection_promise_reconnect_persistent_json_drain_timeout_shutdown
+apps/api/src/services/webhook/schema.ts	apps	parsed	webhook_config_schema	string_or_object_url_default_headers_metadata_events_reserved_signature_header_rejection
+apps/api/src/services/webhook/types.ts	apps	parsed	webhook_event_contracts	typed_crawl_batch_extract_monitor_event_payload_and_queue_message_maps
 apps/api/src/services/worker/crawl-logic.ts	apps	parsed	crawl_finish_aggregation	completed_page_count_webhook_projection_without_full_data_for_newer_path
 apps/api/src/services/worker/nuq-prefetch-worker.ts	apps	parsed	nuq_prefetch_worker	durable_queue_prefetch_health_metrics_shutdown
 apps/api/src/services/worker/nuq-reconciler-worker.ts	apps	parsed	nuq_reconciler_worker	interval_reconcile_no_overlap_recovery_metrics_graceful_shutdown

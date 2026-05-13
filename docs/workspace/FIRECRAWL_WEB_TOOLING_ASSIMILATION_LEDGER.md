@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 361
-- Not parsed: 917
+- Parsed: 369
+- Not parsed: 909
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -342,6 +342,14 @@
 | `apps/api/src/services/billing/__tests__/credit_billing.test.ts` | Credit billing tests. | Tests lock the request-track/queue/refund behavior so duplicate or lost billing can be caught at the boundary. |
 | `apps/api/src/services/billing/__tests__/batch_billing.test.ts` | Batch billing tests. | Tests prove untracked queued usage is tracked later, already tracked usage is not double-tracked, failures refund request-tracked credits, and later groups continue after refund errors. |
 | `apps/api/src/services/billing/auto_charge.ts` | Auto-recharge guard. | Recharge workflows use distributed locks, cooldowns, hourly/monthly caps, rechecks inside the lock, cache clearing, transaction records, and bounded notifications; product-specific team blocks are not assimilation targets. |
+| `apps/api/src/services/webhook/types.ts` | Webhook event contracts. | Event delivery uses typed event names and payload maps for crawl, batch scrape, extract, and monitor lifecycle events, keeping queued messages separate from final user responses. |
+| `apps/api/src/services/webhook/schema.ts` | Webhook config schema. | Webhook config accepts URL strings or objects, defaults metadata/headers/events, and rejects reserved signature headers before delivery. |
+| `apps/api/src/services/webhook/config.ts` | Webhook config resolver. | Delivery config prefers request/webhook config, falls back to self-hosted environment URLs with job-id substitution, and resolves HMAC secrets from team data or self-hosted env. |
+| `apps/api/src/services/webhook/delivery.ts` | Webhook sender and log queue. | Delivery filters namespaced/legacy events, blocks private IPs unless explicitly allowed, signs payloads, uses safe no-cookie dispatch, supports await-vs-fire-and-forget, optionally queues RabbitMQ work, and batches delivery logs through Redis. |
+| `apps/api/src/services/webhook/queue.ts` | Webhook queue publisher. | RabbitMQ publishing maintains one connection promise, reconnects on close, sends persistent JSON messages, waits for drain with timeout, and exposes shutdown cleanup. |
+| `apps/api/src/services/webhook/index.ts` | Webhook sender factory. | Sender creation returns null when no config exists and otherwise binds team/job/version context before delivery. |
+| `apps/api/src/services/webhook/delivery.test.ts` | Webhook event filter tests. | Tests lock both full namespaced monitor event matching and legacy subtype matching for older crawl/batch events. |
+| `apps/api/src/services/notification/monitoring_email.ts` | Monitor email summary sender. | Monitor email notifications skip disabled/no-change/no-recipient/no-provider states, honor user preferences, escape HTML, bound page lists, and return attempted/success/recipient metadata. |
 | `apps/api/src/__tests__/snips/v2/scrape-branding.test.ts` | V2 branding artifact tests. | Skipped branding tests describe a design-artifact lane for colors, typography, spacing, components, images, and cleaned fonts; because coverage is skipped, treat this as experimental rather than a proven primitive. |
 | `apps/api/src/__tests__/snips/zdr-helpers.ts` | ZDR assertion helpers. | Privacy tests assert scrubbed URL/options storage, filtered logs, request records with cleanup markers, GCS removal after cleaner, and request-scoped status disappearance. |
 | `apps/api/src/__tests__/snips/v2/lib.ts` | V2 snips test harness. | Raw/success/failure wrappers and async start/status/poll helpers make status-handle workflows testable without mixing transport details into each behavior test. |
@@ -505,6 +513,9 @@
 - Model/capability price tables are useful as data-driven cost/capability metadata, but they must not hardcode user-facing model selection or answer behavior.
 - Resource pressure gates should be cheap, cached, and environment-aware so retrieval workers can shed load before producing partial evidence or timeout noise.
 - Batched side effects need idempotency/reconciliation semantics: group work by stable metadata, avoid double-tracking when a request already tracked usage, refund when later persistence fails, and keep processing independent groups.
+- External event delivery should be typed, filtered, signed, privacy-safe, and logged as a side-effect projection. Webhook/email delivery status can support observability, but delivery payloads and logs are not evidence for synthesis.
+- Compatibility filters can accept both namespaced event names and legacy suffixes without hardcoding domain behavior into final answers.
+- Notification summaries should be bounded and escaped, and should no-op cleanly when disabled, unchanged, unconfigured, or missing provider credentials.
 
 ## Candidate Assimilation Targets
 
@@ -553,6 +564,7 @@
 43. Cost/capacity-aware retrieval admission: score planned retrieval work by artifact shape, capability lane, parser/document size, dynamic runtime, privacy mode, and resource pressure before spending tool budget. Ledger captured; candidate Tool CD budget/admission refinement.
 44. Account-control projections: keep usage, token, credit, billing, concurrency, and activity windows as bounded control-plane projections that inform budgets but never become citable evidence. Ledger captured; candidate observability/control-plane contract.
 45. Billing/effect reconciliation primitive: queue and group non-evidence side effects under locks, track request-scoped vs batch-scoped effects, refund or compensate on partial failure, and continue independent groups. Ledger captured; candidate general side-effect ledger target.
+46. Typed external event projection: emit crawl/search/extract/monitor lifecycle events through typed, filtered, signed, bounded, retryable side-effect channels while keeping delivery logs internal. Ledger captured; candidate Gateway/Observability contract.
 
 ## Remaining Work
 
