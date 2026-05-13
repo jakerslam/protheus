@@ -146,6 +146,8 @@ fn batch_query_unwraps_nested_payload_shape() {
             "payload": {
                 "context": "Research the current MCP ecosystem.",
                 "queries": ["Model Context Protocol official docs", "MCP GitHub issues"],
+                "keywords": ["Model Context Protocol", "MCP"],
+                "required_coverage": {"entities": ["Model Context Protocol"]},
                 "source": "web_search"
             },
             "selected_tool": "batch_query",
@@ -167,5 +169,15 @@ fn batch_query_unwraps_nested_payload_shape() {
             .and_then(Value::as_array)
             .map(|rows| rows.len()),
         Some(2)
+    );
+    assert_eq!(
+        normalized.pointer("/keywords/0").and_then(Value::as_str),
+        Some("Model Context Protocol")
+    );
+    assert_eq!(
+        normalized
+            .pointer("/required_coverage/entities/0")
+            .and_then(Value::as_str),
+        Some("Model Context Protocol")
     );
 }

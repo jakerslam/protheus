@@ -14,6 +14,8 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
     let Some(query) = implicit_live_web_research_query(&cleaned, workspace_hints) else {
         return Vec::new();
     };
+    let requires_tool_attempt_before_final_answer =
+        implicit_live_web_research_requires_tool_attempt(&cleaned);
     let input = json!({
         "source": "web",
         "query": query,
@@ -35,11 +37,55 @@ fn latent_tool_candidates_for_message(message: &str, workspace_hints: &[Value]) 
         "reason": "Current external information request detected; preserve a web research candidate if the workflow LLM does not emit one.",
         "selection_source": "latent_live_web_research",
         "workflow_only": true,
+        "requires_tool_attempt_before_final_answer": requires_tool_attempt_before_final_answer,
         "requires_confirmation": true,
         "input": input.clone(),
         "request_payload": input,
         "discovery_receipt": receipt
     })]
+}
+
+fn implicit_live_web_research_requires_tool_attempt(message: &str) -> bool {
+    let lowered = clean_text(message, 800).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return false;
+    }
+    let command_or_comparison_signal = [
+        "research ",
+        "find ",
+        "look up ",
+        "lookup ",
+        "search ",
+        "compare ",
+        "rank ",
+        "evaluate ",
+        "assess ",
+    ]
+    .iter()
+    .any(|token| lowered.starts_with(token));
+    let evidence_dependency_signal = [
+        "use web",
+        "web research",
+        "web search",
+        "online",
+        "external",
+        "public evidence",
+        "source-backed",
+        "sources",
+        "evidence",
+        "right now",
+        "current",
+        "currently",
+        "recent",
+        "latest",
+        "today",
+        "as of",
+        " versus ",
+        " vs ",
+    ]
+    .iter()
+    .any(|token| lowered.contains(token));
+    command_or_comparison_signal || evidence_dependency_signal
 }
 
 fn implicit_live_web_research_query(message: &str, workspace_hints: &[Value]) -> Option<String> {
@@ -82,8 +128,24 @@ fn implicit_live_web_research_query(message: &str, workspace_hints: &[Value]) ->
     ]
     .iter()
     .any(|token| lowered.contains(token));
-    let research_signal = lowered.starts_with("research ")
+    let explicit_web_research_request = [
+        "use web research ",
+        "use web_research ",
+        "use web search ",
+        "use web_search ",
+        "run web research ",
+        "run web_research ",
+        "run web search ",
+        "run web_search ",
+    ]
+    .iter()
+    .any(|token| lowered.starts_with(token));
+    let research_signal = explicit_web_research_request
+        || lowered.starts_with("research ")
         || lowered.starts_with("find ")
+        || lowered.starts_with("look up ")
+        || lowered.starts_with("lookup ")
+        || lowered.starts_with("search ")
         || lowered.starts_with("which ")
         || lowered.starts_with("what ")
         || lowered.starts_with("who ")

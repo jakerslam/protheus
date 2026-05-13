@@ -93,6 +93,10 @@ struct WorkflowSpec {
     stages: Vec<String>,
     #[serde(default)]
     subtemplates: Vec<Value>,
+    #[serde(default)]
+    workflow_composition: WorkflowCompositionSpec,
+    #[serde(default)]
+    workflow_composition_contract: Value,
     workflow_source_of_truth_contract: Option<WorkflowSourceOfTruthContract>,
     observation_lifecycle_contract: Option<ObservationLifecycleContract>,
     typed_execution_contract: Option<TypedExecutionContract>,
@@ -109,6 +113,14 @@ struct WorkflowRegistry {
     promotion_lifecycle: Vec<String>,
     #[serde(default)]
     workflows: Vec<WorkflowRegistryEntry>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+struct WorkflowCompositionSpec {
+    #[serde(default)]
+    primitive_level: u64,
+    #[serde(default)]
+    composed_of_workflow_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -254,6 +266,8 @@ pub struct NormalizedWorkflowGraph {
     pub workflow_role: String,
     pub final_response_policy: String,
     pub final_output_contract: Value,
+    pub primitive_level: u64,
+    pub composed_of_workflow_ids: Vec<String>,
     pub subtemplate_count: usize,
     pub stages: Vec<String>,
     pub transitions: Vec<String>,
@@ -436,6 +450,12 @@ fn validate_workflow_source(
         errors.push("missing_final_response_policy".to_string());
     }
     let final_output_contract = spec.final_output_contract;
+    let (primitive_level, composed_of_workflow_ids) = normalize_workflow_composition(
+        spec.workflow_composition,
+        &spec.workflow_composition_contract,
+        &workflow_id,
+        &mut errors,
+    );
     if stages.is_empty() {
         errors.push("missing_stages".to_string());
     }
@@ -462,6 +482,8 @@ fn validate_workflow_source(
         workflow_role: &workflow_role,
         final_response_policy,
         final_output_contract,
+        primitive_level,
+        composed_of_workflow_ids,
         registry_entry,
         subtemplate_count: spec.subtemplates.len(),
         stages,
@@ -481,6 +503,8 @@ struct WorkflowGraphCompileInput<'a> {
     workflow_role: &'a str,
     final_response_policy: String,
     final_output_contract: Value,
+    primitive_level: u64,
+    composed_of_workflow_ids: Vec<String>,
     registry_entry: &'a WorkflowRegistryEntry,
     subtemplate_count: usize,
     stages: Vec<String>,
@@ -499,6 +523,8 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         workflow_role,
         final_response_policy,
         final_output_contract,
+        primitive_level,
+        composed_of_workflow_ids,
         registry_entry,
         subtemplate_count,
         stages,
@@ -565,6 +591,8 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
             &contract.visible_chat_policy,
             &interaction_gate_contract.final_answer_stage,
         ),
+        primitive_level,
+        composed_of_workflow_ids,
         subtemplate_count,
         stages,
         transitions,
@@ -583,6 +611,63 @@ fn compile_graph(input: WorkflowGraphCompileInput<'_>) -> Option<NormalizedWorkf
         visible_chat_policy: contract.visible_chat_policy,
         run_budgets: contract.run_budgets,
     })
+}
+
+fn normalize_workflow_composition(
+    composition: WorkflowCompositionSpec,
+    contract: &Value,
+    workflow_id: &str,
+    errors: &mut Vec<String>,
+) -> (u64, Vec<String>) {
+    let declared_children = clean_list(composition.composed_of_workflow_ids);
+    let mut composed_of_workflow_ids = declared_children.clone();
+    if composed_of_workflow_ids.is_empty() {
+        composed_of_workflow_ids = composition_child_workflow_ids(contract);
+    }
+    let inferred_level = match contract
+        .get("cd_kind")
+        .and_then(Value::as_str)
+        .map(str::trim)
+    {
+        Some("primitive") => 0,
+        Some("composite") if composed_of_workflow_ids.is_empty() => 1,
+        Some("composite") => 2,
+        _ => 0,
+    };
+    let primitive_level = if composition.primitive_level > 0 || !declared_children.is_empty() {
+        composition.primitive_level
+    } else {
+        inferred_level
+    };
+    let mut seen = HashSet::new();
+    for child_id in &composed_of_workflow_ids {
+        if child_id == workflow_id {
+            errors.push("workflow_composition_self_reference".to_string());
+        }
+        if !seen.insert(child_id.as_str()) {
+            errors.push(format!("duplicate_composed_workflow_id:{child_id}"));
+        }
+    }
+    if primitive_level == 0 && !composed_of_workflow_ids.is_empty() {
+        errors.push("workflow_primitive_level_zero_has_children".to_string());
+    }
+    (primitive_level, composed_of_workflow_ids)
+}
+
+fn composition_child_workflow_ids(contract: &Value) -> Vec<String> {
+    contract
+        .get("child_workflow_calls")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("workflow_id").and_then(Value::as_str))
+                .map(str::trim)
+                .filter(|row| !row.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn normalize_final_output_contract(

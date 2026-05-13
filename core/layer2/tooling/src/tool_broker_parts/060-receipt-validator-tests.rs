@@ -84,6 +84,70 @@ mod receipt_validator_tests {
     }
 
     #[test]
+    fn web_tool_cd_vertical_slice_reaches_evidence_and_claim_bundle() {
+        let mut broker = ToolBroker::default();
+        let out = broker
+            .execute_and_normalize(
+                ToolCallRequest {
+                    trace_id: "trace-tool-cd-vertical".to_string(),
+                    task_id: "task-tool-cd-vertical".to_string(),
+                    tool_name: "web_search".to_string(),
+                    args: json!({"query":"typed agent framework docs"}),
+                    lineage: vec!["workflow:research_synthesize_verify".to_string()],
+                    caller: BrokerCaller::Client,
+                    policy_revision: None,
+                    tool_version: None,
+                    freshness_window_ms: None,
+                    force_no_dedupe: false,
+                },
+                |_| {
+                    Ok(json!({
+                        "results": [{
+                            "url": "https://example.test/docs",
+                            "title": "Typed agent framework docs",
+                            "summary": "The framework documents typed outputs and validation hooks for agent workflows.",
+                            "excerpt": "Typed outputs and validation hooks are available for agent workflows.",
+                            "confidence": {
+                                "relevance": 0.9,
+                                "reliability": 0.8,
+                                "freshness": 0.7
+                            }
+                        }]
+                    }))
+                },
+            )
+            .expect("tool cd broker execution");
+        assert!(out
+            .normalized_result
+            .lineage
+            .contains(&"tool_cd:web_search".to_string()));
+
+        let extractor = crate::evidence_extractor::EvidenceExtractor;
+        let cards = extractor.extract(&out.normalized_result, &out.raw_payload);
+        assert_eq!(cards.len(), 1);
+        assert!(cards[0]
+            .lineage
+            .contains(&"tool_cd:web_search".to_string()));
+
+        let ledger_path = std::env::temp_dir().join(format!(
+            "infring_tool_cd_vertical_{}_{}.jsonl",
+            std::process::id(),
+            out.normalized_result.result_id
+        ));
+        let mut store = crate::evidence_store::EvidenceStore::with_ledger_path(ledger_path);
+        let evidence_ids = store.append_evidence(&cards);
+        assert_eq!(evidence_ids, vec![cards[0].evidence_id.clone()]);
+
+        let verifier = crate::verifier::StructuredVerifier;
+        let bundle = verifier.derive_claim_bundle(&out.normalized_result.task_id, &cards);
+        verifier
+            .validate_claim_evidence_refs(&bundle, &cards)
+            .expect("claims should reference extracted evidence");
+        assert_eq!(bundle.claims.len(), 1);
+        assert!(verifier.supported_claims_for_synthesis(&bundle).len() == 1);
+    }
+
+    #[test]
     fn web_tool_result_quality_lanes_distinguish_blocked_and_low_signal() {
         let mut broker = ToolBroker::default();
         let out = broker

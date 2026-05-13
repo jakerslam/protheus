@@ -117,7 +117,18 @@ pub fn repair_and_validate_args(tool_name: &str, args: &Value) -> Result<Value, 
         .ok_or_else(|| BrokerError::InvalidArgs("args_must_be_object".to_string()))?;
     if matches!(tool_name, "web_search" | "batch_query") {
         if let Some(nested_payload) = map.get("payload").and_then(Value::as_object).cloned() {
-            for key in ["query", "queries", "aperture", "source", "context"] {
+            for key in [
+                "query",
+                "queries",
+                "aperture",
+                "source",
+                "context",
+                "keywords",
+                "required_coverage",
+                "aliases",
+                "negative_terms",
+                "query_metadata_policy",
+            ] {
                 if !map.contains_key(key) {
                     if let Some(value) = nested_payload.get(key) {
                         map.insert(key.to_string(), value.clone());

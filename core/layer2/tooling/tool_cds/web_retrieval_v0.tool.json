@@ -31,7 +31,14 @@
       "tool_result_quality.retry.query_strategy_hints",
       "tool_result_quality.coverage.bucket_status",
       "tool_result_quality.coverage.missing_buckets",
+      "retrieval_broker.version",
+      "retrieval_broker.lanes",
+      "retrieval_broker.provider_attempts",
+      "source_class_coverage.status",
+      "source_class_coverage.classes",
+      "evidence_pack_quality.status",
       "query_plan",
+      "query_metadata",
       "query_plan_source",
       "provider_result_count",
       "partial_failure_details"
@@ -130,8 +137,166 @@
         "split broad requests into entity, aspect, time-window, or source-type searches",
         "target primary, official, source-backed, or directly citable pages when relevant",
         "use low-relevance and off-topic diagnostics to remove weak terms",
+        "when provider degradation or partial failure is recorded, change source class, page type, exact entity terms, or reader/fetch depth instead of repeating the same broad query",
+        "when search rows are relevant but low-detail, prefer promising-page read/fetch enrichment before synthesis if policy and budget allow",
         "synthesize from best recorded evidence only after internal recovery is exhausted"
       ]
+    },
+    "web_research_broker_contract": {
+      "version": "web_research_broker_contract_v1",
+      "authority": "tool_cd_declares_broker_shape_runtime_records_observations",
+      "purpose": "present web research as one general primitive made of admitted retrieval lanes, so agents can reason over search, read, crawl, extraction, ranking, coverage, and recovery without binding to provider-specific tools or output formats",
+      "primitive_id": "web_research",
+      "lanes": [
+        {
+          "lane": "query_planning",
+          "input": "user_goal_plus_optional_agent_submitted_query_pack",
+          "output": "submitted_query_plan_executed_query_plan_query_plan_source",
+          "authority": "agent_or_policy_submits_runtime_records"
+        },
+        {
+          "lane": "provider_retrieval",
+          "input": "executed_queries_plus_admitted_provider_capabilities",
+          "output": "provider_attempts_provider_result_count_failure_reasons"
+        },
+        {
+          "lane": "candidate_enrichment",
+          "input": "retrieved_rows_promising_urls_and_policy_budget",
+          "output": "reader_or_fetch_artifacts_when_available"
+        },
+        {
+          "lane": "evidence_packaging",
+          "input": "ranked_candidates_reader_artifacts_and_coverage_facets",
+          "output": "evidence_pack_evidence_refs_evidence_pack_quality"
+        },
+        {
+          "lane": "coverage_review",
+          "input": "evidence_pack_evidence_coverage_source_class_coverage",
+          "output": "covered_weak_or_missing_lanes_for_synthesis_or_retry"
+        }
+      ],
+      "provider_adapter_manifest_shape": {
+        "required_fields": [
+          "provider_id",
+          "lane_support",
+          "input_schema_ref",
+          "output_schema_ref",
+          "capabilities",
+          "cost_budget",
+          "failure_modes",
+          "side_effects",
+          "profile_support",
+          "adapter_ref"
+        ],
+        "non_goals": [
+          "do_not_route_by_provider_brand_name_in_agent_prompt",
+          "do_not_make_one_provider_the_semantic_model",
+          "do_not_store_raw_provider_payloads_in_chat_visible_state"
+        ]
+      },
+      "admitted_provider_adapter_manifests": [
+        {
+          "provider_id": "serperdev",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.provider_rows.v1",
+          "capabilities": [
+            "structured_search_results",
+            "snippet_rows",
+            "source_url_rows",
+            "query_time_metadata"
+          ],
+          "cost_budget": "credentialed_network_search",
+          "failure_modes": [
+            "missing_credentials",
+            "provider_error",
+            "low_signal_payload",
+            "rate_limited"
+          ],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.serperdev"
+        },
+        {
+          "provider_id": "duckduckgo",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.html_search_rows.v1",
+          "capabilities": ["html_search_results", "source_url_rows", "snippet_rows"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["anti_bot_challenge", "low_signal_payload", "provider_error"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.duckduckgo"
+        },
+        {
+          "provider_id": "duckduckgo_lite",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.html_search_rows.v1",
+          "capabilities": ["low_friction_html_search", "source_url_rows", "snippet_rows"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["anti_bot_challenge", "low_signal_payload", "provider_error"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.duckduckgo_lite"
+        },
+        {
+          "provider_id": "bing_rss",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.rss_rows.v1",
+          "capabilities": ["rss_search_results", "current_source_discovery", "source_url_rows"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["provider_error", "empty_feed", "low_signal_payload"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.bing_rss"
+        },
+        {
+          "provider_id": "duckduckgo_instant",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.answer_or_related_topics.v1",
+          "capabilities": ["answer_summary", "related_topic_links", "fallback_source_discovery"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["no_usable_summary", "low_signal_payload", "provider_error"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:batch_query.duckduckgo_instant_fallback"
+        },
+        {
+          "provider_id": "direct_http",
+          "lane_support": ["candidate_enrichment"],
+          "input_schema_ref": "web_research.source_url.v1",
+          "output_schema_ref": "web_research.reader_candidate.v1",
+          "capabilities": [
+            "direct_page_fetch",
+            "text_or_markdown_extraction",
+            "promising_url_enrichment"
+          ],
+          "cost_budget": "public_network_fetch",
+          "failure_modes": [
+            "blocked",
+            "needs_js",
+            "timeout",
+            "content_too_thin",
+            "unsupported_content_type"
+          ],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.fetch.direct_http"
+        }
+      ],
+      "broker_report_fields": [
+        "retrieval_broker.lanes",
+        "retrieval_broker.provider_attempts",
+        "retrieval_broker.second_pass_recovery",
+        "retrieval_broker.source_class_coverage",
+        "retrieval_broker.evidence_pack_quality",
+        "retrieval_broker.tool_result_quality_flags"
+      ],
+      "synthesis_boundary": "The broker report calibrates what happened and what remains weak; it does not prescribe visible answer structure, phrasing, or source conclusions."
     },
     "progressive_retrieval_contract": {
       "authority": "tool_cd_declares_strategy_rust_executes_without_domain_routes",
@@ -207,7 +372,8 @@
       },
       "bounded_second_pass_recovery": {
         "authority": "tool_cd_declares_recovery_shape_runtime_records_executed_queries",
-        "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass",
+        "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass_or_provider_degradation",
+        "strategy": "preserve the user goal, vary source class/page type/entity terms, enrich promising pages, and record remaining coverage gaps instead of treating provider telemetry as evidence",
         "non_goals": [
           "do_not_hide_query_expansion_from_trace",
           "do_not_bind_to_a_specific_research_domain",
@@ -1262,7 +1428,17 @@
       "capability_family": "web_retrieval",
       "required_args": ["query"],
       "aliases": ["web_research"],
-      "optional_args": ["aperture", "timeout_ms", "source_scope"],
+      "optional_args": [
+        "aperture",
+        "timeout_ms",
+        "source_scope",
+        "queries",
+        "keywords",
+        "required_coverage",
+        "aliases",
+        "negative_terms",
+        "query_metadata_policy"
+      ],
       "request_quality_floor": {
         "broad_research_requires_query_pack_or_followup": true,
         "initial_discovery_only_allowed": true,
@@ -1280,6 +1456,34 @@
           "do_not_hardcode_domain_candidates",
           "do_not_force_output_format",
           "do_not_expand_queries_without_recording_them"
+        ]
+      },
+      "query_metadata_contract": {
+        "version": "query_metadata_contract_v1",
+        "authority": "workflow_cd_declares_request_shape_tool_cd_declares_compilation",
+        "purpose": "Let the agent submit compact retrieval metadata separately from prose queries so the primitive can cast a wider, auditable net without hardcoding a research domain or user-visible answer format.",
+        "accepted_fields": {
+          "keywords": "important entity, alias, phrase, aspect, source-class, date, or decision terms",
+          "required_coverage.entities": "named entities, candidates, subjects, or options final synthesis should cover or mark as weak/missing",
+          "required_coverage.facets": "user-stated criteria, aspects, source classes, time windows, or decision dimensions final synthesis should cover or mark as weak/missing",
+          "aliases": "alternate names or exact phrases for named entities",
+          "negative_terms": "ambiguity filters to exclude low-signal interpretations",
+          "query_metadata_policy": "request-path marker that explains whether metadata was expanded or intentionally narrow"
+        },
+        "compilation_policy": [
+          "preserve the top-level user query as the first query lane",
+          "preserve agent-submitted query lanes before compiled metadata lanes",
+          "dedupe and cap metadata terms according to the active aperture budget",
+          "quote exact entity and alias phrases when compiling metadata lanes",
+          "do not quote generic facets or keywords by default",
+          "append safe negative filters only to compiled metadata lanes",
+          "record query_metadata, submitted_query_plan, executed query_plan, and query_plan_source in tool output"
+        ],
+        "non_goals": [
+          "do_not_hardcode_domain_candidates",
+          "do_not_force_user_visible_answer_format",
+          "do_not_require_provider_specific_query_syntax",
+          "do_not_hide_compiled_query_lanes_from_trace"
         ]
       },
       "operations": ["search_pack"],

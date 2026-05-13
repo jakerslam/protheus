@@ -115,6 +115,173 @@ fn tool_hidden_array(tool: &Value, key: &str) -> Vec<Value> {
         .unwrap_or_default()
 }
 
+fn tool_hidden_value<'a>(tool: &'a Value, key: &str) -> Option<&'a Value> {
+    tool.get(key).or_else(|| {
+        tool.get("tool_pipeline")
+            .and_then(|pipeline| pipeline.get("raw_payload"))
+            .and_then(|raw_payload| raw_payload.get(key))
+    })
+}
+
+fn tool_string_array_at(value: Option<&Value>, pointer: &str, limit: usize, item_len: usize) -> Vec<String> {
+    value
+        .and_then(|row| row.pointer(pointer))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, item_len))
+                .filter(|row| !row.is_empty())
+                .take(limit)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+}
+
+fn synthesis_coverage_lane_key(kind: &str, requested_text: &str) -> String {
+    format!(
+        "{}:{}",
+        clean_text(kind, 80).to_ascii_lowercase(),
+        clean_text(requested_text, 240).to_ascii_lowercase()
+    )
+}
+
+fn synthesis_coverage_status_rank(status: &str) -> u8 {
+    match clean_text(status, 80).to_ascii_lowercase().as_str() {
+        "covered" | "usable" => 3,
+        "weak" | "partial" | "low_signal" | "low-signal" => 2,
+        "missing" | "absent" => 1,
+        _ => 0,
+    }
+}
+
+fn push_synthesis_coverage_lane(
+    lanes: &mut Vec<Value>,
+    kind: &str,
+    requested_text: &str,
+    status: &str,
+    source: &str,
+    limit: usize,
+) {
+    let kind = clean_text(kind, 80);
+    let requested_text = clean_text(requested_text, 240);
+    let status = clean_text(status, 80);
+    let source = clean_text(source, 120);
+    if kind.is_empty() || requested_text.is_empty() {
+        return;
+    }
+    let key = synthesis_coverage_lane_key(&kind, &requested_text);
+    if let Some(existing) = lanes.iter_mut().find(|row| {
+        synthesis_coverage_lane_key(
+            row.get("kind").and_then(Value::as_str).unwrap_or(""),
+            row.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+        ) == key
+    }) {
+        let existing_rank = synthesis_coverage_status_rank(
+            existing.get("status").and_then(Value::as_str).unwrap_or(""),
+        );
+        if synthesis_coverage_status_rank(&status) > existing_rank {
+            existing["status"] = Value::String(status);
+            existing["source"] = Value::String(source);
+        }
+        return;
+    }
+    if lanes.len() >= limit {
+        return;
+    }
+    lanes.push(json!({
+        "kind": kind,
+        "requested_text": requested_text,
+        "status": status,
+        "source": source
+    }));
+}
+
+fn synthesis_coverage_kind_for_requested_text(query_metadata: Option<&Value>, requested_text: &str) -> String {
+    let requested = clean_text(requested_text, 240).to_ascii_lowercase();
+    if requested.is_empty() {
+        return "coverage_lane".to_string();
+    }
+    if tool_string_array_at(query_metadata, "/required_coverage/entities", 24, 240)
+        .iter()
+        .any(|row| clean_text(row, 240).to_ascii_lowercase() == requested)
+    {
+        return "entity".to_string();
+    }
+    if tool_string_array_at(query_metadata, "/required_coverage/facets", 24, 240)
+        .iter()
+        .any(|row| clean_text(row, 240).to_ascii_lowercase() == requested)
+    {
+        return "facet".to_string();
+    }
+    "coverage_lane".to_string()
+}
+
+fn synthesis_coverage_lanes_for_tools(response_tools: &[Value], limit: usize) -> Vec<Value> {
+    let mut lanes = Vec::<Value>::new();
+    let limit = limit.clamp(1, 32);
+    for tool in response_tools.iter().take(8) {
+        let query_metadata = tool_hidden_value(tool, "query_metadata");
+        for entity in tool_string_array_at(query_metadata, "/required_coverage/entities", 16, 240) {
+            push_synthesis_coverage_lane(
+                &mut lanes,
+                "entity",
+                &entity,
+                "missing",
+                "query_metadata_required_coverage",
+                limit,
+            );
+        }
+        for facet in tool_string_array_at(query_metadata, "/required_coverage/facets", 16, 240) {
+            push_synthesis_coverage_lane(
+                &mut lanes,
+                "facet",
+                &facet,
+                "missing",
+                "query_metadata_required_coverage",
+                limit,
+            );
+        }
+        for row in tool_hidden_array(tool, "evidence_coverage") {
+            let requested_text = clean_text(
+                row.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+                240,
+            );
+            if requested_text.is_empty() {
+                continue;
+            }
+            let kind = clean_text(
+                row.get("facet_kind")
+                    .or_else(|| row.get("coverage_kind"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                80,
+            );
+            let kind = if kind.is_empty() {
+                synthesis_coverage_kind_for_requested_text(query_metadata, &requested_text)
+            } else {
+                kind
+            };
+            let status = clean_text(
+                row.get("status").and_then(Value::as_str).unwrap_or("missing"),
+                80,
+            );
+            push_synthesis_coverage_lane(
+                &mut lanes,
+                &kind,
+                &requested_text,
+                &status,
+                "evidence_coverage",
+                limit,
+            );
+        }
+        if lanes.len() >= limit {
+            break;
+        }
+    }
+    lanes
+}
+
 fn compact_tool_evidence_item(source: &str, row: &Value) -> Value {
     if let Some(raw) = row.as_str() {
         return json!({
@@ -254,7 +421,7 @@ fn synthesis_tool_result_quality(response_tools: &[Value]) -> String {
 }
 
 fn synthesis_coverage_gaps(response_tools: &[Value]) -> Value {
-    let mut gaps = Vec::<Value>::new();
+    let mut gaps = synthesis_coverage_lanes_for_tools(response_tools, 16);
     for tool in response_tools.iter().take(6) {
         if let Some(quality) = tool_result_quality_object(tool) {
             for flag in tool_quality_string_array(quality, "/flags", 8) {

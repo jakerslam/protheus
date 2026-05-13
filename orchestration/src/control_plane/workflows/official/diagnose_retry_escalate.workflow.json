@@ -2,6 +2,25 @@
   "name": "diagnose_retry_escalate",
   "workflow_type": "control_plane_orchestration_workflow",
   "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows_from_primitive_cd",
+      "do_not_return_raw_tool_payloads_to_parent"
+    ]
+  },
   "default": false,
   "description": "Recovery template used for blocked/failed states to route retry, reroute, or escalation decisions.",
   "stages": [

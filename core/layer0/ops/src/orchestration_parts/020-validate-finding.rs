@@ -63,26 +63,170 @@ fn validate_finding(input: &Value) -> (bool, String) {
     (true, "finding_valid".to_string())
 }
 
-fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<&str>) -> Value {
-    let normalized = normalize_finding(finding);
+fn finding_metadata_string(finding: &Value, key: &str) -> String {
+    finding
+        .get("metadata")
+        .and_then(Value::as_object)
+        .and_then(|metadata| metadata.get(key))
+        .map(|value| to_clean_string(Some(value)))
+        .unwrap_or_default()
+}
+
+fn finding_idempotency_key(task_id: &str, finding: &Value) -> String {
+    let explicit = get_string_any(
+        finding,
+        &[
+            "idempotency_key",
+            "idempotencyKey",
+            "finding_id",
+            "findingId",
+        ],
+    );
+    if !explicit.is_empty() {
+        return explicit;
+    }
+
+    let workflow_id = {
+        let direct = get_string_any(finding, &["workflow_id", "workflowId"]);
+        if direct.is_empty() {
+            finding_metadata_string(finding, "workflow_id")
+        } else {
+            direct
+        }
+    };
+    let finding_id = finding_metadata_string(finding, "finding_id");
+    let raw = format!(
+        "task_id={}|workflow_id={}|audit_id={}|finding_id={}|item_id={}|location={}",
+        task_id,
+        workflow_id,
+        to_clean_string(finding.get("audit_id")),
+        finding_id,
+        to_clean_string(finding.get("item_id")),
+        to_clean_string(finding.get("location"))
+    );
+    format!("finding-{}", stable_hash_short(&raw))
+}
+
+fn normalize_finding_with_idempotency_key(
+    task_id: &str,
+    finding: &Value,
+) -> Result<Value, (String, Value)> {
+    let mut normalized = normalize_finding(finding);
     let (ok, reason) = validate_finding(&normalized);
     if !ok {
-        return json!({
-            "ok": false,
-            "type": "orchestration_scratchpad_append_finding",
-            "reason_code": reason,
-            "task_id": task_id
-        });
+        return Err((reason, normalized));
     }
+
+    let idempotency_key = finding_idempotency_key(task_id, &normalized);
+    if let Value::Object(map) = &mut normalized {
+        if to_clean_string(map.get("idempotency_key")).is_empty() {
+            map.insert("idempotency_key".to_string(), Value::String(idempotency_key));
+        }
+    }
+    Ok(normalized)
+}
+
+fn merge_finding_versions(task_id: &str, existing: &Value, incoming: &Value) -> Value {
+    let merged = merge_findings(&[existing.clone(), incoming.clone()]);
+    let merged_finding = merged
+        .get("merged")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .cloned()
+        .unwrap_or_else(|| incoming.clone());
+    normalize_finding_with_idempotency_key(task_id, &merged_finding)
+        .unwrap_or_else(|_| incoming.clone())
+}
+
+fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<&str>) -> Value {
+    let normalized = match normalize_finding_with_idempotency_key(task_id, finding) {
+        Ok(value) => value,
+        Err((reason, _normalized)) => {
+            return json!({
+                "ok": false,
+                "type": "orchestration_scratchpad_append_finding",
+                "reason_code": reason,
+                "task_id": task_id
+            });
+        }
+    };
+
+    let mut out = append_normalized_findings_batch(root, task_id, &[normalized], None, root_dir);
+    if let Value::Object(map) = &mut out {
+        map.insert(
+            "type".to_string(),
+            Value::String("orchestration_scratchpad_append_finding".to_string()),
+        );
+        let deduped = map
+            .get("deduped_count")
+            .and_then(Value::as_u64)
+            .unwrap_or_default()
+            > 0;
+        map.insert("deduped".to_string(), Value::Bool(deduped));
+    }
+    out
+}
+
+fn append_findings_batch(
+    root: &Path,
+    task_id: &str,
+    findings: &[Value],
+    progress: Option<Value>,
+    root_dir: Option<&str>,
+) -> Value {
+    let mut normalized_findings = Vec::new();
+    let mut staged_keys = Vec::new();
+    for (index, finding) in findings.iter().enumerate() {
+        let normalized = match normalize_finding_with_idempotency_key(task_id, finding) {
+            Ok(value) => value,
+            Err((reason, normalized)) => {
+                return json!({
+                    "ok": false,
+                    "type": "orchestration_scratchpad_append_findings",
+                    "reason_code": reason,
+                    "task_id": task_id,
+                    "failed_index": index,
+                    "failed_finding": normalized,
+                    "reconciliation": {
+                        "write_strategy": "single_atomic_scratchpad_write",
+                        "committed_before_failure": [],
+                        "staged_idempotency_keys": staged_keys
+                    }
+                });
+            }
+        };
+        staged_keys.push(Value::String(finding_idempotency_key(task_id, &normalized)));
+        normalized_findings.push(normalized);
+    }
+
+    append_normalized_findings_batch(root, task_id, &normalized_findings, progress, root_dir)
+}
+
+fn append_normalized_findings_batch(
+    root: &Path,
+    task_id: &str,
+    normalized_findings: &[Value],
+    progress: Option<Value>,
+    root_dir: Option<&str>,
+) -> Value {
+    let staged_keys = normalized_findings
+        .iter()
+        .map(|finding| Value::String(finding_idempotency_key(task_id, finding)))
+        .collect::<Vec<_>>();
 
     let loaded = match load_scratchpad(root, task_id, root_dir) {
         Ok(value) => value,
         Err(err) => {
             return json!({
                 "ok": false,
-                "type": "orchestration_scratchpad_append_finding",
+                "type": "orchestration_scratchpad_append_findings",
                 "reason_code": err,
-                "task_id": task_id
+                "task_id": task_id,
+                "reconciliation": {
+                    "write_strategy": "single_atomic_scratchpad_write",
+                    "committed_before_failure": [],
+                    "staged_idempotency_keys": staged_keys
+                }
             });
         }
     };
@@ -93,18 +237,49 @@ fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
-    let already_present = findings.iter().any(|existing| existing == &normalized);
-    if !already_present {
-        findings.push(normalized);
+    let mut seen = findings
+        .iter()
+        .enumerate()
+        .map(|(index, existing)| (finding_idempotency_key(task_id, existing), index))
+        .collect::<HashMap<_, _>>();
+    let mut appended_count = 0usize;
+    let mut deduped_count = 0usize;
+    let mut reconciled_count = 0usize;
+    for finding in normalized_findings {
+        let key = finding_idempotency_key(task_id, finding);
+        if let Some(index) = seen.get(&key).copied() {
+            let merged = merge_finding_versions(task_id, &findings[index], finding);
+            if findings[index] != merged {
+                findings[index] = merged;
+                reconciled_count += 1;
+            }
+            deduped_count += 1;
+        } else {
+            seen.insert(key, findings.len());
+            findings.push(finding.clone());
+            appended_count += 1;
+        }
     }
-    let out = match write_scratchpad(root, task_id, &json!({ "findings": findings }), root_dir) {
+
+    let mut patch = Map::new();
+    patch.insert("findings".to_string(), Value::Array(findings));
+    if let Some(progress_value) = progress {
+        patch.insert("progress".to_string(), progress_value);
+    }
+
+    let out = match write_scratchpad(root, task_id, &Value::Object(patch), root_dir) {
         Ok(value) => value,
         Err(err) => {
             return json!({
                 "ok": false,
-                "type": "orchestration_scratchpad_append_finding",
+                "type": "orchestration_scratchpad_append_findings",
                 "reason_code": err,
-                "task_id": task_id
+                "task_id": task_id,
+                "reconciliation": {
+                    "write_strategy": "single_atomic_scratchpad_write",
+                    "committed_before_failure": [],
+                    "staged_idempotency_keys": staged_keys
+                }
             });
         }
     };
@@ -118,12 +293,15 @@ fn append_finding(root: &Path, task_id: &str, finding: &Value, root_dir: Option<
 
     json!({
         "ok": true,
-        "type": "orchestration_scratchpad_append_finding",
+        "type": "orchestration_scratchpad_append_findings",
         "task_id": task_id,
         "file_path": out.get("file_path").cloned().unwrap_or(Value::Null),
         "scratchpad": out.get("scratchpad").cloned().unwrap_or(Value::Null),
         "finding_count": count,
-        "deduped": already_present
+        "appended_count": appended_count,
+        "deduped_count": deduped_count,
+        "reconciled_count": reconciled_count,
+        "idempotency_keys": staged_keys
     })
 }
 

@@ -125,6 +125,45 @@ pub(super) fn markdown_report(report: &Value) -> String {
         )
     ));
     out.push_str(&format!(
+        "- query_metadata_planning: metadata={}/{} ({:.3}) rich_or_marked={}/{} ({:.3})\n",
+        u64_at(
+            split,
+            &["query_metadata_planning", "metadata_present_cases"],
+            0
+        ),
+        u64_at(
+            split,
+            &["query_metadata_planning", "eligible_batch_query_requests"],
+            0
+        ),
+        f64_at(
+            split,
+            &["query_metadata_planning", "metadata_present_rate"],
+            0.0
+        ),
+        u64_at(
+            split,
+            &[
+                "query_metadata_planning",
+                "rich_query_pack_or_narrow_marker_cases"
+            ],
+            0
+        ),
+        u64_at(
+            split,
+            &["query_metadata_planning", "eligible_batch_query_requests"],
+            0
+        ),
+        f64_at(
+            split,
+            &[
+                "query_metadata_planning",
+                "rich_query_pack_or_narrow_marker_rate"
+            ],
+            0.0
+        )
+    ));
+    out.push_str(&format!(
         "- end_to_end_golden: mode={} success_rate={:.3} soft_failure_cases={}\n",
         str_at(split, &["end_to_end_golden", "mode"], "unknown"),
         f64_at(split, &["end_to_end_golden", "research_success_rate"], 0.0),

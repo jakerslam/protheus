@@ -67,6 +67,8 @@
       ],
       "planning_rules": [
         "preserve the user's original research objective as the top-level query",
+        "when the workflow payload includes keywords, required coverage, aliases, or negative terms, treat them as agent-submitted retrieval metadata and compile them into visible query-plan lanes instead of hidden expansion",
+        "quote exact entity and alias phrases when compiling metadata lanes, but do not quote generic facets or keywords by default",
         "a single broad query may start discovery, but it is not enough to finish broad, comparative, current, evaluative, multi-entity, or multi-aspect research unless evidence sufficiency is already met",
         "after a weak discovery pass, use the observed snippets, off-topic terms, and missing buckets to submit targeted follow-up queries instead of asking the user to narrow",
         "when the prompt names multiple entities or candidates, allocate at least one retrieval lane to each major entity before synthesis",

@@ -834,6 +834,79 @@ fn apply_final_empty_response_diagnostic(
     set_turn_workflow_final_stage_status(workflow, "empty_llm_response");
 }
 
+fn fallback_coverage_lane_sentence(response_tools: &[Value]) -> String {
+    let lanes = synthesis_coverage_lanes_for_tools(response_tools, 12);
+    if lanes.is_empty() {
+        return String::new();
+    }
+    let lane_label = |row: &Value| -> String {
+        let kind = clean_text(row.get("kind").and_then(Value::as_str).unwrap_or(""), 80);
+        let requested = clean_text(
+            row.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+            180,
+        );
+        if requested.is_empty() {
+            String::new()
+        } else if kind == "entity" {
+            requested
+        } else {
+            requested
+        }
+    };
+    let covered = lanes
+        .iter()
+        .filter(|row| {
+            matches!(
+                row.get("status").and_then(Value::as_str),
+                Some("covered") | Some("usable")
+            )
+        })
+        .filter_map(|row| {
+            let label = lane_label(row);
+            if label.is_empty() {
+                None
+            } else {
+                Some(label)
+            }
+        })
+        .take(4)
+        .collect::<Vec<_>>();
+    let weak_or_missing = lanes
+        .iter()
+        .filter(|row| {
+            !matches!(
+                row.get("status").and_then(Value::as_str),
+                Some("covered") | Some("usable")
+            )
+        })
+        .filter_map(|row| {
+            let label = lane_label(row);
+            if label.is_empty() {
+                None
+            } else {
+                Some(label)
+            }
+        })
+        .take(8)
+        .collect::<Vec<_>>();
+    if !covered.is_empty() && !weak_or_missing.is_empty() {
+        format!(
+            "Coverage state: usable evidence is present for {}; weak or missing coverage remains for {}.",
+            covered.join(", "),
+            weak_or_missing.join(", ")
+        )
+    } else if !covered.is_empty() {
+        format!("Coverage state: usable evidence is present for {}.", covered.join(", "))
+    } else if !weak_or_missing.is_empty() {
+        format!(
+            "Coverage gaps still matter for: {}.",
+            weak_or_missing.join(", ")
+        )
+    } else {
+        String::new()
+    }
+}
+
 fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[Value]) -> String {
     let cleaned_message = clean_text(message, 220);
     let user_topic = if cleaned_message.is_empty() {
@@ -900,11 +973,22 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
     };
 
     let mut response_parts = Vec::<String>::new();
-    response_parts.push(
-        "The recorded evidence is partial rather than decisive, so a stronger source-backed conclusion would overstate what we have."
-            .to_string(),
-    );
+    if request_is_comparative {
+        response_parts.push(
+            "The safest bounded answer is that this comparison is not ready for a source-backed ranking yet; treat any conclusion as provisional until the missing sides have usable evidence."
+                .to_string(),
+        );
+    } else {
+        response_parts.push(
+            "The safest bounded answer is that the current retrieval state does not support a source-backed conclusion yet; any decision should stay conservative until coverage improves."
+                .to_string(),
+        );
+    }
     response_parts.push(evidence_detail);
+    let coverage_sentence = fallback_coverage_lane_sentence(response_tools);
+    if !coverage_sentence.is_empty() {
+        response_parts.push(coverage_sentence);
+    }
     response_parts.push(uncertainty);
     response_parts.push(
         "The current tradeoff is breadth versus confidence: we can stay narrow and source-backed on the covered evidence, or broaden retrieval before making a stronger claim."
@@ -1193,6 +1277,99 @@ fn response_answers_successful_tool_result(
     })
 }
 
+fn response_tools_have_recorded_evidence_refs(response_tools: &[Value]) -> bool {
+    response_tools.iter().any(|row| {
+        row.get("evidence_refs")
+            .or_else(|| row.pointer("/tool_result_quality/evidence_refs"))
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(recorded_evidence_ref_is_substantive))
+            .unwrap_or(false)
+            || row
+                .pointer("/tool_result_quality/evidence_count")
+                .and_then(Value::as_u64)
+                .map(|count| count > 0)
+                .unwrap_or(false)
+    })
+}
+
+fn recorded_evidence_ref_is_substantive(value: &Value) -> bool {
+    if value.get("error").is_some() || value.get("status").and_then(Value::as_str) == Some("error") {
+        return false;
+    }
+    let locator = clean_text(
+        value
+            .get("locator")
+            .or_else(|| value.get("url"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        240,
+    )
+    .to_ascii_lowercase();
+    if locator.starts_with("tool:no-results") || locator.starts_with("tool:low-signal") {
+        return false;
+    }
+    let title = clean_text(value.get("title").and_then(Value::as_str).unwrap_or(""), 200)
+        .to_ascii_lowercase();
+    if title.contains("no usable result") || title.contains("no results") {
+        return false;
+    }
+    value
+        .get("score")
+        .and_then(Value::as_f64)
+        .map(|score| score > 0.0)
+        .unwrap_or_else(|| !locator.is_empty() || !title.is_empty())
+}
+
+fn final_response_verifier_contract_marker(pointer: &str, text: &str) -> bool {
+    workflow_message_matches_contract_markers(&default_workflow_tool_menu_contract(), pointer, text)
+}
+
+fn response_violates_tool_backed_final_verifier(
+    response_text: &str,
+    response_tools: &[Value],
+) -> bool {
+    if response_tools.is_empty() {
+        return false;
+    }
+    let cleaned = clean_chat_text(response_text, 32_000);
+    if cleaned.is_empty() {
+        return false;
+    }
+    let first = first_sentence(&cleaned, 420).to_ascii_lowercase();
+    let full = cleaned.to_ascii_lowercase();
+    let status_first = final_response_verifier_contract_marker(
+        "/diagnostic_markers/final_response_verifier/opening_status_phrases",
+        &first,
+    );
+    let bounded_answer_first = final_response_verifier_contract_marker(
+        "/diagnostic_markers/final_response_verifier/bounded_answer_signals",
+        &first,
+    );
+    let claims_missing_evidence = response_tools_have_recorded_evidence_refs(response_tools)
+        && final_response_verifier_contract_marker(
+            "/diagnostic_markers/final_response_verifier/missing_evidence_claim_phrases",
+            &full,
+        );
+    claims_missing_evidence || (status_first && !bounded_answer_first)
+}
+
+fn workflow_final_synthesis_retry_prompt_context(
+    last_reject_reason: &str,
+    last_invalid_excerpt: &str,
+) -> String {
+    if last_reject_reason.trim().is_empty() {
+        return String::new();
+    }
+    clean_text(
+        &format!(
+            "Internal final-response verifier retry. The previous candidate failed `{}`. Previous excerpt: {}. Produce the user-facing answer from the same recorded evidence and user goal. Lead with the best bounded answer the evidence supports, then state limits or gaps; if the previous candidate opened by reporting tool/search/retrieval status, make that status supporting context after the answer instead. Do not mention this verifier, workflow gates, tool traces, or a required output format.",
+            clean_text(last_reject_reason, 120),
+            clean_text(last_invalid_excerpt, 240)
+        ),
+        1_000,
+    )
+}
+
 fn mark_workflow_pending_gate_without_final_synthesis(
     workflow: &mut Value,
     status: &str,
@@ -1278,11 +1455,14 @@ fn run_turn_workflow_final_response(
             return finalize_workflow_gate_stability(root, workflow, message);
         }
     }
+    let initial_visible_gate_choice_submission =
+        response_tools.is_empty() && response_is_visible_workflow_gate_choice(draft_response);
     let required = workflow
         .pointer("/final_llm_response/required")
         .and_then(Value::as_bool)
         .unwrap_or(false)
-        || missing_turn_tool_context_recovery;
+        || missing_turn_tool_context_recovery
+        || initial_visible_gate_choice_submission;
     if !required {
         preserve_direct_llm_response_without_fallback(&mut workflow, draft_response);
         workflow["final_llm_response"]["attempted"] = Value::Bool(false);
@@ -1330,7 +1510,7 @@ fn run_turn_workflow_final_response(
     };
     let template_label = workflow_response_template_label(message);
     let detail_style = "workflow_cd_default";
-    let final_answer_instruction = workflow_final_answer_prompt_context();
+    let final_answer_instruction = workflow_final_answer_prompt_context_for_tools(response_tools);
     let _workflow_mode_clean = clean_text(workflow_mode, 80);
     let initial_no_tool_category_submission =
         response_tools.is_empty() && response_is_exact_no_tool_gate_submission(draft_response);
@@ -1340,6 +1520,7 @@ fn run_turn_workflow_final_response(
     }
     let manual_toolbox_gate_turn = response_tools.is_empty()
         && !initial_no_tool_category_submission
+        && !initial_visible_gate_choice_submission
         && enriched_workflow_events.iter().any(|event| {
             matches!(
                 event.get("kind").and_then(Value::as_str).unwrap_or(""),
@@ -1349,6 +1530,7 @@ fn run_turn_workflow_final_response(
     let direct_gate_recovery_turn = response_tools.is_empty()
         && !manual_toolbox_gate_turn
         && (initial_no_tool_category_submission
+            || initial_visible_gate_choice_submission
             || enriched_workflow_events.iter().any(|event| {
                 event.get("kind").and_then(Value::as_str).unwrap_or("") == "draft_response_invalid"
             }));
@@ -1613,6 +1795,17 @@ fn run_turn_workflow_final_response(
         } else {
             String::new()
         };
+        let final_synthesis_retry_guidance = if !active_manual_toolbox_private_gate_turn
+            && attempt > 1
+            && !last_reject_reason.is_empty()
+        {
+            workflow_final_synthesis_retry_prompt_context(
+                &last_reject_reason,
+                &last_invalid_excerpt,
+            )
+        } else {
+            String::new()
+        };
         let attempt_user_prompt = if active_manual_toolbox_category_turn {
             user_prompt.clone()
         } else if !gate_retry_guidance.is_empty() {
@@ -1637,8 +1830,13 @@ fn run_turn_workflow_final_response(
                 8_000,
             )
         } else if attempt > 1 {
+            let retry_guidance_block = if final_synthesis_retry_guidance.is_empty() {
+                String::new()
+            } else {
+                format!("{final_synthesis_retry_guidance}\n\n")
+            };
             clean_text(
-                &format!("{user_prompt}\n\n{final_answer_instruction}"),
+                &format!("{user_prompt}\n\n{retry_guidance_block}{final_answer_instruction}"),
                 20_000,
             )
         } else {
@@ -1778,6 +1976,8 @@ fn run_turn_workflow_final_response(
                         &retried_text,
                         response_tools,
                     );
+                let final_verifier_contract_violation =
+                    response_violates_tool_backed_final_verifier(&retried_text, response_tools);
                 let missing_turn_tool_context_reply = missing_turn_tool_context_recovery
                     && !workflow_missing_turn_tool_context_response_contract_satisfied(
                         &retried_text,
@@ -1831,6 +2031,11 @@ fn run_turn_workflow_final_response(
                         unsupported_tool_success_claim,
                         "unsupported_tool_success_claim",
                         "unsupported_tool_success_claim_reject",
+                    ),
+                    (
+                        final_verifier_contract_violation,
+                        "final_response_verifier_contract",
+                        "alignment_reject",
                     ),
                     (
                         missing_turn_tool_context_reply,
@@ -2561,6 +2766,30 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn ordinary_lookup_and_search_intents_preserve_batch_query_candidate() {
+        for message in [
+            "look up recent changes in the relevant frameworks",
+            "search the web for public evidence about a named system",
+            "use web research to compare current options",
+        ] {
+            let candidates = latent_tool_candidates_for_message(message, &[]);
+            assert_eq!(candidates.len(), 1, "{message}: {candidates:?}");
+            assert_eq!(
+                candidates[0].get("tool").and_then(Value::as_str),
+                Some("batch_query"),
+                "{message}: {candidates:?}"
+            );
+            assert_eq!(
+                candidates[0]
+                    .get("selected_tool_family")
+                    .and_then(Value::as_str),
+                Some("web_research"),
+                "{message}: {candidates:?}"
+            );
+        }
+    }
+
+    #[test]
     fn runtime_temporal_context_declares_past_future_rule() {
         let prompt = agent_runtime_temporal_context_prompt();
         assert!(prompt.contains("current date/time"));
@@ -2641,6 +2870,93 @@ mod workflow_fallback_tests {
     }
 
     #[test]
+    fn final_verifier_rejects_tool_status_overlead_before_answer() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "no_results",
+            "result": "Search did not produce enough source coverage for the requested comparison.",
+            "tool_result_quality": {
+                "flags": ["low_signal"],
+                "evidence_count": 0
+            }
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "The web search results are too thin and provider-degraded to answer. I cannot give a useful conclusion.",
+            &tools,
+        ));
+        assert!(!response_violates_tool_backed_final_verifier(
+            "Bottom line: treat the topic as unverified from this retrieval turn and avoid making a source-backed choice until a better source lane is available. The search result was low-signal, so this is bounded guidance rather than retrieved evidence.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn final_verifier_rejects_status_overlead_variants_from_research_turns() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "low_signal",
+            "result": "Retrieval returned only partial source coverage.",
+            "tool_result_quality": {
+                "flags": ["low_signal"],
+                "evidence_count": 0
+            }
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "I ran a batch search, but the results were low-signal, so I cannot answer.",
+            &tools,
+        ));
+        assert!(response_violates_tool_backed_final_verifier(
+            "Based on the search attempt, there is not enough retrieved evidence to decide.",
+            &tools,
+        ));
+        assert!(!response_violates_tool_backed_final_verifier(
+            "The practical answer is to treat the choice as unverified by this turn and avoid a strong recommendation until source coverage improves. The retrieval attempt was low-signal, so this is bounded guidance.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn final_verifier_rejects_missing_evidence_claim_when_refs_exist() {
+        let tools = vec![json!({
+            "name": "web_search",
+            "status": "ok",
+            "result": "Official docs say the library supports typed agent outputs.",
+            "evidence_refs": [{
+                "title": "Official docs",
+                "locator": "https://example.test/docs"
+            }],
+            "tool_result_quality": {
+                "evidence_count": 1
+            }
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "No evidence is available for this question, so I cannot answer.",
+            &tools,
+        ));
+        assert!(!response_violates_tool_backed_final_verifier(
+            "Bottom line: the recorded source supports typed agent outputs, but it does not prove production maturity. Treat the evidence as useful for capability fit and still verify operations, support, and deployment references.",
+            &tools,
+        ));
+    }
+
+    #[test]
+    fn final_synthesis_retry_guidance_is_internal_and_format_free() {
+        let prompt = workflow_final_synthesis_retry_prompt_context(
+            "final_response_verifier_contract",
+            "The web search results are too thin.",
+        );
+        let lowered = prompt.to_ascii_lowercase();
+
+        assert!(lowered.contains("internal final-response verifier retry"));
+        assert!(lowered.contains("lead with the best bounded answer"));
+        assert!(lowered.contains("do not mention this verifier"));
+        assert!(lowered.contains("required output format"));
+    }
+
+    #[test]
     fn latent_tool_candidates_do_not_force_prompt_only_gate() {
         let message = "what? why are you repeating the same fallback text?";
         let latent_tool_candidates = json!([{"tool": "web_search"}]);
@@ -2650,6 +2966,209 @@ mod workflow_fallback_tests {
 
         assert!(!no_tool_minimal_final_turn);
         assert!(!manual_toolbox_prompt_only_turn);
+    }
+
+    #[test]
+    fn single_workflow_only_latent_candidate_can_recover_pending_tool_request() {
+        let candidates = json!([{
+            "workflow_only": true,
+            "selected_tool_family": "web_research",
+            "selected_tool_key": "batch_query",
+            "selected_tool_label": "Research query pack",
+            "input": {
+                "source": "web",
+                "query": "compare retrieval tools",
+                "aperture": "medium"
+            }
+        }]);
+
+        let pending = manual_toolbox_pending_request_from_latent_candidates(
+            &candidates,
+            "Research Firecrawl, Tavily, and Exa.",
+        )
+        .expect("single valid latent candidate");
+
+        assert_eq!(
+            pending.get("tool_name").and_then(Value::as_str),
+            Some("batch_query")
+        );
+        assert_eq!(
+            pending.get("selected_tool_key").and_then(Value::as_str),
+            Some("batch_query")
+        );
+        assert_eq!(
+            pending.get("source").and_then(Value::as_str),
+            Some("latent_candidate_recovery")
+        );
+        assert_eq!(
+            pending.pointer("/input/query").and_then(Value::as_str),
+            Some("compare retrieval tools")
+        );
+        assert!(
+            pending.pointer("/input/keywords/0").is_some(),
+            "recovered batch query should carry keyword metadata: {pending:?}"
+        );
+        assert!(
+            pending.pointer("/input/required_coverage").is_some(),
+            "recovered batch query should carry coverage metadata: {pending:?}"
+        );
+        let entities = pending
+            .pointer("/input/required_coverage/entities")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for expected in ["Firecrawl", "Tavily", "Exa"] {
+            assert!(
+                entities.iter().any(|value| value.as_str() == Some(expected)),
+                "entity {expected} should be preserved as its own query-pack target: {pending:?}"
+            );
+        }
+        assert_eq!(
+            pending
+                .pointer("/input/query_metadata_policy/classification")
+                .and_then(Value::as_str),
+            Some("expanded_query_pack")
+        );
+    }
+
+    #[test]
+    fn latent_candidate_recovery_marks_narrow_batch_query_without_forcing_metadata() {
+        let candidates = json!([{
+            "workflow_only": true,
+            "selected_tool_family": "web_research",
+            "selected_tool_key": "batch_query",
+            "selected_tool_label": "Research query pack",
+            "input": {
+                "source": "web",
+                "query": "weather in Denver today",
+                "aperture": "medium"
+            }
+        }]);
+
+        let pending =
+            manual_toolbox_pending_request_from_latent_candidates(&candidates, "weather in Denver today")
+                .expect("single valid latent candidate");
+
+        assert_eq!(
+            pending
+                .pointer("/input/query_metadata_policy/classification")
+                .and_then(Value::as_str),
+            Some("narrow_lookup_or_initial_discovery")
+        );
+    }
+
+    #[test]
+    fn latent_candidates_mark_tool_required_research_without_forcing_trivia() {
+        let research_candidates = latent_tool_candidates_for_message(
+            "Research Firecrawl, Tavily, and Exa as data tools for AI research agents.",
+            &[],
+        );
+        assert_eq!(research_candidates.len(), 1, "{research_candidates:?}");
+        assert_eq!(
+            research_candidates[0]
+                .get("requires_tool_attempt_before_final_answer")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+
+        let trivia_candidates = latent_tool_candidates_for_message("what is 2+2?", &[]);
+        assert_eq!(trivia_candidates.len(), 1, "{trivia_candidates:?}");
+        assert_eq!(
+            trivia_candidates[0]
+                .get("requires_tool_attempt_before_final_answer")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn terminal_invariant_can_require_single_latent_candidate_promotion() {
+        let workflow = json!({
+            "selected_workflow": {
+                "tool_menu_interface_contract": {
+                    "terminal_invariant_contract": {
+                        "valid_latent_candidate_without_tool_attempt_policy": "promote_single_required_candidate_or_structured_failure_before_final_answer",
+                        "required_latent_candidate_flag": "requires_tool_attempt_before_final_answer"
+                    }
+                }
+            }
+        });
+        let candidates = json!([{
+            "workflow_only": true,
+            "selected_tool_family": "web_research",
+            "selected_tool_key": "batch_query",
+            "requires_tool_attempt_before_final_answer": true,
+            "input": {"source": "web", "query": "compare retrieval tools", "aperture": "medium"}
+        }]);
+
+        assert!(workflow_latent_candidate_recovery_required_by_terminal_invariant(
+            &workflow,
+            &candidates
+        ));
+    }
+
+    #[test]
+    fn latent_candidate_recovery_refuses_ambiguous_candidates() {
+        let candidates = json!([
+            {
+                "workflow_only": true,
+                "selected_tool_family": "web_research",
+                "selected_tool_key": "batch_query",
+                "input": {"source": "web", "query": "first", "aperture": "medium"}
+            },
+            {
+                "workflow_only": true,
+                "selected_tool_family": "web_research",
+                "selected_tool_key": "web_search",
+                "input": {"source": "web", "query": "second", "aperture": "medium"}
+            }
+        ]);
+
+        assert!(manual_toolbox_pending_request_from_latent_candidates(
+            &candidates,
+            "Research something current.",
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn latent_candidate_recovery_requires_missing_evidence_or_gate_diagnostic() {
+        let missing_evidence_workflow = json!({
+            "response": "No source-backed synthesis is available because I don't have recorded tool results for this turn."
+        });
+        let direct_answer_workflow = json!({
+            "response": "The answer is 4."
+        });
+        let gate_diagnostic_workflow = json!({
+            "workflow_control": {"direct_response_path": "gate_4_pending_llm_tool_request"}
+        });
+        let first_gate_private_workflow = json!({
+            "workflow_control": {"direct_response_path": "first_gate_pending_llm_tool_choice"}
+        });
+        let rejected_private_gate_workflow = json!({
+            "final_llm_response": {"last_reject_reason": "visible_gate_choice_reply"}
+        });
+
+        assert!(workflow_latent_candidate_recovery_needed(
+            &missing_evidence_workflow,
+            ""
+        ));
+        assert!(!workflow_latent_candidate_recovery_needed(
+            &direct_answer_workflow,
+            ""
+        ));
+        assert!(workflow_latent_candidate_recovery_needed(
+            &gate_diagnostic_workflow,
+            ""
+        ));
+        assert!(workflow_latent_candidate_recovery_needed(
+            &first_gate_private_workflow,
+            ""
+        ));
+        assert!(workflow_latent_candidate_recovery_needed(
+            &rejected_private_gate_workflow,
+            ""
+        ));
     }
 
     #[test]
@@ -3196,11 +3715,11 @@ mod workflow_fallback_tests {
             .and_then(Value::as_str)
             .unwrap_or("");
         assert!(!response.trim().is_empty());
-        assert!(response.contains("recorded tool evidence is limited"));
-        assert!(response.contains("Available recorded evidence"));
+        assert!(response.contains("recorded evidence is partial"));
+        assert!(response.contains("Recorded evidence so far"));
         assert!(!response.contains("What we know:"));
-        assert!(response.contains("no complete source-backed conclusion"));
-        assert!(response.contains("bounded next action"));
+        assert!(response.contains("stronger source-backed conclusion"));
+        assert!(response.contains("partial answer"));
         assert!(!response.contains("Tool findings from this turn"));
         assert!(!response.contains("agentic framework"));
         assert!(!response.contains("benchmark"));
@@ -3299,6 +3818,59 @@ mod workflow_fallback_tests {
         assert!(response.contains("LangGraph"));
         assert!(response.contains("CrewAI"));
         assert!(response.contains("OpenHands"));
+    }
+
+    #[test]
+    fn tool_evidence_fallback_names_required_coverage_lanes() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "no_results",
+            "is_error": false,
+            "result": "Search providers ran but did not return usable evidence.",
+            "query_metadata": {
+                "required_coverage": {
+                    "entities": ["PydanticAI", "LangGraph", "CrewAI", "LangChain", "OpenAI Agents SDK"],
+                    "facets": ["production readiness", "type safety"]
+                }
+            },
+            "tool_result_quality": {
+                "status": "low_signal",
+                "flags": ["insufficient_evidence"],
+                "retry": {
+                    "recommended": true,
+                    "reason": "coverage_gap"
+                }
+            }
+        })];
+        let response = fallback_final_response_from_tool_evidence(
+            "Is PydanticAI a serious production option for structured agent workflows in Python?",
+            &tools,
+        );
+
+        assert!(response.contains("PydanticAI"), "{response}");
+        assert!(response.contains("LangGraph"), "{response}");
+        assert!(response.contains("CrewAI"), "{response}");
+        assert!(response.contains("LangChain"), "{response}");
+        assert!(response.contains("OpenAI Agents SDK"), "{response}");
+        assert!(response.contains("production readiness"), "{response}");
+        assert!(response.starts_with("The safest bounded answer"), "{response}");
+
+        let synthesis_input =
+            workflow_synthesis_input_for_final_response("research PydanticAI", &tools, &json!({}));
+        assert_eq!(
+            synthesis_input
+                .pointer("/coverage_gaps/0/requested_text")
+                .and_then(Value::as_str),
+            Some("PydanticAI"),
+            "{synthesis_input:#?}"
+        );
+        assert_eq!(
+            synthesis_input
+                .pointer("/coverage_gaps/0/kind")
+                .and_then(Value::as_str),
+            Some("entity"),
+            "{synthesis_input:#?}"
+        );
     }
 
     #[test]

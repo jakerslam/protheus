@@ -109,6 +109,308 @@ mod quality_tests {
         with_fixture(fixture, || run_request(tmp.path(), request))
     }
 
+    #[test]
+    fn keyword_metadata_compiles_into_visible_query_plan_lanes() {
+        let query = "Assess Alpha Runtime and Beta Search deployment fit.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "keywords": ["deployment readiness", "observability", "release notes"],
+            "required_coverage": {
+                "entities": ["Alpha Runtime", "Beta Search"],
+                "facets": ["deployment readiness", "observability"]
+            },
+            "aliases": ["AlphaRT"],
+            "negative_terms": ["fashion model"],
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "explicit_request_pack_with_metadata"
+        );
+        assert_eq!(plan.queries.first().map(String::as_str), Some(query));
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("\"Alpha Runtime\" deployment readiness")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("\"Beta Search\" observability")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("-\"fashion model\"")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            !plan
+                .queries
+                .iter()
+                .any(|row| row.contains("\"deployment readiness\"")),
+            "{:#?}",
+            plan.queries
+        );
+        assert_eq!(plan.query_metadata.entities, vec!["Alpha Runtime", "Beta Search"]);
+    }
+
+    #[test]
+    fn batch_query_output_retains_query_metadata_for_synthesis() {
+        let query = "Research Alpha Runtime deployment readiness.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "keywords": ["Alpha Runtime", "deployment readiness", "official docs"],
+            "required_coverage": {
+                "entities": ["Alpha Runtime"],
+                "facets": ["deployment readiness"]
+            },
+            "aliases": [],
+            "negative_terms": [],
+            "aperture": "medium"
+        });
+        let out = run_request_with_fixture(
+            json!({
+                "*": {
+                    "ok": true,
+                    "summary": "Alpha Runtime deployment readiness documentation covers release controls, production rollout checks, and observability evidence for operators.",
+                    "requested_url": "https://docs.alpha.example.com/deployment-readiness",
+                    "status_code": 200
+                }
+            }),
+            &request,
+        );
+
+        assert_eq!(
+            out.get("query_plan_source").and_then(Value::as_str),
+            Some("explicit_request_pack_with_metadata")
+        );
+        assert_eq!(
+            out.pointer("/query_metadata/required_coverage/entities/0")
+                .and_then(Value::as_str),
+            Some("Alpha Runtime")
+        );
+        assert_eq!(
+            out.pointer("/query_contract/hidden_query_expansion")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(
+            out.get("query_plan")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.as_str()
+                        .map(|value| value.contains("\"Alpha Runtime\" deployment readiness"))
+                        .unwrap_or(false)
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn facet_only_metadata_compiles_into_visible_query_lanes() {
+        let query = "Research deployment fit";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "required_coverage": {
+                "facets": ["security posture", "cost profile"]
+            },
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "explicit_request_pack_with_metadata"
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "Research deployment fit security posture"),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "Research deployment fit cost profile"),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
+    fn required_coverage_metadata_drives_gap_recovery_and_evidence_facets() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), true);
+        let query = "Research deployment fit";
+        let cost_query = "Research deployment fit cost profile";
+        let security_query = "Research deployment fit security posture";
+        let security_recovery_query = "security posture source-backed evidence";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Deployment fit cost profile evidence describes pricing, operating expense, and budget tradeoffs for adoption decisions.",
+                    "requested_url": "https://example.org/deployment-cost",
+                    "status_code": 200
+                },
+                cost_query: {
+                    "ok": true,
+                    "summary": "Deployment fit cost profile reports implementation cost, maintenance budget, and vendor pricing details.",
+                    "requested_url": "https://example.org/deployment-cost-detail",
+                    "status_code": 200
+                },
+                security_query: {
+                    "ok": true,
+                    "summary": "Garden irrigation guide with seasonal watering tips and soil moisture reminders.",
+                    "requested_url": "https://example.org/garden-irrigation",
+                    "status_code": 200
+                },
+                security_recovery_query: {
+                    "ok": true,
+                    "summary": "Deployment fit security posture source-backed evidence identifies access controls, threat model limits, and operational safeguards.",
+                    "requested_url": "https://example.org/deployment-security",
+                    "status_code": 200
+                }
+            }),
+            || {
+                run_request(
+                    tmp.path(),
+                    &json!({
+                        "source": "web",
+                        "query": query,
+                        "required_coverage": {
+                            "facets": ["cost profile", "security posture"]
+                        },
+                        "aperture": "medium"
+                    }),
+                )
+            },
+        );
+
+        assert_eq!(
+            out.pointer("/query_metadata/required_coverage/facets/1")
+                .and_then(Value::as_str),
+            Some("security posture"),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/second_pass_recovery/used")
+                .and_then(Value::as_bool),
+            Some(true),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/second_pass_recovery/queries")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter()
+                        .any(|row| row.as_str() == Some(security_recovery_query))
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("locator")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .contains("deployment-security")
+                            && row
+                                .get("coverage_facets")
+                                .and_then(Value::as_array)
+                                .map(|facets| !facets.is_empty())
+                                .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("evidence_coverage")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("requested_text").and_then(Value::as_str)
+                            == Some("security posture")
+                            && row.get("facet_kind").and_then(Value::as_str) == Some("facet")
+                            && row.get("status").and_then(Value::as_str) == Some("covered")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn required_entity_coverage_is_tracked_as_entity_lane() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), true);
+        let query = "Research Alpha Runtime production readiness";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Alpha Runtime official release notes describe production readiness, deployment support, and operational maturity for current teams.",
+                    "requested_url": "https://docs.alpha.example.com/release-notes",
+                    "status_code": 200
+                },
+                "\"Alpha Runtime\" production readiness": {
+                    "ok": true,
+                    "summary": "Alpha Runtime production readiness documentation covers deployment controls, support lifecycle, and monitoring expectations.",
+                    "requested_url": "https://docs.alpha.example.com/production",
+                    "status_code": 200
+                }
+            }),
+            || {
+                run_request(
+                    tmp.path(),
+                    &json!({
+                        "source": "web",
+                        "query": query,
+                        "required_coverage": {
+                            "entities": ["Alpha Runtime"],
+                            "facets": ["production readiness"]
+                        },
+                        "aperture": "medium"
+                    }),
+                )
+            },
+        );
+
+        assert!(
+            out.get("evidence_coverage")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("requested_text").and_then(Value::as_str)
+                            == Some("Alpha Runtime")
+                            && row.get("facet_kind").and_then(Value::as_str) == Some("entity")
+                            && row.get("status").and_then(Value::as_str) == Some("covered")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
     fn summary_lowered(out: &Value) -> String {
         out.get("summary")
             .and_then(Value::as_str)
@@ -1181,9 +1483,9 @@ mod quality_tests {
                     "requested_url": "https://www.bing.com/search?q=web+retrieval+quality+evidence+promotion",
                     "status_code": 200
                 },
-                "gdelt_doc::web retrieval quality evidence promotion": {
+                "serperdev::web retrieval quality evidence promotion": {
                     "ok": true,
-                    "provider": "gdelt_doc",
+                    "provider": "serperdev",
                     "summary": "Evidence promotion for web retrieval quality requires source-backed snippets, result-quality lanes, and provider fallback before synthesis.",
                     "content": "A current engineering note explains web retrieval quality, evidence promotion, source-backed snippets, result-quality lanes, provider fallback, and synthesis-safe retrieval. https://example.org/web-retrieval-quality-evidence-promotion",
                     "requested_url": "https://example.org/web-retrieval-quality-evidence-promotion",
@@ -1208,7 +1510,7 @@ mod quality_tests {
             .unwrap_or_default();
         assert!(
             provider_results.iter().any(|row| {
-                row.get("provider").and_then(Value::as_str) == Some("gdelt_doc")
+                row.get("provider").and_then(Value::as_str) == Some("serperdev")
                     && row.get("result_quality").and_then(Value::as_str) == Some("usable")
             }),
             "{provider_results:#?}"
@@ -1284,6 +1586,28 @@ mod quality_tests {
                 .unwrap_or(false),
             "{out:#?}"
         );
+        assert_eq!(
+            out.pointer("/retrieval_broker/primitive").and_then(Value::as_str),
+            Some("web_research"),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/second_pass_recovery/used")
+                .and_then(Value::as_bool),
+            Some(true),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/retrieval_broker/provider_attempts")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("phase").and_then(Value::as_str)
+                        == Some("second_pass_recovery")
+                        && row.get("status").and_then(Value::as_str) == Some("usable")
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
     }
 
     #[test]
@@ -1326,6 +1650,22 @@ mod quality_tests {
                 .and_then(Value::as_array)
                 .map(|rows| rows.iter().any(|row| row.as_str() == Some("low_confidence_raw_evidence")))
                 .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/source_class_coverage/status").and_then(Value::as_str),
+            Some("coverage_gaps"),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/source_class_coverage/missing_facet_count")
+                .and_then(Value::as_u64),
+            Some(1),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/evidence_pack_quality/status").and_then(Value::as_str),
+            Some("low_confidence_only"),
             "{out:#?}"
         );
     }

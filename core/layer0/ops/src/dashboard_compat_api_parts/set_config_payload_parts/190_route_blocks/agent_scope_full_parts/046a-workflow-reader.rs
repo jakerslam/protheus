@@ -7,6 +7,7 @@ struct WorkflowDefinition {
     stages: Vec<String>,
     final_response_policy: String,
     gate_contract: String,
+    workflow_composition_contract: Value,
     workflow_source_of_truth_contract: Value,
     tool_menu_interface_contract: Value,
     final_output_contract: Value,
@@ -23,6 +24,7 @@ fn workflow_definition_to_json(definition: &WorkflowDefinition) -> Value {
         "stages": definition.stages,
         "final_response_policy": definition.final_response_policy,
         "gate_contract": definition.gate_contract,
+        "workflow_composition_contract": definition.workflow_composition_contract,
         "workflow_source_of_truth_contract": definition.workflow_source_of_truth_contract,
         "tool_menu_interface_contract": definition.tool_menu_interface_contract,
         "final_output_contract": definition.final_output_contract,
@@ -370,6 +372,11 @@ fn parse_workflow_definition(source_path: &str, raw_spec: &str) -> Option<Workfl
     if stages.is_empty() {
         return None;
     }
+    let workflow_composition_contract = parsed
+        .get("workflow_composition_contract")
+        .filter(|value| value.is_object())
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let workflow_source_of_truth_contract = parsed
         .get("workflow_source_of_truth_contract")
         .filter(|value| value.is_object())
@@ -404,6 +411,7 @@ fn parse_workflow_definition(source_path: &str, raw_spec: &str) -> Option<Workfl
         stages,
         final_response_policy,
         gate_contract,
+        workflow_composition_contract,
         workflow_source_of_truth_contract,
         tool_menu_interface_contract,
         final_output_contract,
@@ -564,6 +572,7 @@ fn selected_turn_workflow(workflow_mode: &str) -> Value {
         "selection_reason": selection_reason,
         "final_response_policy": selected.final_response_policy,
         "gate_contract": selected.gate_contract,
+        "workflow_composition_contract": selected.workflow_composition_contract,
         "workflow_source_of_truth_contract": selected.workflow_source_of_truth_contract,
         "tool_menu_interface_contract": selected.tool_menu_interface_contract,
         "final_output_contract": selected.final_output_contract,
@@ -613,7 +622,7 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_projects_final_output_contract_from_json_spec() {
-        let selected = selected_turn_workflow("");
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         assert_eq!(
             selected
                 .pointer("/final_output_contract/visible_chat_source")
@@ -697,6 +706,7 @@ mod workflow_reader_tests {
         for check in [
             "answers_the_user_goal",
             "uses_recorded_evidence_when_tool_results_exist",
+            "does_not_claim_no_evidence_when_recorded_evidence_exists",
             "does_not_force_or_depend_on_a_specific_output_format",
         ] {
             assert!(
@@ -706,6 +716,30 @@ mod workflow_reader_tests {
                 "{selected}"
             );
         }
+        assert_eq!(
+            selected
+                .pointer(
+                    "/tool_menu_interface_contract/latent_candidate_recovery_contract/promotion_scope"
+                )
+                .and_then(Value::as_str),
+            Some("single_valid_workflow_only_candidate_after_private_gate_failure_or_terminal_invariant_recovery")
+        );
+        assert_eq!(
+            selected
+                .pointer(
+                    "/tool_menu_interface_contract/terminal_invariant_contract/valid_latent_candidate_without_tool_attempt_policy"
+                )
+                .and_then(Value::as_str),
+            Some("promote_single_required_candidate_or_structured_failure_before_final_answer")
+        );
+        assert_eq!(
+            selected
+                .pointer(
+                    "/tool_menu_interface_contract/terminal_invariant_contract/required_latent_candidate_flag"
+                )
+                .and_then(Value::as_str),
+            Some("requires_tool_attempt_before_final_answer")
+        );
     }
 
     #[test]
@@ -759,8 +793,55 @@ mod workflow_reader_tests {
     }
 
     #[test]
-    fn workflow_reader_web_search_request_contract_omits_reserved_source_field() {
+    fn workflow_reader_default_composite_delegates_web_research_to_child_cd() {
         let selected = selected_turn_workflow("");
+        assert_eq!(
+            selected
+                .pointer("/workflow_composition_contract/cd_kind")
+                .and_then(Value::as_str),
+            Some("composite")
+        );
+        assert_eq!(
+            selected
+                .pointer(
+                    "/workflow_composition_contract/child_workflow_calls/0/workflow_id"
+                )
+                .and_then(Value::as_str),
+            Some("research_synthesize_verify_v1")
+        );
+        assert_eq!(
+            selected
+                .pointer(
+                    "/workflow_composition_contract/child_workflow_calls/0/tool_family_key"
+                )
+                .and_then(Value::as_str),
+            Some("web_research")
+        );
+        assert_eq!(
+            selected
+                .pointer(
+                    "/tool_menu_interface_contract/delegated_capability_contract_refs/web_research/workflow_id"
+                )
+                .and_then(Value::as_str),
+            Some("research_synthesize_verify_v1")
+        );
+        let projected = workflow_tool_menu_contract_for_family("web_research");
+        assert!(projected
+            .pointer("/retrieval_recovery_contract/version")
+            .and_then(Value::as_str)
+            .is_some());
+        assert!(projected
+            .pointer("/tool_menu_by_family/web_research")
+            .and_then(Value::as_array)
+            .map(|tools| tools.iter().any(|tool| {
+                tool.get("key").and_then(Value::as_str) == Some("batch_query")
+            }))
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn workflow_reader_web_search_request_contract_omits_reserved_source_field() {
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         let web_search = selected
             .pointer("/tool_menu_interface_contract/tool_menu_by_family/web_research")
             .and_then(Value::as_array)
@@ -793,7 +874,7 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_web_research_menu_exposes_batch_query_pack_contract() {
-        let selected = selected_turn_workflow("");
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         let batch_query = selected
             .pointer("/tool_menu_interface_contract/tool_menu_by_family/web_research")
             .and_then(Value::as_array)
@@ -832,11 +913,27 @@ mod workflow_reader_tests {
                 .unwrap_or(false),
             "{batch_query}"
         );
+        assert!(
+            batch_query
+                .pointer("/request_format/keywords")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false),
+            "{batch_query}"
+        );
+        assert!(
+            batch_query
+                .pointer("/request_format/required_coverage/entities")
+                .and_then(Value::as_array)
+                .map(|rows| !rows.is_empty())
+                .unwrap_or(false),
+            "{batch_query}"
+        );
     }
 
     #[test]
     fn workflow_reader_web_research_menu_preserves_tool_cd_refs() {
-        let selected = selected_turn_workflow("");
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         let web_tools = selected
             .pointer("/tool_menu_interface_contract/tool_menu_by_family/web_research")
             .and_then(Value::as_array)
@@ -872,7 +969,7 @@ mod workflow_reader_tests {
             "{gate_instruction}"
         );
         assert!(
-            gate_instruction.contains("freshness-sensitive external information or judgment that depends on current public evidence"),
+            gate_instruction.contains("freshness-sensitive information"),
             "{gate_instruction}"
         );
         assert!(
@@ -882,7 +979,7 @@ mod workflow_reader_tests {
         assert!(
             gate_instruction
                 .to_ascii_lowercase()
-                .contains("no returned tool result is available"),
+                .contains("no source-backed synthesis is available"),
             "{gate_instruction}"
         );
         assert!(
@@ -926,7 +1023,7 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_final_answer_contract_uses_general_research_shapes() {
-        let selected = selected_turn_workflow("");
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         let chat_requirement = selected
             .pointer("/tool_menu_interface_contract/gates/gate_6_llm_final_output/final_output_contract/chat_requirement")
             .and_then(Value::as_str)
@@ -941,15 +1038,15 @@ mod workflow_reader_tests {
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For comparison requests"),
+            chat_requirement.contains("For comparisons"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For ranking or selection requests"),
+            chat_requirement.contains("For rankings, selections, or tool-choice questions"),
             "{chat_requirement}"
         );
         assert!(
-            chat_requirement.contains("For low-signal or partial-result recovery"),
+            chat_requirement.contains("For low_signal evidence"),
             "{chat_requirement}"
         );
         assert!(
@@ -965,7 +1062,7 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_projects_retrieval_recovery_contract_from_json_spec() {
-        let selected = selected_turn_workflow("");
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         let recovery = selected
             .pointer("/tool_menu_interface_contract/retrieval_recovery_contract")
             .expect("retrieval recovery contract");
@@ -1027,7 +1124,7 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_payload_instruction_requires_batch_query_top_level_query() {
-        let selected = selected_turn_workflow("");
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         let payload_instruction = selected
             .pointer("/tool_menu_interface_contract/llm_tool_payload_instruction")
             .and_then(Value::as_str)
@@ -1097,24 +1194,25 @@ mod workflow_reader_tests {
 
     #[test]
     fn workflow_reader_tool_selection_prefers_web_search_for_single_library_research() {
-        let selected = selected_turn_workflow("");
+        let selected = selected_turn_workflow("workflow=research_synthesize_verify_v1");
         let selection_instruction = selected
             .pointer("/tool_menu_interface_contract/llm_tool_selection_instruction")
             .and_then(Value::as_str)
             .expect("tool selection instruction");
 
         assert!(
-            selection_instruction.contains("single-product/library research centered on one named tool"),
+            selection_instruction.contains("choose `batch_query` when the task may need multiple evidence slices"),
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("Research Mastra for TypeScript agent workflows and whether it competes with LangGraph."),
+            selection_instruction.contains("Choose `web_search` for one narrow lookup"),
             "{selection_instruction}"
         );
         assert!(
-            selection_instruction.contains("{\"tool\": \"web_search\"}"),
+            selection_instruction.contains("{\"tool\":\"batch_query\"}"),
             "{selection_instruction}"
         );
+        assert!(!selection_instruction.contains("Mastra"), "{selection_instruction}");
     }
 
     #[test]

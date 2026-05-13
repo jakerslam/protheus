@@ -54,6 +54,34 @@
         "do_not_treat_weak_raw_rows_as_strong_source_backing"
       ]
     },
+    "source_diversification": {
+      "enabled": true,
+      "purpose": "track source-class and source-domain breadth as synthesis calibration, without requiring every research question to use every source class",
+      "min_source_classes": 2,
+      "preferred_source_classes": [
+        "official_or_primary",
+        "scholarly_or_research",
+        "news_or_current",
+        "independent_analysis",
+        "general_web"
+      ],
+      "non_goals": [
+        "do_not_hardcode_domains_or_topics",
+        "do_not_treat_source_class_diversity_as_more_important_than_relevance",
+        "do_not_force_visible_answer_format"
+      ]
+    },
+    "evidence_pack_quality": {
+      "enabled": true,
+      "min_usable_items": 2,
+      "min_source_domains": 2,
+      "purpose": "report whether the hidden evidence pack is absent, thin, low-confidence-only, or usable before final synthesis",
+      "non_goals": [
+        "do_not_use_quality_metadata_as_citable_evidence",
+        "do_not_treat_candidate_count_as_sufficiency",
+        "do_not_prescribe_answer_shape"
+      ]
+    },
     "second_pass_recovery": {
       "enabled": true,
       "trigger": "no_usable_synthesis_candidates_or_no_raw_provider_artifacts_after_first_pass",
@@ -133,6 +161,8 @@
       ],
       "planning_rules": [
         "preserve the user's original research objective as the top-level query",
+        "when the workflow payload includes keywords, required coverage, aliases, or negative terms, treat them as agent-submitted retrieval metadata and compile them into visible query-plan lanes instead of hidden expansion",
+        "quote exact entity and alias phrases when compiling metadata lanes, but do not quote generic facets or keywords by default",
         "a single broad query may start discovery, but it is not enough to finish broad, comparative, current, evaluative, multi-entity, or multi-aspect research unless evidence sufficiency is already met",
         "after a weak discovery pass, use the observed snippets, off-topic terms, and missing buckets to submit targeted follow-up queries instead of asking the user to narrow",
         "when the prompt names multiple entities or candidates, allocate at least one retrieval lane to each major entity before synthesis",
@@ -859,13 +889,12 @@
         "providers": [
           "duckduckgo_lite",
           "bing_rss",
-          "serperdev",
-          "gdelt_doc"
+          "serperdev"
         ],
         "current_intent_providers": [
           "bing_rss",
           "serperdev",
-          "gdelt_doc"
+          "duckduckgo_lite"
         ]
       }
     },

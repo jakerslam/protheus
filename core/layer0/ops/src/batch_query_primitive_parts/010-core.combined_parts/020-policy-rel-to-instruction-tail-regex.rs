@@ -164,10 +164,10 @@ fn default_policy() -> Value {
                     "enabled": true,
                     "max_providers": 2,
                     "providers": [
-                        "gdelt_doc"
+                        "serperdev"
                     ],
                     "current_intent_providers": [
-                        "gdelt_doc"
+                        "duckduckgo_lite"
                     ]
                 }
             },

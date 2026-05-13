@@ -449,6 +449,11 @@ fn research_golden_accepts_batch_query_as_web_search_gate_alias() {
                                 "Infring docs workflow gates",
                                 "LangGraph docs durable state"
                             ],
+                            "keywords": ["Infring", "LangGraph", "workflow gates", "durable state"],
+                            "required_coverage": {
+                                "entities": ["Infring", "LangGraph"],
+                                "facets": ["workflow gates", "durable state"]
+                            },
                             "aperture": "medium"
                         }
                     },
@@ -482,6 +487,16 @@ fn research_golden_accepts_batch_query_as_web_search_gate_alias() {
     assert_eq!(
         report.pointer("/cases/0/gate_transition_diagnostics/first_failed_checkpoint"),
         Some(&Value::Null)
+    );
+    assert_eq!(
+        report.pointer("/measurement_split/query_metadata_planning/metadata_present_rate"),
+        Some(&json!(1.0))
+    );
+    assert_eq!(
+        report.pointer(
+            "/measurement_split/query_metadata_planning/rich_query_pack_or_narrow_marker_rate"
+        ),
+        Some(&json!(1.0))
     );
 }
 
