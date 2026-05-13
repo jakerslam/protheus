@@ -1,0 +1,248 @@
+{
+  "name": "provider_transport_boundary",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for provider transport boundaries: rendering configured provider templates, model-source URLs, chat/model delegation, credential migration, and auth-user service calls.",
+  "stages": [
+    "provider_template_lookup",
+    "credential_param_template_rendering",
+    "model_source_rendering",
+    "configured_provider_projection",
+    "provider_chat_or_models_delegation",
+    "auth_user_service_projection",
+    "provider_transport_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "provider_transport_boundary_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "provider_render_status",
+      "model_source_status",
+      "configured_provider_status",
+      "chat_delegation_status",
+      "models_delegation_status",
+      "auth_user_service_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "route provider transport setup without hiding template rendering or credential boundaries",
+      "scope_boundary": "do not decide coding architecture, mutate files, or expose credentials",
+      "validation_calibration": "report transport readiness separately from provider response success",
+      "visibility": "do not expose API keys, URL params, bearer tokens, or raw provider payloads"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact provider transport receipts without storing credentials or raw provider payloads.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_credentials",
+      "do_not_hide_template_render_failures",
+      "do_not_claim_chat_success_from_transport_readiness",
+      "do_not_replace_runtime_execution_loop"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "provider_template_lookup->credential_param_template_rendering",
+      "credential_param_template_rendering->model_source_rendering",
+      "model_source_rendering->configured_provider_projection",
+      "configured_provider_projection->provider_chat_or_models_delegation",
+      "provider_chat_or_models_delegation->auth_user_service_projection",
+      "auth_user_service_projection->provider_transport_receipt_packaging",
+      "provider_transport_receipt_packaging->completed",
+      "provider_template_lookup->blocked",
+      "credential_param_template_rendering->blocked",
+      "provider_chat_or_models_delegation->failed"
+    ],
+    "timeout_ms": 60000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 7,
+      "max_model_turns": 1,
+      "max_tool_calls": 6,
+      "token_budget": 6000,
+      "loop_signature_detector": "provider_transport_boundary_v1"
+    }
+  },
+  "remote_service_primitive_contract": {
+    "version": "provider_transport_boundary_v1",
+    "source_evidence": [
+      "crates/forge_services/src/provider_service.rs",
+      "crates/forge_services/src/auth.rs",
+      "crates/forge_domain/src/repo.rs"
+    ],
+    "required_behaviors": [
+      "provider_template_urls_render_with_credential_url_params",
+      "model_source_url_templates_render_with_credential_url_params",
+      "configured_template_providers_project_to_url_providers",
+      "unconfigured_or_unrenderable_providers_are_returned_as_is_in_provider_lists",
+      "get_provider_requires_renderable_configured_provider",
+      "chat_and_models_delegate_to_repository_without_repository_level_caching",
+      "credential_upsert_remove_and_env_migration_delegate_to_provider_repository",
+      "auth_user_info_and_usage_use_services_url_bearer_token_and_status_checked_http_get"
+    ],
+    "output_receipts": [
+      "provider_template_render_receipt",
+      "model_source_render_receipt",
+      "configured_provider_projection_receipt",
+      "provider_repository_delegation_receipt",
+      "auth_user_service_receipt",
+      "secret_redaction_receipt"
+    ],
+    "stop_conditions": [
+      "provider_has_no_credential",
+      "provider_url_template_render_failed",
+      "model_source_url_template_unrenderable",
+      "auth_user_service_failed",
+      "provider_repository_call_failed"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "provider_transport_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace"
+    ]
+  }
+}

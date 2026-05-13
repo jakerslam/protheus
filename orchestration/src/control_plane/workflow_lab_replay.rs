@@ -113,6 +113,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         planned_slices: &[
             "coding_ingress_guard_initialization",
             "session_bootstrap_guard_initialization",
+            "remote_service_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "single_file_local_code_execution",
@@ -121,6 +122,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         required_child_capabilities: &[
             "coding_ingress_guard",
             "session_bootstrap_guard",
+            "remote_service_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -142,6 +144,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         planned_slices: &[
             "coding_ingress_guard_initialization",
             "session_bootstrap_guard_initialization",
+            "remote_service_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "domain_model_slice",
@@ -153,6 +156,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "research_context",
             "coding_ingress_guard",
             "session_bootstrap_guard",
+            "remote_service_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -174,6 +178,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         planned_slices: &[
             "coding_ingress_guard_initialization",
             "session_bootstrap_guard_initialization",
+            "remote_service_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "targeted_feature_slice",
@@ -183,6 +188,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         required_child_capabilities: &[
             "coding_ingress_guard",
             "session_bootstrap_guard",
+            "remote_service_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -409,6 +415,15 @@ fn task_execution(
     {
         failures.push(format!(
             "missing_local_coding_session_bootstrap_guard_slice:{}",
+            scenario.id
+        ));
+    }
+    if !slice_invocations
+        .iter()
+        .any(|slice| slice.child_workflow_id == "local_coding_remote_service_guard")
+    {
+        failures.push(format!(
+            "missing_local_coding_remote_service_guard_slice:{}",
             scenario.id
         ));
     }
@@ -687,6 +702,11 @@ fn slices_for_scenario(
         "session_bootstrap_guard",
         "local_coding_session_bootstrap_guard",
     );
+    let remote_service_guard = child_call(
+        child_calls,
+        "remote_service_guard",
+        "local_coding_remote_service_guard",
+    );
 
     match scenario.id {
         "single_file_utility" => vec![
@@ -705,6 +725,14 @@ fn slices_for_scenario(
                 vec!["conversation state", "agent runtime", "terminal context", "tracked file metrics"],
                 vec!["session runtime state is initialized", "external file changes are receipt-backed"],
                 "session bootstrap artifact is available before policy guard",
+            ),
+            slice(
+                "remote_service_guard_initialization",
+                "Route optional remote workspace auth, sync, semantic search, and provider transport through explicit boundaries before local planning.",
+                remote_service_guard,
+                vec!["remote workspace auth", "semantic index", "provider transport"],
+                vec!["remote service use is explicit", "local file receipts remain authoritative"],
+                "remote service guard artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -806,6 +834,14 @@ fn slices_for_scenario(
                 vec!["conversation state", "agent runtime", "terminal context", "tracked file metrics"],
                 vec!["session runtime state is initialized", "external file changes are receipt-backed"],
                 "session bootstrap artifact is available before policy guard",
+            ),
+            slice(
+                "remote_service_guard_initialization",
+                "Route optional remote workspace auth, sync, semantic search, and provider transport through explicit boundaries before local planning.",
+                remote_service_guard,
+                vec!["remote workspace auth", "semantic index", "provider transport"],
+                vec!["remote service use is explicit", "local file receipts remain authoritative"],
+                "remote service guard artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -920,6 +956,14 @@ fn slices_for_scenario(
                 vec!["conversation state", "agent runtime", "terminal context", "tracked file metrics"],
                 vec!["session runtime state is initialized", "external file changes are receipt-backed"],
                 "session bootstrap artifact is available before policy guard",
+            ),
+            slice(
+                "remote_service_guard_initialization",
+                "Route optional remote workspace auth, sync, semantic search, and provider transport through explicit boundaries before local planning.",
+                remote_service_guard,
+                vec!["remote workspace auth", "semantic index", "provider transport"],
+                vec!["remote service use is explicit", "local file receipts remain authoritative"],
+                "remote service guard artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -1137,6 +1181,7 @@ fn static_child_value(value: &str) -> &'static str {
         "research_context" => "research_context",
         "coding_ingress_guard" => "coding_ingress_guard",
         "session_bootstrap_guard" => "session_bootstrap_guard",
+        "remote_service_guard" => "remote_service_guard",
         "policy_permission_guard" => "policy_permission_guard",
         "context_loop_guard" => "context_loop_guard",
         "tooling_surface_guard" => "tooling_surface_guard",
@@ -1161,6 +1206,13 @@ fn static_child_value(value: &str) -> &'static str {
         },
         "local_coding_session_bootstrap_guard_result_artifact_v1" => {
             "local_coding_session_bootstrap_guard_result_artifact_v1"
+        },
+        "local_coding_remote_service_guard" => "local_coding_remote_service_guard",
+        "local_coding_remote_service_guard_input_envelope_v1" => {
+            "local_coding_remote_service_guard_input_envelope_v1"
+        },
+        "local_coding_remote_service_guard_result_artifact_v1" => {
+            "local_coding_remote_service_guard_result_artifact_v1"
         },
         "local_policy_permission_guard" => "local_policy_permission_guard",
         "local_policy_permission_guard_input_envelope_v1" => {

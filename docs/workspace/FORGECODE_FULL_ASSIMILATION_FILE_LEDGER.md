@@ -92,6 +92,7 @@ Top-level source areas:
 | `FC-A11` | Extract user-visible output and observability semantics | active | Observability-layer contract pass added for ChatResponse visibility routing, streaming markdown projection, tool output formatting, trace rate limiting, and the `local_runtime_observability_guard` composite. |
 | `FC-A12` | Extract CLI, session, command, and user-prompt ingress semantics | active | Ingress-layer contract pass added for CLI prompt/piped input normalization, interactive session state, command prompt generation, user prompt context assembly, and the `local_coding_ingress_guard` composite. |
 | `FC-A13` | Extract pre-runtime session bootstrap semantics | active | Session-layer contract pass added for provider/model binding, conversation bootstrap, terminal command snapshots, external file-change notices, title/commit helpers, and the `local_coding_session_bootstrap_guard` composite. |
+| `FC-A14` | Extract remote workspace, semantic search, provider transport, and auth service boundaries | active | Remote-service contract pass added for workspace auth, sync/indexing, semantic search, provider transport, and the `local_coding_remote_service_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -148,6 +149,11 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `external_file_change_notice` | 0 | `forge_app/changed_files`, `forge_app/file_tracking` | lab contract created | Rechecks tracked file hashes, reports unreadable/changed files, updates metrics, and injects droppable re-read notices. |
 | `title_commit_helper_generation` | 0 | `forge_app/title_generator`, `forge_app/git_app`, title and commit templates | lab contract created | Generates title/commit helper artifacts with schema fallback, git diff selection, commit provider fallback, retryable empty messages, and explicit commit-approval envelopes. |
 | `local_coding_session_bootstrap_guard` | 1 | `forge_app` session/bootstrap helpers, terminal context, changed files, title/commit helpers | lab contract created | Composite guard that prepares provider/model, conversation, terminal, external-change, and helper-route state before policy, tooling, runtime, planning, or coding. |
+| `workspace_remote_auth_boundary` | 0 | `forge_services/context_engine`, `forge_services/auth`, `forge_services/provider_auth`, `forge_domain/repo`, `forge_domain/node` | lab contract created | Establishes ForgeServices workspace credentials, user id receipts, provider auth contexts, credential refresh boundaries, and secret redaction before remote actions. |
+| `workspace_sync_indexing` | 0 | `forge_services/context_engine`, `forge_services/sync`, `forge_services/fd`, `forge_services/fd_git`, `forge_app/workspace_status`, `forge_domain/node` | lab contract created | Syncs remote indexes through canonical paths, exact/ancestor workspace lookup, git/walker discovery, hash comparison, batched delete/upload, progress, and failed-file receipts. |
+| `codebase_semantic_search` | 0 | `forge_services/context_engine`, `forge_domain/repo`, `forge_domain/node` | lab contract created | Runs semantic search against indexed workspaces while preserving query/use-case, workspace freshness, ranking metadata, and local-read dependency boundaries. |
+| `provider_transport_boundary` | 0 | `forge_services/provider_service`, `forge_services/auth`, `forge_domain/repo` | lab contract created | Renders configured provider URL templates and model-source URLs, delegates chat/model calls, migrates credentials, and records auth-user service receipts without leaking secrets. |
+| `local_coding_remote_service_guard` | 1 | `forge_services/context_engine`, `forge_services/sync`, `forge_services/provider_service`, `forge_services/provider_auth`, `forge_domain/repo`, `forge_domain/node` | lab contract created | Composite guard that isolates remote auth, workspace sync/indexing, semantic search, and provider transport from local file mutation and validation. |
 
 ## Runtime behavior harnesses created
 
@@ -163,7 +169,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | ingress/session/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | ingress/session/remote-service/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -229,10 +235,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
 
 Next source pass:
-- Inspect ForgeCode workspace sync, semantic search, OAuth/provider auth, and remote service boundaries for remaining parity gaps that may belong outside the primitive coding workflow.
+- Run a full ledger parity review against the remaining ForgeCode source inventory and identify any unmodeled source families before shifting from structural assimilation to executable eval coverage.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -455,3 +461,37 @@ Session-layer parity requirements extracted:
 | Keep title and commit helper generation separate from coding, validation, and git mutation | `title_commit_helper_generation` | P1 |
 | Require explicit parent approval before any commit helper mutates git state | `title_commit_helper_generation` | P0 |
 | Keep session bootstrap separate from ingress, permission policy, architecture planning, local file mutation, validation, and runtime loop execution | `local_coding_session_bootstrap_guard` | P0 |
+
+## Tenth source pass: remote workspace, semantic search, auth, and provider transport boundaries
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_services/src/context_engine.rs` | Authenticates ForgeServices workspace access, stores workspace API-key credentials with user id params, finds workspaces by exact path then closest ancestor, syncs only existing workspaces, initializes new workspaces explicitly, queries semantic search, lists/deletes workspaces, and computes workspace status. | Remote workspace behavior should be modeled as a guard because it can support coding context but is not local file truth or validation. |
+| `crates/forge_services/src/sync.rs` | Canonicalizes paths, emits progress events, hashes files in a first pass, compares remote hashes, batches deletes, uploads files in configured sequential batches, records failed file statuses, and fails if any files failed. | Workspace sync needs progress and failure receipts, plus an explicit boundary that prevents treating indexing as code correctness. |
+| `crates/forge_services/src/fd.rs` | Filters sync files by allowed extensions, excludes symlinks and lock/generated names, errors when no source files are found, and falls back from git discovery to walker discovery. | Remote indexing needs its own file discovery contract separate from repo-context scanning and safe file reads. |
+| `crates/forge_services/src/fd_git.rs` | Uses `git ls-files`, rejects non-zero git output, rejects empty tracked-file sets, and resolves discovered files against the workspace root. | Git-backed discovery is preferred for remote sync but must have walker fallback and error receipts. |
+| `crates/forge_services/src/auth.rs` | Fetches user info and usage from configured services URL with bearer auth and status-checked HTTP GET. | Auth/user-service calls belong to provider/remote transport, not coding primitives. |
+| `crates/forge_services/src/provider_auth.rs` | Initializes API key, Google ADC, OAuth code, device, and Codex device flows; pre-fills existing credentials; stores completed credentials; refreshes OAuth-like credentials with a five-minute expiry buffer and tolerates refresh failures. | Provider auth must keep user-visible auth routes and secret redaction explicit before runtime calls rely on credentials. |
+| `crates/forge_services/src/provider_service.rs` | Renders provider and model-source URL templates using credential URL params, projects configured template providers into URL providers, delegates chat/model calls, and forwards credential mutation/migration to repositories. | Provider transport should be separate from runtime loop execution and should not leak URL params or raw provider payloads. |
+| `crates/forge_domain/src/repo.rs` | Defines provider repositories and workspace index repositories for auth, workspace creation, upload, semantic search, listing, file hash listing, deletion, and credential migration. | The workflow should distinguish repository/service boundaries from model-facing coding behavior. |
+| `crates/forge_domain/src/node.rs` | Defines workspace auth, file upload records, codebase wrappers, search params, workspace info, upload stats, codebase query results, semantic nodes, and ranking metadata. | Remote search results need freshness and ranking receipts and should be followed by local safe reads before edits. |
+
+Remote-service parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Workspace auth stores ForgeServices API key plus user id and blocks remote actions when missing | `workspace_remote_auth_boundary` | P0 |
+| Provider auth exposes API key, Google ADC, OAuth code/device, and Codex device flows without leaking secrets | `workspace_remote_auth_boundary` | P0 |
+| Provider credential refresh uses a five-minute buffer and reports refresh failures without discarding existing credentials | `workspace_remote_auth_boundary` | P0 |
+| Workspace sync canonicalizes paths and requires an existing indexed workspace unless explicitly initializing | `workspace_sync_indexing` | P0 |
+| Workspace lookup prefers exact path then closest ancestor workspace | `workspace_sync_indexing`, `codebase_semantic_search` | P0 |
+| Remote sync discovers source files through git first, walker fallback, allowed extensions, lockfile filters, and symlink exclusion | `workspace_sync_indexing` | P0 |
+| Remote sync compares hashes before delete/upload and uses configured sequential upload batches | `workspace_sync_indexing` | P0 |
+| Failed file reads are included in sync/status receipts and fail the sync when present | `workspace_sync_indexing` | P0 |
+| Semantic search wraps user id, workspace id, query, use-case, limits, and path filters and preserves ranking metadata | `codebase_semantic_search` | P0 |
+| Semantic search must not replace exact local safe reads before file edits | `codebase_semantic_search`, `local_coding_remote_service_guard` | P0 |
+| Provider URL templates and model-source templates render only with configured credential params and redact secrets | `provider_transport_boundary` | P0 |
+| Provider transport readiness must stay separate from runtime-loop provider turn success | `provider_transport_boundary`, `local_runtime_execution_loop` | P0 |
+| Keep remote auth/sync/search/transport separate from local file mutation, validation, and checkpoint handoff | `local_coding_remote_service_guard` | P0 |

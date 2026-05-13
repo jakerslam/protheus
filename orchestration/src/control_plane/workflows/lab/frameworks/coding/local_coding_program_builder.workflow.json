@@ -42,6 +42,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "remote_service_guard",
+        "workflow_id": "local_coding_remote_service_guard",
+        "input_contract": "local_coding_remote_service_guard_input_envelope_v1",
+        "output_artifact": "local_coding_remote_service_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "policy_permission_guard",
         "workflow_id": "local_policy_permission_guard",
         "input_contract": "local_policy_permission_guard_input_envelope_v1",
@@ -134,6 +142,7 @@
     "intake_normalization",
     "coding_ingress_guard_initialization",
     "session_bootstrap_guard_initialization",
+    "remote_service_guard_initialization",
     "policy_permission_guard_initialization",
     "context_and_tool_guard_initialization",
     "tooling_surface_guard_initialization",
@@ -165,6 +174,11 @@
       "terminal_command_context_snapshot",
       "external_file_change_notice",
       "title_commit_helper_generation",
+      "local_coding_remote_service_guard",
+      "workspace_remote_auth_boundary",
+      "workspace_sync_indexing",
+      "codebase_semantic_search",
+      "provider_transport_boundary",
       "local_policy_permission_guard",
       "forge_config_resolution",
       "operation_permission_gate",
@@ -256,7 +270,8 @@
     "allowed_transitions": [
       "intake_normalization->coding_ingress_guard_initialization",
       "coding_ingress_guard_initialization->session_bootstrap_guard_initialization",
-      "session_bootstrap_guard_initialization->policy_permission_guard_initialization",
+      "session_bootstrap_guard_initialization->remote_service_guard_initialization",
+      "remote_service_guard_initialization->policy_permission_guard_initialization",
       "policy_permission_guard_initialization->context_and_tool_guard_initialization",
       "context_and_tool_guard_initialization->checkpoint_definition",
       "context_and_tool_guard_initialization->tooling_surface_guard_initialization",
@@ -281,6 +296,8 @@
       "coding_ingress_guard_initialization->failed",
       "session_bootstrap_guard_initialization->blocked",
       "session_bootstrap_guard_initialization->failed",
+      "remote_service_guard_initialization->blocked",
+      "remote_service_guard_initialization->failed",
       "policy_permission_guard_initialization->blocked",
       "context_and_tool_guard_initialization->blocked",
       "tooling_surface_guard_initialization->blocked",
@@ -429,7 +446,7 @@
       ]
     },
     "slice_policy": {
-      "default_max_slices": 12,
+      "default_max_slices": 14,
       "slice_required_fields": [
         "name",
         "goal",
@@ -505,6 +522,30 @@
         "do_not_choose_architecture_inside_session_bootstrap",
         "do_not_apply_permission_policy_inside_session_bootstrap",
         "do_not_mutate_files_or_git_state_inside_session_bootstrap"
+      ]
+    },
+    "remote_service_guard_contract": {
+      "source": "forgecode_assimilated_remote_service_layer",
+      "required_composite_workflow_id": "local_coding_remote_service_guard",
+      "required_primitive_workflow_ids": [
+        "workspace_remote_auth_boundary",
+        "workspace_sync_indexing",
+        "codebase_semantic_search",
+        "provider_transport_boundary"
+      ],
+      "activation_policy": "local coding tasks may route remote workspace auth, sync/indexing, semantic search, and provider transport through ForgeCode-style remote service boundaries, but local file mutation and validation must remain owned by local safety primitives",
+      "required_receipts": [
+        "workspace_remote_auth_receipt",
+        "workspace_sync_indexing_receipt",
+        "codebase_semantic_search_receipt",
+        "provider_transport_receipt",
+        "remote_freshness_dependency_receipt"
+      ],
+      "non_goals": [
+        "do_not_replace_safe_local_file_reads",
+        "do_not_treat_semantic_search_as_exact_file_context",
+        "do_not_treat_workspace_sync_as_validation",
+        "do_not_store_or_emit_remote_service_secrets"
       ]
     },
     "context_loop_guard_contract": {
@@ -679,6 +720,7 @@
       "checkpoint",
       "ingress_context",
       "session_bootstrap",
+      "remote_service_context",
       "architecture_contract",
       "completed_slices",
       "active_slice",
