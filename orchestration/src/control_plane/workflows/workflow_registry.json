@@ -1281,6 +1281,24 @@
       ]
     },
     {
+      "workflow_id": "forge_controlled_eval_run_boundary",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_governance_evaluation_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_governance/forge_controlled_eval_run_boundary.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "explicit_eval_run_authorization_boundary",
+        "eval_result_receipt_requirements_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_governance_evaluation_layer_parity_reviewed",
+        "controlled_eval_run_boundary_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "local_coding_governance_evaluation_guard",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_governance_evaluation_layer",

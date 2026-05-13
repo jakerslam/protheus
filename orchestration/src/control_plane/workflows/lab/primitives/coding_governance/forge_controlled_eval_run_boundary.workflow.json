@@ -1,0 +1,220 @@
+{
+  "name": "forge_controlled_eval_run_boundary",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_run_eval_without_explicit_authorization",
+      "do_not_publish_or_upload_eval_results",
+      "do_not_use_provider_credentials_without_explicit_route",
+      "do_not_replace_the_eval_harness_or_coverage_matrix"
+    ]
+  },
+  "default": false,
+  "description": "ForgeCode-derived controlled eval-run boundary primitive: defines authorization, scope, environment, execution-command, log, and receipt requirements for executable coding evals without running them by default.",
+  "stages": [
+    "eval_run_intent_collection",
+    "eval_target_scope_binding",
+    "execution_environment_boundary_check",
+    "eval_command_receipt_projection",
+    "eval_result_receipt_requirements_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_controlled_eval_run_boundary_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "eval_run_authorization_status",
+      "eval_target_scope",
+      "execution_environment_status",
+      "eval_command_receipt",
+      "result_receipt_requirements",
+      "blocked_or_ready_to_run_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "prepare an explicit controlled eval-run boundary and receipt contract for ForgeCode-like coding evals",
+      "scope_boundary": "do not run evals, tests, benchmarks, provider calls, git mutations, or release actions without a separate explicit execution route",
+      "validation_calibration": "distinguish eval configuration, eval run authorization, eval command projection, and executed eval results",
+      "visibility": "summarize run scope and receipt requirements without exposing provider credentials or full logs"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact controlled-eval-run boundary receipts for executable coding eval promotion.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_provider_credentials",
+      "do_not_store_secret_release_inputs",
+      "do_not_store_unbounded_eval_logs"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "explicit_eval_run_request_or_text_input",
+    "allowed_transitions": [
+      "eval_run_intent_collection->eval_target_scope_binding",
+      "eval_target_scope_binding->execution_environment_boundary_check",
+      "execution_environment_boundary_check->eval_command_receipt_projection",
+      "eval_command_receipt_projection->eval_result_receipt_requirements_packaging",
+      "eval_result_receipt_requirements_packaging->completed",
+      "eval_run_intent_collection->needs_input",
+      "eval_target_scope_binding->blocked",
+      "execution_environment_boundary_check->blocked",
+      "eval_command_receipt_projection->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 2,
+      "max_tool_calls": 4,
+      "token_budget": 8000,
+      "loop_signature_detector": "forge_controlled_eval_run_boundary_v1"
+    }
+  },
+  "controlled_eval_run_boundary_contract": {
+    "version": "forge_controlled_eval_run_boundary_v1",
+    "source": "forgecode_benchmark_execution_patterns",
+    "source_evidence": [
+      "benchmarks/task-executor.ts",
+      "benchmarks/parse.ts",
+      "benchmarks/evals/*/task.yml",
+      "scripts/benchmark.sh",
+      "package.json"
+    ],
+    "required_output_receipt": "controlled_eval_run_boundary_receipt",
+    "authorization_requirements": [
+      "explicit_operator_or_parent_workflow_run_authorization",
+      "named_eval_or_direct_task_yaml_path",
+      "declared_eval_purpose_and_parity_claims_under_review",
+      "declared_provider_model_and_credential_route_if_needed",
+      "declared_timeout_and_retry_policy",
+      "declared_log_retention_policy"
+    ],
+    "scope_binding_rules": [
+      "accept_named_eval_directory_or_direct_task_yaml_path",
+      "reject_ambiguous_eval_target",
+      "bind_eval_target_to_coverage_axis_before_run",
+      "record_source_revision_or_workspace_snapshot_ref",
+      "record whether run is dry_run_planned_or_executed"
+    ],
+    "execution_environment_checks": [
+      "working_directory_known",
+      "package_or_benchmark_command_known",
+      "provider_credentials_route_explicit_when_required",
+      "network_requirements_declared",
+      "destructive_or_external_actions_blocked",
+      "timeout_policy_declared"
+    ],
+    "command_projection_requirements": [
+      "project_command_without_executing_by_default",
+      "include_eval_name_or_task_path",
+      "include timeout and early_exit policy where applicable",
+      "include log destination or artifact_ref",
+      "mark provider credential inputs as redacted_refs"
+    ],
+    "executed_result_receipt_requirements": [
+      "eval_target",
+      "coverage_axis",
+      "source_revision_or_snapshot_ref",
+      "command_ref",
+      "start_time",
+      "end_time",
+      "duration_ms",
+      "exit_code_or_signal",
+      "timeout_or_early_exit_status",
+      "validation_results",
+      "stripped_ansi_log_artifact_refs",
+      "tool_trace_artifact_refs",
+      "pass_fail_status",
+      "promotion_claims_allowed",
+      "promotion_claims_blocked"
+    ],
+    "blocked_conditions": [
+      "missing_explicit_run_authorization",
+      "ambiguous_eval_target",
+      "provider_credentials_required_but_route_missing",
+      "eval_target_not_mapped_to_coverage_axis",
+      "requested_run_would_mutate_external_system",
+      "requested_run_lacks_log_or_artifact_retention_policy"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

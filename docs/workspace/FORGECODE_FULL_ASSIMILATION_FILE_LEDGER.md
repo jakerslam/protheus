@@ -100,6 +100,7 @@ Top-level source areas:
 | `FC-A19` | Extract top-level package, distribution, config-schema, and public-mode metadata | active | Distribution/package inventory contract pass added for Cargo/package/toolchain/Cross/Nix/format/lint/snapshot/config-schema/README/AGENTS/provider model metadata. |
 | `FC-A20` | Extract promotion-readiness scoring semantics | active | Promotion-readiness scoring contract pass added to separate structural assimilation, executable eval evidence, blockers, missing receipts, and operator approval. |
 | `FC-A21` | Extract executable eval coverage matrix semantics | active | Eval coverage matrix contract pass added to map parity claims to required ForgeCode benchmark/eval receipts before promotion scoring. |
+| `FC-A22` | Extract controlled eval-run boundary semantics | active | Controlled eval-run boundary contract pass added for explicit authorization, target scope, environment checks, command projection, and result receipt requirements. |
 
 ## Assimilated workflow contracts created
 
@@ -178,10 +179,11 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `forge_project_local_governance` | 0 | `.forge/commands`, `.forge/skills`, `.config/nextest.toml`, `.devcontainer/devcontainer.json`, `docs/tool-guidelines.md` | lab contract created | Projects project-local command/skill discovery rules, plan validation, tool-description limits, nextest preferences, and devcontainer setup without executing governance actions. |
 | `forge_ci_release_boundary` | 0 | `.github/workflows`, `.github/release-drafter.yml`, `.github/dependabot.yml`, `.github/labels.json`, `.github/scripts/bounty`, `.forge/skills/write-release-notes` | lab contract created | Captures generated workflow boundaries, CI validation, release target matrix, package distribution, bounty label rules, release-note generation, and secret redaction. |
 | `forge_benchmark_eval_harness` | 0 | `benchmarks`, `benchmarks/evals`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Projects eval task parsing, execution logging, timeout/early-exit behavior, tool-use validation rules, performance thresholds, and porcelain inventory checks. |
+| `forge_controlled_eval_run_boundary` | 0 | `benchmarks/task-executor.ts`, `benchmarks/parse.ts`, `benchmarks/evals/*/task.yml`, `scripts/benchmark.sh`, `package.json` | lab contract created | Defines explicit eval-run authorization, target binding, environment checks, command projection, log retention, and executed-result receipt requirements without running evals by default. |
 | `forge_distribution_package_inventory` | 0 | `Cargo.toml`, `package.json`, `rust-toolchain.toml`, `Cross.toml`, `flake.nix`, `.rustfmt.toml`, `clippy.toml`, `insta.yaml`, `forge.schema.json`, `README.md`, `AGENTS.md`, `vertex.json`, `renovate.json` | lab contract created | Captures top-level workspace/package metadata, distribution/toolchain boundaries, formatting/lint/snapshot config, public CLI/TUI/zsh modes, local coding guidance, config schema, and provider model inventory. |
 | `forge_executable_eval_coverage_matrix` | 0 | `benchmarks/task-executor.ts`, `benchmarks/parse.ts`, `benchmarks/evals/read_over_cat/task.yml`, `benchmarks/evals/patch_exact_match/task.yml`, `benchmarks/evals/parallel_tool_calls/task.yml`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Maps local coding parity claims to required executable eval receipts for local file reading, exact patch editing, parallel tool orchestration, multi-file coding, bounded repair/validation, performance, and porcelain inventory. |
 | `forge_promotion_readiness_scoring` | 0 | Assimilated governance/evaluation receipts from `forge_project_local_governance`, `forge_ci_release_boundary`, `forge_benchmark_eval_harness`, and `forge_distribution_package_inventory` | lab contract created | Scores structural readiness, executable readiness, promotion blockers, missing evidence, and operator-approval requirements without running evals or mutating release surfaces. |
-| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata, eval coverage receipts, promotion-readiness receipts | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, distribution/package inventory, executable eval coverage, and promotion-readiness scoring evidence from raw coding execution. |
+| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata, controlled eval-run receipts, eval coverage receipts, promotion-readiness receipts | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, controlled eval-run boundaries, distribution/package inventory, executable eval coverage, and promotion-readiness scoring evidence from raw coding execution. |
 
 ## Runtime behavior harnesses created
 
@@ -263,7 +265,7 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, distribution/package inventory, executable eval coverage, promotion-readiness scoring, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, controlled eval-run boundaries, distribution/package inventory, executable eval coverage, promotion-readiness scoring, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
 
 Next source pass:
 - Structural assimilation is effectively closed; next work is executable eval coverage, promotion-readiness scoring, and spot-checking any newly discovered source families.
@@ -739,3 +741,25 @@ Parity requirements added:
 | Require trace-backed evidence for file reading, exact patch editing, and parallel tool orchestration claims | `forge_executable_eval_coverage_matrix` | P0 |
 | Flag multi-file coding, bounded repair/validation, performance, and porcelain inventory as requiring executable receipts before parity claims | `forge_executable_eval_coverage_matrix` | P0 |
 | Feed coverage gaps into promotion-readiness scoring as blockers rather than warnings | `local_coding_governance_evaluation_guard` | P0 |
+
+## Eighteenth source pass: controlled eval-run boundary behavior
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| `benchmarks/parse.ts` | Requires an eval-name argument and accepts either an eval directory name or direct task YAML path. | `forge_controlled_eval_run_boundary` |
+| `benchmarks/task-executor.ts` | Spawns commands, records stdout/stderr logs, strips ANSI, supports timeout kill and early exit, and records duration/error metadata. | `forge_controlled_eval_run_boundary` |
+| `benchmarks/evals/*/task.yml` | Eval tasks encode target behavior, validation checks, and trace requirements. | `forge_controlled_eval_run_boundary` |
+| `scripts/benchmark.sh` | Projects repeat-count, average/min/max timing, and optional threshold failure semantics. | `forge_controlled_eval_run_boundary` |
+| `package.json` | Provides eval script entrypoints that should be projected as commands only after explicit run authorization. | `forge_controlled_eval_run_boundary` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Require explicit operator or parent-workflow authorization before any eval execution route | `forge_controlled_eval_run_boundary` | P0 |
+| Bind named eval directories and direct task YAML paths to a coverage axis before running | `forge_controlled_eval_run_boundary` | P0 |
+| Record environment, provider/model, credential route, timeout, retry, network, and log-retention boundaries before execution | `forge_controlled_eval_run_boundary` | P0 |
+| Project commands without executing them by default and redact credential inputs as references | `forge_controlled_eval_run_boundary` | P0 |
+| Require executed-result receipts with duration, exit status, timeout/early-exit status, validation output, stripped-log refs, tool-trace refs, and promotion-claim allowances/blockers | `forge_controlled_eval_run_boundary` | P0 |

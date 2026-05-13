@@ -42,6 +42,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "controlled_eval_run_boundary",
+        "workflow_id": "forge_controlled_eval_run_boundary",
+        "input_contract": "forge_controlled_eval_run_boundary_input_envelope_v1",
+        "output_artifact": "forge_controlled_eval_run_boundary_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "distribution_package_inventory",
         "workflow_id": "forge_distribution_package_inventory",
         "input_contract": "forge_distribution_package_inventory_input_envelope_v1",
@@ -74,12 +82,13 @@
     ]
   },
   "default": false,
-  "description": "Composite ForgeCode-derived governance/evaluation guard for local coding promotion: isolates project-local governance, CI/release automation, benchmark eval harnesses, distribution inventory, executable eval coverage, and promotion-readiness scoring from raw coding execution.",
+  "description": "Composite ForgeCode-derived governance/evaluation guard for local coding promotion: isolates project-local governance, CI/release automation, benchmark eval harnesses, controlled eval-run boundaries, distribution inventory, executable eval coverage, and promotion-readiness scoring from raw coding execution.",
   "stages": [
     "governance_evaluation_need_assessment",
     "project_local_governance_route",
     "ci_release_boundary_route",
     "benchmark_eval_harness_route",
+    "controlled_eval_run_boundary_route",
     "distribution_package_inventory_route",
     "executable_eval_coverage_matrix_route",
     "promotion_readiness_scoring_route",
@@ -91,6 +100,7 @@
       "forge_project_local_governance",
       "forge_ci_release_boundary",
       "forge_benchmark_eval_harness",
+      "forge_controlled_eval_run_boundary",
       "forge_distribution_package_inventory",
       "forge_executable_eval_coverage_matrix",
       "forge_promotion_readiness_scoring"
@@ -105,6 +115,7 @@
       "project_governance_status",
       "ci_release_status",
       "benchmark_eval_status",
+      "controlled_eval_run_status",
       "distribution_package_status",
       "executable_eval_coverage_status",
       "promotion_readiness_status",
@@ -147,7 +158,8 @@
       "governance_evaluation_need_assessment->project_local_governance_route",
       "project_local_governance_route->ci_release_boundary_route",
       "ci_release_boundary_route->benchmark_eval_harness_route",
-      "benchmark_eval_harness_route->distribution_package_inventory_route",
+      "benchmark_eval_harness_route->controlled_eval_run_boundary_route",
+      "controlled_eval_run_boundary_route->distribution_package_inventory_route",
       "distribution_package_inventory_route->executable_eval_coverage_matrix_route",
       "executable_eval_coverage_matrix_route->promotion_readiness_scoring_route",
       "promotion_readiness_scoring_route->governance_evaluation_receipt_packaging",
@@ -155,6 +167,7 @@
       "project_local_governance_route->blocked",
       "ci_release_boundary_route->needs_input",
       "benchmark_eval_harness_route->failed",
+      "controlled_eval_run_boundary_route->blocked",
       "distribution_package_inventory_route->blocked",
       "executable_eval_coverage_matrix_route->blocked",
       "promotion_readiness_scoring_route->needs_input"
@@ -188,7 +201,7 @@
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",
     "run_budgets": {
-      "max_stages": 10,
+      "max_stages": 11,
       "max_model_turns": 2,
       "max_tool_calls": 10,
       "token_budget": 12000,
@@ -202,6 +215,7 @@
       "forge_project_local_governance",
       "forge_ci_release_boundary",
       "forge_benchmark_eval_harness",
+      "forge_controlled_eval_run_boundary",
       "forge_distribution_package_inventory",
       "forge_executable_eval_coverage_matrix",
       "forge_promotion_readiness_scoring"
@@ -210,15 +224,17 @@
       "project_local_governance_receipt",
       "ci_release_boundary_receipt",
       "benchmark_eval_harness_receipt",
+      "controlled_eval_run_boundary_receipt",
       "distribution_package_inventory_receipt",
       "executable_eval_coverage_receipt",
       "promotion_readiness_receipt"
     ],
-    "activation_policy": "local coding workflow promotion may route project-local governance, CI/release automation, benchmark/eval harness, distribution/package inventory, executable eval coverage, and promotion-readiness scoring evidence through this guard; raw coding execution remains owned by local coding and runtime primitives",
+    "activation_policy": "local coding workflow promotion may route project-local governance, CI/release automation, benchmark/eval harness, controlled eval-run boundary, distribution/package inventory, executable eval coverage, and promotion-readiness scoring evidence through this guard; raw coding execution remains owned by local coding and runtime primitives",
     "stop_or_route_conditions": [
       "governance_fixture_invalid",
       "release_or_github_mutation_requires_explicit_route",
       "benchmark_eval_requires_external_clone_or_provider_credentials",
+      "controlled_eval_run_requires_explicit_authorization",
       "distribution_metadata_conflicts_with_release_boundary",
       "executable_eval_coverage_gap_blocks_promotion",
       "promotion_readiness_score_below_threshold",
