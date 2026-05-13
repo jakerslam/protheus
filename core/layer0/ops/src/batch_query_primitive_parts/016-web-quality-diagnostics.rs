@@ -180,17 +180,17 @@ fn research_facet_signature(terms: &HashSet<String>) -> String {
     sorted.join("|")
 }
 
-fn research_facet_from_text(
+fn research_facet_from_text_with_required_terms(
     text: &str,
     index: usize,
-    min_terms: usize,
+    required_terms: usize,
 ) -> Option<ResearchFacet> {
     let requested_text = clean_text(text, 600);
     if requested_text.is_empty() {
         return None;
     }
     let terms = tokenize_relevance(&requested_text, 24);
-    if terms.len() < min_terms.max(1) {
+    if terms.len() < required_terms.max(1) {
         return None;
     }
     Some(ResearchFacet {
@@ -199,6 +199,14 @@ fn research_facet_from_text(
         terms,
         distinctive_terms: HashSet::new(),
     })
+}
+
+fn research_facet_from_text(text: &str, index: usize, min_terms: usize) -> Option<ResearchFacet> {
+    research_facet_from_text_with_required_terms(text, index, min_terms)
+}
+
+fn research_facet_from_metadata_text(text: &str, index: usize) -> Option<ResearchFacet> {
+    research_facet_from_text_with_required_terms(text, index, 1)
 }
 
 fn assign_distinctive_facet_terms(facets: &mut [ResearchFacet]) {
@@ -249,9 +257,30 @@ fn inferred_facet_texts_from_query(query: &str) -> Vec<String> {
     out
 }
 
+fn metadata_coverage_facet_texts(query_metadata: &BatchQueryKeywordPack) -> Vec<String> {
+    let mut seen = HashSet::<String>::new();
+    let mut out = Vec::<String>::new();
+    for raw in query_metadata
+        .entities
+        .iter()
+        .chain(query_metadata.facets.iter())
+    {
+        let cleaned = clean_text(raw, 240);
+        if cleaned.is_empty() {
+            continue;
+        }
+        let key = cleaned.to_ascii_lowercase();
+        if seen.insert(key) {
+            out.push(cleaned);
+        }
+    }
+    out
+}
+
 fn infer_research_facets(
     query: &str,
     query_plan: &[String],
+    query_metadata: &BatchQueryKeywordPack,
     policy: &Value,
     budget: ApertureBudget,
 ) -> Vec<ResearchFacet> {
@@ -260,6 +289,23 @@ fn infer_research_facets(
     }
     let max_facets = facet_aware_max_facets(policy, budget);
     let min_terms = facet_aware_min_terms(policy);
+    let mut facets = Vec::<ResearchFacet>::new();
+    let mut seen = HashSet::<String>::new();
+    for text in metadata_coverage_facet_texts(query_metadata) {
+        if let Some(mut facet) = research_facet_from_metadata_text(&text, facets.len()) {
+            let signature = research_facet_signature(&facet.terms);
+            if !seen.insert(signature) {
+                continue;
+            }
+            facet.id = format!("facet_{:02}", facets.len() + 1);
+            facets.push(facet);
+        }
+        if facets.len() >= max_facets {
+            assign_distinctive_facet_terms(&mut facets);
+            return facets;
+        }
+    }
+
     let mut texts = Vec::<String>::new();
     let base = clean_text(query, 600);
     if !base.is_empty() {
@@ -275,8 +321,6 @@ fn infer_research_facets(
         texts.extend(inferred_facet_texts_from_query(&base));
     }
 
-    let mut seen = HashSet::<String>::new();
-    let mut facets = Vec::<ResearchFacet>::new();
     for text in texts {
         if let Some(mut facet) = research_facet_from_text(&text, facets.len(), min_terms) {
             let signature = research_facet_signature(&facet.terms);

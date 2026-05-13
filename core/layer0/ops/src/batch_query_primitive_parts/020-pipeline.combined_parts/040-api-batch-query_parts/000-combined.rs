@@ -533,7 +533,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
 
     let first_pass_lacked_usable = !has_usable_synthesis_candidate(&candidates);
     let mut second_pass_reason = "none";
-    let first_pass_research_facets = infer_research_facets(&query, &executed_queries, &policy, budget);
+    let first_pass_research_facets = infer_research_facets(
+        &query,
+        &executed_queries,
+        &query_plan.query_metadata,
+        &policy,
+        budget,
+    );
     let mut planned_second_pass_queries = Vec::<String>::new();
     if source == "web"
         && second_pass_recovery_enabled(&policy)
@@ -638,7 +644,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
 
     let rerank_query = query_plan.rerank_query.clone();
     let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
-    let research_facets = infer_research_facets(&query, &executed_queries, &policy, budget);
+    let research_facets = infer_research_facets(
+        &query,
+        &executed_queries,
+        &query_plan.query_metadata,
+        &policy,
+        budget,
+    );
     let facet_min_terms = facet_aware_min_terms(&policy);
     let ranked_pool = candidates
         .iter()

@@ -218,6 +218,133 @@ mod quality_tests {
         );
     }
 
+    #[test]
+    fn facet_only_metadata_compiles_into_visible_query_lanes() {
+        let query = "Research deployment fit";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "required_coverage": {
+                "facets": ["security posture", "cost profile"]
+            },
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "explicit_request_pack_with_metadata"
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "Research deployment fit security posture"),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row == "Research deployment fit cost profile"),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
+    fn required_coverage_metadata_drives_gap_recovery_and_evidence_facets() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), true);
+        let query = "Research deployment fit";
+        let cost_query = "Research deployment fit cost profile";
+        let security_query = "Research deployment fit security posture";
+        let security_recovery_query = "security posture source-backed evidence";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Deployment fit cost profile evidence describes pricing, operating expense, and budget tradeoffs for adoption decisions.",
+                    "requested_url": "https://example.org/deployment-cost",
+                    "status_code": 200
+                },
+                cost_query: {
+                    "ok": true,
+                    "summary": "Deployment fit cost profile reports implementation cost, maintenance budget, and vendor pricing details.",
+                    "requested_url": "https://example.org/deployment-cost-detail",
+                    "status_code": 200
+                },
+                security_query: {
+                    "ok": true,
+                    "summary": "Garden irrigation guide with seasonal watering tips and soil moisture reminders.",
+                    "requested_url": "https://example.org/garden-irrigation",
+                    "status_code": 200
+                },
+                security_recovery_query: {
+                    "ok": true,
+                    "summary": "Deployment fit security posture source-backed evidence identifies access controls, threat model limits, and operational safeguards.",
+                    "requested_url": "https://example.org/deployment-security",
+                    "status_code": 200
+                }
+            }),
+            || {
+                run_request(
+                    tmp.path(),
+                    &json!({
+                        "source": "web",
+                        "query": query,
+                        "required_coverage": {
+                            "facets": ["cost profile", "security posture"]
+                        },
+                        "aperture": "medium"
+                    }),
+                )
+            },
+        );
+
+        assert_eq!(
+            out.pointer("/query_metadata/required_coverage/facets/1")
+                .and_then(Value::as_str),
+            Some("security posture"),
+            "{out:#?}"
+        );
+        assert_eq!(
+            out.pointer("/second_pass_recovery/used")
+                .and_then(Value::as_bool),
+            Some(true),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/second_pass_recovery/queries")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter()
+                        .any(|row| row.as_str() == Some(security_recovery_query))
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("locator")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .contains("deployment-security")
+                            && row
+                                .get("coverage_facets")
+                                .and_then(Value::as_array)
+                                .map(|facets| !facets.is_empty())
+                                .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
     fn summary_lowered(out: &Value) -> String {
         out.get("summary")
             .and_then(Value::as_str)

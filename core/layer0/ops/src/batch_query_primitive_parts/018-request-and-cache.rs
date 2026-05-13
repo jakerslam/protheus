@@ -1051,10 +1051,30 @@ fn compile_keyword_pack_queries(
         );
     }
 
+    if exact_subjects.is_empty() && queries.len() < max_queries && !facets.is_empty() {
+        let primary = clean_text(primary_query, 320);
+        for facet in &facets {
+            let candidate = if primary.is_empty() {
+                facet.clone()
+            } else {
+                clean_text(&format!("{primary} {facet}"), 600)
+            };
+            push_compiled_metadata_query(candidate, pack, &mut dedup, &mut queries, max_queries);
+            if queries.len() >= max_queries {
+                return queries;
+            }
+        }
+    }
+
     if queries.len() < max_queries && !keywords.is_empty() {
         let mut pieces = Vec::<String>::new();
         if let Some(subject) = exact_subjects.first() {
             pieces.push(subject.clone());
+        } else {
+            let primary = clean_text(primary_query, 180);
+            if !primary.is_empty() {
+                pieces.push(primary);
+            }
         }
         pieces.extend(keywords.iter().take(4).cloned());
         push_compiled_metadata_query(
