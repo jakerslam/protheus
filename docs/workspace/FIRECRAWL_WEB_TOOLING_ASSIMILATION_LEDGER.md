@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 373
-- Not parsed: 905
+- Parsed: 381
+- Not parsed: 897
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -357,6 +357,14 @@
 | `apps/api/src/__tests__/snips/v2/scrape-branding.test.ts` | V2 branding artifact tests. | Skipped branding tests describe a design-artifact lane for colors, typography, spacing, components, images, and cleaned fonts; because coverage is skipped, treat this as experimental rather than a proven primitive. |
 | `apps/api/src/__tests__/snips/zdr-helpers.ts` | ZDR assertion helpers. | Privacy tests assert scrubbed URL/options storage, filtered logs, request records with cleanup markers, GCS removal after cleaner, and request-scoped status disappearance. |
 | `apps/api/src/__tests__/snips/v2/lib.ts` | V2 snips test harness. | Raw/success/failure wrappers and async start/status/poll helpers make status-handle workflows testable without mixing transport details into each behavior test. |
+| `apps/api/src/__tests__/snips/lib.ts` | Test capability harness. | E2E/snips tests gate live AI/search/rendering/proxy capabilities from environment, block unsafe local/proxy combinations, provision identities with configurable concurrency/credits/flags, and centralize long scrape timeouts. |
+| `apps/api/src/__tests__/snips/metadata-concat.test.ts` | Metadata extraction stability tests. | Duplicate description metadata is concatenated into a string while multi-valued fields stay arrays, invalid favicon URLs are ignored with debug logging, and valid relative favicons resolve against source URLs. |
+| `apps/api/src/__tests__/deep-research/unit/deep-research-redis.test.ts` | Deep research state tests. | Research state is TTL-bounded, retrieval returns null for misses, updates append activities instead of replacing them, and expiry is projected from Redis TTL. |
+| `apps/api/sharedLibs/go-html-to-md/html-to-markdown.go` | Native HTML-to-Markdown bridge. | A small C-shared Go bridge converts HTML to markdown with GitHub-flavored and robust-code-block plugins, and exposes explicit C string cleanup. |
+| `apps/api/sharedLibs/go-html-to-md/README.md` | HTML-to-Markdown build note. | The markdown converter is built as a platform-specific shared library, keeping parser implementation behind a narrow native boundary. |
+| `apps/api/src/__tests__/e2e_map/index.test.ts` | V1 map E2E tests. | Map quality tests check search-filtered links, subdomain inclusion, sitemap-only exclusion, limit enforcement, and large sitemap discovery volume. |
+| `apps/api/src/__tests__/e2e_map/v2_map.test.ts` | V2 map E2E tests. | V2 map tests require structured `web` rows with title/description metadata, backwards-compatible links, transformed sitemap flags, search query echoing, and explicit timeout failure. |
+| `apps/api/src/__tests__/e2e_extract/index.test.ts` | Extract E2E behavior tests. | Extraction quality is checked against known facts across sites, wildcard scopes, external links, schemas/no-schema output, waitFor dynamic content, and malformed UUID rejection for status handles. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -523,6 +531,10 @@
 - Shared infrastructure should make privacy and expected-failure filtering explicit. ZDR, cancellations, typed retrieval failures, and known control-flow errors should not become noisy external telemetry or user-visible research content.
 - Distributed locks and Redis state are primitive coordination mechanics; they should expose bounded retry/backoff behavior and clear failure modes, not hidden workflow policy.
 - Database boundaries should fail fast when unavailable and distinguish no-row states from operational errors so workflow gaps are typed rather than ambiguous.
+- Retrieval evals should assert substantive content properties: relevant mapped URLs, structured map metadata, known extracted facts, external-link behavior, dynamic wait behavior, malformed-handle rejection, and large sitemap coverage. Mere HTTP success is too weak.
+- Test harnesses should declare available capabilities from environment and skip/gate unavailable expensive lanes instead of letting missing AI/search/rendering/proxy services masquerade as product failures.
+- Metadata extraction should preserve semantic field shapes: single-answer description strings can merge duplicates, while naturally repeated fields remain arrays and malformed metadata becomes a warning/gap rather than a failed scrape.
+- Native parser bridges should stay narrow, capability-scoped, and memory-cleanup explicit; the reusable primitive is parser isolation, not a specific implementation language.
 
 ## Candidate Assimilation Targets
 
@@ -573,6 +585,8 @@
 45. Billing/effect reconciliation primitive: queue and group non-evidence side effects under locks, track request-scoped vs batch-scoped effects, refund or compensate on partial failure, and continue independent groups. Ledger captured; candidate general side-effect ledger target.
 46. Typed external event projection: emit crawl/search/extract/monitor lifecycle events through typed, filtered, signed, bounded, retryable side-effect channels while keeping delivery logs internal. Ledger captured; candidate Gateway/Observability contract.
 47. Privacy-safe infrastructure boundary: shared clients, locks, metrics, traces, and database adapters should expose typed unavailable/no-row/expected-failure states and suppress ZDR-sensitive telemetry. Ledger captured; candidate infrastructure policy guard.
+48. Content-quality eval contract: research/retrieval tests should assert answer-bearing evidence, structured metadata, source coverage, dynamic-content handling, and malformed-handle failures instead of tool-status-only success. Ledger captured; candidate golden/eval refinement target.
+49. Capability-gated eval harness: classify eval failures by unavailable capability vs retrieval failure vs synthesis failure using environment-gated test lanes and identity/budget setup. Ledger captured; candidate workflow eval harness target.
 
 ## Remaining Work
 
