@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 642
-- Not parsed: 634
+- Parsed: 652
+- Not parsed: 624
 - Skipped generated: 12
 - Skipped media or sample: 69
 
@@ -691,6 +691,16 @@
 | `apps/dot-net-sdk/Firecrawl/Models/CrawlJob.cs` | .NET crawl job model. | Crawl job state carries status, progress, credits, expiry, pagination cursor, documents, and terminal-state classification. |
 | `apps/dot-net-sdk/Firecrawl/Models/BatchScrapeJob.cs` | .NET batch scrape job model. | Batch scrape job state mirrors crawl terminal/pagination semantics for multi-URL document retrieval. |
 | `apps/dot-net-sdk/Firecrawl/Models/ApiResponse.cs` | .NET API response wrapper. | Data-bearing API responses are wrapped explicitly so missing data can become a typed client failure. |
+| `apps/php-sdk/src/Client/FirecrawlClient.php` | PHP SDK client facade. | The PHP facade validates API URL shape, keeps primitives separate, passes idempotency as a header, validates poll intervals, enforces same-origin pagination, and composes polling/pagination internally. |
+| `apps/php-sdk/src/Client/FirecrawlHttpClient.php` | PHP SDK HTTP adapter. | Transport sets JSON/multipart headers, adds SDK user-agent metadata, retries retryable status/connect/request failures, maps auth/rate-limit errors, and fails JSON parse errors as typed client failures. |
+| `apps/php-sdk/src/Models/SearchOptions.php` | PHP search option model. | Search options preserve source, category, domain, limit, freshness, location, invalid-URL, timeout, scrape enrichment, and integration controls while omitting nulls. |
+| `apps/php-sdk/src/Models/SearchData.php` | PHP search result model. | Search result hydration keeps web/news/image lanes as lists and degrades malformed lanes to empty arrays. |
+| `apps/php-sdk/src/Models/ScrapeOptions.php` | PHP scrape option model. | Scrape options preserve artifact format objects, headers, tag filters, main-content extraction, wait/mobile, parsers, actions, location, TLS, image scrub, ads, proxy, cache age, lockdown, profile, and change tracking. |
+| `apps/php-sdk/src/Models/Document.php` | PHP document model. | Document hydration preserves markdown, HTML, raw HTML, JSON, summary, metadata, links, images, screenshot, audio, attributes, actions, answer, highlights, warning, change tracking, and branding. |
+| `apps/php-sdk/src/Models/ParseOptions.php` | PHP parse option model. | Parse options reject nonpositive timeout, unsupported proxy values, and browser-only formats before building file-parse requests. |
+| `apps/php-sdk/src/Models/ParseFile.php` | PHP parse file model. | Parse files validate nonempty filename/content, read local files safely, and infer content types for common document formats. |
+| `apps/php-sdk/tests/Unit/ModelsTest.php` | PHP model tests. | Tests cover nested/flat account projections, malformed map links, numeric credit coercion, null credit preservation, scrape option positional safety, lockdown serialization, format objects, and invalid query modes. |
+| `apps/php-sdk/tests/Unit/ParseTest.php` | PHP parse tests. | Parse tests assert byte payload validation, JSON-format serialization, unsupported format rejection, proxy rejection, and timeout validation. |
 
 ## Decisions So Far
 
@@ -1003,12 +1013,18 @@
 133. Cancellation-propagating polling: async job polling, pagination, and retry backoff should all accept cancellation/deadline signals and classify timeout separately from failed jobs. Ledger captured; candidate tool runtime target.
 134. Missing-data response failure: successful HTTP envelopes with missing required `data` should become typed tool failures, not empty evidence packs. Ledger captured; candidate evidence-pack/runtime guard.
 135. Request-shape proof tests: adapter tests should capture real multipart/JSON request bodies for parse/batch/search enrichment so gate 3/4 regressions become concrete diffs. Ledger captured; candidate gate stability target.
+136. Admission-time base URL validation: tool adapters should reject base URLs without explicit HTTP(S) schemes before any request is shaped. Ledger captured; candidate Tool CD/admission guard.
+137. Poll interval validation: blocking/polling facades should reject subsecond or zero polling intervals before starting a job loop. Ledger captured; candidate runtime/tool-adapter guard.
+138. Malformed lane normalization: result lane hydrators can degrade malformed optional lanes to empty lists while preserving required artifact failures. Ledger captured; candidate evidence-pack normalization target.
+139. SDK origin metadata: adapter user-agent/client-version metadata belongs in hidden transport diagnostics, not synthesis evidence. Ledger captured; candidate observability/tool-adapter schema.
+140. Positional option regression tests: fluent/positional SDK surfaces need tests that option ordering does not misplace cache/integration/lockdown fields. Ledger captured; candidate adapter parity guard.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
+- PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.

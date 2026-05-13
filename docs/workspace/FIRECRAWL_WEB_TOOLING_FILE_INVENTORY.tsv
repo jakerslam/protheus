@@ -792,8 +792,8 @@ apps/php-sdk/composer.json	apps	not_parsed	pending_review
 apps/php-sdk/config/firecrawl.php	apps	not_parsed	pending_review	
 apps/php-sdk/phpstan.neon.dist	apps	not_parsed	pending_review	
 apps/php-sdk/phpunit.xml.dist	apps	not_parsed	pending_review	
-apps/php-sdk/src/Client/FirecrawlClient.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Client/FirecrawlHttpClient.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Client/FirecrawlClient.php	apps	parsed	php_sdk_client_facade	api_url_shape_validation_separate_primitives_idempotency_header_poll_interval_validation_same_origin_pagination_and_internal_polling_pagination
+apps/php-sdk/src/Client/FirecrawlHttpClient.php	apps	parsed	php_sdk_http_adapter	json_multipart_headers_sdk_user_agent_retryable_status_connect_request_retries_typed_auth_rate_limit_and_json_parse_failures
 apps/php-sdk/src/Exceptions/AuthenticationException.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Exceptions/FirecrawlException.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Exceptions/JobTimeoutException.php	apps	not_parsed	pending_review	
@@ -816,7 +816,7 @@ apps/php-sdk/src/Models/CrawlJob.php	apps	not_parsed	pending_review
 apps/php-sdk/src/Models/CrawlOptions.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Models/CrawlResponse.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Models/CreditUsage.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/Document.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/Document.php	apps	parsed	php_document_model	markdown_html_raw_json_summary_metadata_links_images_screenshot_audio_attributes_actions_answer_highlights_warning_change_tracking_and_branding_facets
 apps/php-sdk/src/Models/HighlightsFormat.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Models/JsonFormat.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Models/LocationConfig.php	apps	not_parsed	pending_review	
@@ -825,19 +825,19 @@ apps/php-sdk/src/Models/MapOptions.php	apps	not_parsed	pending_review
 apps/php-sdk/src/Models/Monitor.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Models/MonitorCheck.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Models/MonitorCheckDetail.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/ParseFile.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/ParseOptions.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/ParseFile.php	apps	parsed	php_parse_file	nonempty_filename_content_validation_file_read_and_common_document_content_type_inference
+apps/php-sdk/src/Models/ParseOptions.php	apps	parsed	php_parse_options	nonpositive_timeout_unsupported_proxy_and_browser_only_format_rejection_before_request_shape
 apps/php-sdk/src/Models/QueryFormat.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Models/QuestionFormat.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/ScrapeOptions.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/ScrapeOptions.php	apps	parsed	php_scrape_options	format_objects_headers_tags_main_content_wait_mobile_parsers_actions_location_tls_image_scrub_ads_proxy_cache_age_lockdown_profile_and_change_tracking
 apps/php-sdk/src/Models/ScreenshotFormat.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/SearchData.php	apps	not_parsed	pending_review	
-apps/php-sdk/src/Models/SearchOptions.php	apps	not_parsed	pending_review	
+apps/php-sdk/src/Models/SearchData.php	apps	parsed	php_search_data	web_news_image_lane_hydration_with_malformed_optional_lanes_degraded_to_empty_arrays
+apps/php-sdk/src/Models/SearchOptions.php	apps	parsed	php_search_options	source_category_domain_limit_freshness_location_invalid_url_timeout_scrape_enrichment_and_integration_controls_with_null_omission
 apps/php-sdk/src/Models/WebhookConfig.php	apps	not_parsed	pending_review	
 apps/php-sdk/src/Version.php	apps	not_parsed	pending_review	
 apps/php-sdk/tests/Pest.php	apps	not_parsed	pending_review	
-apps/php-sdk/tests/Unit/ModelsTest.php	apps	not_parsed	pending_review	
-apps/php-sdk/tests/Unit/ParseTest.php	apps	not_parsed	pending_review	
+apps/php-sdk/tests/Unit/ModelsTest.php	apps	parsed	php_model_tests	account_projection_map_link_normalization_credit_coercion_scrape_option_ordering_lockdown_format_objects_and_query_mode_validation
+apps/php-sdk/tests/Unit/ParseTest.php	apps	parsed	php_parse_tests	parse_file_payload_validation_json_format_serialization_unsupported_format_proxy_and_timeout_rejection
 apps/playwright-service-ts/.dockerignore	apps	not_parsed	pending_review	
 apps/playwright-service-ts/.gitignore	apps	not_parsed	pending_review	
 apps/playwright-service-ts/Dockerfile	apps	not_parsed	pending_review	
