@@ -6,6 +6,7 @@ use super::workflow_contracts::{
     REQUIRED_TOOL_FAMILIES, WORKFLOW_CONTRACT_SCHEMA_VERSION,
     WORKFLOW_SOURCE_OF_TRUTH_SCHEMA_VERSION,
 };
+use std::collections::HashMap;
 use super::workflow_runtime::{
     run_registered_replay_fixtures, workflow_runtime_contract_ok,
     workflow_runtime_terminal_outcome_ok,
@@ -21,6 +22,8 @@ const DEFAULT_OUT_PATH: &str =
     "core/local/artifacts/orchestration_workflow_contract_guard_current.json";
 const DEFAULT_GRAPH_OUT_PATH: &str =
     "local/state/ops/orchestration/workflow_contract_graphs_current.json";
+const DEFAULT_COMPOSITION_LEDGER_OUT_PATH: &str =
+    "local/state/ops/orchestration/workflow_composition_ledger_current.json";
 const DEFAULT_REPORT_PATH: &str =
     "local/workspace/reports/ORCHESTRATION_WORKFLOW_CONTRACT_GUARD_CURRENT.md";
 const FORMAT_POLICY_PATH: &str = "docs/workspace/workflow_json_format_policy.md";
@@ -32,6 +35,8 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
     let out_path = flag_value(args, "--out").unwrap_or_else(|| DEFAULT_OUT_PATH.to_string());
     let graph_out =
         flag_value(args, "--graph-out").unwrap_or_else(|| DEFAULT_GRAPH_OUT_PATH.to_string());
+    let composition_ledger_out = flag_value(args, "--composition-ledger-out")
+        .unwrap_or_else(|| DEFAULT_COMPOSITION_LEDGER_OUT_PATH.to_string());
     let report_path =
         flag_value(args, "--report").unwrap_or_else(|| DEFAULT_REPORT_PATH.to_string());
 
@@ -39,6 +44,7 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
     let graphs = registered_workflow_graphs();
     let tool_contracts = tool_family_contracts();
     let replay_reports = run_registered_replay_fixtures();
+    let composition_ledger = workflow_composition_ledger_artifact(&graphs, &validations);
     let checks = build_checks(&validations, &graphs, &tool_contracts, &replay_reports);
     let ok = checks
         .iter()
@@ -63,16 +69,24 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
             "assistant_response_workflows": graphs.iter().filter(|row| row.workflow_role == "assistant_response_workflow").count(),
             "assimilation_workflow_templates": graphs.iter().filter(|row| row.workflow_role == "assimilation_workflow_template").count(),
             "assimilation_subtemplates": graphs.iter().map(|row| row.subtemplate_count).sum::<usize>(),
+            "max_workflow_level": graphs.iter().map(|row| row.primitive_level).max().unwrap_or(0),
+            "composite_workflows": graphs.iter().filter(|row| row.primitive_level > 0).count(),
+            "workflow_levels": graphs
+                .iter()
+                .map(|row| format!("{}:{}", row.workflow_id, row.primitive_level))
+                .collect::<Vec<_>>(),
             "tool_family_contracts": REQUIRED_TOOL_FAMILIES.len(),
             "runtime_replay_fixtures": replay_reports.len(),
             "official_workflows": graphs.iter().filter(|row| row.workflow_tier == "official").count(),
             "lab_workflows": graphs.iter().filter(|row| row.workflow_tier == "lab").count(),
             "system_chat_injection_allowed": false,
             "graph_artifact_path": graph_out,
+            "composition_ledger_path": composition_ledger_out,
         },
         "validations": validations,
         "artifact_paths": {
             "graphs": graph_out,
+            "composition_ledger": composition_ledger_out,
             "format_policy": FORMAT_POLICY_PATH,
             "enforcer": ENFORCER_PATH,
             "parity_map": PARITY_MAP_PATH
@@ -83,6 +97,7 @@ pub fn run_workflow_contract_guard(args: &[String]) -> i32 {
         validations.len()
     );
     let wrote = write_json(&graph_out, &graph_artifact)
+        .and_then(|_| write_json(&composition_ledger_out, &composition_ledger))
         .and_then(|_| write_json(&out_path, &report))
         .and_then(|_| write_text(&report_path, &markdown))
         .is_ok();
@@ -123,10 +138,104 @@ fn build_checks(
         json!({"id": "workflow_runtime_inspector_contract", "ok": replay_reports.iter().all(runtime_inspector_ok), "detail": "workflow_state, agent_internal_notes, tool_trace, eval_trace, and final_answer are separated from visible chat"}),
         json!({"id": "workflow_runtime_graph_binding_contract", "ok": replay_reports.iter().all(|row| !row.graph_hash.is_empty() && row.inspector.selected_graph_source == "json_workflow_source_of_truth_v1"), "detail": "runtime selection consumes JSON source-of-truth orchestration graph bindings"}),
         json!({"id": "workflow_json_source_metadata_contract", "ok": graphs.iter().all(graph_json_source_metadata_ok), "detail": "typed graphs carry workflow id, source JSON path, contract schema version, and graph hash metadata"}),
+        json!({"id": "workflow_composition_metadata_contract", "ok": graphs.iter().all(workflow_composition_metadata_ok), "detail": "primitive workflow levels and composition references are present and valid"}),
         json!({"id": "workflow_runtime_registered_json_source_contract", "ok": replay_reports.iter().all(runtime_registered_json_source_ok), "detail": "runtime telemetry exposes selected workflow id, source JSON path, contract schema version, and graph hash from a registered JSON workflow"}),
         json!({"id": "workflow_format_policy_contract", "ok": all_present(&format_policy, &["workflow_source_of_truth_contract", "typed_execution_contract", "burnable CD", "json_workflow_spec", "llm_final_only_no_system_injection"]), "detail": FORMAT_POLICY_PATH}),
         json!({"id": "control_plane_parity_map_contract", "ok": all_present(&parity_map, &["OpenHands", "OpenFang", "Infring", "orchestration/src", "event-sourced action/observation"]), "detail": PARITY_MAP_PATH}),
     ]
+}
+
+fn workflow_composition_ledger_artifact(
+    graphs: &[NormalizedWorkflowGraph],
+    validations: &[WorkflowValidation],
+) -> Value {
+    let mut parent_map: HashMap<String, Vec<String>> = HashMap::new();
+    let mut validation_map: HashMap<String, &WorkflowValidation> = HashMap::new();
+    for validation in validations {
+        validation_map.insert(validation.workflow_id.clone(), validation);
+    }
+    for row in graphs {
+        for child_id in &row.composed_of_workflow_ids {
+            parent_map
+                .entry(child_id.clone())
+                .or_default()
+                .push(row.workflow_id.clone());
+        }
+    }
+
+    let mut rows: Vec<(String, Value)> = graphs
+        .iter()
+        .map(|row| {
+            let validation = validation_map.get(&row.workflow_id);
+            let composition_errors: Vec<String> = validation
+                .map(|validation| {
+                    validation
+                        .errors
+                        .iter()
+                        .filter(|error| is_composition_error(error))
+                        .cloned()
+                        .collect()
+                })
+                .unwrap_or_default();
+            let mut parents = parent_map
+                .get(&row.workflow_id)
+                .cloned()
+                .unwrap_or_default();
+            parents.sort_unstable();
+            let mut children = row.composed_of_workflow_ids.clone();
+            children.sort_unstable();
+            (
+                row.workflow_id.clone(),
+                json!({
+                    "workflow_id": row.workflow_id,
+                    "workflow_tier": row.workflow_tier,
+                    "runtime_selectable": row.runtime_selectable,
+                    "promotion_status": row.promotion_status,
+                    "primitive_level": row.primitive_level,
+                    "is_composite_workflow": row.primitive_level > 0,
+                    "composed_of_workflow_ids": children,
+                    "parent_workflow_ids": parents,
+                    "subtemplate_count": row.subtemplate_count,
+                    "validation_ok": validation.map(|row| row.ok).unwrap_or(false),
+                    "validation_error_count": validation.map(|row| row.errors.len()).unwrap_or(0),
+                    "composition_errors": composition_errors,
+                }),
+            )
+        })
+        .collect();
+    rows.sort_by(|left, right| left.0.cmp(&right.0));
+
+    let workflow_rows = rows
+        .into_iter()
+        .map(|(_, row)| row)
+        .collect::<Vec<_>>();
+
+    json!({
+        "type": "orchestration_workflow_composition_ledger",
+        "schema_version": 1,
+        "generated_unix_seconds": now_unix_seconds(),
+        "workflows": workflow_rows,
+        "workflow_count": graphs.len(),
+        "primitive_workflow_count": graphs.iter().filter(|row| row.primitive_level == 0).count(),
+        "composite_workflow_count": graphs.iter().filter(|row| row.primitive_level > 0).count(),
+        "max_primitive_level": graphs.iter().map(|row| row.primitive_level).max().unwrap_or(0),
+        "composition_graph_summary": {
+            "nodes": graphs.len(),
+            "edges": graphs
+                .iter()
+                .map(|row| row.composed_of_workflow_ids.len())
+                .sum::<usize>(),
+        }
+    })
+}
+
+fn is_composition_error(error: &str) -> bool {
+    error.starts_with("workflow_composition_")
+        || error.starts_with("workflow_primitive_level_")
+        || error.starts_with("empty_composed_workflow_id")
+        || error.starts_with("duplicate_composed_workflow_id")
+        || error.starts_with("unknown_composed_workflow_id")
+        || error.starts_with("workflow_composition_self_reference")
 }
 
 fn workflow_role_ok(graph: &NormalizedWorkflowGraph) -> bool {
@@ -171,6 +280,14 @@ fn assimilation_template_structure_ok(graph: &NormalizedWorkflowGraph) -> bool {
         graph.subtemplate_count > 0
     } else {
         graph.subtemplate_count == 0
+    }
+}
+
+fn workflow_composition_metadata_ok(graph: &NormalizedWorkflowGraph) -> bool {
+    if graph.primitive_level == 0 {
+        graph.composed_of_workflow_ids.is_empty()
+    } else {
+        !graph.composed_of_workflow_ids.is_empty()
     }
 }
 
