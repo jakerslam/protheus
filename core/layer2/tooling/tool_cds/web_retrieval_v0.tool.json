@@ -142,7 +142,12 @@
       "evidence_artifacts.structured_extraction_item_summary",
       "evidence_artifacts.structured_extraction_source_map",
       "evidence_artifacts.candidate_relevance_score",
+      "evidence_artifacts.candidate_discovery_pass",
+      "evidence_artifacts.pre_extraction_relevance_status",
+      "evidence_artifacts.pre_extraction_relevance_reason_ref",
       "evidence_artifacts.item_source_refs",
+      "evidence_artifacts.schema_repair_status",
+      "evidence_artifacts.token_trim_warning_ref",
       "evidence_artifacts.pdf_text_excerpt",
       "evidence_artifacts.pdf_page_summary",
       "evidence_chunks"
@@ -729,6 +734,8 @@
           "strategy_ladder": [
             "css_or_xpath_schema_when_repeating_structure_detected",
             "regex_entity_extraction_for_known_low-risk_patterns",
+            "pre_extraction_relevance_gate_when_candidate_quality_is_unclear",
+            "source_traced_merge_dedupe_for_partial_multi_page_results",
             "semantic_extraction_when_structure_is_inconsistent_or_inferential"
           ],
           "schema_features": [
@@ -750,6 +757,10 @@
             "field_count",
             "extracted_row_count",
             "schema_confidence",
+            "pre_extraction_relevance_status",
+            "source_trace_count",
+            "schema_repair_status",
+            "token_trim_status",
             "fallback_reason"
           ],
           "non_goals": [

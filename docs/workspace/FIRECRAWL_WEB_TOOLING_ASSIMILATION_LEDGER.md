@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 216
-- Not parsed: 1062
+- Parsed: 234
+- Not parsed: 1044
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -204,6 +204,23 @@
 | `apps/api/src/lib/extract/document-scraper.ts` | Extraction scrape bridge. | Scrape-for-extract retries single URLs with a larger timeout, tracks URL traces/content stats, bypasses billing internally, and removes transient queue jobs after completion. |
 | `apps/api/src/lib/extract/fire-0/build-document-f0.ts` | Alternate extract document builder. | Duplicate extraction lanes keep the same metadata-sanitization boundary, which is useful as a compatibility invariant. |
 | `apps/api/src/lib/extract/fire-0/document-scraper-f0.ts` | Alternate extraction scrape bridge. | Extraction scrape behavior remains the same across provider versions: blocklist first, queue job, wait, cleanup, trace content stats. |
+| `apps/api/src/lib/extract/fire-0/build-prompts-f0.ts` | Alternate extraction prompt contracts. | Distinct reusable patterns are relevance rerank, should-extract gating, untrusted page text guards, and prompt-to-SERP rephrasing; fixed phrasing/model choices are not assimilation targets. |
+| `apps/api/src/lib/extract/fire-0/completions/analyzeSchemaAndPrompt-f0.ts` | Alternate extraction mode classifier. | Schema, prompt, and URL context can classify multi-entity work, return candidate keys/reasoning, and fall back to single-answer extraction when parsing fails. |
+| `apps/api/src/lib/extract/fire-0/completions/batchExtract-f0.ts` | Alternate multi-entity completion. | Multi-entity extraction should return source URLs and usage metadata with each page-derived extraction artifact. |
+| `apps/api/src/lib/extract/fire-0/completions/checkShouldExtract-f0.ts` | Pre-extraction relevance gate. | Before expensive extraction, a candidate page can be classified as worth extracting from using the user goal, schema/facets, and page content. |
+| `apps/api/src/lib/extract/fire-0/completions/singleAnswer-f0.ts` | Alternate single-answer completion. | Single-answer extraction joins selected candidate documents and preserves contributing source URLs for extracted top-level fields. |
+| `apps/api/src/lib/extract/fire-0/extraction-service-f0.ts` | Alternate extraction orchestration. | The full loop is prompt-to-search when URLs are absent, map, broaden if sparse, rerank, scrape, classify multi-entity vs single-answer, source-track, dedupe, merge, and project usage/sources. |
+| `apps/api/src/lib/extract/fire-0/helpers/deduplicate-objs-array-f0.ts` | Alternate extraction dedupe helper. | JSON-stable object identity is a low-cost dedupe primitive for extracted item arrays. |
+| `apps/api/src/lib/extract/fire-0/helpers/dereference-schema-f0.ts` | Alternate schema dereference helper. | Schema refs should be resolved before extraction planning rather than after candidate fetch. |
+| `apps/api/src/lib/extract/fire-0/helpers/merge-null-val-objs-f0.ts` | Alternate null-aware merge. | Normalize string `"null"` to null and merge partial objects only when their non-null values agree. |
+| `apps/api/src/lib/extract/fire-0/helpers/mix-schema-objs-f0.ts` | Alternate schema-guided result mix. | Single-answer and multi-entity outputs can be recombined by walking schema properties instead of concatenating ad hoc objects. |
+| `apps/api/src/lib/extract/fire-0/helpers/source-tracker-f0.ts` | Alternate source tracker. | Source URLs can be preserved through transform, dedupe, and null-aware merge by comparing final items to pre-merge transformed items. |
+| `apps/api/src/lib/extract/fire-0/helpers/spread-schemas-f0.ts` | Alternate schema splitter. | Multi-entity keys can be moved into a separate extraction schema while empty branches are pruned from single-answer work. |
+| `apps/api/src/lib/extract/fire-0/helpers/transform-array-to-obj-f0.ts` | Alternate array-to-object transform. | Multi-page array extraction can be normalized into a schema-shaped object while validating nested array items and preserving unique values. |
+| `apps/api/src/lib/extract/fire-0/llmExtract-f0.ts` | Structured generation boundary. | Large page inputs should be trimmed to a declared token budget, schemas normalized to supported subsets, malformed JSON repaired inside the extraction layer, and warnings kept as hidden quality metadata. |
+| `apps/api/src/lib/extract/fire-0/reranker-f0.ts` | Alternate candidate reranker. | Large link pools are chunk-scored with relevance score/reason, timeout/retry bounds, and source mapping back to the original candidate rows. |
+| `apps/api/src/lib/extract/fire-0/url-processor-f0.ts` | Alternate URL discovery processor. | URL-scoped extraction maps site candidates, broadens once when unique results are too sparse, rephrases intent for prerank, reranks selected candidates, and records trace status. |
+| `apps/api/src/lib/extract/fire-0/usage/llm-cost-f0.ts` | Alternate extraction usage accounting. | Extraction work should estimate prompt/completion costs and final result size internally without exposing billing mechanics as evidence. |
 | `apps/api/src/scraper/scrapeURL/error.ts` | Scrape error taxonomy. | Typed recoverable errors distinguish unsupported binary, DNS, no cache, lockdown miss, ZDR violation, PDF OCR/time, PDF/document antibot, feature retry limits, and engine waterfall control. |
 | `apps/api/src/lib/deep-research/research-manager.ts` | Deep research state and LLM planning. | Maintain seen URLs/findings/sources/depth/failure counts, generate 3-5 specific follow-up queries from prior findings, analyze gaps, and reserve time for final synthesis. |
 | `apps/api/src/lib/deep-research/deep-research-service.ts` | Deep research orchestration loop. | Bounded loop: generate parallel query lanes, search-plus-scrape them, dedupe URLs, append findings/sources, analyze coverage gaps, continue or synthesize under max-depth/max-URL/time budgets. |
@@ -212,6 +229,7 @@
 | `apps/api/src/search/transform.ts` | Search response transformation. | Multi-source search rows are normalized into a common document shape, and content-bearing rows are separated from thin SERP metadata. |
 | `apps/api/src/search/index.ts` | V1 search provider fallback. | Provider order falls through Fire Engine, SearXNG, then DuckDuckGo, returning empty on failures rather than exposing provider internals. |
 | `apps/api/src/lib/ranker.test.ts` | Ranking behavior tests. | Semantic rerank should expose scores/original indices, handle empty inputs, and preserve stable order for equal scores. |
+| `apps/api/src/lib/map-cosine.ts` | Lexical cosine candidate ranking. | Cheap query-term cosine ranking can be used as a fallback candidate order signal when embeddings or LLM ranking are unavailable. |
 | `apps/api/src/search/fireEngine.ts` | Legacy Fire Engine search adapter. | Search adapters should retry until a valid non-empty result predicate succeeds and otherwise return an empty set behind the provider boundary. |
 | `apps/api/src/search/searxng.ts` | Legacy SearXNG adapter. | Requested result counts can be satisfied by fetching multiple result pages and stopping early on empty pages. |
 | `apps/api/src/controllers/v1/deep-research.ts` | Deep research request controller. | Public deep-research inputs are bounded by max depth, max URLs, and time limit, then queued as an async job with initialized progress state. |
@@ -309,6 +327,8 @@
 - URL/link/image normalization should happen before budget is spent: processible document rewrites, base-href resolution, hash-anchor dedupe, hash-route preservation, and media candidate dedupe all improve candidate quality without domain-specific research rules.
 - Public status, streaming, and cancellation endpoints are projections over stored retrieval work. They should enforce owner/ZDR/TTL checks, return bounded windows, and keep queue internals diagnostic-only.
 - Structured extraction is not a final answer format. It is an evidence-pack primitive for ranking candidates, separating single-answer vs multi-entity goals, merging partial facts safely, and preserving source refs through dedupe.
+- Fire-0 confirms the extraction primitive should have a pre-extraction relevance gate and a hidden token/schema repair boundary. The useful part is the mechanics and quality metadata, not the hardcoded model names or prompt prose.
+- URL-scoped extraction should not stop after one sparse map/search pass. A bounded broader discovery pass plus rerank is a general way to avoid false "no evidence" results without asking the user to narrow.
 
 ## Candidate Assimilation Targets
 
@@ -333,6 +353,7 @@
 19. Transport and normalization lifecycle: carry request IDs, schema validation, tiered aborts, safe logging, deterministic mock replay, document-share rewrites, base-href media resolution, and hash-anchor/hash-route handling into hidden retrieval diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
 20. Retrieval projection lifecycle: enforce owner, TTL, ZDR, cancellation, catch-up, and bounded streaming/status projections for long-running retrieval work. Implemented CD/tool-policy update; runtime execution remains future work.
 21. Structured extraction evidence artifacts: classify single-answer vs multi-entity evidence needs, rerank mapped candidates by extraction value, merge partial extracted facts safely, and preserve source refs through dedupe. Implemented CD/tool-policy update; runtime execution remains future work.
+22. Relevance-gated extraction and repair boundary: before expensive structured extraction, gate candidate pages for likely usefulness; trim oversized inputs to context budget; normalize/repair structured outputs inside the evidence layer; preserve hidden warnings for synthesis calibration. Implemented CD/tool-policy update; runtime execution remains future work.
 
 ## Remaining Work
 

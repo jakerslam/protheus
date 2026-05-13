@@ -321,24 +321,24 @@ apps/api/src/lib/extract/document-scraper.ts	apps	parsed	extract_scrape_bridge	s
 apps/api/src/lib/extract/extract-redis.ts	apps	parsed	extract_state_persistence	ttl_bounded_recent_steps_capped_discovered_links_result_separation
 apps/api/src/lib/extract/extraction-service.ts	apps	parsed	extract_orchestration_service	map_broaden_chunk_extract_source_track_dedupe_merge
 apps/api/src/lib/extract/fire-0/build-document-f0.ts	apps	parsed	metadata_bounded_llm_input	alternate extraction lane preserves same sanitized metadata boundary
-apps/api/src/lib/extract/fire-0/build-prompts-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/completions/analyzeSchemaAndPrompt-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/completions/batchExtract-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/completions/checkShouldExtract-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/completions/singleAnswer-f0.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/fire-0/build-prompts-f0.ts	apps	parsed	fire0_extraction_prompt_contracts	relevance_rerank_should_extract_untrusted_page_guard_serp_rephrase_patterns_without_final_format_contract
+apps/api/src/lib/extract/fire-0/completions/analyzeSchemaAndPrompt-f0.ts	apps	parsed	fire0_schema_mode_classifier	schema_prompt_url_context_classifies_multi_entity_keys_with_safe_single_answer_fallback
+apps/api/src/lib/extract/fire-0/completions/batchExtract-f0.ts	apps	parsed	fire0_batch_extract_completion	multi_entity_extract_from_page_document_preserves_source_url_and_usage_metadata
+apps/api/src/lib/extract/fire-0/completions/checkShouldExtract-f0.ts	apps	parsed	fire0_relevance_gate	pre_extraction_boolean_relevance_check_over_page_content_schema_and_user_goal
+apps/api/src/lib/extract/fire-0/completions/singleAnswer-f0.ts	apps	parsed	fire0_single_answer_completion	single_answer_extract_joins_candidate_documents_preserves_source_urls_and_content_only_instruction
 apps/api/src/lib/extract/fire-0/document-scraper-f0.ts	apps	parsed	extract_scrape_bridge	alternate provider path preserves blocklist, queue, wait, cleanup, and trace behavior
-apps/api/src/lib/extract/fire-0/extraction-service-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/helpers/deduplicate-objs-array-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/helpers/dereference-schema-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/helpers/merge-null-val-objs-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/helpers/mix-schema-objs-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/helpers/source-tracker-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/helpers/spread-schemas-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/helpers/transform-array-to-obj-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/llmExtract-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/reranker-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/url-processor-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/fire-0/usage/llm-cost-f0.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/fire-0/extraction-service-f0.ts	apps	parsed	fire0_extraction_orchestration	prompt_to_search_when_urls_absent_map_then_rerank_scrape_multi_entity_single_answer_source_traced_merge
+apps/api/src/lib/extract/fire-0/helpers/deduplicate-objs-array-f0.ts	apps	parsed	fire0_extraction_dedupe	json_stable_item_identity_removes_duplicate_extracted_items
+apps/api/src/lib/extract/fire-0/helpers/dereference-schema-f0.ts	apps	parsed	fire0_schema_dereference	json_schema_refs_are_resolved_before_extraction_planning
+apps/api/src/lib/extract/fire-0/helpers/merge-null-val-objs-f0.ts	apps	parsed	fire0_null_aware_merge	null_string_normalization_and_non_conflicting_partial_object_merge
+apps/api/src/lib/extract/fire-0/helpers/mix-schema-objs-f0.ts	apps	parsed	fire0_schema_guided_result_mix	single_and_multi_entity_outputs_recombine_by_schema_properties
+apps/api/src/lib/extract/fire-0/helpers/source-tracker-f0.ts	apps	parsed	fire0_source_tracker	preserves_source_urls_through_transform_dedupe_and_merge_for_final_items
+apps/api/src/lib/extract/fire-0/helpers/spread-schemas-f0.ts	apps	parsed	fire0_schema_splitter	moves_multi_entity_keys_into_separate_schema_and_prunes_empty_single_answer_schema
+apps/api/src/lib/extract/fire-0/helpers/transform-array-to-obj-f0.ts	apps	parsed	fire0_array_to_object_transform	schema_shaped_merge_of_multi_page_extraction_results_with_nested_array_validation
+apps/api/src/lib/extract/fire-0/llmExtract-f0.ts	apps	parsed	fire0_structured_generation_boundary	token_budget_trim_schema_normalization_json_repair_and_usage_accounting
+apps/api/src/lib/extract/fire-0/reranker-f0.ts	apps	parsed	fire0_candidate_reranker	chunked_link_scoring_with_relevance_score_reason_timeout_retry_and_stable_source_mapping
+apps/api/src/lib/extract/fire-0/url-processor-f0.ts	apps	parsed	fire0_url_discovery_processor	map_site_scope_broaden_if_sparse_pre_rerank_intent_generate_rerank_large_candidate_pool
+apps/api/src/lib/extract/fire-0/usage/llm-cost-f0.ts	apps	parsed	fire0_usage_costing	token_usage_cost_estimation_and_final_result_size_billing_estimate
 apps/api/src/lib/extract/helpers/__tests__/source-tracker.test.ts	apps	parsed	source_tracker_tests	merged_deduped_items_retain_all_contributing_source_urls
 apps/api/src/lib/extract/helpers/deduplicate-objs-array.ts	apps	parsed	extraction_dedupe_helper	json_stable_object_identity_per_array_field
 apps/api/src/lib/extract/helpers/dereference-schema.ts	apps	parsed	schema_dereference_helper	json_schema_ref_resolution_before_extraction_planning
@@ -366,7 +366,7 @@ apps/api/src/lib/http-metrics.ts	apps	not_parsed	pending_review
 apps/api/src/lib/job-metrics.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/job-priority.ts	apps	parsed	job_priority_helper	ttl_window_team_pressure_priority_adjustment
 apps/api/src/lib/logger.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/map-cosine.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/map-cosine.ts	apps	parsed	lexical_cosine_candidate_ranking	cheap_query_term_cosine_score_for_url_rows_with_error_safe_original_order_fallback
 apps/api/src/lib/map-utils.ts	apps	parsed	map_and_search_candidate_discovery	index_sitemap_search_map_merge_semantic_rank_same_domain_filter_title_preserving_dedupe
 apps/api/src/lib/native-logging.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/otel-tracer.ts	apps	not_parsed	pending_review	
