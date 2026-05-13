@@ -97,6 +97,7 @@ Top-level source areas:
 | `FC-A16` | Extract zsh shell-plugin terminal integration semantics | active | Shell-terminal contract pass added for preexec/precmd terminal context capture, colon-command dispatch, completion/buffer projection, environment diagnostics, and the `local_coding_shell_terminal_guard` composite. |
 | `FC-A17` | Extract embedded prompt template and command-template semantics | active | Prompt-template contract pass added for embedded template registration, XML-like prompt element rendering, system/skill prompt projection, recovery templates, summary frames, title prompts, command frontmatter, and the `local_coding_prompt_template_guard` composite. |
 | `FC-A18` | Extract project governance, CI/release, and benchmark/eval semantics | active | Governance/evaluation contract pass added for project-local commands/skills, plan validation, dev/test fixtures, generated CI/release boundaries, bounty automation, benchmark eval tasks, and the `local_coding_governance_evaluation_guard` composite. |
+| `FC-A19` | Extract top-level package, distribution, config-schema, and public-mode metadata | active | Distribution/package inventory contract pass added for Cargo/package/toolchain/Cross/Nix/format/lint/snapshot/config-schema/README/AGENTS/provider model metadata. |
 
 ## Assimilated workflow contracts created
 
@@ -175,7 +176,8 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `forge_project_local_governance` | 0 | `.forge/commands`, `.forge/skills`, `.config/nextest.toml`, `.devcontainer/devcontainer.json`, `docs/tool-guidelines.md` | lab contract created | Projects project-local command/skill discovery rules, plan validation, tool-description limits, nextest preferences, and devcontainer setup without executing governance actions. |
 | `forge_ci_release_boundary` | 0 | `.github/workflows`, `.github/release-drafter.yml`, `.github/dependabot.yml`, `.github/labels.json`, `.github/scripts/bounty`, `.forge/skills/write-release-notes` | lab contract created | Captures generated workflow boundaries, CI validation, release target matrix, package distribution, bounty label rules, release-note generation, and secret redaction. |
 | `forge_benchmark_eval_harness` | 0 | `benchmarks`, `benchmarks/evals`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Projects eval task parsing, execution logging, timeout/early-exit behavior, tool-use validation rules, performance thresholds, and porcelain inventory checks. |
-| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs` | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, and benchmark/eval evidence from raw coding execution. |
+| `forge_distribution_package_inventory` | 0 | `Cargo.toml`, `package.json`, `rust-toolchain.toml`, `Cross.toml`, `flake.nix`, `.rustfmt.toml`, `clippy.toml`, `insta.yaml`, `forge.schema.json`, `README.md`, `AGENTS.md`, `vertex.json`, `renovate.json` | lab contract created | Captures top-level workspace/package metadata, distribution/toolchain boundaries, formatting/lint/snapshot config, public CLI/TUI/zsh modes, local coding guidance, config schema, and provider model inventory. |
+| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, and distribution/package inventory evidence from raw coding execution. |
 
 ## Runtime behavior harnesses created
 
@@ -257,10 +259,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, distribution/package inventory, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
 
 Next source pass:
-- Run a final source-inventory parity review for any missed ForgeCode source families, then shift from structural assimilation to executable eval coverage and promotion-readiness scoring.
+- Structural assimilation is effectively closed; next work is executable eval coverage, promotion-readiness scoring, and spot-checking any newly discovered source families.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -662,3 +664,31 @@ Governance/evaluation parity requirements extracted:
 | Preserve eval logs, timeout/early-exit metadata, validation results, and stripped-ANSI output receipts | `forge_benchmark_eval_harness` | P0 |
 | Measure read-tool preference, exact patch use, and parallel tool calls directly from debug request traces | `forge_benchmark_eval_harness` | P0 |
 | Keep benchmark/eval execution separate from configured eval inventory and promotion claims | `local_coding_governance_evaluation_guard` | P0 |
+
+## Fifteenth source pass: top-level package, distribution, config schema, and public-mode metadata
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| `Cargo.toml` | Defines a Rust workspace with `crates/*`, release profile preferences, workspace package metadata, and internal crate dependency structure. | `forge_distribution_package_inventory` |
+| `package.json` | Owns the private Node eval/automation package scripts for evals, bounty sync, and related tooling. | `forge_distribution_package_inventory` |
+| `rust-toolchain.toml` | Pins the Rust toolchain channel and profile used by ForgeCode builds. | `forge_distribution_package_inventory` |
+| `Cross.toml` | Defines cross-compilation defaults, target images, protoc setup, and release environment passthrough boundaries. | `forge_distribution_package_inventory` |
+| `flake.nix` | Defines Nix package/app/devShell surfaces, clean source filtering, build inputs, and disabled check behavior. | `forge_distribution_package_inventory` |
+| `.rustfmt.toml`, `clippy.toml`, `insta.yaml` | Captures formatting, lint, and snapshot-test defaults that influence contributor and evaluation behavior. | `forge_distribution_package_inventory` |
+| `forge.schema.json` | Provides the externally visible Forge configuration schema and field defaults/shape. | `forge_distribution_package_inventory` |
+| `README.md` | Documents public operating modes: installation, interactive TUI, one-shot CLI, zsh prefix, agents, prompts, file attachment, conversation management, git integration, shell tools, sessions/config, skills, custom agents, and semantic search. | `forge_distribution_package_inventory` |
+| `AGENTS.md` | Provides repository-local coding guidance for errors, tests, docs, fixtures, refactors, git attribution, services, and infrastructure abstractions. | `forge_distribution_package_inventory` |
+| `vertex.json` | Inventories provider model metadata including context length, tool support, parallel tool calls, reasoning support, and input modalities. | `forge_distribution_package_inventory` |
+| `renovate.json` | Captures dependency update automation and automerge policy. | `forge_distribution_package_inventory` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Preserve top-level workspace/package metadata as evidence without rewriting package manifests from memory | `forge_distribution_package_inventory` | P0 |
+| Treat toolchain, Cross, Nix, rustfmt, clippy, and insta files as build/distribution policy surfaces, not coding-task implementation details | `forge_distribution_package_inventory` | P0 |
+| Keep public README modes visible to higher-level coding workflows so routing can distinguish interactive, one-shot, zsh, shell, git, skill, and semantic-search behavior | `forge_distribution_package_inventory` | P0 |
+| Use the Forge config schema and provider model inventory as contract references for configuration/model routing, while avoiding claims that every provider/model path has executable parity | `forge_distribution_package_inventory` | P0 |
+| Route distribution/package conflicts through governance/evaluation evidence instead of raw coding execution | `local_coding_governance_evaluation_guard` | P0 |
