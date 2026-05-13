@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 919
-- Not parsed: 354
+- Parsed: 926
+- Not parsed: 347
 - Skipped generated: 13
 - Skipped media or sample: 71
 
@@ -968,6 +968,13 @@
 | `examples/openai_swarm_firecrawl_web_extractor/main.py` | Swarm extractor implementation. | Search-to-map-to-scrape-to-analyze agent handoff is useful as composite-CD shape; collapsing map output to a single top link is a candidate-set anti-pattern. |
 | `examples/openai_swarm_firecrawl_web_extractor/requirements.txt` | Swarm extractor dependencies. | Firecrawl, OpenAI, search provider, and Swarm dependencies are example-local. |
 | `examples/visualize_website_topics_e2b/claude-visualize-website-topics.ipynb` | Topic visualization notebook. | Crawl output can be cleaned into metadata/content summaries and passed to a separate code-analysis tool that returns visualization artifacts. |
+| `examples/aginews-ai-newsletter/README.md` | External app pointer. | Autonomous-newsletter concept is relevant only as recurring research workflow inspiration; implementation lives outside this repo. |
+| `examples/ai-podcast-generator/README.md` | External app pointer. | News crawl to generated media is a downstream artifact workflow, not a retrieval primitive. |
+| `examples/full_example_apps/README.md` | External apps pointer. | Pointer only; no local web-tooling mechanics to assimilate. |
+| `examples/blog-articles/amazon-price-tracking/notebook.md` | Price-tracking tutorial article. | Recurring extraction can store time-series evidence, compare against historical baselines, and emit notification side effects after validated state changes. |
+| `examples/blog-articles/deploying_web_scrapers/notebook.md` | Scraper deployment tutorial article. | Deployment choice should be scale/budget/complexity aware, with retries, validation, logging, alerts, compression, and cleanup treated as lifecycle controls. |
+| `examples/blog-articles/github-actions-tutorial/notebook.md` | GitHub Actions tutorial article. | Scheduled/manual workflow triggers, secrets, environment validation, and artifact commits are recurring-control concerns separate from retrieval evidence. |
+| `examples/blog-articles/scheduling_scrapers/notebook.md` | Scheduler tutorial article. | Local schedule, async loops, cron, and hosted schedulers reinforce exception-isolated recurring retrieval with logs, health checks, rate limits, and retention cleanup. |
 
 ## Decisions So Far
 
@@ -1384,6 +1391,11 @@
 237. Corpus-derived secondary artifacts: crawled corpora can feed internal-link suggestions, topic visualizations, and other derivative artifacts without mutating the retrieval corpus. Ledger reinforced; candidate analysis workflow target.
 238. Composite agent handoff as CD shape: examples model search, map, scrape, analyze, and write as separate callable stages; useful as composite workflow-CD inspiration, not hardcoded agents. Ledger captured; candidate workflow-CD composition target.
 239. Candidate-set collapse anti-pattern: taking only the first map/search result before scraping loses coverage and should be guarded by fan-in/min-coverage policy. Ledger captured; candidate retrieval planner guard.
+240. Recurring retrieval lifecycle: scheduled web tooling should separate cadence, secrets, run logs, historical snapshots, and notification side effects from evidence generation. Ledger reinforced; candidate monitor/change-detection CD target.
+241. Historical baseline comparison: recurring extraction can compare new artifacts against prior snapshots to emit deltas, thresholds, or alerts after validation. Ledger captured; candidate evidence-store/change-detection target.
+242. Health and completeness monitors: scheduled retrieval should validate expected counts/required fields and alert on empty or incomplete runs before synthesis consumes them. Ledger reinforced; candidate workflow stats/eval target.
+243. Data retention cleanup: recurring scrapers need explicit retention/compression cleanup so cache/history does not become unbounded churn. Ledger reinforced; candidate system data lifecycle policy.
+244. Deployment profile separation: local, CI, PaaS, serverless, and cluster execution profiles should affect budgets/admission/retry expectations, not final answer behavior. Ledger captured; candidate Tool CD profile field.
 
 ## Remaining Work
 
@@ -1398,6 +1410,7 @@
 - Model-variant crawler/extractor clusters through Claude, Gemini, GPT-4.5, Grok, Groq, Haiku, Mistral, O1, O3-mini, and Sonnet are parsed; they mostly reinforce map/rank/scrape/extract, linked media/document lanes, and source-bound extraction while provider choices remain quarantined.
 - Company/product/job/source-specific examples are parsed enough to capture extract-then-discover, candidate confidence sidecars, source verification, action preconditions, and downstream analysis-over-evidence patterns.
 - Screenshot editor, internal-link, topic-visualization, Llama crawler, realtime pointer, and OpenAI Swarm examples are parsed; useful signals are visual artifact facets, corpus-derived analysis artifacts, composite handoff shape, and avoiding top-link-only candidate collapse.
+- AI-news/podcast/full-app pointers and the readable deployment/scheduling/price/GitHub Actions articles are parsed; useful signals are recurring retrieval lifecycle, historical baselines, health checks, retention cleanup, and deployment profile separation.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
