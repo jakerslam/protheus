@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 234
-- Not parsed: 1044
+- Parsed: 245
+- Not parsed: 1033
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -62,6 +62,7 @@
 | `apps/api/src/search/v2/searxng.ts` | SearXNG provider implementation. | Fetch enough pages to satisfy requested result count, stop on empty pages, normalize provider rows into a shared web result shape. |
 | `apps/api/src/search/v2/fireEngine-v2.ts` | Premium search provider implementation. | Provider calls are retried behind an adapter boundary and can return partial source-type coverage. |
 | `apps/api/src/lib/search-query-builder.ts` | Structured query filter builder. | Categories, include domains, exclude domains, and PDF filters compile into query/filter lanes while preserving a category map for result metadata. |
+| `apps/api/src/__tests__/lib/search-query-builder.test.ts` | Query builder behavior tests. | Tests show exact user query text should be preserved while source-category, include-domain, and exclude-domain filters compile into explicit query lanes with category metadata. |
 | `apps/api/src/lib/search-index-client.ts` | Managed search-index client. | Optional index search/index writes fail closed to empty candidates or logged diagnostics, carry score/freshness/quality/rank metadata, and must not block scraping. |
 | `apps/api/src/controllers/v2/types.ts` | Request schema and search options. | Strict request schema supports sources, categories, domains, scrape options, timeout bounds, and format defaults as typed input rather than prompt phrasing. |
 | `apps/api/src/controllers/v2/browser.ts` | Browser session controller. | Dynamic browser work is TTL/concurrency bounded, owner checked, retried on creation, cleaned up if persistence fails, and finalized with idempotent destroyed-state claiming. |
@@ -86,6 +87,8 @@
 | `apps/api/src/scraper/scrapeURL/engines/utils/specialtyHandler.ts` | Specialty content lane split. | Content type and magic signatures route PDFs/documents to specialty extractors and reject unsupported binary formats instead of treating them as page evidence. |
 | `apps/api/src/lib/html-to-markdown.ts` | HTML-to-markdown waterfall. | Conversion can try service/native parser first, then tolerant markdown conversion, with postprocessing and ZDR-aware logging. |
 | `apps/api/src/lib/html-to-markdown-client.ts` | HTML-to-markdown service call. | Request IDs and sizes are omitted under ZDR; converter failures fall back rather than becoming final visible failures. |
+| `apps/api/src/lib/__tests__/html-to-markdown.test.ts` | HTML-to-markdown behavior tests. | Tolerant conversion should produce stable markdown for empty, null, nested, and malformed HTML rather than failing the retrieval path. |
+| `apps/api/src/lib/__tests__/html-transformer.test.ts` | HTML transformer behavior tests. | Link and metadata extraction should tolerate malformed HTML, base href quirks, missing fields, and metadata backfill from OpenGraph/Twitter tags. |
 | `apps/api/src/scraper/scrapeURL/lib/removeUnwantedElements.ts` | HTML cleanup. | Prefer native transform, fall back to include/exclude selectors, strip shell/noise elements, absolutize links/images, and choose largest srcset image. |
 | `apps/api/src/scraper/scrapeURL/lib/rewriteUrl.ts` | Processible URL rewrites. | Some document-host URLs can be rewritten to HTML/download forms before extraction; useful as a capability-specific adapter pattern, not a research-domain route. |
 | `apps/api/src/scraper/scrapeURL/lib/fetch.ts` | Robust fetch wrapper. | Retries, schema validation, abort propagation, cacheable DNS, mock recording, and sensitive body redaction belong inside adapter mechanics. |
@@ -99,6 +102,8 @@
 | `apps/api/src/scraper/WebScraper/utils/maxDepthUtils.ts` | Crawl depth utility. | Depth budgets should be relative to the seed URL and ignore index filenames. |
 | `apps/api/src/lib/validateUrl.ts` | URL validation and redirect utilities. | Add missing protocol, restrict to HTTP(S), reject malformed repeated protocols, and resolve redirects with bounded HEAD/GET attempts. |
 | `apps/api/src/lib/url-utils.ts` | Public-suffix URL utilities. | Base-domain detection should handle multi-part TLDs and distinguish root domains from subdomains/paths. |
+| `apps/api/src/lib/canonical-url.test.ts` | Canonical URL behavior tests. | URL normalization should strip protocol/`www`/trailing slash for equivalence while preserving meaningful paths and invalid input strings. |
+| `apps/api/src/lib/validateUrl.test.ts` | URL validation behavior tests. | Domain/subdomain checks should fail closed for invalid URLs and duplicate removal should prefer HTTPS and non-`www` variants. |
 | `apps/api/src/scraper/scrapeURL/lib/extractImages.ts` | Image extraction. | Resolve image candidates through `<base href>`, `srcset`, metadata, icons, background images, and poster attributes while filtering invalid schemes. |
 | `apps/api/src/scraper/scrapeURL/lib/extractAttributes.ts` | Attribute extraction. | Use fast/native extraction with a tolerant selector/attribute fallback and bounded debug summaries. |
 | `apps/api/src/scraper/scrapeURL/lib/extractSmartScrape.ts` | Interactive extraction decider. | Before invoking expensive interaction, ask whether missing structured data requires page interaction, carry reasoning/prompt internally, and keep cost-bounded fallbacks. |
@@ -187,11 +192,16 @@
 | `apps/api/src/lib/extract/helpers/source-tracker.ts` | Extraction source tracker. | Source refs are preserved through array/object transforms, pre-dedupe tracking, null-aware merging, and final item source maps. |
 | `apps/api/src/lib/extract/helpers/__tests__/source-tracker.test.ts` | Source tracker tests. | Merged or deduped extraction items should retain all contributing source URLs. |
 | `apps/api/src/lib/extract/helpers/deduplicate-objs-array.ts` | Extraction dedupe helper. | JSON-stable object identity removes duplicate extracted items per array field. |
+| `apps/api/src/lib/__tests__/deduplicate-obs-array.test.ts` | Extraction dedupe tests. | Exact duplicate nested objects are removed, but items with distinct properties or values remain separate evidence candidates. |
 | `apps/api/src/lib/extract/helpers/dereference-schema.ts` | Schema dereference helper. | External/internal JSON schema refs should be dereferenced before extraction planning. |
 | `apps/api/src/lib/extract/helpers/merge-null-val-objs.ts` | Null-aware object merge. | Extracted objects are mergeable when non-null fields agree; null-equivalent strings are normalized and complementary fields are filled without conflicting evidence. |
+| `apps/api/src/lib/__tests__/merge-null-val-objs.test.ts` | Null-aware merge tests. | Partial extracted objects merge only when identifiers/non-null fields agree, with `"null"` string normalization and duplicate removal. |
 | `apps/api/src/lib/extract/helpers/mix-schema-objs.ts` | Schema-guided result merger. | Single-answer and multi-entity results can be recombined by following schema properties instead of ad hoc object concatenation. |
+| `apps/api/src/lib/__tests__/mix-schemas.test.ts` | Schema-guided mix tests. | Separate single-answer and multi-entity outputs can be recombined into a final object while preserving schema-shaped nested data. |
 | `apps/api/src/lib/extract/helpers/spread-schemas.ts` | Schema split helper. | Multi-entity keys can be split from a larger schema, moving required fields and pruning empty objects for separate extraction passes. |
+| `apps/api/src/lib/__tests__/spread-schema-objects.test.ts` | Schema split tests. | Array/entity fields split into a multi-entity schema while non-entity fields stay in single-answer work and empty branches are pruned. |
 | `apps/api/src/lib/extract/helpers/transform-array-to-obj.ts` | Array-to-object transform. | Multi-page extraction results can be normalized into schema-shaped objects while preserving valid unique array items and nested paths. |
+| `apps/api/src/lib/__tests__/transform-array-to-obj.test.ts` | Array-to-object transform tests. | Multiple page-level array outputs merge into one schema-shaped evidence object while empty/null arrays do not wipe valid items. |
 | `apps/api/src/lib/browser-sessions.ts` | Browser session state helpers. | Session rows track TTL, owner, status, CDP/view handles, prompt-use flags, cached active counts, and idempotent destroyed-state claiming. |
 | `apps/api/src/lib/browser-session-activity.ts` | Browser activity batching. | Browser execution telemetry is queued and batch-inserted as internal activity records instead of becoming retrieval evidence. |
 | `apps/api/src/lib/scrape-interact/browser-service-client.ts` | Browser service client. | Browser service calls are behind a narrow typed adapter that throws typed non-2xx errors and keeps service URLs/headers internal. |
@@ -276,6 +286,7 @@
 | `apps/api/src/services/worker/nuq-reconciler-worker.ts` | Queue reconciliation worker. | Reconciliation runs on a bounded interval, avoids overlapping runs, exposes recovery metrics, and waits for in-flight reconciliation before shutdown. |
 | `apps/api/src/services/worker/scrape-worker.ts` | Retrieval worker and incremental crawl expansion. | Completed pages can discover more links, but new work is enqueued only after crawl policy filtering, robots recording, URL locks, priority assignment, and parent-run cancellation checks. |
 | `apps/api/src/lib/job-priority.ts` | Queue priority helper. | Priority adapts to recent per-team queue pressure with a TTL window rather than static one-size scheduling. |
+| `apps/api/src/lib/__tests__/job-priority.test.ts` | Queue priority tests. | Priority pressure state is TTL-scoped, reset on add, removable on completion, and increases priority when recent team queue size crosses thresholds. |
 | `apps/api/src/services/idempotency/create.ts` | Idempotency key creation. | Idempotency keys are persisted at request admission so retries can be detected before duplicate work starts. |
 | `apps/api/src/services/idempotency/validate.ts` | Idempotency key validation. | Request retry safety validates UUID-shaped keys and treats existing keys as duplicate work admission. |
 | `apps/api/src/services/extract-queue.ts` | Extract queue and DLQ. | Extraction work uses persistent message IDs, prefetch bounds, explicit ack/nack, single-delivery DLQ routing, and DLQ requeue only when DLQ handling itself fails. |

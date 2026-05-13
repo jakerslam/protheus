@@ -125,7 +125,7 @@ apps/api/src/__tests__/e2e_v1_withAuth/index.test.ts	apps	not_parsed	pending_rev
 apps/api/src/__tests__/e2e_v1_withAuth_all_params/index.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/e2e_withAuth/index.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/lib/branding/processor-color.test.ts	apps	not_parsed	pending_review	
-apps/api/src/__tests__/lib/search-query-builder.test.ts	apps	not_parsed	pending_review	
+apps/api/src/__tests__/lib/search-query-builder.test.ts	apps	parsed	search_query_builder_tests	category_filter_include_exclude_domain_exact_query_preservation_and_category_map_behavior
 apps/api/src/__tests__/snips/generateDomainSplits.test.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/lib.ts	apps	not_parsed	pending_review	
 apps/api/src/__tests__/snips/metadata-concat.test.ts	apps	not_parsed	pending_review	
@@ -270,14 +270,14 @@ apps/api/src/controllers/v2/types.ts	apps	parsed	request_schema_and_search_optio
 apps/api/src/controllers/v2/x402-search.ts	apps	not_parsed	pending_review	
 apps/api/src/harness.ts	apps	not_parsed	pending_review	
 apps/api/src/index.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/deduplicate-obs-array.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/html-to-markdown.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/html-transformer.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/job-priority.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/merge-null-val-objs.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/mix-schemas.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/spread-schema-objects.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/__tests__/transform-array-to-obj.test.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/__tests__/deduplicate-obs-array.test.ts	apps	parsed	extraction_dedupe_tests	exact_duplicate_nested_object_removal_without_merging_distinct_partial_items
+apps/api/src/lib/__tests__/html-to-markdown.test.ts	apps	parsed	html_to_markdown_tests	tolerant_conversion_empty_null_and_malformed_html_inputs_to_stable_markdown
+apps/api/src/lib/__tests__/html-transformer.test.ts	apps	parsed	html_transformer_tests	link_metadata_base_href_malformed_html_and_metadata_backfill_behavior
+apps/api/src/lib/__tests__/job-priority.test.ts	apps	parsed	job_priority_tests	ttl_scoped_team_pressure_set_and_priority_increase_when_queue_pressure_exceeds_threshold
+apps/api/src/lib/__tests__/merge-null-val-objs.test.ts	apps	parsed	null_aware_merge_tests	non_conflicting_partial_items_merge_null_string_normalization_duplicate_removal
+apps/api/src/lib/__tests__/mix-schemas.test.ts	apps	parsed	schema_mix_tests	single_answer_and_multi_entity_schema_outputs_recombine_by_schema_shape
+apps/api/src/lib/__tests__/spread-schema-objects.test.ts	apps	parsed	schema_spread_tests	array_entity_fields_split_from_single_answer_schema_empty_branch_pruning
+apps/api/src/lib/__tests__/transform-array-to-obj.test.ts	apps	parsed	array_to_object_tests	multi_page_array_outputs_merge_into_schema_shape_while_skipping_empty_or_null_arrays
 apps/api/src/lib/__tests__/url-utils.test.ts	apps	parsed	public_suffix_url_utils_tests	base_domain_detection_complex_tld_subdomain_handling
 apps/api/src/lib/avgrab-resolve.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/branding/extractHeaderHtmlChunk.ts	apps	not_parsed	pending_review	
@@ -292,7 +292,7 @@ apps/api/src/lib/branding/types.ts	apps	not_parsed	pending_review
 apps/api/src/lib/browser-billing.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/browser-session-activity.ts	apps	parsed	browser_activity_batching	internal_execution_activity_queue_batch_insert_not_retrieval_evidence
 apps/api/src/lib/browser-sessions.ts	apps	parsed	browser_session_state	ttl_owner_status_cdp_view_handles_prompt_flag_cached_active_count_idempotent_destroy_claim
-apps/api/src/lib/canonical-url.test.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/canonical-url.test.ts	apps	parsed	canonical_url_tests	hostname_only_and_full_url_normalization_remove_protocol_www_trailing_slash_preserve_paths
 apps/api/src/lib/canonical-url.ts	apps	parsed	url_normalization	canonical_url_strips_protocol_www_trailing_slash_for_dedupe
 apps/api/src/lib/clickhouse-client.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/concurrency-limit.ts	apps	parsed	concurrency_queue_state_machine	ttl_scored_active_and_backlog_sets_crawl_limits_cleanup_successor_promotion
@@ -390,7 +390,7 @@ apps/api/src/lib/supabase-jobs.ts	apps	not_parsed	pending_review
 apps/api/src/lib/tracking.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/url-utils.ts	apps	parsed	public_suffix_url_utils	psl_base_domain_extraction_root_domain_detection
 apps/api/src/lib/validate-country.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/validateUrl.test.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/validateUrl.test.ts	apps	parsed	validate_url_tests	same_domain_subdomain_invalid_url_and_duplicate_variant_preference_behavior
 apps/api/src/lib/validateUrl.ts	apps	parsed	url_validation_and_redirect_utils	protocol_completion_http_https_only_www_protocol_duplication_guard_redirect_resolution
 apps/api/src/lib/withAuth.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/x402.ts	apps	not_parsed	pending_review	
