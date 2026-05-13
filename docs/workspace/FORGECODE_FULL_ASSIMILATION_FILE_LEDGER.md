@@ -96,6 +96,7 @@ Top-level source areas:
 | `FC-A15` | Extract sandbox, command surface, update/editor/auth, and data-generation operator integrations | active | Operator-integration contract pass added for git worktree sandboxing, command projection, update/editor/OAuth boundaries, schema data generation, and the `local_coding_operator_integration_guard` composite. |
 | `FC-A16` | Extract zsh shell-plugin terminal integration semantics | active | Shell-terminal contract pass added for preexec/precmd terminal context capture, colon-command dispatch, completion/buffer projection, environment diagnostics, and the `local_coding_shell_terminal_guard` composite. |
 | `FC-A17` | Extract embedded prompt template and command-template semantics | active | Prompt-template contract pass added for embedded template registration, XML-like prompt element rendering, system/skill prompt projection, recovery templates, summary frames, title prompts, command frontmatter, and the `local_coding_prompt_template_guard` composite. |
+| `FC-A18` | Extract project governance, CI/release, and benchmark/eval semantics | active | Governance/evaluation contract pass added for project-local commands/skills, plan validation, dev/test fixtures, generated CI/release boundaries, bounty automation, benchmark eval tasks, and the `local_coding_governance_evaluation_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -171,6 +172,10 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `system_skill_prompt_projection` | 0 | `templates/forge-partial-system-info.md`, `templates/forge-partial-skill-instructions.md`, `templates/forge-partial-tool-use-example.md`, `templates/forge-custom-agent-template.md` | lab contract created | Projects environment, file/extension stats, tool-use instructions, skill inventory, custom rules, and custom-agent prompt sections from measured receipts. |
 | `recovery_command_template_projection` | 0 | `templates/forge-tool-retry-message.md`, `templates/forge-partial-tool-error-reflection.md`, `templates/forge-partial-summary-frame.md`, `templates/forge-system-prompt-title-generation.md`, `commands/github-pr-description.md` | lab contract created | Projects retry/reflection prompts, summary frames, title-generation instructions, and command frontmatter templates without executing rendered commands. |
 | `local_coding_prompt_template_guard` | 1 | `forge_embed`, `forge_template`, `templates`, `commands` | lab contract created | Composite guard that isolates embedded template registration and prompt/command template projection from runtime execution and local file mutation. |
+| `forge_project_local_governance` | 0 | `.forge/commands`, `.forge/skills`, `.config/nextest.toml`, `.devcontainer/devcontainer.json`, `docs/tool-guidelines.md` | lab contract created | Projects project-local command/skill discovery rules, plan validation, tool-description limits, nextest preferences, and devcontainer setup without executing governance actions. |
+| `forge_ci_release_boundary` | 0 | `.github/workflows`, `.github/release-drafter.yml`, `.github/dependabot.yml`, `.github/labels.json`, `.github/scripts/bounty`, `.forge/skills/write-release-notes` | lab contract created | Captures generated workflow boundaries, CI validation, release target matrix, package distribution, bounty label rules, release-note generation, and secret redaction. |
+| `forge_benchmark_eval_harness` | 0 | `benchmarks`, `benchmarks/evals`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Projects eval task parsing, execution logging, timeout/early-exit behavior, tool-use validation rules, performance thresholds, and porcelain inventory checks. |
+| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs` | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, and benchmark/eval evidence from raw coding execution. |
 
 ## Runtime behavior harnesses created
 
@@ -186,7 +191,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | ingress/session/remote-service/operator-integration/shell-terminal/prompt-template/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_coding_operator_integration_guard`, nested `local_coding_shell_terminal_guard`, nested `local_coding_prompt_template_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | ingress/session/remote-service/operator-integration/shell-terminal/prompt-template/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_coding_operator_integration_guard`, nested `local_coding_shell_terminal_guard`, nested `local_coding_prompt_template_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. Governance/evaluation support is tracked separately in `local_coding_governance_evaluation_guard` so promotion evidence does not pollute raw coding execution. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -252,10 +257,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
 
 Next source pass:
-- Run a full source-inventory parity review against remaining ForgeCode source families, especially docs/plans, scripts, `.forge` configuration fixtures, and CI/release surfaces, then shift from structural assimilation to executable eval coverage.
+- Run a final source-inventory parity review for any missed ForgeCode source families, then shift from structural assimilation to executable eval coverage and promotion-readiness scoring.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -614,3 +619,46 @@ Prompt-template parity requirements extracted:
 | Preserve summary-frame records for file, search, skill, semantic-search, shell, MCP, and todo tool calls | `recovery_command_template_projection` | P0 |
 | Parse command frontmatter and expand parameters without executing rendered command actions | `recovery_command_template_projection` | P0 |
 | Keep prompt-template projection separate from runtime execution, validation, permission, and file mutation | `local_coding_prompt_template_guard` | P0 |
+
+## Fourteenth source pass: project governance, CI/release, and benchmark/eval behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `.forge/commands/check.md` | Defines a project-local command with frontmatter and explicit `<lint>` and `<test>` tags for cargo fmt/clippy and insta tests, then instructs fixing found issues. | Project-local commands should expose lint/test command tags as governance metadata, not execute automatically inside raw coding. |
+| `.forge/commands/fixme.md` | Defines a simple command to find and fix FIXME comments. | Local commands can be instruction-only and still need frontmatter receipts. |
+| `.forge/skills/create-plan/SKILL.md` | Creates planning-only Markdown files under `plans/{date}-{task}-vN.md`, requires checkbox tasks, forbids code snippets and implementation changes, requires source citations, and mandates validation scripts. | Planning governance should remain separate from coding execution and require plan validation receipts. |
+| `.forge/skills/create-agent/SKILL.md` | Requires custom agents in `<cwd>/.forge/agents/{agent-id}.md` with YAML frontmatter fields and markdown body structure. | Agent authoring/discovery rules should be captured as project-local governance fixtures. |
+| `.forge/skills/create-command/SKILL.md` | Requires commands in `<cwd>/.forge/commands/{command-name}.md`, YAML frontmatter, command body, and optional `<lint>`, `<test>`, and `<shell>` tags. | Command authoring rules should be measurable without executing command bodies. |
+| `.forge/skills/write-release-notes/SKILL.md` | Fetches release/PR data, categorizes changes, writes user-facing release notes, filters contributors, validates notes under 2000 chars, and avoids implementation jargon/PR references. | Release notes belong to CI/release governance, with length and style validation receipts. |
+| `.config/nextest.toml` | Sets slow-test thresholds and failed-only status/final-status output. | Test runner preferences should be captured as validation-environment fixtures. |
+| `.devcontainer/devcontainer.json` | Defines Rust devcontainer image, Node, GitHub CLI, git, zsh/Oh My Zsh, zsh shell defaults, fzf/fd, forgecode, rustfmt/clippy, cargo-insta, cargo-nextest, and ast-grep setup. | Reproducible development environment setup should be a fixture, not assumed by coding primitives. |
+| `docs/tool-guidelines.md` | Defines tool-description best practices, including detailed descriptions, selection criteria, parameter clarity, registry registration, and a 1024-character limit. | Tool schema quality should be governed and evaled, not only syntactically registered. |
+| `.github/workflows/ci.yml` | Generated workflow warns against hand edits, runs CI on PR/main/tag events, sets `RUSTFLAGS=-Dwarnings`, generates coverage, runs zsh rprompt performance benchmark, drafts releases on main, and conditionally builds PR release artifacts by label. | CI/release workflow files should be treated as generated artifacts and boundary evidence. |
+| `.github/workflows/release.yml` | Builds multi-platform release binaries on release publication, uploads binaries, updates NPM package repos, and updates Homebrew formula through secrets. | Release publication and package distribution must stay behind explicit release boundaries and secret redaction. |
+| `.github/scripts/bounty/src/rules.ts` | Computes pure label/comment patches for bounty issue/PR sync, including value labels, claimed/rewarded lifecycle, linked issue extraction, and no side effects in rule computation. | GitHub automation should separate pure desired-state rules from mutation application. |
+| `benchmarks/task-executor.ts` | Spawns task commands, streams stdout/stderr to stripped-ANSI logs, supports timeout kill, early exit when validations pass, and records duration/error metadata. | Eval execution needs structured receipts and cannot be reduced to pass/fail only. |
+| `benchmarks/parse.ts` | Parses eval name as directory or direct task YAML path and requires an eval-name argument. | Eval routing should accept both task paths and named eval directories with explicit errors. |
+| `benchmarks/evals/read_over_cat/task.yml` | Validates agents use read tools instead of shell `cat`, catches cat pipes/redirection and multiple-file cat anti-patterns. | File-reading evals should measure correct tool selection, not only task completion. |
+| `benchmarks/evals/patch_exact_match/task.yml` | Validates patch tool use, no missing operation errors, no text mismatch failures, and exact search text. | Patch evals should prove exact-match editing behavior. |
+| `benchmarks/evals/parallel_tool_calls/task.yml` | Validates at least one assistant message includes multiple tool calls. | Parallel tool-call behavior should be measured directly. |
+| `scripts/benchmark.sh` | Builds Forge, runs a command ten times, reports avg/min/max, and fails when average exceeds an optional threshold. | Performance thresholds belong to promotion evidence, not normal coding. |
+| `scripts/list-all-porcelain.sh` | Runs porcelain list commands, reports runtimes, and documents which list outputs contain `$ID` columns. | Porcelain command inventory supports shell/completion semantics and should be receipt-backed. |
+
+Governance/evaluation parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Discover `.forge` commands/skills only from project-local canonical directories | `forge_project_local_governance` | P0 |
+| Parse command/skill frontmatter and special command tags without executing command bodies | `forge_project_local_governance` | P0 |
+| Keep create-plan planning-only, require checkbox implementation tasks, source citations, and validation script receipts | `forge_project_local_governance` | P0 |
+| Capture nextest/devcontainer/tool-description governance fixtures separately from runtime behavior | `forge_project_local_governance` | P1 |
+| Treat generated GitHub workflow YAML as generated and avoid hand-editing as source of truth | `forge_ci_release_boundary` | P0 |
+| Keep release publication, package repository updates, and GitHub label mutations behind explicit external-action routes | `forge_ci_release_boundary` | P0 |
+| Preserve multi-target release matrix and secret-redaction boundaries | `forge_ci_release_boundary` | P0 |
+| Separate pure bounty desired-state label rules from mutation application | `forge_ci_release_boundary` | P1 |
+| Parse eval names as directories or direct task YAML paths | `forge_benchmark_eval_harness` | P0 |
+| Preserve eval logs, timeout/early-exit metadata, validation results, and stripped-ANSI output receipts | `forge_benchmark_eval_harness` | P0 |
+| Measure read-tool preference, exact patch use, and parallel tool calls directly from debug request traces | `forge_benchmark_eval_harness` | P0 |
+| Keep benchmark/eval execution separate from configured eval inventory and promotion claims | `local_coding_governance_evaluation_guard` | P0 |

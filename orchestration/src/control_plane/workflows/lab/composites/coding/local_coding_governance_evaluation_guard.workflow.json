@@ -1,0 +1,267 @@
+{
+  "name": "local_coding_governance_evaluation_guard",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "project_local_governance",
+        "workflow_id": "forge_project_local_governance",
+        "input_contract": "forge_project_local_governance_input_envelope_v1",
+        "output_artifact": "forge_project_local_governance_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "ci_release_boundary",
+        "workflow_id": "forge_ci_release_boundary",
+        "input_contract": "forge_ci_release_boundary_input_envelope_v1",
+        "output_artifact": "forge_ci_release_boundary_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "benchmark_eval_harness",
+        "workflow_id": "forge_benchmark_eval_harness",
+        "input_contract": "forge_benchmark_eval_harness_input_envelope_v1",
+        "output_artifact": "forge_benchmark_eval_harness_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_run_evals_without_parent_route",
+      "do_not_publish_releases",
+      "do_not_mutate_project_governance_files",
+      "do_not_treat_configured_checks_as_passed_checks"
+    ]
+  },
+  "default": false,
+  "description": "Composite ForgeCode-derived governance/evaluation guard for local coding promotion: isolates project-local governance, CI/release automation, and benchmark eval harnesses from raw coding execution.",
+  "stages": [
+    "governance_evaluation_need_assessment",
+    "project_local_governance_route",
+    "ci_release_boundary_route",
+    "benchmark_eval_harness_route",
+    "governance_evaluation_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "forge_project_local_governance",
+      "forge_ci_release_boundary",
+      "forge_benchmark_eval_harness"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_coding_governance_evaluation_guard_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "project_governance_status",
+      "ci_release_status",
+      "benchmark_eval_status",
+      "promotion_readiness_status",
+      "governance_evaluation_stop_or_continue"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "prepare governance and eval evidence for promotion decisions without claiming runtime parity",
+      "scope_boundary": "do not perform coding edits, release publication, shell validation, or external GitHub mutations",
+      "validation_calibration": "distinguish configured governance/eval surfaces from executed and passing eval results",
+      "visibility": "do not expose secrets or full eval logs unless returned as explicit artifact references"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact governance/eval receipts for local coding workflow promotion.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_claim_production_parity_without_executable_evals",
+      "do_not_store_release_or_provider_secrets",
+      "do_not_store_unbounded_eval_logs"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "governance_evaluation_need_assessment->project_local_governance_route",
+      "project_local_governance_route->ci_release_boundary_route",
+      "ci_release_boundary_route->benchmark_eval_harness_route",
+      "benchmark_eval_harness_route->governance_evaluation_receipt_packaging",
+      "governance_evaluation_receipt_packaging->completed",
+      "project_local_governance_route->blocked",
+      "ci_release_boundary_route->needs_input",
+      "benchmark_eval_harness_route->failed"
+    ],
+    "timeout_ms": 180000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 8,
+      "max_model_turns": 2,
+      "max_tool_calls": 10,
+      "token_budget": 12000,
+      "loop_signature_detector": "local_coding_governance_evaluation_guard_v1"
+    }
+  },
+  "governance_evaluation_guard_contract": {
+    "version": "local_coding_governance_evaluation_guard_v1",
+    "source": "forgecode_assimilated_governance_evaluation_layer",
+    "required_primitive_workflow_ids": [
+      "forge_project_local_governance",
+      "forge_ci_release_boundary",
+      "forge_benchmark_eval_harness"
+    ],
+    "required_receipts": [
+      "project_local_governance_receipt",
+      "ci_release_boundary_receipt",
+      "benchmark_eval_harness_receipt",
+      "promotion_readiness_receipt"
+    ],
+    "activation_policy": "local coding workflow promotion may route project-local governance, CI/release automation, and benchmark/eval harness evidence through this guard; raw coding execution remains owned by local coding and runtime primitives",
+    "stop_or_route_conditions": [
+      "governance_fixture_invalid",
+      "release_or_github_mutation_requires_explicit_route",
+      "benchmark_eval_requires_external_clone_or_provider_credentials",
+      "production_parity_claim_requires_executable_eval_results"
+    ],
+    "non_goals": [
+      "do_not_execute_evals_by_default",
+      "do_not_publish_releases",
+      "do_not_mutate_project_local_governance_files",
+      "do_not_replace_runtime_coding_safety_primitives"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "governance_evaluation_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  }
+}

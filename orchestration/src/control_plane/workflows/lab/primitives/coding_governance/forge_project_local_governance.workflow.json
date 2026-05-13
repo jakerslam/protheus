@@ -1,0 +1,252 @@
+{
+  "name": "forge_project_local_governance",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for project-local .forge commands, skills, plan validation, tool-description rules, nextest settings, and devcontainer setup contracts.",
+  "stages": [
+    "project_governance_inventory",
+    "local_command_contract_projection",
+    "local_skill_contract_projection",
+    "plan_validation_contract_projection",
+    "environment_fixture_projection",
+    "project_governance_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_project_local_governance_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "local_command_status",
+      "local_skill_status",
+      "plan_validation_status",
+      "environment_fixture_status",
+      "project_governance_stop_or_continue"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "surface project-local ForgeCode governance fixtures without executing them implicitly",
+      "scope_boundary": "do not create agents, commands, plans, or shell setup unless routed by explicit parent workflow",
+      "validation_calibration": "report discovered governance fixtures separately from whether they passed execution",
+      "visibility": "summarize local governance rules without exposing full hidden prompt payloads by default"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact project-local governance receipts for ForgeCode-derived workflow promotion.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_execute_project_local_commands",
+      "do_not_modify_devcontainer_or_shell_setup",
+      "do_not_treat_governance_inventory_as_validation_success"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "project_governance_inventory->local_command_contract_projection",
+      "local_command_contract_projection->local_skill_contract_projection",
+      "local_skill_contract_projection->plan_validation_contract_projection",
+      "plan_validation_contract_projection->environment_fixture_projection",
+      "environment_fixture_projection->project_governance_receipt_packaging",
+      "project_governance_receipt_packaging->completed",
+      "project_governance_inventory->blocked",
+      "local_command_contract_projection->needs_input",
+      "local_skill_contract_projection->failed",
+      "plan_validation_contract_projection->blocked"
+    ],
+    "timeout_ms": 90000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 6,
+      "max_model_turns": 1,
+      "max_tool_calls": 6,
+      "token_budget": 7000,
+      "loop_signature_detector": "forge_project_local_governance_v1"
+    }
+  },
+  "governance_primitive_contract": {
+    "version": "forge_project_local_governance_v1",
+    "source_evidence": [
+      ".forge/commands/check.md",
+      ".forge/commands/fixme.md",
+      ".forge/skills/create-plan/SKILL.md",
+      ".forge/skills/create-agent/SKILL.md",
+      ".forge/skills/create-command/SKILL.md",
+      ".forge/skills/write-release-notes/SKILL.md",
+      ".config/nextest.toml",
+      ".devcontainer/devcontainer.json",
+      "docs/tool-guidelines.md"
+    ],
+    "required_behaviors": [
+      "discover_project_local_commands_only_under_cwd_dot_forge_commands",
+      "parse_command_frontmatter_name_and_description_before_command_body",
+      "detect_special_command_tags_for_lint_test_and_shell_without_executing_them",
+      "discover_project_local_skills_only_under_cwd_dot_forge_skills",
+      "enforce_agent_files_under_cwd_dot_forge_agents_with_required_yaml_frontmatter",
+      "enforce_command_files_under_cwd_dot_forge_commands_with_required_yaml_frontmatter",
+      "treat_create_plan_as_planning_only_and_require_validate_plan_script_receipt_before plan promotion",
+      "project_tool_description_rules_with_one_thousand_twenty_four_character_description_limit",
+      "project_nextest_slow_timeout_and_failed_only_status_preferences",
+      "project_devcontainer_rust_node_github_cli_git_zsh_fzf_fd_forgecode_and_cargo_tooling_setup"
+    ],
+    "output_receipts": [
+      "project_local_command_inventory_receipt",
+      "project_local_skill_inventory_receipt",
+      "plan_validation_contract_receipt",
+      "tool_description_guideline_receipt",
+      "environment_fixture_receipt"
+    ],
+    "stop_conditions": [
+      "local_command_frontmatter_invalid",
+      "local_skill_frontmatter_invalid",
+      "plan_validation_script_missing",
+      "devcontainer_fixture_conflicts_with_runtime",
+      "tool_description_exceeds_provider_limit"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "project_governance_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace"
+    ]
+  }
+}

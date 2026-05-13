@@ -1173,6 +1173,79 @@
       ]
     },
     {
+      "workflow_id": "forge_project_local_governance",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_governance_evaluation_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_governance/forge_project_local_governance.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "project_local_command_skill_inventory",
+        "plan_validation_contract_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_governance_evaluation_layer_parity_reviewed",
+        "project_local_governance_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "forge_ci_release_boundary",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_governance_evaluation_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_governance/forge_ci_release_boundary.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "generated_workflow_boundary",
+        "release_matrix_secret_redaction"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_governance_evaluation_layer_parity_reviewed",
+        "ci_release_boundary_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "forge_benchmark_eval_harness",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_governance_evaluation_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_governance/forge_benchmark_eval_harness.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "tool_use_eval_rule_projection",
+        "performance_threshold_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_governance_evaluation_layer_parity_reviewed",
+        "benchmark_eval_harness_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_coding_governance_evaluation_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_governance_evaluation_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_coding_governance_evaluation_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "promotion_governance_inventory",
+        "configured_evals_do_not_claim_pass_without_execution"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_governance_evaluation_layer_parity_reviewed",
+        "governance_evaluation_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "agent_request_transform_pipeline",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_runtime_layer",
