@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 864
-- Not parsed: 409
+- Parsed: 878
+- Not parsed: 395
 - Skipped generated: 13
 - Skipped media or sample: 71
 
@@ -913,6 +913,20 @@
 | `examples/gemini-2.5-crawler/README.md` | Gemini crawler overview. | Variant explicitly includes PDF and image analysis as additional content lanes. |
 | `examples/gemini-2.5-crawler/gemini-2.5-crawler.py` | Gemini crawler implementation. | After page scrape, linked URLs are MIME-probed; PDFs/images are fetched, size/type guarded, analyzed, and appended as additional evidence before objective checking. |
 | `examples/gemini-2.5-crawler/requirements.txt` | Gemini crawler dependencies. | Requests plus Gemini dependencies support optional media/document evidence lanes; package choices stay example-local. |
+| `examples/gemini-2.5-web-extractor/.env.example` | Gemini extractor capability config. | Search, Firecrawl extraction, and selected LLM credentials are separate capability inputs. |
+| `examples/gemini-2.5-web-extractor/.gitignore` | Gemini extractor local hygiene. | Environment, cache, build, IDE, and OS artifacts are local-only. |
+| `examples/gemini-2.5-web-extractor/README.md` | Gemini extractor overview. | Broad company research pattern: search, select relevant URLs, run structured extraction, and monitor progress. |
+| `examples/gemini-2.5-web-extractor/gemini-2.5-web-extractor.py` | Gemini extractor implementation. | SERP rows are reduced to title/link/snippet, URLs are selected by objective, cleaned, then submitted to Firecrawl extract with polling. |
+| `examples/gemini-2.5-web-extractor/requirements.txt` | Gemini extractor dependencies. | Dependency list confirms the search-select-extract-poll composition over provider-specific clients. |
+| `examples/llama-4-maverick-web-extractor/.env.example` | Llama extractor capability config. | Together, SerpAPI, and Firecrawl keys remain capability inputs. |
+| `examples/llama-4-maverick-web-extractor/.gitignore` | Llama extractor local hygiene. | Empty ignore file reviewed; no tooling pattern. |
+| `examples/llama-4-maverick-web-extractor/README.md` | Llama extractor overview. | Repeats company research via external search, URL selection, and Firecrawl extraction. |
+| `examples/llama-4-maverick-web-extractor/llama-4-maverick-extractor.py` | Llama extractor implementation. | Adds source-priority selection constraints, max-URL fan-in, longer extraction timeout, and more polling attempts for async extract jobs. |
+| `examples/llama-4-maverick-web-extractor/requirements.txt` | Llama extractor dependencies. | Provider/client dependencies are example-local; primitive is search-select-extract-poll. |
+| `examples/deepseek-v3-company-researcher/.gitignore` | DeepSeek company researcher local hygiene. | Environment/cache/build/log/editor artifacts are local-only. |
+| `examples/deepseek-v3-company-researcher/README.md` | DeepSeek company researcher overview. | Same company research composition with explicit progress and polling. |
+| `examples/deepseek-v3-company-researcher/deepseek-v3-extract.py` | DeepSeek company researcher implementation. | Cleans URLs, filters social/invalid links, calls Firecrawl extract, and polls a structured extraction job to completion. |
+| `examples/deepseek-v3-company-researcher/requirements.txt` | DeepSeek company researcher dependencies. | Confirms external search plus provider-wrapper plus Firecrawl extraction composition. |
 
 ## Decisions So Far
 
@@ -1313,6 +1327,10 @@
 221. Objective-derived discovery as proposal: agent-produced map search keywords and URL rankings can be useful retrieval proposals, but explicit tool fields and evidence quality gates must remain authoritative. Ledger reinforced; candidate research CD planner target.
 222. Linked media/document expansion: after page enrichment, linked PDFs and images can be MIME-probed and conditionally extracted as additional evidence lanes with size/type/time guards. Ledger captured; candidate document/media retrieval expansion.
 223. Provider-wrapper quarantine: repeated examples differ mainly by selected model/provider; assimilate the loop mechanics and reject hardcoded model names, output templates, and terminal debug text as workflow behavior. Ledger reinforced; candidate anti-hardcoding guard.
+224. Search-select-extract-poll primitive: broad research can use SERP discovery, objective-based URL selection, structured multi-URL extraction, and async polling as distinct phases before synthesis. Ledger captured; candidate research CD/tooling primitive.
+225. Source-priority fan-in: URL selection should support source-priority and max-fan-in constraints such as official/docs/press first and excluding inaccessible social links, expressed as typed policy not prompt-only rules. Ledger captured; candidate evidence planner target.
+226. Structured extraction job handle: multi-URL extraction should return an ID, poll interval, max attempts, terminal data/error, and timeout classification rather than synchronous best-effort snippets. Ledger reinforced; candidate Tool CD runtime target.
+227. URL cleanup before extraction: wildcard suffixes, tracking query strings, invalid schemes, and empty selected URLs should be normalized or dropped before extraction work is admitted. Ledger captured; candidate URL hygiene primitive.
 
 ## Remaining Work
 
@@ -1325,6 +1343,7 @@
 - Test-suite overview, crawl/scrape fixtures, load config, and markdown load reports are parsed; generated Artillery JSON report is skipped as generated after aggregate inspection.
 - Airbnb data-analysis example is parsed; it contributes retrieval-to-analysis artifact separation and discovery fallback patterns, not model/tool permission choices.
 - First model-variant crawler cluster is parsed; it mostly reinforces map/rank/scrape/extract, with Gemini adding linked PDF/image evidence expansion.
+- First company-extractor cluster is parsed; it reinforces search-select-extract-poll as a broader research primitive.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.

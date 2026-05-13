@@ -1215,10 +1215,10 @@ examples/deep-research-apartment-finder/.env.example	examples	parsed	apartment_f
 examples/deep-research-apartment-finder/README.md	examples	parsed	apartment_finder_readme	preference_collection_deep_research_analysis_and_json_save_flow
 examples/deep-research-apartment-finder/apartment_finder.py	examples	parsed	apartment_finder_example	query_from_constraints_bounded_deep_research_activity_callbacks_source_slice_json_parse_and_fallback_results
 examples/deep-research-apartment-finder/requirements.txt	examples	parsed	apartment_finder_dependencies	anthropic_firecrawl_and_dotenv_example_dependencies_only
-examples/deepseek-v3-company-researcher/.gitignore	examples	not_parsed	pending_review	
-examples/deepseek-v3-company-researcher/README.md	examples	not_parsed	pending_review	
-examples/deepseek-v3-company-researcher/deepseek-v3-extract.py	examples	not_parsed	pending_review	
-examples/deepseek-v3-company-researcher/requirements.txt	examples	not_parsed	pending_review	
+examples/deepseek-v3-company-researcher/.gitignore	examples	parsed	deepseek_company_researcher_ignore	environment_cache_build_log_and_editor_artifacts_only
+examples/deepseek-v3-company-researcher/README.md	examples	parsed	deepseek_company_researcher_readme	search_url_selection_structured_extraction_and_polling_overview
+examples/deepseek-v3-company-researcher/deepseek-v3-extract.py	examples	parsed	deepseek_company_researcher_example	url_cleanup_social_filter_firecrawl_extract_job_and_poll_to_terminal_data
+examples/deepseek-v3-company-researcher/requirements.txt	examples	parsed	deepseek_company_researcher_dependencies	search_provider_llm_provider_and_firecrawl_extraction_dependencies
 examples/deepseek-v3-crawler/.gitignore	examples	parsed	deepseek_crawler_ignore	environment_cache_log_and_editor_local_artifacts_only
 examples/deepseek-v3-crawler/README.md	examples	parsed	deepseek_crawler_readme	objective_to_search_parameter_map_top_pages_and_json_output_loop
 examples/deepseek-v3-crawler/deepseek-v3-crawler.py	examples	parsed	deepseek_crawler_example	provider_preflight_map_search_top3_scrape_json_cleanup_and_objective_check
@@ -1235,11 +1235,11 @@ examples/gemini-2.5-screenshot-editor/.env.example	examples	not_parsed	pending_r
 examples/gemini-2.5-screenshot-editor/README.md	examples	not_parsed	pending_review	
 examples/gemini-2.5-screenshot-editor/cli.py	examples	not_parsed	pending_review	
 examples/gemini-2.5-screenshot-editor/requirements.txt	examples	not_parsed	pending_review	
-examples/gemini-2.5-web-extractor/.env.example	examples	not_parsed	pending_review	
-examples/gemini-2.5-web-extractor/.gitignore	examples	not_parsed	pending_review	
-examples/gemini-2.5-web-extractor/README.md	examples	not_parsed	pending_review	
-examples/gemini-2.5-web-extractor/gemini-2.5-web-extractor.py	examples	not_parsed	pending_review	
-examples/gemini-2.5-web-extractor/requirements.txt	examples	not_parsed	pending_review	
+examples/gemini-2.5-web-extractor/.env.example	examples	parsed	gemini_web_extractor_env_example	search_firecrawl_and_llm_credentials_as_capability_inputs
+examples/gemini-2.5-web-extractor/.gitignore	examples	parsed	gemini_web_extractor_ignore	environment_cache_build_ide_and_os_artifacts_only
+examples/gemini-2.5-web-extractor/README.md	examples	parsed	gemini_web_extractor_readme	search_select_urls_extract_structured_data_and_monitor_progress
+examples/gemini-2.5-web-extractor/gemini-2.5-web-extractor.py	examples	parsed	gemini_web_extractor_example	serp_rows_url_selection_url_cleanup_firecrawl_extract_job_and_polling
+examples/gemini-2.5-web-extractor/requirements.txt	examples	parsed	gemini_web_extractor_dependencies	search_select_extract_poll_dependencies_only
 examples/gemini-github-analyzer/gemini-github-analyzer.py	examples	not_parsed	pending_review	
 examples/gpt-4.1-company-researcher/.env.example	examples	parsed	gpt_company_researcher_env_example	explicit_openai_firecrawl_and_serpapi_capability_keys
 examples/gpt-4.1-company-researcher/.gitignore	examples	parsed	gpt_company_researcher_ignore	python_env_build_cache_log_notebook_and_tool_output_exclusions
@@ -1298,11 +1298,11 @@ examples/llama-4-maverick-web-crawler/.gitignore	examples	not_parsed	pending_rev
 examples/llama-4-maverick-web-crawler/README.md	examples	not_parsed	pending_review	
 examples/llama-4-maverick-web-crawler/llama4-maverick-web-crawler.py	examples	not_parsed	pending_review	
 examples/llama-4-maverick-web-crawler/requirements.txt	examples	not_parsed	pending_review	
-examples/llama-4-maverick-web-extractor/.env.example	examples	not_parsed	pending_review	
-examples/llama-4-maverick-web-extractor/.gitignore	examples	not_parsed	pending_review	
-examples/llama-4-maverick-web-extractor/README.md	examples	not_parsed	pending_review	
-examples/llama-4-maverick-web-extractor/llama-4-maverick-extractor.py	examples	not_parsed	pending_review	
-examples/llama-4-maverick-web-extractor/requirements.txt	examples	not_parsed	pending_review	
+examples/llama-4-maverick-web-extractor/.env.example	examples	parsed	llama_web_extractor_env_example	search_firecrawl_and_llm_credentials_as_capability_inputs
+examples/llama-4-maverick-web-extractor/.gitignore	examples	parsed	llama_web_extractor_ignore	empty_ignore_file_no_tooling_pattern
+examples/llama-4-maverick-web-extractor/README.md	examples	parsed	llama_web_extractor_readme	external_search_url_selection_and_firecrawl_structured_extraction_overview
+examples/llama-4-maverick-web-extractor/llama-4-maverick-extractor.py	examples	parsed	llama_web_extractor_example	official_source_priority_max3_url_fan_in_long_timeout_and_poll_budget
+examples/llama-4-maverick-web-extractor/requirements.txt	examples	parsed	llama_web_extractor_dependencies	provider_wrapper_search_and_firecrawl_dependencies_only
 examples/mistral-small-3.1-crawler/mistral-small-3.1-crawler.py	examples	not_parsed	pending_review	
 examples/mistral-small-3.1-extractor/mistral-small-3.1-extractor.py	examples	not_parsed	pending_review	
 examples/o1_job_recommender/o1_job_recommender.py	examples	not_parsed	pending_review	
