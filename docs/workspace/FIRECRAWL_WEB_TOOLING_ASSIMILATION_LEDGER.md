@@ -40,9 +40,9 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 815
-- Not parsed: 459
-- Skipped generated: 12
+- Parsed: 829
+- Not parsed: 444
+- Skipped generated: 13
 - Skipped media or sample: 71
 
 ## Parsed Files
@@ -864,6 +864,20 @@
 | `examples/sales_web_crawler/requirements.txt` | Sales crawler dependency file. | Example depends on external search, Firecrawl, OpenAI, and Swarm; composition pattern is useful, concrete model/library choices are not. |
 | `examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.md` | Map endpoint documentation article. | Fast URL discovery is a candidate-set primitive with search, sitemap-only, subdomain, and limit controls; its speed/coverage tradeoff should be explicit. |
 | `examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.md` | Scrape endpoint documentation article. | Scrape is the page-enrichment primitive: selectable artifact facets, main-content/tag filters, schema extraction, batch/async status, and explicit dynamic actions. |
+| `examples/blog-articles/mastering-the-crawl-endpoint/mastering-the-crawl-endpoint.ipynb` | Crawl endpoint documentation notebook. | Crawl composes URL discovery, scoped traversal, page extraction, async status, incremental saves, and downstream RAG chunking into a site-scale evidence primitive. |
+| `apps/test-suite/README.md` | Test-suite overview. | Retrieval quality measurement should separate crawling accuracy, response time, and error handling; old observed accuracy gaps are first-class eval signal. |
+| `apps/test-suite/data/crawl.json` | Crawl accuracy fixture set. | Fixtures encode expected crawled and not-crawled URL sets, including backward-link and domain-scope failures, as measurable crawl-scope contracts. |
+| `apps/test-suite/data/scrape.json` | Scrape answerability fixture set. | Scrape evals use page-local yes/no prompts over diverse domains to test whether retrieved content can answer concrete questions. |
+| `apps/test-suite/load-test.yml` | Load-test scenario config. | Load tests model crawl as start-handle plus delayed status polling to terminal completion, separating admission latency from worker completion. |
+| `apps/test-suite/package.json` | Test-suite package surface. | Artillery is the load-test harness; security overrides and dependency metadata are packaging concerns, not web-tool behavior. |
+| `apps/test-suite/load-test-results/tests-1-5/load-test-1.md` | Scrape load result. | Low initial scrape load can succeed while memory fails to return to baseline, making post-run stabilization a performance invariant. |
+| `apps/test-suite/load-test-results/tests-1-5/load-test-2.md` | Scrape load result. | Higher sustained scrape load exposed CPU saturation, timeouts, auth/payment edge responses, and failed captures as distinct failure counters. |
+| `apps/test-suite/load-test-results/tests-1-5/load-test-3.md` | Scrape autoscaling result. | Autoscaling can reduce failures but still leave timeout and 502 tails, so evals need p95/p99 and status-code distribution rather than pass/fail only. |
+| `apps/test-suite/load-test-results/tests-1-5/load-test-4.md` | Scrape concurrency tuning result. | Lower soft concurrency eliminated 502s but increased timeouts, showing timeout/concurrency knobs trade off rather than monotonically improve quality. |
+| `apps/test-suite/load-test-results/tests-1-5/load-test-5.md` | Scrape timeout tuning result. | Longer client timeouts converted many failures into successes while increasing mean/tail latency, so test thresholds must classify timeout budget changes explicitly. |
+| `apps/test-suite/load-test-results/tests-6-7/load-test-6.md` | Crawl load result. | Crawl admission can stay fast while worker CPU and memory carry the real cost; status tests need worker-resource observation. |
+| `apps/test-suite/load-test-results/tests-6-7/load-test-7.md` | Crawl fire-engine load result. | Queue admission without failed requests can still hide downstream render-engine resource collapse under sustained processing. |
+| `apps/test-suite/load-test-results/tests-6-7/load-test-8.md` | Crawl autoscaling result. | Worker/render autoscaling and 404/final-status capture failures should be reported separately from retrieval content quality. |
 
 ## Decisions So Far
 
@@ -1247,6 +1261,12 @@
 204. Selectable artifact facets: page enrichment should request only needed facets such as markdown, html, raw HTML, links, screenshots, actions, and structured extract output, then evidence-pack the facets separately. Ledger reinforced; candidate evidence-pack facet target.
 205. Dynamic action explicitness: click/write/wait/scroll/screenshot/scrape sequences are expensive browser-action capabilities and should be declared as tool inputs with artifacts/gap states, not hidden fallback behavior. Ledger reinforced; candidate dynamic retrieval lane.
 206. Async batch status as partial evidence: large multi-URL extraction should return handles, status, completed/total, expiry, error, next cursor, and any completed documents without making incomplete status a final answer. Ledger reinforced; candidate batch retrieval runtime.
+207. Crawl as composite primitive: site-scale retrieval should compose discovery, scope policy, page extraction, async status, incremental artifact storage, and downstream evidence chunking behind one returned artifact. Ledger reinforced; candidate primitive workflow CD target.
+208. Expected-not-crawled fixtures: crawl evals should assert exclusions as strongly as inclusions so backward links, external links, scope escapes, and asset detours do not masquerade as better coverage. Ledger captured; candidate crawl quality gate.
+209. Answerability fixture layer: scrape evals should ask concrete page-local questions over diverse source classes and classify answerability separately from retrieval lifecycle success. Ledger captured; candidate evidence quality eval target.
+210. Load quality stratification: performance results should report request success, status-code tails, capture failures, latency percentiles, CPU/memory stabilization, and downstream worker collapse as separate strata. Ledger captured; candidate workflow stats model.
+211. Timeout/concurrency tradeoff accounting: changing timeouts or concurrency limits can move failures between timeout, 502, and latency buckets; eval summaries should preserve the tradeoff instead of treating pass rate as the only quality signal. Ledger captured; candidate eval reporting target.
+212. Admission-vs-completion split: crawl/load workflows should distinguish start-handle admission from terminal document production and final evidence availability. Ledger reinforced; candidate Shell Socket/status projection target.
 
 ## Remaining Work
 
@@ -1255,7 +1275,8 @@
 - Standalone rendered-fetch and HTML-to-Markdown service primitives are parsed; remaining deployment YAML can be treated as lower-priority unless operational wiring becomes relevant.
 - Test-site text fixtures and routes are parsed; binary font fixtures are marked skipped.
 - First high-signal research/crawler examples are parsed; remaining examples should be sampled for new composition patterns, not repeated model-specific syntax.
-- Map and scrape endpoint articles are fully parsed; broader deployment/scheduling articles were only sampled and remain unmarked until a complete read.
+- Map, scrape, and crawl endpoint articles are fully parsed; broader deployment/scheduling articles were only sampled and remain unmarked until a complete read.
+- Test-suite overview, crawl/scrape fixtures, load config, and markdown load reports are parsed; generated Artillery JSON report is skipped as generated after aggregate inspection.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.

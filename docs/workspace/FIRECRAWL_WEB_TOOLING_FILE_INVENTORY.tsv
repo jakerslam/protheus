@@ -1096,10 +1096,10 @@ apps/test-site/src/pages/robots.txt.ts	apps	parsed	test_site_robots_route	allow_
 apps/test-site/src/styles/global.css	apps	parsed	test_site_global_styles	accessibility_hidden_text_fonts_tables_code_blockquotes_and_responsive_layout_fixtures
 apps/test-site/tsconfig.json	apps	parsed	test_site_tsconfig	strict_astro_typescript_fixture_build_config
 apps/test-suite/.env.example	apps	not_parsed	pending_review	
-apps/test-suite/README.md	apps	not_parsed	pending_review	
+apps/test-suite/README.md	apps	parsed	test_suite_readme	crawl_accuracy_response_time_and_error_handling_eval_overview
 apps/test-suite/audit-ci.jsonc	apps	not_parsed	pending_review	
-apps/test-suite/data/crawl.json	apps	not_parsed	pending_review	
-apps/test-suite/data/scrape.json	apps	not_parsed	pending_review	
+apps/test-suite/data/crawl.json	apps	parsed	test_suite_crawl_fixture	expected_crawled_and_not_crawled_url_sets_for_scope_accuracy
+apps/test-suite/data/scrape.json	apps	parsed	test_suite_scrape_fixture	page_local_answerability_prompts_across_diverse_domains
 apps/test-suite/index-benchmark/run.ipynb	apps	not_parsed	pending_review	
 apps/test-suite/jest.config.js	apps	not_parsed	pending_review	
 apps/test-suite/jest.setup.js	apps	not_parsed	pending_review	
@@ -1109,23 +1109,23 @@ apps/test-suite/load-test-results/tests-1-5/assets/metrics-test-2.png	apps	skipp
 apps/test-suite/load-test-results/tests-1-5/assets/metrics-test-3.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-1-5/assets/metrics-test-4.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-1-5/assets/metrics-test-5.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
-apps/test-suite/load-test-results/tests-1-5/assets/test-run-report.json	apps	not_parsed	pending_review	
-apps/test-suite/load-test-results/tests-1-5/load-test-1.md	apps	not_parsed	pending_review	
-apps/test-suite/load-test-results/tests-1-5/load-test-2.md	apps	not_parsed	pending_review	
-apps/test-suite/load-test-results/tests-1-5/load-test-3.md	apps	not_parsed	pending_review	
-apps/test-suite/load-test-results/tests-1-5/load-test-4.md	apps	not_parsed	pending_review	
-apps/test-suite/load-test-results/tests-1-5/load-test-5.md	apps	not_parsed	pending_review	
+apps/test-suite/load-test-results/tests-1-5/assets/test-run-report.json	apps	skipped_generated	generated_artillery_report_aggregate_sampled_markdown_reports_parsed
+apps/test-suite/load-test-results/tests-1-5/load-test-1.md	apps	parsed	scrape_load_test_1	initial_load_success_with_memory_nonstabilization_signal
+apps/test-suite/load-test-results/tests-1-5/load-test-2.md	apps	parsed	scrape_load_test_2	high_load_cpu_saturation_timeouts_and_status_code_tail_metrics
+apps/test-suite/load-test-results/tests-1-5/load-test-3.md	apps	parsed	scrape_load_test_3	autoscaling_reduces_failures_but_latency_and_502_tail_remain
+apps/test-suite/load-test-results/tests-1-5/load-test-4.md	apps	parsed	scrape_load_test_4	concurrency_soft_limit_tradeoff_between_502s_and_timeouts
+apps/test-suite/load-test-results/tests-1-5/load-test-5.md	apps	parsed	scrape_load_test_5	timeout_budget_converts_failures_to_latency_tail
 apps/test-suite/load-test-results/tests-6-7/assets/metrics-fire-engine-test-7-2.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-6-7/assets/metrics-fire-engine-test-7.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-6-7/assets/metrics-fire-engine-test-8.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-6-7/assets/metrics-test-6.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-6-7/assets/metrics-test-7.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-6-7/assets/metrics-test-8.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
-apps/test-suite/load-test-results/tests-6-7/load-test-6.md	apps	not_parsed	pending_review	
-apps/test-suite/load-test-results/tests-6-7/load-test-7.md	apps	not_parsed	pending_review	
-apps/test-suite/load-test-results/tests-6-7/load-test-8.md	apps	not_parsed	pending_review	
-apps/test-suite/load-test.yml	apps	not_parsed	pending_review	
-apps/test-suite/package.json	apps	not_parsed	pending_review	
+apps/test-suite/load-test-results/tests-6-7/load-test-6.md	apps	parsed	crawl_load_test_6	fast_admission_with_worker_cpu_memory_as_true_cost
+apps/test-suite/load-test-results/tests-6-7/load-test-7.md	apps	parsed	crawl_load_test_7	queue_admission_can_hide_downstream_render_engine_collapse
+apps/test-suite/load-test-results/tests-6-7/load-test-8.md	apps	parsed	crawl_load_test_8	worker_autoscaling_and_status_capture_failures_are_separate_metrics
+apps/test-suite/load-test.yml	apps	parsed	test_suite_load_config	crawl_handle_polling_load_scenario_with_terminal_status_wait
+apps/test-suite/package.json	apps	parsed	test_suite_package	artillery_load_harness_and_dependency_governance_metadata
 apps/test-suite/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
 apps/ui/ingestion-ui/.gitignore	apps	not_parsed	pending_review	
 apps/ui/ingestion-ui/LICENSE	apps	not_parsed	pending_review	
@@ -1193,7 +1193,7 @@ examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.ipynb	examp
 examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.md	examples	parsed	mastering_map_endpoint_article	fast_url_discovery_coverage_tradeoff_search_sitemap_subdomain_and_limit_controls
 examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.ipynb	examples	not_parsed	pending_review	
 examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.md	examples	parsed	mastering_scrape_endpoint_article	page_enrichment_artifact_facets_schema_extraction_batch_status_and_dynamic_actions
-examples/blog-articles/mastering-the-crawl-endpoint/mastering-the-crawl-endpoint.ipynb	examples	not_parsed	pending_review	
+examples/blog-articles/mastering-the-crawl-endpoint/mastering-the-crawl-endpoint.ipynb	examples	parsed	mastering_crawl_endpoint_notebook	site_scale_discovery_scope_page_extraction_async_status_incremental_storage_and_rag_chunking
 examples/blog-articles/scheduling_scrapers/notebook.ipynb	examples	not_parsed	pending_review	
 examples/blog-articles/scheduling_scrapers/notebook.md	examples	not_parsed	pending_review	
 examples/blog-articles/scheduling_scrapers/scheduling-scrapers-images/actions.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
