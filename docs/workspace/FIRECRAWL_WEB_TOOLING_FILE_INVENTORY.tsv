@@ -183,26 +183,26 @@ apps/api/src/__tests__/snips/zdr-helpers.ts	apps	parsed	zdr_helper_assertions_lo
 apps/api/src/config.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/__tests__/crawl.test.ts	apps	parsed	legacy_crawl_idempotency_test	duplicate_crawl_kickoff_guard
 apps/api/src/controllers/auth.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/admin/acuc-cache-clear.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/admin/autumn-health.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/admin/cclog.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/admin/acuc-cache-clear.ts	apps	parsed	acuc_cache_clear_endpoint	team_scoped_api_key_and_team_cache_invalidation_sanitized_projection
+apps/api/src/controllers/v0/admin/autumn-health.ts	apps	parsed	credit_lifecycle_health_probe	synthetic_create_read_track_refund_lock_finalize_cleanup_with_semantic_balance_validation
+apps/api/src/controllers/v0/admin/cclog.ts	apps	parsed	concurrency_snapshot_logger	bounded_scan_preview_key_filter_compact_per_team_count_persistence
 apps/api/src/controllers/v0/admin/check-fire-engine.ts	apps	parsed	engine_health_probe	bounded_remote_engine_probe_tries_multiple_urls_timeout_and_sanitized_failure
 apps/api/src/controllers/v0/admin/concurrency-queue-backfill.ts	apps	parsed	concurrency_reconcile_endpoint	explicit_admin_backfill_runs_reconciler_with_optional_owner_scope_and_summary_projection
-apps/api/src/controllers/v0/admin/crawl-monitor.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/admin/crawl-monitor.ts	apps	parsed	synthetic_crawl_probe	tiny_crawl_state_enqueue_bounded_poll_group_status_success_or_timeout_projection
 apps/api/src/controllers/v0/admin/create-user.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/admin/index-queue-prometheus.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/admin/metrics.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/admin/index-queue-prometheus.ts	apps	parsed	queue_prometheus_metrics	index_webhook_omce_queue_length_gauges_without_payloads
+apps/api/src/controllers/v0/admin/metrics.ts	apps	parsed	concurrency_worker_metrics	empty_queue_reconciliation_aggregate_queue_team_semaphore_worker_gauges
 apps/api/src/controllers/v0/admin/precrawl.ts	apps	parsed	precrawl_trigger_endpoint	admin_triggered_background_precrawl_queue_event
-apps/api/src/controllers/v0/admin/redis-health.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/admin/redis-health.ts	apps	parsed	redis_health_probe	bounded_set_get_delete_retries_independent_client_health_details
 apps/api/src/controllers/v0/admin/rotate-api-key.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v0/admin/validate-api-key.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/admin/zdrcleaner.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/admin/zdrcleaner.ts	apps	parsed	zdr_artifact_cleaner	batched_blob_cleanup_all_blobs_per_request_before_clearing_cleanup_marker
 apps/api/src/controllers/v0/crawl-cancel.ts	apps	parsed	v0_crawl_cancel	owner_checked_cancel_persists_cancelled_state_and_refuses_completed_or_missing_groups
 apps/api/src/controllers/v0/crawl-status.ts	apps	parsed	v0_crawl_status	status_merges_queue_db_gcs_jobs_filters_failed_and_projects_partial_completed_documents
 apps/api/src/controllers/v0/crawl.ts	apps	parsed	v0_crawl_controller	idempotency_key_option_validation_credit_bound_limit_url_lock_sitemap_kickoff_fallback_seed_job
 apps/api/src/controllers/v0/keyAuth.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/liveness.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/readiness.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/liveness.ts	apps	parsed	liveness_stub	cheap_always_ok_surface_separate_from_deeper_readiness
+apps/api/src/controllers/v0/readiness.ts	apps	parsed	readiness_stub	placeholder_ready_projection_for_future_dependency_checks
 apps/api/src/controllers/v0/scrape.ts	apps	parsed	v0_scrape_controller	legacy_scrape_normalizes_options_requires_schema_for_llm_extract_prunes_raw_html_and_queue_cleanup
 apps/api/src/controllers/v0/search.ts	apps	parsed	v0_search_controller	overfetch_search_buffer_filter_blocked_urls_optional_fetch_page_content_and_filter_empty_docs
 apps/api/src/controllers/v1/__tests__/urlValidation.test.ts	apps	parsed	url_validation_behavior_tests	protocol_default_http_reject_unsupported_protocols_reject_malformed_urls_accept_idn

@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 314
-- Not parsed: 964
+- Parsed: 324
+- Not parsed: 954
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -354,6 +354,14 @@
 | `apps/api/src/controllers/v1/queue-status.ts` | Queue status projection. | Queue status cleans stale concurrency entries before projecting active count, waiting count, max concurrency, and most recent success. |
 | `apps/api/src/controllers/v2/queue-status.ts` | Queue status compatibility projection. | V2 preserves the same bounded owner-scoped queue projection and cleanup behavior. |
 | `apps/api/src/controllers/v0/admin/concurrency-queue-backfill.ts` | Concurrency backfill endpoint. | Explicit admin reconciliation can repair queue/index drift for one owner or all owners and return a bounded recovery summary. |
+| `apps/api/src/controllers/v0/admin/acuc-cache-clear.ts` | Auth/cache cleanup endpoint. | Team-scoped cache invalidation clears every API-key cache entry plus the team aggregate cache and emits only an `ok` projection or sanitized server error. |
+| `apps/api/src/controllers/v0/admin/autumn-health.ts` | Billing/credit lifecycle health probe. | Dependency health can be verified with a synthetic create/read/check/track/refund/lock/finalize/delete loop, per-step durations, cleanup on partial failure, and semantic validation of balance movement. |
+| `apps/api/src/controllers/v0/admin/cclog.ts` | Concurrency snapshot logger. | Queue/concurrency diagnostics scan bounded key batches, ignore preview keys, persist compact per-team counts, and continue logging insert errors without stopping the scan. |
+| `apps/api/src/controllers/v0/admin/crawl-monitor.ts` | Synthetic crawl probe. | End-to-end retrieval health can be checked by creating a tiny crawl, saving crawl state, enqueueing kickoff work, polling group status for a bounded minute, and returning a crawl ID plus success/failure. |
+| `apps/api/src/controllers/v0/admin/index-queue-prometheus.ts` | Queue-length metrics projection. | Index, webhook, and OMCE queue lengths are exposed as Prometheus gauges without surfacing queue payloads. |
+| `apps/api/src/controllers/v0/admin/metrics.ts` | Concurrency and worker metrics projection. | Metrics reconcile empty queue keys before projection and expose aggregate queue/team/semaphore/worker gauges as text metrics rather than raw Redis state. |
+| `apps/api/src/controllers/v0/admin/redis-health.ts` | Redis dependency health probe. | Dependency checks retry bounded set/get/delete probes per client, classify each client independently, and return structured healthy/unhealthy details. |
+| `apps/api/src/controllers/v0/admin/zdrcleaner.ts` | Zero-retention artifact cleaner. | Cleanup batches track every blob per request and only clear cleanup markers for requests whose associated blobs were all successfully deleted. |
 | `apps/api/src/services/idempotency/create.ts` | Idempotency key creation. | Idempotency keys are persisted at request admission so retries can be detected before duplicate work starts. |
 | `apps/api/src/services/idempotency/validate.ts` | Idempotency key validation. | Request retry safety validates UUID-shaped keys and treats existing keys as duplicate work admission. |
 | `apps/api/src/services/extract-queue.ts` | Extract queue and DLQ. | Extraction work uses persistent message IDs, prefetch bounds, explicit ack/nack, single-delivery DLQ routing, and DLQ requeue only when DLQ handling itself fails. |
@@ -363,6 +371,8 @@
 | `apps/api/src/services/indexing/index-worker.ts` | Index/backfill worker. | Budgeted precrawl ranks domains and pages by observed demand, batches URL lookup with backoff, allocates crawl budget proportionally, and submits cacheable crawl jobs only within resource bounds. |
 | `apps/api/src/controllers/v0/admin/precrawl.ts` | Precrawl trigger endpoint. | Background corpus warming can be admitted as an explicit queue event rather than coupling it to request-time retrieval. |
 | `apps/api/src/controllers/v0/admin/check-fire-engine.ts` | Engine health probe. | Optional rendered-fetch engines should have bounded health probes that try multiple neutral URLs, abort by timeout, and return sanitized failure state. |
+| `apps/api/src/controllers/v0/liveness.ts` | Liveness endpoint. | Current implementation is only an always-ok stub; useful lesson is to keep liveness cheap and separate from deeper dependency readiness. |
+| `apps/api/src/controllers/v0/readiness.ts` | Readiness endpoint. | Current implementation is only an always-ok stub; deeper dependency checks belong in readiness/health probes rather than retrieval answer paths. |
 
 ## Decisions So Far
 
@@ -443,6 +453,9 @@
 - Core scrape tests should treat non-2xx status pages as successful retrieval artifacts when the server response itself is evidence; status code and error metadata calibrate synthesis rather than causing silent drops.
 - Document extraction quality needs measurable comparisons, not just non-empty text: page count reconciliation, magic-byte validation, table/number preservation, and safe HTML fallback all improve trust in evidence artifacts.
 - Sitemap/XML and other machine-readable sources should keep requested raw forms when markdown conversion would distort the artifact.
+- Retrieval observability should use separate cheap liveness, dependency readiness, synthetic end-to-end probes, queue gauges, and reconciliation endpoints. These are diagnostic/control-plane artifacts, not evidence or final-answer content.
+- Cleanup/reconciliation should be all-or-nothing at the logical request level: partial artifact deletion is recorded, but cleanup markers should clear only after every required artifact is removed.
+- Synthetic health probes should validate semantics, not just transport success: credit balance movement, lock finalization, queue completion, and dependency read-after-write all catch failures that a plain ping misses.
 
 ## Candidate Assimilation Targets
 
@@ -483,6 +496,7 @@
 35. Async completion reconciliation primitive: track expected job IDs, durable page refs, crawl completion/removal state, stale checks, and terminal resource release so long-running retrieval can recover after partial queue/status failure. Ledger captured; candidate runtime/eval harness target.
 36. Artifact transformer lane contract: make page postprocessors/transformers idempotent, request-gated, privacy-gated, context-budget-aware, and ref-producing for bulky artifacts. Ledger captured; compare against current evidence-pack transformation layer.
 37. Document extraction quality metrics: attach page-count confidence, magic-byte validation, table/number preservation, length-ratio verdicts, and safe conversion fallback metadata to document evidence. Ledger captured; candidate evidence-pack quality refinement.
+38. Retrieval health/observability split: keep liveness, readiness, dependency probes, synthetic crawl probes, queue gauges, and cleanup reconciliation separate from evidence-bearing retrieval results. Ledger captured; candidate ops/probe contract refinement.
 
 ## Remaining Work
 
