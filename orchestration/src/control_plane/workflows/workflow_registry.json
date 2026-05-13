@@ -1100,6 +1100,79 @@
       ]
     },
     {
+      "workflow_id": "embedded_template_registry",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_prompt_template_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_templates/embedded_template_registry.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "embedded_template_registration",
+        "prompt_element_escaping"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_prompt_template_layer_parity_reviewed",
+        "embedded_template_registry_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "system_skill_prompt_projection",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_prompt_template_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_templates/system_skill_prompt_projection.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "system_info_partial_projection",
+        "skill_inventory_prompt_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_prompt_template_layer_parity_reviewed",
+        "system_skill_prompt_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "recovery_command_template_projection",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_prompt_template_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_templates/recovery_command_template_projection.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "tool_retry_reflection_template",
+        "command_frontmatter_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_prompt_template_layer_parity_reviewed",
+        "recovery_command_template_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_coding_prompt_template_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_prompt_template_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_coding_prompt_template_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "prompt_templates_before_runtime",
+        "rendered_commands_do_not_execute"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_prompt_template_layer_parity_reviewed",
+        "prompt_template_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "agent_request_transform_pipeline",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_runtime_layer",

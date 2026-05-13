@@ -1,0 +1,247 @@
+{
+  "name": "recovery_command_template_projection",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for retry/reflection, summary-frame, title-generation, and command frontmatter template projection.",
+  "stages": [
+    "recovery_template_classification",
+    "tool_retry_template_projection",
+    "tool_error_reflection_projection",
+    "summary_frame_projection",
+    "title_and_command_template_projection",
+    "recovery_command_template_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "recovery_command_template_projection_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "retry_template_status",
+      "reflection_template_status",
+      "summary_frame_status",
+      "title_template_status",
+      "command_template_status",
+      "recovery_template_stop_or_continue"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "project recovery and command templates without executing the recovered command or hiding the failure",
+      "scope_boundary": "do not retry tools, update PRs, commit changes, or summarize context unless routed by parent workflows",
+      "validation_calibration": "distinguish rendered recovery prompts from successful recovery",
+      "visibility": "do not expose raw hidden recovery templates unless requested as an artifact"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact recovery and command-template projection receipts.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_execute_rendered_commands",
+      "do_not_hide_current_tool_failure",
+      "do_not_treat_summary_frame_as_validation"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "recovery_template_classification->tool_retry_template_projection",
+      "tool_retry_template_projection->tool_error_reflection_projection",
+      "tool_error_reflection_projection->summary_frame_projection",
+      "summary_frame_projection->title_and_command_template_projection",
+      "title_and_command_template_projection->recovery_command_template_receipt_packaging",
+      "recovery_command_template_receipt_packaging->completed",
+      "recovery_template_classification->blocked",
+      "tool_error_reflection_projection->failed",
+      "summary_frame_projection->failed",
+      "title_and_command_template_projection->needs_input"
+    ],
+    "timeout_ms": 60000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 6,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 7000,
+      "loop_signature_detector": "recovery_command_template_projection_v1"
+    }
+  },
+  "prompt_template_primitive_contract": {
+    "version": "recovery_command_template_projection_v1",
+    "source_evidence": [
+      "templates/forge-tool-retry-message.md",
+      "templates/forge-partial-tool-error-reflection.md",
+      "templates/forge-partial-summary-frame.md",
+      "templates/forge-system-prompt-title-generation.md",
+      "commands/github-pr-description.md"
+    ],
+    "required_behaviors": [
+      "render_tool_retry_prompt_with_attempts_remaining",
+      "require_reflection_to_identify_wrong_tool_missing_or_invalid_arguments_or_malformed_structure_before_retry",
+      "render_summary_frames_as_authoritative_context_for_future_coding_suggestions",
+      "preserve_tool_call_summaries_for_file_update_file_read_file_remove_search_skill_semantic_search_shell_mcp_and_todo_changes",
+      "generate_title_instruction_with_three_to_seven_word_title_case_technical_focus",
+      "parse_command_frontmatter_name_and_description_before_parameter_expansion",
+      "expand_command_parameters_into_task_prompt_without_executing_external_actions",
+      "route_github_pr_description_template_to_pull_request_skill_or_equivalent_parent_action"
+    ],
+    "output_receipts": [
+      "tool_retry_template_receipt",
+      "tool_error_reflection_template_receipt",
+      "summary_frame_template_receipt",
+      "title_generation_template_receipt",
+      "command_frontmatter_template_receipt"
+    ],
+    "stop_conditions": [
+      "attempt_budget_missing",
+      "tool_error_context_missing",
+      "summary_messages_missing",
+      "command_frontmatter_invalid",
+      "external_command_action_requires_parent_route"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "recovery_command_template_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace"
+    ]
+  }
+}

@@ -213,6 +213,10 @@
       "tool_call_normalization",
       "mcp_tool_bridge",
       "custom_command_skill_loader",
+      "local_coding_prompt_template_guard",
+      "embedded_template_registry",
+      "system_skill_prompt_projection",
+      "recovery_command_template_projection",
       "local_runtime_execution_loop",
       "agent_request_transform_pipeline",
       "turn_retry_stream_runner",
@@ -651,18 +655,21 @@
         "tool_schema_registry",
         "tool_call_normalization",
         "mcp_tool_bridge",
-        "custom_command_skill_loader"
+        "custom_command_skill_loader",
+        "local_coding_prompt_template_guard"
       ],
-      "activation_policy": "local coding tasks must establish ForgeCode-style tool schemas, call normalization, MCP bridge status, and command/skill inventory before invoking live local coding tools",
+      "activation_policy": "local coding tasks must establish ForgeCode-style tool schemas, call normalization, MCP bridge status, command/skill inventory, and prompt-template artifacts before invoking live local coding tools",
       "required_receipts": [
         "tool_schema_registry_receipt",
         "tool_call_normalization_receipt",
         "mcp_tool_bridge_receipt",
-        "custom_command_skill_loader_receipt"
+        "custom_command_skill_loader_receipt",
+        "prompt_template_guard_receipt"
       ],
       "non_goals": [
         "do_not_treat_tool_surface_readiness_as_permission",
         "do_not_execute_loaded_commands_without_explicit routing",
+        "do_not_execute_rendered_command_templates_without_parent_route",
         "do_not_skip_operation_permission_or_safety_receipts"
       ]
     },

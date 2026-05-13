@@ -95,6 +95,7 @@ Top-level source areas:
 | `FC-A14` | Extract remote workspace, semantic search, provider transport, and auth service boundaries | active | Remote-service contract pass added for workspace auth, sync/indexing, semantic search, provider transport, and the `local_coding_remote_service_guard` composite. |
 | `FC-A15` | Extract sandbox, command surface, update/editor/auth, and data-generation operator integrations | active | Operator-integration contract pass added for git worktree sandboxing, command projection, update/editor/OAuth boundaries, schema data generation, and the `local_coding_operator_integration_guard` composite. |
 | `FC-A16` | Extract zsh shell-plugin terminal integration semantics | active | Shell-terminal contract pass added for preexec/precmd terminal context capture, colon-command dispatch, completion/buffer projection, environment diagnostics, and the `local_coding_shell_terminal_guard` composite. |
+| `FC-A17` | Extract embedded prompt template and command-template semantics | active | Prompt-template contract pass added for embedded template registration, XML-like prompt element rendering, system/skill prompt projection, recovery templates, summary frames, title prompts, command frontmatter, and the `local_coding_prompt_template_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -166,6 +167,10 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `zsh_completion_buffer_projection` | 0 | `shell-plugin/lib/completion.zsh`, `shell-plugin/lib/bindings.zsh`, `shell-plugin/lib/highlight.zsh` | lab contract created | Projects @file completion, colon-command completion, bracketed-paste formatting, keybindings, and syntax highlighting into explicit buffer receipts. |
 | `zsh_environment_doctor` | 0 | `shell-plugin/doctor.zsh`, `shell-plugin/keyboard.zsh`, `shell-plugin/forge.setup.zsh` | lab contract created | Diagnoses zsh/plugin/dependency/theme/keyboard/font readiness without mutating shell config. |
 | `local_coding_shell_terminal_guard` | 1 | `shell-plugin` modules | lab contract created | Composite guard that isolates shell-terminal integration from local file mutation, validation, and command execution. |
+| `embedded_template_registry` | 0 | `forge_embed`, `forge_template` | lab contract created | Registers embedded Handlebars templates by relative path, enforces UTF-8 template paths/content, and renders escaped XML-like prompt elements. |
+| `system_skill_prompt_projection` | 0 | `templates/forge-partial-system-info.md`, `templates/forge-partial-skill-instructions.md`, `templates/forge-partial-tool-use-example.md`, `templates/forge-custom-agent-template.md` | lab contract created | Projects environment, file/extension stats, tool-use instructions, skill inventory, custom rules, and custom-agent prompt sections from measured receipts. |
+| `recovery_command_template_projection` | 0 | `templates/forge-tool-retry-message.md`, `templates/forge-partial-tool-error-reflection.md`, `templates/forge-partial-summary-frame.md`, `templates/forge-system-prompt-title-generation.md`, `commands/github-pr-description.md` | lab contract created | Projects retry/reflection prompts, summary frames, title-generation instructions, and command frontmatter templates without executing rendered commands. |
+| `local_coding_prompt_template_guard` | 1 | `forge_embed`, `forge_template`, `templates`, `commands` | lab contract created | Composite guard that isolates embedded template registration and prompt/command template projection from runtime execution and local file mutation. |
 
 ## Runtime behavior harnesses created
 
@@ -181,7 +186,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | ingress/session/remote-service/operator-integration/shell-terminal/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_coding_operator_integration_guard`, nested `local_coding_shell_terminal_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | ingress/session/remote-service/operator-integration/shell-terminal/prompt-template/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_coding_operator_integration_guard`, nested `local_coding_shell_terminal_guard`, nested `local_coding_prompt_template_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -247,10 +252,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
 
 Next source pass:
-- Run a full source-inventory parity review against remaining ForgeCode source families, especially embedded templates, docs/plans, scripts, `.forge` configuration fixtures, and CI/release surfaces, then shift from structural assimilation to executable eval coverage.
+- Run a full source-inventory parity review against remaining ForgeCode source families, especially docs/plans, scripts, `.forge` configuration fixtures, and CI/release surfaces, then shift from structural assimilation to executable eval coverage.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -576,3 +581,36 @@ Shell-terminal parity requirements extracted:
 | Format bracketed paste only for Forge colon buffers and leave normal shell commands alone | `zsh_completion_buffer_projection` | P0 |
 | Diagnose zsh/plugin/dependency/theme/keyboard/font readiness with pass/warn/fail receipts | `zsh_environment_doctor` | P0 |
 | Keep shell-terminal integration separate from coding, validation, git mutation, and auth side effects | `local_coding_shell_terminal_guard` | P0 |
+
+## Thirteenth source pass: embedded prompt templates and command templates
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_embed/src/lib.rs` | Recursively walks embedded directories and registers every embedded file into Handlebars using the relative file path as the template name, failing on non-UTF-8 paths/content or template parse errors. | Template availability should be registry-backed and failure-explicit before runtime prompt assembly. |
+| `crates/forge_template/src/element.rs` | Builds XML-like elements, maps dot-suffixed names to CSS class attributes, escapes text by default, supports explicit CDATA, appends child elements in order, and renders attributes on separate lines. | Prompt element rendering needs explicit escaping and CDATA routes, not string concatenation. |
+| `templates/forge-system-prompt-title-generation.md` | Instructs title generation to produce short title-case technical titles without Markdown or marketing language. | Title helper behavior should be a template primitive and not mixed into coding receipts. |
+| `templates/forge-partial-summary-frame.md` | Renders prior messages and tool calls into authoritative summary frames, including reads, writes, deletes, searches, skills, semantic search, shell commands, MCP calls, and todo changes. | Compaction should preserve operational context as structured summary frames while remaining separate from validation. |
+| `templates/forge-partial-tool-error-reflection.md` | Requires explicit reflection on tool-call errors, including wrong tool, bad/missing parameters, malformed structure, cause, and corrected call. | Tool retry behavior should force diagnosis before retry, not blind repetition. |
+| `templates/forge-tool-retry-message.md` | Reports failed tool calls with attempts remaining and asks the agent to analyze root cause before retrying. | Retry prompts should carry attempt budgets and failure visibility. |
+| `commands/github-pr-description.md` | Uses frontmatter for command name/description and expands parameters into a PR-description task prompt. | Command templates need frontmatter parsing and parameter expansion receipts before any external action. |
+| `templates/forge-partial-system-info.md` | Projects OS, cwd, shell, home, optional file list, and optional workspace extension stats into system information. | System prompt context must come from measured environment/file receipts. |
+| `templates/forge-partial-skill-instructions.md` | Lists available skills and instructs invocation only for skills present in the supplied inventory. | Skill prompt projection must not invent unavailable skills. |
+| `templates/forge-partial-tool-use-example.md` | Defines XML-like single-tool-call examples for non-native tool mode. | Tool-use examples should depend on provider/tool support mode. |
+| `templates/forge-custom-agent-template.md` | Combines system information, conditional tool support, project guidelines, non-negotiable rules, citation format, tagged-file behavior, and skill/tool guidance. | Custom agent prompt templates should be rendered as artifacts from measured context, not hardcoded in runtime. |
+
+Prompt-template parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Register embedded templates by relative path and fail on non-UTF-8 paths/content | `embedded_template_registry` | P0 |
+| Render prompt elements with HTML escaping by default and explicit CDATA only when requested | `embedded_template_registry` | P0 |
+| Project system info only from measured environment, file, and extension receipts | `system_skill_prompt_projection` | P0 |
+| List only supplied available skills and avoid invoking absent skills | `system_skill_prompt_projection` | P0 |
+| Switch tool-use instructions based on native tool support | `system_skill_prompt_projection` | P0 |
+| Preserve custom-agent non-negotiable prompt sections without overriding parent policy | `system_skill_prompt_projection` | P0 |
+| Carry retry attempt budgets and require root-cause reflection before tool retry | `recovery_command_template_projection` | P0 |
+| Preserve summary-frame records for file, search, skill, semantic-search, shell, MCP, and todo tool calls | `recovery_command_template_projection` | P0 |
+| Parse command frontmatter and expand parameters without executing rendered command actions | `recovery_command_template_projection` | P0 |
+| Keep prompt-template projection separate from runtime execution, validation, permission, and file mutation | `local_coding_prompt_template_guard` | P0 |
