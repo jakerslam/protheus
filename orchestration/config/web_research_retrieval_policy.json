@@ -491,7 +491,9 @@
         "status_projection_may_page_or_cursor_completed_documents",
         "projection_must_bound_bytes_and_item_count_per_window",
         "raw_queue_state_and_raw_payloads_are_not_chat_visible",
-        "robots_or_low_coverage_warnings_are_quality_signals_not_final_answer_text"
+        "robots_or_low_coverage_warnings_are_quality_signals_not_final_answer_text",
+        "status_or_result_lookup_must_be_disabled_when_zero_retention_policy_disallows_stored_artifacts",
+        "concurrency_queue_wait_and_limit_metadata_remain_hidden_diagnostics_unless_the_user_requested_operational_status"
       ],
       "high_volume_filtering": {
         "source_pattern": "firecrawl_high_volume_candidate_map_rerank_filter",

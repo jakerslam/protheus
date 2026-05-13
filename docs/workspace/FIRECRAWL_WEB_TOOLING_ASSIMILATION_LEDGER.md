@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 193
-- Not parsed: 1085
+- Parsed: 202
+- Not parsed: 1076
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -169,6 +169,15 @@
 | `apps/api/src/scraper/scrapeURL/lib/__tests__/extractImages.test.ts` | Image extraction tests. | Image extraction should include lazy images, srcset, picture/source, metadata, icons, backgrounds, video posters, protocol-relative URLs, and dedupe invalid candidates. |
 | `apps/api/src/scraper/scrapeURL/lib/__tests__/rewriteUrl.test.ts` | URL rewrite tests. | Document-host rewrites should preserve public-published URLs, preserve sheet tab hints, and only rewrite known processible document/share forms. |
 | `apps/api/src/scraper/scrapeURL/__tests__/shouldCheckRobots.test.ts` | Robots policy tests. | Robots checks must stay policy-controlled and remain disabled for lockdown paths. |
+| `apps/api/src/search/scrape.test.ts` | Search-result scrape merge test. | Spawned scrapes from search results should preserve billing/request metadata while merging fetched body content back into search evidence rows. |
+| `apps/api/src/controllers/v2/scrape.ts` | V2 scrape execution controller. | User requests are schema/permission checked, concurrency-limited, executed through the internal job path, stripped of raw HTML unless requested, and annotated with hidden queue/usage metrics. |
+| `apps/api/src/controllers/v2/scrape-status.ts` | V2 scrape status projection. | Stored scrape status lookup validates IDs, ownership, and ZDR policy before returning bounded saved data. |
+| `apps/api/src/controllers/v1/scrape.ts` | V1 scrape execution controller. | Legacy scrape path preserves the same execution invariants: normalized options, permission checks, team semaphore, ZDR, raw artifact pruning, and typed error mapping. |
+| `apps/api/src/controllers/v1/scrape-status.ts` | V1 scrape status projection. | Status lookup is an ownership-checked stored-artifact projection and is blocked under forced zero retention. |
+| `apps/api/src/controllers/v1/crawl-cancel.ts` | Crawl cancellation controller. | Cancellation marks crawl state as cancelled only after ownership and terminal-state checks. |
+| `apps/api/src/controllers/v1/crawl-errors.ts` | Crawl error projection. | Crawl errors are projected from failed child jobs with typed error deserialization, known noisy failures filtered, robots-blocked URLs separated, and DB fallback under TTL. |
+| `apps/api/src/controllers/v1/crawl-ongoing.ts` | Ongoing crawl projection. | Ongoing crawl listing returns bounded owner-scoped crawl summaries with normalized options, not raw queue state. |
+| `apps/api/src/controllers/v1/crawl-status-ws.ts` | Crawl status WebSocket projection. | Streaming status starts with a catch-up window, then emits completed documents incrementally while ignoring failed child payloads and closing with bounded status messages. |
 | `apps/api/src/lib/browser-sessions.ts` | Browser session state helpers. | Session rows track TTL, owner, status, CDP/view handles, prompt-use flags, cached active counts, and idempotent destroyed-state claiming. |
 | `apps/api/src/lib/browser-session-activity.ts` | Browser activity batching. | Browser execution telemetry is queued and batch-inserted as internal activity records instead of becoming retrieval evidence. |
 | `apps/api/src/lib/scrape-interact/browser-service-client.ts` | Browser service client. | Browser service calls are behind a narrow typed adapter that throws typed non-2xx errors and keeps service URLs/headers internal. |
@@ -284,6 +293,7 @@
 - Specialty source engines are optional source-class lanes for artifacts that generic fetch/search often handles poorly; their availability should improve evidence quality but not become required for general research.
 - Transport lifecycle is part of retrieval quality: request ids, bounded retries, schema validation, tiered aborts, sanitized logs, and deterministic mock replay should support evidence diagnosis without becoming citable evidence.
 - URL/link/image normalization should happen before budget is spent: processible document rewrites, base-href resolution, hash-anchor dedupe, hash-route preservation, and media candidate dedupe all improve candidate quality without domain-specific research rules.
+- Public status, streaming, and cancellation endpoints are projections over stored retrieval work. They should enforce owner/ZDR/TTL checks, return bounded windows, and keep queue internals diagnostic-only.
 
 ## Candidate Assimilation Targets
 
@@ -306,6 +316,7 @@
 17. Page artifact transformation stack: run format-gated transformation after fetch/read to produce evidence-ready variants, page-local answers/highlights, structured attributes, change summaries, and specialty normalized content while pruning raw fields before projection. Implemented CD-level policy update; runtime execution remains future work.
 18. Capability-scored engine ladder: choose index/static/rendered/dynamic/document/PDF/source-specialty engines from requested artifacts, content type, source class, privacy, and failure state; poll/cleanup remote jobs and retain only hidden engine diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
 19. Transport and normalization lifecycle: carry request IDs, schema validation, tiered aborts, safe logging, deterministic mock replay, document-share rewrites, base-href media resolution, and hash-anchor/hash-route handling into hidden retrieval diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
+20. Retrieval projection lifecycle: enforce owner, TTL, ZDR, cancellation, catch-up, and bounded streaming/status projections for long-running retrieval work. Implemented CD/tool-policy update; runtime execution remains future work.
 
 ## Remaining Work
 

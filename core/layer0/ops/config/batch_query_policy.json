@@ -1116,6 +1116,9 @@
         "provider_error_message_ref",
         "bad_request_shape_hint",
         "request_sanitized",
+        "zero_retention_status_lookup_allowed",
+        "concurrency_limited",
+        "concurrency_queue_duration_ms",
         "partial_success_count",
         "partial_error_count"
       ],

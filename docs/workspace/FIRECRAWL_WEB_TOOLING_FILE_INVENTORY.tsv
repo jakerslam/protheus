@@ -209,10 +209,10 @@ apps/api/src/controllers/v1/__tests__/urlValidation.test.ts	apps	parsed	url_vali
 apps/api/src/controllers/v1/activity.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/batch-scrape.ts	apps	parsed	v1_batch_scrape_controller	validate_urls_ttl_group_lock_urls_queue_single_url_jobs
 apps/api/src/controllers/v1/concurrency-check.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/crawl-cancel.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/crawl-errors.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/crawl-ongoing.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/crawl-status-ws.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/crawl-cancel.ts	apps	parsed	crawl_cancel_projection	owner_and_terminal_state_check_before_cancelled_marker
+apps/api/src/controllers/v1/crawl-errors.ts	apps	parsed	crawl_error_projection	failed_child_job_error_deserialize_robots_blocked_split_db_ttl_fallback
+apps/api/src/controllers/v1/crawl-ongoing.ts	apps	parsed	ongoing_crawl_projection	owner_scoped_bounded_crawl_summaries_normalized_options
+apps/api/src/controllers/v1/crawl-status-ws.ts	apps	parsed	crawl_status_ws_projection	catchup_window_incremental_completed_documents_done_close_failed_payloads_ignored
 apps/api/src/controllers/v1/crawl-status.ts	apps	parsed	v1_crawl_status_projection	bounded_result_window_next_cursor_byte_limit
 apps/api/src/controllers/v1/crawl.ts	apps	parsed	v1_crawl_request_controller	validate_options_robots_ttl_group_queue_handle
 apps/api/src/controllers/v1/credit-usage-historical.ts	apps	not_parsed	pending_review	
@@ -226,8 +226,8 @@ apps/api/src/controllers/v1/generate-llmstxt-status.ts	apps	parsed	site_corpus_s
 apps/api/src/controllers/v1/generate-llmstxt.ts	apps	parsed	site_corpus_async_request	ZDR-gated async corpus generation initialized with max URL/full text/cache options
 apps/api/src/controllers/v1/map.ts	apps	parsed	v1_map_discovery_pipeline	index_sitemap_search_merge_path_filter_cosine_rank_dedupe
 apps/api/src/controllers/v1/queue-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/scrape-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v1/scrape.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/scrape-status.ts	apps	parsed	v1_scrape_status_projection	owner_checked_stored_artifact_projection_blocked_under_forced_zdr
+apps/api/src/controllers/v1/scrape.ts	apps	parsed	v1_scrape_execution_controller	normalized_options_permission_team_semaphore_zdr_raw_html_prune_typed_error_mapping
 apps/api/src/controllers/v1/search.ts	apps	parsed	search_plus_scrape_bridge	deep research uses small SERP set plus scrape enrichment; content-bearing docs are separated from thin rows
 apps/api/src/controllers/v1/token-usage-historical.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v1/token-usage.ts	apps	not_parsed	pending_review	
@@ -260,8 +260,8 @@ apps/api/src/controllers/v2/monitor.ts	apps	not_parsed	pending_review
 apps/api/src/controllers/v2/parse.ts	apps	parsed	parse_only_document_lane	classifies uploaded file kind, rejects browsing/rendering options, forces extraction engine, disables cache
 apps/api/src/controllers/v2/queue-status.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/scrape-browser.ts	apps	parsed	scrape_interaction_controller	replay_prior_scrape_context_adopt_or_create_session_prompt_or_code_execution_trace_hygiene_cleanup
-apps/api/src/controllers/v2/scrape-status.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v2/scrape.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/scrape-status.ts	apps	parsed	v2_scrape_status_projection	id_validation_owner_check_zdr_block_bounded_saved_data
+apps/api/src/controllers/v2/scrape.ts	apps	parsed	v2_scrape_execution_controller	schema_permission_concurrency_internal_job_raw_html_prune_hidden_queue_usage_metrics
 apps/api/src/controllers/v2/search.ts	apps	parsed	public_search_endpoint_control_flow	schema_parse_zdr_agent_interop_executeSearch_billing_logging
 apps/api/src/controllers/v2/support-proxy.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/token-usage-historical.ts	apps	not_parsed	pending_review	
@@ -494,7 +494,7 @@ apps/api/src/scraper/scrapeURL/transformers/uploadScreenshot.ts	apps	not_parsed	
 apps/api/src/search/execute.ts	apps	parsed	search_orchestration_and_optional_scrape_merge	query_builder_overfetch_limit_x2_category_map_scrapeOptions_merge
 apps/api/src/search/fireEngine.ts	apps	parsed	adapter_retry_valid_result_predicate	provider retries until valid non-empty result predicate or empty fallback
 apps/api/src/search/index.ts	apps	parsed	provider_fallback_order	Fire Engine then SearXNG then DuckDuckGo with provider failures hidden behind empty result fallback
-apps/api/src/search/scrape.test.ts	apps	not_parsed	pending_review	
+apps/api/src/search/scrape.test.ts	apps	parsed	search_scrape_merge_metadata_test	spawned_search_scrapes_preserve_billing_metadata_request_context
 apps/api/src/search/scrape.ts	apps	parsed	search_result_scrape_merge_pipeline	blocked_url_filter_direct_scrape_concurrent_merge_scraped_content
 apps/api/src/search/searxng.ts	apps	parsed	multipage_result_satisfaction	fetches enough pages to satisfy requested result count and stops on empty pages
 apps/api/src/search/transform.ts	apps	parsed	multi_source_document_normalization	normalizes web/news/image rows into a common document shape and filters content-bearing docs
