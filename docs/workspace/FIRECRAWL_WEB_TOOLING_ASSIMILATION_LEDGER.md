@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 839
-- Not parsed: 434
+- Parsed: 864
+- Not parsed: 409
 - Skipped generated: 13
 - Skipped media or sample: 71
 
@@ -888,6 +888,31 @@
 | `examples/scrape_and_analyze_airbnb_data_e2b/package.json` | Example package manifest. | Dependency surface confirms this is a composition example, with Firecrawl retrieval and code-interpreter analysis remaining separate capability lanes. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/prettier.config.mjs` | Example formatting config. | Formatting config has no web-tooling pattern beyond local hygiene. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/scraping.ts` | Airbnb extraction implementation. | First extract pagination links, fall back to seed URL if discovery fails, then scrape pages concurrently into schema-shaped records and persist the evidence snapshot. |
+| `examples/attributes-extraction-js-sdk.js` | JS attribute extraction example. | DOM attribute extraction is a first-class page artifact facet that can collect selector/value arrays alongside markdown. |
+| `examples/attributes-extraction-python-sdk.py` | Python attribute extraction example. | Attribute extraction should have SDK parity and return countable selector/value artifacts instead of being folded into prose. |
+| `examples/internal_link_assistant/internal_link_assistant.py` | Internal-link assistant example. | Existing content plus mapped same-site links can support document rewrite proposals, with link-count deltas used as a simple quality check. |
+| `examples/crm_lead_enrichment/crm_lead_enrichment.py` | CRM enrichment example. | Retrieval can enrich external system records through scrape -> JSON extraction -> validated update, but mutation is a separate permissioned side effect. |
+| `examples/simple_web_data_extraction_with_claude/simple_web_data_extraction_with_claude.ipynb` | Simple scrape/extract notebook. | Main-content scrape followed by JSON-only extraction reinforces source-bound structured extraction as an evidence artifact. |
+| `examples/website_qa_with_gemini_caching/website_qa_with_gemini_caching.ipynb` | Gemini cached website QA notebook. | Site crawl output can be pruned, uploaded, cached with TTL, and reused for repeated questions over the same corpus. |
+| `examples/website_qa_with_gemini_caching/website_qa_with_gemini_flash_caching.ipynb` | Gemini Flash cached website QA notebook. | Same cached-corpus QA pattern repeats with a lighter model; model choice is not the portable pattern. |
+| `examples/o3-web-crawler/.env.example` | O3 crawler capability config. | Firecrawl and selected LLM credentials are capability inputs, not workflow behavior. |
+| `examples/o3-web-crawler/.gitignore` | O3 crawler local hygiene. | Python env/cache/log artifacts are local files and not assimilation targets. |
+| `examples/o3-web-crawler/README.md` | O3 crawler overview. | Example states the generic map -> rank URLs -> scrape top pages -> JSON extraction loop. |
+| `examples/o3-web-crawler/o3-web-crawler.py` | O3 crawler implementation. | Objective-derived map search, URL ranking, top-3 page scraping, and confidence-gated JSON extraction form a reusable retrieval loop, but model/output templates are example-specific. |
+| `examples/o3-web-crawler/requirements.txt` | O3 crawler dependencies. | Dependency list confirms this is a Firecrawl plus external LLM wrapper example. |
+| `examples/o4-mini-web-crawler/.env.example` | O4-mini crawler capability config. | Credential shape repeats the model-wrapper pattern. |
+| `examples/o4-mini-web-crawler/.gitignore` | O4-mini crawler local hygiene. | Python env/cache/build/editor artifacts are local hygiene only. |
+| `examples/o4-mini-web-crawler/README.md` | O4-mini crawler overview. | Same map/rank/scrape/extract loop as the O3 variant, with only model selection changed. |
+| `examples/o4-mini-web-crawler/o4-mini-web-crawler.py` | O4-mini crawler implementation. | Confirms repeated objective-derived map search and top-page extraction mechanics; no new primitive beyond model wrapper variance. |
+| `examples/o4-mini-web-crawler/requirements.txt` | O4-mini crawler dependencies. | Dependency pins are example-local and not portable workflow behavior. |
+| `examples/deepseek-v3-crawler/.gitignore` | DeepSeek crawler local hygiene. | Environment/cache/log exclusions are local artifacts only. |
+| `examples/deepseek-v3-crawler/README.md` | DeepSeek crawler overview. | Same objective-to-search-parameter and top-page extraction loop appears behind a different provider. |
+| `examples/deepseek-v3-crawler/deepseek-v3-crawler.py` | DeepSeek crawler implementation. | Adds provider-availability preflight and JSON cleanup around code fences, but still repeats the core map/scrape/extract loop. |
+| `examples/deepseek-v3-crawler/requirements.txt` | DeepSeek crawler dependencies. | Provider dependency confirms model/provider should remain capability-bound. |
+| `examples/gemini-2.5-crawler/.env.example` | Gemini crawler capability config. | Firecrawl and Gemini credentials are external capability inputs. |
+| `examples/gemini-2.5-crawler/README.md` | Gemini crawler overview. | Variant explicitly includes PDF and image analysis as additional content lanes. |
+| `examples/gemini-2.5-crawler/gemini-2.5-crawler.py` | Gemini crawler implementation. | After page scrape, linked URLs are MIME-probed; PDFs/images are fetched, size/type guarded, analyzed, and appended as additional evidence before objective checking. |
+| `examples/gemini-2.5-crawler/requirements.txt` | Gemini crawler dependencies. | Requests plus Gemini dependencies support optional media/document evidence lanes; package choices stay example-local. |
 
 ## Decisions So Far
 
@@ -1281,6 +1306,13 @@
 214. Cache validity before reuse: cached extracted evidence can improve latency only when existence, nonempty shape, and freshness/cleanup lifecycle are checked before reuse. Ledger captured; candidate cache lifecycle guard.
 215. Discovery fallback hierarchy: if pagination/link discovery returns empty, fall back to the seed URL with an explicit gap flag rather than failing or pretending full coverage. Ledger captured; candidate retrieval planner target.
 216. Optional-field tolerant analysis: extracted structured records may have missing optional fields and duplicate-like rows; normalizers and analysis tools should tolerate this without discarding all evidence. Ledger captured; candidate evidence normalizer target.
+217. Attribute artifact lane: selector/attribute extraction can produce compact structural evidence for IDs, component markers, and data attributes without fetching raw DOM into synthesis. Ledger captured; candidate evidence facet target.
+218. Same-site rewrite provenance: rewrite/proposal workflows should keep original content, candidate internal links, and quality deltas as separate artifacts before mutating or publishing text. Ledger captured; candidate document-edit workflow target.
+219. Permissioned enrichment side effects: CRM or external-system updates should be downstream actions over validated extracted evidence, never implicit consequences of retrieval. Ledger captured; candidate side-effect policy target.
+220. Cached corpus QA lifecycle: website QA over a crawled corpus benefits from TTL-bound cached content, pruned heavy fields, and reusable corpus handles. Ledger captured; candidate evidence-store/cache target.
+221. Objective-derived discovery as proposal: agent-produced map search keywords and URL rankings can be useful retrieval proposals, but explicit tool fields and evidence quality gates must remain authoritative. Ledger reinforced; candidate research CD planner target.
+222. Linked media/document expansion: after page enrichment, linked PDFs and images can be MIME-probed and conditionally extracted as additional evidence lanes with size/type/time guards. Ledger captured; candidate document/media retrieval expansion.
+223. Provider-wrapper quarantine: repeated examples differ mainly by selected model/provider; assimilate the loop mechanics and reject hardcoded model names, output templates, and terminal debug text as workflow behavior. Ledger reinforced; candidate anti-hardcoding guard.
 
 ## Remaining Work
 
@@ -1292,6 +1324,7 @@
 - Map, scrape, and crawl endpoint articles are fully parsed; broader deployment/scheduling articles were only sampled and remain unmarked until a complete read.
 - Test-suite overview, crawl/scrape fixtures, load config, and markdown load reports are parsed; generated Artillery JSON report is skipped as generated after aggregate inspection.
 - Airbnb data-analysis example is parsed; it contributes retrieval-to-analysis artifact separation and discovery fallback patterns, not model/tool permission choices.
+- First model-variant crawler cluster is parsed; it mostly reinforces map/rank/scrape/extract, with Gemini adding linked PDF/image evidence expansion.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.

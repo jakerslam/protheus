@@ -1163,8 +1163,8 @@ examples/R1_company_researcher/r1_company_researcher.py	examples	parsed	r1_compa
 examples/R1_web_crawler/R1_web_crawler.py	examples	parsed	r1_web_crawler_example	serp_discovery_model_url_selection_firecrawl_extract_short_polling_budget_and_json_fallbacks
 examples/aginews-ai-newsletter/README.md	examples	not_parsed	pending_review	
 examples/ai-podcast-generator/README.md	examples	not_parsed	pending_review	
-examples/attributes-extraction-js-sdk.js	examples	not_parsed	pending_review	
-examples/attributes-extraction-python-sdk.py	examples	not_parsed	pending_review	
+examples/attributes-extraction-js-sdk.js	examples	parsed	attributes_extraction_js_sdk	selector_attribute_values_as_compact_page_artifact_facet
+examples/attributes-extraction-python-sdk.py	examples	parsed	attributes_extraction_python_sdk	sdk_parity_for_selector_attribute_artifact_extraction
 examples/blog-articles/amazon-price-tracking/amazon-price-tracking-images/actions.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/amazon-price-tracking/amazon-price-tracking-images/alert.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
 examples/blog-articles/amazon-price-tracking/amazon-price-tracking-images/discord.png	examples	skipped_media_or_sample	binary_media_or_fixture_sample	
@@ -1210,7 +1210,7 @@ examples/claude3.7-web-crawler/claude3.7-web-crawler.py	examples	not_parsed	pend
 examples/claude3.7-web-extractor/claude-3.7-web-extractor.py	examples	not_parsed	pending_review	
 examples/claude_stock_analyzer/claude_stock_analyzer.py	examples	not_parsed	pending_review	
 examples/contradiction_testing/web-data-contradiction-testing-using-llms.mdx	examples	parsed	contradiction_testing_doc	pairwise_page_comparison_for_source_disagreement_and_stale_fact_detection
-examples/crm_lead_enrichment/crm_lead_enrichment.py	examples	not_parsed	pending_review	
+examples/crm_lead_enrichment/crm_lead_enrichment.py	examples	parsed	crm_lead_enrichment_example	scrape_json_extract_validate_then_permissioned_external_system_update
 examples/deep-research-apartment-finder/.env.example	examples	parsed	apartment_finder_env_example	explicit_firecrawl_and_anthropic_capability_keys
 examples/deep-research-apartment-finder/README.md	examples	parsed	apartment_finder_readme	preference_collection_deep_research_analysis_and_json_save_flow
 examples/deep-research-apartment-finder/apartment_finder.py	examples	parsed	apartment_finder_example	query_from_constraints_bounded_deep_research_activity_callbacks_source_slice_json_parse_and_fallback_results
@@ -1219,18 +1219,18 @@ examples/deepseek-v3-company-researcher/.gitignore	examples	not_parsed	pending_r
 examples/deepseek-v3-company-researcher/README.md	examples	not_parsed	pending_review	
 examples/deepseek-v3-company-researcher/deepseek-v3-extract.py	examples	not_parsed	pending_review	
 examples/deepseek-v3-company-researcher/requirements.txt	examples	not_parsed	pending_review	
-examples/deepseek-v3-crawler/.gitignore	examples	not_parsed	pending_review	
-examples/deepseek-v3-crawler/README.md	examples	not_parsed	pending_review	
-examples/deepseek-v3-crawler/deepseek-v3-crawler.py	examples	not_parsed	pending_review	
-examples/deepseek-v3-crawler/requirements.txt	examples	not_parsed	pending_review	
+examples/deepseek-v3-crawler/.gitignore	examples	parsed	deepseek_crawler_ignore	environment_cache_log_and_editor_local_artifacts_only
+examples/deepseek-v3-crawler/README.md	examples	parsed	deepseek_crawler_readme	objective_to_search_parameter_map_top_pages_and_json_output_loop
+examples/deepseek-v3-crawler/deepseek-v3-crawler.py	examples	parsed	deepseek_crawler_example	provider_preflight_map_search_top3_scrape_json_cleanup_and_objective_check
+examples/deepseek-v3-crawler/requirements.txt	examples	parsed	deepseek_crawler_dependencies	firecrawl_dotenv_and_provider_wrapper_dependencies_only
 examples/find_internal_link_opportunites/find_internal_link_opportunites.ipynb	examples	not_parsed	pending_review	
 examples/full_example_apps/README.md	examples	not_parsed	pending_review	
 examples/gemini-2.0-crawler/gemini-2.0-crawler.py	examples	not_parsed	pending_review	
 examples/gemini-2.0-web-extractor/gemini-2.0-web-extractor.py	examples	not_parsed	pending_review	
-examples/gemini-2.5-crawler/.env.example	examples	not_parsed	pending_review	
-examples/gemini-2.5-crawler/README.md	examples	not_parsed	pending_review	
-examples/gemini-2.5-crawler/gemini-2.5-crawler.py	examples	not_parsed	pending_review	
-examples/gemini-2.5-crawler/requirements.txt	examples	not_parsed	pending_review	
+examples/gemini-2.5-crawler/.env.example	examples	parsed	gemini_crawler_env_example	firecrawl_and_gemini_credentials_as_capability_inputs
+examples/gemini-2.5-crawler/README.md	examples	parsed	gemini_crawler_readme	map_rank_scrape_extract_plus_pdf_and_image_analysis_variant
+examples/gemini-2.5-crawler/gemini-2.5-crawler.py	examples	parsed	gemini_crawler_example	linked_url_mime_probe_pdf_image_extraction_and_append_as_additional_evidence
+examples/gemini-2.5-crawler/requirements.txt	examples	parsed	gemini_crawler_dependencies	media_document_lane_dependencies_are_example_local
 examples/gemini-2.5-screenshot-editor/.env.example	examples	not_parsed	pending_review	
 examples/gemini-2.5-screenshot-editor/README.md	examples	not_parsed	pending_review	
 examples/gemini-2.5-screenshot-editor/cli.py	examples	not_parsed	pending_review	
@@ -1259,7 +1259,7 @@ examples/hacker_news_scraper/bs4_scraper.py	examples	parsed	hacker_news_bs4_base
 examples/hacker_news_scraper/firecrawl_scraper.py	examples	parsed	hacker_news_firecrawl_scraper	schema_extraction_to_structured_evidence_snapshot
 examples/hacker_news_scraper/requirements.txt	examples	parsed	hacker_news_dependencies	manual_and_firecrawl_extraction_example_dependencies_only
 examples/haiku_web_crawler/haiku_web_crawler.py	examples	not_parsed	pending_review	
-examples/internal_link_assistant/internal_link_assistant.py	examples	not_parsed	pending_review	
+examples/internal_link_assistant/internal_link_assistant.py	examples	parsed	internal_link_assistant_example	scrape_original_map_same_site_links_rewrite_and_link_count_quality_delta
 examples/job-resource-analyzer/job-resources-analyzer.py	examples	not_parsed	pending_review	
 examples/kubernetes/cluster-install/README.md	examples	not_parsed	pending_review	
 examples/kubernetes/cluster-install/api.yaml	examples	not_parsed	pending_review	
@@ -1311,16 +1311,16 @@ examples/o1_web_extractor/o1_web_extractor.py	examples	not_parsed	pending_review
 examples/o3-mini-deal-finder/o3-mini-deal-finder.py	examples	not_parsed	pending_review	
 examples/o3-mini_company_researcher/o3-mini_company_researcher.py	examples	not_parsed	pending_review	
 examples/o3-mini_web_crawler/o3-mini_web_crawler.py	examples	not_parsed	pending_review	
-examples/o3-web-crawler/.env.example	examples	not_parsed	pending_review	
-examples/o3-web-crawler/.gitignore	examples	not_parsed	pending_review	
-examples/o3-web-crawler/README.md	examples	not_parsed	pending_review	
-examples/o3-web-crawler/o3-web-crawler.py	examples	not_parsed	pending_review	
-examples/o3-web-crawler/requirements.txt	examples	not_parsed	pending_review	
-examples/o4-mini-web-crawler/.env.example	examples	not_parsed	pending_review	
-examples/o4-mini-web-crawler/.gitignore	examples	not_parsed	pending_review	
-examples/o4-mini-web-crawler/README.md	examples	not_parsed	pending_review	
-examples/o4-mini-web-crawler/o4-mini-web-crawler.py	examples	not_parsed	pending_review	
-examples/o4-mini-web-crawler/requirements.txt	examples	not_parsed	pending_review	
+examples/o3-web-crawler/.env.example	examples	parsed	o3_crawler_env_example	firecrawl_and_openai_credentials_as_capability_inputs
+examples/o3-web-crawler/.gitignore	examples	parsed	o3_crawler_ignore	python_env_cache_build_log_and_notebook_artifacts
+examples/o3-web-crawler/README.md	examples	parsed	o3_crawler_readme	map_rank_scrape_extract_objective_loop_overview
+examples/o3-web-crawler/o3-web-crawler.py	examples	parsed	o3_crawler_example	objective_derived_map_search_url_ranking_top3_scrape_confidence_json_extraction
+examples/o3-web-crawler/requirements.txt	examples	parsed	o3_crawler_dependencies	firecrawl_openai_dotenv_provider_wrapper_only
+examples/o4-mini-web-crawler/.env.example	examples	parsed	o4_mini_crawler_env_example	firecrawl_and_openai_credentials_as_capability_inputs
+examples/o4-mini-web-crawler/.gitignore	examples	parsed	o4_mini_crawler_ignore	python_env_cache_build_editor_and_os_artifacts
+examples/o4-mini-web-crawler/README.md	examples	parsed	o4_mini_crawler_readme	same_map_rank_scrape_extract_loop_as_o3_variant
+examples/o4-mini-web-crawler/o4-mini-web-crawler.py	examples	parsed	o4_mini_crawler_example	repeated_objective_derived_map_search_top3_scrape_json_extraction
+examples/o4-mini-web-crawler/requirements.txt	examples	parsed	o4_mini_crawler_dependencies	example_local_dependency_pins_only
 examples/openai-realtime-firecrawl/README.md	examples	not_parsed	pending_review	
 examples/openai_swarm_firecrawl/.env.example	examples	not_parsed	pending_review	
 examples/openai_swarm_firecrawl/README.md	examples	not_parsed	pending_review	
@@ -1344,14 +1344,14 @@ examples/scrape_and_analyze_airbnb_data_e2b/package-lock.json	examples	skipped_g
 examples/scrape_and_analyze_airbnb_data_e2b/package.json	examples	parsed	airbnb_e2b_package	firecrawl_retrieval_and_code_interpreter_analysis_as_separate_capability_lanes
 examples/scrape_and_analyze_airbnb_data_e2b/prettier.config.mjs	examples	parsed	airbnb_e2b_prettier_config	local_formatting_hygiene_only
 examples/scrape_and_analyze_airbnb_data_e2b/scraping.ts	examples	parsed	airbnb_e2b_scraping	pagination_discovery_seed_fallback_parallel_schema_extraction_and_snapshot_persistence
-examples/simple_web_data_extraction_with_claude/simple_web_data_extraction_with_claude.ipynb	examples	not_parsed	pending_review	
+examples/simple_web_data_extraction_with_claude/simple_web_data_extraction_with_claude.ipynb	examples	parsed	simple_claude_extraction_notebook	main_content_scrape_then_source_bound_json_only_extraction
 examples/sonnet_web_crawler/sonnet_web_crawler.py	examples	not_parsed	pending_review	
 examples/turning_docs_into_api_specs/turning_docs_into_api_specs.py	examples	parsed	docs_to_api_specs_example	high_confidence_per_page_structured_extraction_json_parse_and_most_complete_consolidation
 examples/visualize_website_topics_e2b/claude-visualize-website-topics.ipynb	examples	not_parsed	pending_review	
 examples/web_data_extraction/web-data-extraction-using-llms.mdx	examples	parsed	web_data_extraction_doc	main_content_scrape_then_json_mode_schema_field_extraction
 examples/web_data_rag_with_llama3/web-data-rag--with-llama3.mdx	examples	parsed	web_data_rag_doc	crawl_chunk_overlap_vector_retrieve_and_source_bounded_answer_generation
-examples/website_qa_with_gemini_caching/website_qa_with_gemini_caching.ipynb	examples	not_parsed	pending_review	
-examples/website_qa_with_gemini_caching/website_qa_with_gemini_flash_caching.ipynb	examples	not_parsed	pending_review	
+examples/website_qa_with_gemini_caching/website_qa_with_gemini_caching.ipynb	examples	parsed	gemini_cached_website_qa_notebook	pruned_crawl_artifact_upload_ttl_cache_and_reusable_corpus_qa
+examples/website_qa_with_gemini_caching/website_qa_with_gemini_flash_caching.ipynb	examples	parsed	gemini_flash_cached_website_qa_notebook	same_cached_corpus_qa_pattern_with_lighter_model_variant
 img/firecrawl_logo.png	img	skipped_media_or_sample	binary_media_or_fixture_sample	
 img/firecrawl_logo_v1.png	img	skipped_media_or_sample	binary_media_or_fixture_sample	
 img/open-source-cloud.png	img	skipped_media_or_sample	binary_media_or_fixture_sample	
