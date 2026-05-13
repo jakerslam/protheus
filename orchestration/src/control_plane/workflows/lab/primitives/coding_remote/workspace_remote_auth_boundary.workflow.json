@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_credentials_or_tokens",
       "do_not_silently_start_oauth_without_user_visible_route",
       "do_not_upload_workspace_files",

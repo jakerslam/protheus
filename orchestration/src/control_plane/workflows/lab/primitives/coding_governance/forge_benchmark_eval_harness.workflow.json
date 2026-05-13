@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_claim_eval_success_without_execution",
       "do_not_store_unbounded_eval_logs",
       "do_not_clone_external_repositories_without_parent_route"

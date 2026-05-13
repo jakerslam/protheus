@@ -55,11 +55,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_raw_conversation_messages",
       "do_not_hide_hook_inserted_messages",
-      "do_not_replace_context_loop_guard",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_replace_context_loop_guard"
     ]
   },
   "typed_execution_contract": {
@@ -99,10 +99,10 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "agent",
-      "memory",
       "workspace",
       "web",
+      "memory",
+      "agent",
       "shell",
       "browser"
     ],

@@ -55,10 +55,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_expose_unmatched_tools",
-      "do_not_make_tool_access_implicit",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_expose_unmatched_tools",
+      "do_not_make_tool_access_implicit"
     ]
   },
   "typed_execution_contract": {
@@ -96,10 +96,10 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "agent",
       "workspace",
       "web",
       "memory",
+      "agent",
       "shell",
       "browser"
     ],

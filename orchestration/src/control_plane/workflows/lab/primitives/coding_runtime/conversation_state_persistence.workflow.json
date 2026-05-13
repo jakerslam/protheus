@@ -58,11 +58,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_raw_conversation_payloads",
       "do_not_override_policy_or_safety_decisions",
-      "do_not_continue_after_interrupt",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_continue_after_interrupt"
     ]
   },
   "typed_execution_contract": {
@@ -108,9 +108,9 @@
     ],
     "tool_family_contracts": [
       "workspace",
+      "web",
       "memory",
       "agent",
-      "web",
       "shell",
       "browser"
     ],

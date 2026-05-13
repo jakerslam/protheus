@@ -58,11 +58,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_env_secrets",
       "do_not_hide_restricted_mode",
-      "do_not_override_user_config_silently",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_override_user_config_silently"
     ]
   },
   "typed_execution_contract": {
@@ -101,8 +101,8 @@
     ],
     "tool_family_contracts": [
       "workspace",
-      "memory",
       "web",
+      "memory",
       "agent",
       "shell",
       "browser"

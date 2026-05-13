@@ -103,6 +103,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_hide_template_render_failures",
       "do_not_store_full_hidden_prompt_payloads_by_default",
       "do_not_treat_templates_as_runtime_success"

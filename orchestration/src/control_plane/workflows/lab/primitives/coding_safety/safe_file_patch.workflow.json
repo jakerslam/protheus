@@ -58,10 +58,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_guess_on_multiple_matches",
-      "do_not_patch_without_snapshot",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_guess_on_multiple_matches",
+      "do_not_patch_without_snapshot"
     ]
   },
   "typed_execution_contract": {

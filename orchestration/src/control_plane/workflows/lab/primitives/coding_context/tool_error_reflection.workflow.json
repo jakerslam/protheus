@@ -54,10 +54,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_repeat_the_same_failed_call",
-      "do_not_hide_tool_schema_or_context_mismatches",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_repeat_the_same_failed_call",
+      "do_not_hide_tool_schema_or_context_mismatches"
     ]
   },
   "typed_execution_contract": {
@@ -94,10 +94,10 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "agent",
       "workspace",
       "web",
       "memory",
+      "agent",
       "shell",
       "browser"
     ],

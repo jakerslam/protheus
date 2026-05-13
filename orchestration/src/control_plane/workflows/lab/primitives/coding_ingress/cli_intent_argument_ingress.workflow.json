@@ -55,6 +55,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_raw_prompt_text",
       "do_not_store_raw_event_json",
       "do_not_hide_invalid_cwd_or_sandbox_failures",

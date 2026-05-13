@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_auth_tokens",
       "do_not_hide_workspace_not_found",
       "do_not_mutate_index_or_files",

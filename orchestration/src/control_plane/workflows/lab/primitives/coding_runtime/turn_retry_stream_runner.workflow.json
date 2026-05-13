@@ -55,11 +55,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_persist_raw_provider_payloads",
       "do_not_hide_retryable_failures",
-      "do_not_execute_tools_from_turn_result",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_execute_tools_from_turn_result"
     ]
   },
   "typed_execution_contract": {
@@ -98,10 +98,10 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "agent",
       "workspace",
       "web",
       "memory",
+      "agent",
       "shell",
       "browser"
     ],

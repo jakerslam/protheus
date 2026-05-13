@@ -115,6 +115,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_hide_invalid_ingress",
       "do_not_store_raw_prompt_payloads",
       "do_not_store_raw_terminal_or_attachment_payloads",

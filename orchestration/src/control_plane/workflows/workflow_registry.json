@@ -462,6 +462,24 @@
       ]
     },
     {
+      "workflow_id": "external_operator_integration_boundary",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_operator_integration_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_operator/external_operator_integration_boundary.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "external_update_check_boundary",
+        "editor_extension_and_oauth_callback_boundary"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_operator_integration_layer_parity_reviewed",
+        "external_operator_integration_boundary_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "external_update_editor_auth_boundary",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_operator_integration_layer",

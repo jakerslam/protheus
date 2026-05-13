@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_full_lockfiles",
       "do_not_publish_or_install_distribution_artifacts",
       "do_not_claim_build_success_from_metadata_inventory"

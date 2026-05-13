@@ -57,6 +57,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_uploaded_file_contents",
       "do_not_hide_failed_file_reads",
       "do_not_auto_create_workspace_during_sync",

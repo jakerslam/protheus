@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_oauth_codes_or_state",
       "do_not_silently_install_extensions",
       "do_not_silently_update_cli",

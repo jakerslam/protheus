@@ -56,10 +56,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_store_full_compacted_context",
-      "do_not_duplicate_redundant_tool_payloads",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_store_full_compacted_context",
+      "do_not_duplicate_redundant_tool_payloads"
     ]
   },
   "typed_execution_contract": {
@@ -97,9 +97,9 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory",
       "workspace",
       "web",
+      "memory",
       "agent",
       "shell",
       "browser"

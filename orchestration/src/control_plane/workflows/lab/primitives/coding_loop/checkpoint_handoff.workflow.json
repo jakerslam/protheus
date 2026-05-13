@@ -55,10 +55,10 @@
       "hot_ring_buffer"
     ],
     "non_goals": [
-      "do_not_hide_failed_validation",
-      "do_not_merge_future_scope_into_completed_checkpoint",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_hide_failed_validation",
+      "do_not_merge_future_scope_into_completed_checkpoint"
     ]
   },
   "typed_execution_contract": {
@@ -93,9 +93,9 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory",
       "workspace",
       "web",
+      "memory",
       "agent",
       "shell",
       "browser"

@@ -113,6 +113,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_unbounded_terminal_history",
       "do_not_mutate_user_shell_configuration",
       "do_not_replace_local_safety_receipts"

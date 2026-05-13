@@ -114,6 +114,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_hide_remote_failures",
       "do_not_store_credentials",
       "do_not_store_raw_uploaded_payloads",

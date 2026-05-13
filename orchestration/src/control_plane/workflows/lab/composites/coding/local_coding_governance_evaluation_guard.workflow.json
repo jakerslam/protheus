@@ -179,6 +179,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_claim_production_parity_without_executable_evals",
       "do_not_store_release_or_provider_secrets",
       "do_not_store_unbounded_eval_logs"

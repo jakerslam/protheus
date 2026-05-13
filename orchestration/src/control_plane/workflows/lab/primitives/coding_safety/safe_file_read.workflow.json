@@ -56,10 +56,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_store_large_file_bodies",
-      "do_not_bypass_binary_detection",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_store_large_file_bodies",
+      "do_not_bypass_binary_detection"
     ]
   },
   "typed_execution_contract": {

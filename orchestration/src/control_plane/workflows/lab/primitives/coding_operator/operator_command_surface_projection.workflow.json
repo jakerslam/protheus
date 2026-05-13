@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_execute_shell_bypass_inside_projection",
       "do_not_mutate_files_from_command_projection",
       "do_not_expose_raw_failed_mcp_payloads"

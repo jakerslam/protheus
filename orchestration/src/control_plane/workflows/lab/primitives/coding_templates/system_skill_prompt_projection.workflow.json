@@ -53,6 +53,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_full_system_prompt_by_default",
       "do_not_invent_skills_or_tool_support",
       "do_not_override_parent_developer_policy"

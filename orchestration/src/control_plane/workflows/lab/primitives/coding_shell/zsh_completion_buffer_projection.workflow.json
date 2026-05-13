@@ -53,6 +53,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_execute_buffer_projection",
       "do_not_treat_file_selection_as_safe_file_read",
       "do_not_mangle_non_forge_shell_commands"

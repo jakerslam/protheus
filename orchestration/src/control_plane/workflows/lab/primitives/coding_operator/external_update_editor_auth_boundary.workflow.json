@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_install_without_confirmation",
       "do_not_store_oauth_codes_or_tokens",
       "do_not_bind_non_loopback_callback_servers",

@@ -53,6 +53,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_full_system_prompts_by_default",
       "do_not_treat_template_registration_as_runtime_execution",
       "do_not_accept_non_utf8_template_paths_or_contents"

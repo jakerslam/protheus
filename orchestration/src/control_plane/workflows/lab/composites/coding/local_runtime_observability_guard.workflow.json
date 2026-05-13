@@ -114,8 +114,8 @@
     ],
     "non_goals": [
       "do_not_hide_current_failures",
-      "do_not_hide_current_output_failures",
       "do_not_store_raw_tool_payloads",
+      "do_not_hide_current_output_failures",
       "do_not_store_full_markdown_streams"
     ]
   },

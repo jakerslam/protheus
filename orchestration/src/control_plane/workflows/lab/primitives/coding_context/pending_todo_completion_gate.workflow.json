@@ -52,10 +52,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_claim_completion_with_pending_todos",
-      "do_not_duplicate_identical_reminders",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_claim_completion_with_pending_todos",
+      "do_not_duplicate_identical_reminders"
     ]
   },
   "typed_execution_contract": {
@@ -90,9 +90,9 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory",
       "workspace",
       "web",
+      "memory",
       "agent",
       "shell",
       "browser"

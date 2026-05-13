@@ -56,10 +56,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_run_empty_commands",
-      "do_not_store_unbounded_stdout_in_chat",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_run_empty_commands",
+      "do_not_store_unbounded_stdout_in_chat"
     ]
   },
   "typed_execution_contract": {
@@ -97,11 +97,11 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "shell",
       "workspace",
       "web",
       "memory",
       "agent",
+      "shell",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",

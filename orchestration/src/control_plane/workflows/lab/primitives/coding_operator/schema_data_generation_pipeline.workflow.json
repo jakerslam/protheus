@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_raw_provider_payloads",
       "do_not_treat_generation_as_code_validation",
       "do_not_expand_beyond_declared_input_jsonl"

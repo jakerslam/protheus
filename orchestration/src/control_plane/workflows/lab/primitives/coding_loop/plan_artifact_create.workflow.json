@@ -53,10 +53,10 @@
       "failure_lifecycle_archive"
     ],
     "non_goals": [
-      "do_not_overwrite_plans",
-      "do_not_expand_scope_inside_plan_creation",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_overwrite_plans",
+      "do_not_expand_scope_inside_plan_creation"
     ]
   },
   "typed_execution_contract": {

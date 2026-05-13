@@ -58,10 +58,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_store_full_previous_content_in_chat",
-      "do_not_bypass_snapshot_before_overwrite",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_store_full_previous_content_in_chat",
+      "do_not_bypass_snapshot_before_overwrite"
     ]
   },
   "typed_execution_contract": {

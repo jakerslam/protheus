@@ -56,11 +56,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_treat_display_diff_as_patch_receipt",
       "do_not_display_raw_large_file_reads",
-      "do_not_leak_hidden_tool_metadata",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_leak_hidden_tool_metadata"
     ]
   },
   "typed_execution_contract": {
@@ -105,10 +105,10 @@
     ],
     "tool_family_contracts": [
       "workspace",
-      "shell",
-      "agent",
       "web",
       "memory",
+      "agent",
+      "shell",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",

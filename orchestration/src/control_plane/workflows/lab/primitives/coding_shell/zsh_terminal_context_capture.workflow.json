@@ -53,6 +53,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_unbounded_terminal_history",
       "do_not_emit_osc133_when_terminal_support_is_unknown",
       "do_not_export_context_variables_outside_child_process"

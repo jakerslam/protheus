@@ -57,6 +57,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_raw_attachment_content",
       "do_not_store_raw_terminal_context",
       "do_not_hide_attachment_parse_failures",

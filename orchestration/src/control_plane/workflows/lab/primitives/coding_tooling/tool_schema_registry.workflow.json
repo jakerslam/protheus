@@ -54,10 +54,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_call_tools",
-      "do_not_hide_schema_generation_failures",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_call_tools",
+      "do_not_hide_schema_generation_failures"
     ]
   },
   "typed_execution_contract": {
@@ -93,10 +93,10 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "agent",
       "workspace",
       "web",
       "memory",
+      "agent",
       "shell",
       "browser"
     ],

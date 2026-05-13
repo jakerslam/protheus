@@ -55,6 +55,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_credentials",
       "do_not_hide_template_render_failures",
       "do_not_claim_chat_success_from_transport_readiness",

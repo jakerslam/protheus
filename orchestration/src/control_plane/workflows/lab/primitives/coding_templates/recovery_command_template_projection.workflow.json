@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_execute_rendered_commands",
       "do_not_hide_current_tool_failure",
       "do_not_treat_summary_frame_as_validation"

@@ -55,6 +55,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_raw_tool_schemas",
       "do_not_hide_missing_conversation_context",
       "do_not_execute_runtime_loop",

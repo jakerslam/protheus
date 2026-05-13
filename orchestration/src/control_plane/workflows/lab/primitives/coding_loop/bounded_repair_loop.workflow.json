@@ -123,10 +123,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_suppress_failed_repairs",
-      "do_not_continue_after_budget_exhaustion",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_suppress_failed_repairs",
+      "do_not_continue_after_budget_exhaustion"
     ]
   },
   "typed_execution_contract": {
@@ -168,10 +168,10 @@
     ],
     "tool_family_contracts": [
       "workspace",
-      "shell",
-      "memory",
       "web",
+      "memory",
       "agent",
+      "shell",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",

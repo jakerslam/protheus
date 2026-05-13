@@ -55,11 +55,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_store_raw_trace_payloads",
       "do_not_send_dev_build_tracking",
-      "do_not_hide_dropped_event_counts",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_hide_dropped_event_counts"
     ]
   },
   "typed_execution_contract": {
@@ -100,9 +100,9 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory",
-      "web",
       "workspace",
+      "web",
+      "memory",
       "agent",
       "shell",
       "browser"

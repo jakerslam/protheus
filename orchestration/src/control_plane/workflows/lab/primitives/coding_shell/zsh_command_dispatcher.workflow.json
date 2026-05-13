@@ -54,6 +54,8 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_execute_unknown_commands",
       "do_not_commit_or_authenticate_without_external_action_boundary",
       "do_not_mutate_buffer_without_buffer_projection_receipt"

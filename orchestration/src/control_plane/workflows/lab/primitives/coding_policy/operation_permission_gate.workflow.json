@@ -56,11 +56,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_execute_denied_operations",
       "do_not_treat_safety_validation_as_permission",
-      "do_not_silently_remember_user_choices",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_silently_remember_user_choices"
     ]
   },
   "typed_execution_contract": {
@@ -100,10 +100,10 @@
     ],
     "tool_family_contracts": [
       "workspace",
-      "shell",
       "web",
       "memory",
       "agent",
+      "shell",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",

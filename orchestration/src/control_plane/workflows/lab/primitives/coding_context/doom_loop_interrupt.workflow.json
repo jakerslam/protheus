@@ -52,10 +52,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_mask_real_failures",
-      "do_not_continue_repeating_failed_tool_calls",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_mask_real_failures",
+      "do_not_continue_repeating_failed_tool_calls"
     ]
   },
   "typed_execution_contract": {
@@ -89,9 +89,9 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory",
       "workspace",
       "web",
+      "memory",
       "agent",
       "shell",
       "browser"

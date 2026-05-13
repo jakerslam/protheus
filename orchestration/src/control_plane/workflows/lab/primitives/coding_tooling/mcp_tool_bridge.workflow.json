@@ -56,11 +56,11 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
       "do_not_log_mcp_credentials",
       "do_not_eagerly_oauth_connect_on_reload",
-      "do_not_hide_failed_server_diagnostics",
-      "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_hide_failed_server_diagnostics"
     ]
   },
   "typed_execution_contract": {
@@ -100,11 +100,11 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "agent",
-      "web",
-      "shell",
       "workspace",
+      "web",
       "memory",
+      "agent",
+      "shell",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",

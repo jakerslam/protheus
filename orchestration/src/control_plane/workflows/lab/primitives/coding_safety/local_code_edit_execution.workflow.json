@@ -115,10 +115,10 @@
       "artifact_ref_retention"
     ],
     "non_goals": [
-      "do_not_store_raw_file_bodies",
-      "do_not_hide_stale_context_failures",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_store_raw_file_bodies",
+      "do_not_hide_stale_context_failures"
     ]
   },
   "typed_execution_contract": {
@@ -161,10 +161,10 @@
     ],
     "tool_family_contracts": [
       "workspace",
-      "shell",
       "web",
       "memory",
       "agent",
+      "shell",
       "browser"
     ],
     "visible_chat_policy": "llm_final_only_no_system_injection",

@@ -52,10 +52,10 @@
       "hot_ring_buffer"
     ],
     "non_goals": [
-      "do_not_expand_repair_scope",
-      "do_not_hide_unrecoverable_blockers",
       "do_not_hide_current_failures",
-      "do_not_store_raw_tool_payloads"
+      "do_not_store_raw_tool_payloads",
+      "do_not_expand_repair_scope",
+      "do_not_hide_unrecoverable_blockers"
     ]
   },
   "typed_execution_contract": {
@@ -90,9 +90,9 @@
       "final_answer"
     ],
     "tool_family_contracts": [
-      "memory",
       "workspace",
       "web",
+      "memory",
       "agent",
       "shell",
       "browser"
