@@ -1,0 +1,246 @@
+{
+  "name": "forge_executable_eval_coverage_matrix",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_execute_benchmarks",
+      "do_not_synthesize_passing_eval_results",
+      "do_not_mutate_eval_tasks",
+      "do_not_claim_promotion_readiness"
+    ]
+  },
+  "default": false,
+  "description": "ForgeCode-derived executable eval coverage matrix primitive: maps local coding parity claims to required benchmark/eval receipts before promotion scoring.",
+  "stages": [
+    "coverage_claim_collection",
+    "forge_eval_surface_mapping",
+    "required_receipt_matrix_build",
+    "coverage_gap_classification",
+    "executable_eval_coverage_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "forge_executable_eval_coverage_matrix_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "coverage_matrix_status",
+      "covered_parity_claims",
+      "missing_eval_receipts",
+      "blocked_promotion_claims",
+      "recommended_eval_next_steps"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "identify which executable eval receipts are required before ForgeCode-like coding behavior can be promoted",
+      "scope_boundary": "do not run evals, create benchmark files, edit source code, or mark claims as passed without receipts",
+      "validation_calibration": "configured eval inventory is not the same as executed eval evidence",
+      "visibility": "show coverage gaps and next eval gates without exposing raw traces unless explicitly requested"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact coverage-matrix receipts for ForgeCode-derived local coding promotion.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_unbounded_eval_logs",
+      "do_not_store_provider_credentials",
+      "do_not_store_secret_release_inputs"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "parity_claim_bundle_or_text_input",
+    "allowed_transitions": [
+      "coverage_claim_collection->forge_eval_surface_mapping",
+      "forge_eval_surface_mapping->required_receipt_matrix_build",
+      "required_receipt_matrix_build->coverage_gap_classification",
+      "coverage_gap_classification->executable_eval_coverage_receipt_packaging",
+      "executable_eval_coverage_receipt_packaging->completed",
+      "coverage_claim_collection->needs_input",
+      "forge_eval_surface_mapping->blocked",
+      "required_receipt_matrix_build->blocked",
+      "coverage_gap_classification->failed"
+    ],
+    "timeout_ms": 120000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "memory"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 5,
+      "max_model_turns": 2,
+      "max_tool_calls": 4,
+      "token_budget": 8000,
+      "loop_signature_detector": "forge_executable_eval_coverage_matrix_v1"
+    }
+  },
+  "executable_eval_coverage_contract": {
+    "version": "forge_executable_eval_coverage_matrix_v1",
+    "source": "forgecode_benchmark_eval_patterns",
+    "source_evidence": [
+      "benchmarks/task-executor.ts",
+      "benchmarks/parse.ts",
+      "benchmarks/evals/read_over_cat/task.yml",
+      "benchmarks/evals/patch_exact_match/task.yml",
+      "benchmarks/evals/parallel_tool_calls/task.yml",
+      "scripts/benchmark.sh",
+      "scripts/list-all-porcelain.sh"
+    ],
+    "required_output_receipt": "executable_eval_coverage_receipt",
+    "coverage_axes": [
+      {
+        "axis": "local_file_reading",
+        "minimum_evidence": [
+          "agent_uses_read_tool_for_local_file_access",
+          "agent_avoids_shell_cat_pipe_or_multi_file_cat_anti_patterns",
+          "trace_contains_tool_selection_evidence"
+        ],
+        "forge_eval_reference": "benchmarks/evals/read_over_cat/task.yml"
+      },
+      {
+        "axis": "exact_patch_editing",
+        "minimum_evidence": [
+          "agent_uses_patch_tool_for_text_edits",
+          "patch_matches_exact_existing_text",
+          "trace_has_no_missing_operation_or_text_mismatch_errors"
+        ],
+        "forge_eval_reference": "benchmarks/evals/patch_exact_match/task.yml"
+      },
+      {
+        "axis": "parallel_tool_orchestration",
+        "minimum_evidence": [
+          "trace_contains_multiple_tool_calls_in_one_assistant_message",
+          "parallel_calls_are_independent_and_non_conflicting",
+          "parallelism_is_not_claimed_from_serial_tool_use"
+        ],
+        "forge_eval_reference": "benchmarks/evals/parallel_tool_calls/task.yml"
+      },
+      {
+        "axis": "multi_file_coding_execution",
+        "minimum_evidence": [
+          "agent_reads_required_local_context",
+          "agent_edits_multiple_files_with_clear_ownership",
+          "agent_preserves_unrelated_changes",
+          "agent_returns_changed_file_summary"
+        ],
+        "forge_eval_reference": "local_coding_program_builder_runtime_eval_required"
+      },
+      {
+        "axis": "bounded_repair_and_validation",
+        "minimum_evidence": [
+          "agent_distinguishes_requested_validation_from unsolicited_validation",
+          "repair_loop_has_explicit_attempt_budget",
+          "validation_receipts_are_current_when_claimed"
+        ],
+        "forge_eval_reference": "local_runtime_execution_loop_and_bounded_repair_eval_required"
+      },
+      {
+        "axis": "performance_and_porcelain_inventory",
+        "minimum_evidence": [
+          "benchmark_receipts_record_duration_metadata",
+          "porcelain_inventory_receipts_identify_list_command_outputs",
+          "threshold_failures_block_promotion_claims"
+        ],
+        "forge_eval_reference": "scripts/benchmark.sh_and_scripts/list-all-porcelain.sh"
+      }
+    ],
+    "coverage_statuses": [
+      "covered_by_passing_executable_receipt",
+      "covered_by_configured_eval_only",
+      "requires_new_eval_task",
+      "blocked_by_missing_trace",
+      "out_of_scope_for_current_promotion"
+    ],
+    "hard_blockers": [
+      "claim_has_no_eval_axis",
+      "claim_has_only_configured_eval_without_executed_result",
+      "tooling_behavior_claim_lacks_trace_evidence",
+      "multi_file_coding_claim_lacks_multi_file_task_receipt",
+      "validation_claim_lacks_current_validation_receipt",
+      "performance_claim_lacks_duration_receipt"
+    ],
+    "receipt_requirements": [
+      "list_claims_under_review",
+      "map_each_claim_to_coverage_axis",
+      "list_required_eval_receipts_per_axis",
+      "mark_configured_eval_inventory_separately_from_executed_results",
+      "identify_new_eval_tasks_needed_for_uncovered_claims",
+      "emit_blocked_promotion_claims"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  }
+}

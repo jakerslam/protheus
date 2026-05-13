@@ -99,6 +99,7 @@ Top-level source areas:
 | `FC-A18` | Extract project governance, CI/release, and benchmark/eval semantics | active | Governance/evaluation contract pass added for project-local commands/skills, plan validation, dev/test fixtures, generated CI/release boundaries, bounty automation, benchmark eval tasks, and the `local_coding_governance_evaluation_guard` composite. |
 | `FC-A19` | Extract top-level package, distribution, config-schema, and public-mode metadata | active | Distribution/package inventory contract pass added for Cargo/package/toolchain/Cross/Nix/format/lint/snapshot/config-schema/README/AGENTS/provider model metadata. |
 | `FC-A20` | Extract promotion-readiness scoring semantics | active | Promotion-readiness scoring contract pass added to separate structural assimilation, executable eval evidence, blockers, missing receipts, and operator approval. |
+| `FC-A21` | Extract executable eval coverage matrix semantics | active | Eval coverage matrix contract pass added to map parity claims to required ForgeCode benchmark/eval receipts before promotion scoring. |
 
 ## Assimilated workflow contracts created
 
@@ -178,8 +179,9 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `forge_ci_release_boundary` | 0 | `.github/workflows`, `.github/release-drafter.yml`, `.github/dependabot.yml`, `.github/labels.json`, `.github/scripts/bounty`, `.forge/skills/write-release-notes` | lab contract created | Captures generated workflow boundaries, CI validation, release target matrix, package distribution, bounty label rules, release-note generation, and secret redaction. |
 | `forge_benchmark_eval_harness` | 0 | `benchmarks`, `benchmarks/evals`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Projects eval task parsing, execution logging, timeout/early-exit behavior, tool-use validation rules, performance thresholds, and porcelain inventory checks. |
 | `forge_distribution_package_inventory` | 0 | `Cargo.toml`, `package.json`, `rust-toolchain.toml`, `Cross.toml`, `flake.nix`, `.rustfmt.toml`, `clippy.toml`, `insta.yaml`, `forge.schema.json`, `README.md`, `AGENTS.md`, `vertex.json`, `renovate.json` | lab contract created | Captures top-level workspace/package metadata, distribution/toolchain boundaries, formatting/lint/snapshot config, public CLI/TUI/zsh modes, local coding guidance, config schema, and provider model inventory. |
+| `forge_executable_eval_coverage_matrix` | 0 | `benchmarks/task-executor.ts`, `benchmarks/parse.ts`, `benchmarks/evals/read_over_cat/task.yml`, `benchmarks/evals/patch_exact_match/task.yml`, `benchmarks/evals/parallel_tool_calls/task.yml`, `scripts/benchmark.sh`, `scripts/list-all-porcelain.sh` | lab contract created | Maps local coding parity claims to required executable eval receipts for local file reading, exact patch editing, parallel tool orchestration, multi-file coding, bounded repair/validation, performance, and porcelain inventory. |
 | `forge_promotion_readiness_scoring` | 0 | Assimilated governance/evaluation receipts from `forge_project_local_governance`, `forge_ci_release_boundary`, `forge_benchmark_eval_harness`, and `forge_distribution_package_inventory` | lab contract created | Scores structural readiness, executable readiness, promotion blockers, missing evidence, and operator-approval requirements without running evals or mutating release surfaces. |
-| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata, promotion-readiness receipts | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, distribution/package inventory, and promotion-readiness scoring evidence from raw coding execution. |
+| `local_coding_governance_evaluation_guard` | 1 | `.forge`, `.github`, `.config`, `.devcontainer`, `benchmarks`, `scripts`, `docs`, top-level package/distribution metadata, eval coverage receipts, promotion-readiness receipts | lab contract created | Composite promotion-support guard that isolates project governance, CI/release, benchmark/eval, distribution/package inventory, executable eval coverage, and promotion-readiness scoring evidence from raw coding execution. |
 
 ## Runtime behavior harnesses created
 
@@ -261,7 +263,7 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, distribution/package inventory, promotion-readiness scoring, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, prompt-template projection, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection. `local_coding_governance_evaluation_guard` now tracks project governance, distribution/package inventory, executable eval coverage, promotion-readiness scoring, and promotion/eval evidence separately, but executable runtime-backed evals are still required before we can claim production parity.
 
 Next source pass:
 - Structural assimilation is effectively closed; next work is executable eval coverage, promotion-readiness scoring, and spot-checking any newly discovered source families.
@@ -715,3 +717,25 @@ Parity requirements added:
 | Classify evidence as configured, structurally assimilated, observed, executed, or operator-approved | `forge_promotion_readiness_scoring` | P0 |
 | Hard-block promotion claims when executable eval results or operator approval are missing | `forge_promotion_readiness_scoring` | P0 |
 | Emit the next recommended promotion gate rather than silently continuing when blockers remain | `forge_promotion_readiness_scoring` | P1 |
+
+## Seventeenth source pass: executable eval coverage matrix behavior
+
+Evidence:
+
+| Source family | Observed ForgeCode behavior | Assimilation target |
+| --- | --- | --- |
+| `benchmarks/evals/read_over_cat/task.yml` | Validates local file reading by checking that agents use read tooling and avoid shell `cat` anti-patterns. | `forge_executable_eval_coverage_matrix` |
+| `benchmarks/evals/patch_exact_match/task.yml` | Validates exact patch use and catches missing operation or text mismatch failures. | `forge_executable_eval_coverage_matrix` |
+| `benchmarks/evals/parallel_tool_calls/task.yml` | Validates parallel tool-call behavior from assistant traces. | `forge_executable_eval_coverage_matrix` |
+| `benchmarks/task-executor.ts` | Produces execution logs, duration metadata, timeout/early-exit data, and validation output for eval tasks. | `forge_executable_eval_coverage_matrix` |
+| `scripts/benchmark.sh` and `scripts/list-all-porcelain.sh` | Capture performance thresholds and porcelain command inventory behavior. | `forge_executable_eval_coverage_matrix` |
+
+Parity requirements added:
+
+| Requirement | Target workflow | Priority |
+| --- | --- | --- |
+| Map every promoted coding-behavior claim to an eval axis before promotion scoring | `forge_executable_eval_coverage_matrix` | P0 |
+| Separate configured eval inventory from passing executable eval receipts | `forge_executable_eval_coverage_matrix` | P0 |
+| Require trace-backed evidence for file reading, exact patch editing, and parallel tool orchestration claims | `forge_executable_eval_coverage_matrix` | P0 |
+| Flag multi-file coding, bounded repair/validation, performance, and porcelain inventory as requiring executable receipts before parity claims | `forge_executable_eval_coverage_matrix` | P0 |
+| Feed coverage gaps into promotion-readiness scoring as blockers rather than warnings | `local_coding_governance_evaluation_guard` | P0 |

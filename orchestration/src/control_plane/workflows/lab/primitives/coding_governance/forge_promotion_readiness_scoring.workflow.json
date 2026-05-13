@@ -133,7 +133,8 @@
       "project_local_governance_receipt",
       "ci_release_boundary_receipt",
       "benchmark_eval_harness_receipt",
-      "distribution_package_inventory_receipt"
+      "distribution_package_inventory_receipt",
+      "executable_eval_coverage_receipt"
     ],
     "required_output_receipt": "promotion_readiness_receipt",
     "evidence_classes": [
@@ -155,6 +156,10 @@
       {
         "dimension": "tooling_behavior_evidence",
         "minimum_for_executable_ready": "read_write_patch_parallel_tooling_evals_have_passing_receipts"
+      },
+      {
+        "dimension": "eval_coverage_matrix",
+        "minimum_for_executable_ready": "each_promoted_parity_claim_maps_to_a_passing_executable_eval_receipt_or_is_marked_out_of_scope"
       },
       {
         "dimension": "release_external_action_boundary",
@@ -185,6 +190,7 @@
     ],
     "hard_blockers": [
       "missing_required_input_receipt",
+      "claim_has_no_eval_coverage_axis",
       "production_parity_claim_without_executed_eval_result",
       "release_or_github_mutation_not_behind_explicit_route",
       "provider_or_release_secret_exposure",
