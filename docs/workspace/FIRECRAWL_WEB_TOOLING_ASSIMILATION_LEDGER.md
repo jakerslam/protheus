@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 333
-- Not parsed: 945
+- Parsed: 337
+- Not parsed: 941
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -75,6 +75,7 @@
 | `apps/api/src/controllers/v2/scrape-browser.ts` | Scrape interaction controller. | Interactive work can replay a prior scrape context, adopt or create a bounded session, then run prompt/code interaction with trace hygiene and explicit cleanup. |
 | `apps/api/src/controllers/v2/agent.ts` | Agent passthrough controller. | Agent jobs are admitted as async handles with request logging and status polling, while unsupported zero-retention and unavailable beta services fail closed. |
 | `apps/api/src/controllers/v2/agent-status.ts` | Agent status projection. | Agent status returns processing/completed/failed plus expiry and result data only after ownership checks and terminal job lookup. |
+| `apps/api/src/controllers/v2/__tests__/agent-status.test.ts` | Agent status projection tests. | Tests assert status responses preserve configured agent model metadata and fall back to a product default when absent; the fallback model itself is not an assimilation target. |
 | `apps/api/src/controllers/v2/agent-cancel.ts` | Agent cancellation controller. | Cancellation checks ownership and refuses already-finished work before forwarding a delete to the backing service. |
 | `apps/api/src/__tests__/snips/v2/search.test.ts` | Search E2E behavior tests. | Tests cover include/exclude domain behavior, limits, multi-source search, and search-plus-scrape enrichment with partial scrape tolerance. |
 | `apps/api/src/scraper/scrapeURL/engines/index.ts` | Scrape engine waterfall. | Engines declare feature support and quality; selection ranks by requested capabilities and quality, with special-case engines hidden behind capability policy. |
@@ -314,6 +315,9 @@
 | `apps/api/src/__tests__/snips/wikipedia-url-parser.test.ts` | Wikimedia URL parser tests. | Specialty source routing should parse project/language/article identity, decode common URL forms, strip query/fragment noise, and reject unsupported/non-content endpoints before using a special engine. |
 | `apps/api/src/__tests__/snips/v2/audio-routing.test.ts` | V2 audio engine routing test. | Audio extraction requires a browser-cookie context before audio postprocessing, so engine ladders can exclude index/fetch/stealth lanes when an artifact needs a specific capability. |
 | `apps/api/src/__tests__/snips/v2/monitor.test.ts` | V2 monitor behavior tests. | Scheduled retrieval enforces minimum intervals, supports create/list/get/pause/delete, allows manual runs, and projects check summaries plus paginated page results. |
+| `apps/api/src/controllers/v2/monitor.ts` | V2 monitor controller. | Monitor CRUD/run/detail surfaces reject forced-ZDR teams, validate schedules, serialize bounded monitor/check summaries, prevent overlapping manual runs, and page check details while loading diff artifacts by ref. |
+| `apps/api/src/controllers/v1/activity.ts` | Activity window projection. | Recent work activity uses endpoint allowlists, 24-hour bounded windows, limit caps, keyset cursors, and target hints instead of raw request rows. |
+| `apps/api/src/controllers/v2/__tests__/browser-billing.test.ts` | Browser billing and prompt-use tests. | Interactive browser sessions are billed by duration with a minimum charge, prompt-use is tracked in Redis with a TTL, and Redis failure falls back to the cheaper browser rate rather than throwing. |
 | `apps/api/src/__tests__/snips/v2/scrape-branding.test.ts` | V2 branding artifact tests. | Skipped branding tests describe a design-artifact lane for colors, typography, spacing, components, images, and cleaned fonts; because coverage is skipped, treat this as experimental rather than a proven primitive. |
 | `apps/api/src/__tests__/snips/zdr-helpers.ts` | ZDR assertion helpers. | Privacy tests assert scrubbed URL/options storage, filtered logs, request records with cleanup markers, GCS removal after cleaner, and request-scoped status disappearance. |
 | `apps/api/src/__tests__/snips/v2/lib.ts` | V2 snips test harness. | Raw/success/failure wrappers and async start/status/poll helpers make status-handle workflows testable without mixing transport details into each behavior test. |
@@ -469,6 +473,9 @@
 - Error handling should preserve typed failure causes across worker/status/tool boundaries so synthesis receives actionable gap reasons instead of generic missing output.
 - Engine-quality sampling is useful as a hidden capability probe, but hardcoded evaluator models/prompts are not assimilation targets. The transferable primitive is sampling several candidate engines, scoring content success/similarity, and recording an uncertain verdict when evidence is insufficient.
 - Permission checks are upstream retrieval behavior: privacy, robots, static-IP/location, and retained-context modes must be rejected or admitted before tool execution, not repaired during synthesis.
+- Product defaults such as named agent models are not portable web-tooling primitives. The portable pattern is carrying selected capability/model metadata through status projections without making it user-visible research behavior.
+- User-visible activity/history should be a bounded projection with endpoint allowlists and keyset cursors, not a raw request log. This can help debug workflow quality without exposing full traces.
+- Optional interactive/browser capabilities need TTL-scoped accounting flags and graceful fallback when accounting cache reads fail.
 
 ## Candidate Assimilation Targets
 
@@ -513,6 +520,7 @@
 39. Durable evidence artifact refs: store rich search/scrape/document/corpus outputs behind refs with mode metadata, privacy redaction, cache-miss semantics, and cleanup hooks. Ledger captured; candidate evidence-store/tooling-CD refinement.
 40. Typed retrieval failure bridge: serialize retrieval failures as stable error codes and structured payloads across async/tool/status boundaries. Ledger captured; candidate synthesis-gap and eval-failure classification target.
 41. Engine quality sampler: periodically compare admitted retrieval engines on sampled URLs using content-success and similarity metrics, emitting hidden capability verdicts rather than hardcoded provider routes. Ledger captured; candidate retrieval capability scoring target.
+42. Bounded activity/status projections: expose recent retrieval/tool activity through endpoint allowlists, time windows, keyset cursors, owner checks, and artifact refs while keeping raw logs internal. Ledger captured; candidate observability projection refinement.
 
 ## Remaining Work
 
