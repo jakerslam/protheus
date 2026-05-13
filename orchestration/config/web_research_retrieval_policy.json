@@ -20,7 +20,10 @@
     "firecrawl_async_map_crawl_status_projection",
     "firecrawl_high_volume_candidate_map_rerank_filter",
     "firecrawl_queue_backlog_lock_reconcile_lifecycle",
-    "firecrawl_incremental_crawl_discovery_enqueue"
+    "firecrawl_incremental_crawl_discovery_enqueue",
+    "firecrawl_managed_search_index_modes",
+    "firecrawl_precrawl_budgeted_index_backfill",
+    "firecrawl_extract_dlq_terminal_projection"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -120,6 +123,59 @@
       "do_not_require_every_source_class_for_every_question",
       "do_not_hardcode_domain_topics",
       "do_not_replace relevance_with_diversity"
+    ]
+  },
+  "managed_search_index": {
+    "enabled": true,
+    "source_patterns": [
+      "firecrawl_managed_search_index_modes",
+      "firecrawl_precrawl_budgeted_index_backfill"
+    ],
+    "purpose": "Allow retrieval to use an admitted managed or local search index as one candidate-discovery lane when it can improve coverage, freshness, or source recall without making the index itself a source of truth.",
+    "query_modes": [
+      "hybrid",
+      "keyword",
+      "semantic",
+      "bm25"
+    ],
+    "filter_axes": [
+      "domain",
+      "country",
+      "language",
+      "freshness",
+      "device_or_render_profile"
+    ],
+    "result_signals": [
+      "score",
+      "bm25_rank",
+      "vector_rank",
+      "freshness_score",
+      "quality_score",
+      "last_crawled_at",
+      "snippet"
+    ],
+    "backfill_policy": {
+      "enabled": true,
+      "purpose": "When a safe public corpus can be warmed in advance, allocate crawl/read budget by observed demand, source priority, and freshness needs, then publish only completed page refs into evidence packs.",
+      "budget_axes": [
+        "domain_priority",
+        "page_event_count",
+        "total_budget",
+        "per_domain_budget",
+        "resource_pressure"
+      ],
+      "non_goals": [
+        "do_not_crawl_private_or_zero_retention_sources",
+        "do_not_treat_cached_index_presence_as_evidence_sufficiency",
+        "do_not_make_background_queue_metrics_chat_visible"
+      ]
+    },
+    "failure_behavior": "index_service_unavailable_or_empty_results_becomes_an_empty_candidate_lane_with_internal_diagnostics; retrieval may still use other admitted lanes",
+    "non_goals": [
+      "do_not_replace_live_fetch_or_primary_source_reads_when_claim_validation_requires_page_context",
+      "do_not_bind_policy_to_a_specific_index_provider",
+      "do_not_make_index_scores_visible_answer_text",
+      "do_not_prescribe_final_answer_format"
     ]
   },
   "iterative_gap_research_loop": {
@@ -397,6 +453,31 @@
         "cache_rejection_reason"
       ]
     }
+  },
+  "async_terminal_failure_projection": {
+    "enabled": true,
+    "source_pattern": "firecrawl_extract_dlq_terminal_projection",
+    "purpose": "Long-running retrieval and extraction work should convert crashed, expired, or dead-lettered jobs into bounded terminal artifacts instead of retrying indefinitely or leaving synthesis without an explicit gap reason.",
+    "terminal_values": [
+      "completed",
+      "failed",
+      "expired",
+      "cancelled",
+      "dead_lettered"
+    ],
+    "projection_fields": [
+      "task_id",
+      "terminal_status",
+      "error_summary",
+      "completed_evidence_refs",
+      "missing_evidence_reason",
+      "expiry"
+    ],
+    "non_goals": [
+      "do_not_expose_queue_or_dead_letter_payloads_to_chat",
+      "do_not_treat_handled_worker_failure_as_user_visible_retrieval_evidence",
+      "do_not_retry_terminal_failures_without_a_changed_request_or_recovery_lane"
+    ]
   },
   "document_extraction": {
     "source_patterns": [

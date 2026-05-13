@@ -178,7 +178,8 @@
       "enabled": true,
       "source_patterns": [
         "firecrawl_queue_backlog_lock_reconcile_lifecycle",
-        "firecrawl_incremental_crawl_discovery_enqueue"
+        "firecrawl_incremental_crawl_discovery_enqueue",
+        "firecrawl_extract_dlq_terminal_projection"
       ],
       "purpose": "Keep high-volume retrieval dependable by separating work admission, backlog, active locks, completion, cleanup, and reconciliation from evidence packaging.",
       "work_state_values": [
@@ -187,6 +188,7 @@
         "active",
         "completed",
         "failed",
+        "dead_lettered",
         "expired",
         "cancelled"
       ],
@@ -202,6 +204,12 @@
         "only_the_lock_holder_may_mark_work_completed_or_failed",
         "release_active_concurrency_markers_on_completion_or_failure",
         "record_transport_or_access_failures_as_error_summaries_not_source_evidence"
+      ],
+      "terminal_failure_rules": [
+        "convert_crashed_or_dead_lettered_work_into_bounded_failed_status_artifacts",
+        "ack_or_release_handled_failures_after_status_is_persisted",
+        "retry_only_when_a_changed_request_or_recovery_lane_exists",
+        "preserve_error_summary_and_missing_evidence_reason_for_synthesis_gap_handling"
       ],
       "reconciliation_rules": [
         "scan_durable_backlog_and_runtime_queue_indexes_for_drift",
@@ -234,6 +242,61 @@
         "do_not_use_quality_metadata_as_citable_evidence",
         "do_not_treat_candidate_count_as_sufficiency",
         "do_not_prescribe_answer_shape"
+      ]
+    },
+    "managed_search_index": {
+      "enabled": true,
+      "source_patterns": [
+        "firecrawl_managed_search_index_modes",
+        "firecrawl_precrawl_budgeted_index_backfill"
+      ],
+      "purpose": "Use an admitted search-index lane as candidate discovery and ranking support when available, while treating live page reads and evidence extraction as the authority for claims.",
+      "modes": [
+        "hybrid",
+        "keyword",
+        "semantic",
+        "bm25"
+      ],
+      "filters": [
+        "domain",
+        "country",
+        "language",
+        "freshness",
+        "render_profile"
+      ],
+      "result_fields": [
+        "title",
+        "locator",
+        "snippet",
+        "score",
+        "bm25_rank",
+        "vector_rank",
+        "freshness_score",
+        "quality_score",
+        "last_crawled_at"
+      ],
+      "failure_behavior": "return_empty_candidate_lane_with_internal_status_on_timeout_unavailable_or_invalid_index_response",
+      "background_corpus_warming": {
+        "enabled_when_policy_allows_public_cache": true,
+        "budget_axes": [
+          "source_priority",
+          "observed_request_frequency",
+          "domain_budget",
+          "per_page_event_weight",
+          "resource_pressure"
+        ],
+        "admission_rules": [
+          "only_index_public_or_storage_permitted_content",
+          "batch_source_selection_to_avoid_resource_spikes",
+          "do_not_block_live_retrieval_on_optional_index_write_failure",
+          "publish_completed_page_refs_not_queue_handles"
+        ]
+      },
+      "non_goals": [
+        "do_not_treat_index_hit_count_as_evidence_sufficiency",
+        "do_not_replace_fetch_when_body_context_is_required",
+        "do_not_expose_index_scores_as_final_answer_text",
+        "do_not_bind_to_a_specific_index_service"
       ]
     },
     "second_pass_recovery": {
@@ -907,6 +970,11 @@
         "candidate_rejection_reasons",
         "cache_status",
         "cache_freshness_status",
+        "index_mode",
+        "index_quality_score",
+        "index_freshness_score",
+        "index_vector_rank",
+        "index_bm25_rank",
         "structured_artifact_counts",
         "chunk_relevance_scores",
         "coverage_bucket_count",

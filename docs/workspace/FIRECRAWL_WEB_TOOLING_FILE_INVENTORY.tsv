@@ -254,7 +254,7 @@ apps/api/src/controllers/v2/credit-usage-historical.ts	apps	not_parsed	pending_r
 apps/api/src/controllers/v2/credit-usage.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/extract-status.ts	apps	parsed	v2_extract_status_projection	completed_result_loading_optional_steps_sources_cost_sessions
 apps/api/src/controllers/v2/extract.ts	apps	parsed	v2_extract_controller	async_structured_extract_lane_url_filter_zdr_status_init
-apps/api/src/controllers/v2/f-search.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/f-search.ts	apps	parsed	managed_search_index_endpoint	hybrid_keyword_semantic_bm25_modes_domain_country_freshness_language_filters
 apps/api/src/controllers/v2/map.ts	apps	parsed	v2_map_discovery_controller	timeout_cancel_avgrab_fallback_base_domain_warning
 apps/api/src/controllers/v2/monitor.ts	apps	not_parsed	pending_review	
 apps/api/src/controllers/v2/parse.ts	apps	parsed	parse_only_document_lane	classifies uploaded file kind, rejects browsing/rendering options, forces extraction engine, disables cache
@@ -383,7 +383,7 @@ apps/api/src/lib/scrape-interact/browser-service-client.ts	apps	not_parsed	pendi
 apps/api/src/lib/scrape-interact/langsmith.test.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/scrape-interact/langsmith.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/scrape-interact/scrape-replay.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/search-index-client.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/search-index-client.ts	apps	parsed	managed_search_index_client	optional_index_search_empty_on_failure_score_quality_freshness_rank_metadata_index_write_nonblocking
 apps/api/src/lib/search-query-builder.ts	apps	parsed	structured_query_filter_builder	category_to_site_filter_include_domains_exclude_domains_pdf_filter_category_map
 apps/api/src/lib/strings.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/supabase-jobs.ts	apps	not_parsed	pending_review	
@@ -521,13 +521,13 @@ apps/api/src/services/billing/credit_billing.ts	apps	not_parsed	pending_review
 apps/api/src/services/billing/issue_credits.ts	apps	not_parsed	pending_review	
 apps/api/src/services/billing/stripe.ts	apps	not_parsed	pending_review	
 apps/api/src/services/billing/types.ts	apps	not_parsed	pending_review	
-apps/api/src/services/extract-queue.ts	apps	not_parsed	pending_review	
-apps/api/src/services/extract-worker.ts	apps	not_parsed	pending_review	
+apps/api/src/services/extract-queue.ts	apps	parsed	extract_queue_dlq	persistent_message_id_prefetch_ack_nack_single_delivery_dead_letter_lane_dlq_requeue_on_handler_failure
+apps/api/src/services/extract-worker.ts	apps	parsed	extract_worker_terminal_status	started_completed_failed_state_webhooks_sanitized_errors_ack_handled_failures_dlq_marks_failed
 apps/api/src/services/idempotency/create.ts	apps	parsed	idempotency_key_creation	persist_request_key_before_duplicate_work_admission
 apps/api/src/services/idempotency/validate.ts	apps	parsed	idempotency_key_validation	uuid_key_shape_existing_key_duplicate_admission
 apps/api/src/services/index.ts	apps	not_parsed	pending_review	
-apps/api/src/services/indexing/index-worker.ts	apps	not_parsed	pending_review	
-apps/api/src/services/indexing/indexer-queue.ts	apps	not_parsed	pending_review	
+apps/api/src/services/indexing/index-worker.ts	apps	parsed	index_backfill_worker	budgeted_precrawl_domain_priority_page_event_weight_batch_backoff_cacheable_crawl_submission
+apps/api/src/services/indexing/indexer-queue.ts	apps	parsed	indexer_queue_publisher	optional_noop_reconnect_persistent_messages_backpressure_drain_timeout
 apps/api/src/services/ledger/data-schemas.ts	apps	not_parsed	pending_review	
 apps/api/src/services/ledger/supabase-ledger.ts	apps	not_parsed	pending_review	
 apps/api/src/services/ledger/tracking.ts	apps	not_parsed	pending_review	
@@ -549,7 +549,7 @@ apps/api/src/services/notification/notification-check.ts	apps	not_parsed	pending
 apps/api/src/services/notification/notification_string.ts	apps	not_parsed	pending_review	
 apps/api/src/services/queue-jobs.ts	apps	parsed	scrape_job_admission_wait_path	team_run_concurrency_backlog_trace_propagation_queue_full_wait_fallback
 apps/api/src/services/queue-service.ts	apps	parsed	async_queue_lifecycle_bounds	queue job completion/failure retention ages bound async artifact growth
-apps/api/src/services/queue-worker.ts	apps	not_parsed	pending_review	
+apps/api/src/services/queue-worker.ts	apps	parsed	general_worker_loop	resource_liveness_gate_lock_extension_stall_detection_running_job_tracking_graceful_shutdown
 apps/api/src/services/rate-limiter.test.ts	apps	not_parsed	pending_review	
 apps/api/src/services/rate-limiter.ts	apps	not_parsed	pending_review	
 apps/api/src/services/redis.ts	apps	not_parsed	pending_review	

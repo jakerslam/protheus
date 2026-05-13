@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 142
-- Not parsed: 1136
+- Parsed: 149
+- Not parsed: 1129
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -53,6 +53,7 @@
 | `SELF_HOST.md` | Deployment/provider constraints. | Provider stack is environment-dependent; self-hosted modes may lack advanced anti-bot/fire-engine capabilities and need explicit fallback expectations. |
 | `CLAUDE.md` | Maintainer workflow and tests. | Firecrawl prefers E2E/snips tests with happy and failure paths around actual API behavior. |
 | `apps/api/src/controllers/v2/search.ts` | Public search request entrypoint. | Normalize/validate request, preserve agent interop and ZDR boundaries, then delegate to a single search executor. |
+| `apps/api/src/controllers/v2/f-search.ts` | Search-index endpoint. | Index-backed search exposes hybrid, keyword, semantic, and BM25 modes plus domain/country/freshness/language filters as candidate-discovery controls. |
 | `apps/api/src/search/execute.ts` | Search orchestration. | Overfetch search results, categorize domains, optionally scrape selected candidates, then merge scraped content back into the search response. |
 | `apps/api/src/search/scrape.ts` | Search-result enrichment. | Treat SERP rows as candidates; filter blocked URLs, directly scrape result URLs concurrently, and merge richer documents into original result rows. |
 | `apps/api/src/search/v2/index.ts` | Provider fallback. | Try configured premium engine first, then self-hosted SearXNG, then DuckDuckGo, failing to an empty response rather than leaking provider errors. |
@@ -61,6 +62,7 @@
 | `apps/api/src/search/v2/searxng.ts` | SearXNG provider implementation. | Fetch enough pages to satisfy requested result count, stop on empty pages, normalize provider rows into a shared web result shape. |
 | `apps/api/src/search/v2/fireEngine-v2.ts` | Premium search provider implementation. | Provider calls are retried behind an adapter boundary and can return partial source-type coverage. |
 | `apps/api/src/lib/search-query-builder.ts` | Structured query filter builder. | Categories, include domains, exclude domains, and PDF filters compile into query/filter lanes while preserving a category map for result metadata. |
+| `apps/api/src/lib/search-index-client.ts` | Managed search-index client. | Optional index search/index writes fail closed to empty candidates or logged diagnostics, carry score/freshness/quality/rank metadata, and must not block scraping. |
 | `apps/api/src/controllers/v2/types.ts` | Request schema and search options. | Strict request schema supports sources, categories, domains, scrape options, timeout bounds, and format defaults as typed input rather than prompt phrasing. |
 | `apps/api/src/__tests__/snips/v2/search.test.ts` | Search E2E behavior tests. | Tests cover include/exclude domain behavior, limits, multi-source search, and search-plus-scrape enrichment with partial scrape tolerance. |
 | `apps/api/src/scraper/scrapeURL/engines/index.ts` | Scrape engine waterfall. | Engines declare feature support and quality; selection ranks by requested capabilities and quality, with special-case engines hidden behind capability policy. |
@@ -191,6 +193,11 @@
 | `apps/api/src/lib/job-priority.ts` | Queue priority helper. | Priority adapts to recent per-team queue pressure with a TTL window rather than static one-size scheduling. |
 | `apps/api/src/services/idempotency/create.ts` | Idempotency key creation. | Idempotency keys are persisted at request admission so retries can be detected before duplicate work starts. |
 | `apps/api/src/services/idempotency/validate.ts` | Idempotency key validation. | Request retry safety validates UUID-shaped keys and treats existing keys as duplicate work admission. |
+| `apps/api/src/services/extract-queue.ts` | Extract queue and DLQ. | Extraction work uses persistent message IDs, prefetch bounds, explicit ack/nack, single-delivery DLQ routing, and DLQ requeue only when DLQ handling itself fails. |
+| `apps/api/src/services/extract-worker.ts` | Extract worker terminal status. | Extraction emits started/completed/failed state, persists sanitized terminal failures, acks handled errors, and marks crashed DLQ work failed instead of retrying forever. |
+| `apps/api/src/services/queue-worker.ts` | General worker loop. | Workers gate job pickup on liveness/resource pressure, extend locks for long work, track running jobs, and wait for in-flight jobs during graceful shutdown. |
+| `apps/api/src/services/indexing/indexer-queue.ts` | Indexer queue publisher. | Optional index publication no-ops when disabled, reconnects after transport close, sends persistent messages, and waits for bounded drain on backpressure. |
+| `apps/api/src/services/indexing/index-worker.ts` | Index/backfill worker. | Budgeted precrawl ranks domains and pages by observed demand, batches URL lookup with backoff, allocates crawl budget proportionally, and submits cacheable crawl jobs only within resource bounds. |
 
 ## Decisions So Far
 
@@ -222,6 +229,9 @@
 - Structured extraction patterns are useful for evidence tooling, but Firecrawl's prompt-to-schema/model behavior is not an assimilation target for user-facing research; the useful primitive is source-tracked extraction over already-retrieved documents.
 - High-volume retrieval needs an execution lifecycle primitive: admission, backlog, active locks, lock renewal, completion/failure, cleanup, and reconciliation must be internal and bounded before the evidence pack trusts completed page refs.
 - Incremental crawl expansion is useful only after policy filters and dedupe locks. The primitive is "completed evidence can discover more candidate evidence," not uncontrolled recursive crawling.
+- Managed or local search indexes are useful candidate-discovery lanes, especially with hybrid/keyword/semantic/BM25 modes and freshness/quality/rank metadata. They are not source-of-truth lanes; live page/document evidence still backs claims.
+- Background corpus warming can improve real-user retrieval when public/storage-permitted sources are safe to cache, but warming queues, demand scores, and index hit counts stay internal and never imply evidence sufficiency.
+- Crashed or dead-lettered extraction work should become explicit terminal failure artifacts with sanitized error summaries and missing-evidence reasons, so synthesis gets a gap reason instead of silence or endless retries.
 
 ## Candidate Assimilation Targets
 
@@ -238,6 +248,8 @@
 11. Async map/crawl status projection: for site-scale research, separate discovery, crawl/read execution, and bounded result windows; make final synthesis consume completed page evidence refs, not raw handles or queue status. Implemented CD-level policy update; runtime execution remains future work.
 12. High-volume candidate filtering: when discovery is sparse or broad research needs coverage, broaden once, keep a capped candidate pool, rerank/filter before fetch, and record selected/rejected candidate traces. Implemented CD-level policy update; runtime execution remains future work.
 13. Retrieval execution lifecycle: high-volume retrieval needs owner/run grouping, bounded backlog, lock ownership, drift reconciliation, and internal-only queue metrics before completed page refs become evidence. Implemented CD-level policy update; runtime execution remains future work.
+14. Managed search-index lane: use admitted indexes as optional candidate discovery with hybrid/keyword/semantic/BM25 modes, quality/freshness/rank metadata, and empty-candidate failure behavior. Implemented CD-level policy update; runtime execution remains future work.
+15. Terminal failure projection: convert dead-lettered, crashed, expired, or cancelled retrieval/extraction work into bounded failed artifacts with sanitized gap reasons instead of retries or silent missing output. Implemented CD-level policy update; runtime execution remains future work.
 
 ## Remaining Work
 
