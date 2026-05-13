@@ -32,7 +32,11 @@
     "firecrawl_page_local_query_direct_quote",
     "firecrawl_projection_field_coercion",
     "firecrawl_change_tracking_diff_lane",
-    "firecrawl_specialty_postprocessor_lane"
+    "firecrawl_specialty_postprocessor_lane",
+    "firecrawl_capability_scored_engine_fallback",
+    "firecrawl_remote_scrape_job_poll_cleanup",
+    "firecrawl_authoritative_specialty_source_engines",
+    "firecrawl_pdf_processor_quality_shadow_probe"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -320,6 +324,81 @@
       "evidence_state_requires_more_body_context",
       "known_promising_result_needs_subpage_expansion",
       "retrieval_quality_needs_source_class_balance"
+    ]
+  },
+  "retrieval_engine_ladder": {
+    "enabled": true,
+    "source_patterns": [
+      "firecrawl_capability_scored_engine_fallback",
+      "firecrawl_remote_scrape_job_poll_cleanup",
+      "firecrawl_authoritative_specialty_source_engines",
+      "firecrawl_pdf_processor_quality_shadow_probe"
+    ],
+    "purpose": "Choose page-read engines from requested capabilities, evidence-state needs, source class, and budget rather than provider names, prompt phrases, or domain-specific answer templates.",
+    "selection_axes": [
+      "requested_artifacts",
+      "required_capabilities",
+      "content_type_or_document_type",
+      "source_kind",
+      "privacy_and_retention_policy",
+      "cache_or_index_eligibility",
+      "freshness_requirement",
+      "transport_or_render_failure_state",
+      "remaining_time_budget"
+    ],
+    "engine_capabilities": [
+      "index_read",
+      "static_fetch",
+      "rendered_fetch",
+      "dynamic_interaction",
+      "document_parse",
+      "pdf_ocr_or_structural_parse",
+      "authoritative_api_source",
+      "social_or_media_source",
+      "change_tracking"
+    ],
+    "fallback_rules": [
+      "try_low_cost_cached_or_index_evidence_before_spending_render_budget_when_policy_allows",
+      "escalate_from_static_fetch_to_rendered_or_dynamic_fetch_only_when_missing_evidence_requires_it",
+      "route_document_like_or_binary_content_to_document_or_pdf_extractors_instead_of_treating_it_as_empty_html",
+      "use_authoritative_source_engines_as_source_class_lanes_when_the_url_or_source_kind_matches_and_credentials_policy_allows",
+      "retry_with_a_different_transport_or_proxy_profile_only_when_failure_state_indicates_it_may_help",
+      "record_unsupported_capabilities_and_selected_engine_without_making_engine_choice_chat_visible"
+    ],
+    "remote_job_lifecycle": {
+      "enabled": true,
+      "fields": [
+        "job_id",
+        "state",
+        "poll_count",
+        "error_count",
+        "duration_ms",
+        "cleanup_status"
+      ],
+      "rules": [
+        "bound_poll_count_and_total_duration_by_parent_retrieval_budget",
+        "delete_or_cancel_remote_jobs_after_success_failure_or_abort_when_provider_supports_it",
+        "map_provider_processing_failed_and_unknown_states_to_structured_internal_status",
+        "carry_content_headers_status_code_and_final_url_into_the_result_envelope"
+      ]
+    },
+    "quality_shadow_probe": {
+      "enabled_when_budget_allows": true,
+      "purpose": "Allow non-user-visible comparison of extractor outputs to improve future routing, using generic completeness signals rather than topic-specific labels.",
+      "signals": [
+        "content_length_ratio",
+        "number_preservation_ratio",
+        "table_count",
+        "page_count_consistency",
+        "failed_page_count"
+      ],
+      "chat_visibility": "telemetry_only"
+    },
+    "non_goals": [
+      "do_not_hardcode_source_domains_or_golden_cases",
+      "do_not_make_engine_order_a_visible_answer_contract",
+      "do_not_bind_the_research_workflow_to_specific_vendor_models",
+      "do_not_treat_authoritative_api_availability_as_required_for_general_research"
     ]
   },
   "site_mapping_and_crawl": {

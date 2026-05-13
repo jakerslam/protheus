@@ -737,6 +737,82 @@
           "example_prompt_phrase"
         ]
       },
+      "retrieval_engine_ladder": {
+        "enabled": true,
+        "source_patterns": [
+          "firecrawl_capability_scored_engine_fallback",
+          "firecrawl_remote_scrape_job_poll_cleanup",
+          "firecrawl_authoritative_specialty_source_engines",
+          "firecrawl_pdf_processor_quality_shadow_probe"
+        ],
+        "purpose": "Select the cheapest capable read/extract engine that can satisfy the current evidence gap, then escalate only when quality or failure state justifies it.",
+        "selection_axes": [
+          "requested_artifacts",
+          "required_capabilities",
+          "content_type_or_document_type",
+          "source_kind",
+          "privacy_and_retention_policy",
+          "cache_or_index_eligibility",
+          "freshness_requirement",
+          "transport_or_render_failure_state",
+          "remaining_time_budget"
+        ],
+        "capability_classes": [
+          "index_read",
+          "static_fetch",
+          "rendered_fetch",
+          "dynamic_interaction",
+          "document_parse",
+          "pdf_ocr_or_structural_parse",
+          "authoritative_api_source",
+          "social_or_media_source",
+          "change_tracking"
+        ],
+        "fallback_rules": [
+          "prefer_index_or_cache_reads_only_when_policy_allows_and_freshness_is_sufficient",
+          "try_static_fetch_before_rendering_when_requested_artifacts_do_not_require_js_or_interaction",
+          "escalate_to_rendered_or_dynamic_fetch_when_quality_flags_show_missing_js_rendered_content_or_user_required_interaction",
+          "route_document_like_or_binary_content_to_document_or_pdf_extractors_instead_of_counting_empty_html_as_success",
+          "use_authoritative_or_social_specialty_engines_as_optional_source_class_lanes_when_url_shape_capability_and_credentials_policy_match",
+          "retry_with_alternate_transport_proxy_or_stealth_profile_only_when_failure_state_indicates_it_may_help",
+          "record_selected_engine_unsupported_features_and_fallback_reason_in_hidden_diagnostics"
+        ],
+        "remote_job_lifecycle": {
+          "enabled": true,
+          "record_fields": [
+            "job_id",
+            "state",
+            "poll_count",
+            "error_count",
+            "duration_ms",
+            "cleanup_status"
+          ],
+          "rules": [
+            "bound_poll_count_and_total_duration_to_parent_retrieval_budget",
+            "delete_or_cancel_remote_jobs_after_success_failure_or_abort_when_provider_supports_it",
+            "map_processing_failed_and_unknown_states_to_internal_status_not_chat_text",
+            "carry_status_code_content_type_headers_and_final_url_into_result_envelope"
+          ]
+        },
+        "quality_shadow_probe": {
+          "enabled_when_budget_allows": true,
+          "purpose": "Compare alternative extractor outputs with generic completeness signals to improve future routing without changing the current answer shape.",
+          "signals": [
+            "content_length_ratio",
+            "number_preservation_ratio",
+            "table_count",
+            "page_count_consistency",
+            "failed_page_count"
+          ],
+          "chat_visible": false
+        },
+        "non_goals": [
+          "do_not_hardcode_source_domains_or_golden_cases",
+          "do_not_make_engine_order_user_visible",
+          "do_not_bind_tooling_to_vendor_specific_model_selection",
+          "do_not_require_specialty_engines_for_general_research"
+        ]
+      },
       "dynamic_escalation": {
         "enabled": true,
         "default": "off",

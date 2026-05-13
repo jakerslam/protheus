@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 170
-- Not parsed: 1108
+- Parsed: 182
+- Not parsed: 1096
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -146,6 +146,18 @@
 | `apps/api/src/scraper/scrapeURL/transformers/removeBase64Images.ts` | Base64 image scrubber. | Large inline base64 image payloads can be replaced by placeholders before evidence packing. |
 | `apps/api/src/scraper/scrapeURL/postprocessors/index.ts` | Postprocessor registry. | Specialty postprocessors are explicit capability entries, not hidden default behavior. |
 | `apps/api/src/scraper/scrapeURL/postprocessors/youtube.ts` | Specialty media postprocessor. | A matched content postprocessor can convert media metadata/transcripts into normalized markdown behind policy, lockdown, and service-availability gates. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/index.ts` | Remote render/scrape engine adapter. | Remote scrape jobs build capability-specific requests, transform wait/screenshot/script/cookie needs into internal actions, poll bounded async jobs, delete remote jobs after terminal states, and project status/content/headers without exposing engine traces. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/scrape.ts` | Remote scrape request lifecycle. | Remote scrape responses are schema-classified into success, processing, or failed states; failed states can request a changed transport/profile and map browser/network errors to typed retrieval states. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/checkStatus.ts` | Remote scrape status polling. | Job status polling treats processing as nonterminal, clears stale auth/cache state on authorization failures, and keeps job id/state/error handling internal. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/delete.ts` | Remote scrape cleanup. | Remote scrape cleanup is idempotent around missing job ids and logs cleanup separately from retrieval evidence. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/brandingScript.ts` | Browser execute-JS artifact loader. | Structured browser-side extraction scripts can be bundled/cached internally and executed as action artifacts without making script bodies visible to synthesis. |
+| `apps/api/src/scraper/scrapeURL/engines/wikipedia/index.ts` | Authoritative source specialty engine. | Source-specific authoritative APIs can resolve redirects, cache short-lived tokens behind a distributed lock, normalize article metadata/body to HTML, and remain optional source-class lanes rather than general routes. |
+| `apps/api/src/scraper/scrapeURL/engines/x-twitter/index.ts` | Social/source specialty engine. | Social URLs can be parsed into normalized profile/post artifacts, constrained through structured schemas, converted to safe markdown/HTML, and treated as optional source-class evidence. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/firePDF.ts` | PDF OCR processor lane. | PDF OCR calls use cache only when retention allows, pass explicit deadlines, track pages processed, and reconcile page count without shrinking upstream metadata. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/runpodMU.ts` | Alternate PDF processor lane. | Alternate PDF processors can poll queued/in-progress jobs, cache when policy allows, run telemetry-only shadow experiments, and propagate deadline fields. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/shadowComparison.ts` | PDF extractor quality probe. | Extractor comparisons use generic completeness signals such as length ratio, number preservation, and table counts rather than topic-specific labels. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/markdownToHtml.ts` | Markdown-to-HTML safety fallback. | Markdown conversion should degrade to escaped preformatted text on parser failure instead of dropping extracted content. |
+| `apps/api/src/scraper/scrapeURL/engines/pdf/types.ts` | PDF processor metadata contract. | Processor metadata distinguishes pages processed from total page count and treats missing processor counts as no signal rather than zero. |
 | `apps/api/src/lib/browser-sessions.ts` | Browser session state helpers. | Session rows track TTL, owner, status, CDP/view handles, prompt-use flags, cached active counts, and idempotent destroyed-state claiming. |
 | `apps/api/src/lib/browser-session-activity.ts` | Browser activity batching. | Browser execution telemetry is queued and batch-inserted as internal activity records instead of becoming retrieval evidence. |
 | `apps/api/src/lib/scrape-interact/browser-service-client.ts` | Browser service client. | Browser service calls are behind a narrow typed adapter that throws typed non-2xx errors and keeps service URLs/headers internal. |
@@ -257,6 +269,8 @@
 - Interactive trace/logging data must be opt-in, privacy-sanitized, and disabled for zero-retention or private contexts; trace metadata is diagnostic context, not citable evidence.
 - Page transformation is a distinct evidence-readiness layer: derive markdown, summaries, page-local answers, attributes, links, images, diffs, and specialty normalized content only when requested or needed downstream, then prune unrequested heavy fields before projection.
 - Page-local query/highlight answers are useful evidence artifacts but are not cross-source synthesis. They must use only retrieved page content and treat external page text as untrusted data.
+- Retrieval engine choice should be a capability-scored ladder over evidence needs, budgets, content type, privacy, and failure state. Engine/provider identity is hidden diagnostic context, not a user-visible answer shape or domain route.
+- Specialty source engines are optional source-class lanes for artifacts that generic fetch/search often handles poorly; their availability should improve evidence quality but not become required for general research.
 
 ## Candidate Assimilation Targets
 
@@ -277,6 +291,7 @@
 15. Terminal failure projection: convert dead-lettered, crashed, expired, or cancelled retrieval/extraction work into bounded failed artifacts with sanitized gap reasons instead of retries or silent missing output. Implemented CD-level policy update; runtime execution remains future work.
 16. Dynamic interaction lane: use bounded browser sessions only when static/reader/rendered retrieval is insufficient, replay retained context safely, run snapshot/action loops with step and timeout limits, and expose only extracted evidence refs. Implemented CD-level policy update; runtime execution remains future work.
 17. Page artifact transformation stack: run format-gated transformation after fetch/read to produce evidence-ready variants, page-local answers/highlights, structured attributes, change summaries, and specialty normalized content while pruning raw fields before projection. Implemented CD-level policy update; runtime execution remains future work.
+18. Capability-scored engine ladder: choose index/static/rendered/dynamic/document/PDF/source-specialty engines from requested artifacts, content type, source class, privacy, and failure state; poll/cleanup remote jobs and retain only hidden engine diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
 
 ## Remaining Work
 

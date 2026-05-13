@@ -429,31 +429,31 @@ apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/images.ts	app
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/index.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/print-script.js	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/svg-utils.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/fire-engine/brandingScript.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/fire-engine/checkStatus.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/fire-engine/delete.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/fire-engine/index.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/fire-engine/scrape.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/engines/fire-engine/brandingScript.ts	apps	parsed	browser_executejs_artifact_loader	bundled_cached_internal_script_for_structured_browser_side_extraction_not_chat_visible
+apps/api/src/scraper/scrapeURL/engines/fire-engine/checkStatus.ts	apps	parsed	remote_scrape_status_polling	processing_nonterminal_typed_failure_mapping_auth_cache_clear_hidden_job_state
+apps/api/src/scraper/scrapeURL/engines/fire-engine/delete.ts	apps	parsed	remote_scrape_cleanup	idempotent_missing_jobid_skip_cleanup_logged_separately_from_evidence
+apps/api/src/scraper/scrapeURL/engines/fire-engine/index.ts	apps	parsed	remote_render_scrape_engine_adapter	capability_request_building_internal_actions_bounded_poll_delete_status_headers_projection
+apps/api/src/scraper/scrapeURL/engines/fire-engine/scrape.ts	apps	parsed	remote_scrape_request_lifecycle	success_processing_failed_schema_classification_retry_with_changed_transport_typed_browser_network_errors
 apps/api/src/scraper/scrapeURL/engines/index.ts	apps	parsed	scrape_engine_waterfall	feature_flags_support_score_quality_order_index_fetch_playwright_specialty_engines
 apps/api/src/scraper/scrapeURL/engines/index/index.ts	apps	parsed	cache_index_engine	normalized_url_hash_domain_splits_cache_lifecycle_zdr_skip_async_index_insert
 apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/firePDF.test.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/isPdfBuffer.test.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/markdownToHtml.test.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/pdf/__tests__/shadowComparison.test.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/pdf/firePDF.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/engines/pdf/firePDF.ts	apps	parsed	pdf_ocr_processor_lane	retention_gated_cache_explicit_deadline_pages_processed_page_count_reconcile
 apps/api/src/scraper/scrapeURL/engines/pdf/index.ts	apps	parsed	pdf_extraction_ladder	pdf_magic_validation_rust_fast_path_confidence_gate_ocr_fallback_page_budget_tempfile_cleanup
-apps/api/src/scraper/scrapeURL/engines/pdf/markdownToHtml.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/engines/pdf/markdownToHtml.ts	apps	parsed	markdown_to_html_safety_fallback	escaped_preformatted_fallback_on_markdown_parser_failure
 apps/api/src/scraper/scrapeURL/engines/pdf/pdfParse.ts	apps	parsed	pdf_text_fallback	pdf_parse_text_escape_html_duration_and_page_logging
 apps/api/src/scraper/scrapeURL/engines/pdf/pdfUtils.ts	apps	parsed	pdf_magic_sniffing	pdf_magic_bytes_checked_within_first_1kb
-apps/api/src/scraper/scrapeURL/engines/pdf/runpodMU.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/pdf/shadowComparison.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/pdf/types.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/engines/pdf/runpodMU.ts	apps	parsed	alternate_pdf_processor_lane	queued_job_polling_retention_gated_cache_deadline_fields_shadow_experiment_telemetry
+apps/api/src/scraper/scrapeURL/engines/pdf/shadowComparison.ts	apps	parsed	pdf_extractor_quality_probe	length_ratio_number_preservation_table_count_generic_quality_signals
+apps/api/src/scraper/scrapeURL/engines/pdf/types.ts	apps	parsed	pdf_processor_metadata_contract	pages_processed_optional_no_signal_not_zero_file_size_limits
 apps/api/src/scraper/scrapeURL/engines/playwright/index.ts	apps	parsed	rendered_page_engine	microservice_render_wait_timeout_headers_tls_json_inner_content_extraction
 apps/api/src/scraper/scrapeURL/engines/utils/downloadFile.ts	apps	parsed	download_file_transport	tempfile_streaming_error_mapping_cleanup_on_failure
 apps/api/src/scraper/scrapeURL/engines/utils/safeFetch.ts	apps	parsed	secure_fetch_dispatcher	proxy_agent_redirect_interceptor_cookie_optional_private_ip_connect_guard
 apps/api/src/scraper/scrapeURL/engines/utils/specialtyHandler.ts	apps	parsed	specialty_content_lane_split	content_type_and_magic_signature_pdf_document_detection_unsupported_binary_rejection
-apps/api/src/scraper/scrapeURL/engines/wikipedia/index.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/x-twitter/index.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/engines/wikipedia/index.ts	apps	parsed	authoritative_source_specialty_engine	redirect_resolution_token_cache_lock_normalized_article_metadata_body_html_optional_source_class_lane
+apps/api/src/scraper/scrapeURL/engines/x-twitter/index.ts	apps	parsed	social_source_specialty_engine	normalized_profile_post_url_parsing_structured_schema_safe_markdown_html_source_artifact
 apps/api/src/scraper/scrapeURL/error.ts	apps	parsed	typed_scrape_error_taxonomy	distinguishes unsupported binary, cache miss, lockdown, ZDR, PDF OCR/time, document/PDF antibot, retry limits
 apps/api/src/scraper/scrapeURL/index.ts	apps	parsed	scrape_pipeline_entrypoint	feature_flags_engine_waterfall_prefetch_robots_transformers_postprocessors
 apps/api/src/scraper/scrapeURL/lib/__tests__/extractImages.test.ts	apps	not_parsed	pending_review	
