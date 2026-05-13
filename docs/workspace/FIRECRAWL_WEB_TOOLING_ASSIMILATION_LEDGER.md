@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 561
-- Not parsed: 716
+- Parsed: 567
+- Not parsed: 710
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -610,6 +610,12 @@
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_extract.py` | Python async SDK extract E2E tests. | Async extract mirrors minimal and schema/options requests while treating the endpoint as deprecated. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_usage.py` | Python async SDK usage E2E tests. | Async usage asserts concurrency, credit, token, and queue status shapes as control-plane projections. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/test_aio_watcher.py` | Python async SDK watcher E2E tests. | Async watcher requires crawl/batch async iteration to produce progress and terminal state snapshots. |
+| `apps/python-sdk/firecrawl/v1/client.py` | Python SDK v1 legacy client. | Legacy compatibility surface confirms typed request shaping, idempotent async handles, status polling/pagination, watcher events, schema normalization/validation, bounded error text, and source/activity status projections; do not copy hardcoded model names or legacy async bugs. |
+| `apps/python-sdk/firecrawl/firecrawl.backup.py` | Python SDK backup legacy client. | Backup copy mirrors the legacy v1 typed client surface and is useful only as compatibility/delta confirmation; no unique runtime primitive beyond request-shaping, status-handle, polling, stream, timeout, and schema-normalization patterns already captured. |
+| `apps/python-sdk/tests/test_agent_integration.py` | Python SDK mocked agent integration tests. | Agent tests verify schema normalization, URL/prompt/request-field preservation, auth headers, status polling, and strict URL/budget controls as typed request fields. |
+| `apps/python-sdk/tests/test_api_key_handling.py` | Python SDK API-key handling tests. | Cloud clients require API keys while self-host/local clients allow absent credentials, with async HTTP lifecycle cleanup. |
+| `apps/python-sdk/tests/test_change_tracking.py` | Python SDK change-tracking tests. | Change tracking is a requested artifact lane with git-diff/json modes, schema options, and previous/current/diff data preserved as structured evidence. |
+| `apps/python-sdk/tests/test_timeout_conversion.py` | Python SDK timeout conversion tests. | Request milliseconds are converted to transport seconds with a safety buffer, while missing timeouts remain unbounded at the transport layer. |
 
 ## Decisions So Far
 
@@ -770,6 +776,10 @@
 - Public client facades should expose primitive retrieval capabilities consistently while keeping orchestration order and model/tool decisions outside the client surface.
 - Async, streaming, and polling paths should prove they are true lifecycle variants over the same primitive contract, including nonblocking transport and equivalent terminal snapshots.
 - SDK examples are useful as capability smoke tests only when they assert content-bearing evidence, bounded status windows, or typed result counts; they are not quality evals by themselves.
+- Legacy compatibility code should be treated as parity evidence, not implementation source: capture invariants and reject stale/hardcoded model names, debug prints, or broken async mechanics.
+- Timeouts are layered budgets: user/tool timeout, transport safety buffer, polling interval, and terminal wait should be separate contract fields rather than one ambiguous number.
+- Change tracking is an evidence artifact lane: previous/current/diff/json change artifacts should travel as refs/facets, not final-answer prose or required response format.
+- Credential requirements are capability/profile policy: cloud-hosted adapters may require credentials, while declared local/self-host adapters can remain usable without API keys.
 
 ## Candidate Assimilation Targets
 
@@ -871,6 +881,9 @@
 96. Structured extraction no-crash contract: broken or unsupported schema refs should become typed request/gap failures rather than crashes or weak synthesis. Ledger captured; candidate validation/eval target.
 97. Unified client facade contract: expose web retrieval primitives through sync/async/poll/stream facades with equivalent request/result semantics while keeping workflow policy in CDs/orchestration. Ledger captured; candidate adapter parity guard.
 98. Nonblocking async retrieval proof: assert async tools use true async transport, preserve event-loop progress, and never route through blocking sync clients. Ledger captured; candidate tool-adapter eval target.
+99. Profile-aware credential gate: declare per-adapter credential requirements by deployment profile so cloud tools fail early while self-host/local lanes remain usable. Ledger captured; candidate Tool CD/admission target.
+100. Layered timeout budget: keep user/workflow timeout, transport safety buffer, polling interval, and terminal wait as separate fields with eval coverage. Ledger captured; candidate Tool CD/runtime target.
+101. Change-tracking evidence lane: model previous/current/diff/json change artifacts as optional evidence facets behind refs. Ledger captured; candidate evidence-pack enrichment target.
 
 ## Remaining Work
 
