@@ -312,11 +312,11 @@ apps/api/src/lib/entities.ts	apps	not_parsed	pending_review
 apps/api/src/lib/error-serde.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/error.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/build-document.ts	apps	parsed	metadata_bounded_llm_input	appends sanitized capped metadata to markdown for extraction context
-apps/api/src/lib/extract/build-prompts.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/completions/analyzeSchemaAndPrompt.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/completions/batchExtract.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/completions/singleAnswer.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/config.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/build-prompts.ts	apps	parsed	extraction_prompt_builders	search_query_optimization_pre_rerank_intent_schema_analysis_untrusted_page_instructions
+apps/api/src/lib/extract/completions/analyzeSchemaAndPrompt.ts	apps	parsed	extraction_mode_classifier	single_answer_vs_multi_entity_schema_prompt_url_context_keys_reasoning_safe_fallback
+apps/api/src/lib/extract/completions/batchExtract.ts	apps	parsed	multi_entity_extraction_completion	schema_bound_untrusted_page_prompt_agent_extraction_sources_warnings_cost
+apps/api/src/lib/extract/completions/singleAnswer.ts	apps	parsed	single_answer_extraction_completion	page_id_wrapping_answer_from_provided_content_source_urls_preserved
+apps/api/src/lib/extract/config.ts	apps	parsed	extraction_ranking_limits	initial_ranking_cap_rerank_thresholds_min_required_links
 apps/api/src/lib/extract/document-scraper.ts	apps	parsed	extract_scrape_bridge	scrape-for-extract retries single URLs, traces content stats, bypasses billing, cleans queue jobs
 apps/api/src/lib/extract/extract-redis.ts	apps	parsed	extract_state_persistence	ttl_bounded_recent_steps_capped_discovered_links_result_separation
 apps/api/src/lib/extract/extraction-service.ts	apps	parsed	extract_orchestration_service	map_broaden_chunk_extract_source_track_dedupe_merge
@@ -339,15 +339,15 @@ apps/api/src/lib/extract/fire-0/llmExtract-f0.ts	apps	not_parsed	pending_review
 apps/api/src/lib/extract/fire-0/reranker-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/url-processor-f0.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/fire-0/usage/llm-cost-f0.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/__tests__/source-tracker.test.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/deduplicate-objs-array.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/dereference-schema.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/merge-null-val-objs.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/mix-schema-objs.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/source-tracker.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/spread-schemas.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/helpers/transform-array-to-obj.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/extract/reranker.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/extract/helpers/__tests__/source-tracker.test.ts	apps	parsed	source_tracker_tests	merged_deduped_items_retain_all_contributing_source_urls
+apps/api/src/lib/extract/helpers/deduplicate-objs-array.ts	apps	parsed	extraction_dedupe_helper	json_stable_object_identity_per_array_field
+apps/api/src/lib/extract/helpers/dereference-schema.ts	apps	parsed	schema_dereference_helper	json_schema_ref_resolution_before_extraction_planning
+apps/api/src/lib/extract/helpers/merge-null-val-objs.ts	apps	parsed	null_aware_object_merge	non_null_agreement_complementary_field_fill_null_string_normalization
+apps/api/src/lib/extract/helpers/mix-schema-objs.ts	apps	parsed	schema_guided_result_merge	single_answer_multi_entity_recombine_by_schema_properties
+apps/api/src/lib/extract/helpers/source-tracker.ts	apps	parsed	extraction_source_tracker	source_refs_preserved_through_transform_dedupe_merge_item_source_maps
+apps/api/src/lib/extract/helpers/spread-schemas.ts	apps	parsed	schema_split_helper	multi_entity_key_split_required_field_move_empty_property_prune
+apps/api/src/lib/extract/helpers/transform-array-to-obj.ts	apps	parsed	array_to_object_transform	schema_shaped_nested_array_normalization_unique_valid_items
+apps/api/src/lib/extract/reranker.ts	apps	parsed	schema_facet_candidate_reranker	chunked_large_link_sets_single_vs_multi_entity_thresholds_relevance_reason_cost
 apps/api/src/lib/extract/team-id-sync.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/extract/url-processor.ts	apps	parsed	extract_url_discovery_rerank	broad_map_retry_candidate_cap_two_pass_rerank_trace_flags
 apps/api/src/lib/extract/usage/llm-cost.ts	apps	not_parsed	pending_review	

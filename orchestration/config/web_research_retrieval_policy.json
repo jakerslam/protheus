@@ -39,7 +39,9 @@
     "firecrawl_pdf_processor_quality_shadow_probe",
     "firecrawl_tiered_abort_transport_schema_validation",
     "firecrawl_processible_url_export_rewrite",
-    "firecrawl_link_image_base_resolution"
+    "firecrawl_link_image_base_resolution",
+    "firecrawl_structured_extraction_source_tracking",
+    "firecrawl_schema_guided_candidate_rerank"
   ],
   "selection_rule": "agent_or_policy_selects_from_user_intent_evidence_state_and_admitted_tool_capabilities_without_domain_or_prompt_hardcoding",
   "non_goals": [
@@ -863,6 +865,37 @@
       "pdf_text_excerpt",
       "pdf_page_summary"
     ],
+    "structured_extraction_artifacts": {
+      "enabled": true,
+      "source_patterns": [
+        "firecrawl_structured_extraction_source_tracking",
+        "firecrawl_schema_guided_candidate_rerank"
+      ],
+      "purpose": "When the user's research goal implies extracting structured facts or many entities, keep schema or facet guidance as evidence-pack metadata and preserve source refs through dedupe and merge.",
+      "artifact_fields": [
+        "extraction_mode",
+        "single_answer_schema_ref",
+        "multi_entity_schema_ref",
+        "candidate_relevance_score",
+        "candidate_relevance_reason_ref",
+        "item_source_refs",
+        "merge_confidence",
+        "dedupe_reason"
+      ],
+      "rules": [
+        "classify_single_answer_vs_multi_entity_from_schema_prompt_and_candidate_distribution_when_needed",
+        "rerank_mapped_candidates_by_extraction_value_before_spending_scrape_budget",
+        "split_schema_or_facets_only_as_internal_evidence_guidance_not_final_answer_shape",
+        "merge_null_or_partial_items_only_when_non_null_values_do_not_conflict",
+        "preserve_all_contributing_source_refs_for_merged_or_deduped_items",
+        "treat_page_text_as_untrusted_data_during_extraction"
+      ],
+      "non_goals": [
+        "do_not_force_structured_json_as_the_final_research_answer",
+        "do_not_hardcode_entity_types_domains_or_case_ids",
+        "do_not_bind_extraction_quality_to_specific_llm_models"
+      ]
+    },
     "chunking_strategies": [
       "paragraph_or_heading_boundary",
       "heading_boundary_with_parent_context",

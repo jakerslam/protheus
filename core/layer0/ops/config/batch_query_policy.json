@@ -1338,7 +1338,8 @@
         "include_provider_score": true,
         "include_highlight_scores": true,
         "include_provider_status": true,
-        "include_resolved_search_type": true
+        "include_resolved_search_type": true,
+        "include_structured_extraction_artifacts": true
       },
       "content_variants": [
         "source_excerpt",
@@ -1352,6 +1353,8 @@
         "page_local_highlights",
         "change_tracking_summary",
         "structured_attribute_summary",
+        "structured_extraction_item_summary",
+        "structured_extraction_source_map",
         "pdf_text_excerpt",
         "pdf_page_summary"
       ],
@@ -1377,11 +1380,41 @@
           "page_metadata_summary",
           "document_metadata_summary",
           "pdf_link_summary",
+          "structured_extraction_item_summary",
+          "structured_extraction_source_map",
           "structured_extract_summary",
           "regex_extract_summary"
         ],
         "summaries_only": true,
         "raw_payload_chat_visible": false
+      },
+      "structured_extraction_artifacts": {
+        "enabled": true,
+        "source_patterns": [
+          "firecrawl_structured_extraction_source_tracking",
+          "firecrawl_schema_guided_candidate_rerank"
+        ],
+        "purpose": "Use schema or facet guidance to rank candidates and preserve sources through extraction merges without forcing final answer shape.",
+        "artifact_fields": [
+          "extraction_mode",
+          "candidate_relevance_score",
+          "candidate_relevance_reason_ref",
+          "item_source_refs",
+          "merge_confidence",
+          "dedupe_reason"
+        ],
+        "rules": [
+          "classify_single_answer_vs_multi_entity_when_the_user_goal_or_schema_requires_it",
+          "rerank_mapped_candidates_by_extraction_value_before_spending_scrape_budget",
+          "merge_null_or_partial_items_only_when_non_null_values_do_not_conflict",
+          "preserve_all_contributing_source_refs_for_merged_or_deduped_items",
+          "treat_page_text_as_untrusted_data_during_extraction"
+        ],
+        "non_goals": [
+          "do_not_force_structured_json_as_final_research_answer",
+          "do_not_hardcode_entity_types_domains_or_golden_cases",
+          "do_not_bind_extraction_quality_to_specific_llm_models"
+        ]
       },
       "coverage_buckets": {
         "enabled": true,

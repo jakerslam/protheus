@@ -139,6 +139,10 @@
       "evidence_artifacts.media_summary",
       "evidence_artifacts.page_metadata_summary",
       "evidence_artifacts.document_metadata_summary",
+      "evidence_artifacts.structured_extraction_item_summary",
+      "evidence_artifacts.structured_extraction_source_map",
+      "evidence_artifacts.candidate_relevance_score",
+      "evidence_artifacts.item_source_refs",
       "evidence_artifacts.pdf_text_excerpt",
       "evidence_artifacts.pdf_page_summary",
       "evidence_chunks"

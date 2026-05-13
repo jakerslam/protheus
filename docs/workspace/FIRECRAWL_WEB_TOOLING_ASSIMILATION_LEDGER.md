@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 202
-- Not parsed: 1076
+- Parsed: 216
+- Not parsed: 1062
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -178,6 +178,20 @@
 | `apps/api/src/controllers/v1/crawl-errors.ts` | Crawl error projection. | Crawl errors are projected from failed child jobs with typed error deserialization, known noisy failures filtered, robots-blocked URLs separated, and DB fallback under TTL. |
 | `apps/api/src/controllers/v1/crawl-ongoing.ts` | Ongoing crawl projection. | Ongoing crawl listing returns bounded owner-scoped crawl summaries with normalized options, not raw queue state. |
 | `apps/api/src/controllers/v1/crawl-status-ws.ts` | Crawl status WebSocket projection. | Streaming status starts with a catch-up window, then emits completed documents incrementally while ignoring failed child payloads and closing with bounded status messages. |
+| `apps/api/src/lib/extract/build-prompts.ts` | Extraction prompt builders. | Extraction/query planning separates search-query optimization, pre-rerank intent compression, schema analysis, and untrusted-page extraction instructions. |
+| `apps/api/src/lib/extract/config.ts` | Extraction ranking limits. | Candidate extraction uses explicit caps and thresholds for initial ranking, reranking, and minimum links. |
+| `apps/api/src/lib/extract/reranker.ts` | Schema/facet candidate reranker. | Large mapped link sets are chunked, scored for extraction value, thresholded differently for single-answer vs multi-entity tasks, and returned with relevance reasons/cost telemetry. |
+| `apps/api/src/lib/extract/completions/analyzeSchemaAndPrompt.ts` | Extraction mode classifier. | Schema/prompt/URL context can classify single-answer vs multi-entity work and return keys, reasoning, indicators, and token usage with a safe single-answer fallback. |
+| `apps/api/src/lib/extract/completions/batchExtract.ts` | Multi-entity extraction completion. | Multi-entity extraction builds schema-bound prompts over evidence documents, treats page text as untrusted, routes through agent extraction when enabled, and returns sources/warnings/cost metadata. |
+| `apps/api/src/lib/extract/completions/singleAnswer.ts` | Single-answer extraction completion. | Single-answer extraction wraps pages with IDs, enforces answer-from-provided-content behavior, and preserves source URLs for the final extracted object. |
+| `apps/api/src/lib/extract/helpers/source-tracker.ts` | Extraction source tracker. | Source refs are preserved through array/object transforms, pre-dedupe tracking, null-aware merging, and final item source maps. |
+| `apps/api/src/lib/extract/helpers/__tests__/source-tracker.test.ts` | Source tracker tests. | Merged or deduped extraction items should retain all contributing source URLs. |
+| `apps/api/src/lib/extract/helpers/deduplicate-objs-array.ts` | Extraction dedupe helper. | JSON-stable object identity removes duplicate extracted items per array field. |
+| `apps/api/src/lib/extract/helpers/dereference-schema.ts` | Schema dereference helper. | External/internal JSON schema refs should be dereferenced before extraction planning. |
+| `apps/api/src/lib/extract/helpers/merge-null-val-objs.ts` | Null-aware object merge. | Extracted objects are mergeable when non-null fields agree; null-equivalent strings are normalized and complementary fields are filled without conflicting evidence. |
+| `apps/api/src/lib/extract/helpers/mix-schema-objs.ts` | Schema-guided result merger. | Single-answer and multi-entity results can be recombined by following schema properties instead of ad hoc object concatenation. |
+| `apps/api/src/lib/extract/helpers/spread-schemas.ts` | Schema split helper. | Multi-entity keys can be split from a larger schema, moving required fields and pruning empty objects for separate extraction passes. |
+| `apps/api/src/lib/extract/helpers/transform-array-to-obj.ts` | Array-to-object transform. | Multi-page extraction results can be normalized into schema-shaped objects while preserving valid unique array items and nested paths. |
 | `apps/api/src/lib/browser-sessions.ts` | Browser session state helpers. | Session rows track TTL, owner, status, CDP/view handles, prompt-use flags, cached active counts, and idempotent destroyed-state claiming. |
 | `apps/api/src/lib/browser-session-activity.ts` | Browser activity batching. | Browser execution telemetry is queued and batch-inserted as internal activity records instead of becoming retrieval evidence. |
 | `apps/api/src/lib/scrape-interact/browser-service-client.ts` | Browser service client. | Browser service calls are behind a narrow typed adapter that throws typed non-2xx errors and keeps service URLs/headers internal. |
@@ -294,6 +308,7 @@
 - Transport lifecycle is part of retrieval quality: request ids, bounded retries, schema validation, tiered aborts, sanitized logs, and deterministic mock replay should support evidence diagnosis without becoming citable evidence.
 - URL/link/image normalization should happen before budget is spent: processible document rewrites, base-href resolution, hash-anchor dedupe, hash-route preservation, and media candidate dedupe all improve candidate quality without domain-specific research rules.
 - Public status, streaming, and cancellation endpoints are projections over stored retrieval work. They should enforce owner/ZDR/TTL checks, return bounded windows, and keep queue internals diagnostic-only.
+- Structured extraction is not a final answer format. It is an evidence-pack primitive for ranking candidates, separating single-answer vs multi-entity goals, merging partial facts safely, and preserving source refs through dedupe.
 
 ## Candidate Assimilation Targets
 
@@ -317,6 +332,7 @@
 18. Capability-scored engine ladder: choose index/static/rendered/dynamic/document/PDF/source-specialty engines from requested artifacts, content type, source class, privacy, and failure state; poll/cleanup remote jobs and retain only hidden engine diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
 19. Transport and normalization lifecycle: carry request IDs, schema validation, tiered aborts, safe logging, deterministic mock replay, document-share rewrites, base-href media resolution, and hash-anchor/hash-route handling into hidden retrieval diagnostics. Implemented CD/tool-policy update; runtime execution remains future work.
 20. Retrieval projection lifecycle: enforce owner, TTL, ZDR, cancellation, catch-up, and bounded streaming/status projections for long-running retrieval work. Implemented CD/tool-policy update; runtime execution remains future work.
+21. Structured extraction evidence artifacts: classify single-answer vs multi-entity evidence needs, rerank mapped candidates by extraction value, merge partial extracted facts safely, and preserve source refs through dedupe. Implemented CD/tool-policy update; runtime execution remains future work.
 
 ## Remaining Work
 
