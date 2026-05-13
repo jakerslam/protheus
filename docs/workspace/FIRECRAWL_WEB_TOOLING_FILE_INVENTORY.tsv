@@ -1005,12 +1005,12 @@ apps/ruby-sdk/lib/firecrawl/models/search_options.rb	apps	not_parsed	pending_rev
 apps/ruby-sdk/lib/firecrawl/version.rb	apps	not_parsed	pending_review	
 apps/ruby-sdk/test/firecrawl/client_test.rb	apps	not_parsed	pending_review	
 apps/ruby-sdk/test/test_helper.rb	apps	not_parsed	pending_review	
-apps/rust-sdk/.gitignore	apps	not_parsed	pending_review	
-apps/rust-sdk/CHANGELOG.md	apps	not_parsed	pending_review	
-apps/rust-sdk/Cargo.lock	apps	not_parsed	pending_review	
-apps/rust-sdk/Cargo.toml	apps	not_parsed	pending_review	
-apps/rust-sdk/README.md	apps	not_parsed	pending_review	
-apps/rust-sdk/examples/example.rs	apps	not_parsed	pending_review	
+apps/rust-sdk/.gitignore	apps	parsed	rust_sdk_generated_boundary	target_build_output_excluded_from_assimilation_and_evidence_artifacts
+apps/rust-sdk/CHANGELOG.md	apps	parsed	rust_sdk_release_notes	minimal_release_note_no_unique_retrieval_primitive
+apps/rust-sdk/Cargo.lock	apps	skipped_generated	generated_lockfile	no_pattern_review_needed
+apps/rust-sdk/Cargo.toml	apps	parsed	rust_sdk_package_contract	http_multipart_serde_error_and_async_timer_dependencies_confirm_thin_client_facade
+apps/rust-sdk/README.md	apps	parsed	rust_sdk_public_docs	llm_ready_output_examples_across_retrieval_primitives_with_source_tests_as_authority_when_docs_drift
+apps/rust-sdk/examples/example.rs	apps	parsed	rust_sdk_example_program	search_map_scrape_crawl_batch_and_agent_are_separate_user_composed_primitives
 apps/rust-sdk/src/agent.rs	apps	parsed	rust_sdk_agent_method	bounded_web_agent_with_urls_prompt_schema_budget_strict_url_constraints_timeout_polling_and_status_projection
 apps/rust-sdk/src/batch_scrape.rs	apps	parsed	rust_sdk_batch_scrape_method	multi_url_batch_retrieval_with_idempotency_invalid_url_reporting_pagination_polling_and_per_job_errors
 apps/rust-sdk/src/client.rs	apps	parsed	rust_sdk_client_facade	profile_aware_api_key_gate_selfhost_optional_auth_url_normalization_idempotency_headers_multipart_headers_and_typed_response_handling
@@ -1024,8 +1024,8 @@ apps/rust-sdk/src/scrape.rs	apps	parsed	rust_sdk_scrape_method	typed_artifact_fo
 apps/rust-sdk/src/search.rs	apps	parsed	rust_sdk_search_method	source_category_domain_freshness_location_controls_with_thin_or_enriched_document_result_union
 apps/rust-sdk/src/serde_helpers.rs	apps	parsed	rust_sdk_tolerant_metadata_deserializer	string_array_null_missing_metadata_coercion_with_tests
 apps/rust-sdk/src/types.rs	apps	parsed	rust_sdk_shared_type_contract	typed_formats_documents_metadata_search_lanes_categories_job_statuses_errors_actions_and_change_tracking_facets
-apps/rust-sdk/tests/.env.example	apps	not_parsed	pending_review	
-apps/rust-sdk/tests/v2_e2e.rs	apps	not_parsed	pending_review	
+apps/rust-sdk/tests/.env.example	apps	parsed	rust_sdk_live_test_config	api_url_and_optional_test_api_key_capability_gate
+apps/rust-sdk/tests/v2_e2e.rs	apps	parsed	rust_sdk_v2_e2e_tests	content_bearing_retrieval_parse_map_crawl_batch_agent_checks_with_ignored_api_access_and_selfhost_credential_semantics
 apps/test-site/.gitignore	apps	not_parsed	pending_review	
 apps/test-site/.npmrc	apps	not_parsed	pending_review	
 apps/test-site/.prettierrc	apps	not_parsed	pending_review	

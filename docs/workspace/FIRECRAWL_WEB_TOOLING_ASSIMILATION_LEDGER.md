@@ -40,9 +40,9 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 605
-- Not parsed: 672
-- Skipped generated: 11
+- Parsed: 612
+- Not parsed: 664
+- Skipped generated: 12
 - Skipped media or sample: 69
 
 ## Parsed Files
@@ -654,6 +654,13 @@
 | `apps/rust-sdk/src/agent.rs` | Rust SDK agent method. | Agent work is an optional bounded capability with start URLs, prompt, schema, strict URL constraints, credit budget, timeout, polling, status projection, and typed schema output. |
 | `apps/rust-sdk/src/monitor.rs` | Rust SDK monitor method. | Monitoring is a separate recurring retrieval/change-detection control surface with schedules, retention, check summaries, page diffs, pagination, and credit estimates. |
 | `apps/rust-sdk/src/lib.rs` | Rust SDK module facade. | Public SDK exports remain a thin typed facade over primitive modules, keeping composition/policy outside the client. |
+| `apps/rust-sdk/.gitignore` | Rust SDK generated artifact boundary. | Build outputs are excluded at the package boundary and should stay out of assimilation/evidence artifacts. |
+| `apps/rust-sdk/CHANGELOG.md` | Rust SDK release note surface. | Minimal release notes add no unique retrieval primitive beyond confirming this package is SDK surface area. |
+| `apps/rust-sdk/Cargo.toml` | Rust SDK package contract. | SDK dependencies are limited to HTTP, multipart, serde, error, and async timer primitives, confirming the client is a facade rather than an embedded crawler. |
+| `apps/rust-sdk/README.md` | Rust SDK public docs. | Public examples promise LLM-ready web output across scrape, parse, schema extraction, crawl, map, search, and interaction, but source/tests remain authority when docs drift. |
+| `apps/rust-sdk/examples/example.rs` | Rust SDK example program. | Example usage keeps search, map, scrape, crawl, batch, and agent as separate primitives that callers compose intentionally. |
+| `apps/rust-sdk/tests/.env.example` | Rust SDK live-test config. | Live tests are capability-gated by API URL and optional key, matching the hosted/self-host profile split. |
+| `apps/rust-sdk/tests/v2_e2e.rs` | Rust SDK v2 E2E tests. | E2E asserts content-bearing scrape/parse/search/map/crawl/batch/agent behavior, ignored-by-default API access, cleanup cancellation, and self-host credential semantics. |
 
 ## Decisions So Far
 
@@ -953,11 +960,14 @@
 120. Tolerant metadata coercion: evidence packers should normalize provider metadata drift across scalar/list/null/missing shapes while preserving unknown fields and quality flags. Ledger captured; candidate evidence-pack normalization target.
 121. Profile-aware client admission: tool clients should declare cloud/self-host credential requirements and normalize base URLs/headers before any retrieval request reaches workflow logic. Ledger captured; candidate Tool CD/admission guard.
 122. Thin public client facade: SDK/user-facing clients should expose typed primitives while composition order remains in workflow CDs/orchestration. Ledger captured; candidate architecture/CD guard.
+123. Docs-as-parity signal: public docs/examples can reveal intended primitive composition, but source and tests should win when documentation method names or legacy snippets drift. Ledger captured; candidate doc/test authority rule.
+124. Capability-gated live tests: network/API retrieval tests should be opt-in, environment-gated, and classified separately from deterministic workflow regressions. Ledger captured; candidate eval harness target.
+125. Primitive example coverage: SDK examples should exercise search, scrape, map, crawl, batch, parse, and agent as independent primitives so workflow CDs can compose them without client-side hidden policy. Ledger captured; candidate adapter parity target.
 
 ## Remaining Work
 
 - Continue parsing unreviewed crawl/map compatibility controllers, especially V1/V2 cancel/error/status websocket variants not yet covered.
-- Rust SDK source surface is parsed; continue parsing Rust SDK E2E/tests/docs only if parity gaps remain.
+- Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
