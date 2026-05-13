@@ -48,6 +48,14 @@
         "output_artifact": "schema_data_generation_pipeline_result_artifact_v1",
         "return_policy": "return_single_terminal_artifact_to_parent",
         "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "shell_terminal_guard",
+        "workflow_id": "local_coding_shell_terminal_guard",
+        "input_contract": "local_coding_shell_terminal_guard_input_envelope_v1",
+        "output_artifact": "local_coding_shell_terminal_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
       }
     ],
     "non_goals": [
@@ -65,6 +73,7 @@
     "operator_command_surface_projection_route",
     "external_update_editor_auth_boundary_route",
     "schema_data_generation_pipeline_route",
+    "shell_terminal_guard_route",
     "operator_integration_receipt_packaging"
   ],
   "workflow_composition": {
@@ -73,7 +82,12 @@
       "sandbox_worktree_isolation",
       "operator_command_surface_projection",
       "external_update_editor_auth_boundary",
-      "schema_data_generation_pipeline"
+      "schema_data_generation_pipeline",
+      "local_coding_shell_terminal_guard",
+      "zsh_terminal_context_capture",
+      "zsh_command_dispatcher",
+      "zsh_completion_buffer_projection",
+      "zsh_environment_doctor"
     ]
   },
   "final_response_policy": "control_plane_packaged_response",
@@ -128,12 +142,14 @@
       "sandbox_worktree_isolation_route->operator_command_surface_projection_route",
       "operator_command_surface_projection_route->external_update_editor_auth_boundary_route",
       "external_update_editor_auth_boundary_route->schema_data_generation_pipeline_route",
-      "schema_data_generation_pipeline_route->operator_integration_receipt_packaging",
+      "schema_data_generation_pipeline_route->shell_terminal_guard_route",
+      "shell_terminal_guard_route->operator_integration_receipt_packaging",
       "operator_integration_receipt_packaging->completed",
       "sandbox_worktree_isolation_route->blocked",
       "operator_command_surface_projection_route->blocked",
       "external_update_editor_auth_boundary_route->needs_input",
-      "schema_data_generation_pipeline_route->failed"
+      "schema_data_generation_pipeline_route->failed",
+      "shell_terminal_guard_route->blocked"
     ],
     "timeout_ms": 300000,
     "retry_policy": {
@@ -178,13 +194,15 @@
       "sandbox_worktree_isolation",
       "operator_command_surface_projection",
       "external_update_editor_auth_boundary",
-      "schema_data_generation_pipeline"
+      "schema_data_generation_pipeline",
+      "local_coding_shell_terminal_guard"
     ],
     "required_receipts": [
       "sandbox_worktree_receipt",
       "operator_command_surface_receipt",
       "external_update_editor_auth_receipt",
       "schema_data_generation_receipt",
+      "shell_terminal_guard_receipt",
       "operator_action_approval_receipt"
     ],
     "activation_policy": "local coding workflows must route sandbox worktree setup, command-surface projection, update/editor/auth boundaries, and schema data generation through this guard when those operator integrations are relevant; local file mutation and validation must still use local safety primitives",
@@ -194,6 +212,7 @@
       "external_action_requires_user_confirmation",
       "oauth_or_provider_secret_boundary_failed",
       "data_generation_provider_or_schema_failed",
+      "shell_terminal_integration_blocked",
       "operator_integration_would_replace_required_local_safety_receipts"
     ],
     "non_goals": [

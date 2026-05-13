@@ -94,6 +94,7 @@ Top-level source areas:
 | `FC-A13` | Extract pre-runtime session bootstrap semantics | active | Session-layer contract pass added for provider/model binding, conversation bootstrap, terminal command snapshots, external file-change notices, title/commit helpers, and the `local_coding_session_bootstrap_guard` composite. |
 | `FC-A14` | Extract remote workspace, semantic search, provider transport, and auth service boundaries | active | Remote-service contract pass added for workspace auth, sync/indexing, semantic search, provider transport, and the `local_coding_remote_service_guard` composite. |
 | `FC-A15` | Extract sandbox, command surface, update/editor/auth, and data-generation operator integrations | active | Operator-integration contract pass added for git worktree sandboxing, command projection, update/editor/OAuth boundaries, schema data generation, and the `local_coding_operator_integration_guard` composite. |
+| `FC-A16` | Extract zsh shell-plugin terminal integration semantics | active | Shell-terminal contract pass added for preexec/precmd terminal context capture, colon-command dispatch, completion/buffer projection, environment diagnostics, and the `local_coding_shell_terminal_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -160,6 +161,11 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `external_update_editor_auth_boundary` | 0 | `forge_main/update`, `forge_main/vscode`, `forge_main/oauth_callback` | lab contract created | Keeps updates, VS Code extension setup, and localhost OAuth callback handling behind explicit operator boundaries and secret-redaction receipts. |
 | `schema_data_generation_pipeline` | 0 | `forge_app/data_gen` | lab contract created | Resolves schema/system/user/input files, parses JSONL, binds output tool schema, runs concurrent provider generation, and emits input/output JSON stream receipts. |
 | `local_coding_operator_integration_guard` | 1 | `forge_main` operator helpers and `forge_app/data_gen` | lab contract created | Composite guard that isolates sandboxing, command projection, update/editor/auth, and schema data-generation behavior from local file mutation and validation. |
+| `zsh_terminal_context_capture` | 0 | `shell-plugin/lib/context.zsh`, `shell-plugin/lib/config.zsh`, `shell-plugin/lib/helpers.zsh` | lab contract created | Captures preexec/precmd command metadata, OSC 133 markers, bounded ring buffers, and unit-separator child-process exports for terminal context. |
+| `zsh_command_dispatcher` | 0 | `shell-plugin/lib/dispatcher.zsh`, `shell-plugin/lib/actions/*` | lab contract created | Parses colon commands, resolves aliases and command types, manages active agent/conversation ids, and routes buffer-projection actions without pretending execution happened. |
+| `zsh_completion_buffer_projection` | 0 | `shell-plugin/lib/completion.zsh`, `shell-plugin/lib/bindings.zsh`, `shell-plugin/lib/highlight.zsh` | lab contract created | Projects @file completion, colon-command completion, bracketed-paste formatting, keybindings, and syntax highlighting into explicit buffer receipts. |
+| `zsh_environment_doctor` | 0 | `shell-plugin/doctor.zsh`, `shell-plugin/keyboard.zsh`, `shell-plugin/forge.setup.zsh` | lab contract created | Diagnoses zsh/plugin/dependency/theme/keyboard/font readiness without mutating shell config. |
+| `local_coding_shell_terminal_guard` | 1 | `shell-plugin` modules | lab contract created | Composite guard that isolates shell-terminal integration from local file mutation, validation, and command execution. |
 
 ## Runtime behavior harnesses created
 
@@ -175,7 +181,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | ingress/session/remote-service/operator-integration/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_coding_operator_integration_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | ingress/session/remote-service/operator-integration/shell-terminal/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_coding_operator_integration_guard`, nested `local_coding_shell_terminal_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -241,10 +247,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, shell-terminal integration, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
 
 Next source pass:
-- Run a full source-inventory parity review against remaining ForgeCode source families, especially shell plugin behavior, embedded templates, docs/plans, scripts, and CI/release surfaces, then shift from structural assimilation to executable eval coverage.
+- Run a full source-inventory parity review against remaining ForgeCode source families, especially embedded templates, docs/plans, scripts, `.forge` configuration fixtures, and CI/release surfaces, then shift from structural assimilation to executable eval coverage.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -534,3 +540,39 @@ Operator-integration parity requirements extracted:
 | Resolve data-generation files relative to cwd and parse JSONL one record per line | `schema_data_generation_pipeline` | P0 |
 | Bind schema output through an explicit output tool and emit `{input, output}` JSON records | `schema_data_generation_pipeline` | P0 |
 | Keep sandboxing, command projection, external setup, auth callbacks, and data generation separate from local file mutation and validation | `local_coding_operator_integration_guard` | P0 |
+
+## Twelfth source pass: zsh shell-plugin terminal integration behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `shell-plugin/forge.plugin.zsh` | Sources config, highlighting, helpers, terminal context capture, completion, action handlers, dispatcher, and bindings as one modular plugin. | Shell integration should be a composite guard rather than a single ingress rule. |
+| `shell-plugin/forge.setup.zsh` | Adds zsh autosuggestions and syntax-highlighting plugins when missing, loads Forge plugin and theme only when not already loaded, and marks the block as managed. | Setup behavior should remain outside normal coding execution and be approval/update owned. |
+| `shell-plugin/lib/config.zsh` | Defines hidden plugin variables, session model/provider/reasoning overrides, terminal context switches, ring-buffer arrays, max command count, delimiter, preview window, and bat/cat fallback. | Shell state needs explicit scoped receipts so session overrides and terminal metadata do not leak globally. |
+| `shell-plugin/lib/context.zsh` | Uses preexec/precmd hooks, OSC 133 markers, conservative terminal support detection, command/exit/timestamp ring buffers, and max-buffer trimming. | Terminal context capture should be a primitive feeding session bootstrap/user prompt context without replacing safe repo reads. |
+| `shell-plugin/lib/helpers.zsh` | Lazily loads command lists, wraps fzf options, executes Forge child processes with active agent and scoped terminal env vars, redirects interactive invocations through `/dev/tty`, and starts background sync/update checks. | Forge child-process invocation is a shell-terminal boundary with explicit environment export and background job receipts. |
+| `shell-plugin/lib/dispatcher.zsh` | Parses `:command` buffers, handles `: prompt` default route, stores original history, maps aliases, dispatches built-ins/custom commands/agent selection, generates conversation ids, and resets ZLE buffers. | Colon-command dispatch should be measurable and distinct from executing generated shell commands or coding work. |
+| `shell-plugin/lib/completion.zsh` | Handles `@` file completion through `forge list files --porcelain` and fzf previews, wraps selections as `@[path]`, completes colon commands from a lazily cached command list, and falls back to default completion otherwise. | Completion is buffer projection; selected files still need downstream safe read receipts before editing. |
+| `shell-plugin/lib/bindings.zsh` | Registers ZLE widgets, maps Enter to Forge accept-line, Tab to Forge completion, and formats bracketed paste through `forge zsh format` only for Forge colon buffers. | Keybindings and paste formatting need UI/buffer receipts and must not mangle ordinary shell commands. |
+| `shell-plugin/lib/highlight.zsh` | Adds syntax highlighting patterns for `@[...]`, colon command names, and command arguments. | Highlighting is display projection, not execution state. |
+| `shell-plugin/lib/actions/core.zsh` | Handles new/info/dump/compact/retry/help, requires active conversation for conversation commands, and starts background sync/update after interactive prompts. | Conversation-aware shell commands need stop conditions for missing conversation and background-job boundaries. |
+| `shell-plugin/lib/actions/git.zsh` | Generates commit messages, and commit-preview writes a `git commit` command into the shell buffer based on staged-state strategy instead of executing it immediately. | Git helper projection belongs behind operator boundaries and should not be treated as unapproved git mutation. |
+| `shell-plugin/lib/actions/editor.zsh` | Opens an editor from `FORGE_EDITOR`, `EDITOR`, then `nano`, writes `.forge/FORGE_EDITMSG.md`, cleans up on exit, and projects edited content back into `: prompt` buffer. | External editor composition is an operator action with buffer projection and cleanup receipts. |
+| `shell-plugin/lib/actions/auth.zsh` | Selects providers through fzf and routes login/logout through interactive or non-interactive Forge provider commands. | Auth actions must remain behind external auth boundaries and secret-redaction receipts. |
+| `shell-plugin/doctor.zsh` | Checks zsh, terminal, Forge binary, plugin load, load order, theme, fzf/fd/bat dependency versions, zsh plugins, editor config, PATH, keyboard meta settings, and font support; exits nonzero only for failures. | Environment diagnostics are a primitive guard, not proof that coding execution works. |
+| `shell-plugin/keyboard.zsh` | Renders platform and keymap-specific ZLE shortcuts, detecting macOS/Linux/Windows and vi/emacs mode. | Keyboard guidance belongs to shell diagnostics and operator display. |
+
+Shell-terminal parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Capture terminal command text, timestamps, and exit codes through zsh preexec/precmd hooks | `zsh_terminal_context_capture` | P0 |
+| Emit OSC 133 markers only when explicitly enabled or conservatively detected as supported | `zsh_terminal_context_capture` | P0 |
+| Export terminal context to child Forge invocations using ASCII unit separator env vars only for that process | `zsh_terminal_context_capture` | P0 |
+| Parse colon commands, support `: prompt`, aliases, active-agent selection, custom commands, and conversation id generation | `zsh_command_dispatcher` | P0 |
+| Keep commit-preview, suggest, and editor composition as buffer projection routes before execution | `zsh_command_dispatcher`, `zsh_completion_buffer_projection` | P0 |
+| Complete `@` file references and colon commands through fzf-backed projection without treating selection as safe file read | `zsh_completion_buffer_projection` | P0 |
+| Format bracketed paste only for Forge colon buffers and leave normal shell commands alone | `zsh_completion_buffer_projection` | P0 |
+| Diagnose zsh/plugin/dependency/theme/keyboard/font readiness with pass/warn/fail receipts | `zsh_environment_doctor` | P0 |
+| Keep shell-terminal integration separate from coding, validation, git mutation, and auth side effects | `local_coding_shell_terminal_guard` | P0 |

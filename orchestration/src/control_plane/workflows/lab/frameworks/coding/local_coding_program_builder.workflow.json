@@ -193,6 +193,11 @@
       "operator_command_surface_projection",
       "external_update_editor_auth_boundary",
       "schema_data_generation_pipeline",
+      "local_coding_shell_terminal_guard",
+      "zsh_terminal_context_capture",
+      "zsh_command_dispatcher",
+      "zsh_completion_buffer_projection",
+      "zsh_environment_doctor",
       "local_policy_permission_guard",
       "forge_config_resolution",
       "operation_permission_gate",
@@ -572,14 +577,16 @@
         "sandbox_worktree_isolation",
         "operator_command_surface_projection",
         "external_update_editor_auth_boundary",
-        "schema_data_generation_pipeline"
+        "schema_data_generation_pipeline",
+        "local_coding_shell_terminal_guard"
       ],
-      "activation_policy": "local coding tasks must route sandbox worktree setup, command-surface projection, update/editor/auth callbacks, and schema data generation through ForgeCode-style operator integration boundaries when those features are relevant, while local file mutation and validation remain owned by local safety primitives",
+      "activation_policy": "local coding tasks must route sandbox worktree setup, command-surface projection, update/editor/auth callbacks, schema data generation, and shell-terminal integration through ForgeCode-style operator integration boundaries when those features are relevant, while local file mutation and validation remain owned by local safety primitives",
       "required_receipts": [
         "sandbox_worktree_receipt",
         "operator_command_surface_receipt",
         "external_update_editor_auth_receipt",
         "schema_data_generation_receipt",
+        "shell_terminal_guard_receipt",
         "operator_action_approval_receipt"
       ],
       "non_goals": [
@@ -587,6 +594,7 @@
         "do_not_install_update_or_editor_extension_without_confirmation",
         "do_not_bind_non_loopback_oauth_callbacks",
         "do_not_treat_schema_data_generation_as_code_validation",
+        "do_not_treat_shell_completion_or_buffer_projection_as_execution",
         "do_not_store_or_emit_operator_secrets"
       ]
     },

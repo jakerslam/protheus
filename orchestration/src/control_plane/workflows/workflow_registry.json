@@ -517,6 +517,97 @@
       ]
     },
     {
+      "workflow_id": "zsh_terminal_context_capture",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_shell_terminal_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_shell/zsh_terminal_context_capture.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "preexec_precmd_ring_buffer_capture",
+        "osc133_auto_detection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_shell_terminal_layer_parity_reviewed",
+        "terminal_context_capture_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "zsh_command_dispatcher",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_shell_terminal_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_shell/zsh_command_dispatcher.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "colon_command_dispatch",
+        "buffer_projection_stops_before_execution"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_shell_terminal_layer_parity_reviewed",
+        "zsh_command_dispatcher_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "zsh_completion_buffer_projection",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_shell_terminal_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_shell/zsh_completion_buffer_projection.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "at_file_completion_wraps_selection",
+        "colon_command_completion_projection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_shell_terminal_layer_parity_reviewed",
+        "zsh_completion_buffer_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "zsh_environment_doctor",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_shell_terminal_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_shell/zsh_environment_doctor.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "dependency_diagnostics",
+        "keyboard_meta_guidance"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_shell_terminal_layer_parity_reviewed",
+        "zsh_environment_doctor_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_coding_shell_terminal_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_shell_terminal_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_coding_shell_terminal_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "shell_terminal_context_before_prompt",
+        "shell_buffer_projection_never_executes_directly"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_shell_terminal_layer_parity_reviewed",
+        "shell_terminal_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "repo_context_assessment",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_safety_layer",

@@ -1,0 +1,245 @@
+{
+  "name": "zsh_completion_buffer_projection",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for zsh file/command completion, syntax highlighting, bracketed paste formatting, and buffer projection.",
+  "stages": [
+    "completion_context_classification",
+    "file_reference_completion_route",
+    "command_completion_route",
+    "bracketed_paste_format_route",
+    "syntax_highlight_projection",
+    "buffer_projection_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "zsh_completion_buffer_projection_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "completion_route",
+      "selected_value_status",
+      "buffer_projection_status",
+      "highlight_status",
+      "completion_stop_or_continue"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "project safe command/file completions into the zsh buffer",
+      "scope_boundary": "do not execute selected commands or read pasted files as task context without downstream safe-read receipts",
+      "validation_calibration": "report buffer projection separately from execution",
+      "visibility": "avoid exposing full file lists beyond selected completion receipts"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact shell completion and buffer-projection receipts.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_execute_buffer_projection",
+      "do_not_treat_file_selection_as_safe_file_read",
+      "do_not_mangle_non_forge_shell_commands"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "completion_context_classification->file_reference_completion_route",
+      "file_reference_completion_route->command_completion_route",
+      "command_completion_route->bracketed_paste_format_route",
+      "bracketed_paste_format_route->syntax_highlight_projection",
+      "syntax_highlight_projection->buffer_projection_receipt_packaging",
+      "buffer_projection_receipt_packaging->completed",
+      "completion_context_classification->completed",
+      "file_reference_completion_route->blocked",
+      "command_completion_route->blocked",
+      "bracketed_paste_format_route->failed"
+    ],
+    "timeout_ms": 60000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 6,
+      "max_model_turns": 1,
+      "max_tool_calls": 4,
+      "token_budget": 5000,
+      "loop_signature_detector": "zsh_completion_buffer_projection_v1"
+    }
+  },
+  "shell_terminal_primitive_contract": {
+    "version": "zsh_completion_buffer_projection_v1",
+    "source_evidence": [
+      "shell-plugin/lib/completion.zsh",
+      "shell-plugin/lib/bindings.zsh",
+      "shell-plugin/lib/highlight.zsh"
+    ],
+    "required_behaviors": [
+      "bind_enter_to_forge_accept_line_for_colon_commands",
+      "bind_tab_to_forge_completion_for_file_and_command_completion",
+      "complete_at_prefixed_file_references_from_forge_list_files_porcelain",
+      "wrap_selected_file_paths_as_at_bracket_references",
+      "preview_completion_candidates_with_bat_when_available_otherwise_cat",
+      "complete_colon_commands_from_lazily_loaded_command_cache",
+      "delegate_unknown_completion_contexts_to_default_expand_or_complete",
+      "format_bracketed_paste_only_when_buffer_starts_with_colon",
+      "delegate_paste_path_formatting_to_forge_zsh_format",
+      "highlight_at_bracket_file_references_and_colon_command_segments"
+    ],
+    "output_receipts": [
+      "keybinding_registration_receipt",
+      "file_completion_receipt",
+      "command_completion_receipt",
+      "bracketed_paste_format_receipt",
+      "syntax_highlight_receipt"
+    ],
+    "stop_conditions": [
+      "fzf_unavailable",
+      "forge_list_files_failed",
+      "command_cache_unavailable",
+      "buffer_format_failed"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "buffer_projection_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace"
+    ]
+  }
+}
