@@ -1,0 +1,297 @@
+{
+  "name": "local_coding_session_bootstrap_guard",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "composite",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [
+      {
+        "capability": "agent_provider_model_binding",
+        "workflow_id": "agent_provider_model_binding",
+        "input_contract": "agent_provider_model_binding_input_envelope_v1",
+        "output_artifact": "agent_provider_model_binding_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "conversation_session_bootstrap",
+        "workflow_id": "conversation_session_bootstrap",
+        "input_contract": "conversation_session_bootstrap_input_envelope_v1",
+        "output_artifact": "conversation_session_bootstrap_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "terminal_command_context_snapshot",
+        "workflow_id": "terminal_command_context_snapshot",
+        "input_contract": "terminal_command_context_snapshot_input_envelope_v1",
+        "output_artifact": "terminal_command_context_snapshot_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "external_file_change_notice",
+        "workflow_id": "external_file_change_notice",
+        "input_contract": "external_file_change_notice_input_envelope_v1",
+        "output_artifact": "external_file_change_notice_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "title_commit_helper_generation",
+        "workflow_id": "title_commit_helper_generation",
+        "input_contract": "title_commit_helper_generation_input_envelope_v1",
+        "output_artifact": "title_commit_helper_generation_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      }
+    ],
+    "non_goals": [
+      "do_not_execute_runtime_loop",
+      "do_not_apply_permission_policy",
+      "do_not_mutate_local_files",
+      "do_not_commit_without_parent_approval"
+    ]
+  },
+  "default": false,
+  "description": "Composite ForgeCode-derived session bootstrap guard for local coding: bind agent/provider/model, initialize conversation state, snapshot terminal context, detect external file changes, and prepare title/commit helper routes before policy, tooling, runtime, planning, or coding.",
+  "stages": [
+    "session_bootstrap_input_collection",
+    "agent_provider_model_binding",
+    "conversation_session_bootstrap",
+    "terminal_command_context_snapshot",
+    "external_file_change_notice",
+    "title_commit_helper_route_projection",
+    "session_bootstrap_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 1,
+    "composed_of_workflow_ids": [
+      "agent_provider_model_binding",
+      "conversation_session_bootstrap",
+      "terminal_command_context_snapshot",
+      "external_file_change_notice",
+      "title_commit_helper_generation"
+    ]
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_coding_session_bootstrap_guard_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "agent_provider_model_status",
+      "conversation_bootstrap_status",
+      "terminal_context_status",
+      "external_file_change_status",
+      "title_commit_helper_status",
+      "session_bootstrap_stop_or_continue"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "prepare runtime-ready session state before local coding execution begins",
+      "scope_boundary": "do not choose architecture, run validation, write code, execute generated commands, or commit git state",
+      "validation_calibration": "report session readiness receipts without claiming coding success",
+      "visibility": "do not expose credentials, raw terminal history, raw diffs, or hidden conversation internals"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Emit compact session bootstrap observations for local coding runs before policy, context, tooling, runtime, planning, and code-edit layers.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_store_credentials_or_raw_history",
+      "do_not_hide_external_file_changes",
+      "do_not_store_raw_diff_payloads",
+      "do_not_mutate_files"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "session_bootstrap_input_collection->agent_provider_model_binding",
+      "agent_provider_model_binding->conversation_session_bootstrap",
+      "conversation_session_bootstrap->terminal_command_context_snapshot",
+      "terminal_command_context_snapshot->external_file_change_notice",
+      "external_file_change_notice->title_commit_helper_route_projection",
+      "title_commit_helper_route_projection->session_bootstrap_receipt_packaging",
+      "session_bootstrap_receipt_packaging->completed",
+      "agent_provider_model_binding->blocked",
+      "conversation_session_bootstrap->blocked",
+      "external_file_change_notice->blocked",
+      "title_commit_helper_route_projection->needs_input"
+    ],
+    "timeout_ms": 90000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 12,
+      "max_model_turns": 2,
+      "max_tool_calls": 12,
+      "token_budget": 14000,
+      "loop_signature_detector": "local_coding_session_bootstrap_guard_v1"
+    }
+  },
+  "session_bootstrap_guard_contract": {
+    "version": "local_coding_session_bootstrap_guard_v1",
+    "source": "forgecode_assimilated_session_layer",
+    "required_primitive_workflow_ids": [
+      "agent_provider_model_binding",
+      "conversation_session_bootstrap",
+      "terminal_command_context_snapshot",
+      "external_file_change_notice",
+      "title_commit_helper_generation"
+    ],
+    "required_receipts": [
+      "agent_provider_model_binding_receipt",
+      "conversation_session_bootstrap_receipt",
+      "terminal_context_receipt",
+      "external_file_change_receipt",
+      "title_commit_helper_receipt",
+      "session_bootstrap_route_receipt"
+    ],
+    "activation_policy": "local coding workflows must bind agent/provider/model, initialize conversation state, snapshot terminal context, detect external file changes, and route title/commit helpers before permission, context, tooling, runtime, planning, or local code-edit execution",
+    "stop_or_route_conditions": [
+      "no_default_session_config",
+      "provider_requires_login",
+      "conversation_context_unloadable",
+      "external_change_invalidates_current_checkpoint",
+      "commit_helper_requires_external_visible_approval"
+    ],
+    "non_goals": [
+      "do_not_execute_generated_commands",
+      "do_not_choose_product_architecture",
+      "do_not_apply_operation_permissions",
+      "do_not_mutate_files_or_git_state"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "session_bootstrap_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  }
+}

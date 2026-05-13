@@ -34,6 +34,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "session_bootstrap_guard",
+        "workflow_id": "local_coding_session_bootstrap_guard",
+        "input_contract": "local_coding_session_bootstrap_guard_input_envelope_v1",
+        "output_artifact": "local_coding_session_bootstrap_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "policy_permission_guard",
         "workflow_id": "local_policy_permission_guard",
         "input_contract": "local_policy_permission_guard_input_envelope_v1",
@@ -125,6 +133,7 @@
   "stages": [
     "intake_normalization",
     "coding_ingress_guard_initialization",
+    "session_bootstrap_guard_initialization",
     "policy_permission_guard_initialization",
     "context_and_tool_guard_initialization",
     "tooling_surface_guard_initialization",
@@ -150,6 +159,12 @@
       "interactive_input_session_state",
       "command_prompt_generation",
       "user_prompt_context_assembly",
+      "local_coding_session_bootstrap_guard",
+      "agent_provider_model_binding",
+      "conversation_session_bootstrap",
+      "terminal_command_context_snapshot",
+      "external_file_change_notice",
+      "title_commit_helper_generation",
       "local_policy_permission_guard",
       "forge_config_resolution",
       "operation_permission_gate",
@@ -240,7 +255,8 @@
     "input_kind": "multiple_choice_or_text_input",
     "allowed_transitions": [
       "intake_normalization->coding_ingress_guard_initialization",
-      "coding_ingress_guard_initialization->policy_permission_guard_initialization",
+      "coding_ingress_guard_initialization->session_bootstrap_guard_initialization",
+      "session_bootstrap_guard_initialization->policy_permission_guard_initialization",
       "policy_permission_guard_initialization->context_and_tool_guard_initialization",
       "context_and_tool_guard_initialization->checkpoint_definition",
       "context_and_tool_guard_initialization->tooling_surface_guard_initialization",
@@ -263,6 +279,8 @@
       "verification_closure->completed",
       "coding_ingress_guard_initialization->blocked",
       "coding_ingress_guard_initialization->failed",
+      "session_bootstrap_guard_initialization->blocked",
+      "session_bootstrap_guard_initialization->failed",
       "policy_permission_guard_initialization->blocked",
       "context_and_tool_guard_initialization->blocked",
       "tooling_surface_guard_initialization->blocked",
@@ -463,6 +481,32 @@
         "do_not_mutate_files_inside_ingress"
       ]
     },
+    "session_bootstrap_guard_contract": {
+      "source": "forgecode_assimilated_session_layer",
+      "required_composite_workflow_id": "local_coding_session_bootstrap_guard",
+      "required_primitive_workflow_ids": [
+        "agent_provider_model_binding",
+        "conversation_session_bootstrap",
+        "terminal_command_context_snapshot",
+        "external_file_change_notice",
+        "title_commit_helper_generation"
+      ],
+      "activation_policy": "local coding tasks must bind provider/model, initialize conversation state, snapshot terminal context, detect external file changes, and route title/commit helper behavior before permission, context, tooling, runtime, planning, or local code-edit execution",
+      "required_receipts": [
+        "agent_provider_model_binding_receipt",
+        "conversation_session_bootstrap_receipt",
+        "terminal_context_receipt",
+        "external_file_change_receipt",
+        "title_commit_helper_receipt",
+        "session_bootstrap_route_receipt"
+      ],
+      "non_goals": [
+        "do_not_start_runtime_loop_inside_session_bootstrap",
+        "do_not_choose_architecture_inside_session_bootstrap",
+        "do_not_apply_permission_policy_inside_session_bootstrap",
+        "do_not_mutate_files_or_git_state_inside_session_bootstrap"
+      ]
+    },
     "context_loop_guard_contract": {
       "source": "forgecode_assimilated_context_layer",
       "required_composite_workflow_id": "local_context_loop_guard",
@@ -634,6 +678,7 @@
     "required_state_fields": [
       "checkpoint",
       "ingress_context",
+      "session_bootstrap",
       "architecture_contract",
       "completed_slices",
       "active_slice",

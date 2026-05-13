@@ -98,6 +98,12 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "interactive_input_session_state",
         "command_prompt_generation",
         "user_prompt_context_assembly",
+        "local_coding_session_bootstrap_guard",
+        "agent_provider_model_binding",
+        "conversation_session_bootstrap",
+        "terminal_command_context_snapshot",
+        "external_file_change_notice",
+        "title_commit_helper_generation",
         "local_policy_permission_guard",
         "forge_config_resolution",
         "operation_permission_gate",
@@ -166,7 +172,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(12)
+        Some(13)
     );
 
     let contract = source
@@ -181,6 +187,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "project_initialization_policy",
         "architecture_contract_policy",
         "coding_ingress_guard_contract",
+        "session_bootstrap_guard_contract",
         "runtime_execution_loop_contract",
         "runtime_observability_guard_contract",
         "slice_policy",
@@ -270,6 +277,10 @@ fn local_coding_program_builder_lab_execution_harness_emits_coding_task_plans() 
             .slice_invocations
             .iter()
             .any(|slice| slice.child_workflow_id == "local_coding_ingress_guard"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "local_coding_session_bootstrap_guard"));
         assert!(execution
             .slice_invocations
             .iter()

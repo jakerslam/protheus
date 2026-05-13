@@ -91,6 +91,7 @@ Top-level source areas:
 | `FC-A10` | Extract live runtime loop semantics | active | Runtime-layer contract pass added for request transforms, retry streaming, tool dispatch, lifecycle hooks, conversation persistence, and the `local_runtime_execution_loop` composite. |
 | `FC-A11` | Extract user-visible output and observability semantics | active | Observability-layer contract pass added for ChatResponse visibility routing, streaming markdown projection, tool output formatting, trace rate limiting, and the `local_runtime_observability_guard` composite. |
 | `FC-A12` | Extract CLI, session, command, and user-prompt ingress semantics | active | Ingress-layer contract pass added for CLI prompt/piped input normalization, interactive session state, command prompt generation, user prompt context assembly, and the `local_coding_ingress_guard` composite. |
+| `FC-A13` | Extract pre-runtime session bootstrap semantics | active | Session-layer contract pass added for provider/model binding, conversation bootstrap, terminal command snapshots, external file-change notices, title/commit helpers, and the `local_coding_session_bootstrap_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -141,6 +142,12 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `command_prompt_generation` | 0 | `forge_app/command_generator`, `forge-command-generator-prompt.md`, `forge-commit-message-prompt.md`, `commands/github-pr-description.md` | lab contract created | Generates command-route prompt artifacts with environment/file snapshots, suggest model config, terminal trace projection, JSON schema responses, and command templates without executing side effects. |
 | `user_prompt_context_assembly` | 0 | `forge_app/user_prompt`, terminal context, prompt templates | lab contract created | Builds task/feedback user prompt context, command-expanded events, terminal context, droppable piped input, resume todos, attachments, and file-read metrics. |
 | `local_coding_ingress_guard` | 1 | `forge_main`, `forge_app/user_prompt`, `forge_app/command_generator`, templates, commands | lab contract created | Composite guard that wires CLI/session ingress, interactive state, command prompt generation, and user prompt context assembly before policy, tooling, runtime, planning, or coding. |
+| `agent_provider_model_binding` | 0 | `forge_app/agent_provider_resolver`, `forge_app/services`, `forge_app/git_app` | lab contract created | Binds requested or active agents to provider/model pairs with default-session fallback and credential-refresh routing before runtime calls. |
+| `conversation_session_bootstrap` | 0 | `forge_app/set_conversation_id`, `forge_app/init_conversation_metrics`, `forge_app/apply_tunable_parameters` | lab contract created | Sets conversation id, starts metrics, applies agent tunables and reasoning, and attaches resolved tool definitions to context. |
+| `terminal_command_context_snapshot` | 0 | `forge_app/terminal_context` | lab contract created | Reads zsh-exported terminal command traces from unit-separator environment variables, pads missing metadata, and sorts by timestamp. |
+| `external_file_change_notice` | 0 | `forge_app/changed_files`, `forge_app/file_tracking` | lab contract created | Rechecks tracked file hashes, reports unreadable/changed files, updates metrics, and injects droppable re-read notices. |
+| `title_commit_helper_generation` | 0 | `forge_app/title_generator`, `forge_app/git_app`, title and commit templates | lab contract created | Generates title/commit helper artifacts with schema fallback, git diff selection, commit provider fallback, retryable empty messages, and explicit commit-approval envelopes. |
+| `local_coding_session_bootstrap_guard` | 1 | `forge_app` session/bootstrap helpers, terminal context, changed files, title/commit helpers | lab contract created | Composite guard that prepares provider/model, conversation, terminal, external-change, and helper-route state before policy, tooling, runtime, planning, or coding. |
 
 ## Runtime behavior harnesses created
 
@@ -156,7 +163,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | ingress/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | ingress/session/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -222,10 +229,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
 
 Next source pass:
-- Inspect ForgeCode initialization services, changed-file notices, terminal context, and title/commit helpers for remaining pre-runtime parity gaps.
+- Inspect ForgeCode workspace sync, semantic search, OAuth/provider auth, and remote service boundaries for remaining parity gaps that may belong outside the primitive coding workflow.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -415,3 +422,36 @@ Ingress-layer parity requirements extracted:
 | Generate command-route prompts and shell suggestions without executing generated commands | `command_prompt_generation` | P0 |
 | Prefer suggest config over default session config for shell command generation | `command_prompt_generation` | P1 |
 | Keep ingress separate from policy permission, architecture planning, local file mutation, validation, and runtime loop execution | `local_coding_ingress_guard` | P0 |
+
+## Ninth source pass: pre-runtime session bootstrap behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_app/src/agent_provider_resolver.rs` | Resolves provider/model from requested agent when available, otherwise falls back to session defaults, and errors when no default session exists. | Runtime-ready coding must bind provider/model before planning or chat execution can be considered coherent. |
+| `crates/forge_app/src/set_conversation_id.rs` | Copies the conversation id into context so downstream runtime calls are conversation-aware. | Conversation id projection should be a bootstrap receipt, not an incidental side effect. |
+| `crates/forge_app/src/init_conversation_metrics.rs` | Sets `metrics.started_at` from local current time converted to UTC. | Session bootstrapping should record a start-time receipt before runtime execution. |
+| `crates/forge_app/src/apply_tunable_parameters.rs` | Applies optional agent temperature, top-p, top-k, max tokens, reasoning, and resolved tool definitions to context. | Agent tunables and tool definitions need explicit projection before provider calls. |
+| `crates/forge_app/src/terminal_context.rs` | Reads `_FORGE_TERM_COMMANDS`, `_FORGE_TERM_EXIT_CODES`, and `_FORGE_TERM_TIMESTAMPS`; splits on ASCII unit separator, pads missing metadata with zero, and sorts by timestamp. | Terminal command context should be a reusable primitive because both user prompt assembly and command generation draw on it. |
+| `crates/forge_app/src/file_tracking.rs` | Rechecks tracked file hashes from raw full file content, handles unreadable files as `None`, buffers reads by configured parallelism, and sorts changes by path. | External changes need deterministic, receipt-backed detection before the agent acts on stale file state. |
+| `crates/forge_app/src/changed_files.rs` | Updates stored hashes after notification, renders cwd-relative changed paths, and adds a droppable user warning telling the agent to re-read relevant files. | The coding workflow should surface external edits as context, not silently continue with stale assumptions. |
+| `crates/forge_app/src/title_generator.rs` | Generates title JSON through a title template, wraps the user prompt, uses temperature 1.0 and a fresh conversation id, and falls back to trimmed plain text when JSON parsing fails. | Title generation belongs in helper/session support and should not contaminate coding receipts. |
+| `crates/forge_app/src/git_app.rs` | Generates commit messages from piped, staged, or unstaged diffs; collects recent commits and branch; truncates diffs at char boundaries; prefers commit config then active agent; retries empty messages; and commits with ForgeCode committer metadata when explicitly called. | Git helpers require a separate contract because commit generation is safe-ish but commit execution is externally visible and must remain approval-gated. |
+| `crates/forge_app/src/workspace_status.rs` | Compares absolute local and remote file hashes and derives new, modified, deleted, and in-sync paths. | Workspace sync appears to be a separate remote-service layer, not part of the primitive local coding loop yet. |
+| `crates/forge_app/src/services.rs` | Defines service boundaries for providers, app config, MCP, conversations, templates, attachments, workspace sync, and related infra. | Remaining assimilation should distinguish local coding primitives from remote workspace/provider/service boundaries. |
+
+Session-layer parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Bind provider/model from requested agent or default session before runtime execution | `agent_provider_model_binding` | P0 |
+| Record missing default session, unavailable provider, and credential refresh requirements as blockers | `agent_provider_model_binding` | P0 |
+| Set conversation id and start metrics before chat/runtime loops | `conversation_session_bootstrap` | P0 |
+| Apply optional agent tunables, reasoning, max tokens, and tool definitions to context | `conversation_session_bootstrap` | P0 |
+| Snapshot terminal command context using unit-separator env vars with metadata padding and timestamp sorting | `terminal_command_context_snapshot` | P0 |
+| Detect externally changed tracked files by raw content hash before acting on stale context | `external_file_change_notice` | P0 |
+| Inject droppable re-read notices and update stored hashes to avoid duplicate warnings | `external_file_change_notice` | P0 |
+| Keep title and commit helper generation separate from coding, validation, and git mutation | `title_commit_helper_generation` | P1 |
+| Require explicit parent approval before any commit helper mutates git state | `title_commit_helper_generation` | P0 |
+| Keep session bootstrap separate from ingress, permission policy, architecture planning, local file mutation, validation, and runtime loop execution | `local_coding_session_bootstrap_guard` | P0 |

@@ -112,6 +112,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         expected_checkpoint: "single_file_utility_mvp",
         planned_slices: &[
             "coding_ingress_guard_initialization",
+            "session_bootstrap_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "single_file_local_code_execution",
@@ -119,6 +120,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         ],
         required_child_capabilities: &[
             "coding_ingress_guard",
+            "session_bootstrap_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -139,6 +141,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         expected_checkpoint: "bounded_multi_file_app_mvp",
         planned_slices: &[
             "coding_ingress_guard_initialization",
+            "session_bootstrap_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "domain_model_slice",
@@ -149,6 +152,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         required_child_capabilities: &[
             "research_context",
             "coding_ingress_guard",
+            "session_bootstrap_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -169,6 +173,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         expected_checkpoint: "existing_project_increment",
         planned_slices: &[
             "coding_ingress_guard_initialization",
+            "session_bootstrap_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "targeted_feature_slice",
@@ -177,6 +182,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
         ],
         required_child_capabilities: &[
             "coding_ingress_guard",
+            "session_bootstrap_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -394,6 +400,15 @@ fn task_execution(
     {
         failures.push(format!(
             "missing_local_coding_ingress_guard_slice:{}",
+            scenario.id
+        ));
+    }
+    if !slice_invocations
+        .iter()
+        .any(|slice| slice.child_workflow_id == "local_coding_session_bootstrap_guard")
+    {
+        failures.push(format!(
+            "missing_local_coding_session_bootstrap_guard_slice:{}",
             scenario.id
         ));
     }
@@ -667,6 +682,11 @@ fn slices_for_scenario(
         "coding_ingress_guard",
         "local_coding_ingress_guard",
     );
+    let session_bootstrap_guard = child_call(
+        child_calls,
+        "session_bootstrap_guard",
+        "local_coding_session_bootstrap_guard",
+    );
 
     match scenario.id {
         "single_file_utility" => vec![
@@ -677,6 +697,14 @@ fn slices_for_scenario(
                 vec!["prompt source", "conversation state", "command route", "attachments"],
                 vec!["ingress route is known", "prompt context receipts are available"],
                 "ingress guard artifact is available before policy guard",
+            ),
+            slice(
+                "session_bootstrap_guard_initialization",
+                "Bind agent/provider/model, initialize conversation runtime state, snapshot terminal context, and detect externally changed files before policy or planning.",
+                session_bootstrap_guard,
+                vec!["conversation state", "agent runtime", "terminal context", "tracked file metrics"],
+                vec!["session runtime state is initialized", "external file changes are receipt-backed"],
+                "session bootstrap artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -770,6 +798,14 @@ fn slices_for_scenario(
                 vec!["prompt source", "conversation state", "command route", "attachments"],
                 vec!["ingress route is known", "prompt context receipts are available"],
                 "ingress guard artifact is available before policy guard",
+            ),
+            slice(
+                "session_bootstrap_guard_initialization",
+                "Bind agent/provider/model, initialize conversation runtime state, snapshot terminal context, and detect externally changed files before policy or planning.",
+                session_bootstrap_guard,
+                vec!["conversation state", "agent runtime", "terminal context", "tracked file metrics"],
+                vec!["session runtime state is initialized", "external file changes are receipt-backed"],
+                "session bootstrap artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -876,6 +912,14 @@ fn slices_for_scenario(
                 vec!["prompt source", "conversation state", "command route", "attachments"],
                 vec!["ingress route is known", "prompt context receipts are available"],
                 "ingress guard artifact is available before policy guard",
+            ),
+            slice(
+                "session_bootstrap_guard_initialization",
+                "Bind agent/provider/model, initialize conversation runtime state, snapshot terminal context, and detect externally changed files before policy or planning.",
+                session_bootstrap_guard,
+                vec!["conversation state", "agent runtime", "terminal context", "tracked file metrics"],
+                vec!["session runtime state is initialized", "external file changes are receipt-backed"],
+                "session bootstrap artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -1092,6 +1136,7 @@ fn static_child_value(value: &str) -> &'static str {
     match value {
         "research_context" => "research_context",
         "coding_ingress_guard" => "coding_ingress_guard",
+        "session_bootstrap_guard" => "session_bootstrap_guard",
         "policy_permission_guard" => "policy_permission_guard",
         "context_loop_guard" => "context_loop_guard",
         "tooling_surface_guard" => "tooling_surface_guard",
@@ -1109,6 +1154,13 @@ fn static_child_value(value: &str) -> &'static str {
         },
         "local_coding_ingress_guard_result_artifact_v1" => {
             "local_coding_ingress_guard_result_artifact_v1"
+        },
+        "local_coding_session_bootstrap_guard" => "local_coding_session_bootstrap_guard",
+        "local_coding_session_bootstrap_guard_input_envelope_v1" => {
+            "local_coding_session_bootstrap_guard_input_envelope_v1"
+        },
+        "local_coding_session_bootstrap_guard_result_artifact_v1" => {
+            "local_coding_session_bootstrap_guard_result_artifact_v1"
         },
         "local_policy_permission_guard" => "local_policy_permission_guard",
         "local_policy_permission_guard_input_envelope_v1" => {

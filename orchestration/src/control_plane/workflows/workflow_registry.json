@@ -226,6 +226,115 @@
       ]
     },
     {
+      "workflow_id": "agent_provider_model_binding",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_session_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_session/agent_provider_model_binding.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "agent_provider_model_resolution",
+        "session_default_fallback"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_session_layer_parity_reviewed",
+        "agent_provider_binding_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "conversation_session_bootstrap",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_session_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_session/conversation_session_bootstrap.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "conversation_id_and_metrics_projection",
+        "agent_tunable_parameter_application"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_session_layer_parity_reviewed",
+        "conversation_bootstrap_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "terminal_command_context_snapshot",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_session_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_session/terminal_command_context_snapshot.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "unit_separator_terminal_trace",
+        "missing_exit_codes_are_padded"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_session_layer_parity_reviewed",
+        "terminal_context_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "external_file_change_notice",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_session_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_session/external_file_change_notice.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "tracked_file_hash_change_notice",
+        "unreadable_tracked_file_notice"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_session_layer_parity_reviewed",
+        "external_file_change_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "title_commit_helper_generation",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_session_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_session/title_commit_helper_generation.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "title_json_schema_fallback",
+        "commit_message_diff_selection"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_session_layer_parity_reviewed",
+        "title_commit_helper_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_coding_session_bootstrap_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_session_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_coding_session_bootstrap_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "runtime_ready_session_bootstrap",
+        "external_file_change_before_coding"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_session_layer_parity_reviewed",
+        "session_bootstrap_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "repo_context_assessment",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_safety_layer",
