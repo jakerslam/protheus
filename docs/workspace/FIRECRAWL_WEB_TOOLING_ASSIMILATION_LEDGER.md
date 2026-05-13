@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 526
-- Not parsed: 751
+- Parsed: 537
+- Not parsed: 740
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -537,6 +537,7 @@
 | `apps/python-sdk/firecrawl/v2/methods/aio/browser.py` | Python async SDK browser methods. | Async browser sessions normalize create/list/execute/delete projections, TTL/activity/profile fields, and camel/snake response compatibility. |
 | `apps/python-sdk/firecrawl/v2/methods/aio/monitor.py` | Python async SDK monitor methods. | Async monitor recursively prepares targets/options, paginates check pages under bounds, and keeps scheduled change tracking as typed control-plane projections. |
 | `apps/python-sdk/firecrawl/v2/methods/aio/usage.py` | Python async SDK usage methods. | Async usage endpoints normalize concurrency, queue, credit, and token metrics as account-control projections, not evidence-bearing retrieval results. |
+| `apps/python-sdk/firecrawl/v2/methods/agent.py` | Python SDK sync agent methods. | Agent lifecycle normalizes schemas, optional URL constraints, budget metadata, status polling, cancellation, and webhook payloads before transport. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_request_preparation.py` | Python SDK search request-prep tests. | Tests lock default search limits/timeouts, alias removal, domain-filter exclusivity, scrape option conversion, and integration label trimming. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_search_validation.py` | Python SDK search validation tests. | Query/limit/timeout/source/location/freshness/scrape-option constraints are enforced before transport while valid time filter strings pass through unchanged. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_scrape_request_preparation.py` | Python SDK scrape request-prep tests. | Tests cover URL validation, scrape option/action conversion, retained-browser code/prompt input validation, success-false handling, and response field normalization. |
@@ -553,6 +554,16 @@
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_crawl_request_preparation.py` | Python async SDK crawl request-prep tests. | Async crawl prep locks path/depth/sitemap/query/external/subdomain/concurrency/ZDR/webhook/integration field mapping. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_batch_request_preparation_async.py` | Python async SDK batch request-prep tests. | Async batch prep mirrors URL validation, flattened scrape options, webhook/append/concurrency/ZDR/integration fields. |
 | `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/aio/test_aio_parse_request_preparation.py` | Python async SDK parse request-prep tests. | Async parse prep mirrors multipart bytes/path handling, origin injection, and missing-path rejection. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent.py` | Python SDK agent method tests. | Agent tests cover start/status/wait/cancel, immediate completion, timeout returning latest status, schema handling, and typed bad-request failures. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent_request_preparation.py` | Python SDK agent request-prep tests. | Agent request prep locks dict/Pydantic schema normalization, invalid schema rejection, integration trimming, positive budget flags, URL constraints, model metadata, and webhook serialization. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_agent_webhook.py` | Python SDK agent webhook tests. | Agent webhook contracts require URL, preserve agent-specific events, and exclude `None` fields from side-effect payloads. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_branding.py` | Python SDK branding artifact tests. | Branding format tests treat colors, typography, layout, icons, imagery, animation, tone, and personality as optional rich page artifacts normalized alongside markdown. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_crawl_params.py` | Python SDK crawl params tests. | Crawl-parameter proposals are typed suggestions with warnings and conservative defaults, not required workflow decisions. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_usage_types.py` | Python SDK usage type tests. | Usage models are simple account-control projections for concurrency, credits, and tokens. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/methods/test_webhook.py` | Python SDK crawl webhook tests. | Crawl webhook serialization supports URL strings or typed configs while pruning `None` headers/metadata/events before side-effect delivery. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_metadata_extras.py` | Python SDK metadata extras tests. | Unknown metadata keys, repeated fields, status coercions, and queue metadata are preserved through typed and dict projections. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_metadata_extras_multivalue.py` | Python SDK metadata multivalue tests. | Known single-value metadata lists are coerced deterministically while arbitrary unknown lists remain preserved. |
+| `apps/python-sdk/firecrawl/__tests__/unit/v2/utils/test_validation.py` | Python SDK scrape validation tests. | Validation tests lock positive timeout/wait budgets, snake-to-camel conversion, query/question/highlight format constraints, parser max-page conversion, cache/lockdown/action fields, and invalid structured fields. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/.env.example` | Python SDK E2E environment example. | E2E tests declare API key/API URL plus optional identity broker as environment requirements, keeping live capability setup explicit. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/conftest.py` | Python SDK sync E2E harness. | Live tests resolve credentials through an identity broker when present, inject clients consistently, and fail/skip based on explicit environment capabilities. |
 | `apps/python-sdk/firecrawl/__tests__/e2e/v2/aio/conftest.py` | Python SDK async E2E harness. | Async E2E setup loads environment once, validates required variables, and provides per-test API key/API URL fixtures. |
@@ -726,6 +737,9 @@
 - E2E tests should separate lifecycle proof from answer-bearing evidence proof. A crawl or batch status reaching `completed`/`failed` proves the handle loop; markdown/content/relevance assertions prove research usefulness.
 - Live retrieval capability should be explicit in the eval harness through environment/capability fixtures, so unavailable hosted services are skipped or classified rather than counted as product regressions.
 - Search-plus-scrape E2E tests are the right shape for research quality: check source lanes and query relevance first, then accept enriched documents when scrape options ask for page content.
+- Agent-style structured extraction is useful only as a typed tool primitive: schemas, URL constraints, budgets, webhooks, and model metadata are request fields, not workflow-hardcoded research behavior.
+- Rich visual/branding extraction belongs in optional artifact lanes. It should enrich evidence packs when requested or useful, without forcing answer format or visible style prose.
+- Unknown page metadata should be preserved with typed known-field normalization; metadata loss can reduce source quality and make synthesis under-calibrated.
 
 ## Candidate Assimilation Targets
 
@@ -820,6 +834,9 @@
 89. E2E quality strata: report separate live eval strata for lifecycle success, evidence presence, relevance/content quality, and synthesis usefulness. Ledger captured; candidate workflow eval reporting target.
 90. Capability-explicit live evals: gate hosted/expensive retrieval tests by declared capability fixtures and classify missing capability separately from workflow failure. Ledger captured; candidate eval harness target.
 91. Search enrichment relevance test: require search-plus-fetch paths to prove both query relevance and content-bearing enriched documents. Ledger captured; candidate golden/eval target.
+92. Structured extraction request lane: expose schema, URL-constraint, budget, and source-map controls as typed tool/CD fields while keeping model choice policy-bound. Ledger captured; candidate Tool CD/evidence extraction target.
+93. Rich artifact optionality: model branding/visual metadata as optional evidence artifacts with normalization and quality flags, not as required research output. Ledger captured; candidate evidence-pack enrichment target.
+94. Metadata preservation guard: preserve unknown metadata and deterministic known-field coercions through evidence packing and source refs. Ledger captured; candidate evidence-pack quality target.
 
 ## Remaining Work
 
