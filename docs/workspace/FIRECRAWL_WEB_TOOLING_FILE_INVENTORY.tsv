@@ -783,8 +783,8 @@ apps/js-sdk/firecrawl/tsup.config.ts	apps	parsed	js_sdk_build_config	single_entr
 apps/js-sdk/package.json	apps	parsed	js_sdk_outer_package_metadata	example_dependency_and_override_scope
 apps/js-sdk/pnpm-lock.yaml	apps	skipped_generated	lockfile_or_generated_dependency_snapshot	
 apps/js-sdk/tsconfig.json	apps	parsed	js_sdk_outer_tsconfig	commonjs_declaration_build_to_output_directory
-apps/nuq-postgres/Dockerfile	apps	not_parsed	pending_review	
-apps/nuq-postgres/nuq.sql	apps	not_parsed	pending_review	
+apps/nuq-postgres/Dockerfile	apps	parsed	nuq_postgres_image	pg_cron_enabled_postgres_image_and_initdb_sql_entrypoint
+apps/nuq-postgres/nuq.sql	apps	parsed	nuq_queue_schema	queue_tables_backlog_group_crawl_lock_reapers_partial_indexes_batched_cleanup_reindex_watchdog_and_cron_retention
 apps/php-sdk/.gitignore	apps	parsed	php_local_artifact_hygiene	vendor_locks_caches_env_and_static_analysis_artifacts_are_package_boundary_outputs
 apps/php-sdk/CHANGELOG.md	apps	parsed	php_changelog	parse_addition_and_v2_initial_release_confirm_primitive_surface
 apps/php-sdk/README.md	apps	parsed	php_sdk_usage_surface	scrape_parse_crawl_batch_map_search_agent_browser_usage_errors_advanced_config_and_laravel_docs
@@ -962,15 +962,15 @@ apps/python-sdk/tests/test_agent_integration.py	apps	parsed	python_sdk_agent_int
 apps/python-sdk/tests/test_api_key_handling.py	apps	parsed	python_sdk_api_key_handling_tests	cloud_requires_credentials_self_host_allows_missing_key_async_cleanup
 apps/python-sdk/tests/test_change_tracking.py	apps	parsed	python_sdk_change_tracking_tests	change_tracking_artifact_modes_schema_diff_and_previous_current_fields
 apps/python-sdk/tests/test_timeout_conversion.py	apps	parsed	python_sdk_timeout_conversion_tests	millisecond_to_second_transport_timeout_with_safety_buffer_and_none_passthrough
-apps/redis/.dockerignore	apps	not_parsed	pending_review	
-apps/redis/Dockerfile	apps	not_parsed	pending_review	
-apps/redis/Procfile	apps	not_parsed	pending_review	
-apps/redis/README.md	apps	not_parsed	pending_review	
-apps/redis/fly.toml	apps	not_parsed	pending_review	
-apps/redis/scripts/bump_version.sh	apps	not_parsed	pending_review	
-apps/redis/scripts/semver	apps	not_parsed	pending_review	
-apps/redis/scripts/version.sh	apps	not_parsed	pending_review	
-apps/redis/start-redis-server.sh	apps	not_parsed	pending_review	
+apps/redis/.dockerignore	apps	parsed	redis_container_ignore	data_directory_excluded_from_image_context
+apps/redis/Dockerfile	apps	parsed	redis_container_image	redis_runtime_image_copies_startup_script_and_version_metadata
+apps/redis/Procfile	apps	parsed	redis_process_manifest	web_process_runs_redis_start_script
+apps/redis/README.md	apps	parsed	redis_deployment_docs	password_private_network_persistent_volume_and_release_guidance
+apps/redis/fly.toml	apps	parsed	redis_fly_config	private_network_volume_mount_and_memory_profile
+apps/redis/scripts/bump_version.sh	apps	parsed	redis_release_script	clean_tree_remote_sync_branch_gate_prerelease_confirm_and_tag_push
+apps/redis/scripts/semver	apps	parsed	redis_semver_helper	version_validation_compare_get_and_bump_release_prerel_build
+apps/redis/scripts/version.sh	apps	parsed	redis_version_script	static_version_file_reader
+apps/redis/start-redis-server.sh	apps	parsed	redis_start_script	password_memory_policy_appendonly_save_and_maxmemory_from_vm_memory
 apps/ruby-sdk/.gitignore	apps	parsed	ruby_sdk_local_artifact_hygiene	generated_gem_bundle_temp_artifacts_excluded
 apps/ruby-sdk/Gemfile	apps	parsed	ruby_sdk_test_dependency_surface	webmock_request_fixture_contract
 apps/ruby-sdk/LICENSE	apps	parsed	ruby_sdk_license_boundary	no_direct_retrieval_pattern
@@ -1095,14 +1095,14 @@ apps/test-site/src/pages/index.astro	apps	parsed	test_site_home_page	determinist
 apps/test-site/src/pages/robots.txt.ts	apps	parsed	test_site_robots_route	allow_all_robots_and_sitemap_pointer_fixture
 apps/test-site/src/styles/global.css	apps	parsed	test_site_global_styles	accessibility_hidden_text_fonts_tables_code_blockquotes_and_responsive_layout_fixtures
 apps/test-site/tsconfig.json	apps	parsed	test_site_tsconfig	strict_astro_typescript_fixture_build_config
-apps/test-suite/.env.example	apps	not_parsed	pending_review	
+apps/test-suite/.env.example	apps	parsed	test_suite_env_example	api_keys_test_url_and_env_capability_inputs
 apps/test-suite/README.md	apps	parsed	test_suite_readme	crawl_accuracy_response_time_and_error_handling_eval_overview
-apps/test-suite/audit-ci.jsonc	apps	not_parsed	pending_review	
+apps/test-suite/audit-ci.jsonc	apps	parsed	test_suite_audit_config	explicit_low_severity_audit_exception
 apps/test-suite/data/crawl.json	apps	parsed	test_suite_crawl_fixture	expected_crawled_and_not_crawled_url_sets_for_scope_accuracy
 apps/test-suite/data/scrape.json	apps	parsed	test_suite_scrape_fixture	page_local_answerability_prompts_across_diverse_domains
-apps/test-suite/index-benchmark/run.ipynb	apps	not_parsed	pending_review	
-apps/test-suite/jest.config.js	apps	not_parsed	pending_review	
-apps/test-suite/jest.setup.js	apps	not_parsed	pending_review	
+apps/test-suite/index-benchmark/run.ipynb	apps	parsed	index_benchmark_notebook	cache_vs_no_cache_scrape_and_map_latency_url_count_benchmark_over_diverse_targets
+apps/test-suite/jest.config.js	apps	parsed	test_suite_jest_config	ts_jest_node_environment_and_setup_file
+apps/test-suite/jest.setup.js	apps	parsed	test_suite_empty_setup	no_runtime_pattern
 apps/test-suite/load-test-results/tests-1-5/assets/CPU-utilization-report-test-1.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-1-5/assets/memory-utilization-report-test-1.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	
 apps/test-suite/load-test-results/tests-1-5/assets/metrics-test-2.png	apps	skipped_media_or_sample	binary_media_or_fixture_sample	

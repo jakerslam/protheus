@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 1183
-- Not parsed: 84
+- Parsed: 1199
+- Not parsed: 68
 - Skipped generated: 15
 - Skipped media or sample: 75
 
@@ -1006,6 +1006,11 @@
 | `apps/test-suite/README.md` | Test-suite overview. | Retrieval quality measurement should separate crawling accuracy, response time, and error handling; old observed accuracy gaps are first-class eval signal. |
 | `apps/test-suite/data/crawl.json` | Crawl accuracy fixture set. | Fixtures encode expected crawled and not-crawled URL sets, including backward-link and domain-scope failures, as measurable crawl-scope contracts. |
 | `apps/test-suite/data/scrape.json` | Scrape answerability fixture set. | Scrape evals use page-local yes/no prompts over diverse domains to test whether retrieved content can answer concrete questions. |
+| `apps/test-suite/.env.example` | Test-suite env example. | API keys, test URL, and environment are explicit capability inputs for live evals. |
+| `apps/test-suite/audit-ci.jsonc` | Test-suite audit config. | Dependency audit exceptions are explicit and package-scoped. |
+| `apps/test-suite/index-benchmark/run.ipynb` | Index benchmark notebook. | Cache/index benchmarks compare scrape latency, map latency, and URL counts across diverse targets; useful as a cache-quality eval shape, not user-facing synthesis. |
+| `apps/test-suite/jest.config.js` | Test-suite Jest config. | TS/Jest Node harness config supports deterministic tests. |
+| `apps/test-suite/jest.setup.js` | Empty test setup. | Reviewed; no unique runtime pattern. |
 | `apps/test-suite/load-test.yml` | Load-test scenario config. | Load tests model crawl as start-handle plus delayed status polling to terminal completion, separating admission latency from worker completion. |
 | `apps/test-suite/package.json` | Test-suite package surface. | Artillery is the load-test harness; security overrides and dependency metadata are packaging concerns, not web-tool behavior. |
 | `apps/test-suite/load-test-results/tests-1-5/load-test-1.md` | Scrape load result. | Low initial scrape load can succeed while memory fails to return to baseline, making post-run stabilization a performance invariant. |
@@ -1016,6 +1021,17 @@
 | `apps/test-suite/load-test-results/tests-6-7/load-test-6.md` | Crawl load result. | Crawl admission can stay fast while worker CPU and memory carry the real cost; status tests need worker-resource observation. |
 | `apps/test-suite/load-test-results/tests-6-7/load-test-7.md` | Crawl fire-engine load result. | Queue admission without failed requests can still hide downstream render-engine resource collapse under sustained processing. |
 | `apps/test-suite/load-test-results/tests-6-7/load-test-8.md` | Crawl autoscaling result. | Worker/render autoscaling and 404/final-status capture failures should be reported separately from retrieval content quality. |
+| `apps/nuq-postgres/Dockerfile` | NUQ Postgres image. | Queue Postgres image enables pg_cron before init and installs schema as an initdb artifact. |
+| `apps/nuq-postgres/nuq.sql` | NUQ queue schema. | Queue schema encodes job/group status, backlog, locks, stall reapers, batched group cleanup, partial indexes, reindex watchdogs, and cron retention to keep crawler queues bounded. |
+| `apps/redis/.dockerignore` | Redis image ignore. | Data directory is excluded from image context. |
+| `apps/redis/Dockerfile` | Redis container image. | Redis runtime image copies startup script and version metadata. |
+| `apps/redis/Procfile` | Redis process manifest. | Process entry routes the web process to the Redis start script. |
+| `apps/redis/README.md` | Redis deployment docs. | Redis deployment requires password setup, private networking, and persistent volume attachment. |
+| `apps/redis/fly.toml` | Redis Fly config. | Deployment config declares private service/volume/memory profile. |
+| `apps/redis/scripts/bump_version.sh` | Redis release script. | Release script requires clean tree, remote sync, branch gating, prerelease confirmation, and annotated tag push. |
+| `apps/redis/scripts/semver` | Redis semver helper. | Semver helper validates, compares, gets, and bumps version components in release automation. |
+| `apps/redis/scripts/version.sh` | Redis version script. | Static version file reader; no retrieval primitive. |
+| `apps/redis/start-redis-server.sh` | Redis startup script. | Runtime sets password, memory policy, persistence, maxmemory from VM memory, and Redis kernel/sysctl hints. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/.env.template` | Airbnb analysis capability config. | Firecrawl, code-interpreter, and LLM credentials are external capability inputs and must not become workflow logic. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/.prettierignore` | Example artifact hygiene. | Generated dependency directories are local artifacts, not assimilation targets. |
 | `examples/scrape_and_analyze_airbnb_data_e2b/README.md` | Airbnb analysis example overview. | Example composes retrieval, structured extraction, code execution, and visualization as separate phases. |
@@ -1711,6 +1727,10 @@
 299. Legacy facade quarantine: large deprecated/backup facades can confirm compatibility contracts, but current Tool CDs should reference the maintained v2 adapter surface.
 300. Activity/source callbacks as hidden progress streams: deep-research style activity/source deltas are useful observability inputs and should not be rendered as final answer content.
 301. Watcher catch-up/document/done separation: long-running retrieval streams should separate catch-up snapshots, per-document evidence, terminal done, and errors so synthesis consumes only committed evidence.
+302. Queue lifecycle as retrieval primitive support: crawler queues need lock reapers, stall counters, backlog expiry, group completion, and cleanup retention as first-class operational contracts.
+303. Predicate-matched indexes as performance guardrails: cleanup/status queries need partial indexes matching their predicates so maintenance work does not starve retrieval workers.
+304. Cache/index evals should measure quality and latency: cache benchmarks should track scrape latency, map latency, and URL-count coverage so cache speedups do not hide stale or lower-coverage results.
+305. Release automation is side-effect workflow material: clean-tree checks, branch gates, version validation, and tag pushes are governance side effects, not retrieval behavior.
 
 ## Remaining Work
 
@@ -1739,4 +1759,5 @@
 - Continue parsing batch scrape, extract, browser tests/SDK surfaces, and remaining non-Rust agent support files for reusable async/batch/result-projection patterns.
 - Continue parsing remaining scraper utility tests and queue/worker internals for retry, concurrency, idempotency, and cleanup behavior.
 - Continue parsing remaining native/TS parser tests for non-PDF document extraction and structured-artifact stability.
+- NUQ Postgres, Redis deployment, and remaining test-suite config/index benchmark surfaces are parsed; useful signals are queue lifecycle bounds, predicate-matched indexes, cache/index quality metrics, and operational release gates.
 - Keep scanning remaining files for any general web-tooling primitive that improves discovery quality, extraction quality, evidence packing, lifecycle bounds, or retry safety.
