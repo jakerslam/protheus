@@ -109,6 +109,11 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "workspace_sync_indexing",
         "codebase_semantic_search",
         "provider_transport_boundary",
+        "local_coding_operator_integration_guard",
+        "sandbox_worktree_isolation",
+        "operator_command_surface_projection",
+        "external_update_editor_auth_boundary",
+        "schema_data_generation_pipeline",
         "local_policy_permission_guard",
         "forge_config_resolution",
         "operation_permission_gate",
@@ -177,7 +182,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(14)
+        Some(15)
     );
 
     let contract = source
@@ -194,6 +199,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "coding_ingress_guard_contract",
         "session_bootstrap_guard_contract",
         "remote_service_guard_contract",
+        "operator_integration_guard_contract",
         "runtime_execution_loop_contract",
         "runtime_observability_guard_contract",
         "slice_policy",
@@ -291,6 +297,10 @@ fn local_coding_program_builder_lab_execution_harness_emits_coding_task_plans() 
             .slice_invocations
             .iter()
             .any(|slice| slice.child_workflow_id == "local_coding_remote_service_guard"));
+        assert!(execution
+            .slice_invocations
+            .iter()
+            .any(|slice| slice.child_workflow_id == "local_coding_operator_integration_guard"));
         assert!(execution
             .slice_invocations
             .iter()

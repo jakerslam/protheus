@@ -426,6 +426,97 @@
       ]
     },
     {
+      "workflow_id": "sandbox_worktree_isolation",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_operator_integration_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_operator/sandbox_worktree_isolation.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "git_worktree_sandbox_reuse",
+        "non_worktree_target_rejected"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_operator_integration_layer_parity_reviewed",
+        "sandbox_worktree_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "operator_command_surface_projection",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_operator_integration_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_operator/operator_command_surface_projection.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "slash_colon_command_projection",
+        "shell_bypass_stops_before_execution"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_operator_integration_layer_parity_reviewed",
+        "operator_command_surface_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "external_update_editor_auth_boundary",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_operator_integration_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_operator/external_update_editor_auth_boundary.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "update_requires_confirmation",
+        "localhost_oauth_callback_boundary"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_operator_integration_layer_parity_reviewed",
+        "external_boundary_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "schema_data_generation_pipeline",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_operator_integration_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_operator/schema_data_generation_pipeline.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "schema_bound_jsonl_generation",
+        "invalid_output_tool_call_rejected"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "forgecode_operator_integration_layer_parity_reviewed",
+        "schema_data_generation_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "local_coding_operator_integration_guard",
+      "tier": "lab",
+      "source_framework": "forgecode_assimilated_operator_integration_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/composites/coding/local_coding_operator_integration_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "operator_integrations_before_policy",
+        "external_actions_remain_approval_gated"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "composition_ledger_level_valid",
+        "forgecode_operator_integration_layer_parity_reviewed",
+        "operator_integration_guard_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "repo_context_assessment",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_safety_layer",

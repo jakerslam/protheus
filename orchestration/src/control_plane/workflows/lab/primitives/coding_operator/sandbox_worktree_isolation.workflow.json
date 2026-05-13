@@ -1,0 +1,245 @@
+{
+  "name": "sandbox_worktree_isolation",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "ForgeCode-derived primitive for isolating coding work in an explicit git worktree sandbox before local file mutation.",
+  "stages": [
+    "sandbox_request_classification",
+    "git_repository_boundary_check",
+    "sandbox_worktree_path_resolution",
+    "branch_or_worktree_reuse_decision",
+    "worktree_creation_or_reuse",
+    "sandbox_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "sandbox_worktree_isolation_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "repo_status",
+      "git_root",
+      "sandbox_path",
+      "branch_status",
+      "worktree_status",
+      "sandbox_stop_or_continue"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "establish whether coding can safely proceed in an isolated worktree",
+      "scope_boundary": "do not edit source files, run validation, choose architecture, or mutate git history beyond explicit worktree setup",
+      "validation_calibration": "report created, reused, blocked, or failed sandbox status separately from coding success",
+      "visibility": "do not expose raw git stderr unless needed as a compact blocker"
+    }
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact sandbox worktree setup receipts before local coding execution.",
+    "required_lanes": [
+      "compact_ledger",
+      "hot_ring_buffer",
+      "failure_lifecycle_archive",
+      "artifact_ref_retention"
+    ],
+    "non_goals": [
+      "do_not_hide_failed_git_boundary_checks",
+      "do_not_create_worktrees_outside_explicit_repo_boundary",
+      "do_not_treat_sandbox_creation_as_code_completion"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "sandbox_request_classification->git_repository_boundary_check",
+      "git_repository_boundary_check->sandbox_worktree_path_resolution",
+      "sandbox_worktree_path_resolution->branch_or_worktree_reuse_decision",
+      "branch_or_worktree_reuse_decision->worktree_creation_or_reuse",
+      "worktree_creation_or_reuse->sandbox_receipt_packaging",
+      "sandbox_receipt_packaging->completed",
+      "git_repository_boundary_check->blocked",
+      "sandbox_worktree_path_resolution->blocked",
+      "branch_or_worktree_reuse_decision->needs_input",
+      "worktree_creation_or_reuse->failed"
+    ],
+    "timeout_ms": 90000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 6,
+      "max_model_turns": 1,
+      "max_tool_calls": 6,
+      "token_budget": 5000,
+      "loop_signature_detector": "sandbox_worktree_isolation_v1"
+    }
+  },
+  "operator_primitive_contract": {
+    "version": "sandbox_worktree_isolation_v1",
+    "source_evidence": [
+      "crates/forge_main/src/sandbox.rs"
+    ],
+    "required_behaviors": [
+      "require_current_directory_inside_git_worktree",
+      "resolve_repository_root_before_worktree_setup",
+      "reject_repository_root_at_filesystem_root",
+      "derive_sibling_sandbox_worktree_path_from_repository_root",
+      "reuse_existing_git_worktree_when_target_directory_is_already_a_worktree",
+      "reject_existing_target_directory_that_is_not_a_git_worktree",
+      "check_target_branch_exists_before_reuse",
+      "create_branch_and_git_worktree_when_missing_and_allowed",
+      "canonicalize_final_sandbox_path",
+      "emit_created_or_reused_sandbox_title_receipt"
+    ],
+    "output_receipts": [
+      "git_repository_boundary_receipt",
+      "sandbox_path_resolution_receipt",
+      "branch_decision_receipt",
+      "worktree_creation_or_reuse_receipt",
+      "sandbox_title_receipt"
+    ],
+    "stop_conditions": [
+      "not_inside_git_repository",
+      "repository_root_is_filesystem_root",
+      "sandbox_path_exists_but_is_not_worktree",
+      "branch_or_worktree_conflict_requires_user_decision",
+      "git_worktree_command_failed"
+    ]
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "sandbox_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace"
+    ]
+  }
+}

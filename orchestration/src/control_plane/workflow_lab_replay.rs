@@ -114,6 +114,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "coding_ingress_guard_initialization",
             "session_bootstrap_guard_initialization",
             "remote_service_guard_initialization",
+            "operator_integration_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "single_file_local_code_execution",
@@ -123,6 +124,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "coding_ingress_guard",
             "session_bootstrap_guard",
             "remote_service_guard",
+            "operator_integration_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -145,6 +147,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "coding_ingress_guard_initialization",
             "session_bootstrap_guard_initialization",
             "remote_service_guard_initialization",
+            "operator_integration_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "domain_model_slice",
@@ -157,6 +160,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "coding_ingress_guard",
             "session_bootstrap_guard",
             "remote_service_guard",
+            "operator_integration_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -179,6 +183,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "coding_ingress_guard_initialization",
             "session_bootstrap_guard_initialization",
             "remote_service_guard_initialization",
+            "operator_integration_guard_initialization",
             "project_initialization_assessment",
             "architecture_contract_definition",
             "targeted_feature_slice",
@@ -189,6 +194,7 @@ const LAB_SCENARIOS: &[LocalCodingProgramBuilderLabScenario] = &[
             "coding_ingress_guard",
             "session_bootstrap_guard",
             "remote_service_guard",
+            "operator_integration_guard",
             "policy_permission_guard",
             "context_loop_guard",
             "tooling_surface_guard",
@@ -424,6 +430,15 @@ fn task_execution(
     {
         failures.push(format!(
             "missing_local_coding_remote_service_guard_slice:{}",
+            scenario.id
+        ));
+    }
+    if !slice_invocations
+        .iter()
+        .any(|slice| slice.child_workflow_id == "local_coding_operator_integration_guard")
+    {
+        failures.push(format!(
+            "missing_local_coding_operator_integration_guard_slice:{}",
             scenario.id
         ));
     }
@@ -707,6 +722,11 @@ fn slices_for_scenario(
         "remote_service_guard",
         "local_coding_remote_service_guard",
     );
+    let operator_integration_guard = child_call(
+        child_calls,
+        "operator_integration_guard",
+        "local_coding_operator_integration_guard",
+    );
 
     match scenario.id {
         "single_file_utility" => vec![
@@ -733,6 +753,14 @@ fn slices_for_scenario(
                 vec!["remote workspace auth", "semantic index", "provider transport"],
                 vec!["remote service use is explicit", "local file receipts remain authoritative"],
                 "remote service guard artifact is available before policy guard",
+            ),
+            slice(
+                "operator_integration_guard_initialization",
+                "Route sandbox, command-surface, editor/update/OAuth, and schema-data-generation integrations through explicit operator boundaries before local planning.",
+                operator_integration_guard,
+                vec!["sandbox worktree", "operator commands", "editor/update/auth callbacks", "data generation"],
+                vec!["operator integrations are explicit", "external-visible actions stay approval-gated"],
+                "operator integration artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -842,6 +870,14 @@ fn slices_for_scenario(
                 vec!["remote workspace auth", "semantic index", "provider transport"],
                 vec!["remote service use is explicit", "local file receipts remain authoritative"],
                 "remote service guard artifact is available before policy guard",
+            ),
+            slice(
+                "operator_integration_guard_initialization",
+                "Route sandbox, command-surface, editor/update/OAuth, and schema-data-generation integrations through explicit operator boundaries before local planning.",
+                operator_integration_guard,
+                vec!["sandbox worktree", "operator commands", "editor/update/auth callbacks", "data generation"],
+                vec!["operator integrations are explicit", "external-visible actions stay approval-gated"],
+                "operator integration artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -964,6 +1000,14 @@ fn slices_for_scenario(
                 vec!["remote workspace auth", "semantic index", "provider transport"],
                 vec!["remote service use is explicit", "local file receipts remain authoritative"],
                 "remote service guard artifact is available before policy guard",
+            ),
+            slice(
+                "operator_integration_guard_initialization",
+                "Route sandbox, command-surface, editor/update/OAuth, and schema-data-generation integrations through explicit operator boundaries before local planning.",
+                operator_integration_guard,
+                vec!["sandbox worktree", "operator commands", "editor/update/auth callbacks", "data generation"],
+                vec!["operator integrations are explicit", "external-visible actions stay approval-gated"],
+                "operator integration artifact is available before policy guard",
             ),
             slice(
                 "policy_permission_guard_initialization",
@@ -1182,6 +1226,7 @@ fn static_child_value(value: &str) -> &'static str {
         "coding_ingress_guard" => "coding_ingress_guard",
         "session_bootstrap_guard" => "session_bootstrap_guard",
         "remote_service_guard" => "remote_service_guard",
+        "operator_integration_guard" => "operator_integration_guard",
         "policy_permission_guard" => "policy_permission_guard",
         "context_loop_guard" => "context_loop_guard",
         "tooling_surface_guard" => "tooling_surface_guard",
@@ -1214,13 +1259,20 @@ fn static_child_value(value: &str) -> &'static str {
         "local_coding_remote_service_guard_result_artifact_v1" => {
             "local_coding_remote_service_guard_result_artifact_v1"
         },
+        "local_coding_operator_integration_guard" => "local_coding_operator_integration_guard",
+        "local_coding_operator_integration_guard_input_envelope_v1" => {
+            "local_coding_operator_integration_guard_input_envelope_v1"
+        },
+        "local_coding_operator_integration_guard_result_artifact_v1" => {
+            "local_coding_operator_integration_guard_result_artifact_v1"
+        },
         "local_policy_permission_guard" => "local_policy_permission_guard",
         "local_policy_permission_guard_input_envelope_v1" => {
             "local_policy_permission_guard_input_envelope_v1"
         },
         "local_policy_permission_guard_result_artifact_v1" => {
             "local_policy_permission_guard_result_artifact_v1"
-        }
+        },
         "local_context_loop_guard" => "local_context_loop_guard",
         "local_context_loop_guard_input_envelope_v1" => "local_context_loop_guard_input_envelope_v1",
         "local_context_loop_guard_result_artifact_v1" => "local_context_loop_guard_result_artifact_v1",
@@ -1253,7 +1305,7 @@ fn static_child_value(value: &str) -> &'static str {
         "local_code_edit_slice_input_envelope_v1" => "local_code_edit_slice_input_envelope_v1",
         "local_code_edit_execution_result_artifact_v1" => {
             "local_code_edit_execution_result_artifact_v1"
-        }
+        },
         "bounded_repair_loop" => "bounded_repair_loop",
         "bounded_repair_loop_input_envelope_v1" => "bounded_repair_loop_input_envelope_v1",
         "bounded_repair_loop_result_artifact_v1" => "bounded_repair_loop_result_artifact_v1",

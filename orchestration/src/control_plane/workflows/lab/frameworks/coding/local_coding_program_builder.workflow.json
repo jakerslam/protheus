@@ -50,6 +50,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "operator_integration_guard",
+        "workflow_id": "local_coding_operator_integration_guard",
+        "input_contract": "local_coding_operator_integration_guard_input_envelope_v1",
+        "output_artifact": "local_coding_operator_integration_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "policy_permission_guard",
         "workflow_id": "local_policy_permission_guard",
         "input_contract": "local_policy_permission_guard_input_envelope_v1",
@@ -143,6 +151,7 @@
     "coding_ingress_guard_initialization",
     "session_bootstrap_guard_initialization",
     "remote_service_guard_initialization",
+    "operator_integration_guard_initialization",
     "policy_permission_guard_initialization",
     "context_and_tool_guard_initialization",
     "tooling_surface_guard_initialization",
@@ -179,6 +188,11 @@
       "workspace_sync_indexing",
       "codebase_semantic_search",
       "provider_transport_boundary",
+      "local_coding_operator_integration_guard",
+      "sandbox_worktree_isolation",
+      "operator_command_surface_projection",
+      "external_update_editor_auth_boundary",
+      "schema_data_generation_pipeline",
       "local_policy_permission_guard",
       "forge_config_resolution",
       "operation_permission_gate",
@@ -271,7 +285,8 @@
       "intake_normalization->coding_ingress_guard_initialization",
       "coding_ingress_guard_initialization->session_bootstrap_guard_initialization",
       "session_bootstrap_guard_initialization->remote_service_guard_initialization",
-      "remote_service_guard_initialization->policy_permission_guard_initialization",
+      "remote_service_guard_initialization->operator_integration_guard_initialization",
+      "operator_integration_guard_initialization->policy_permission_guard_initialization",
       "policy_permission_guard_initialization->context_and_tool_guard_initialization",
       "context_and_tool_guard_initialization->checkpoint_definition",
       "context_and_tool_guard_initialization->tooling_surface_guard_initialization",
@@ -298,6 +313,8 @@
       "session_bootstrap_guard_initialization->failed",
       "remote_service_guard_initialization->blocked",
       "remote_service_guard_initialization->failed",
+      "operator_integration_guard_initialization->blocked",
+      "operator_integration_guard_initialization->failed",
       "policy_permission_guard_initialization->blocked",
       "context_and_tool_guard_initialization->blocked",
       "tooling_surface_guard_initialization->blocked",
@@ -446,7 +463,7 @@
       ]
     },
     "slice_policy": {
-      "default_max_slices": 14,
+      "default_max_slices": 16,
       "slice_required_fields": [
         "name",
         "goal",
@@ -546,6 +563,31 @@
         "do_not_treat_semantic_search_as_exact_file_context",
         "do_not_treat_workspace_sync_as_validation",
         "do_not_store_or_emit_remote_service_secrets"
+      ]
+    },
+    "operator_integration_guard_contract": {
+      "source": "forgecode_assimilated_operator_integration_layer",
+      "required_composite_workflow_id": "local_coding_operator_integration_guard",
+      "required_primitive_workflow_ids": [
+        "sandbox_worktree_isolation",
+        "operator_command_surface_projection",
+        "external_update_editor_auth_boundary",
+        "schema_data_generation_pipeline"
+      ],
+      "activation_policy": "local coding tasks must route sandbox worktree setup, command-surface projection, update/editor/auth callbacks, and schema data generation through ForgeCode-style operator integration boundaries when those features are relevant, while local file mutation and validation remain owned by local safety primitives",
+      "required_receipts": [
+        "sandbox_worktree_receipt",
+        "operator_command_surface_receipt",
+        "external_update_editor_auth_receipt",
+        "schema_data_generation_receipt",
+        "operator_action_approval_receipt"
+      ],
+      "non_goals": [
+        "do_not_treat_command_projection_as_command_execution",
+        "do_not_install_update_or_editor_extension_without_confirmation",
+        "do_not_bind_non_loopback_oauth_callbacks",
+        "do_not_treat_schema_data_generation_as_code_validation",
+        "do_not_store_or_emit_operator_secrets"
       ]
     },
     "context_loop_guard_contract": {
@@ -721,6 +763,7 @@
       "ingress_context",
       "session_bootstrap",
       "remote_service_context",
+      "operator_integration_context",
       "architecture_contract",
       "completed_slices",
       "active_slice",

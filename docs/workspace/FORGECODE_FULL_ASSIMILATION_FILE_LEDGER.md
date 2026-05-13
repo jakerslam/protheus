@@ -93,6 +93,7 @@ Top-level source areas:
 | `FC-A12` | Extract CLI, session, command, and user-prompt ingress semantics | active | Ingress-layer contract pass added for CLI prompt/piped input normalization, interactive session state, command prompt generation, user prompt context assembly, and the `local_coding_ingress_guard` composite. |
 | `FC-A13` | Extract pre-runtime session bootstrap semantics | active | Session-layer contract pass added for provider/model binding, conversation bootstrap, terminal command snapshots, external file-change notices, title/commit helpers, and the `local_coding_session_bootstrap_guard` composite. |
 | `FC-A14` | Extract remote workspace, semantic search, provider transport, and auth service boundaries | active | Remote-service contract pass added for workspace auth, sync/indexing, semantic search, provider transport, and the `local_coding_remote_service_guard` composite. |
+| `FC-A15` | Extract sandbox, command surface, update/editor/auth, and data-generation operator integrations | active | Operator-integration contract pass added for git worktree sandboxing, command projection, update/editor/OAuth boundaries, schema data generation, and the `local_coding_operator_integration_guard` composite. |
 
 ## Assimilated workflow contracts created
 
@@ -154,6 +155,11 @@ These are lab contracts only. They do not yet provide a full ForgeCode runtime c
 | `codebase_semantic_search` | 0 | `forge_services/context_engine`, `forge_domain/repo`, `forge_domain/node` | lab contract created | Runs semantic search against indexed workspaces while preserving query/use-case, workspace freshness, ranking metadata, and local-read dependency boundaries. |
 | `provider_transport_boundary` | 0 | `forge_services/provider_service`, `forge_services/auth`, `forge_domain/repo` | lab contract created | Renders configured provider URL templates and model-source URLs, delegates chat/model calls, migrates credentials, and records auth-user service receipts without leaking secrets. |
 | `local_coding_remote_service_guard` | 1 | `forge_services/context_engine`, `forge_services/sync`, `forge_services/provider_service`, `forge_services/provider_auth`, `forge_domain/repo`, `forge_domain/node` | lab contract created | Composite guard that isolates remote auth, workspace sync/indexing, semantic search, and provider transport from local file mutation and validation. |
+| `sandbox_worktree_isolation` | 0 | `forge_main/sandbox` | lab contract created | Creates or reuses sibling git worktree sandboxes with repo-root checks, branch/worktree conflict handling, canonicalized paths, and created/reused receipts. |
+| `operator_command_surface_projection` | 0 | `forge_main/model`, `forge_main/info`, `forge_main/tools_display` | lab contract created | Parses slash/colon commands, routes shell bypass without execution, projects workflow/agent commands, Info sections, tool checkboxes, and failed MCP display summaries. |
+| `external_update_editor_auth_boundary` | 0 | `forge_main/update`, `forge_main/vscode`, `forge_main/oauth_callback` | lab contract created | Keeps updates, VS Code extension setup, and localhost OAuth callback handling behind explicit operator boundaries and secret-redaction receipts. |
+| `schema_data_generation_pipeline` | 0 | `forge_app/data_gen` | lab contract created | Resolves schema/system/user/input files, parses JSONL, binds output tool schema, runs concurrent provider generation, and emits input/output JSON stream receipts. |
+| `local_coding_operator_integration_guard` | 1 | `forge_main` operator helpers and `forge_app/data_gen` | lab contract created | Composite guard that isolates sandboxing, command projection, update/editor/auth, and schema data-generation behavior from local file mutation and validation. |
 
 ## Runtime behavior harnesses created
 
@@ -169,7 +175,7 @@ Neutral master workflow integration:
 
 | Workflow ID | Integration status | Notes |
 | --- | --- | --- |
-| `local_coding_program_builder` | ingress/session/remote-service/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
+| `local_coding_program_builder` | ingress/session/remote-service/operator-integration/policy/context/tooling/runtime/observability/loop-layer dependency declared | The neutral master workflow now references `local_coding_ingress_guard`, `local_coding_session_bootstrap_guard`, `local_coding_remote_service_guard`, `local_coding_operator_integration_guard`, `local_policy_permission_guard`, `local_context_loop_guard`, `local_tooling_surface_guard`, `local_runtime_execution_loop`, `local_runtime_observability_guard`, `plan_artifact_create`, `local_code_edit_execution`, `bounded_repair_loop`, and `checkpoint_handoff`; because it composes a level-2 repair loop, its workflow level remains 3. |
 
 ## Second source pass: planning, repair, undo, and tracker loop behavior
 
@@ -235,10 +241,10 @@ Known compatibility constraint:
 - We should assimilate behavior into measurable primitives, not copy ForgeCode byte-for-byte into the master workflow. Byte-for-byte cloning would make ownership, testing, and promotion boundaries harder to track.
 
 Current blocker for parity:
-- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
+- `local_coding_program_builder` now has measurable contracts for CLI/session ingress, pre-runtime session bootstrap, remote service boundaries, operator integration boundaries, user prompt context assembly, safe reads/writes, plan artifacts, bounded repair, undo, clarification, validation, checkpoint handoff, ForgeCode-style runtime-loop behavior, and observability projection, but those contracts still need executable runtime-backed evals before we can claim production parity.
 
 Next source pass:
-- Run a full ledger parity review against the remaining ForgeCode source inventory and identify any unmodeled source families before shifting from structural assimilation to executable eval coverage.
+- Run a full source-inventory parity review against remaining ForgeCode source families, especially shell plugin behavior, embedded templates, docs/plans, scripts, and CI/release surfaces, then shift from structural assimilation to executable eval coverage.
 
 ## Third source pass: prompt, context, tool routing, and delegation behavior
 
@@ -495,3 +501,36 @@ Remote-service parity requirements extracted:
 | Provider URL templates and model-source templates render only with configured credential params and redact secrets | `provider_transport_boundary` | P0 |
 | Provider transport readiness must stay separate from runtime-loop provider turn success | `provider_transport_boundary`, `local_runtime_execution_loop` | P0 |
 | Keep remote auth/sync/search/transport separate from local file mutation, validation, and checkpoint handoff | `local_coding_remote_service_guard` | P0 |
+
+## Eleventh source pass: operator integration, sandbox, command surface, and data generation behavior
+
+Evidence files inspected:
+
+| Source file | Observed behavior | Assimilation implication |
+| --- | --- | --- |
+| `crates/forge_main/src/sandbox.rs` | Requires a git repository, resolves the git root, creates or reuses a sibling sandbox worktree, rejects existing non-worktree targets, checks branches, creates missing branches/worktrees, canonicalizes the final path, and emits created/reused titles. | Sandbox setup needs an operator primitive because it can mutate git/worktree state but must not be confused with coding or validation success. |
+| `crates/forge_main/src/model.rs` | Parses slash and colon commands, treats bang-prefixed input as shell bypass, passes non-command messages through, registers workflow and agent commands, sanitizes `agent-*` command names, skips reserved conflicts, and sorts command lists. | Command-surface projection should classify and display routes without executing side effects. |
+| `crates/forge_main/src/info.rs` | Displays structured sections with title-case keys and placeholder handling for empty values. | Operator-visible status should be a projection layer, not raw internal state leakage. |
+| `crates/forge_main/src/tools_display.rs` | Formats enabled/disabled tools with checkbox-like markers, groups system/agent/MCP tools, and truncates failed MCP server error text. | Tool availability display belongs beside command projection and should not be treated as tool execution readiness alone. |
+| `crates/forge_main/src/update.rs` | Skips dev/0.1.0 update checks, observes configured update frequency, checks GitHub release metadata, confirms interactive updates unless auto-update is configured, runs the official installer command only on the update path, and exits after successful update/confirmation. | Update behavior is externally visible and needs explicit confirmation/receipt boundaries. |
+| `crates/forge_main/src/vscode.rs` | Detects VS Code terminals from environment variables, checks installed extensions through `code --list-extensions`, and installs `ForgeCode.forge-vscode` only when inside VS Code and missing. | Editor integration should be explicit operator setup, not implicit coding execution. |
+| `crates/forge_main/src/oauth_callback.rs` | Starts a local callback server only for loopback/localhost redirect URIs with explicit ports, accepts loopback GET requests on the expected path, validates state and code, handles OAuth errors, times out after 300 seconds, and returns no-store/nosniff HTML responses. | OAuth callback handling needs a secret-redacting auth boundary before runtime or provider behavior can depend on it. |
+| `crates/forge_app/src/data_gen.rs` | Resolves schema/system/user/input files relative to cwd, reads JSONL inputs, binds an `output` tool to the schema, renders optional user templates per input, runs concurrent provider calls, extracts tool-call arguments, and emits `{input, output}` JSON objects. | Schema data generation is useful operator capability but must be separated from local code mutation, validation, and checkpoint completion. |
+
+Operator-integration parity requirements extracted:
+
+| Requirement | Target primitive | Priority |
+| --- | --- | --- |
+| Require git repository boundaries and reject unsafe sandbox roots | `sandbox_worktree_isolation` | P0 |
+| Reuse existing git worktrees but reject existing non-worktree sandbox paths | `sandbox_worktree_isolation` | P0 |
+| Create missing branches/worktrees only through explicit sandbox setup receipts | `sandbox_worktree_isolation` | P0 |
+| Parse slash/colon commands and route bang-prefixed shell bypass without executing it | `operator_command_surface_projection` | P0 |
+| Register workflow and agent commands with reserved-name conflict protection and stable sorting | `operator_command_surface_projection` | P0 |
+| Render Info/tool status as compact display projections, including failed MCP server summaries | `operator_command_surface_projection` | P1 |
+| Keep update checks frequency-bound and require confirmation unless auto-update is configured | `external_update_editor_auth_boundary` | P0 |
+| Install editor extensions only when VS Code context and missing-extension checks pass | `external_update_editor_auth_boundary` | P0 |
+| Accept OAuth callbacks only from loopback GET requests with matching path, state, and code | `external_update_editor_auth_boundary` | P0 |
+| Redact OAuth codes, tokens, credential params, and external installer payloads | `external_update_editor_auth_boundary` | P0 |
+| Resolve data-generation files relative to cwd and parse JSONL one record per line | `schema_data_generation_pipeline` | P0 |
+| Bind schema output through an explicit output tool and emit `{input, output}` JSON records | `schema_data_generation_pipeline` | P0 |
+| Keep sandboxing, command projection, external setup, auth callbacks, and data generation separate from local file mutation and validation | `local_coding_operator_integration_guard` | P0 |
