@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 285
-- Not parsed: 993
+- Parsed: 291
+- Not parsed: 987
 - Skipped generated: 11
 - Skipped media or sample: 68
 
@@ -308,6 +308,12 @@
 | `apps/api/src/__tests__/snips/v2/system-prompt-rejection.test.ts` | V2 extraction boundary test. | User-supplied system prompts in extraction format options are rejected while ordinary extraction prompts remain accepted. |
 | `apps/api/src/__tests__/snips/v2/webhook.test.ts` | V2 webhook placeholder. | The commented event contract mirrors V1 started/page/completed reconciliation, but executable coverage is only a placeholder. |
 | `apps/api/src/__tests__/snips/v2/wikipedia.test.ts` | V2 specialty source behavior tests. | A specialty source engine can provide high-quality article evidence across languages, redirects, special characters, requested formats, metadata, and graceful not-found behavior. |
+| `apps/api/src/__tests__/snips/wikipedia-url-parser.test.ts` | Wikimedia URL parser tests. | Specialty source routing should parse project/language/article identity, decode common URL forms, strip query/fragment noise, and reject unsupported/non-content endpoints before using a special engine. |
+| `apps/api/src/__tests__/snips/v2/audio-routing.test.ts` | V2 audio engine routing test. | Audio extraction requires a browser-cookie context before audio postprocessing, so engine ladders can exclude index/fetch/stealth lanes when an artifact needs a specific capability. |
+| `apps/api/src/__tests__/snips/v2/monitor.test.ts` | V2 monitor behavior tests. | Scheduled retrieval enforces minimum intervals, supports create/list/get/pause/delete, allows manual runs, and projects check summaries plus paginated page results. |
+| `apps/api/src/__tests__/snips/v2/scrape-branding.test.ts` | V2 branding artifact tests. | Skipped branding tests describe a design-artifact lane for colors, typography, spacing, components, images, and cleaned fonts; because coverage is skipped, treat this as experimental rather than a proven primitive. |
+| `apps/api/src/__tests__/snips/zdr-helpers.ts` | ZDR assertion helpers. | Privacy tests assert scrubbed URL/options storage, filtered logs, request records with cleanup markers, GCS removal after cleaner, and request-scoped status disappearance. |
+| `apps/api/src/__tests__/snips/v2/lib.ts` | V2 snips test harness. | Raw/success/failure wrappers and async start/status/poll helpers make status-handle workflows testable without mixing transport details into each behavior test. |
 | `apps/api/src/__tests__/snips/v2/batch-scrape.test.ts` | Batch scrape E2E behavior tests. | Batch reads should return content-bearing documents, preserve original source URLs, and support typed JSON extraction formats. |
 | `apps/api/src/lib/extract/extract-redis.ts` | Extract state persistence. | Extract progress is TTL-bounded, stores only recent steps, caps discovered links per step, and separates result storage from status storage. |
 | `apps/api/src/lib/extract/extraction-service.ts` | Structured extraction orchestration. | Extraction maps candidate URLs, broadens when mapping is too sparse, chunks multi-entity work, tracks source refs, dedupes/merges results, and returns URL trace/sources when requested. |
@@ -397,6 +403,10 @@
 - Rich page artifacts are evidence variants, not answer formats: links, images, attributes, page-local queries, summaries, audio, screenshots, PDFs, and change tracking should be generated only when requested or needed and then cited through evidence refs.
 - Search schemas should expose source lanes, category lanes, include/exclude domains, freshness/location/language hints, and scrape enrichment options as structured inputs instead of relying on prompt-only query text.
 - Cache/status behavior needs explicit assertions across rich artifacts because artifact shape, request context, and source URL preservation determine whether retrieved data can be trusted by synthesis.
+- Engine ladders should be artifact-aware: if an artifact requires browser cookies, retained context, or a source-specialty parser, generic cache/fetch lanes may be invalid even when they can return page text.
+- Scheduled retrieval is a useful primitive only when it has minimum cadence bounds, owner-scoped CRUD, manual-run probes, bounded result pages, and summaries that remain separate from final chat synthesis.
+- Test harnesses should make async tool behavior first-class with raw requests, success/failure assertions, start/status polling, error projection, and cleanup helpers so workflow regressions are easy to isolate.
+- Experimental artifact lanes should be ledgered separately from proven primitives; skipped tests are pattern signals, not implementation proof.
 
 ## Candidate Assimilation Targets
 
@@ -431,6 +441,8 @@
 29. Source-specialty evidence lanes: admit specialized source readers only as capability lanes with the same output-format, metadata, error, and privacy contracts as generic readers. Ledger captured; candidate future tooling-CD refinement.
 30. Rich page-artifact evidence contract: model links, images, attributes, summaries, page-local answers/highlights, audio/video transcripts, screenshots, change tracking, and document rewrites as optional evidence artifacts with cache/status tests. Ledger captured; compare against current evidence-pack item schema.
 31. Structured search lane schema: support source/category/domain/freshness/location/language/scrape-option lanes as general retrieval inputs without hardcoding research domains. Ledger captured; compare against current `web_retrieval_v0` Tool CD.
+32. Artifact-aware engine eligibility: annotate retrieval engines with required context/capabilities such as browser cookies, retained sessions, source-specialty parser, or no-cache eligibility. Ledger captured; candidate Tool CD capability field.
+33. Async retrieval test harness: maintain raw/success/failure wrappers plus polling helpers for each async retrieval primitive so live workflow failures can be classified as request, execution, status, or synthesis failures. Ledger captured; candidate eval-harness target.
 
 ## Remaining Work
 
