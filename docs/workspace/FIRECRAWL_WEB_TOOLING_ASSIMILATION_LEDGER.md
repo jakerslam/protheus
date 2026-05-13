@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 900
-- Not parsed: 373
+- Parsed: 919
+- Not parsed: 354
 - Skipped generated: 13
 - Skipped media or sample: 71
 
@@ -949,6 +949,25 @@
 | `examples/o3-mini_company_researcher/o3-mini_company_researcher.py` | Model-variant extraction example. | Repeats SERP discovery, URL selection, cleanup, source extraction, and async polling; provider-specific model choice is quarantined. |
 | `examples/o3-mini_web_crawler/o3-mini_web_crawler.py` | Model-variant crawler example. | Confirms objective-to-map-query, URL ranking, top-page scrape, and JSON objective check as repeated composition rather than new syntax. |
 | `examples/sonnet_web_crawler/sonnet_web_crawler.py` | Model-variant crawler example. | Repeats batch top-link scrape/objective extraction with tracing; tracing is observability and should not enter evidence. |
+| `examples/find_internal_link_opportunites/find_internal_link_opportunites.ipynb` | Internal-link opportunity notebook. | Crawl a corpus, derive candidate targets from metadata, then emit exact-phrase link suggestions as a downstream artifact rather than a retrieval mutation. |
+| `examples/gemini-2.5-screenshot-editor/.env.example` | Screenshot editor capability config. | Firecrawl screenshot and Gemini image editing keys are separate capability inputs, with optional custom Firecrawl endpoint. |
+| `examples/gemini-2.5-screenshot-editor/README.md` | Screenshot editor overview. | Screenshots are a selectable artifact facet with viewport/mobile/wait controls, batch mode, iterative refinements, and intermediate artifact retention. |
+| `examples/gemini-2.5-screenshot-editor/cli.py` | Screenshot editor implementation. | Captures screenshot artifacts, supports text/image/composite/refinement modes, validates environment, saves intermediate artifacts, and isolates visual generation from retrieval evidence. |
+| `examples/gemini-2.5-screenshot-editor/requirements.txt` | Screenshot editor dependencies. | Firecrawl, image-generation provider, image library, requests, and dotenv dependencies are example-local. |
+| `examples/llama-4-maverick-web-crawler/.env.example` | Llama crawler capability config. | Firecrawl and provider credentials remain capability inputs. |
+| `examples/llama-4-maverick-web-crawler/.gitignore` | Llama crawler local hygiene. | Environment, cache, build, log, coverage, temp, and editor artifacts are local-only. |
+| `examples/llama-4-maverick-web-crawler/README.md` | Llama crawler overview. | Repeats map, rank, scrape, analyze, and JSON extraction flow with provider choice quarantined. |
+| `examples/llama-4-maverick-web-crawler/llama4-maverick-web-crawler.py` | Llama crawler implementation. | Adds stricter raw-JSON response expectations around map ranking and objective checks, but no new primitive beyond provider-wrapper parity. |
+| `examples/llama-4-maverick-web-crawler/requirements.txt` | Llama crawler dependencies. | Firecrawl, provider wrapper, and dotenv dependencies only. |
+| `examples/openai-realtime-firecrawl/README.md` | Realtime integration pointer. | Minimal pointer only; no reusable retrieval mechanics beyond real-time shell/tool integration being a separate surface. |
+| `examples/openai_swarm_firecrawl/.env.example` | Swarm marketing capability config. | Firecrawl and OpenAI credentials remain capability inputs. |
+| `examples/openai_swarm_firecrawl/README.md` | Swarm marketing overview. | Multi-agent marketing workflow separates user interface, scraper, analyst, campaign, and copywriter roles as callable handoff stages. |
+| `examples/openai_swarm_firecrawl/main.py` | Swarm marketing implementation. | Handoffs show composite workflow sequencing over a scrape artifact, but generated marketing side effects stay downstream of retrieval. |
+| `examples/openai_swarm_firecrawl/requirements.txt` | Swarm marketing dependencies. | Firecrawl and OpenAI dependencies only. |
+| `examples/openai_swarm_firecrawl_web_extractor/.env.example` | Swarm extractor capability config. | Search, Firecrawl, and OpenAI credentials remain separate capability inputs. |
+| `examples/openai_swarm_firecrawl_web_extractor/main.py` | Swarm extractor implementation. | Search-to-map-to-scrape-to-analyze agent handoff is useful as composite-CD shape; collapsing map output to a single top link is a candidate-set anti-pattern. |
+| `examples/openai_swarm_firecrawl_web_extractor/requirements.txt` | Swarm extractor dependencies. | Firecrawl, OpenAI, search provider, and Swarm dependencies are example-local. |
+| `examples/visualize_website_topics_e2b/claude-visualize-website-topics.ipynb` | Topic visualization notebook. | Crawl output can be cleaned into metadata/content summaries and passed to a separate code-analysis tool that returns visualization artifacts. |
 
 ## Decisions So Far
 
@@ -1360,6 +1379,11 @@
 232. Domain query templates as policy: source diversification examples such as marketplace/site-specific product searches are useful when expressed as typed source-class policy, not hardcoded domains or user-facing prompt text. Ledger captured; candidate source-diversification primitive.
 233. Action precondition extraction: dynamic page work such as clicking a job overview can be a declared extraction precondition with a selector artifact and typed failure mode. Ledger captured; candidate dynamic retrieval lane.
 234. Debug leakage as anti-pattern: example scripts often print raw maps, responses, headers, and provider output; production workflow traces must keep that telemetry separate from evidence and final projection. Ledger reinforced; candidate projection guard.
+235. Screenshot artifact facet: page screenshots are a visual evidence/artifact lane with viewport, mobile, full-page, wait, and output-retention controls. Ledger captured; candidate evidence facet/tool schema target.
+236. Intermediate artifact lifecycle: iterative visual or analysis refinements can retain named intermediate artifacts under explicit output directories rather than leaking into final answer text. Ledger captured; candidate artifact-store lifecycle target.
+237. Corpus-derived secondary artifacts: crawled corpora can feed internal-link suggestions, topic visualizations, and other derivative artifacts without mutating the retrieval corpus. Ledger reinforced; candidate analysis workflow target.
+238. Composite agent handoff as CD shape: examples model search, map, scrape, analyze, and write as separate callable stages; useful as composite workflow-CD inspiration, not hardcoded agents. Ledger captured; candidate workflow-CD composition target.
+239. Candidate-set collapse anti-pattern: taking only the first map/search result before scraping loses coverage and should be guarded by fan-in/min-coverage policy. Ledger captured; candidate retrieval planner guard.
 
 ## Remaining Work
 
@@ -1373,6 +1397,7 @@
 - Airbnb data-analysis example is parsed; it contributes retrieval-to-analysis artifact separation and discovery fallback patterns, not model/tool permission choices.
 - Model-variant crawler/extractor clusters through Claude, Gemini, GPT-4.5, Grok, Groq, Haiku, Mistral, O1, O3-mini, and Sonnet are parsed; they mostly reinforce map/rank/scrape/extract, linked media/document lanes, and source-bound extraction while provider choices remain quarantined.
 - Company/product/job/source-specific examples are parsed enough to capture extract-then-discover, candidate confidence sidecars, source verification, action preconditions, and downstream analysis-over-evidence patterns.
+- Screenshot editor, internal-link, topic-visualization, Llama crawler, realtime pointer, and OpenAI Swarm examples are parsed; useful signals are visual artifact facets, corpus-derived analysis artifacts, composite handoff shape, and avoiding top-link-only candidate collapse.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
