@@ -169,6 +169,7 @@ fn select_diverse_ranked_candidates(
 #[derive(Clone, Debug)]
 struct ResearchFacet {
     id: String,
+    kind: String,
     requested_text: String,
     terms: HashSet<String>,
     distinctive_terms: HashSet<String>,
@@ -184,6 +185,7 @@ fn research_facet_from_text_with_required_terms(
     text: &str,
     index: usize,
     required_terms: usize,
+    kind: &str,
 ) -> Option<ResearchFacet> {
     let requested_text = clean_text(text, 600);
     if requested_text.is_empty() {
@@ -195,6 +197,7 @@ fn research_facet_from_text_with_required_terms(
     }
     Some(ResearchFacet {
         id: format!("facet_{:02}", index + 1),
+        kind: clean_text(kind, 80),
         requested_text,
         terms,
         distinctive_terms: HashSet::new(),
@@ -202,11 +205,11 @@ fn research_facet_from_text_with_required_terms(
 }
 
 fn research_facet_from_text(text: &str, index: usize, min_terms: usize) -> Option<ResearchFacet> {
-    research_facet_from_text_with_required_terms(text, index, min_terms)
+    research_facet_from_text_with_required_terms(text, index, min_terms, "inferred")
 }
 
-fn research_facet_from_metadata_text(text: &str, index: usize) -> Option<ResearchFacet> {
-    research_facet_from_text_with_required_terms(text, index, 1)
+fn research_facet_from_metadata_text(text: &str, index: usize, kind: &str) -> Option<ResearchFacet> {
+    research_facet_from_text_with_required_terms(text, index, 1, kind)
 }
 
 fn assign_distinctive_facet_terms(facets: &mut [ResearchFacet]) {
@@ -257,21 +260,22 @@ fn inferred_facet_texts_from_query(query: &str) -> Vec<String> {
     out
 }
 
-fn metadata_coverage_facet_texts(query_metadata: &BatchQueryKeywordPack) -> Vec<String> {
+fn metadata_coverage_facet_texts(query_metadata: &BatchQueryKeywordPack) -> Vec<(String, String)> {
     let mut seen = HashSet::<String>::new();
-    let mut out = Vec::<String>::new();
-    for raw in query_metadata
-        .entities
-        .iter()
-        .chain(query_metadata.facets.iter())
-    {
-        let cleaned = clean_text(raw, 240);
-        if cleaned.is_empty() {
-            continue;
-        }
-        let key = cleaned.to_ascii_lowercase();
-        if seen.insert(key) {
-            out.push(cleaned);
+    let mut out = Vec::<(String, String)>::new();
+    for (kind, rows) in [
+        ("entity", query_metadata.entities.as_slice()),
+        ("facet", query_metadata.facets.as_slice()),
+    ] {
+        for raw in rows {
+            let cleaned = clean_text(raw, 240);
+            if cleaned.is_empty() {
+                continue;
+            }
+            let key = cleaned.to_ascii_lowercase();
+            if seen.insert(key) {
+                out.push((cleaned, kind.to_string()));
+            }
         }
     }
     out
@@ -291,8 +295,8 @@ fn infer_research_facets(
     let min_terms = facet_aware_min_terms(policy);
     let mut facets = Vec::<ResearchFacet>::new();
     let mut seen = HashSet::<String>::new();
-    for text in metadata_coverage_facet_texts(query_metadata) {
-        if let Some(mut facet) = research_facet_from_metadata_text(&text, facets.len()) {
+    for (text, kind) in metadata_coverage_facet_texts(query_metadata) {
+        if let Some(mut facet) = research_facet_from_metadata_text(&text, facets.len(), &kind) {
             let signature = research_facet_signature(&facet.terms);
             if !seen.insert(signature) {
                 continue;
@@ -496,6 +500,7 @@ fn evidence_coverage_from_ranked_candidates(
                 };
                 json!({
                     "facet_id": facet.id,
+                    "facet_kind": facet.kind,
                     "requested_text": facet.requested_text,
                     "status": status,
                     "evidence_count": matching.len(),

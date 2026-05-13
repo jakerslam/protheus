@@ -851,7 +851,7 @@
         "for current or recent research, use current/recent source-class searches such as changelog, release notes, repository, publication, announcement, security advisory, methodology, or direct documentation instead of broad stale year ranges",
         "avoid hidden query expansion; every retry query must be represented in the submitted request payload"
       ],
-      "finalization_after_exhaustion": "If retrieval remains weak after the allowed internal recovery attempts, synthesize a bounded answer from the best recorded evidence and clearly separate evidence, uncertainty, coverage gaps, decision value, and useful next search direction."
+      "finalization_after_exhaustion": "If retrieval remains weak after the allowed internal recovery attempts, synthesize a bounded answer from the best recorded evidence and clearly separate evidence, uncertainty, named requested lanes that remain weak or missing, decision value, and useful next search direction."
     },
     "tool_family_menu": [
       {

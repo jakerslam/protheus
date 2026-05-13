@@ -343,6 +343,72 @@ mod quality_tests {
                 .unwrap_or(false),
             "{out:#?}"
         );
+        assert!(
+            out.get("evidence_coverage")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("requested_text").and_then(Value::as_str)
+                            == Some("security posture")
+                            && row.get("facet_kind").and_then(Value::as_str) == Some("facet")
+                            && row.get("status").and_then(Value::as_str) == Some("covered")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
+    fn required_entity_coverage_is_tracked_as_entity_lane() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        write_test_batch_policy(tmp.path(), true);
+        let query = "Research Alpha Runtime production readiness";
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Alpha Runtime official release notes describe production readiness, deployment support, and operational maturity for current teams.",
+                    "requested_url": "https://docs.alpha.example.com/release-notes",
+                    "status_code": 200
+                },
+                "\"Alpha Runtime\" production readiness": {
+                    "ok": true,
+                    "summary": "Alpha Runtime production readiness documentation covers deployment controls, support lifecycle, and monitoring expectations.",
+                    "requested_url": "https://docs.alpha.example.com/production",
+                    "status_code": 200
+                }
+            }),
+            || {
+                run_request(
+                    tmp.path(),
+                    &json!({
+                        "source": "web",
+                        "query": query,
+                        "required_coverage": {
+                            "entities": ["Alpha Runtime"],
+                            "facets": ["production readiness"]
+                        },
+                        "aperture": "medium"
+                    }),
+                )
+            },
+        );
+
+        assert!(
+            out.get("evidence_coverage")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter().any(|row| {
+                        row.get("requested_text").and_then(Value::as_str)
+                            == Some("Alpha Runtime")
+                            && row.get("facet_kind").and_then(Value::as_str) == Some("entity")
+                            && row.get("status").and_then(Value::as_str) == Some("covered")
+                    })
+                })
+                .unwrap_or(false),
+            "{out:#?}"
+        );
     }
 
     fn summary_lowered(out: &Value) -> String {

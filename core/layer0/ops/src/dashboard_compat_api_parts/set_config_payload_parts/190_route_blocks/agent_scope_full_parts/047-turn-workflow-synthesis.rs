@@ -834,6 +834,79 @@ fn apply_final_empty_response_diagnostic(
     set_turn_workflow_final_stage_status(workflow, "empty_llm_response");
 }
 
+fn fallback_coverage_lane_sentence(response_tools: &[Value]) -> String {
+    let lanes = synthesis_coverage_lanes_for_tools(response_tools, 12);
+    if lanes.is_empty() {
+        return String::new();
+    }
+    let lane_label = |row: &Value| -> String {
+        let kind = clean_text(row.get("kind").and_then(Value::as_str).unwrap_or(""), 80);
+        let requested = clean_text(
+            row.get("requested_text").and_then(Value::as_str).unwrap_or(""),
+            180,
+        );
+        if requested.is_empty() {
+            String::new()
+        } else if kind == "entity" {
+            requested
+        } else {
+            requested
+        }
+    };
+    let covered = lanes
+        .iter()
+        .filter(|row| {
+            matches!(
+                row.get("status").and_then(Value::as_str),
+                Some("covered") | Some("usable")
+            )
+        })
+        .filter_map(|row| {
+            let label = lane_label(row);
+            if label.is_empty() {
+                None
+            } else {
+                Some(label)
+            }
+        })
+        .take(4)
+        .collect::<Vec<_>>();
+    let weak_or_missing = lanes
+        .iter()
+        .filter(|row| {
+            !matches!(
+                row.get("status").and_then(Value::as_str),
+                Some("covered") | Some("usable")
+            )
+        })
+        .filter_map(|row| {
+            let label = lane_label(row);
+            if label.is_empty() {
+                None
+            } else {
+                Some(label)
+            }
+        })
+        .take(8)
+        .collect::<Vec<_>>();
+    if !covered.is_empty() && !weak_or_missing.is_empty() {
+        format!(
+            "Coverage state: usable evidence is present for {}; weak or missing coverage remains for {}.",
+            covered.join(", "),
+            weak_or_missing.join(", ")
+        )
+    } else if !covered.is_empty() {
+        format!("Coverage state: usable evidence is present for {}.", covered.join(", "))
+    } else if !weak_or_missing.is_empty() {
+        format!(
+            "Coverage gaps still matter for: {}.",
+            weak_or_missing.join(", ")
+        )
+    } else {
+        String::new()
+    }
+}
+
 fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[Value]) -> String {
     let cleaned_message = clean_text(message, 220);
     let user_topic = if cleaned_message.is_empty() {
@@ -900,11 +973,22 @@ fn fallback_final_response_from_tool_evidence(message: &str, response_tools: &[V
     };
 
     let mut response_parts = Vec::<String>::new();
-    response_parts.push(
-        "The recorded evidence is partial rather than decisive, so a stronger source-backed conclusion would overstate what we have."
-            .to_string(),
-    );
+    if request_is_comparative {
+        response_parts.push(
+            "The safest bounded answer is that this comparison is not ready for a source-backed ranking yet; treat any conclusion as provisional until the missing sides have usable evidence."
+                .to_string(),
+        );
+    } else {
+        response_parts.push(
+            "The safest bounded answer is that the current retrieval state does not support a source-backed conclusion yet; any decision should stay conservative until coverage improves."
+                .to_string(),
+        );
+    }
     response_parts.push(evidence_detail);
+    let coverage_sentence = fallback_coverage_lane_sentence(response_tools);
+    if !coverage_sentence.is_empty() {
+        response_parts.push(coverage_sentence);
+    }
     response_parts.push(uncertainty);
     response_parts.push(
         "The current tradeoff is breadth versus confidence: we can stay narrow and source-backed on the covered evidence, or broaden retrieval before making a stronger claim."
@@ -3734,6 +3818,59 @@ mod workflow_fallback_tests {
         assert!(response.contains("LangGraph"));
         assert!(response.contains("CrewAI"));
         assert!(response.contains("OpenHands"));
+    }
+
+    #[test]
+    fn tool_evidence_fallback_names_required_coverage_lanes() {
+        let tools = vec![json!({
+            "name": "batch_query",
+            "status": "no_results",
+            "is_error": false,
+            "result": "Search providers ran but did not return usable evidence.",
+            "query_metadata": {
+                "required_coverage": {
+                    "entities": ["PydanticAI", "LangGraph", "CrewAI", "LangChain", "OpenAI Agents SDK"],
+                    "facets": ["production readiness", "type safety"]
+                }
+            },
+            "tool_result_quality": {
+                "status": "low_signal",
+                "flags": ["insufficient_evidence"],
+                "retry": {
+                    "recommended": true,
+                    "reason": "coverage_gap"
+                }
+            }
+        })];
+        let response = fallback_final_response_from_tool_evidence(
+            "Is PydanticAI a serious production option for structured agent workflows in Python?",
+            &tools,
+        );
+
+        assert!(response.contains("PydanticAI"), "{response}");
+        assert!(response.contains("LangGraph"), "{response}");
+        assert!(response.contains("CrewAI"), "{response}");
+        assert!(response.contains("LangChain"), "{response}");
+        assert!(response.contains("OpenAI Agents SDK"), "{response}");
+        assert!(response.contains("production readiness"), "{response}");
+        assert!(response.starts_with("The safest bounded answer"), "{response}");
+
+        let synthesis_input =
+            workflow_synthesis_input_for_final_response("research PydanticAI", &tools, &json!({}));
+        assert_eq!(
+            synthesis_input
+                .pointer("/coverage_gaps/0/requested_text")
+                .and_then(Value::as_str),
+            Some("PydanticAI"),
+            "{synthesis_input:#?}"
+        );
+        assert_eq!(
+            synthesis_input
+                .pointer("/coverage_gaps/0/kind")
+                .and_then(Value::as_str),
+            Some("entity"),
+            "{synthesis_input:#?}"
+        );
     }
 
     #[test]

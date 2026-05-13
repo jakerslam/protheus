@@ -177,7 +177,7 @@
       "cross_comparison",
       "coverage_gap_recovery"
     ],
-    "before_synthesis": "each major requested lane should have usable evidence, weak evidence, or an explicit coverage gap; use evidence_coverage when present to understand facet coverage across the user's actual research objective",
+    "before_synthesis": "each major requested lane should have usable evidence, weak evidence, or an explicit coverage gap; use evidence_coverage and query_metadata required_coverage when present to understand entity, facet, source-class, and time-window coverage across the user's actual research objective",
     "broker_report_use": "when retrieval_broker, source_class_coverage, or evidence_pack_quality are present, treat them as hidden calibration for what retrieval attempted, which lanes recovered, and where evidence remains thin; do not quote those diagnostics as sources or visible answer structure",
     "two_phase_retrieval": "a broad discovery query may start research, but broad, comparative, current, evaluative, multi-entity, or multi-aspect research should continue through targeted follow-up based on discovery results and missing lanes before synthesis unless sufficiency is already met",
     "query_metadata_planning": "when the request payload carries keywords, required_coverage, aliases, or negative_terms, treat them as explicit retrieval metadata for coverage lanes; the tool may compile them into visible query-plan lanes and must record query_metadata rather than using hidden expansion",
@@ -186,7 +186,7 @@
     "adaptive_followup_retrieval": "after discovery or any policy-generated query pack, if named entities, requested aspects, source classes, or time windows remain weak and budget remains, run targeted gap-fill queries derived from the missing lanes and retrieved terms before final synthesis",
     "evidence_pack_ranking": "rank the synthesis pack by relevance, facet coverage, source authority, source diversity, freshness when relevant, content density, and novelty; preserve coverage-critical evidence even when it is not globally top-ranked",
     "facet_aware_evidence": "evidence_refs may include coverage_facets and the tool result may include evidence_coverage; synthesize from covered facets, use weak facets only with uncertainty, and call out missing facets as coverage gaps without forcing any response format",
-    "low_evidence_finalization": "when retrieval remains weak after bounded recovery, use tool_result_quality, provider_results, retrieval_telemetry, evidence_coverage, and evidence_refs to distinguish usable evidence from weak or irrelevant raw evidence; lead with the best bounded answer or decision value, then calibrate it with evidence limits, uncertainty, and coverage gaps without forcing a format",
+    "low_evidence_finalization": "when retrieval remains weak after bounded recovery, use tool_result_quality, provider_results, retrieval_telemetry, query_metadata, evidence_coverage, and evidence_refs to distinguish usable evidence from weak or irrelevant raw evidence; lead with the best bounded answer or decision value, then calibrate it with evidence limits, uncertainty, and the named requested lanes that remain weak or missing without forcing a format",
     "weak_evidence_handling": "low_confidence_raw evidence may inform a bounded answer or coverage-gap explanation, but it must not be presented as equally source-backed as usable evidence; retrieval telemetry is diagnostic context, not a cited source",
     "non_goals": [
       "do_not_hardcode_research_domains",
