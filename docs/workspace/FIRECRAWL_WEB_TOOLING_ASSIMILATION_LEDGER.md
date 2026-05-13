@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 579
-- Not parsed: 698
+- Parsed: 592
+- Not parsed: 685
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -628,6 +628,19 @@
 | `apps/api/src/natives.ts` | Native helper path resolver. | Native parser/helper artifacts are resolved by platform-specific extension and repository-relative path, keeping parser availability as capability metadata. |
 | `apps/api/src/index.ts` | API bootstrap and error boundary. | Startup installs DNS caching, initializes blocklist/engine forcing, mounts versioned routers, drains queues on shutdown, and maps validation/unknown errors into typed response envelopes. |
 | `apps/api/src/harness.ts` | Local service harness. | Harness starts/stops API, workers, queues, parser build, Postgres/RabbitMQ containers, waits for readiness, forwards logs, and guarantees cleanup for live/e2e tests. |
+| `apps/api/src/controllers/auth.ts` | Authentication and account/credit cache controller. | Auth normalizes API keys, separates preview/self-host/DB-backed modes, caches credit chunks under locks, retries read replicas, clears all mode caches after mutations, and attaches sponsor state as control metadata. |
+| `apps/api/src/controllers/v0/keyAuth.ts` | Legacy key-auth probe. | Legacy auth can validate credentials while blocking incompatible ZDR profiles and recording compatibility use as internal telemetry. |
+| `apps/api/src/controllers/v0/admin/create-user.ts` | Integration user provisioning controller. | Partner provisioning hashes integration tokens, accepts real or synthetic identities, creates/reuses teams and API keys, applies coupon/limit overrides, and returns only the new key/control status. |
+| `apps/api/src/controllers/v0/admin/rotate-api-key.ts` | Integration API-key rotation controller. | Key rotation validates integration ownership, creates a replacement key, deletes the old key, and clears auth/credit caches so stale credentials stop working quickly. |
+| `apps/api/src/controllers/v0/admin/validate-api-key.ts` | Integration API-key validation controller. | API-key validation verifies integration ownership before projecting bounded team/user identity, including reversible synthetic external-user IDs. |
+| `apps/api/src/controllers/v1/fireclaw.ts` | Non-retrieval billing action controller. | Credit-spending actions clamp requested units, fetch account-control state, bill atomically, and project remaining credits without producing evidence. |
+| `apps/api/src/controllers/v2/support-proxy.ts` | Support-agent proxy controller. | Support/docs proxy forwards only selected headers, preserves request IDs/idempotency indicators, uses a hard timeout, and maps timeout/unreachable states to typed boundary errors. |
+| `apps/api/src/lib/logger.ts` | Structured logger. | Logging serializes errors, supports bounded rotating file logs, and suppresses logs carrying zero-data-retention metadata. |
+| `apps/api/src/lib/native-logging.ts` | Native log bridge. | Native module logs embedded in errors are parsed, re-emitted through parent trace context, and stripped only after successful parsing. |
+| `apps/api/src/lib/otel-tracer.ts` | Trace-context bridge. | Trace context serializes across async queue boundaries, resumes spans, assigns operation kinds, and marks spans OK/error without changing payload semantics. |
+| `apps/api/src/lib/tracking.ts` | Search/scrape analytics tracker. | Scrape/search analytics extract domains and record request/result metrics only when zero-data-retention is false, keeping analytics separate from citable evidence. |
+| `apps/api/src/lib/deprecations.ts` | Deprecation projection middleware. | Deprecations are emitted as headers and structured warnings/replacements while preserving the underlying response body. |
+| `apps/api/src/lib/withAuth.ts` | Auth bypass wrapper for self-host/test. | Auth bypass is profile-controlled, warning-limited, and returns a declared mock success instead of weakening the normal auth path. |
 
 ## Decisions So Far
 
@@ -798,6 +811,10 @@
 - Capability/profile switches should be typed config or Tool CD fields, not prompt text. Provider URLs, retry budgets, privacy modes, worker counts, parser availability, and test capabilities all need explicit typed homes.
 - Live retrieval/eval harnesses need first-class lifecycle cleanup: process groups, readiness waits, queue shutdown, container ownership, and failure propagation are part of reliable workflow measurement.
 - Unsupported-source messages and deployment contact text are boundary projections. They should not become low-signal research phrasing or evidence-quality judgments.
+- Auth, credit, sponsor, billing, usage, deprecation, and support-proxy data are control projections. They can shape admission, budget, compatibility, and diagnostics, but should never be promoted into retrieval evidence.
+- Zero-data-retention should suppress logs, analytics, traces, and cache writes through typed policy checks rather than relying on downstream synthesis not to mention them.
+- Integration/key-management flows should invalidate auth/credit caches immediately after credential mutations; stale capability state is an upstream tool-admission risk.
+- Trace and analytics IDs are correlation metadata. They should connect request, queue, worker, and result artifacts internally while remaining hidden from user-facing research answers.
 
 ## Candidate Assimilation Targets
 
@@ -907,6 +924,10 @@
 104. Typed capability config bridge: map runtime env/provider/parser/workers/privacy toggles into admitted Tool CD/profile fields so retrieval behavior is explicit and testable. Ledger captured; candidate Tool CD/config target.
 105. Live workflow harness lifecycle: workflow evals should own service startup/readiness/shutdown/cleanup and classify harness failures apart from retrieval or synthesis failures. Ledger captured; candidate eval-runner target.
 106. Boundary-message quarantine: static unsupported/deployment/contact strings should stay in Gateway/control projections and never be reused as synthesis fallbacks. Ledger captured; candidate projection hygiene guard.
+107. Control-projection quarantine: prevent auth/credits/billing/usage/support/deprecation data from entering evidence packs unless explicitly converted into a non-research control artifact. Ledger captured; candidate evidence/projection guard.
+108. ZDR telemetry suppression contract: enforce zero-retention suppression across logs, analytics, tracing, cache writes, and support proxies with tests. Ledger captured; candidate privacy/tool-adapter guard.
+109. Credential mutation invalidation: credential rotation/provisioning should invalidate admission caches and capability state before new requests can use stale keys. Ledger captured; candidate Gateway/tool-admission target.
+110. Trace-correlation metadata lane: carry trace/request/job IDs through internal artifacts for debugging while excluding them from synthesis evidence and final answers. Ledger captured; candidate observability schema target.
 
 ## Remaining Work
 

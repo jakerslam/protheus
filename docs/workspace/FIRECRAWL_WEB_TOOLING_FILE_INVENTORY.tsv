@@ -182,25 +182,25 @@ apps/api/src/__tests__/snips/wikipedia-url-parser.test.ts	apps	parsed	wikipedia_
 apps/api/src/__tests__/snips/zdr-helpers.ts	apps	parsed	zdr_helper_assertions_log_filtering_scrubbed_storage_gcs_cleanup_and_request_scope_status_404
 apps/api/src/config.ts	apps	parsed	api_typed_runtime_config	capability_provider_retry_worker_privacy_search_index_parser_and_test_policy_schema
 apps/api/src/controllers/__tests__/crawl.test.ts	apps	parsed	legacy_crawl_idempotency_test	duplicate_crawl_kickoff_guard
-apps/api/src/controllers/auth.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/auth.ts	apps	parsed	api_auth_and_credit_cache_controller	api_key_normalization_preview_selfhost_db_modes_locked_credit_chunk_cache_retries_and_cache_clear
 apps/api/src/controllers/v0/admin/acuc-cache-clear.ts	apps	parsed	acuc_cache_clear_endpoint	team_scoped_api_key_and_team_cache_invalidation_sanitized_projection
 apps/api/src/controllers/v0/admin/autumn-health.ts	apps	parsed	credit_lifecycle_health_probe	synthetic_create_read_track_refund_lock_finalize_cleanup_with_semantic_balance_validation
 apps/api/src/controllers/v0/admin/cclog.ts	apps	parsed	concurrency_snapshot_logger	bounded_scan_preview_key_filter_compact_per_team_count_persistence
 apps/api/src/controllers/v0/admin/check-fire-engine.ts	apps	parsed	engine_health_probe	bounded_remote_engine_probe_tries_multiple_urls_timeout_and_sanitized_failure
 apps/api/src/controllers/v0/admin/concurrency-queue-backfill.ts	apps	parsed	concurrency_reconcile_endpoint	explicit_admin_backfill_runs_reconciler_with_optional_owner_scope_and_summary_projection
 apps/api/src/controllers/v0/admin/crawl-monitor.ts	apps	parsed	synthetic_crawl_probe	tiny_crawl_state_enqueue_bounded_poll_group_status_success_or_timeout_projection
-apps/api/src/controllers/v0/admin/create-user.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/admin/create-user.ts	apps	parsed	api_integration_user_provisioning	hashed_integration_tokens_synthetic_identity_team_key_coupon_and_limit_override_projection
 apps/api/src/controllers/v0/admin/index-queue-prometheus.ts	apps	parsed	queue_prometheus_metrics	index_webhook_omce_queue_length_gauges_without_payloads
 apps/api/src/controllers/v0/admin/metrics.ts	apps	parsed	concurrency_worker_metrics	empty_queue_reconciliation_aggregate_queue_team_semaphore_worker_gauges
 apps/api/src/controllers/v0/admin/precrawl.ts	apps	parsed	precrawl_trigger_endpoint	admin_triggered_background_precrawl_queue_event
 apps/api/src/controllers/v0/admin/redis-health.ts	apps	parsed	redis_health_probe	bounded_set_get_delete_retries_independent_client_health_details
-apps/api/src/controllers/v0/admin/rotate-api-key.ts	apps	not_parsed	pending_review	
-apps/api/src/controllers/v0/admin/validate-api-key.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/admin/rotate-api-key.ts	apps	parsed	api_integration_key_rotation	ownership_validation_replacement_key_old_key_delete_and_auth_cache_invalidation
+apps/api/src/controllers/v0/admin/validate-api-key.ts	apps	parsed	api_integration_key_validation	integration_owned_key_validation_and_bounded_team_user_identity_projection
 apps/api/src/controllers/v0/admin/zdrcleaner.ts	apps	parsed	zdr_artifact_cleaner	batched_blob_cleanup_all_blobs_per_request_before_clearing_cleanup_marker
 apps/api/src/controllers/v0/crawl-cancel.ts	apps	parsed	v0_crawl_cancel	owner_checked_cancel_persists_cancelled_state_and_refuses_completed_or_missing_groups
 apps/api/src/controllers/v0/crawl-status.ts	apps	parsed	v0_crawl_status	status_merges_queue_db_gcs_jobs_filters_failed_and_projects_partial_completed_documents
 apps/api/src/controllers/v0/crawl.ts	apps	parsed	v0_crawl_controller	idempotency_key_option_validation_credit_bound_limit_url_lock_sitemap_kickoff_fallback_seed_job
-apps/api/src/controllers/v0/keyAuth.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v0/keyAuth.ts	apps	parsed	api_legacy_key_auth_probe	credential_probe_zdr_incompatibility_block_and_internal_legacy_usage_telemetry
 apps/api/src/controllers/v0/liveness.ts	apps	parsed	liveness_stub	cheap_always_ok_surface_separate_from_deeper_readiness
 apps/api/src/controllers/v0/readiness.ts	apps	parsed	readiness_stub	placeholder_ready_projection_for_future_dependency_checks
 apps/api/src/controllers/v0/scrape.ts	apps	parsed	v0_scrape_controller	legacy_scrape_normalizes_options_requires_schema_for_llm_extract_prunes_raw_html_and_queue_cleanup
@@ -221,7 +221,7 @@ apps/api/src/controllers/v1/deep-research-status.ts	apps	parsed	deep_research_st
 apps/api/src/controllers/v1/deep-research.ts	apps	parsed	deep_research_request_bounds	bounds max depth/max URLs/time limit and initializes async research state
 apps/api/src/controllers/v1/extract-status.ts	apps	parsed	v1_extract_status_projection	ownership_redis_then_db_result_error_expiry
 apps/api/src/controllers/v1/extract.ts	apps	parsed	v1_extract_controller	compat_direct_or_queued_extract_with_events_and_sanitized_state
-apps/api/src/controllers/v1/fireclaw.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v1/fireclaw.ts	apps	parsed	api_nonretrieval_billing_action	clamped_credit_spend_account_control_check_bill_and_remaining_credit_projection
 apps/api/src/controllers/v1/generate-llmstxt-status.ts	apps	parsed	site_corpus_status_projection	returns compact corpus index or compact plus full text with status/expiry/error
 apps/api/src/controllers/v1/generate-llmstxt.ts	apps	parsed	site_corpus_async_request	ZDR-gated async corpus generation initialized with max URL/full text/cache options
 apps/api/src/controllers/v1/map.ts	apps	parsed	v1_map_discovery_pipeline	index_sitemap_search_merge_path_filter_cosine_rank_dedupe
@@ -263,7 +263,7 @@ apps/api/src/controllers/v2/scrape-browser.ts	apps	parsed	scrape_interaction_con
 apps/api/src/controllers/v2/scrape-status.ts	apps	parsed	v2_scrape_status_projection	id_validation_owner_check_zdr_block_bounded_saved_data
 apps/api/src/controllers/v2/scrape.ts	apps	parsed	v2_scrape_execution_controller	schema_permission_concurrency_internal_job_raw_html_prune_hidden_queue_usage_metrics
 apps/api/src/controllers/v2/search.ts	apps	parsed	public_search_endpoint_control_flow	schema_parse_zdr_agent_interop_executeSearch_billing_logging
-apps/api/src/controllers/v2/support-proxy.ts	apps	not_parsed	pending_review	
+apps/api/src/controllers/v2/support-proxy.ts	apps	parsed	api_support_agent_proxy	selected_header_forwarding_request_id_idempotency_projection_timeout_and_typed_boundary_errors
 apps/api/src/controllers/v2/token-usage-historical.ts	apps	parsed	v2_historical_token_usage	camelcase_credit_to_token_period_projection_with_sort
 apps/api/src/controllers/v2/token-usage.ts	apps	parsed	v2_token_usage_projection	camelcase_token_compatibility_projection_from_credit_balance
 apps/api/src/controllers/v2/types.ts	apps	parsed	request_schema_and_search_options	strict_schema_sources_categories_domains_scrapeOptions_default_markdown_timeout_bounds
@@ -306,7 +306,7 @@ apps/api/src/lib/deep-research/deep-research-service.ts	apps	parsed	iterative_ga
 apps/api/src/lib/deep-research/research-manager.ts	apps	parsed	research_state_and_gap_planning	tracks seen URLs/findings/depth/failures and generates specific follow-up queries from prior evidence
 apps/api/src/lib/default-values.ts	apps	parsed	retrieval_default_values	default_origin_timeout_page_crawl_and_extractor_options
 apps/api/src/lib/deployment.ts	apps	parsed	api_deployment_profile_helpers	self_hosted_vs_hosted_error_contact_projection
-apps/api/src/lib/deprecations.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/deprecations.ts	apps	parsed	api_deprecation_projection	headers_warning_replacement_projection_without_changing_underlying_response_semantics
 apps/api/src/lib/engpicker.ts	apps	parsed	engine_quality_picker	sampled_urls_multi_transport_content_success_similarity_verdicts_uncertain_on_low_confidence
 apps/api/src/lib/entities.ts	apps	parsed	legacy_entity_shapes	page_search_document_search_v2_result_types_and_action_artifact_fields
 apps/api/src/lib/error-serde.ts	apps	parsed	transportable_error_serialization	code_to_payload_and_explicit_class_deserialization_map
@@ -365,11 +365,11 @@ apps/api/src/lib/html-to-markdown.ts	apps	parsed	html_to_markdown_waterfall	http
 apps/api/src/lib/http-metrics.ts	apps	parsed	http_duration_metrics	uuid_route_scrubbing_histogram_by_version_method_route_status
 apps/api/src/lib/job-metrics.ts	apps	parsed	job_duration_metrics	histogram_by_job_type_and_terminal_status
 apps/api/src/lib/job-priority.ts	apps	parsed	job_priority_helper	ttl_window_team_pressure_priority_adjustment
-apps/api/src/lib/logger.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/logger.ts	apps	parsed	api_structured_logger	error_serialization_rotating_file_console_logs_and_zero_retention_suppression
 apps/api/src/lib/map-cosine.ts	apps	parsed	lexical_cosine_candidate_ranking	cheap_query_term_cosine_score_for_url_rows_with_error_safe_original_order_fallback
 apps/api/src/lib/map-utils.ts	apps	parsed	map_and_search_candidate_discovery	index_sitemap_search_map_merge_semantic_rank_same_domain_filter_title_preserving_dedupe
-apps/api/src/lib/native-logging.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/otel-tracer.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/native-logging.ts	apps	parsed	api_native_log_bridge	parse_embedded_native_logs_reemit_with_parent_context_and_strip_only_after_success
+apps/api/src/lib/otel-tracer.ts	apps	parsed	api_trace_context_bridge	serialized_trace_context_queue_resume_span_kinds_status_and_attributes
 apps/api/src/lib/parseApi.ts	apps	parsed	api_key_shape_compatibility	fc_prefixed_key_to_uuid_and_uuid_to_fc_key_compatibility
 apps/api/src/lib/permissions.ts	apps	parsed	retrieval_permission_gate	zdr_robots_custom_agent_static_ip_location_feature_denials_before_execution
 apps/api/src/lib/permu-refactor.test.ts	apps	parsed	url_permutation_stability_tests	protocol_www_slash_index_file_equivalence_closure_for_dedupe_locks
@@ -387,12 +387,12 @@ apps/api/src/lib/search-index-client.ts	apps	parsed	managed_search_index_client	
 apps/api/src/lib/search-query-builder.ts	apps	parsed	structured_query_filter_builder	category_to_site_filter_include_domains_exclude_domains_pdf_filter_category_map
 apps/api/src/lib/strings.ts	apps	parsed	api_shared_boundary_strings	unsupported_source_message_as_gateway_boundary_projection_not_synthesis
 apps/api/src/lib/supabase-jobs.ts	apps	parsed	durable_job_lookup_helpers	null_or_empty_on_no_row_error_and_lightweight_ownership_lookup_separation
-apps/api/src/lib/tracking.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/tracking.ts	apps	parsed	api_search_scrape_analytics	search_scrape_request_result_metrics_domain_extraction_and_zdr_suppression
 apps/api/src/lib/url-utils.ts	apps	parsed	public_suffix_url_utils	psl_base_domain_extraction_root_domain_detection
 apps/api/src/lib/validate-country.ts	apps	parsed	location_metadata_table	country_codes_location_validation_data_for_location_aware_retrieval_inputs
 apps/api/src/lib/validateUrl.test.ts	apps	parsed	validate_url_tests	same_domain_subdomain_invalid_url_and_duplicate_variant_preference_behavior
 apps/api/src/lib/validateUrl.ts	apps	parsed	url_validation_and_redirect_utils	protocol_completion_http_https_only_www_protocol_duplication_guard_redirect_resolution
-apps/api/src/lib/withAuth.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/withAuth.ts	apps	parsed	api_auth_bypass_wrapper	profile_controlled_mock_auth_success_warning_limited_selfhost_test_bypass
 apps/api/src/lib/x402.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/zdr-helpers.ts	apps	parsed	zdr_flag_resolution	legacy_boolean_and_new_enum_flag_resolution_for_scrape_search_robots_modes
 apps/api/src/main/runWebScraper.ts	apps	parsed	api_worker_scrape_execution_wrapper	crawl_retry_non2xx_status_bounded_failure_and_hidden_job_metadata
