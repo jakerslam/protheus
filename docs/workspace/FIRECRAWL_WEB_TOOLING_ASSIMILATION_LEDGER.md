@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 439
-- Not parsed: 838
+- Parsed: 444
+- Not parsed: 833
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -413,14 +413,19 @@
 | `apps/api/src/lib/branding/schema.ts` | Branding LLM output schema. | LLM clarification is schema-bounded with defaults for missing button classification, color roles, personality, design-system hints, cleaned fonts, and optional logo selection. |
 | `apps/api/src/lib/branding/types.ts` | Branding artifact types. | Branding extraction preserves button/input/logo/background/screenshot/favicon/OG/page metadata and debug-only reasoning fields as typed artifacts. |
 | `apps/api/src/lib/branding/llm.ts` | Branding LLM clarification. | LLM enhancement treats page content as untrusted, uses schema generation, logs debug-only prompt/response metadata, captures privacy-safe failures, and returns deterministic fallback fields; hardcoded model names are not portable. |
+| `apps/api/src/lib/branding/logo-selector.ts` | Logo candidate selector. | Logo choice uses deterministic prefilter/scoring over visibility, area, header/body location, alt/src/class/href indicators, UI/social/language red flags, top-K candidate packets, and stable index mapping for LLM confirmation. |
 | `apps/api/src/lib/branding/merge.ts` | Branding result merger. | JS and LLM branding artifacts are merged with logo red-flag checks, confidence thresholds, button index mapping, color confidence gates, font cleanup, and debug reasoning refs. |
+| `apps/api/src/lib/branding/processor.ts` | Branding artifact processor. | Raw browser branding artifacts are normalized into color/font/spacing/component/image profiles with frequency weighting, transparency handling, background selection, button/input snapshots, and invalid-value pruning. |
+| `apps/api/src/lib/branding/prompt.ts` | Branding prompt packet builder. | Prompt construction caps and structures buttons/logo/background candidates, labels page-derived content as untrusted, includes heuristic context and fallback header snippets, and asks for schema fields; exact prompt prose is not portable. |
 | `apps/api/src/lib/branding/transformer.ts` | Branding transformation orchestrator. | The transformer runs heuristic logo selection, filters candidates/buttons before LLM, maps filtered indices back, falls back to heuristics, records LLM metadata, and prunes debug artifacts unless enabled. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/index.ts` | Browser branding extractor entrypoint. | Browser-side artifact extraction gathers CSS data, element snapshots, images/logo candidates, typography, framework hints, color scheme, background candidates, page title, URL, and errors into one payload. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/constants.ts` | Browser branding thresholds. | DOM artifact extraction uses explicit size, alpha, traversal, background-sampling, button, and logo thresholds instead of implicit magic in downstream synthesis. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/print-script.js` | Browser extraction bundler helper. | The browser artifact collector can be bundled as an IIFE for manual/debug replay without changing runtime extraction behavior. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/brand-utils.ts` | Browser branding utility functions. | Browser utility layer infers typography, framework hints, color scheme, brand name, and background candidates from DOM/CSS/meta signals with visible-area and transparency filtering. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/buttons.ts` | Button-like element detector. | Button detection combines semantic selectors, class patterns, size, padding, border radius, and border signals while failing closed on DOM/style errors. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/css-data.ts` | CSS rule sampler. | CSS harvesting tolerates CORS stylesheet failures and extracts colors, radii, margins, padding, and gap values from accessible style rules. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/helpers.ts` | Browser DOM helper utilities. | Browser extraction caches native computed styles, guards against patched page APIs, records local errors, converts CSS units, and handles SVG class names. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/images.ts` | Browser image/logo collector. | Image/logo collection resolves image/background/SVG/link/icon candidates, computes visibility and location/indicator signals, filters external/social/UI noise, dedupes by source and geometry, serializes inline SVGs, and scores logo-like candidates. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/svg-utils.ts` | SVG normalization utilities. | Inline SVG artifacts resolve `<use>` references, copy computed styles into clones, preserve symbol viewboxes, and strip internal alignment markers after normalization. |
 | `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/elements.ts` | Element snapshot sampler. | DOM sampling caps query results, preserves logo/button/form/text candidates, resolves transparent backgrounds through parent traversal, separates navigation from CTA, and captures bounded text/input/style snapshots. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
@@ -619,6 +624,9 @@
 - Browser-side artifact collectors should defend against hostile or patched page JavaScript by using native DOM APIs where possible, caching style reads, and recording extraction-local errors.
 - Rich DOM snapshots should be capped, typed, and role-aware: navigation, CTA buttons, form controls, text samples, logos, colors, typography, and backgrounds are separate evidence facets.
 - SVG and CSS are not raw strings if used as evidence. Resolve references, computed styles, CSS units, transparency, and CORS-inaccessible sheets into explicit quality flags or normalized artifacts.
+- Logo/media extraction should be candidate-based: collect broad visual candidates, assign stable IDs/index maps, attach positive indicators and negative UI/social/language signals, dedupe by source/geometry, then let an optional LLM adjudicate only over the capped candidate packet.
+- Prompt builders around tool artifacts should not become workflow policy. The portable primitive is a compact untrusted evidence packet with heuristic context, candidate metadata, source refs, and schema-bound expected fields.
+- Browser visual artifacts should be normalized before evidence packing: resolve URLs, inline/clone SVGs where needed, classify visibility/location/size, handle transparency, sample dominant backgrounds, and keep debug-only snapshots behind refs.
 
 ## Candidate Assimilation Targets
 
@@ -694,6 +702,9 @@
 70. Debug artifact pruning: keep prompts, raw snapshots, candidates, reasoning, and framework hints behind debug refs rather than normal synthesis evidence. Ledger captured; candidate evidence projection hygiene target.
 71. Defensive DOM artifact collection: use native DOM API bindings, cached style reads, capped queries, extraction-local error capture, and role-aware snapshots for browser-derived evidence. Ledger captured; candidate browser retrieval artifact target.
 72. SVG/CSS normalization: resolve SVG references and computed styles, tolerate inaccessible stylesheets, normalize CSS units/colors, and attach quality flags for unresolved artifacts. Ledger captured; candidate rich evidence normalization target.
+73. Visual candidate scoring: use stable candidate IDs, geometry/visibility/location indicators, positive/negative signal flags, dedupe, and top-K remapping before optional LLM adjudication. Ledger captured; candidate rich evidence Tool CD lane.
+74. Visual evidence prompt packets: pass compact untrusted artifact packets with heuristic context and schema expectations rather than raw DOM, screenshots, or copied prompt prose. Ledger captured; candidate synthesis/evidence handoff target.
+75. Browser visual artifact normalization: normalize image/background/SVG/icon candidates, background colors, fonts, components, and transparency into typed evidence facets with debug refs. Ledger captured; candidate evidence-pack enrichment target.
 
 ## Remaining Work
 
