@@ -1190,9 +1190,9 @@ examples/blog-articles/github-actions-tutorial/github-actions-tutorial-images/cr
 examples/blog-articles/github-actions-tutorial/notebook.ipynb	examples	not_parsed	pending_review	
 examples/blog-articles/github-actions-tutorial/notebook.md	examples	not_parsed	pending_review	
 examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.ipynb	examples	not_parsed	pending_review	
-examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.md	examples	not_parsed	pending_review	
+examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.md	examples	parsed	mastering_map_endpoint_article	fast_url_discovery_coverage_tradeoff_search_sitemap_subdomain_and_limit_controls
 examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.ipynb	examples	not_parsed	pending_review	
-examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.md	examples	not_parsed	pending_review	
+examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.md	examples	parsed	mastering_scrape_endpoint_article	page_enrichment_artifact_facets_schema_extraction_batch_status_and_dynamic_actions
 examples/blog-articles/mastering-the-crawl-endpoint/mastering-the-crawl-endpoint.ipynb	examples	not_parsed	pending_review	
 examples/blog-articles/scheduling_scrapers/notebook.ipynb	examples	not_parsed	pending_review	
 examples/blog-articles/scheduling_scrapers/notebook.md	examples	not_parsed	pending_review	

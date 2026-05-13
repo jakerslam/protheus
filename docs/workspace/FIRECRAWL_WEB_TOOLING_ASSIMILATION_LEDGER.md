@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 813
-- Not parsed: 461
+- Parsed: 815
+- Not parsed: 459
 - Skipped generated: 12
 - Skipped media or sample: 71
 
@@ -862,6 +862,8 @@
 | `examples/sales_web_crawler/.env.example` | Sales crawler capability config example. | External search, LLM, and crawl credentials are capability inputs and should stay outside workflow logic. |
 | `examples/sales_web_crawler/app.py` | Multi-agent sales crawler example. | A bounded crawl can analyze each page independently into JSON candidates, tolerate per-page parse failures, and aggregate structured results behind an explicit objective. |
 | `examples/sales_web_crawler/requirements.txt` | Sales crawler dependency file. | Example depends on external search, Firecrawl, OpenAI, and Swarm; composition pattern is useful, concrete model/library choices are not. |
+| `examples/blog-articles/mastering-map-endpoint/mastering-map-endpoint.md` | Map endpoint documentation article. | Fast URL discovery is a candidate-set primitive with search, sitemap-only, subdomain, and limit controls; its speed/coverage tradeoff should be explicit. |
+| `examples/blog-articles/mastering-scrape-endpoint/mastering-scrape-endpoint.md` | Scrape endpoint documentation article. | Scrape is the page-enrichment primitive: selectable artifact facets, main-content/tag filters, schema extraction, batch/async status, and explicit dynamic actions. |
 
 ## Decisions So Far
 
@@ -1240,6 +1242,11 @@
 199. Scheduled retrieval control split: cadence, logs, and run history belong to control/observability; the retrieval primitive should remain callable and artifact-producing. Ledger captured; candidate monitor/change-detection workflow target.
 200. Baseline comparator extraction: stable fixture targets can use both selector/manual extraction and semantic extraction to detect drift, over-extraction, or missing fields. Ledger captured; candidate retrieval-quality eval target.
 201. Per-page structured candidate fan-in: crawl-scale extraction should analyze pages independently, skip malformed per-page candidates with hidden warnings, and aggregate only parseable structured results. Ledger captured; candidate evidence-pack/retrieval runtime target.
+202. Discovery coverage classification: fast map/discovery output should carry coverage confidence and escalate to crawl/enrichment when URL counts or query coverage are insufficient. Ledger reinforced; candidate retrieval planner target.
+203. Focused discovery controls: search text, sitemap-only, include-subdomains, and limit are general typed URL-discovery controls; they should be available to research CDs without prompt phrase hardcoding. Ledger reinforced; candidate web Tool CD schema target.
+204. Selectable artifact facets: page enrichment should request only needed facets such as markdown, html, raw HTML, links, screenshots, actions, and structured extract output, then evidence-pack the facets separately. Ledger reinforced; candidate evidence-pack facet target.
+205. Dynamic action explicitness: click/write/wait/scroll/screenshot/scrape sequences are expensive browser-action capabilities and should be declared as tool inputs with artifacts/gap states, not hidden fallback behavior. Ledger reinforced; candidate dynamic retrieval lane.
+206. Async batch status as partial evidence: large multi-URL extraction should return handles, status, completed/total, expiry, error, next cursor, and any completed documents without making incomplete status a final answer. Ledger reinforced; candidate batch retrieval runtime.
 
 ## Remaining Work
 
@@ -1248,7 +1255,7 @@
 - Standalone rendered-fetch and HTML-to-Markdown service primitives are parsed; remaining deployment YAML can be treated as lower-priority unless operational wiring becomes relevant.
 - Test-site text fixtures and routes are parsed; binary font fixtures are marked skipped.
 - First high-signal research/crawler examples are parsed; remaining examples should be sampled for new composition patterns, not repeated model-specific syntax.
-- Several long blog endpoint articles were sampled but remain unmarked until a complete read; prioritize full reads only where they add primitives beyond already parsed source/tests.
+- Map and scrape endpoint articles are fully parsed; broader deployment/scheduling articles were only sampled and remain unmarked until a complete read.
 - Rust SDK source/docs/examples/E2E surface is parsed; remaining Rust lockfile is generated and skipped.
 - .NET SDK high-value client, transport, tests, and key models are parsed; remaining .NET docs/project/small model files are lower-priority parity work.
 - PHP SDK high-value client, transport, tests, and key models are parsed; remaining PHP Laravel/package and small response models are lower-priority parity work.
