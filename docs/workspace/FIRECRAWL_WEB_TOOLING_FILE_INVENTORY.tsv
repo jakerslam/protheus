@@ -280,15 +280,15 @@ apps/api/src/lib/__tests__/spread-schema-objects.test.ts	apps	parsed	schema_spre
 apps/api/src/lib/__tests__/transform-array-to-obj.test.ts	apps	parsed	array_to_object_tests	multi_page_array_outputs_merge_into_schema_shape_while_skipping_empty_or_null_arrays
 apps/api/src/lib/__tests__/url-utils.test.ts	apps	parsed	public_suffix_url_utils_tests	base_domain_detection_complex_tld_subdomain_handling
 apps/api/src/lib/avgrab-resolve.ts	apps	parsed	source_specialty_resolver_helper	cached_support_patterns_specialty_resolve_and_generic_map_document_projection
-apps/api/src/lib/branding/extractHeaderHtmlChunk.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/branding/llm.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/branding/extractHeaderHtmlChunk.ts	apps	parsed	branding_fallback_context_helper	noise_stripped_capped_header_nav_body_html_when_logo_candidates_absent
+apps/api/src/lib/branding/llm.ts	apps	parsed	branding_llm_clarification	untrusted_page_content_schema_generation_debug_metadata_privacy_safe_failure_and_fallback_fields
 apps/api/src/lib/branding/logo-selector.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/branding/merge.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/branding/merge.ts	apps	parsed	branding_result_merger	logo_red_flags_confidence_gates_button_index_mapping_color_gates_font_cleanup_debug_reasoning
 apps/api/src/lib/branding/processor.ts	apps	not_parsed	pending_review	
 apps/api/src/lib/branding/prompt.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/branding/schema.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/branding/transformer.ts	apps	not_parsed	pending_review	
-apps/api/src/lib/branding/types.ts	apps	not_parsed	pending_review	
+apps/api/src/lib/branding/schema.ts	apps	parsed	branding_llm_output_schema	defaulted_button_color_personality_design_system_font_logo_selection_contract
+apps/api/src/lib/branding/transformer.ts	apps	parsed	branding_transform_orchestrator	heuristic_selection_candidate_filter_index_remap_llm_fallback_metadata_and_debug_pruning
+apps/api/src/lib/branding/types.ts	apps	parsed	branding_artifact_types	button_input_logo_background_screenshot_favicon_og_page_metadata_and_debug_reasoning_shapes
 apps/api/src/lib/browser-billing.ts	apps	parsed	browser_session_cost_helper	duration_based_minimum_charge_and_rate_parameter
 apps/api/src/lib/browser-session-activity.ts	apps	parsed	browser_activity_batching	internal_execution_activity_queue_batch_insert_not_retrieval_evidence
 apps/api/src/lib/browser-sessions.ts	apps	parsed	browser_session_state	ttl_owner_status_cdp_view_handles_prompt_flag_cached_active_count_idempotent_destroy_claim
@@ -426,7 +426,7 @@ apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/css-data.ts	a
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/elements.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/helpers.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/images.ts	apps	not_parsed	pending_review	
-apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/index.ts	apps	not_parsed	pending_review	
+apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/index.ts	apps	parsed	browser_branding_extractor_entrypoint	css_snapshots_images_logos_typography_framework_hints_color_scheme_background_page_metadata_errors
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/print-script.js	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/svg-utils.ts	apps	not_parsed	pending_review	
 apps/api/src/scraper/scrapeURL/engines/fire-engine/brandingScript.ts	apps	parsed	browser_executejs_artifact_loader	bundled_cached_internal_script_for_structured_browser_side_extraction_not_chat_visible

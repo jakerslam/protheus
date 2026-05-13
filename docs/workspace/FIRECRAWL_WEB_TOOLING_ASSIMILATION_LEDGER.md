@@ -40,8 +40,8 @@
 ## Current Inventory
 
 - Total tracked files: 1357
-- Parsed: 425
-- Not parsed: 852
+- Parsed: 432
+- Not parsed: 845
 - Skipped generated: 11
 - Skipped media or sample: 69
 
@@ -409,6 +409,13 @@
 | `apps/api/src/__tests__/snips/utils/collect-mocks.js` | Mock fixture collector. | Recorded HTTP mocks are aggregated from scraper mock files into named JSON fixtures, keeping deterministic replay data outside behavior tests. |
 | `apps/api/src/__tests__/snips/mocks/mocking-works-properly.json` | Deterministic scrape mock fixture. | The recorded trace models instant-return scrape submission, repeated status polling states, terminal completion, response headers, and mocked page content. |
 | `apps/api/src/__tests__/lib/branding/processor-color.test.ts` | Color normalization tests. | Color extraction normalizes RGB/RGBA/hex, treats transparent colors as absent, blends semi-transparent overlays against explicit/default backgrounds, and prevents false opaque black artifacts. |
+| `apps/api/src/lib/branding/extractHeaderHtmlChunk.ts` | Branding fallback context helper. | Header/nav/body HTML can be noise-stripped and capped as fallback context only when direct logo candidates are absent. |
+| `apps/api/src/lib/branding/schema.ts` | Branding LLM output schema. | LLM clarification is schema-bounded with defaults for missing button classification, color roles, personality, design-system hints, cleaned fonts, and optional logo selection. |
+| `apps/api/src/lib/branding/types.ts` | Branding artifact types. | Branding extraction preserves button/input/logo/background/screenshot/favicon/OG/page metadata and debug-only reasoning fields as typed artifacts. |
+| `apps/api/src/lib/branding/llm.ts` | Branding LLM clarification. | LLM enhancement treats page content as untrusted, uses schema generation, logs debug-only prompt/response metadata, captures privacy-safe failures, and returns deterministic fallback fields; hardcoded model names are not portable. |
+| `apps/api/src/lib/branding/merge.ts` | Branding result merger. | JS and LLM branding artifacts are merged with logo red-flag checks, confidence thresholds, button index mapping, color confidence gates, font cleanup, and debug reasoning refs. |
+| `apps/api/src/lib/branding/transformer.ts` | Branding transformation orchestrator. | The transformer runs heuristic logo selection, filters candidates/buttons before LLM, maps filtered indices back, falls back to heuristics, records LLM metadata, and prunes debug artifacts unless enabled. |
+| `apps/api/src/scraper/scrapeURL/engines/fire-engine/branding-script/index.ts` | Browser branding extractor entrypoint. | Browser-side artifact extraction gathers CSS data, element snapshots, images/logo candidates, typography, framework hints, color scheme, background candidates, page title, URL, and errors into one payload. |
 | `apps/api/src/services/monitoring/cron.ts` | Monitor schedule utilities. | Natural-language schedules are normalized to cron, timezones are validated, next runs are searched under a bounded horizon, and minimum intervals are enforced. |
 | `apps/api/src/services/monitoring/diff.ts` | Monitor diff utility. | Change detection normalizes markdown noise before producing both text and structured JSON diffs. |
 | `apps/api/src/services/monitoring/queue.ts` | Monitor check queue. | Scheduled retrieval jobs use durable messages, a DLQ, one-at-a-time prefetch, JSON parse failure nack, and explicit ack/nack around handler success. |
@@ -598,6 +605,10 @@
 - DOM-normalization rewrites such as iframe placeholders should happen in request/schema/extraction layers so selectors continue to work against transformed evidence artifacts.
 - Deterministic replay fixtures are useful when they model transport state transitions and terminal artifacts; giant raw content fixtures should be counted as sample data, not mined for implementation logic.
 - Visual/branding artifacts need normalization semantics too. Transparent and semi-transparent colors should become calibrated evidence or absence, not false opaque black signals.
+- Rich artifact extraction can be staged: deterministic browser/JS extraction first, then optional LLM clarification over a capped, untrusted, schema-bound evidence packet.
+- Heuristic picks and LLM choices should be reconciled by stable index maps, confidence gates, red-flag checks, and debug-only reasoning metadata. Do not let the LLM invent artifact identity.
+- Hardcoded model routing in a feature module is not portable for Infring user-facing agents. The reusable primitive is provider abstraction plus artifact complexity metadata, while model choice stays externally selected or policy-bound.
+- Debug artifacts such as snapshots, candidates, framework hints, prompts, and reasoning should be pruned from normal evidence projection unless an explicit debug lane is active.
 
 ## Candidate Assimilation Targets
 
@@ -668,6 +679,9 @@
 65. Selector transform contract: centralize DOM rewrites such as iframe marker transforms in request/schema extraction layers and test complex selector preservation. Ledger captured; candidate scrape option schema target.
 66. Deterministic retrieval replay fixtures: store compact recorded request/status/result traces for transport regression while keeping bulky raw bodies as sample fixtures. Ledger captured; candidate web-tool eval fixture target.
 67. Artifact normalization semantics: treat colors/media/visual metadata as evidence artifacts with transparency, blending, and invalid-value handling instead of lossy strings. Ledger captured; candidate rich evidence artifact target.
+68. Staged rich-artifact extraction: collect deterministic browser-side style/media/metadata artifacts, then optionally run schema-bound LLM clarification over a capped untrusted packet. Ledger captured; candidate rich evidence Tool CD lane.
+69. Heuristic/LLM reconciliation: map filtered candidate indices back to stable source artifact IDs and require confidence/red-flag checks before accepting LLM artifact selections. Ledger captured; candidate verifier/evidence artifact target.
+70. Debug artifact pruning: keep prompts, raw snapshots, candidates, reasoning, and framework hints behind debug refs rather than normal synthesis evidence. Ledger captured; candidate evidence projection hygiene target.
 
 ## Remaining Work
 
