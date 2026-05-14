@@ -373,6 +373,23 @@
         "content_materialization_missing",
         "candidate_snippet_relevant_but_thin"
       ],
+      "local_static_fixture_provider_contract": {
+        "version": "browser_materialization_local_static_fixture_v1",
+        "purpose": "Prove the materialization and extraction envelope against policy-owned local fixtures before admitting live browser execution.",
+        "provider_id": "local_static_fixture",
+        "default_enabled": false,
+        "ordinary_user_request_may_supply_fixture_path": false,
+        "fixture_source": "policy_owned_test_fixture",
+        "fixture_path_chat_visible": false,
+        "raw_fixture_payload_chat_visible": false,
+        "uses_public_url_safety_for_requested_and_final_url": true,
+        "may_not_materialize_localhost_or_file_url_requests": true,
+        "emits_extracted_text_only_to_evidence_candidate": true,
+        "cleanup_required_on_success_and_failure": true,
+        "browser_launch_attempted": false,
+        "raw_browser_handle_chat_visible": false,
+        "raw_cdp_url_chat_visible": false
+      },
       "request_contract": {
         "required_fields": ["url", "admission_ref"],
         "optional_fields": [
@@ -930,6 +947,8 @@
           "status_code",
           "title",
           "main_text_or_markdown",
+          "content_truncated",
+          "extractor",
           "links_summary",
           "blocker_classification",
           "extraction_confidence",
@@ -939,7 +958,8 @@
           "evidence_refs",
           "readiness_strategy",
           "cleanup_status",
-          "retry_diagnostics"
+          "retry_diagnostics",
+          "local_static_fixture"
         ]
       },
       "blocker_taxonomy": {

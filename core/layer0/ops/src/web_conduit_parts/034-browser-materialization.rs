@@ -171,6 +171,22 @@ fn browser_materialization_fake_cleanup_status_projection() -> Value {
     })
 }
 
+fn browser_materialization_local_fixture_cleanup_status_projection(status: &str) -> Value {
+    json!({
+        "version": "browser_materialization_cleanup_status_v1",
+        "status": clean_text(status, 80),
+        "browser_launch_attempted": false,
+        "context_created": false,
+        "context_close_attempted": false,
+        "cleanup_required": true,
+        "cleanup_attempted": true,
+        "cleanup_error_chat_visible": false,
+        "local_fixture_handle_opened": true,
+        "local_fixture_handle_close_attempted": true,
+        "raw_fixture_path_chat_visible": false
+    })
+}
+
 fn browser_materialization_context_contract_projection() -> Value {
     json!({
         "version": "browser_materialization_context_contract_v1",
@@ -213,6 +229,9 @@ fn browser_materialization_retry_diagnostics_projection(error: &str) -> Value {
         "adapter_not_ready" => "satisfy_adapter_readiness_before_retry",
         "browser_adapter_stub_only" => "implement_or_admit_browser_adapter_before_retry",
         "capability_not_enabled" => "admit_capability_before_retry",
+        "local_static_fixture_unavailable" | "local_static_fixture_url_mismatch" => {
+            "fix_policy_owned_fixture_before_retry"
+        }
         "url_safety_blocked" | "unsafe_caller_control_rejected" => "do_not_retry_without_request_change",
         _ => "no_retry_recommendation",
     };
@@ -550,6 +569,84 @@ fn browser_materialization_ref_hash(parts: &[&str]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+fn browser_materialization_local_fixture_config(config: &Value) -> Value {
+    config
+        .get("local_static_fixture")
+        .cloned()
+        .unwrap_or_else(|| json!({}))
+}
+
+fn browser_materialization_safe_relative_path(raw: &str) -> Option<PathBuf> {
+    let cleaned = clean_text(raw, 800);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let path = Path::new(&cleaned);
+    if path.is_absolute() {
+        return None;
+    }
+    let mut safe = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(row) => safe.push(row),
+            std::path::Component::CurDir => {}
+            _ => return None,
+        }
+    }
+    if safe.as_os_str().is_empty() {
+        None
+    } else {
+        Some(safe)
+    }
+}
+
+fn browser_materialization_local_fixture_path(
+    root: &Path,
+    fixture_config: &Value,
+) -> Result<PathBuf, String> {
+    let rel = fixture_config
+        .get("fixture_rel_path")
+        .and_then(Value::as_str)
+        .and_then(browser_materialization_safe_relative_path)
+        .ok_or_else(|| "local_static_fixture_missing_safe_relative_path".to_string())?;
+    let candidate = root.join(rel);
+    if candidate.exists() {
+        let root_canonical = root
+            .canonicalize()
+            .map_err(|err| format!("local_static_fixture_root_canonicalize_failed:{err}"))?;
+        let candidate_canonical = candidate
+            .canonicalize()
+            .map_err(|err| format!("local_static_fixture_canonicalize_failed:{err}"))?;
+        if !candidate_canonical.starts_with(&root_canonical) {
+            return Err("local_static_fixture_path_escapes_root".to_string());
+        }
+        return Ok(candidate_canonical);
+    }
+    Ok(candidate)
+}
+
+fn browser_materialization_links_summary_from_html(raw_html: &str, base_url: &str) -> Value {
+    let rows = regex_anchor()
+        .captures_iter(raw_html)
+        .take(12)
+        .filter_map(|captures| {
+            let href = clean_text(captures.get(1).map(|m| m.as_str()).unwrap_or(""), 2200);
+            if href.is_empty() {
+                return None;
+            }
+            let resolved = resolve_fetch_redirect_url(base_url, &href).unwrap_or(href);
+            let text = normalize_block_text(&strip_tags_to_text(
+                captures.get(2).map(|m| m.as_str()).unwrap_or(""),
+            ));
+            Some(json!({
+                "href": clean_text(&resolved, 2200),
+                "text": clean_text(&text, 220)
+            }))
+        })
+        .collect::<Vec<_>>();
+    Value::Array(rows)
+}
+
 fn browser_materialization_fake_success(
     url: &str,
     config: &Value,
@@ -691,6 +788,301 @@ fn browser_materialization_fake_success(
             .get("execution_gate")
             .cloned()
             .unwrap_or_else(|| json!({})),
+        "capability_contract_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#browser_materialization_capability_contract",
+        "decision_authority": "web_conduit_policy_and_tool_cd"
+    })
+}
+
+fn browser_materialization_local_static_fixture_failure(
+    error: &str,
+    reason: &str,
+    url: &str,
+    config: &Value,
+    runtime_metadata: &Value,
+    url_safety: Value,
+) -> Value {
+    let mut out =
+        browser_materialization_fail_closed(error, reason, url, config, runtime_metadata, url_safety);
+    out["provider"] = json!("local_static_fixture");
+    out["tool_execution_attempted"] = json!(true);
+    out["cleanup_status"] =
+        browser_materialization_local_fixture_cleanup_status_projection("completed_after_failure");
+    out["retry_diagnostics"] = browser_materialization_retry_diagnostics_projection(error);
+    out["local_static_fixture"] = json!({
+        "version": "browser_materialization_local_static_fixture_v1",
+        "source": "policy_owned_fixture",
+        "fixture_path_chat_visible": false,
+        "raw_fixture_payload_chat_visible": false,
+        "cleanup_attempted": true
+    });
+    out
+}
+
+fn browser_materialization_local_static_fixture_success(
+    root: &Path,
+    url: &str,
+    config: &Value,
+    runtime_metadata: &Value,
+    pre_navigation_url_safety: Value,
+    request: &Value,
+) -> Value {
+    let fixture_config = browser_materialization_local_fixture_config(config);
+    let fixture_url = clean_text(
+        fixture_config
+            .get("fixture_url")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        2200,
+    );
+    if fixture_url != clean_text(url, 2200) {
+        return browser_materialization_local_static_fixture_failure(
+            "local_static_fixture_url_mismatch",
+            "Policy-owned local static fixture does not admit this URL.",
+            url,
+            config,
+            runtime_metadata,
+            pre_navigation_url_safety,
+        );
+    }
+    let fixture_path = match browser_materialization_local_fixture_path(root, &fixture_config) {
+        Ok(path) => path,
+        Err(reason) => {
+            return browser_materialization_local_static_fixture_failure(
+                "local_static_fixture_unavailable",
+                &reason,
+                url,
+                config,
+                runtime_metadata,
+                pre_navigation_url_safety,
+            );
+        }
+    };
+    let raw_html = match fs::read_to_string(&fixture_path) {
+        Ok(raw) => raw,
+        Err(err) => {
+            return browser_materialization_local_static_fixture_failure(
+                "local_static_fixture_unavailable",
+                &format!("policy_owned_fixture_read_failed:{err}"),
+                url,
+                config,
+                runtime_metadata,
+                pre_navigation_url_safety,
+            );
+        }
+    };
+
+    let final_url = clean_text(url, 2200);
+    let final_ssrf_guard = evaluate_fetch_ssrf_guard(&final_url, false, None);
+    let final_url_safety =
+        browser_materialization_observed_final_url_safety_projection(&final_url, &final_ssrf_guard);
+    if !final_ssrf_guard
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return browser_materialization_local_static_fixture_failure(
+            "url_safety_blocked",
+            "Policy-owned local fixture final URL failed revalidation before artifact creation.",
+            url,
+            config,
+            runtime_metadata,
+            pre_navigation_url_safety,
+        );
+    }
+
+    let extract_mode = clean_text(
+        request
+            .get("extract_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("text"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let extract_mode = if extract_mode == "markdown" {
+        "markdown"
+    } else {
+        "text"
+    };
+    let content_type = clean_text(
+        fixture_config
+            .get("content_type")
+            .and_then(Value::as_str)
+            .unwrap_or("text/html; charset=utf-8"),
+        120,
+    );
+    let max_chars = request
+        .get("max_response_bytes")
+        .and_then(Value::as_u64)
+        .or_else(|| config.get("max_response_bytes").and_then(Value::as_u64))
+        .unwrap_or(350000)
+        .clamp(256, 1_000_000) as usize;
+    let (main_text, title_from_html, truncated, extractor) =
+        extract_fetch_content_with_extractor(&raw_html, &content_type, extract_mode, max_chars);
+    let title = title_from_html
+        .filter(|row| !row.is_empty())
+        .unwrap_or_else(|| {
+            clean_text(
+                fixture_config
+                    .get("title")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Local static materialization fixture"),
+                220,
+            )
+        });
+    let extraction_confidence = if main_text.chars().count() >= 80 {
+        "usable"
+    } else {
+        "low_confidence_raw"
+    };
+    let links_summary = browser_materialization_links_summary_from_html(&raw_html, &final_url);
+    let body_hash = sha256_hex(&raw_html);
+    let artifact_hash = browser_materialization_ref_hash(&[
+        "local_static_fixture",
+        url,
+        &final_url,
+        &body_hash,
+    ]);
+    let artifact_ref = format!(
+        "artifact://web_conduit/browser_materialization/local-static/{}",
+        clean_text(&artifact_hash, 64)
+    );
+    let artifact_manifest =
+        browser_materialization_artifact_manifest_projection(&artifact_ref, &artifact_hash);
+    let cleanup_status =
+        browser_materialization_local_fixture_cleanup_status_projection("completed");
+    let readiness_strategy = browser_materialization_readiness_strategy_projection(config);
+    let retry_diagnostics = browser_materialization_retry_diagnostics_projection("none");
+    let evidence_candidate = browser_materialization_evidence_pack_candidate(
+        &final_url,
+        &final_url_safety,
+        &title,
+        &main_text,
+        &artifact_ref,
+        &artifact_manifest,
+    );
+    let evidence_ref = json!({
+        "source_kind": evidence_candidate
+            .get("source_kind")
+            .cloned()
+            .unwrap_or_else(|| json!("browser_materialized_page")),
+        "title": evidence_candidate
+            .get("title")
+            .cloned()
+            .unwrap_or_else(|| json!(title.clone())),
+        "locator": evidence_candidate
+            .get("locator")
+            .cloned()
+            .unwrap_or_else(|| json!(final_url.clone())),
+        "excerpt_hash": evidence_candidate
+            .get("excerpt_hash")
+            .cloned()
+            .unwrap_or_else(|| json!(sha256_hex(&main_text))),
+        "score": evidence_candidate
+            .get("score")
+            .cloned()
+            .unwrap_or_else(|| json!(76.0)),
+        "timestamp": evidence_candidate
+            .get("timestamp")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "permissions": evidence_candidate
+            .get("permissions")
+            .cloned()
+            .unwrap_or_else(|| json!("public_web")),
+        "artifact_ref": artifact_ref.clone()
+    });
+    let materialized_page = json!({
+        "version": "browser_materialized_page_v1",
+        "provider": "local_static_fixture",
+        "source_url": clean_text(url, 2200),
+        "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
+        "final_url": final_url.clone(),
+        "final_url_safety": final_url_safety.clone(),
+        "status_code": 200,
+        "title": title,
+        "main_text_or_markdown": main_text,
+        "content_truncated": truncated,
+        "extractor": extractor,
+        "links_summary": links_summary,
+        "blocker_classification": {
+            "blocker_class": "none",
+            "retryable": false,
+            "evidence_impact": "usable"
+        },
+        "extraction_confidence": extraction_confidence,
+        "artifact_ref": artifact_ref,
+        "artifact_manifest_ref": artifact_manifest
+            .get("manifest_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "readiness_strategy": readiness_strategy.clone(),
+        "cleanup_status": cleanup_status.clone(),
+        "retry_diagnostics": retry_diagnostics.clone(),
+        "raw_payload_chat_visible": false,
+        "browser_trace_chat_visible": false,
+        "browser_handle_visible": false,
+        "cdp_url_visible": false,
+        "local_static_fixture": {
+            "version": "browser_materialization_local_static_fixture_v1",
+            "source": "policy_owned_fixture",
+            "fixture_path_chat_visible": false,
+            "raw_fixture_payload_chat_visible": false
+        }
+    });
+    json!({
+        "ok": true,
+        "type": "web_conduit_browser_materialization",
+        "capability": "browser_materialize_page",
+        "provider": "local_static_fixture",
+        "reason": "Policy-owned local static fixture materialized through the browser materialization contract.",
+        "url": clean_text(url, 2200),
+        "tool_execution_attempted": true,
+        "browser_launch_attempted": false,
+        "raw_payload_chat_visible": false,
+        "chat_visible": false,
+        "materialized_page": materialized_page,
+        "evidence_candidate": evidence_candidate.clone(),
+        "evidence_pack_candidates": [evidence_candidate],
+        "evidence_refs": [evidence_ref],
+        "artifact_ref": format!("artifact://web_conduit/browser_materialization/local-static/{artifact_hash}"),
+        "artifact_manifest": artifact_manifest.clone(),
+        "materialized_page_contract": browser_materialization_output_contract_projection(config),
+        "evidence_handoff_contract": browser_materialization_evidence_handoff_projection_with_state(
+            config,
+            "evidence_pack_candidate_created",
+        ),
+        "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
+            &format!("artifact://web_conduit/browser_materialization/local-static/{artifact_hash}"),
+            &artifact_manifest,
+        ),
+        "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
+        "final_url_safety": final_url_safety,
+        "navigation_contract": browser_materialization_navigation_contract_projection(config),
+        "readiness_strategy": readiness_strategy,
+        "context_contract": browser_materialization_context_contract_projection(),
+        "cleanup_status": cleanup_status,
+        "retry_diagnostics": retry_diagnostics,
+        "url_safety": pre_navigation_url_safety,
+        "profile_compilation": runtime_metadata
+            .pointer("/profile_compilation")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "readiness_lifecycle": runtime_metadata
+            .pointer("/capability_contract/readiness_lifecycle")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "execution_gate": runtime_metadata
+            .get("execution_gate")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "local_static_fixture": {
+            "version": "browser_materialization_local_static_fixture_v1",
+            "source": "policy_owned_fixture",
+            "fixture_path_chat_visible": false,
+            "raw_fixture_payload_chat_visible": false,
+            "content_hash": body_hash,
+            "cleanup_attempted": true
+        },
         "capability_contract_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#browser_materialization_capability_contract",
         "decision_authority": "web_conduit_policy_and_tool_cd"
     })
@@ -928,6 +1320,16 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
 
     if browser_materialization_selected_provider(&config) == "fake_materialization" {
         return browser_materialization_fake_success(&url, &config, &runtime_metadata, url_safety);
+    }
+    if browser_materialization_selected_provider(&config) == "local_static_fixture" {
+        return browser_materialization_local_static_fixture_success(
+            root,
+            &url,
+            &config,
+            &runtime_metadata,
+            url_safety,
+            request,
+        );
     }
 
     browser_materialization_fail_closed(

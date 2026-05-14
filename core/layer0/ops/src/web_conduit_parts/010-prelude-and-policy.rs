@@ -239,13 +239,20 @@ fn default_policy() -> Value {
             "search_cache_ttl_minutes": 8,
             "search_provider_order": ["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"],
             "fetch_provider_order": ["direct_http"],
-            "browser_materialization": {
-                "enabled": false,
-                "provider_order": ["local_browser"],
-                "requires_explicit_admission": true,
-                "permission_class": "public_web_dynamic_read",
-                "default_timeout_ms": 30000,
-                "max_response_bytes": 350000,
+                "browser_materialization": {
+                    "enabled": false,
+                    "provider_order": ["local_browser"],
+                    "requires_explicit_admission": true,
+                    "permission_class": "public_web_dynamic_read",
+                    "local_static_fixture": {
+                        "source": "policy_owned_test_fixture",
+                        "fixture_url": "",
+                        "fixture_rel_path": "",
+                        "fixture_path_chat_visible": false,
+                        "raw_fixture_payload_chat_visible": false
+                    },
+                    "default_timeout_ms": 30000,
+                    "max_response_bytes": 350000,
                 "request_contract": {
                     "required_fields": ["url", "admission_ref"],
                     "optional_fields": [
@@ -797,6 +804,8 @@ fn default_policy() -> Value {
                         "status_code",
                         "title",
                         "main_text_or_markdown",
+                        "content_truncated",
+                        "extractor",
                         "links_summary",
                         "blocker_classification",
                         "extraction_confidence",
@@ -806,7 +815,8 @@ fn default_policy() -> Value {
                         "evidence_refs",
                         "readiness_strategy",
                         "cleanup_status",
-                        "retry_diagnostics"
+                        "retry_diagnostics",
+                        "local_static_fixture"
                     ],
                     "chat_visible": false
                 },

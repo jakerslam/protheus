@@ -1420,3 +1420,241 @@
             );
         }
     }
+
+    #[test]
+    fn browser_materialization_local_static_fixture_extracts_policy_owned_page() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let fixture_dir = tmp.path().join("fixtures");
+        std::fs::create_dir_all(&fixture_dir).expect("fixture dir");
+        std::fs::write(
+            fixture_dir.join("static.html"),
+            r#"<!doctype html>
+            <html>
+              <head><title>Local Static Fixture Research</title></head>
+              <body>
+                <main>
+                  <h1>Research fixture heading</h1>
+                  <p>April 2026 scientific breakthrough fixture evidence with enough extracted text for synthesis packaging.</p>
+                  <a href="/source">Source page</a>
+                  <a href="https://example.org/more">More context</a>
+                </main>
+              </body>
+            </html>"#,
+        )
+        .expect("fixture write");
+
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["local_static_fixture"]);
+        browser_config["local_static_fixture"] = json!({
+            "fixture_url": "https://example.com/research",
+            "fixture_rel_path": "fixtures/static.html",
+            "content_type": "text/html; charset=utf-8"
+        });
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com/research",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("provider").and_then(Value::as_str),
+            Some("local_static_fixture")
+        );
+        assert_eq!(
+            out.get("tool_execution_attempted").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.get("browser_launch_attempted").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/title").and_then(Value::as_str),
+            Some("Local Static Fixture Research")
+        );
+        assert!(
+            out.pointer("/materialized_page/main_text_or_markdown")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("April 2026 scientific breakthrough fixture evidence")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/extractor")
+                .and_then(Value::as_str),
+            Some("readability")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/extraction_confidence")
+                .and_then(Value::as_str),
+            Some("usable")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/content_truncated")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/links_summary/0/href")
+                .and_then(Value::as_str),
+            Some("https://example.com/source")
+        );
+        assert_eq!(
+            out.pointer("/final_url_safety/status").and_then(Value::as_str),
+            Some("allowed")
+        );
+        assert_eq!(
+            out.pointer("/cleanup_status/status").and_then(Value::as_str),
+            Some("completed")
+        );
+        assert_eq!(
+            out.pointer("/cleanup_status/cleanup_attempted")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/local_static_fixture/fixture_path_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/local_static_fixture/raw_fixture_payload_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/source_kind")
+                .and_then(Value::as_str),
+            Some("browser_materialized_page")
+        );
+        assert!(
+            out.pointer("/evidence_candidate/snippet")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("April 2026 scientific breakthrough fixture evidence")
+        );
+        assert_eq!(
+            out.pointer("/artifact_quarantine/projection_contains_raw_artifacts")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        let encoded = serde_json::to_string(&out).expect("encode output");
+        assert!(!encoded.contains("<html"));
+        assert!(!encoded.contains("<body"));
+        assert!(!encoded.contains("ws://"));
+        assert!(!encoded.contains("devtools"));
+        assert!(!encoded.contains("static.html"));
+    }
+
+    #[test]
+    fn browser_materialization_local_static_fixture_cleans_up_on_failure() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["local_static_fixture"]);
+        browser_config["local_static_fixture"] = json!({
+            "fixture_url": "https://example.com/research",
+            "fixture_rel_path": "fixtures/missing.html",
+            "content_type": "text/html; charset=utf-8"
+        });
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com/research",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("provider").and_then(Value::as_str),
+            Some("local_static_fixture")
+        );
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("local_static_fixture_unavailable")
+        );
+        assert_eq!(
+            out.get("tool_execution_attempted").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/cleanup_status/status").and_then(Value::as_str),
+            Some("completed_after_failure")
+        );
+        assert_eq!(
+            out.pointer("/cleanup_status/cleanup_attempted")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/retry_diagnostics/retry_recommendation")
+                .and_then(Value::as_str),
+            Some("fix_policy_owned_fixture_before_retry")
+        );
+        assert!(out.get("materialized_page").map(Value::is_null).unwrap_or(false));
+        assert_eq!(
+            out.pointer("/artifact_quarantine/state").and_then(Value::as_str),
+            Some("not_created")
+        );
+        let encoded = serde_json::to_string(&out).expect("encode output");
+        assert!(!encoded.contains("missing.html"));
+        assert!(!encoded.contains("ws://"));
+        assert!(!encoded.contains("devtools"));
+    }
+
+    #[test]
+    fn browser_materialization_local_static_fixture_cannot_bypass_url_safety() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["local_static_fixture"]);
+        browser_config["local_static_fixture"] = json!({
+            "fixture_url": "http://127.0.0.1/research",
+            "fixture_rel_path": "fixtures/static.html",
+            "content_type": "text/html; charset=utf-8"
+        });
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "http://127.0.0.1/research",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("url_safety_blocked")
+        );
+        assert_eq!(
+            out.get("tool_execution_attempted").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/url_safety/status").and_then(Value::as_str),
+            Some("private_network_blocked")
+        );
+        assert!(out.get("provider").is_none());
+    }

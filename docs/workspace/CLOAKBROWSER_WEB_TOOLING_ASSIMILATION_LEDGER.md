@@ -292,6 +292,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-L6-TASK-001` | integrated | high | Complete Level 6 pass 001 for fake materialization provider. | Browser materialization API and tests | Level 6 map | Added a CD-selected deterministic fake provider that returns a success-shaped materialized page, artifact ref, cleanup status, and evidence-candidate shell without launching a browser or exposing raw payloads. |
 | `CLOAK-L6-TASK-002` | integrated | high | Complete Level 6 pass 002 for fixture artifact quarantine. | Browser materialization artifact manifest and tests | `CLOAK-L6-TASK-001` | Added a ref-only artifact manifest for raw HTML, extracted text, and browser trace material, rejected caller raw payload fields, and proved evidence receives extracted text/metadata rather than raw browser payloads. |
 | `CLOAK-L6-TASK-003` | integrated | high | Complete Level 6 pass 003 for evidence candidate conversion. | Browser materialization evidence-pack candidate and refs | `CLOAK-L6-TASK-002` | Converted fake materialization output into an `evidence_pack_v1` candidate with claim hints, term hints, score components, quality flags, promotion metadata, artifact refs, and synthesis-safe evidence refs. |
+| `CLOAK-L6-TASK-004` | integrated | high | Complete Level 6 pass 004 for policy-owned local static fixture materialization. | Browser materialization local fixture provider and tests | `CLOAK-L6-TASK-003` | Added a policy-selected `local_static_fixture` provider that reads only safe policy-owned fixture paths under the runtime/test root, preserves public URL safety, extracts title/text/links, emits evidence candidates, and proves cleanup on success/failure without exposing raw paths, raw HTML, browser handles, or CDP URLs. |
 
 ## Open Questions
 
@@ -1319,3 +1320,28 @@ Validation:
 Important boundary:
 
 This wave does not prove better live retrieval yet. It proves materialization output can now re-enter the evidence-pack lane before L6-004/L6-005 local provider work attempts real page capture.
+
+## Assimilation Wave 47: Level 6 Local Static Fixture Provider
+
+Status: integrated into browser materialization local/static fixture proof; live browser execution remains deferred.
+
+Implemented:
+
+- Advanced Level 6 pass 004 from the implementation proof map.
+- Added a CD/policy-selected `local_static_fixture` provider behind `api_browser_materialize_page`.
+- Kept the user-facing request URL on the existing public URL safety path; localhost, private-network, credentialed, and non-HTTP(S) URLs are still blocked before provider execution.
+- Required fixture URL/path to be policy-owned. The provider accepts only a safe relative fixture path under the runtime/test root and rejects caller-supplied local file/path fields through the existing denied-field contract.
+- Reused the existing HTML extraction/readability helpers to extract title, main text/markdown, link summaries, extraction confidence, and truncation status.
+- Converted the extracted fixture page into the same evidence-pack candidate/ref shape introduced in L6-003.
+- Added cleanup projections for success and failure, with browser launch, browser handles, CDP URLs, raw local paths, and raw fixture payloads all non-visible.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not improve live retrieval by itself. It gives us a deterministic local extraction proof so the next slice can isolate whether JavaScript-rendered fixture content actually needs browser materialization.

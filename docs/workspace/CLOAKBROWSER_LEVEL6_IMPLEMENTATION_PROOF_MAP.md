@@ -80,7 +80,7 @@ Status values:
 | 1 | Fake materialization provider | integrated: deterministic provider proof pass 001 | Can the existing API emit a valid materialized-page object without launching a browser? | `core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` and browser materialization tests. |
 | 2 | Fixture artifact quarantine | integrated: ref-only artifact proof pass 002 | Are raw HTML/screenshot-like payloads stored by ref and never chat-visible? | Web conduit artifact/quarantine helpers and tests. |
 | 3 | Evidence candidate conversion | integrated: evidence-pack candidate proof pass 003 | Can a materialized page become evidence-pack candidates with title, final URL, text, links, claim hints, score, quality flags, and refs? | Batch query/evidence pack pipeline plus Tool CD output contract. |
-| 4 | Local static page provider proof | pending | Can the adapter fetch a local fixture page through the materialization API with full cleanup? | Browser adapter helper, CLI proof, local fixture tests. |
+| 4 | Local static page provider proof | integrated: policy-owned fixture proof pass 004 | Can the adapter fetch a local fixture page through the materialization API with full cleanup? | Browser adapter helper, CLI proof, local fixture tests. |
 | 5 | Local JS-rendered page proof | pending | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
 | 6 | Redirect and final URL safety proof | pending | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
 | 7 | Timeout/blocker classification | pending | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
@@ -218,18 +218,33 @@ This completes the first materialization-to-evidence bridge. It still uses the f
 
 Goal: prove one admitted local browser/materializer path can retrieve and extract a simple fixture page.
 
+Status: integrated as a policy-owned local static fixture provider. This is deliberately not caller-supplied local file access and does not loosen URL safety.
+
 Implementation preference:
 
 - Use the narrowest adapter available in the repo/runtime.
 - Prefer a helper behind `web_conduit` rather than workflow Rust.
 - If a Node/Playwright helper is used, Rust remains the contract executor and receives structured JSON only.
 
+Implemented:
+
+- Added `local_static_fixture` as a policy-selected materialization provider.
+- Required the requested URL to pass the same public URL safety guard before any fixture access.
+- Required fixture URL/path to come from policy, with the fixture path as a safe relative path under the test/runtime root.
+- Reused the existing HTML extraction/readability path to produce title, extracted text/markdown, links summary, extraction confidence, artifact refs, and evidence-pack candidates.
+- Added cleanup status for success and failure without exposing browser handles, CDP URLs, local fixture paths, or raw fixture payloads.
+
 Exit tests:
 
-- local page materializes,
-- title/text/links are extracted,
-- cleanup runs on success and failure,
-- no raw browser handle or CDP URL is visible.
+- local page materializes: covered by `browser_materialization_local_static_fixture_extracts_policy_owned_page`,
+- title/text/links are extracted: covered by the same test,
+- cleanup runs on success and failure: covered by success and `browser_materialization_local_static_fixture_cleans_up_on_failure`,
+- no raw browser handle or CDP URL is visible: covered by encoded-output assertions,
+- local fixture cannot bypass URL safety: covered by `browser_materialization_local_static_fixture_cannot_bypass_url_safety`.
+
+Important boundary:
+
+This is still not live browser execution. It proves the extraction/evidence path with a local, policy-owned fixture so L6-005 can isolate JavaScript rendering without making localhost or file URLs user-addressable.
 
 ### L6-005 Local JS-Rendered Page Proof
 
