@@ -143,6 +143,7 @@ all web research always uses stealth browser by default
 | `cloakbrowser/download.py` | level 5 pass 013 integrated | Python operator install/update lifecycle, custom URL fallback suppression, platform-matched updates, binary-info redaction, and next-launch update markers. |
 | `js/src/proxy.ts` | level 5 pass 008 integrated | Proxy URL parsing, credential separation, SOCKS adapter arg lane, credential encoding, bypass ownership, and redaction requirements. |
 | `js/src/geoip.ts` | level 5 pass 009 integrated | Proxy exit IP resolution, timezone/locale inference, bounded timeout, optional dependency behavior, WebRTC IP consistency. |
+| `cloakbrowser/geoip.py` | level 5 pass 014 integrated | Python GeoIP optional dependency, no first-use research DB download, exit-IP provider order, atomic DB replacement, and telemetry-only raw IP handling. |
 | `js/src/puppeteer.ts` | level 5 pass 010 integrated | Cross-adapter launch parity, shared compiler/geo/proxy hooks, adapter-specific proxy auth patching, and humanize gate parity. |
 | `cloakbrowser/config.py` | level 5 pass 012 integrated | Python provider defaults, per-platform browser version map, ignored default args, default viewport, cache/download paths, version markers, and local binary override boundaries. |
 | `js/src/human/config.ts` | parsed | Centralized human interaction presets and action timing knobs. |
@@ -249,6 +250,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-038` | integrated | medium | Complete Level 5 pass 011 for Python wrapper lifecycle. | Browser materialization lifecycle contract | `CLOAK-TASK-037` | Added wrapper lifecycle metadata for sync/async parity, driver cleanup, async cancellation cleanup, persistent profile separation, backend policy ownership, timezone alias normalization, and raw profile/driver redaction. |
 | `CLOAK-TASK-039` | integrated | medium | Complete Level 5 pass 012 for Python provider defaults. | Browser materialization default config contract | `CLOAK-TASK-038` | Added default config metadata for per-platform version selection, ignored default arg ownership, default viewport ownership, operator-only local binary/download hooks, fingerprint/stealth capability separation, and raw marker/download redaction. |
 | `CLOAK-TASK-040` | integrated | medium | Complete Level 5 pass 013 for Python binary download lifecycle. | Browser materialization operator install/update contract | `CLOAK-TASK-039` | Added metadata for custom download fallback suppression, checksum manifest policy, platform-matched release updates, pre-network update timestamping, next-launch binary updates, and raw binary-info redaction. |
+| `CLOAK-TASK-041` | integrated | medium | Complete Level 5 pass 014 for Python GeoIP lifecycle. | Browser materialization geo/proxy capability contract | `CLOAK-TASK-040` | Added metadata for optional GeoIP dependency state, no first-use GeoIP DB downloads during research, source admission, atomic DB replacement, policy-owned exit-IP echo provider order, raw proxy-host IP redaction, and nonfatal dependency failures. |
 
 ## Open Questions
 
@@ -753,3 +755,26 @@ Validation:
 Important boundary:
 
 This wave still does not create an installer, auto-updater, live browser adapter, custom download hook, or local binary override. It makes the future readiness lane auditable and keeps heavy dependency work out of ordinary research.
+
+## Assimilation Wave 23: Level 5 Python Geo Lifecycle Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `cloakbrowser/geoip.py` as the syntax-level source of Python GeoIP optional dependency, proxy exit-IP lookup, country-to-locale mapping, GeoIP DB download/cache/update, and nonfatal failure behavior.
+- Preserved the useful primitive: geo enrichment is a capability/readiness concern, not a default web-research behavior.
+- Added contract metadata for optional GeoIP dependency state, no first-use GeoIP DB download during ordinary research, source admission, large-artifact lifecycle, atomic temp-file replacement, background refresh prohibition during research, policy-owned exit-IP echo provider order, raw proxy-host IP redaction, SOCKS dependency failure handling, and nonfatal geo resolution.
+- Kept raw exit IPs, proxy host IPs, GeoIP DB paths, large DB downloads, and proxy behavior out of chat-visible research output.
+- Added mock-fast assertions for no first-use GeoIP DB download during ordinary research, atomic DB replacement, and policy-owned exit-IP provider order.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable proxy, GeoIP lookup, WebRTC spoofing, GeoIP DB download, or live browser execution. It tightens the future capability contract so those behaviors cannot appear as ambient research side effects.

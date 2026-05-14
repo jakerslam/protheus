@@ -96,7 +96,7 @@ Status values:
 | 11 | `cloakbrowser/browser.py` | integrated: wrapper lifecycle pass 011 | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime lifecycle contract. |
 | 12 | `cloakbrowser/config.py` | integrated: default config pass 012 | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
 | 13 | `cloakbrowser/download.py` | integrated: operator install/update pass 013 | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
-| 14 | `cloakbrowser/geoip.py` | pending, deferred | What proxy-exit metadata is useful but permission-sensitive? | Proxy/geo capability, deferred. |
+| 14 | `cloakbrowser/geoip.py` | integrated: Python geo lifecycle pass 014 | What proxy-exit metadata is useful but permission-sensitive? | Proxy/geo capability, deferred. |
 | 15 | `bin/cloakserve` | mapped seed, deferred | Is CDP service pooling worth a future provider mode? | Service/pool capability, deferred. |
 | 16 | `tests/test_cloakserve.py` | mapped seed, deferred | Which pool/session invariants would be required before service mode? | Future service/pool tests. |
 | 17 | `tests/test_launch.py` | pending | What launch contract tests can be ported without live detection sites? | Browser adapter mock-fast tests. |
@@ -735,6 +735,50 @@ operator readiness
 -> checksum/platform-asset checks are policy-owned
 -> updates are next-launch and telemetry-only
 -> raw binary/cache/download details never become chat evidence
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 014: `cloakbrowser/geoip.py`
+
+Status: `integrated: Python geo lifecycle contract`
+
+Source lines inspected: 1-310
+
+This file confirms the geo/proxy lane is useful but permission-sensitive. It resolves proxy exit IP through a policy-owned echo-provider order, falls back to proxy-host DNS only as telemetry, maps country to locale, loads an optional GeoIP dependency, and downloads a large GeoIP database with atomic temp-file replacement. For Infring, none of that belongs in ordinary research; it belongs behind an explicit proxy/geo capability and operator-readiness lifecycle.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 1-27, 240-310 | GeoIP DB is a large external artifact, downloaded on first use and refreshed after 30 days. | No first-use GeoIP download during ordinary research; DB source/admission and lifecycle are operator-readiness concerns. | Integrated. |
+| 29-63, 96-107 | Country-to-locale map and timezone lookup enrich profile metadata without being mandatory. | Locale/timezone enrichment is policy-owned after admission and remains nonfatal. | Integrated. |
+| 66-94 | Missing `geoip2` is an optional dependency failure, not a research failure. | Surface as capability dependency state, not chat-visible tool failure. | Integrated. |
+| 109-236 | Exit-IP resolution tries public echo providers through the proxy, falls back to proxy-host DNS, and is bounded by timeout. | Provider order is policy-owned; raw exit/proxy-host IP stays telemetry-only and is not synthesis evidence. | Integrated. |
+| 265-289 | DB download writes a temp file in the target directory and renames atomically, cleaning partial files on failure. | Geo DB updates require atomic temp/rename and cleanup if the future readiness lane admits them. | Integrated. |
+| 292-310 | Background DB refresh is nonfatal. | Background geo refresh is not allowed during ordinary research and failures remain telemetry-only. | Integrated. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Extended `geo_consistency_contract` with optional dependency, source admission, no first-use downloads, atomic DB lifecycle, echo provider order, raw proxy-host IP redaction, and nonfatal dependency states. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the same Python geo lifecycle metadata through runtime profile diagnostics. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the Python geo lifecycle fields to the browser materialization Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted no first-use GeoIP download during research, atomic DB replacement requirement, and policy-owned exit-IP provider order. |
+
+### Pass 014 Outcome
+
+Geo enrichment is now explicitly separated from ordinary web research:
+
+```text
+ordinary research
+-> no proxy, no GeoIP DB download, no raw IP evidence
+admitted proxy/geo capability
+-> optional dependency/readiness state
+-> bounded exit-IP lookup
+-> policy-owned locale/timezone enrichment
+-> atomic DB lifecycle and telemetry-only failures
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

@@ -139,6 +139,27 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/geo_db_first_use_download_allowed_during_research",
+            )
+            .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/geo_db_atomic_temp_rename_required",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/exit_ip_echo_provider_order_policy_owned",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/geo_consistency_contract/raw_exit_ip_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
