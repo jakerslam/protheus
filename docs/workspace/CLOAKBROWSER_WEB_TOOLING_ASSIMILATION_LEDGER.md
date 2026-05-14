@@ -22,6 +22,8 @@ Level 4 implementation-structure map: `/Users/jay/.openclaw/workspace/docs/works
 
 Level 5 syntax implementation map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md`
 
+Level 6 implementation proof map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md`
+
 ## Guardrails
 
 - Keep ordinary research retrieval provider-neutral and policy/CD-driven.
@@ -287,6 +289,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-061` | integrated | medium | Complete Level 5 pass 034 for browser-use integration example. | Browser materialization external adapter handoff contract | `CLOAK-TASK-060` | Reviewed agent-session CDP attachment and declared that agent browser adapters require capability endpoint refs, stay outside the core retrieval primitive, and keep raw traces telemetry-only. |
 | `CLOAK-TASK-062` | integrated | medium | Complete Level 5 pass 035 for Crawl4AI integration example. | Browser materialization extraction adapter handoff contract | `CLOAK-TASK-061` | Reviewed CDP-backed markdown extraction and declared that extraction adapter output must re-enter evidence packaging rather than final chat. |
 | `CLOAK-TASK-063` | integrated | medium | Complete Level 5 pass 036 for Scrapling integration example. | Browser materialization selector/fetch adapter handoff contract | `CLOAK-TASK-062` | Reviewed WebSocket debugger URL handoff and declared Gateway-owned CDP endpoint resolution, selector output evidence packaging, and raw CDP version response redaction. |
+| `CLOAK-L6-TASK-001` | integrated | high | Complete Level 6 pass 001 for fake materialization provider. | Browser materialization API and tests | Level 6 map | Added a CD-selected deterministic fake provider that returns a success-shaped materialized page, artifact ref, cleanup status, and evidence-candidate shell without launching a browser or exposing raw payloads. |
 
 ## Open Questions
 
@@ -1246,3 +1249,26 @@ Validation:
 Important boundary:
 
 This wave still does not enable browser-use, Crawl4AI, Scrapling, external agent browsing, live browser execution, raw CDP endpoint handoff, direct markdown-to-chat output, selector scraping as final output, or third-party adapter credentials from workflows.
+
+## Assimilation Wave 44: Level 6 Fake Materialization Provider
+
+Status: integrated into browser materialization API proof; live browser execution remains deferred.
+
+Implemented:
+
+- Began Level 6 by implementing the first proof slice from the Level 6 map.
+- Added a CD-selected `fake_materialization` provider path behind `api_browser_materialize_page`.
+- Preserved default-off behavior and the normal ready `local_browser` stub path.
+- Returned a deterministic materialized page with source/final URL, final URL safety, extracted text, link summary, blocker classification, extraction confidence, readiness strategy, cleanup status, retry diagnostics, artifact ref, and evidence-candidate shell.
+- Kept raw payload, browser trace, browser handles, CDP URLs, and browser launch execution out of the response.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave does not improve live retrieval yet. It proves the success-shaped materialization path exists without enabling browser execution, proxy/session/human behavior, external adapters, or raw payload projection.

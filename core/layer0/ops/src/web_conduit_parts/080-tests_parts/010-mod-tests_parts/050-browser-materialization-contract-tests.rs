@@ -1148,3 +1148,92 @@
             Some(true)
         );
     }
+
+    #[test]
+    fn browser_materialization_fake_provider_returns_materialized_page_without_launch() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["fake_materialization"]);
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com/research",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(out.get("provider").and_then(Value::as_str), Some("fake_materialization"));
+        assert_eq!(
+            out.get("tool_execution_attempted").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.get("browser_launch_attempted").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/provider").and_then(Value::as_str),
+            Some("fake_materialization")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/title").and_then(Value::as_str),
+            Some("Deterministic browser materialization fixture")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/blocker_classification/blocker_class")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/extraction_confidence")
+                .and_then(Value::as_str),
+            Some("usable")
+        );
+        assert_eq!(
+            out.pointer("/final_url_safety/status").and_then(Value::as_str),
+            Some("allowed")
+        );
+        assert_eq!(
+            out.pointer("/cleanup_status/status").and_then(Value::as_str),
+            Some("completed_noop")
+        );
+        assert_eq!(
+            out.pointer("/artifact_quarantine/state").and_then(Value::as_str),
+            Some("created_ref_only")
+        );
+        assert_eq!(
+            out.pointer("/artifact_quarantine/raw_artifact_bytes_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/evidence_handoff_contract/evidence_candidate_state")
+                .and_then(Value::as_str),
+            Some("pending_evidence_packaging")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/state").and_then(Value::as_str),
+            Some("pending_evidence_packaging")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/promoted_to_evidence_pack")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/raw_payload_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        let encoded = serde_json::to_string(&out).expect("encode output");
+        assert!(!encoded.contains("raw_html"));
+        assert!(!encoded.contains("<html"));
+    }

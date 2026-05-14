@@ -65,6 +65,29 @@ fn browser_materialization_final_url_safety_projection() -> Value {
     })
 }
 
+fn browser_materialization_observed_final_url_safety_projection(
+    final_url: &str,
+    ssrf_guard: &Value,
+) -> Value {
+    json!({
+        "version": "browser_materialization_final_url_safety_v1",
+        "ok": ssrf_guard.get("ok").and_then(Value::as_bool).unwrap_or(false),
+        "status": ssrf_guard
+            .get("url_safety_status")
+            .and_then(Value::as_str)
+            .unwrap_or("invalid_url"),
+        "final_url": clean_text(final_url, 2200),
+        "host": ssrf_guard.get("host").cloned().unwrap_or(Value::Null),
+        "resolved_ip_addrs": ssrf_guard
+            .get("resolved_ip_addrs")
+            .cloned()
+            .unwrap_or_else(|| json!([])),
+        "revalidate_after_navigation_required": true,
+        "revalidate_before_artifact_creation": true,
+        "reason": "Final URL was revalidated by the materialization provider before creating artifact refs."
+    })
+}
+
 fn browser_materialization_navigation_contract_projection(config: &Value) -> Value {
     let security = config.get("security").cloned().unwrap_or_else(|| json!({}));
     json!({
@@ -132,6 +155,19 @@ fn browser_materialization_cleanup_status_projection() -> Value {
         "context_close_attempted": false,
         "cleanup_required": false,
         "cleanup_error_chat_visible": false
+    })
+}
+
+fn browser_materialization_fake_cleanup_status_projection() -> Value {
+    json!({
+        "version": "browser_materialization_cleanup_status_v1",
+        "status": "completed_noop",
+        "browser_launch_attempted": false,
+        "context_created": false,
+        "context_close_attempted": false,
+        "cleanup_required": false,
+        "cleanup_error_chat_visible": false,
+        "fake_provider_no_browser_process": true
     })
 }
 
@@ -228,6 +264,13 @@ fn browser_materialization_output_contract_projection(config: &Value) -> Value {
 }
 
 fn browser_materialization_evidence_handoff_projection(config: &Value) -> Value {
+    browser_materialization_evidence_handoff_projection_with_state(config, "not_created")
+}
+
+fn browser_materialization_evidence_handoff_projection_with_state(
+    config: &Value,
+    evidence_candidate_state: &str,
+) -> Value {
     let handoff = config
         .get("evidence_handoff")
         .cloned()
@@ -251,7 +294,7 @@ fn browser_materialization_evidence_handoff_projection(config: &Value) -> Value 
             .get("confidence_values")
             .cloned()
             .unwrap_or_else(|| json!(["usable", "low_confidence_raw", "rejected"])),
-        "evidence_candidate_state": "not_created",
+        "evidence_candidate_state": clean_text(evidence_candidate_state, 80),
         "raw_payload_chat_visible": handoff
             .get("raw_payload_chat_visible")
             .and_then(Value::as_bool)
@@ -267,6 +310,154 @@ fn browser_materialization_artifact_quarantine_projection() -> Value {
         "artifact_ref": Value::Null,
         "raw_payload_chat_visible": false,
         "browser_trace_chat_visible": false
+    })
+}
+
+fn browser_materialization_artifact_quarantine_projection_with_ref(artifact_ref: &str) -> Value {
+    json!({
+        "version": "browser_materialization_artifact_quarantine_v1",
+        "state": "created_ref_only",
+        "artifact_ref": clean_text(artifact_ref, 260),
+        "raw_payload_chat_visible": false,
+        "browser_trace_chat_visible": false,
+        "raw_artifact_bytes_chat_visible": false
+    })
+}
+
+fn browser_materialization_selected_provider(config: &Value) -> String {
+    config
+        .get("provider_order")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 80).to_ascii_lowercase())
+        .filter(|raw| !raw.is_empty())
+        .unwrap_or_else(|| "local_browser".to_string())
+}
+
+fn browser_materialization_ref_hash(parts: &[&str]) -> String {
+    let mut hasher = Sha256::new();
+    for part in parts {
+        hasher.update(part.as_bytes());
+        hasher.update(b"\n");
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn browser_materialization_fake_success(
+    url: &str,
+    config: &Value,
+    runtime_metadata: &Value,
+    pre_navigation_url_safety: Value,
+) -> Value {
+    let final_url = clean_text(url, 2200);
+    let final_ssrf_guard = evaluate_fetch_ssrf_guard(&final_url, false, None);
+    let final_url_safety =
+        browser_materialization_observed_final_url_safety_projection(&final_url, &final_ssrf_guard);
+    let artifact_hash =
+        browser_materialization_ref_hash(&["fake_materialization", url, &final_url]);
+    let artifact_ref = format!(
+        "artifact://web_conduit/browser_materialization/fake/{}",
+        clean_text(&artifact_hash, 64)
+    );
+    let cleanup_status = browser_materialization_fake_cleanup_status_projection();
+    let readiness_strategy = browser_materialization_readiness_strategy_projection(config);
+    let retry_diagnostics = browser_materialization_retry_diagnostics_projection("none");
+    let title = "Deterministic browser materialization fixture";
+    let main_text = "Fake browser materialization provider returned a deterministic rendered page fixture for contract proof. This text is extracted content, not raw HTML.";
+    let materialized_page = json!({
+        "version": "browser_materialized_page_v1",
+        "provider": "fake_materialization",
+        "source_url": clean_text(url, 2200),
+        "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
+        "final_url": final_url,
+        "final_url_safety": final_url_safety.clone(),
+        "status_code": 200,
+        "title": title,
+        "main_text_or_markdown": main_text,
+        "links_summary": [
+            {
+                "href": clean_text(url, 2200),
+                "text": "source"
+            }
+        ],
+        "blocker_classification": {
+            "blocker_class": "none",
+            "retryable": false,
+            "evidence_impact": "usable"
+        },
+        "extraction_confidence": "usable",
+        "artifact_ref": artifact_ref,
+        "readiness_strategy": readiness_strategy.clone(),
+        "cleanup_status": cleanup_status.clone(),
+        "retry_diagnostics": retry_diagnostics.clone(),
+        "raw_payload_chat_visible": false,
+        "browser_trace_chat_visible": false
+    });
+    let evidence_candidate = json!({
+        "version": "browser_materialization_evidence_candidate_shell_v1",
+        "state": "pending_evidence_packaging",
+        "source_kind": "browser_materialized_page",
+        "source_class": "web_page",
+        "title": title,
+        "locator": materialized_page
+            .get("final_url")
+            .cloned()
+            .unwrap_or_else(|| json!(clean_text(url, 2200))),
+        "snippet": main_text,
+        "confidence": "usable",
+        "quality_flags": ["materialized_fixture", "pending_evidence_pack_conversion"],
+        "artifact_ref": materialized_page
+            .get("artifact_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "raw_payload_chat_visible": false,
+        "promoted_to_evidence_pack": false
+    });
+    json!({
+        "ok": true,
+        "type": "web_conduit_browser_materialization",
+        "capability": "browser_materialize_page",
+        "provider": "fake_materialization",
+        "reason": "Fake browser materialization provider produced a deterministic materialized-page contract proof.",
+        "url": clean_text(url, 2200),
+        "tool_execution_attempted": true,
+        "browser_launch_attempted": false,
+        "raw_payload_chat_visible": false,
+        "chat_visible": false,
+        "materialized_page": materialized_page,
+        "evidence_candidate": evidence_candidate,
+        "artifact_ref": format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),
+        "materialized_page_contract": browser_materialization_output_contract_projection(config),
+        "evidence_handoff_contract": browser_materialization_evidence_handoff_projection_with_state(
+            config,
+            "pending_evidence_packaging",
+        ),
+        "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
+            &format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),
+        ),
+        "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
+        "final_url_safety": final_url_safety,
+        "navigation_contract": browser_materialization_navigation_contract_projection(config),
+        "readiness_strategy": readiness_strategy,
+        "context_contract": browser_materialization_context_contract_projection(),
+        "cleanup_status": cleanup_status,
+        "retry_diagnostics": retry_diagnostics,
+        "url_safety": pre_navigation_url_safety,
+        "profile_compilation": runtime_metadata
+            .pointer("/profile_compilation")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "readiness_lifecycle": runtime_metadata
+            .pointer("/capability_contract/readiness_lifecycle")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "execution_gate": runtime_metadata
+            .get("execution_gate")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "capability_contract_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#browser_materialization_capability_contract",
+        "decision_authority": "web_conduit_policy_and_tool_cd"
     })
 }
 
@@ -483,6 +674,10 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             &runtime_metadata,
             url_safety,
         );
+    }
+
+    if browser_materialization_selected_provider(&config) == "fake_materialization" {
+        return browser_materialization_fake_success(&url, &config, &runtime_metadata, url_safety);
     }
 
     browser_materialization_fail_closed(
