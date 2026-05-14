@@ -496,17 +496,36 @@ fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Valu
                         "partial_download_cleanup_required": true,
                         "checksum_verification_required": true,
                         "checksum_skip_allowed_for_ordinary_research": false,
+                        "checksum_manifest_lookup_provider_order_policy_owned": true,
+                        "checksum_manifest_missing_blocks_admitted_install": true,
                         "primary_fallback_download_allowed_only_in_operator_install": true,
+                        "custom_download_url_requires_operator_action": true,
+                        "custom_download_url_disables_public_fallback": true,
                         "archive_path_traversal_rejected": true,
                         "single_root_flatten_allowed": true,
-                        "extract_sets_executable_permissions": true
+                        "extract_sets_executable_permissions": true,
+                        "quarantine_removal_allowed_only_for_operator_install": true
                     },
                     "update_contract": {
                         "source_pattern": "cloakbrowser_rate_limited_background_update",
                         "background_update_during_ordinary_research_allowed": false,
                         "rate_limited_update_checks_required": true,
+                        "update_checks_disabled_by_local_override": true,
+                        "update_checks_disabled_by_custom_download_url": true,
+                        "platform_release_asset_match_required": true,
+                        "update_check_timestamp_recorded_before_network_attempt": true,
+                        "binary_update_downloaded_for_next_launch_only": true,
                         "update_marker_write_atomic_required": true,
-                        "wrapper_update_notice_chat_visible": false
+                        "wrapper_update_check_once_per_process": true,
+                        "wrapper_update_notice_chat_visible": false,
+                        "update_failure_non_fatal_telemetry_only": true
+                    },
+                    "binary_info_contract": {
+                        "source_pattern": "cloakbrowser_binary_info_projection",
+                        "installed_status_may_be_telemetry": true,
+                        "raw_binary_path_chat_visible": false,
+                        "raw_cache_dir_chat_visible": false,
+                        "raw_download_url_chat_visible": false
                     },
                     "raw_binary_path_chat_visible": false,
                     "download_url_chat_visible": false,

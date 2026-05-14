@@ -140,6 +140,7 @@ all web research always uses stealth browser by default
 | `js/src/args.ts` | level 5 pass 005 integrated | Deduped argument compiler, fixed precedence, policy-owned profile arg assembly, and telemetry-only override visibility. |
 | `js/src/config.ts` | level 5 pass 006 integrated | Platform detection, binary/cache/version readiness lifecycle, explicit install boundary, ignored default args, and deferred stealth defaults. |
 | `js/src/download.ts` | level 5 pass 007 integrated | Atomic download, checksum verification, extraction hardening, cleanup on failure, and rate-limited update checks. |
+| `cloakbrowser/download.py` | level 5 pass 013 integrated | Python operator install/update lifecycle, custom URL fallback suppression, platform-matched updates, binary-info redaction, and next-launch update markers. |
 | `js/src/proxy.ts` | level 5 pass 008 integrated | Proxy URL parsing, credential separation, SOCKS adapter arg lane, credential encoding, bypass ownership, and redaction requirements. |
 | `js/src/geoip.ts` | level 5 pass 009 integrated | Proxy exit IP resolution, timezone/locale inference, bounded timeout, optional dependency behavior, WebRTC IP consistency. |
 | `js/src/puppeteer.ts` | level 5 pass 010 integrated | Cross-adapter launch parity, shared compiler/geo/proxy hooks, adapter-specific proxy auth patching, and humanize gate parity. |
@@ -247,6 +248,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-037` | integrated | medium | Complete Level 5 pass 010 for TypeScript Puppeteer adapter parity. | Browser materialization cross-adapter contract | `CLOAK-TASK-036` | Added adapter parity metadata, denied direct backend/adapter selection fields, and required shared compiler/proxy/geo/human gates across future adapter families. |
 | `CLOAK-TASK-038` | integrated | medium | Complete Level 5 pass 011 for Python wrapper lifecycle. | Browser materialization lifecycle contract | `CLOAK-TASK-037` | Added wrapper lifecycle metadata for sync/async parity, driver cleanup, async cancellation cleanup, persistent profile separation, backend policy ownership, timezone alias normalization, and raw profile/driver redaction. |
 | `CLOAK-TASK-039` | integrated | medium | Complete Level 5 pass 012 for Python provider defaults. | Browser materialization default config contract | `CLOAK-TASK-038` | Added default config metadata for per-platform version selection, ignored default arg ownership, default viewport ownership, operator-only local binary/download hooks, fingerprint/stealth capability separation, and raw marker/download redaction. |
+| `CLOAK-TASK-040` | integrated | medium | Complete Level 5 pass 013 for Python binary download lifecycle. | Browser materialization operator install/update contract | `CLOAK-TASK-039` | Added metadata for custom download fallback suppression, checksum manifest policy, platform-matched release updates, pre-network update timestamping, next-launch binary updates, and raw binary-info redaction. |
 
 ## Open Questions
 
@@ -728,3 +730,26 @@ Validation:
 Important boundary:
 
 This wave still does not add live browser execution, stealth defaults, local binary override, or any install/download behavior during ordinary research. It only records the policy contract for future explicit readiness/admission.
+
+## Assimilation Wave 22: Level 5 Operator Install/Update Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `cloakbrowser/download.py` as the syntax-level source of CloakBrowser's Python binary readiness, download, checksum, extraction, binary-info, and update mechanics.
+- Preserved the useful primitive: dependency install/update behavior belongs to explicit operator readiness lanes, while ordinary research gets only stable readiness/status diagnostics.
+- Added contract metadata for custom download URLs requiring operator action, disabling public fallback, policy-owned checksum manifest lookup, platform-matched release assets, pre-network update timestamping, next-launch update markers, process-scoped wrapper update checks, and telemetry-only failures.
+- Kept binary paths, cache dirs, download URLs, wrapper notices, update traces, local overrides, and install/download actions out of chat-visible research output.
+- Added mock-fast assertions for custom download fallback suppression, platform release asset matching, and raw download URL redaction.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not create an installer, auto-updater, live browser adapter, custom download hook, or local binary override. It makes the future readiness lane auditable and keeps heavy dependency work out of ordinary research.

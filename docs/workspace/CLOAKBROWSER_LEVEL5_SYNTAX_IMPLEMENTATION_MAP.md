@@ -95,7 +95,7 @@ Status values:
 | 10 | `js/src/puppeteer.ts` | integrated: adapter parity pass 010 | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
 | 11 | `cloakbrowser/browser.py` | integrated: wrapper lifecycle pass 011 | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime lifecycle contract. |
 | 12 | `cloakbrowser/config.py` | integrated: default config pass 012 | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
-| 13 | `cloakbrowser/download.py` | pending | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
+| 13 | `cloakbrowser/download.py` | integrated: operator install/update pass 013 | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
 | 14 | `cloakbrowser/geoip.py` | pending, deferred | What proxy-exit metadata is useful but permission-sensitive? | Proxy/geo capability, deferred. |
 | 15 | `bin/cloakserve` | mapped seed, deferred | Is CDP service pooling worth a future provider mode? | Service/pool capability, deferred. |
 | 16 | `tests/test_cloakserve.py` | mapped seed, deferred | Which pool/session invariants would be required before service mode? | Future service/pool tests. |
@@ -691,6 +691,50 @@ policy owns default config
 -> ignored default args are policy-owned
 -> random fingerprint and platform spoofing require separate capability
 -> raw binary/cache/download/version marker data stays out of chat
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 013: `cloakbrowser/download.py`
+
+Status: `integrated: operator install/update contract`
+
+Source lines inspected: 1-551
+
+This file mostly confirms the TypeScript download lifecycle, but adds sharper operator-readiness rules: custom download URLs disable public fallback, local overrides and custom URLs disable update checks, release updates must include a platform-matching asset, update timestamps are recorded before network attempts to avoid repeated failing checks, wrapper-update notices are process-scoped and telemetry-only, and raw binary-info paths/URLs are not synthesis material.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 58-121 | `ensure_binary` validates local override, platform support, installed executable, and fallback installed version before attempting download. | Ordinary research still cannot install; these become operator-readiness invariants and dependency-state diagnostics. | Already integrated; confirmed. |
+| 123-165 | Downloads use a primary URL, custom URL disables fallback, checksum runs before extraction, and temp archives are cleaned. | Custom binary sources require explicit operator action and cannot silently fall back to public sources. | Integrated. |
+| 167-236 | Checksum manifests are fetched from ordered providers, parsed by filename, and mismatches fail. | Checksum manifest lookup is policy-owned, and admitted installs should not proceed without verifiable integrity. | Integrated. |
+| 238-336 | Archive extraction rejects traversal, filters suspicious symlinks, flattens wrapper dirs, sets executable bits, and removes macOS quarantine. | Extraction hardening remains install-lane only; quarantine mutation is operator-install behavior, not research behavior. | Integrated. |
+| 350-365 | `binary_info` exposes version, platform, installed state, raw binary path, cache dir, and download URL. | Installed/readiness status may be telemetry; raw paths/cache/download URLs stay out of chat. | Integrated. |
+| 371-551 | Manual/background update checks are rate-limited, disabled by local override/custom URL, require platform-matching assets, write markers atomically, and fail non-fatally. | Updates are explicit readiness/maintenance behavior; no background update during ordinary research. | Integrated. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Extended dependency lifecycle with custom-download, checksum-manifest, platform-asset, timestamp, next-launch, wrapper-update, and binary-info contracts. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the same Python download/update metadata through readiness diagnostics. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the operator install/update fields to the browser materialization Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted custom download fallback behavior, platform-asset update matching, and raw download URL redaction. |
+
+### Pass 013 Outcome
+
+The optional browser dependency lane now distinguishes installed/readiness telemetry from install/update authority:
+
+```text
+ordinary research
+-> cannot install, update, override, or download
+operator readiness
+-> custom URLs require explicit action and disable fallback
+-> checksum/platform-asset checks are policy-owned
+-> updates are next-launch and telemetry-only
+-> raw binary/cache/download details never become chat evidence
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

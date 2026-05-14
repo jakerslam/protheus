@@ -209,12 +209,27 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/custom_download_url_disables_public_fallback")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/archive_path_traversal_rejected")
                 .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/background_update_during_ordinary_research_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/platform_release_asset_match_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/binary_info_contract/raw_download_url_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
         );
