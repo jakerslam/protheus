@@ -316,6 +316,41 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer(
+                "/profile_compilation/service_pool_contract/external_adapter_handoff_contract/source_pattern",
+            )
+            .and_then(Value::as_str),
+            Some("cloakbrowser_cdp_integration_examples")
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/service_pool_contract/external_adapter_handoff_contract/capability_endpoint_ref_required",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/service_pool_contract/external_adapter_handoff_contract/raw_cdp_http_url_from_workflow_allowed",
+            )
+            .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/service_pool_contract/external_adapter_handoff_contract/adapter_output_must_reenter_evidence_pack",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/service_pool_contract/external_adapter_handoff_contract/raw_cdp_version_response_chat_visible",
+            )
+            .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/launch_execution_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_basic_launch_contract_tests")

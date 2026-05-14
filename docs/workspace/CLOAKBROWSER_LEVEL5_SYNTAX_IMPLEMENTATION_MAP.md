@@ -116,9 +116,11 @@ Status values:
 | 31 | `tests/test_stealth_unit.py` | integrated: stealth unit test contract pass 031, deferred behavior | Which isolated-world tests can become read-only extraction tests? | Mock-fast provider contract tests; behavior remains gated. |
 | 32 | `tests/test_humanize_unit.py` | integrated: humanize unit test contract pass 032, deferred behavior | Which interaction tests should remain out of the first adapter? | Human interaction capability tests; behavior remains deferred. |
 | 33 | `tests/test_persistent_context.py` | integrated: persistent session test contract pass 033, deferred capability | Which session-retention invariants are required before persistent profiles? | Session capability contract; behavior remains deferred. |
-| 34 | `examples/integrations/browser_use_example.py` | pending, reference only | Does integration style reveal useful adapter ergonomics? | Usually reject for core primitive. |
-| 35 | `examples/integrations/crawl4ai_example.py` | pending, reference only | Does integration style reveal useful page extraction handoff? | Compare with existing Crawl4AI assimilation. |
-| 36 | `examples/integrations/scrapling_example.py` | pending, reference only | Does integration style reveal useful fetch fallback handoff? | Compare with Scrapling assimilation. |
+| 34 | `examples/integrations/browser_use_example.py` | integrated: external adapter handoff pass 034, reference only | Does integration style reveal useful adapter ergonomics? | Agent adapters may use capability-owned endpoint refs; not a core primitive. |
+| 35 | `examples/integrations/crawl4ai_example.py` | integrated: extraction adapter handoff pass 035, reference only | Does integration style reveal useful page extraction handoff? | Markdown extraction may run after materialization and must re-enter evidence packaging. |
+| 36 | `examples/integrations/scrapling_example.py` | integrated: selector/fetch adapter handoff pass 036, reference only | Does integration style reveal useful fetch fallback handoff? | Selector/fetch adapter output must re-enter evidence packaging; raw CDP details stay hidden. |
+
+Current Level 5 burn-down status: all listed rows 1-36 are closed. The remaining work is implementation/proof of Infring's own browser materialization provider, not additional CloakBrowser source-file assimilation from this queue.
 
 ## First Slice: One-Shot Materialization
 
@@ -971,6 +973,59 @@ session capability required
 -> proxy/geo gated separately
 -> sync/async close parity required
 -> raw profile/storage state redacted
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 034-036: Integration Examples
+
+Status: `integrated: external adapter handoff contract`, examples remain reference-only
+
+Source lines inspected:
+
+- `examples/integrations/browser_use_example.py`: 1-34
+- `examples/integrations/crawl4ai_example.py`: 1-32
+- `examples/integrations/scrapling_example.py`: 1-35
+
+These examples are useful as boundary probes, not as implementation templates. All three launch CloakBrowser, expose a local CDP endpoint, attach another framework to that endpoint, and then let the external framework perform agent/navigation/extraction work. In Infring, that pattern can exist only as a capability-owned adapter handoff: workflows must never receive raw CDP URLs, remote debugging ports, or browser handles, and any external adapter output must flow back through evidence packaging.
+
+### Extracted Syntax Patterns
+
+| Source File | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| `browser_use_example.py` | A separate agent framework attaches to a browser session through `cdp_url`. | Agent-browser adapters are not a core web retrieval primitive. If admitted later, they receive an endpoint ref from Tool CD/Gateway policy and their trace stays telemetry-only. | Accept as boundary contract; reject direct adapter behavior. |
+| `crawl4ai_example.py` | A crawler/extractor attaches through CDP and returns markdown. | Markdown extraction may be an adapter stage after browser materialization, but raw markdown/results must become evidence-pack candidates, not final chat text. | Accept as extraction handoff. |
+| `scrapling_example.py` | A scraper reads `/json/version`, converts to a WebSocket debugger URL, and returns selector results. | WebSocket resolution is Gateway/service-owned. Selector/fetch output can enrich evidence only after URL safety, artifact quarantine, and evidence packaging. | Accept as handoff; deny raw CDP version response exposure. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `external_adapter_handoff_contract` under the browser service pool contract. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the external adapter handoff contract in runtime metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Declared that external adapters require capability endpoint refs, cannot get raw CDP HTTP/WS URLs from workflows, and must return output through evidence packaging. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted endpoint-ref requirement, raw CDP URL denial, evidence-pack re-entry, and CDP version response redaction. |
+
+### Rejected Or Deferred From These Files
+
+| Source Feature | Decision | Reason |
+| --- | --- | --- |
+| Hardcoded local remote-debugging ports | Reject | Ports and bind addresses are service/Gateway-owned, not workflow/user input. |
+| Direct raw `cdp_url` / `webSocketDebuggerUrl` exposure | Reject | CDP endpoints are authority-bearing handles and must be represented by capability refs. |
+| Browser-use agent loop as web retrieval primitive | Reject | Autonomous browser agents are a separate admitted workflow/tool class, not ordinary search/fetch. |
+| Direct markdown/selector output as final answer | Reject | Extraction output must be packaged into evidence candidates and then synthesized. |
+
+### Pass 034-036 Outcome
+
+This pass closed the remaining Level 5 example rows by declaring a provider-neutral handoff primitive:
+
+```text
+admitted browser/session capability
+-> capability-owned CDP endpoint ref
+-> external adapter selected by Tool CD
+-> no raw CDP URL/port/version response in workflow or chat
+-> adapter output normalized into evidence pack
+-> final answer sees synthesis-ready evidence, not adapter traces
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

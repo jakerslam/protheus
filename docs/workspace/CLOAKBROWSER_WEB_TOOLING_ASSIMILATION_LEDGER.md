@@ -166,6 +166,9 @@ all web research always uses stealth browser by default
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
 | `examples/integrations/aws_lambda/lambda_handler.py` | level 5 pass 001 integrated | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening, final URL revalidation, cleanup, and telemetry-only retry history. |
+| `examples/integrations/browser_use_example.py` | level 5 pass 034 integrated, reference-only | Agent framework CDP attachment through a browser session; converted to endpoint-ref/admitted-adapter handoff constraints rather than core retrieval behavior. |
+| `examples/integrations/crawl4ai_example.py` | level 5 pass 035 integrated, reference-only | CDP-backed markdown extraction through an external crawler; converted to evidence-pack re-entry constraints. |
+| `examples/integrations/scrapling_example.py` | level 5 pass 036 integrated, reference-only | WebSocket debugger URL resolution and selector fetch handoff; converted to Gateway-owned endpoint resolution and raw CDP redaction constraints. |
 | `tests/test_lambda_security.py` | level 5 pass 002 integrated | Scheme allowlist, SSRF/private IP rejection, redirect revalidation, caller argument filtering, hardening flags, uppercase scheme parsing, CGNAT, and IPv4-mapped IPv6 safety. |
 | `tests/test_extract.py` | level 5 pass 025 integrated, deferred capability | Dependency extraction hardening: tar/zip parity, archive traversal checks, absolute symlink skipping, flattening boundaries, app bundle preservation, and executable permissions. |
 
@@ -178,7 +181,7 @@ This is a high-level pass, not a full repo burn-down.
 | Python package `cloakbrowser/**` | 15 | partially parsed | Core launch, config, proxy/geo, human behavior surfaces identified. |
 | TypeScript package `js/src/**` | 33 | partially parsed | Playwright/Puppeteer wrappers, proxy, geoip, human behavior, download lifecycle. |
 | Tests `tests/**` and `js/tests/**` | 21+ | partially parsed | Launch/proxy/stealth/lambda/cloakserve/extract tests parsed; remaining tests should be used for implementation-level edge-case confirmation. |
-| Examples | 17 | not parsed | Useful later for capability demos, but lower value than implementation/tests. |
+| Examples | 17 | 4 parsed at Level 5 | Lambda and three integration examples parsed; remaining examples are lower value than implementation/tests unless a future capability needs them. |
 | Images/binary docs | 6 images + license/docs | skipped for now | Marketing/proof artifacts are not implementation patterns. |
 | CI/package metadata | remainder | not parsed | Useful only for binary readiness and distribution lifecycle if we target that next. |
 
@@ -281,6 +284,9 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-058` | integrated | medium | Complete Level 5 pass 031 for stealth unit tests. | Browser materialization mock-fast verification contract | `CLOAK-TASK-057` | Added metadata for mock-fast unit tests, isolated-world lifecycle/retry/invalidation, selector expression escaping, shift-symbol keymap completeness, trusted key dispatch tests, no-evaluate-leak interaction checks, slow browser quarantine, and anti-bot claim separation. |
 | `CLOAK-TASK-059` | integrated | medium | Complete Level 5 pass 032 for humanize unit tests. | Browser materialization human interaction verification contract | `CLOAK-TASK-058` | Added metadata for config resolution, motion math, sync/async patch parity, focus checks, frame/locator/element-handle patch coverage, no-double-patch guards, per-call timeout forwarding, per-call config containment, non-ASCII insertText handling, slow behavioral-test quarantine, and telemetry-only bot-detection results. |
 | `CLOAK-TASK-060` | integrated | medium | Complete Level 5 pass 033 for persistent context tests. | Browser materialization persistent session capability contract | `CLOAK-TASK-059` | Added metadata for broker-owned profile refs, direct `userDataDir` denial, argument compiler reuse, locale/timezone profile normalization, proxy dependency, sync/async close parity, and raw profile/storage redaction. |
+| `CLOAK-TASK-061` | integrated | medium | Complete Level 5 pass 034 for browser-use integration example. | Browser materialization external adapter handoff contract | `CLOAK-TASK-060` | Reviewed agent-session CDP attachment and declared that agent browser adapters require capability endpoint refs, stay outside the core retrieval primitive, and keep raw traces telemetry-only. |
+| `CLOAK-TASK-062` | integrated | medium | Complete Level 5 pass 035 for Crawl4AI integration example. | Browser materialization extraction adapter handoff contract | `CLOAK-TASK-061` | Reviewed CDP-backed markdown extraction and declared that extraction adapter output must re-enter evidence packaging rather than final chat. |
+| `CLOAK-TASK-063` | integrated | medium | Complete Level 5 pass 036 for Scrapling integration example. | Browser materialization selector/fetch adapter handoff contract | `CLOAK-TASK-062` | Reviewed WebSocket debugger URL handoff and declared Gateway-owned CDP endpoint resolution, selector output evidence packaging, and raw CDP version response redaction. |
 
 ## Open Questions
 
@@ -1219,3 +1225,24 @@ Validation:
 Important boundary:
 
 This wave still does not enable persistent profiles, direct profile directories, cookie/storage reuse, proxy use, GeoIP lookup, raw storage-state projection, or live browser execution during ordinary research.
+
+## Assimilation Wave 43: Level 5 External Adapter Handoff Examples
+
+Status: integrated into browser service/external adapter handoff contract; examples remain reference-only.
+
+Implemented:
+
+- Parsed `examples/integrations/browser_use_example.py`, `examples/integrations/crawl4ai_example.py`, and `examples/integrations/scrapling_example.py` as syntax-level examples of external frameworks attaching to a browser through CDP HTTP/WebSocket endpoints.
+- Preserved the useful primitive: external adapters can be useful after browser materialization exists, but they must receive capability-owned endpoint refs and must not expose raw CDP URLs, debugger ports, WebSocket URLs, agent traces, or CDP version responses to workflows or final chat.
+- Added `external_adapter_handoff_contract` metadata for endpoint-ref admission, raw CDP URL denial, policy-owned remote-debugging ports, loopback binding, Tool CD adapter selection, agent-adapter separation from the core retrieval primitive, markdown/selector output evidence-pack re-entry, and raw adapter trace redaction.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable browser-use, Crawl4AI, Scrapling, external agent browsing, live browser execution, raw CDP endpoint handoff, direct markdown-to-chat output, selector scraping as final output, or third-party adapter credentials from workflows.

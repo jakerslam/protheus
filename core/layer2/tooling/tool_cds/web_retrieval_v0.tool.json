@@ -718,7 +718,24 @@
           "passthrough_browser_args_allowed_from_workflow": false,
           "ws_scheme_resolution_gateway_owned": true,
           "ws_url_rewrite_telemetry_only": true,
-          "shutdown_terminates_children": true
+          "shutdown_terminates_children": true,
+          "external_adapter_handoff_contract": {
+            "version": "browser_external_adapter_handoff_contract_v1",
+            "source_pattern": "cloakbrowser_cdp_integration_examples",
+            "capability_endpoint_ref_required": true,
+            "raw_cdp_http_url_from_workflow_allowed": false,
+            "raw_cdp_ws_url_from_workflow_allowed": false,
+            "remote_debugging_port_policy_owned": true,
+            "loopback_binding_required": true,
+            "adapter_kind_selected_by_tool_cd": true,
+            "agent_browser_adapter_not_core_retrieval_primitive": true,
+            "markdown_extraction_adapter_may_run_after_materialization": true,
+            "selector_fetch_adapter_may_run_after_materialization": true,
+            "adapter_output_must_reenter_evidence_pack": true,
+            "third_party_adapter_credentials_from_workflow_allowed": false,
+            "raw_adapter_trace_chat_visible": false,
+            "raw_cdp_version_response_chat_visible": false
+          }
         },
         "wrapper_lifecycle_contract": {
           "version": "browser_wrapper_lifecycle_contract_v1",
