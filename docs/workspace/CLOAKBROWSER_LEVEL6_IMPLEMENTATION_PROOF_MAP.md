@@ -83,7 +83,7 @@ Status values:
 | 4 | Local static page provider proof | integrated: policy-owned fixture proof pass 004 | Can the adapter fetch a local fixture page through the materialization API with full cleanup? | Browser adapter helper, CLI proof, local fixture tests. |
 | 5 | Local JS-rendered page proof | integrated: policy-owned rendered fixture proof pass 005 | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
 | 6 | Redirect and final URL safety proof | integrated: final URL revalidation proof pass 006 | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
-| 7 | Timeout/blocker classification | pending | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
+| 7 | Timeout/blocker classification | integrated: blocker taxonomy proof pass 007 | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
 | 8 | Web tooling gate split | pending | Can tooling stats isolate readiness, URL safety, materialization, extraction, evidence promotion, and synthesis consumption? | Web retrieval gate diagnostics/eval reporting. |
 | 9 | Research workflow consumption | pending | Does the research CD consume materialized evidence as normal evidence rather than tool trace text? | Research workflow CD/eval path; no prompt hardcoding. |
 | 10 | Golden/live impact pass | pending | Does the primitive improve weak-data cases without regressing upstream gates? | Research golden eval, web tooling eval, failure archive. |
@@ -282,6 +282,8 @@ Covered by `browser_materialization_blocks_unsafe_final_urls_before_artifacts`.
 
 Goal: make materialization failures measurable instead of collapsing into "bad results."
 
+Status: integrated for the current local/fake materialization boundary. The result shape now carries top-level blocker classification for failures, materialized-page blocker classification for successful captures, and evidence promotion differentiates usable extracted text from low-confidence thin text.
+
 Blocker classes:
 
 - `none`,
@@ -300,6 +302,13 @@ Exit tests:
 - fixture pages map to expected blocker classes,
 - blocker class affects evidence promotion,
 - retry recommendations are telemetry-only and budget-aware.
+
+Covered by:
+
+- `browser_materialization_enabled_without_adapter_is_adapter_not_ready`,
+- `browser_materialization_fake_provider_returns_materialized_page_without_launch`,
+- `browser_materialization_local_static_fixture_classifies_thin_content`,
+- `browser_materialization_blocks_unsafe_final_urls_before_artifacts`.
 
 ### L6-008 Web Tooling Gate Split
 

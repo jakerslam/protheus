@@ -295,6 +295,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-L6-TASK-004` | integrated | high | Complete Level 6 pass 004 for policy-owned local static fixture materialization. | Browser materialization local fixture provider and tests | `CLOAK-L6-TASK-003` | Added a policy-selected `local_static_fixture` provider that reads only safe policy-owned fixture paths under the runtime/test root, preserves public URL safety, extracts title/text/links, emits evidence candidates, and proves cleanup on success/failure without exposing raw paths, raw HTML, browser handles, or CDP URLs. |
 | `CLOAK-L6-TASK-005` | integrated | high | Complete Level 6 pass 005 for policy-owned JS-rendered fixture materialization. | Browser materialization rendered fixture provider and tests | `CLOAK-L6-TASK-004` | Added a `local_js_rendered_fixture` provider proof that direct static extraction misses a rendered marker while materialization receives policy-owned rendered text, keeps readiness policy-owned, rejects caller scripts, and emits normal evidence candidates without exposing raw scripts, fixture paths, browser handles, or CDP URLs. |
 | `CLOAK-L6-TASK-006` | integrated | high | Complete Level 6 pass 006 for final URL safety before artifacts. | Browser materialization final URL revalidation and tests | `CLOAK-L6-TASK-005` | Moved fixture-provider final URL revalidation ahead of fixture read/extraction/artifact creation, blocked private, credentialed, and non-HTTP(S) final URLs, redacted credentialed final URLs, and proved no materialized/evidence artifact is created on unsafe final URL. |
+| `CLOAK-L6-TASK-007` | integrated | high | Complete Level 6 pass 007 for timeout/blocker classification. | Browser materialization blocker taxonomy and evidence promotion | `CLOAK-L6-TASK-006` | Added structured materialization blocker classes for adapter readiness, unsafe final URLs, fixture extraction failures, and content-too-thin captures; evidence promotion now keeps thin safe captures as `low_confidence_raw` instead of over-promoting them as usable evidence. |
 
 ## Open Questions
 
@@ -1395,3 +1396,27 @@ Validation:
 Important boundary:
 
 This wave tightens the materialization safety envelope. It is not a retrieval-quality improvement by itself; it prevents the future live adapter from turning redirects into an SSRF/raw-artifact bypass.
+
+## Assimilation Wave 50: Level 6 Blocker Classification
+
+Status: integrated into browser materialization result shape; live browser execution remains deferred.
+
+Implemented:
+
+- Advanced Level 6 pass 007 from the implementation proof map.
+- Added structured blocker classification to materialization failures and successful materialized pages.
+- Classified adapter-not-ready, unsafe URL, extraction failure, access-denied fixture mismatch, and content-too-thin outcomes without making browser materialization a hidden default.
+- Added retry budget metadata to retry diagnostics while keeping retry traces telemetry-only.
+- Tightened evidence promotion so safe but thin materialized content is retained as `low_confidence_raw` rather than promoted as fully usable evidence.
+- Updated the Tool CD blocker taxonomy with the L6 primitive classes.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave makes materialization failures diagnosable. It does not add prompt-specific recovery, domain-specific search behavior, proxy behavior, or live anti-bot bypass.

@@ -996,10 +996,16 @@
       "blocker_taxonomy": {
         "source_pattern": "cloakbrowser_blocker_classification",
         "classes": [
+          "none",
+          "timeout",
           "anti_bot_challenge",
           "needs_js",
           "rate_limited",
           "access_denied",
+          "content_too_thin",
+          "adapter_not_ready",
+          "unsafe_url",
+          "extraction_failed",
           "provider_degraded",
           "content_materialization_missing",
           "off_intent_noise",

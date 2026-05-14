@@ -1098,6 +1098,21 @@
                 .and_then(Value::as_str),
             Some("satisfy_adapter_readiness_before_retry")
         );
+        assert_eq!(
+            out.pointer("/blocker_classification/blocker_class")
+                .and_then(Value::as_str),
+            Some("adapter_not_ready")
+        );
+        assert_eq!(
+            out.pointer("/blocker_classification/retryable")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/retry_diagnostics/retry_budget/attempts_consumed")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
     }
 
     #[test]
@@ -1189,6 +1204,11 @@
         );
         assert_eq!(
             out.pointer("/materialized_page/blocker_classification/blocker_class")
+                .and_then(Value::as_str),
+            Some("none")
+        );
+        assert_eq!(
+            out.pointer("/blocker_classification/blocker_class")
                 .and_then(Value::as_str),
             Some("none")
         );
@@ -1556,6 +1576,79 @@
     }
 
     #[test]
+    fn browser_materialization_local_static_fixture_classifies_thin_content() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let fixture_dir = tmp.path().join("fixtures");
+        std::fs::create_dir_all(&fixture_dir).expect("fixture dir");
+        std::fs::write(
+            fixture_dir.join("thin.html"),
+            r#"<!doctype html><html><head><title>Thin Fixture</title></head><body><main>Short note.</main></body></html>"#,
+        )
+        .expect("fixture write");
+
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["local_static_fixture"]);
+        browser_config["local_static_fixture"] = json!({
+            "fixture_url": "https://example.com/thin",
+            "fixture_rel_path": "fixtures/thin.html",
+            "content_type": "text/html; charset=utf-8"
+        });
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com/thin",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.pointer("/materialized_page/blocker_classification/blocker_class")
+                .and_then(Value::as_str),
+            Some("content_too_thin")
+        );
+        assert_eq!(
+            out.pointer("/blocker_classification/evidence_impact")
+                .and_then(Value::as_str),
+            Some("low_confidence_raw")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/extraction_confidence")
+                .and_then(Value::as_str),
+            Some("low_confidence_raw")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/confidence")
+                .and_then(Value::as_str),
+            Some("low_confidence_raw")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/promotion/decision")
+                .and_then(Value::as_str),
+            Some("candidate_retained_low_confidence_content_too_thin")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/promotion/components/substantive_main_text")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(out
+            .pointer("/evidence_candidate/quality_flags")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("content_too_thin")))
+            .unwrap_or(false));
+    }
+
+    #[test]
     fn browser_materialization_local_static_fixture_cleans_up_on_failure() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let mut policy = default_policy();
@@ -1867,6 +1960,11 @@
                 out.pointer("/final_url_safety/revalidate_before_artifact_creation")
                     .and_then(Value::as_bool),
                 Some(true)
+            );
+            assert_eq!(
+                out.pointer("/blocker_classification/blocker_class")
+                    .and_then(Value::as_str),
+                Some("unsafe_url")
             );
             assert_eq!(
                 out.pointer("/artifact_quarantine/state").and_then(Value::as_str),

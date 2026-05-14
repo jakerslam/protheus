@@ -258,10 +258,119 @@ fn browser_materialization_retry_diagnostics_projection(error: &str) -> Value {
         "hidden_retry_executed": false,
         "retry_history": [],
         "retry_recommendation": recommendation,
+        "retry_budget": {
+            "source": "tool_cd_or_workflow_budget",
+            "attempts_consumed": 0,
+            "raw_retry_trace_visible": false
+        },
         "certificate_bypass_default_allowed": false,
         "caller_strategy_args_allowed": false,
         "retry_trace_chat_visible": false
     })
+}
+
+fn browser_materialization_blocker_classification(
+    blocker_class: &str,
+    retryable: bool,
+    evidence_impact: &str,
+    recommended_next_capability: &str,
+    telemetry_summary: &str,
+) -> Value {
+    json!({
+        "version": "browser_materialization_blocker_classification_v1",
+        "source_pattern": "cloakbrowser_blocker_classification",
+        "blocker_class": clean_text(blocker_class, 80),
+        "retryable": retryable,
+        "recommended_next_capability": clean_text(recommended_next_capability, 120),
+        "evidence_impact": clean_text(evidence_impact, 120),
+        "telemetry_summary": clean_text(telemetry_summary, 240),
+        "chat_visibility": "telemetry_only_until_synthesized",
+        "raw_browser_trace_chat_visible": false
+    })
+}
+
+fn browser_materialization_error_blocker_classification(error: &str) -> Value {
+    match error {
+        "url_safety_blocked" => browser_materialization_blocker_classification(
+            "unsafe_url",
+            false,
+            "rejected",
+            "none",
+            "URL safety guard blocked materialization before evidence creation.",
+        ),
+        "adapter_not_ready" | "browser_adapter_stub_only" => {
+            browser_materialization_blocker_classification(
+                "adapter_not_ready",
+                true,
+                "no_evidence_created",
+                "browser_materialization_adapter",
+                "Browser materialization capability exists but no admitted adapter is ready.",
+            )
+        }
+        "local_static_fixture_unavailable" | "local_js_rendered_fixture_unavailable" => {
+            browser_materialization_blocker_classification(
+                "extraction_failed",
+                true,
+                "rejected",
+                "policy_fixture_repair",
+                "Policy-owned fixture materialization failed before extraction.",
+            )
+        }
+        "local_static_fixture_url_mismatch" | "local_js_rendered_fixture_url_mismatch" => {
+            browser_materialization_blocker_classification(
+                "access_denied",
+                false,
+                "rejected",
+                "none",
+                "Policy-owned fixture does not admit the requested URL.",
+            )
+        }
+        "unsafe_caller_control_rejected" => browser_materialization_blocker_classification(
+            "unsafe_url",
+            false,
+            "rejected",
+            "none",
+            "Caller-supplied browser control was rejected before materialization.",
+        ),
+        "capability_not_enabled" => browser_materialization_blocker_classification(
+            "adapter_not_ready",
+            true,
+            "no_evidence_created",
+            "browser_materialization_admission",
+            "Browser materialization is default-off until policy admits it.",
+        ),
+        _ => browser_materialization_blocker_classification(
+            "extraction_failed",
+            true,
+            "rejected",
+            "alternate_retrieval_provider",
+            "Materialization failed before usable evidence was created.",
+        ),
+    }
+}
+
+fn browser_materialization_main_text_substantive(main_text: &str) -> bool {
+    main_text.split_whitespace().count() >= 12 && main_text.chars().count() >= 80
+}
+
+fn browser_materialization_content_blocker_classification(main_text: &str) -> Value {
+    if browser_materialization_main_text_substantive(main_text) {
+        browser_materialization_blocker_classification(
+            "none",
+            false,
+            "usable",
+            "none",
+            "Materialized page produced substantive extracted text.",
+        )
+    } else {
+        browser_materialization_blocker_classification(
+            "content_too_thin",
+            false,
+            "low_confidence_raw",
+            "alternate_retrieval_or_more_context",
+            "Materialized page was safe but did not produce enough extracted text for confident evidence promotion.",
+        )
+    }
 }
 
 fn browser_materialization_output_contract_projection(config: &Value) -> Value {
@@ -477,14 +586,25 @@ fn browser_materialization_evidence_pack_candidate(
         .get("ok")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let substantive_main_text = browser_materialization_main_text_substantive(main_text);
     let term_hints = browser_materialization_term_hints(title, main_text, &source_domain);
-    let quality_flags = if safe_final_url {
+    let quality_flags = if safe_final_url && substantive_main_text {
         json!([
             "browser_enriched",
             "materialized_fixture",
             "raw_artifact_quarantined",
             "safe_final_url",
             "not_blocker_shell"
+        ])
+    } else if safe_final_url {
+        json!([
+            "browser_enriched",
+            "materialized_fixture",
+            "raw_artifact_quarantined",
+            "safe_final_url",
+            "content_too_thin",
+            "low_confidence_raw",
+            "not_promotable"
         ])
     } else {
         json!([
@@ -517,7 +637,13 @@ fn browser_materialization_evidence_pack_candidate(
             "materialization_quality": 84.0,
             "artifact_quarantine": 100.0
         },
-        "confidence": if safe_final_url { "usable" } else { "rejected" },
+        "confidence": if safe_final_url && substantive_main_text {
+            "usable"
+        } else if safe_final_url {
+            "low_confidence_raw"
+        } else {
+            "rejected"
+        },
         "quality_flags": quality_flags,
         "coverage_facets": [],
         "freshness": {
@@ -530,8 +656,10 @@ fn browser_materialization_evidence_pack_candidate(
         "artifact_manifest_ref": artifact_manifest.get("manifest_ref").cloned().unwrap_or(Value::Null),
         "promotion": {
             "version": "browser_materialization_evidence_promotion_v1",
-            "decision": if safe_final_url {
+            "decision": if safe_final_url && substantive_main_text {
                 "candidate_ready_for_packaging"
+            } else if safe_final_url {
+                "candidate_retained_low_confidence_content_too_thin"
             } else {
                 "rejected_by_final_url_safety"
             },
@@ -542,7 +670,7 @@ fn browser_materialization_evidence_pack_candidate(
                 "url_safety": final_url_safety.clone()
             },
             "components": {
-                "substantive_main_text": main_text.split_whitespace().count() >= 12,
+                "substantive_main_text": substantive_main_text,
                 "claim_hint_count": 1,
                 "term_hint_count": browser_materialization_term_hints(title, main_text, final_url).len(),
                 "artifact_manifest_present": artifact_manifest.get("manifest_ref").is_some()
@@ -711,6 +839,7 @@ fn browser_materialization_fake_success(
     let retry_diagnostics = browser_materialization_retry_diagnostics_projection("none");
     let title = "Deterministic browser materialization fixture";
     let main_text = "Fake browser materialization provider returned a deterministic rendered page fixture for contract proof. This text is extracted content, not raw HTML.";
+    let blocker_classification = browser_materialization_content_blocker_classification(main_text);
     let evidence_candidate = browser_materialization_evidence_pack_candidate(
         &final_url,
         &final_url_safety,
@@ -766,11 +895,7 @@ fn browser_materialization_fake_success(
                 "text": "source"
             }
         ],
-        "blocker_classification": {
-            "blocker_class": "none",
-            "retryable": false,
-            "evidence_impact": "usable"
-        },
+        "blocker_classification": blocker_classification.clone(),
         "extraction_confidence": "usable",
         "artifact_ref": artifact_ref,
         "artifact_manifest_ref": artifact_manifest
@@ -805,6 +930,7 @@ fn browser_materialization_fake_success(
             config,
             "evidence_pack_candidate_created",
         ),
+        "blocker_classification": blocker_classification,
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
             &format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),
             &artifact_manifest,
@@ -1067,6 +1193,7 @@ fn browser_materialization_local_fixture_success(
     } else {
         "low_confidence_raw"
     };
+    let blocker_classification = browser_materialization_content_blocker_classification(&main_text);
     let links_summary = browser_materialization_links_summary_from_html(&raw_html, &final_url);
     let body_hash = sha256_hex(&raw_html);
     let artifact_hash = browser_materialization_ref_hash(&[provider, url, &final_url, &body_hash]);
@@ -1137,11 +1264,7 @@ fn browser_materialization_local_fixture_success(
         "content_truncated": truncated,
         "extractor": extractor,
         "links_summary": links_summary,
-        "blocker_classification": {
-            "blocker_class": "none",
-            "retryable": false,
-            "evidence_impact": "usable"
-        },
+        "blocker_classification": blocker_classification.clone(),
         "extraction_confidence": extraction_confidence,
         "artifact_ref": artifact_ref,
         "artifact_manifest_ref": artifact_manifest
@@ -1205,6 +1328,7 @@ fn browser_materialization_local_fixture_success(
             config,
             "evidence_pack_candidate_created",
         ),
+        "blocker_classification": blocker_classification,
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
             &format!("artifact://web_conduit/browser_materialization/local-static/{artifact_hash}"),
             &artifact_manifest,
@@ -1267,6 +1391,7 @@ fn browser_materialization_fail_closed(
         "artifact_ref": Value::Null,
         "materialized_page_contract": browser_materialization_output_contract_projection(config),
         "evidence_handoff_contract": browser_materialization_evidence_handoff_projection(config),
+        "blocker_classification": browser_materialization_error_blocker_classification(error),
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection(),
         "pre_navigation_url_safety": url_safety.clone(),
         "final_url_safety": browser_materialization_final_url_safety_projection(),
