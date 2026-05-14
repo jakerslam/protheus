@@ -135,6 +135,74 @@
       ]
     },
     {
+      "workflow_id": "project_context_capture",
+      "tier": "lab",
+      "source_framework": "local_coding_memory_resume_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/project_context_capture.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "project_context_capture_python_existing_project",
+        "project_context_capture_node_existing_project"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "coding_memory_resume_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "resume_context_retrieval",
+      "tier": "lab",
+      "source_framework": "local_coding_memory_resume_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/resume_context_retrieval.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "resume_context_exact_project_fingerprint",
+        "resume_context_no_memory_non_blocking"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "coding_memory_resume_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "memory_freshness_guard",
+      "tier": "lab",
+      "source_framework": "local_coding_memory_resume_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/memory_freshness_guard.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "fresh_memory_seeds_planning",
+        "stale_memory_downgraded_to_hints"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "coding_memory_resume_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "checkpoint_memory_write",
+      "tier": "lab",
+      "source_framework": "local_coding_memory_resume_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/checkpoint_memory_write.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "validated_checkpoint_memory_write",
+        "structured_failure_checkpoint_memory_write"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "coding_memory_resume_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
       "workflow_id": "cli_intent_argument_ingress",
       "tier": "lab",
       "source_framework": "forgecode_assimilated_ingress_layer",
@@ -840,6 +908,23 @@
         "schema_valid",
         "forgecode_loop_layer_parity_reviewed",
         "checkpoint_handoff_eval_passes",
+        "operator_promotion_approval"
+      ]
+    },
+    {
+      "workflow_id": "level6_existing_project_evidence_contract",
+      "tier": "lab",
+      "source_framework": "local_coding_level6_observability_layer",
+      "source_path": "orchestration/src/control_plane/workflows/lab/primitives/coding_loop/level6_existing_project_evidence_contract.workflow.json",
+      "runtime_selectable": false,
+      "promotion_status": "lab",
+      "test_scenarios": [
+        "level6_existing_project_machine_readable_receipts",
+        "missing_level6_evidence_fields_route_to_repair"
+      ],
+      "promotion_requirements": [
+        "schema_valid",
+        "level6_evidence_contract_eval_passes",
         "operator_promotion_approval"
       ]
     },

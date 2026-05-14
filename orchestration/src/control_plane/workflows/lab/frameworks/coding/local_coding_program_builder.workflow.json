@@ -26,6 +26,30 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "project_context_capture",
+        "workflow_id": "project_context_capture",
+        "input_contract": "project_context_capture_input_envelope_v1",
+        "output_artifact": "project_context_capture_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "resume_context_retrieval",
+        "workflow_id": "resume_context_retrieval",
+        "input_contract": "resume_context_retrieval_input_envelope_v1",
+        "output_artifact": "resume_context_retrieval_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "memory_freshness_guard",
+        "workflow_id": "memory_freshness_guard",
+        "input_contract": "memory_freshness_guard_input_envelope_v1",
+        "output_artifact": "memory_freshness_guard_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "coding_ingress_guard",
         "workflow_id": "local_coding_ingress_guard",
         "input_contract": "local_coding_ingress_guard_input_envelope_v1",
@@ -136,6 +160,22 @@
         "output_artifact": "checkpoint_handoff_result_artifact_v1",
         "return_policy": "return_single_terminal_artifact_to_parent",
         "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "checkpoint_memory_write",
+        "workflow_id": "checkpoint_memory_write",
+        "input_contract": "checkpoint_memory_write_input_envelope_v1",
+        "output_artifact": "checkpoint_memory_write_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
+        "capability": "level6_existing_project_evidence_contract",
+        "workflow_id": "level6_existing_project_evidence_contract",
+        "input_contract": "level6_existing_project_evidence_contract_input_envelope_v1",
+        "output_artifact": "level6_existing_project_evidence_contract_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
       }
     ],
     "non_goals": [
@@ -148,6 +188,8 @@
   "description": "Higher-level local coding workflow that defines a bounded checkpoint, initializes or stabilizes project architecture, decomposes work into slices, routes implementation through safe local code-edit execution, validates the result, and loops only within explicit stop constraints.",
   "stages": [
     "intake_normalization",
+    "memory_resume_context_retrieval",
+    "memory_freshness_guard",
     "coding_ingress_guard_initialization",
     "session_bootstrap_guard_initialization",
     "remote_service_guard_initialization",
@@ -165,6 +207,8 @@
     "integration_review",
     "validation_routing",
     "repair_loop",
+    "level6_evidence_contract_self_check",
+    "checkpoint_memory_write",
     "result_packaging",
     "verification_closure"
   ],
@@ -172,6 +216,9 @@
     "primitive_level": 3,
     "composed_of_workflow_ids": [
       "research_synthesize_verify",
+      "project_context_capture",
+      "resume_context_retrieval",
+      "memory_freshness_guard",
       "local_coding_ingress_guard",
       "cli_intent_argument_ingress",
       "interactive_input_session_state",
@@ -240,8 +287,141 @@
       "followup_clarification_gate",
       "failure_diagnosis",
       "bounded_repair_loop",
-      "checkpoint_handoff"
+      "checkpoint_handoff",
+      "checkpoint_memory_write",
+      "level6_existing_project_evidence_contract"
     ]
+  },
+  "coding_memory_resume_contract": {
+    "version": "coding_memory_resume_contract_v1",
+    "purpose": "Make local coding work resumable across sessions without letting stale memory override current files.",
+    "storage_policy": {
+      "durable_index": "core/local/state/memory/runtime_memory.sqlite",
+      "durable_index_override_env": "INFRING_MEMORY_DB_PATH",
+      "large_artifact_root": "core/local/state/coding_memory/<project_id>/",
+      "memory_row_id_patterns": [
+        "coding_memory::<project_fingerprint>::project_context::latest",
+        "coding_memory::<project_fingerprint>::checkpoint::<checkpoint_id>",
+        "coding_memory::<project_fingerprint>::resume_index::latest"
+      ],
+      "required_tags": [
+        "coding",
+        "project_context",
+        "checkpoint",
+        "resume"
+      ]
+    },
+    "source_of_truth_rule": "memory_guides_resume_current_workspace_files_remain_authoritative",
+    "required_state_fields": [
+      "project_memory_refs",
+      "project_fingerprint",
+      "resume_context_summary",
+      "memory_freshness_status",
+      "memory_confidence_score",
+      "checkpoint_memory_receipt"
+    ],
+    "resume_flow": [
+      "capture_current_project_context",
+      "retrieve_prior_project_memory_by_fingerprint_path_and_tags",
+      "compare_memory_freshness_against_current_files",
+      "downgrade_stale_memory_to_hints_only",
+      "use_fresh_memory_to_seed_checkpoint_and_slice_planning",
+      "write_checkpoint_memory_after_validation_and_evidence_contracts"
+    ],
+    "non_goals": [
+      "do_not_skip_local_file_reads_for_targeted_code_changes",
+      "do_not_use_memory_to_override_current_architecture",
+      "do_not_store_large_raw_files_in_memory_rows",
+      "do_not_write_checkpoint_memory_before validation_or_structured_failure"
+    ]
+  },
+  "level6_existing_project_evidence_contract": {
+    "version": "level6_existing_project_evidence_contract_v1",
+    "applies_when": [
+      "project_state == initialized",
+      "checkpoint_kind == existing_project_modification",
+      "requested_work_spans_multiple_existing_boundaries"
+    ],
+    "purpose": "Require canonical machine-readable planning, preservation, change, repair, validation, and checkpoint evidence before a Level 6 existing-project coding checkpoint can be finalized.",
+    "required_artifact_paths": [
+      "workflow_artifacts/level6_slice_handoff.json",
+      "receipts/level6_preservation_receipt.json",
+      "receipts/level6_change_receipt.json",
+      "receipts/level6_repair_receipt.json",
+      "receipts/checkpoint_handoff.json",
+      "VALIDATION_RECEIPT.md"
+    ],
+    "required_machine_fields": [
+      "slice_handoff",
+      "planning_confidence_score",
+      "tactical_readiness_score",
+      "slice_execution_readiness",
+      "parent_owned_decisions",
+      "immutable_decisions",
+      "slice_id",
+      "changed_files",
+      "preserved_files",
+      "unchanged_files",
+      "unrelated_file_preservation",
+      "repair_policy",
+      "repair_events",
+      "max_repair_attempts",
+      "checkpoint_handoff",
+      "final_checkpoint",
+      "recommended_next_checkpoint"
+    ],
+    "pre_final_self_check": {
+      "must_run_before": "result_packaging",
+      "missing_required_field_result": "repair_evidence_receipts_before_final_answer",
+      "must_not_finalize_when": [
+        "planning_confidence_score_missing",
+        "tactical_readiness_score_missing",
+        "changed_files_missing",
+        "unrelated_file_preservation_missing",
+        "repair_policy_missing",
+        "checkpoint_handoff_missing",
+        "validation_receipt_missing_or_failed"
+      ]
+    },
+    "template_contract": {
+      "workflow_artifacts/level6_slice_handoff.json": {
+        "slice_handoff": true,
+        "planning_confidence_score": 0.0,
+        "tactical_readiness_score": 0.0,
+        "slice_execution_readiness": "ready|needs_repair|blocked",
+        "parent_owned_decisions": [],
+        "immutable_decisions": [],
+        "acceptance_criteria": [],
+        "slice_ids": []
+      },
+      "receipts/level6_preservation_receipt.json": {
+        "slice_id": "existing_project_preservation",
+        "preserved_files": [],
+        "unchanged_files": [],
+        "unrelated_file_preservation": true,
+        "baseline_regression_tests": []
+      },
+      "receipts/level6_change_receipt.json": {
+        "slice_id": "implementation",
+        "changed_files": [],
+        "files_changed": [],
+        "file_change_receipt": true
+      },
+      "receipts/level6_repair_receipt.json": {
+        "slice_id": "repair_and_validation",
+        "repair_policy": {
+          "max_repair_attempts": 2,
+          "allowed_repairs": []
+        },
+        "repair_events": []
+      },
+      "receipts/checkpoint_handoff.json": {
+        "checkpoint_handoff": true,
+        "final_checkpoint": "",
+        "recommended_next_checkpoint": "",
+        "known_limits": []
+      }
+    }
   },
   "final_response_policy": "control_plane_packaged_response",
   "final_output_contract": {
@@ -513,6 +693,22 @@
   },
   "program_builder_contract": {
     "version": "local_coding_program_builder_v1",
+    "memory_resume_policy": {
+      "version": "coding_memory_resume_policy_v1",
+      "applies_to": [
+        "initialized_project_modification",
+        "multi_checkpoint_project_work",
+        "resumed_coding_session"
+      ],
+      "read_before_checkpoint_definition": true,
+      "freshness_guard_required": true,
+      "write_after_validation_or_structured_failure": true,
+      "memory_confidence_gate": {
+        "fresh": "may_seed_checkpoint_and_architecture_summary",
+        "stale": "hints_only_requires_current_file_confirmation",
+        "conflicting": "ignore_memory_for_decisions_and_record_conflict"
+      }
+    },
     "checkpoint_policy": {
       "if_user_checkpoint_missing": "define the smallest coherent checkpoint that satisfies the user goal",
       "checkpoint_required_fields": [

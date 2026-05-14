@@ -108,6 +108,9 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
     assert_eq!(graph.primitive_level, 3);
     for child_id in [
         "research_synthesize_verify",
+        "project_context_capture",
+        "resume_context_retrieval",
+        "memory_freshness_guard",
         "local_coding_ingress_guard",
         "cli_intent_argument_ingress",
         "interactive_input_session_state",
@@ -176,6 +179,8 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "failure_diagnosis",
         "bounded_repair_loop",
         "checkpoint_handoff",
+        "checkpoint_memory_write",
+        "level6_existing_project_evidence_contract",
     ] {
         assert!(graph
             .composed_of_workflow_ids
@@ -204,7 +209,47 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(15)
+        Some(20)
+    );
+    assert!(
+        source
+            .get("coding_memory_resume_contract")
+            .and_then(|contract| contract.get("required_state_fields"))
+            .and_then(Value::as_array)
+            .map(|items| {
+                [
+                    "project_memory_refs",
+                    "project_fingerprint",
+                    "resume_context_summary",
+                    "memory_freshness_status",
+                    "checkpoint_memory_receipt",
+                ]
+                .iter()
+                .all(|required| items.iter().any(|item| item.as_str() == Some(*required)))
+            })
+            .unwrap_or(false),
+        "missing coding memory resume contract"
+    );
+    assert!(
+        source
+            .get("level6_existing_project_evidence_contract")
+            .and_then(|contract| contract.get("required_machine_fields"))
+            .and_then(Value::as_array)
+            .map(|items| {
+                [
+                    "slice_handoff",
+                    "planning_confidence_score",
+                    "tactical_readiness_score",
+                    "changed_files",
+                    "unrelated_file_preservation",
+                    "repair_policy",
+                    "checkpoint_handoff",
+                ]
+                .iter()
+                .all(|required| items.iter().any(|item| item.as_str() == Some(*required)))
+            })
+            .unwrap_or(false),
+        "missing canonical Level 6 machine-readable evidence contract"
     );
 
     let contract = source
@@ -216,6 +261,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
     );
     for required_section in [
         "checkpoint_policy",
+        "memory_resume_policy",
         "project_initialization_policy",
         "architecture_contract_policy",
         "coding_ingress_guard_contract",
