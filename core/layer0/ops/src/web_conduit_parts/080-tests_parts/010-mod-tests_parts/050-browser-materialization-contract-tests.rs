@@ -1213,6 +1213,16 @@
             Some("none")
         );
         assert_eq!(
+            out.pointer("/web_tooling_gates/summary/passed")
+                .and_then(Value::as_u64),
+            Some(6)
+        );
+        assert_eq!(
+            out.pointer("/web_tooling_gates/summary/not_evaluated")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
             out.pointer("/materialized_page/extraction_confidence")
                 .and_then(Value::as_str),
             Some("usable")
@@ -1639,6 +1649,16 @@
                 .and_then(Value::as_bool),
             Some(false)
         );
+        assert_eq!(
+            out.pointer("/web_tooling_gates/summary/soft_failed")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            out.pointer("/web_tooling_gates/summary/hard_failed")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
         assert!(out
             .pointer("/evidence_candidate/quality_flags")
             .and_then(Value::as_array)
@@ -1965,6 +1985,11 @@
                 out.pointer("/blocker_classification/blocker_class")
                     .and_then(Value::as_str),
                 Some("unsafe_url")
+            );
+            assert_eq!(
+                out.pointer("/web_tooling_gates/summary/hard_failed")
+                    .and_then(Value::as_u64),
+                Some(3)
             );
             assert_eq!(
                 out.pointer("/artifact_quarantine/state").and_then(Value::as_str),

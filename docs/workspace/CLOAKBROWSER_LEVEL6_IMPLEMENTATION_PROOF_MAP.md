@@ -84,7 +84,7 @@ Status values:
 | 5 | Local JS-rendered page proof | integrated: policy-owned rendered fixture proof pass 005 | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
 | 6 | Redirect and final URL safety proof | integrated: final URL revalidation proof pass 006 | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
 | 7 | Timeout/blocker classification | integrated: blocker taxonomy proof pass 007 | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
-| 8 | Web tooling gate split | pending | Can tooling stats isolate readiness, URL safety, materialization, extraction, evidence promotion, and synthesis consumption? | Web retrieval gate diagnostics/eval reporting. |
+| 8 | Web tooling gate split | integrated: materialization gate snapshot pass 008 | Can tooling stats isolate readiness, URL safety, materialization, extraction, evidence promotion, and synthesis consumption? | Web retrieval gate diagnostics/eval reporting. |
 | 9 | Research workflow consumption | pending | Does the research CD consume materialized evidence as normal evidence rather than tool trace text? | Research workflow CD/eval path; no prompt hardcoding. |
 | 10 | Golden/live impact pass | pending | Does the primitive improve weak-data cases without regressing upstream gates? | Research golden eval, web tooling eval, failure archive. |
 
@@ -314,6 +314,8 @@ Covered by:
 
 Goal: isolate the web tooling bottleneck with gates that say where retrieval failed.
 
+Status: integrated at the browser materialization tool boundary. Materialization outputs now include `web_tooling_gates` with hard, soft, passed, and not-evaluated counts.
+
 Gate candidates:
 
 - `web_gate_1_provider_ready`,
@@ -329,6 +331,8 @@ Exit tests:
 - gates are emitted for fake/local materialization,
 - failures classify hard vs. soft,
 - gates are visible in workflow reports without leaking raw payloads.
+
+Covered by browser materialization tests for fake success, thin-content soft failure, and unsafe-final-URL hard failure.
 
 ### L6-009 Research Workflow Consumption
 

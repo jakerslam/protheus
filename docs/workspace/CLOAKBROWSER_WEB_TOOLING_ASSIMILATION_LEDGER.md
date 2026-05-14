@@ -296,6 +296,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-L6-TASK-005` | integrated | high | Complete Level 6 pass 005 for policy-owned JS-rendered fixture materialization. | Browser materialization rendered fixture provider and tests | `CLOAK-L6-TASK-004` | Added a `local_js_rendered_fixture` provider proof that direct static extraction misses a rendered marker while materialization receives policy-owned rendered text, keeps readiness policy-owned, rejects caller scripts, and emits normal evidence candidates without exposing raw scripts, fixture paths, browser handles, or CDP URLs. |
 | `CLOAK-L6-TASK-006` | integrated | high | Complete Level 6 pass 006 for final URL safety before artifacts. | Browser materialization final URL revalidation and tests | `CLOAK-L6-TASK-005` | Moved fixture-provider final URL revalidation ahead of fixture read/extraction/artifact creation, blocked private, credentialed, and non-HTTP(S) final URLs, redacted credentialed final URLs, and proved no materialized/evidence artifact is created on unsafe final URL. |
 | `CLOAK-L6-TASK-007` | integrated | high | Complete Level 6 pass 007 for timeout/blocker classification. | Browser materialization blocker taxonomy and evidence promotion | `CLOAK-L6-TASK-006` | Added structured materialization blocker classes for adapter readiness, unsafe final URLs, fixture extraction failures, and content-too-thin captures; evidence promotion now keeps thin safe captures as `low_confidence_raw` instead of over-promoting them as usable evidence. |
+| `CLOAK-L6-TASK-008` | integrated | high | Complete Level 6 pass 008 for materialization web-tooling gates. | Browser materialization gate diagnostics | `CLOAK-L6-TASK-007` | Added `web_tooling_gates` snapshots for provider readiness, URL safety, materialization attempt/result, extraction quality, evidence promotion, and downstream synthesis consumption, with hard/soft/not-evaluated summaries. |
 
 ## Open Questions
 
@@ -1420,3 +1421,26 @@ Validation:
 Important boundary:
 
 This wave makes materialization failures diagnosable. It does not add prompt-specific recovery, domain-specific search behavior, proxy behavior, or live anti-bot bypass.
+
+## Assimilation Wave 51: Level 6 Web Tooling Gate Split
+
+Status: integrated into browser materialization projections; workflow-level consumption remains the next slice.
+
+Implemented:
+
+- Advanced Level 6 pass 008 from the implementation proof map.
+- Added a `web_tooling_gates` snapshot to materialization results.
+- Split materialization into provider-ready, candidate URL safety, materialization attempted, materialization result, extraction quality, evidence promotion, and synthesis-consumption gates.
+- Marked mechanical blockers as hard failures and low-confidence extraction/evidence cases as soft failures.
+- Kept synthesis consumption explicitly `not_evaluated` at the tool boundary so the tool does not pretend to know whether the research workflow consumed evidence.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave makes the web tooling less of a black box. It does not add workflow prompt steering, hidden browser execution, or source-domain-specific behavior.

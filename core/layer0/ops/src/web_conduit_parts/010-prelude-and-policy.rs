@@ -833,6 +833,7 @@ fn default_policy() -> Value {
                         "artifact_manifest_ref",
                         "evidence_pack_candidates",
                         "evidence_refs",
+                        "web_tooling_gates",
                         "readiness_strategy",
                         "cleanup_status",
                         "retry_diagnostics",

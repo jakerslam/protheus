@@ -373,6 +373,200 @@ fn browser_materialization_content_blocker_classification(main_text: &str) -> Va
     }
 }
 
+fn browser_materialization_gate_row(
+    gate: &str,
+    state: &str,
+    failure_kind: &str,
+    blocker_class: &str,
+    summary: &str,
+) -> Value {
+    let passed = match state {
+        "passed" => Value::Bool(true),
+        "not_evaluated" => Value::Null,
+        _ => Value::Bool(false),
+    };
+    json!({
+        "gate": clean_text(gate, 80),
+        "state": clean_text(state, 80),
+        "passed": passed,
+        "failure_kind": clean_text(failure_kind, 80),
+        "blocker_class": clean_text(blocker_class, 80),
+        "summary": clean_text(summary, 220),
+        "raw_payload_chat_visible": false
+    })
+}
+
+fn browser_materialization_gate_summary(gates: &[Value]) -> Value {
+    let mut passed = 0_u64;
+    let mut hard_failed = 0_u64;
+    let mut soft_failed = 0_u64;
+    let mut not_evaluated = 0_u64;
+    for gate in gates {
+        match gate.get("state").and_then(Value::as_str).unwrap_or("") {
+            "passed" => passed += 1,
+            "hard_failed" => hard_failed += 1,
+            "soft_failed" => soft_failed += 1,
+            "not_evaluated" => not_evaluated += 1,
+            _ => {}
+        }
+    }
+    json!({
+        "passed": passed,
+        "hard_failed": hard_failed,
+        "soft_failed": soft_failed,
+        "not_evaluated": not_evaluated
+    })
+}
+
+fn browser_materialization_gate_snapshot(
+    provider_ready: bool,
+    requested_url_safe: bool,
+    final_url_safe: Option<bool>,
+    materialization_attempted: bool,
+    materialization_ok: bool,
+    extraction_confidence: Option<&str>,
+    evidence_decision: Option<&str>,
+    blocker_classification: &Value,
+) -> Value {
+    let blocker_class = blocker_classification
+        .get("blocker_class")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let final_url_passed = final_url_safe.unwrap_or(requested_url_safe);
+    let extraction_state = match extraction_confidence {
+        Some("usable") => "passed",
+        Some("low_confidence_raw") => "soft_failed",
+        Some(_) => "soft_failed",
+        None => "not_evaluated",
+    };
+    let evidence_state = match evidence_decision {
+        Some("candidate_ready_for_packaging") => "passed",
+        Some("candidate_retained_low_confidence_content_too_thin") => "soft_failed",
+        Some("rejected_by_final_url_safety") => "hard_failed",
+        Some(_) => "soft_failed",
+        None => "not_evaluated",
+    };
+    let gates = vec![
+        browser_materialization_gate_row(
+            "web_gate_1_provider_ready",
+            if provider_ready { "passed" } else { "hard_failed" },
+            if provider_ready { "none" } else { "hard" },
+            blocker_class,
+            if provider_ready {
+                "Materialization provider is admitted for this attempt."
+            } else {
+                "Materialization provider is not ready or not admitted."
+            },
+        ),
+        browser_materialization_gate_row(
+            "web_gate_2_candidate_url_safety",
+            if requested_url_safe && final_url_passed {
+                "passed"
+            } else {
+                "hard_failed"
+            },
+            if requested_url_safe && final_url_passed {
+                "none"
+            } else {
+                "hard"
+            },
+            blocker_class,
+            if requested_url_safe && final_url_passed {
+                "Requested and final URLs passed public URL safety checks."
+            } else {
+                "Requested or final URL failed public URL safety checks."
+            },
+        ),
+        browser_materialization_gate_row(
+            "web_gate_3_materialization_attempted",
+            if materialization_attempted {
+                "passed"
+            } else {
+                "hard_failed"
+            },
+            if materialization_attempted { "none" } else { "hard" },
+            blocker_class,
+            if materialization_attempted {
+                "Materialization provider boundary was attempted."
+            } else {
+                "Materialization stopped before provider execution."
+            },
+        ),
+        browser_materialization_gate_row(
+            "web_gate_4_materialization_result",
+            if materialization_ok { "passed" } else { "hard_failed" },
+            if materialization_ok { "none" } else { "hard" },
+            blocker_class,
+            if materialization_ok {
+                "Materialization produced a structured page result."
+            } else {
+                "Materialization did not produce a page result."
+            },
+        ),
+        browser_materialization_gate_row(
+            "web_gate_5_extraction_quality",
+            extraction_state,
+            if extraction_state == "soft_failed" {
+                "soft"
+            } else if extraction_state == "not_evaluated" {
+                "not_evaluated"
+            } else {
+                "none"
+            },
+            blocker_class,
+            if extraction_state == "passed" {
+                "Extracted text was substantive enough for usable evidence."
+            } else if extraction_state == "soft_failed" {
+                "Extracted text exists but is too thin for usable evidence."
+            } else {
+                "Extraction quality was not evaluated because materialization did not produce text."
+            },
+        ),
+        browser_materialization_gate_row(
+            "web_gate_6_evidence_promotion",
+            evidence_state,
+            if evidence_state == "hard_failed" {
+                "hard"
+            } else if evidence_state == "soft_failed" {
+                "soft"
+            } else if evidence_state == "not_evaluated" {
+                "not_evaluated"
+            } else {
+                "none"
+            },
+            blocker_class,
+            if evidence_state == "passed" {
+                "Materialized output produced a usable evidence candidate."
+            } else if evidence_state == "soft_failed" {
+                "Materialized output was retained only as low-confidence raw evidence."
+            } else if evidence_state == "hard_failed" {
+                "Materialized output was rejected before evidence promotion."
+            } else {
+                "Evidence promotion was not evaluated at this materialization stage."
+            },
+        ),
+        browser_materialization_gate_row(
+            "web_gate_7_synthesis_consumed_evidence",
+            "not_evaluated",
+            "not_evaluated",
+            blocker_class,
+            "Synthesis consumption is evaluated by the research workflow, not this tool boundary.",
+        ),
+    ];
+    let summary = browser_materialization_gate_summary(&gates);
+    json!({
+        "version": "web_materialization_gate_snapshot_v1",
+        "scope": "browser_materialization_tool_boundary",
+        "gates": gates,
+        "summary": summary,
+        "hard_vs_soft": {
+            "hard_failures_are_mechanical": true,
+            "soft_failures_are_quality_or_evidence_strength": true
+        },
+        "raw_payload_chat_visible": false
+    })
+}
+
 fn browser_materialization_output_contract_projection(config: &Value) -> Value {
     let output_contract = config
         .get("output_contract")
@@ -848,6 +1042,18 @@ fn browser_materialization_fake_success(
         &artifact_ref,
         &artifact_manifest,
     );
+    let web_tooling_gates = browser_materialization_gate_snapshot(
+        true,
+        true,
+        Some(true),
+        true,
+        true,
+        Some("usable"),
+        evidence_candidate
+            .pointer("/promotion/decision")
+            .and_then(Value::as_str),
+        &blocker_classification,
+    );
     let evidence_ref = json!({
         "source_kind": evidence_candidate
             .get("source_kind")
@@ -931,6 +1137,7 @@ fn browser_materialization_fake_success(
             "evidence_pack_candidate_created",
         ),
         "blocker_classification": blocker_classification,
+        "web_tooling_gates": web_tooling_gates,
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
             &format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),
             &artifact_manifest,
@@ -978,6 +1185,10 @@ fn browser_materialization_local_fixture_failure(
     runtime_metadata: &Value,
     url_safety: Value,
 ) -> Value {
+    let requested_url_safe = url_safety
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let mut out =
         browser_materialization_fail_closed(error, reason, url, config, runtime_metadata, url_safety);
     let provider = clean_text(provider, 80);
@@ -991,6 +1202,20 @@ fn browser_materialization_local_fixture_failure(
     out["cleanup_status"] =
         browser_materialization_local_fixture_cleanup_status_projection("completed_after_failure");
     out["retry_diagnostics"] = browser_materialization_retry_diagnostics_projection(error);
+    let blocker_classification = out
+        .get("blocker_classification")
+        .cloned()
+        .unwrap_or_else(|| browser_materialization_error_blocker_classification(error));
+    out["web_tooling_gates"] = browser_materialization_gate_snapshot(
+        true,
+        requested_url_safe,
+        None,
+        true,
+        false,
+        None,
+        None,
+        &blocker_classification,
+    );
     out[provider_metadata_key] = json!({
         "version": "browser_materialization_local_static_fixture_v1",
         "source": "policy_owned_fixture",
@@ -1068,6 +1293,20 @@ fn browser_materialization_local_fixture_success(
             pre_navigation_url_safety,
         );
         out["final_url_safety"] = final_url_safety;
+        let blocker_classification = out
+            .get("blocker_classification")
+            .cloned()
+            .unwrap_or_else(|| browser_materialization_error_blocker_classification("url_safety_blocked"));
+        out["web_tooling_gates"] = browser_materialization_gate_snapshot(
+            true,
+            true,
+            Some(false),
+            true,
+            false,
+            None,
+            Some("rejected_by_final_url_safety"),
+            &blocker_classification,
+        );
         return out;
     }
 
@@ -1220,6 +1459,18 @@ fn browser_materialization_local_fixture_success(
         &artifact_ref,
         &artifact_manifest,
     );
+    let web_tooling_gates = browser_materialization_gate_snapshot(
+        true,
+        true,
+        Some(true),
+        true,
+        true,
+        Some(extraction_confidence),
+        evidence_candidate
+            .pointer("/promotion/decision")
+            .and_then(Value::as_str),
+        &blocker_classification,
+    );
     let evidence_ref = json!({
         "source_kind": evidence_candidate
             .get("source_kind")
@@ -1329,6 +1580,7 @@ fn browser_materialization_local_fixture_success(
             "evidence_pack_candidate_created",
         ),
         "blocker_classification": blocker_classification,
+        "web_tooling_gates": web_tooling_gates,
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
             &format!("artifact://web_conduit/browser_materialization/local-static/{artifact_hash}"),
             &artifact_manifest,
@@ -1375,6 +1627,25 @@ fn browser_materialization_fail_closed(
     runtime_metadata: &Value,
     url_safety: Value,
 ) -> Value {
+    let blocker_classification = browser_materialization_error_blocker_classification(error);
+    let requested_url_safe = url_safety
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let provider_ready = !matches!(
+        error,
+        "capability_not_enabled" | "adapter_not_ready" | "browser_adapter_stub_only"
+    );
+    let web_tooling_gates = browser_materialization_gate_snapshot(
+        provider_ready,
+        requested_url_safe,
+        None,
+        false,
+        false,
+        None,
+        None,
+        &blocker_classification,
+    );
     json!({
         "ok": false,
         "type": "web_conduit_browser_materialization",
@@ -1391,7 +1662,8 @@ fn browser_materialization_fail_closed(
         "artifact_ref": Value::Null,
         "materialized_page_contract": browser_materialization_output_contract_projection(config),
         "evidence_handoff_contract": browser_materialization_evidence_handoff_projection(config),
-        "blocker_classification": browser_materialization_error_blocker_classification(error),
+        "blocker_classification": blocker_classification,
+        "web_tooling_gates": web_tooling_gates,
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection(),
         "pre_navigation_url_safety": url_safety.clone(),
         "final_url_safety": browser_materialization_final_url_safety_projection(),
