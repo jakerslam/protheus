@@ -369,6 +369,39 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/humanize_unit_test_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_humanize_unit_tests")
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/humanize_unit_test_contract/frame_locator_element_handle_patch_coverage_required",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/humanize_unit_test_contract/per_call_config_override_containment_required",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/humanize_unit_test_contract/slow_behavioral_detection_tests_quarantined",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/humanize_unit_test_contract/raw_behavior_detection_results_chat_visible",
+            )
+            .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/wrapper_lifecycle_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_python_wrapper_lifecycle")

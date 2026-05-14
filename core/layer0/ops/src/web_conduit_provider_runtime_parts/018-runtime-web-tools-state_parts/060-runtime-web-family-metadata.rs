@@ -462,6 +462,25 @@ fn browser_materialization_profile_compilation_contract(
                 "anti_bot_claims_not_inferred_from_unit_tests": true,
                 "raw_detection_hooks_chat_visible": false
             })),
+        "humanize_unit_test_contract": profile_contract
+            .get("humanize_unit_test_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "version": "browser_humanize_unit_test_contract_v1",
+                "source_pattern": "cloakbrowser_humanize_unit_tests",
+                "config_resolution_tests_required": true,
+                "motion_math_tests_required": true,
+                "sync_async_patch_parity_tests_required": true,
+                "focus_state_checks_required": true,
+                "frame_locator_element_handle_patch_coverage_required": true,
+                "no_double_patch_guard_required": true,
+                "per_call_timeout_forwarding_tests_required": true,
+                "per_call_config_override_containment_required": true,
+                "non_ascii_insert_text_tests_required": true,
+                "slow_behavioral_detection_tests_quarantined": true,
+                "bot_detection_results_telemetry_only": true,
+                "raw_behavior_detection_results_chat_visible": false
+            })),
         "proxy_contract": profile_contract
             .get("proxy_contract")
             .cloned()
