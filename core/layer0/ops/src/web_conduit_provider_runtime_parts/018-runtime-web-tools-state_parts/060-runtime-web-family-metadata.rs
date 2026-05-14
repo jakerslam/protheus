@@ -204,6 +204,7 @@ fn browser_materialization_profile_compilation_contract(
             "user_agent",
             "timezone",
             "timezoneId",
+            "timezone_id",
             "locale",
             "colorScheme",
             "humanize",
@@ -293,6 +294,7 @@ fn browser_materialization_profile_compilation_contract(
                 "locale",
                 "timezone",
                 "timezoneId",
+                "timezone_id",
                 "viewport",
                 "userAgent",
                 "user_agent",
@@ -374,6 +376,24 @@ fn browser_materialization_profile_compilation_contract(
                 "adapter_specific_options_chat_visible": false,
                 "proxy_auth_page_patch_requires_proxy_capability": true,
                 "raw_page_patch_details_chat_visible": false
+            })),
+        "wrapper_lifecycle_contract": profile_contract
+            .get("wrapper_lifecycle_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "version": "browser_wrapper_lifecycle_contract_v1",
+                "source_pattern": "cloakbrowser_python_wrapper_lifecycle",
+                "sync_async_semantic_parity_required": true,
+                "close_stops_driver_instance": true,
+                "context_creation_failure_closes_browser": true,
+                "async_cancellation_closes_browser": true,
+                "persistent_context_requires_separate_capability": true,
+                "direct_persistent_user_data_dir_allowed": false,
+                "backend_env_selection_policy_owned": true,
+                "timezone_alias_normalized_by_policy": true,
+                "direct_timezone_alias_fields_allowed": false,
+                "raw_driver_instance_chat_visible": false,
+                "raw_profile_path_chat_visible": false
             })),
         "argument_compiler": profile_contract
             .get("argument_compiler")

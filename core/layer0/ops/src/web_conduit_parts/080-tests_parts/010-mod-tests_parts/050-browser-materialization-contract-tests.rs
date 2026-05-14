@@ -159,6 +159,21 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/wrapper_lifecycle_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_python_wrapper_lifecycle")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/wrapper_lifecycle_contract/async_cancellation_closes_browser")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/wrapper_lifecycle_contract/direct_persistent_user_data_dir_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_platform_version_cache_contract")
@@ -304,6 +319,7 @@
             ("viewport", json!({"width": 1024, "height": 768})),
             ("userAgent", json!("custom-agent")),
             ("timezoneId", json!("America/New_York")),
+            ("timezone_id", json!("America/New_York")),
             ("locale", json!("en-US")),
             ("humanize", json!(true)),
             ("geoip", json!(true)),

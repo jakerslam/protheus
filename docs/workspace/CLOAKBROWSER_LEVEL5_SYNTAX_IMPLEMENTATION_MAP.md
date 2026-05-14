@@ -93,7 +93,7 @@ Status values:
 | 8 | `js/src/proxy.ts` | integrated: proxy capability pass 008 | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
 | 9 | `js/src/geoip.ts` | integrated: geo consistency pass 009 | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability contract, deferred. |
 | 10 | `js/src/puppeteer.ts` | integrated: adapter parity pass 010 | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
-| 11 | `cloakbrowser/browser.py` | mapped seed, needs line pass | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime parity notes, not direct Rust code. |
+| 11 | `cloakbrowser/browser.py` | integrated: wrapper lifecycle pass 011 | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime lifecycle contract. |
 | 12 | `cloakbrowser/config.py` | pending | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
 | 13 | `cloakbrowser/download.py` | pending | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
 | 14 | `cloakbrowser/geoip.py` | pending, deferred | What proxy-exit metadata is useful but permission-sensitive? | Proxy/geo capability, deferred. |
@@ -602,6 +602,51 @@ policy selects adapter
 -> same compiler/proxy/geo/human gates required across adapters
 -> adapter-specific launch options denied from callers
 -> proxy/page patch details stay telemetry-only
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 011: `cloakbrowser/browser.py`
+
+Status: `integrated: wrapper lifecycle contract`
+
+Source lines inspected: 1-1079
+
+This file is useful because it confirms the browser wrapper lifecycle from a second runtime: sync and async APIs share the same launch/context sequence, `close()` wrappers stop the driver instance, context creation failures close launched browsers, async cancellation is treated as cleanup-worthy, persistent profiles are a separate API, and backend selection is explicit. For Infring, those patterns become lifecycle contracts around the future browser adapter rather than Python-specific implementation.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 29-35, 504-510 | `timezone_id` is accepted as an alias and normalized into `timezone`. | Aliases are policy-normalized internally; direct caller alias fields stay denied in the current primitive. | Integrated. |
+| 41-238, 389-619 | Sync and async launch/context APIs follow equivalent setup paths. | Future adapters must preserve sync/async semantic parity rather than adding a lower-integrity async lane. | Integrated as wrapper lifecycle contract. |
+| 108-127, 194-213, 340-359, 453-472 | Close wrappers stop Playwright/driver instances after browser or context close. | Driver/process cleanup is a lifecycle obligation and raw driver handles are never chat-visible. | Integrated. |
+| 578-591 | Async context creation catches `BaseException` so cancellations still close the browser. | Async cancellation must close launched browser state to prevent leaked processes. | Integrated. |
+| 241-474 | Persistent context requires `user_data_dir` and persists profile state across sessions. | Persistent profiles remain a separate admitted capability; direct profile paths are denied. | Integrated. |
+| 625-653 | Backend is resolved by parameter/env/default and unknown backends fail closed. | Backend selection is policy-owned, not request-owned. | Integrated. |
+| 829-881 | Args are built once with dedupe/precedence and internal logging for overrides. | Confirms existing argument compiler contract across runtimes. | Already integrated; cross-runtime confirmation. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `wrapper_lifecycle_contract` metadata and denied direct `timezone_id` request fields. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected wrapper lifecycle metadata through runtime profile-compilation diagnostics. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` | Added `timezone_id` to fail-closed caller-control rejection. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same wrapper lifecycle contract and alias denial to the Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted lifecycle metadata and direct `timezone_id` rejection. |
+
+### Pass 011 Outcome
+
+Cross-runtime wrapper lifecycle now has a precise contract without adding live browser execution:
+
+```text
+sync/async semantic parity
+-> close stops driver instance
+-> context creation failure and async cancellation clean up browser state
+-> persistent profiles require separate capability
+-> backend/env selection is policy-owned
+-> timezone aliases are normalized internally, not caller-owned
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

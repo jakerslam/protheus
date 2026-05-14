@@ -134,7 +134,7 @@ all web research always uses stealth browser by default
 | File | Status | Pattern Signal |
 | --- | --- | --- |
 | `README.md` | parsed | Product positioning, capability taxonomy, stealth/browser/anti-bot claims, integration vocabulary. |
-| `cloakbrowser/browser.py` | parsed | Python launch/context wrapper, backend selection, proxy resolution, geoip, cleanup-on-close, humanize hook. |
+| `cloakbrowser/browser.py` | level 5 pass 011 integrated | Python launch/context wrapper, backend selection, proxy resolution, geoip, cleanup-on-close, async cancellation cleanup, persistent profile split, and humanize hook. |
 | `js/src/playwright.ts` | level 5 pass 003 integrated | TypeScript launch/context wrapper, context option filtering, geoip/WebRTC consistency, humanize patch points, context cleanup, and persistent-session split. |
 | `js/src/types.ts` | level 5 pass 004 integrated | Public launch/context/persistent-context API surface, direct browser/profile controls, storage/session fields, and binary readiness metadata. |
 | `js/src/args.ts` | level 5 pass 005 integrated | Deduped argument compiler, fixed precedence, policy-owned profile arg assembly, and telemetry-only override visibility. |
@@ -244,6 +244,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-035` | integrated | medium | Complete Level 5 pass 008 for TypeScript proxy resolution. | Browser materialization proxy capability contract | `CLOAK-TASK-034` | Added future proxy capability metadata for credential separation, Gateway secret ownership, SOCKS adapter arg lanes, internal credential encoding, bypass policy ownership, and raw proxy redaction. |
 | `CLOAK-TASK-036` | integrated | medium | Complete Level 5 pass 009 for TypeScript GeoIP consistency. | Browser materialization geo/proxy consistency contract | `CLOAK-TASK-035` | Added future geo consistency metadata for timeout-bounded exit-IP lookup, policy-owned GeoIP cache lifecycle, no surprise GeoIP downloads, explicit profile precedence, unresolved WebRTC auto-IP removal, and raw exit-IP redaction. |
 | `CLOAK-TASK-037` | integrated | medium | Complete Level 5 pass 010 for TypeScript Puppeteer adapter parity. | Browser materialization cross-adapter contract | `CLOAK-TASK-036` | Added adapter parity metadata, denied direct backend/adapter selection fields, and required shared compiler/proxy/geo/human gates across future adapter families. |
+| `CLOAK-TASK-038` | integrated | medium | Complete Level 5 pass 011 for Python wrapper lifecycle. | Browser materialization lifecycle contract | `CLOAK-TASK-037` | Added wrapper lifecycle metadata for sync/async parity, driver cleanup, async cancellation cleanup, persistent profile separation, backend policy ownership, timezone alias normalization, and raw profile/driver redaction. |
 
 ## Open Questions
 
@@ -681,3 +682,25 @@ Validation:
 Important boundary:
 
 This wave still does not add Puppeteer, Playwright, or any live browser backend. It only records the parity contract that future explicit adapters must satisfy.
+
+## Assimilation Wave 20: Level 5 Wrapper Lifecycle Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `cloakbrowser/browser.py` as the syntax-level source of CloakBrowser's Python launch/context wrapper lifecycle.
+- Preserved the useful primitive: browser adapter wrappers must maintain sync/async semantic parity and must close launched browser/driver state on close, context creation failure, and async cancellation.
+- Kept persistent profile paths, backend selection, timezone aliases, raw driver handles, and raw profile paths out of ordinary request authority.
+- Required persistent profile behavior to remain a separate admitted capability rather than part of stateless read-only materialization.
+- Added mock-fast assertions for wrapper lifecycle metadata and direct `timezone_id` rejection.
+
+Validation:
+
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not add live browser execution, persistent sessions, backend switching, or humanized interaction. It only records the lifecycle contract any future explicit adapter must satisfy.
