@@ -148,7 +148,7 @@ all web research always uses stealth browser by default
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | parsed | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
-| `examples/integrations/aws_lambda/lambda_handler.py` | parsed | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening. |
+| `examples/integrations/aws_lambda/lambda_handler.py` | level 5 pass 001 integrated | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening, final URL revalidation, cleanup, and telemetry-only retry history. |
 | `tests/test_lambda_security.py` | parsed | Scheme allowlist, SSRF/private IP rejection, redirect revalidation, caller argument filtering, hardening flags. |
 | `tests/test_extract.py` | parsed | Dependency extraction hardening: archive traversal checks, symlink handling, flattening, executable permissions. |
 
@@ -231,6 +231,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-025` | integrated | high | Add default-off browser materialization API boundary. | web-conduit API/CLI + tests | `CLOAK-L4-003/004/005/006` | `api_browser_materialize_page` validates URL/admission fields, rejects caller browser controls, reuses SSRF safety, and fails closed until an admitted adapter exists. |
 | `CLOAK-TASK-026` | integrated | medium | Project materialized-page output and evidence handoff contracts. | web-conduit API + tests | `CLOAK-TASK-025` | Browser materialization responses now expose the page-output schema, evidence promotion requirements, and artifact quarantine state without creating raw payloads. |
 | `CLOAK-TASK-027` | integrated | high | Create Level 5 syntax implementation map. | Assimilation docs | Level 4 closure | Adds the file-by-file burn-down and first live-adapter slice plan so syntax assimilation can proceed one source file at a time. |
+| `CLOAK-TASK-028` | integrated | high | Complete Level 5 pass 001 for Lambda one-shot materialization syntax. | Browser materialization contract and tests | `CLOAK-TASK-027` | Added boundary diagnostics for pre-navigation URL safety, final URL safety, navigation/readiness strategy, cleanup status, and retry recommendations without enabling live browser execution. Next step is security-test pass 002. |
 
 ## Open Questions
 

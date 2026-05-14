@@ -83,7 +83,7 @@ Status values:
 
 | Order | Source File | Level 5 Status | Primary Question | Likely Infring Target |
 | ---: | --- | --- | --- | --- |
-| 1 | `examples/integrations/aws_lambda/lambda_handler.py` | mapped seed, needs line pass | What is the smallest safe one-shot navigate/wait/capture/close loop? | `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` plus future adapter part. |
+| 1 | `examples/integrations/aws_lambda/lambda_handler.py` | integrated: boundary contract pass 001 | What is the smallest safe one-shot navigate/wait/capture/close loop? | `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` plus future adapter part. |
 | 2 | `tests/test_lambda_security.py` | mapped seed, needs line pass | Which security invariants must be locked before live browser execution? | Browser materialization contract tests. |
 | 3 | `js/src/playwright.ts` | mapped seed, needs line pass | What launch/context cleanup and option filtering shape should the adapter mimic? | Future local browser adapter helper. |
 | 4 | `js/src/types.ts` | pending | Which request/profile fields are real API surface versus convenience wrappers? | Tool CD/policy schema audit. |
@@ -144,6 +144,66 @@ First slice exit criteria:
 - URL precheck and final URL recheck are both represented in the response.
 - Raw HTML/artifacts are represented by refs only.
 - Evidence handoff marks candidate state but does not promote unsupported content as source truth.
+
+## File Pass 001: `examples/integrations/aws_lambda/lambda_handler.py`
+
+Status: `integrated: boundary contract`
+
+Source lines inspected: 1-354
+
+This file is the cleanest CloakBrowser source for the first Infring browser-materialization primitive because it is a one-shot endpoint, not a full browser session manager. The useful pattern is not Lambda-specific syntax; it is the security and lifecycle shape around a single browser-backed page materialization.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 79-97 | Parse URL, allow only HTTP(S), require hostname, resolve DNS, reject any non-global IP. | Reuse the existing fetch SSRF guard before browser execution; the live adapter must also re-run final URL validation after navigation. | Accept. |
+| 126-148, 317-329 | Build launch kwargs internally and strip caller `extra_args` / `_strategy_args` before retry execution. | Caller-supplied browser args, launch flags, CDP controls, and hidden strategy fields stay denied at the API boundary. Internal profile compilation remains policy-owned. | Accept. |
+| 151-179 | Smart wait polls `document.documentElement.outerHTML.length` until stable or bounded by `max_settle_ms`. | Add a policy-owned page readiness strategy later. Do not expose raw JS or arbitrary wait scripts to workflow/tool callers. | Accept as bounded readiness pattern. |
+| 181-208 | Smart wait is default unless explicit bounded wait fields are provided. | Keep default wait strategy in Tool CD/profile policy; allow only bounded selector/load/fixed waits if admitted. | Accept. |
+| 211-233 | Launch retry isolates Xvfb/browser startup races from retrieval quality. | If live adapter startup exists, classify adapter readiness failures separately from page/evidence quality and keep retry telemetry internal. | Accept as diagnostic split, not hidden broad retry. |
+| 236-261 | Classify cert and timeout errors into bounded strategy overrides; leave DNS/SSL/refused as terminal. | Convert into provider retry recommendations and blocker diagnostics. Certificate bypass is not admitted by default and should remain a future explicit policy decision. | Partially accept. |
+| 264-303 | Launch context, navigate with bounded timeout, validate final URL, wait, validate final URL again, capture title/final URL/html/screenshot, always close context. | This is the target single-shot adapter loop. Raw HTML/screenshot stay artifact refs; visible evidence gets title, final URL, extracted text/markdown, links, blocker class, confidence, and cleanup status. | Accept. |
+| 306-314, 341-350 | Failure history is recorded with strategy and error snippets, then surfaced in diagnostics. | Keep retry history telemetry-only; final chat should only see synthesized high-level limitation if relevant. | Accept with projection boundary. |
+
+### Concrete Integration Targets
+
+| Target | Required Change | Notes |
+| --- | --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` | Extend the materialization contract so response metadata can represent pre-navigation URL safety, final URL safety, page readiness strategy, cleanup status, and retry recommendation. | Integrated as default-off boundary diagnostics; no live browser execution added. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` tests | Add fixture tests for denied caller controls, pre/final URL safety projection, readiness strategy projection, raw-artifact quarantine, and cleanup status. | Integrated in contract tests without live browser access. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Confirm the Tool CD names the allowed readiness fields and output metadata without allowing raw launch args, raw scripts, proxy fields, or session handles. | Integrated by adding safety/readiness/cleanup/retry fields to the materialized-page output contract. |
+| `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md` | Mark this file pass complete and queue the next security-test pass. | Integrated; next pass remains `tests/test_lambda_security.py`. |
+
+### Rejected Or Deferred From This File
+
+| Source Feature | Decision | Reason |
+| --- | --- | --- |
+| Headed/Xvfb Lambda details | Reject for current primitive | Runtime-specific container mechanics do not belong in provider-neutral Tool CD behavior. |
+| Caller proxy, humanize, geoip, locale, timezone, viewport, user-agent fields | Defer | Some may be useful later, but they require explicit capability admission and should not enter the first read-only materialization loop. |
+| `--ignore-certificate-errors` retry strategy | Defer behind policy | It can retrieve more pages, but it weakens trust and must not become an invisible default. |
+| Screenshot bytes in direct response | Reject for chat-visible paths | Screenshots, like raw HTML, must become artifact refs with bounded preview metadata. |
+| Embedded full diagnostic snapshot in user-facing error | Reject | Xvfb logs, env details, retry traces, and process state are telemetry-only in Infring. |
+
+### Pass 001 Outcome
+
+The first implementation slice did not attempt full CloakBrowser parity. It added the smallest testable browser materialization boundary contract:
+
+```text
+safe input URL
+-> admitted/default-off provider boundary
+-> internally compiled profile/readiness strategy
+-> one bounded navigation contract
+-> final URL safety recheck contract
+-> title/text/link extraction metadata contract
+-> raw artifact refs only
+-> blocker/cleanup/retry diagnostics
+-> evidence candidate handoff
+```
+
+Validation: `cargo test -p infring-ops-core browser_materialization --lib` passed 6/6 targeted tests.
+
+The immediate next source file is `tests/test_lambda_security.py`, because it should tell us which of these safety invariants CloakBrowser considered non-negotiable and which edge cases need Infring contract tests.
 
 ## Second Slice: Launch/Profile Compiler
 

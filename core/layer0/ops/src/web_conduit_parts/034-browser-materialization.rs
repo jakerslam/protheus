@@ -53,6 +53,108 @@ fn browser_materialization_safety_projection(url: &str, ssrf_guard: &Value) -> V
     })
 }
 
+fn browser_materialization_final_url_safety_projection() -> Value {
+    json!({
+        "version": "browser_materialization_final_url_safety_v1",
+        "ok": false,
+        "status": "not_observed",
+        "final_url": Value::Null,
+        "revalidate_after_navigation_required": true,
+        "revalidate_before_artifact_creation": true,
+        "reason": "Adapter did not execute, so no browser final URL was observed."
+    })
+}
+
+fn browser_materialization_navigation_contract_projection(config: &Value) -> Value {
+    let security = config.get("security").cloned().unwrap_or_else(|| json!({}));
+    json!({
+        "version": "browser_materialization_navigation_contract_v1",
+        "source_pattern": "cloakbrowser_one_shot_navigate_wait_capture_close",
+        "navigate_once_before_capture": true,
+        "wait_until_default": "domcontentloaded",
+        "default_timeout_ms": config
+            .get("default_timeout_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(30000),
+        "max_response_bytes": config
+            .get("max_response_bytes")
+            .and_then(Value::as_u64)
+            .unwrap_or(350000),
+        "max_redirects": security
+            .get("max_redirects")
+            .and_then(Value::as_u64)
+            .unwrap_or(8),
+        "pre_navigation_url_safety_required": true,
+        "final_url_revalidation_required": security
+            .get("revalidate_final_url_after_navigation")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "capture_after_final_url_safety_only": true,
+        "raw_payload_chat_visible": false
+    })
+}
+
+fn browser_materialization_readiness_strategy_projection(config: &Value) -> Value {
+    let smart_wait = config.get("smart_wait").cloned().unwrap_or_else(|| json!({}));
+    json!({
+        "version": "browser_materialization_readiness_strategy_v1",
+        "source_pattern": "cloakbrowser_smart_dom_settle_wait",
+        "strategy": if smart_wait
+            .get("enabled")
+            .and_then(Value::as_bool)
+            .unwrap_or(true)
+        {
+            "smart_dom_settle_default"
+        } else {
+            "bounded_navigation_wait_only"
+        },
+        "dom_stable_ms": smart_wait
+            .get("dom_stable_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(1500),
+        "max_settle_ms": smart_wait
+            .get("max_settle_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(15000),
+        "polls_dom_growth_not_network_idle_only": true,
+        "caller_raw_wait_script_allowed": false,
+        "bounded_selector_wait_allowed": true,
+        "fallback_on_settle_timeout": "return_low_confidence_materialization_if_content_exists"
+    })
+}
+
+fn browser_materialization_cleanup_status_projection() -> Value {
+    json!({
+        "version": "browser_materialization_cleanup_status_v1",
+        "status": "not_started",
+        "browser_launch_attempted": false,
+        "context_created": false,
+        "context_close_attempted": false,
+        "cleanup_required": false,
+        "cleanup_error_chat_visible": false
+    })
+}
+
+fn browser_materialization_retry_diagnostics_projection(error: &str) -> Value {
+    let recommendation = match error {
+        "adapter_not_ready" => "satisfy_adapter_readiness_before_retry",
+        "browser_adapter_stub_only" => "implement_or_admit_browser_adapter_before_retry",
+        "capability_not_enabled" => "admit_capability_before_retry",
+        "url_safety_blocked" | "unsafe_caller_control_rejected" => "do_not_retry_without_request_change",
+        _ => "no_retry_recommendation",
+    };
+    json!({
+        "version": "browser_materialization_retry_diagnostics_v1",
+        "source_pattern": "cloakbrowser_classified_strategy_retry",
+        "hidden_retry_executed": false,
+        "retry_history": [],
+        "retry_recommendation": recommendation,
+        "certificate_bypass_default_allowed": false,
+        "caller_strategy_args_allowed": false,
+        "retry_trace_chat_visible": false
+    })
+}
+
 fn browser_materialization_output_contract_projection(config: &Value) -> Value {
     let output_contract = config
         .get("output_contract")
@@ -66,14 +168,19 @@ fn browser_materialization_output_contract_projection(config: &Value) -> Value {
             .cloned()
             .unwrap_or_else(|| json!([
                 "source_url",
+                "pre_navigation_url_safety",
                 "final_url",
+                "final_url_safety",
                 "status_code",
                 "title",
                 "main_text_or_markdown",
                 "links_summary",
                 "blocker_classification",
                 "extraction_confidence",
-                "artifact_ref"
+                "artifact_ref",
+                "readiness_strategy",
+                "cleanup_status",
+                "retry_diagnostics"
             ])),
         "chat_visible": output_contract
             .get("chat_visible")
@@ -151,6 +258,12 @@ fn browser_materialization_fail_closed(
         "materialized_page_contract": browser_materialization_output_contract_projection(config),
         "evidence_handoff_contract": browser_materialization_evidence_handoff_projection(config),
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection(),
+        "pre_navigation_url_safety": url_safety.clone(),
+        "final_url_safety": browser_materialization_final_url_safety_projection(),
+        "navigation_contract": browser_materialization_navigation_contract_projection(config),
+        "readiness_strategy": browser_materialization_readiness_strategy_projection(config),
+        "cleanup_status": browser_materialization_cleanup_status_projection(),
+        "retry_diagnostics": browser_materialization_retry_diagnostics_projection(error),
         "url_safety": url_safety,
         "profile_compilation": runtime_metadata
             .pointer("/profile_compilation")

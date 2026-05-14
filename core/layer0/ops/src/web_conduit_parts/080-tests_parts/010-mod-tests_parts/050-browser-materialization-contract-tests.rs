@@ -32,6 +32,40 @@
             Some("allowed")
         );
         assert_eq!(
+            out.pointer("/pre_navigation_url_safety/status")
+                .and_then(Value::as_str),
+            Some("allowed")
+        );
+        assert_eq!(
+            out.pointer("/final_url_safety/status")
+                .and_then(Value::as_str),
+            Some("not_observed")
+        );
+        assert_eq!(
+            out.pointer("/navigation_contract/final_url_revalidation_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_strategy/strategy")
+                .and_then(Value::as_str),
+            Some("smart_dom_settle_default")
+        );
+        assert_eq!(
+            out.pointer("/readiness_strategy/caller_raw_wait_script_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/cleanup_status/status").and_then(Value::as_str),
+            Some("not_started")
+        );
+        assert_eq!(
+            out.pointer("/retry_diagnostics/hidden_retry_executed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/status").and_then(Value::as_str),
             Some("prepared_capability_disabled")
         );
@@ -49,7 +83,7 @@
             .and_then(Value::as_array)
             .map(|rows| rows
                 .iter()
-                .any(|row| row.as_str() == Some("main_text_or_markdown")))
+                .any(|row| row.as_str() == Some("final_url_safety")))
             .unwrap_or(false));
         assert_eq!(
             out.pointer("/evidence_handoff_contract/target_lane")
@@ -90,6 +124,11 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/retry_diagnostics/retry_recommendation")
+                .and_then(Value::as_str),
+            Some("do_not_retry_without_request_change")
+        );
+        assert_eq!(
             out.pointer("/url_safety/status").and_then(Value::as_str),
             Some("not_evaluated")
         );
@@ -124,6 +163,11 @@
         assert_eq!(
             out.get("tool_execution_attempted").and_then(Value::as_bool),
             Some(false)
+        );
+        assert_eq!(
+            out.pointer("/retry_diagnostics/retry_recommendation")
+                .and_then(Value::as_str),
+            Some("do_not_retry_without_request_change")
         );
     }
 
@@ -162,6 +206,11 @@
         assert_eq!(
             out.pointer("/readiness_lifecycle/state").and_then(Value::as_str),
             Some("not_installed")
+        );
+        assert_eq!(
+            out.pointer("/retry_diagnostics/retry_recommendation")
+                .and_then(Value::as_str),
+            Some("satisfy_adapter_readiness_before_retry")
         );
     }
 
@@ -202,6 +251,11 @@
             Some("ready")
         );
         assert!(out.get("materialized_page").map(Value::is_null).unwrap_or(false));
+        assert_eq!(
+            out.pointer("/retry_diagnostics/retry_recommendation")
+                .and_then(Value::as_str),
+            Some("implement_or_admit_browser_adapter_before_retry")
+        );
         assert_eq!(
             out.pointer("/evidence_handoff_contract/browser_success_is_not_source_truth_without_packaging")
                 .and_then(Value::as_bool),

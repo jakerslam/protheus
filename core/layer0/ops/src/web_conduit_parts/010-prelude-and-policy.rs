@@ -318,14 +318,19 @@ fn default_policy() -> Value {
                 "output_contract": {
                     "fields": [
                         "source_url",
+                        "pre_navigation_url_safety",
                         "final_url",
+                        "final_url_safety",
                         "status_code",
                         "title",
                         "main_text_or_markdown",
                         "links_summary",
                         "blocker_classification",
                         "extraction_confidence",
-                        "artifact_ref"
+                        "artifact_ref",
+                        "readiness_strategy",
+                        "cleanup_status",
+                        "retry_diagnostics"
                     ],
                     "chat_visible": false
                 },
