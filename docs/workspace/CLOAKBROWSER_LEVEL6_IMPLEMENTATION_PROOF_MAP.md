@@ -86,7 +86,7 @@ Status values:
 | 7 | Timeout/blocker classification | integrated: blocker taxonomy proof pass 007 | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
 | 8 | Web tooling gate split | integrated: materialization gate snapshot pass 008 | Can tooling stats isolate readiness, URL safety, materialization, extraction, evidence promotion, and synthesis consumption? | Web retrieval gate diagnostics/eval reporting. |
 | 9 | Research workflow consumption | integrated: evidence-consumption proof pass 009 | Does the research CD consume materialized evidence as normal evidence rather than tool trace text? | Research workflow CD/eval path; no prompt hardcoding. |
-| 10 | Golden/live impact pass | pending | Does the primitive improve weak-data cases without regressing upstream gates? | Research golden eval, web tooling eval, failure archive. |
+| 10 | Golden/live impact pass | integrated: live measurement pass 010 | Does the primitive improve weak-data cases without regressing upstream gates? | Research golden eval, web tooling eval, failure archive. |
 
 ## Slice Details
 
@@ -379,6 +379,8 @@ This does not enable live browser execution. It closes the next consumption gap:
 
 Goal: measure whether browser materialization improves real user-facing research quality.
 
+Status: integrated as a live 20-case measurement pass. The workflow gates are stable, but the web tooling gates show that live retrieval quality is still bottlenecked by access throttling/provider degradation and missing claim extraction.
+
 Required measurement:
 
 - gate pass rate,
@@ -395,6 +397,21 @@ Exit criteria:
 - no empty responses,
 - web tooling failures are diagnosable by gate,
 - at least one weak retrieval case improves because materialized evidence enters synthesis.
+
+Measured:
+
+- Command: `cargo run --quiet --manifest-path orchestration/Cargo.toml --bin eval_runtime -- research-golden --live=1 --strict=0 --base-url=http://127.0.0.1:5173 --timeout-seconds=120 --out=core/local/artifacts/research_golden_cloak_l6_010.json --out-latest=artifacts/research_golden_cloak_l6_010_latest.json --out-markdown=local/workspace/reports/RESEARCH_GOLDEN_CLOAK_L6_010.md --failures-out=local/state/ops/research_golden/cloak_l6_010_failures.jsonl`
+- Workflow gates: gate 1 through gate 4 all `20/20`.
+- Transition gates: 4a through 6a plus terminal artifact all `20/20`.
+- Golden pass: `16/20` (`80%`), average score `97.3`, excellent `1/20`, empty responses `0`, raw tool leaks `0`, tool-choice final responses `0`, unsupported claims `0`, transport failures `0`.
+- Failed golden cases: `research_gold_009_ai_browser_agent_security`, `research_gold_011_pydantic_ai`, `research_gold_016_low_signal_infring_public`, `research_gold_018_sparse_benchmarks`; all failed on entity coverage despite no 6a hard failure.
+- Web tooling bottlenecks: `web_3b_access_not_blocked_or_throttled` passed `2/20`; `web_5c_claim_extraction_present`, `web_6_provider_not_empty_or_degraded`, and `web_7_usable_evidence_available` each passed `1/20`.
+- Access-blocker classification: `17` throttle/rate-limit, `1` anti-bot-or-throttle, `2` none.
+- Browser/materialization recovery lane visibility: `20/20` attempted/visible.
+
+Conclusion:
+
+L6 stabilized the workflow and made web tooling failures diagnosable. It did not prove live retrieval-quality improvement yet. The primitive root is now upstream web-provider/access quality and claim extraction, not gate routing or synthesis handoff.
 
 ## Deferred Capability Map
 

@@ -298,6 +298,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-L6-TASK-007` | integrated | high | Complete Level 6 pass 007 for timeout/blocker classification. | Browser materialization blocker taxonomy and evidence promotion | `CLOAK-L6-TASK-006` | Added structured materialization blocker classes for adapter readiness, unsafe final URLs, fixture extraction failures, and content-too-thin captures; evidence promotion now keeps thin safe captures as `low_confidence_raw` instead of over-promoting them as usable evidence. |
 | `CLOAK-L6-TASK-008` | integrated | high | Complete Level 6 pass 008 for materialization web-tooling gates. | Browser materialization gate diagnostics | `CLOAK-L6-TASK-007` | Added `web_tooling_gates` snapshots for provider readiness, URL safety, materialization attempt/result, extraction quality, evidence promotion, and downstream synthesis consumption, with hard/soft/not-evaluated summaries. |
 | `CLOAK-L6-TASK-009` | integrated | high | Complete Level 6 pass 009 for research workflow consumption. | Tool-card evidence artifacts, live synthesis input, final verifier, research golden scorer | `CLOAK-L6-TASK-008` | Materialized `evidence_pack_candidates` now carry through hidden evidence artifacts, synthesis input, verifier evidence detection, and golden retrieval-quality scoring without exposing web tooling gates or forcing output formats. |
+| `CLOAK-L6-TASK-010` | integrated | high | Complete Level 6 pass 010 for live golden/web-tooling impact measurement. | Research golden eval and web retrieval gate diagnostics | `CLOAK-L6-TASK-009` | Ran the full 20-case live golden on the dashboard path. Workflow gates are stable at 20/20 through 6a; golden pass is 16/20; web-tooling diagnostics identify throttling/provider degradation and missing claim extraction as the remaining bottleneck. |
 
 ## Open Questions
 
@@ -1470,3 +1471,31 @@ Validation:
 Important boundary:
 
 This wave does not enable live browser execution, proxy/session behavior, or domain-specific synthesis. It only proves that once a materializer produces packaged evidence candidates, the research workflow can consume them through the normal evidence path.
+
+## Assimilation Wave 53: Level 6 Live Golden Impact Measurement
+
+Status: integrated as the Level 6 measurement closeout; this identifies the next bottleneck rather than claiming retrieval quality is solved.
+
+Measured:
+
+- Ran the full 20-case live research golden against the local dashboard path at `http://127.0.0.1:5173`.
+- Output artifacts:
+  - `/Users/jay/.openclaw/workspace/core/local/artifacts/research_golden_cloak_l6_010.json`
+  - `/Users/jay/.openclaw/workspace/artifacts/research_golden_cloak_l6_010_latest.json`
+  - `/Users/jay/.openclaw/workspace/local/workspace/reports/RESEARCH_GOLDEN_CLOAK_L6_010.md`
+  - `/Users/jay/.openclaw/workspace/local/state/ops/research_golden/cloak_l6_010_failures.jsonl`
+- Workflow gates: gate 1 through gate 4 all `20/20`.
+- Transition gates: 4a, 4b, 4c, 4d, 4e, 5a, 5b, 5c, 5d, 5e, 6a, and terminal artifact all `20/20`.
+- Golden pass: `16/20`; average score `97.3`; excellent `1/20`; empty responses `0`; raw tool leaks `0`; tool-choice final responses `0`; unsupported claims `0`.
+- Failed cases: `research_gold_009_ai_browser_agent_security`, `research_gold_011_pydantic_ai`, `research_gold_016_low_signal_infring_public`, and `research_gold_018_sparse_benchmarks`; these failed on entity coverage, not hard workflow failure.
+- Web tooling gates:
+  - `web_3b_access_not_blocked_or_throttled`: `2/20`.
+  - `web_5c_claim_extraction_present`: `1/20`.
+  - `web_6_provider_not_empty_or_degraded`: `1/20`.
+  - `web_7_usable_evidence_available`: `1/20`.
+  - `web_3c_blocker_recovery_lane_visible`: `20/20`.
+- Access blocker counts: `17` throttle/rate-limit, `1` anti-bot-or-throttle, `2` none.
+
+Conclusion:
+
+The research workflow itself is now stable in this run. The remaining quality gap is upstream web-provider/access quality and claim extraction. Browser/materialization recovery is visible, but it is not yet producing enough usable evidence to move most golden cases into excellent output.
