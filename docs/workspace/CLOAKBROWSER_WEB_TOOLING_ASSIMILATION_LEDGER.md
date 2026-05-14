@@ -20,6 +20,8 @@ Level 3 mechanics/algorithm map: `/Users/jay/.openclaw/workspace/docs/workspace/
 
 Level 4 implementation-structure map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md`
 
+Level 5 syntax implementation map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md`
+
 ## Guardrails
 
 - Keep ordinary research retrieval provider-neutral and policy/CD-driven.
@@ -228,6 +230,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-024` | integrated | medium | Surface browser profile/readiness state in effective inventory. | Web tooling inventory | `CLOAK-L4-004/006` | Inventory consumers can now see the optional browser lane's profile compilation status and readiness lifecycle without knowing deep runtime metadata paths. |
 | `CLOAK-TASK-025` | integrated | high | Add default-off browser materialization API boundary. | web-conduit API/CLI + tests | `CLOAK-L4-003/004/005/006` | `api_browser_materialize_page` validates URL/admission fields, rejects caller browser controls, reuses SSRF safety, and fails closed until an admitted adapter exists. |
 | `CLOAK-TASK-026` | integrated | medium | Project materialized-page output and evidence handoff contracts. | web-conduit API + tests | `CLOAK-TASK-025` | Browser materialization responses now expose the page-output schema, evidence promotion requirements, and artifact quarantine state without creating raw payloads. |
+| `CLOAK-TASK-027` | integrated | high | Create Level 5 syntax implementation map. | Assimilation docs | Level 4 closure | Adds the file-by-file burn-down and first live-adapter slice plan so syntax assimilation can proceed one source file at a time. |
 
 ## Open Questions
 
@@ -491,3 +494,23 @@ Validation:
 Important boundary:
 
 This wave still does not create materialized page content. It makes the future adapter's output and evidence promotion obligations visible before live browser execution exists.
+
+## Assimilation Wave 12: Level 5 Syntax Implementation Map
+
+Status: integrated as planning and tracking doc.
+
+Implemented:
+
+- Created `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md`.
+- Added a file-by-file Level 5 burn-down queue for CloakBrowser implementation files, tests, and examples.
+- Defined the Level 5 completion rule: `parsed -> pattern extracted -> Infring target mapped -> integrated or rejected -> tested or deferred with reason`.
+- Identified the first implementation slice as one-shot materialization security/extraction, grounded in the AWS Lambda handler and security tests.
+- Separated deferred proxy, geo, persistent session, humanized interaction, CDP service pool, and binary lifecycle work from the first read-only browser materialization primitive.
+
+Validation:
+
+- `git diff --check -- docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+
+Important boundary:
+
+This wave is not live adapter implementation. It gives us the tracking surface needed to work through Level 5 one file at a time without accidentally claiming full assimilation from broad pattern reads.
