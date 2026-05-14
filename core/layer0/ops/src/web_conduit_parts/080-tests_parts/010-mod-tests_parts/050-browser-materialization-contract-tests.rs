@@ -233,6 +233,34 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/country_locale_map_bcp47_required",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/fill_only_missing_locale_or_timezone",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/geo_timeout_preserves_existing_profile_fields",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/private_exit_or_proxy_ip_not_claim_evidence",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/geo_consistency_contract/raw_exit_ip_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
