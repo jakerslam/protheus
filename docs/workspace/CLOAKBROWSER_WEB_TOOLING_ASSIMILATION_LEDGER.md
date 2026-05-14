@@ -163,7 +163,7 @@ all web research always uses stealth browser by default
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
 | `examples/integrations/aws_lambda/lambda_handler.py` | level 5 pass 001 integrated | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening, final URL revalidation, cleanup, and telemetry-only retry history. |
 | `tests/test_lambda_security.py` | level 5 pass 002 integrated | Scheme allowlist, SSRF/private IP rejection, redirect revalidation, caller argument filtering, hardening flags, uppercase scheme parsing, CGNAT, and IPv4-mapped IPv6 safety. |
-| `tests/test_extract.py` | parsed | Dependency extraction hardening: archive traversal checks, symlink handling, flattening, executable permissions. |
+| `tests/test_extract.py` | level 5 pass 025 integrated, deferred capability | Dependency extraction hardening: tar/zip parity, archive traversal checks, absolute symlink skipping, flattening boundaries, app bundle preservation, and executable permissions. |
 
 ## Source Inventory Snapshot
 
@@ -268,6 +268,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-049` | integrated | medium | Complete Level 5 pass 022 for proxy tests. | Browser materialization proxy capability contract | `CLOAK-TASK-048` | Added metadata for schemeless proxy normalization after admission, credential removal from server URLs, username-only support, SOCKS5H support, idempotent credential encoding, redacted encoding notices, nonstandard SOCKS path/query rejection, IPv6 bracket preservation, and port-zero policy admission. |
 | `CLOAK-TASK-050` | integrated | medium | Complete Level 5 pass 023 for GeoIP tests. | Browser materialization geo/proxy capability contract | `CLOAK-TASK-049` | Added metadata for literal proxy IP extraction as telemetry, invalid proxy GeoIP nonfatal behavior, BCP47 country-locale map requirements, fill-only-missing profile fields, exit-IP consistency even when profile fields are complete, timeout preservation, and private IP evidence quarantine. |
 | `CLOAK-TASK-051` | integrated | medium | Complete Level 5 pass 024 for update tests. | Browser materialization operator update/install contract | `CLOAK-TASK-050` | Added metadata for variable-length version tuple comparison, auto-update env disablement, draft/non-Chromium release filtering, no-platform-asset nonfatal unavailability, checksum manifest parsing and mismatch blocking, cached binary reuse, missing local override fail-closed behavior, and install revalidation before ready. |
+| `CLOAK-TASK-052` | integrated | medium | Complete Level 5 pass 025 for extraction tests. | Browser materialization operator archive extraction contract | `CLOAK-TASK-051` | Added metadata for tar.gz and zip parity, archive path traversal rejection, absolute symlink target skipping, single-root flattening only, macOS app bundle preservation, multiple top-level entry preservation, executable permission checks, and operator-only quarantine handling. |
 
 ## Open Questions
 
@@ -1015,3 +1016,24 @@ Validation:
 Important boundary:
 
 This wave still does not enable dependency installation, background update checks during ordinary research, custom download URLs from workflows, cache clearing from chat, wrapper update notices in chat, or live browser execution.
+
+## Assimilation Wave 34: Level 5 Extraction Test Contract
+
+Status: integrated into future operator archive extraction contract; capability remains deferred.
+
+Implemented:
+
+- Parsed `tests/test_extract.py` as the syntax-level source of tar/zip extraction parity, path traversal rejection, suspicious symlink handling, wrapper-directory flattening, app bundle preservation, and executable permission checks.
+- Preserved the useful primitive: archive extraction is an operator-install readiness concern, not a research-turn behavior or a user-facing artifact source.
+- Added extraction metadata for tar.gz and zip support, absolute symlink target skipping, macOS `.app` bundle flatten denial, multiple top-level entry preservation, and executable permission checking.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable dependency installation, archive extraction from chat/workflow requests, arbitrary archive handling, quarantine mutation during ordinary research, or live browser execution.

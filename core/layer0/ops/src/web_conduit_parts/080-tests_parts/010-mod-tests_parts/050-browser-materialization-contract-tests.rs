@@ -433,12 +433,37 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/tar_gz_archive_supported")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/zip_archive_supported")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/custom_download_url_disables_public_fallback")
                 .and_then(Value::as_bool),
             Some(true)
         );
         assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/archive_path_traversal_rejected")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/absolute_symlink_targets_skipped")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/macos_app_bundle_flattening_denied")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/multiple_top_level_entries_not_flattened")
                 .and_then(Value::as_bool),
             Some(true)
         );

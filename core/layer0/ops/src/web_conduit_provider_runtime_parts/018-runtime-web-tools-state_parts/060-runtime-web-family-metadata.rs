@@ -640,12 +640,18 @@ fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Valu
                         "checksum_manifest_standard_and_binary_mode_supported": true,
                         "checksum_manifest_hashes_normalized_lowercase": true,
                         "checksum_mismatch_blocks_install": true,
+                        "tar_gz_archive_supported": true,
+                        "zip_archive_supported": true,
                         "primary_fallback_download_allowed_only_in_operator_install": true,
                         "custom_download_url_requires_operator_action": true,
                         "custom_download_url_disables_public_fallback": true,
                         "archive_path_traversal_rejected": true,
+                        "absolute_symlink_targets_skipped": true,
                         "single_root_flatten_allowed": true,
+                        "macos_app_bundle_flattening_denied": true,
+                        "multiple_top_level_entries_not_flattened": true,
                         "extract_sets_executable_permissions": true,
+                        "executable_permission_check_required": true,
                         "quarantine_removal_allowed_only_for_operator_install": true
                     },
                     "update_contract": {
