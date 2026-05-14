@@ -105,6 +105,21 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/proxy_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_proxy_url_resolution")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/proxy_contract/separate_capability_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/proxy_contract/raw_proxy_credentials_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_platform_version_cache_contract")

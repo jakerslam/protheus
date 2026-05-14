@@ -90,7 +90,7 @@ Status values:
 | 5 | `js/src/args.ts` | integrated: arg compiler pass 005 | How should profile args be deduped and overridden without caller authority? | Profile compiler tests and denied-field projection. |
 | 6 | `js/src/config.ts` | integrated: dependency lifecycle pass 006 | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
 | 7 | `js/src/download.ts` | integrated: installer hardening pass 007 | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
-| 8 | `js/src/proxy.ts` | mapped seed, deferred | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
+| 8 | `js/src/proxy.ts` | integrated: proxy capability pass 008 | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
 | 9 | `js/src/geoip.ts` | pending, deferred | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability, deferred. |
 | 10 | `js/src/puppeteer.ts` | pending | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
 | 11 | `cloakbrowser/browser.py` | mapped seed, needs line pass | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime parity notes, not direct Rust code. |
@@ -474,6 +474,49 @@ operator/readiness lane only
 -> archive traversal rejected
 -> update marker writes atomic
 -> no background updates during ordinary research
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 008: `js/src/proxy.ts`
+
+Status: `integrated: future proxy capability contract`
+
+Source lines inspected: 1-216
+
+This file is useful because it shows how a browser adapter should treat proxy configuration as structured secret-bearing input, not as a raw string casually passed through to launch args. It normalizes schemeless proxies, separates credentials from server URLs, handles SOCKS through an adapter arg lane, percent-encodes special credential characters, and keeps malformed inputs from breaking the wrapper unexpectedly. For Infring, all of this stays behind a separate proxy capability.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 9-14, 188-216 | HTTP proxy credentials are parsed out of the server URL into separate username/password fields. | Future proxy capability should separate credentials and store them through Gateway/secret broker, never in chat-visible request/result bodies. | Integrated as proxy contract. |
+| 21-23 | Schemeless proxy strings are normalized before parsing. | Scheme normalization is allowed only after explicit proxy admission. | Integrated as proxy contract. |
+| 37-40, 167-186 | SOCKS proxies bypass Playwright proxy dict and become adapter launch args. | SOCKS support requires a separate adapter arg lane and remains denied from ordinary requests. | Integrated as proxy contract. |
+| 66-80, 102-153 | SOCKS credentials are decoded leniently and re-encoded so special characters do not corrupt parsing. | Credential encoding is internal telemetry-only behavior; notices must not expose secrets in chat. | Integrated as proxy contract. |
+| 137-153 | Malformed SOCKS values pass through in CloakBrowser to let Chromium surface errors. | Infring should reject malformed proxy config before adapter execution once the capability exists. | Accepted with stricter fail-closed mapping. |
+| 178-186 | Proxy bypass list can become launch arg for SOCKS. | Proxy bypass is policy/capability owned, not caller-owned in the current primitive. | Integrated as proxy contract. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `proxy_contract` metadata to browser materialization profile policy. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the proxy contract through runtime profile-compilation metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same proxy capability contract to the Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted separate proxy capability requirement and non-chat-visible raw proxy credentials. |
+
+### Pass 008 Outcome
+
+Proxy handling now has a precise future capability contract without enabling proxy behavior:
+
+```text
+separate proxy capability
+-> Gateway/secret broker owns credentials
+-> normalize/encode only after admission
+-> SOCKS needs adapter arg lane
+-> malformed proxy config fails before adapter
+-> raw proxy URL/credentials never chat-visible
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

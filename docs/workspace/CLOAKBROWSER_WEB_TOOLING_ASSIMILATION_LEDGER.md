@@ -140,7 +140,7 @@ all web research always uses stealth browser by default
 | `js/src/args.ts` | level 5 pass 005 integrated | Deduped argument compiler, fixed precedence, policy-owned profile arg assembly, and telemetry-only override visibility. |
 | `js/src/config.ts` | level 5 pass 006 integrated | Platform detection, binary/cache/version readiness lifecycle, explicit install boundary, ignored default args, and deferred stealth defaults. |
 | `js/src/download.ts` | level 5 pass 007 integrated | Atomic download, checksum verification, extraction hardening, cleanup on failure, and rate-limited update checks. |
-| `js/src/proxy.ts` | parsed | Robust proxy URL parsing, SOCKS handling, credential normalization, pass-through fallback. |
+| `js/src/proxy.ts` | level 5 pass 008 integrated | Proxy URL parsing, credential separation, SOCKS adapter arg lane, credential encoding, bypass ownership, and redaction requirements. |
 | `js/src/geoip.ts` | parsed | Proxy exit IP resolution, timezone/locale inference, bounded timeout, optional dependency behavior. |
 | `js/src/human/config.ts` | parsed | Centralized human interaction presets and action timing knobs. |
 | `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
@@ -240,6 +240,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-032` | integrated | high | Complete Level 5 pass 005 for TypeScript argument compiler. | Browser materialization profile compiler contract | `CLOAK-TASK-031` | Added a policy-owned argument compiler contract with flag-key dedupe, explicit precedence, raw caller-arg denial, and telemetry-only override traces. |
 | `CLOAK-TASK-033` | integrated | medium | Complete Level 5 pass 006 for TypeScript config/defaults. | Browser materialization dependency readiness lifecycle | `CLOAK-TASK-032` | Added dependency lifecycle metadata for runtime-owned platform detection, policy-owned cache/install boundaries, no surprise downloads, internal binary/download paths, and unsupported-platform readiness state. |
 | `CLOAK-TASK-034` | integrated | medium | Complete Level 5 pass 007 for TypeScript binary download lifecycle. | Browser materialization install/update readiness contract | `CLOAK-TASK-033` | Added install/update hardening metadata for temp downloads, partial cleanup, checksum verification, archive traversal rejection, atomic update markers, and no background updates during ordinary research. |
+| `CLOAK-TASK-035` | integrated | medium | Complete Level 5 pass 008 for TypeScript proxy resolution. | Browser materialization proxy capability contract | `CLOAK-TASK-034` | Added future proxy capability metadata for credential separation, Gateway secret ownership, SOCKS adapter arg lanes, internal credential encoding, bypass policy ownership, and raw proxy redaction. |
 
 ## Open Questions
 
@@ -611,3 +612,25 @@ Validation:
 Important boundary:
 
 This wave still does not create an installer or live browser adapter. It records the install/update safety rules the future explicit readiness lane must satisfy.
+
+## Assimilation Wave 17: Level 5 Proxy Capability Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `js/src/proxy.ts` as the syntax-level source of CloakBrowser's proxy URL parsing and SOCKS handling behavior.
+- Preserved the useful primitive: proxy config is structured, credentials are separated from server URLs, special credentials are internally encoded, and SOCKS needs a dedicated adapter arg lane.
+- Mapped credentials to Gateway/secret broker ownership and kept raw proxy URLs/credentials out of chat-visible outputs.
+- Kept direct proxy request fields denied and left proxy use behind a separate future capability.
+- Added mock-fast assertions that browser materialization exposes the proxy capability requirement and keeps raw credentials hidden.
+
+Validation:
+
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not admit proxy use, proxy rotation, or proxy-based recovery. It only records the contract a future explicit proxy capability must satisfy.

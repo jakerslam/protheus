@@ -309,6 +309,26 @@ fn browser_materialization_profile_compilation_contract(
             .get("humanized_interaction_allowed")
             .and_then(Value::as_bool)
             .unwrap_or(false),
+        "proxy_contract": profile_contract
+            .get("proxy_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "version": "browser_proxy_capability_contract_v1",
+                "source_pattern": "cloakbrowser_proxy_url_resolution",
+                "default_admitted": false,
+                "separate_capability_required": true,
+                "direct_request_proxy_fields_allowed": false,
+                "credentials_separated_from_server": true,
+                "credentials_stored_by_gateway_secret_broker": true,
+                "raw_proxy_url_chat_visible": false,
+                "raw_proxy_credentials_chat_visible": false,
+                "scheme_normalization_allowed_after_admission": true,
+                "socks_proxy_requires_adapter_arg_lane": true,
+                "credential_percent_encoding_internal": true,
+                "credential_encoding_notice_chat_visible": false,
+                "proxy_bypass_list_policy_owned": true,
+                "malformed_proxy_config_rejected_before_adapter": true
+            })),
         "argument_compiler": profile_contract
             .get("argument_compiler")
             .cloned()
