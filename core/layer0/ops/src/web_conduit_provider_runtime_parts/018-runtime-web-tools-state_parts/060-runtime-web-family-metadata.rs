@@ -353,6 +353,29 @@ fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Valu
         .pointer("/web_conduit/browser_materialization")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let dependency_lifecycle =
+        config
+            .get("dependency_lifecycle")
+            .cloned()
+            .unwrap_or_else(|| {
+                json!({
+                    "version": "browser_dependency_lifecycle_contract_v1",
+                    "source_pattern": "cloakbrowser_platform_version_cache_contract",
+                    "platform_detection": "runtime_owned",
+                    "platform_tag_chat_visible": false,
+                    "binary_version_source": "provider_readiness_manifest",
+                    "local_binary_override_allowed": false,
+                    "surprise_download_allowed": false,
+                    "ordinary_research_may_install_dependency": false,
+                    "install_requires_explicit_operator_action": true,
+                    "cache_root_policy_owned": true,
+                    "cache_cleanup_tied_to_system_cleanup": true,
+                    "version_marker_may_upgrade_only_if_binary_exists": true,
+                    "raw_binary_path_chat_visible": false,
+                    "download_url_chat_visible": false,
+                    "unsupported_platform_status": "dependency_unavailable"
+                })
+            });
     let enabled = config
         .get("enabled")
         .and_then(Value::as_bool)
@@ -444,7 +467,8 @@ fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Valu
                     "not_installed"
                 },
                 "ordinary_research_may_install_dependency": false,
-                "cleanup_tied_to_system_cleanup": true
+                "cleanup_tied_to_system_cleanup": true,
+                "dependency_lifecycle": dependency_lifecycle
             },
             "state_path": runtime_web_tools_state_path(root).display().to_string()
         },

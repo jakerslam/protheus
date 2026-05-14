@@ -88,7 +88,7 @@ Status values:
 | 3 | `js/src/playwright.ts` | integrated: context boundary pass 003 | What launch/context cleanup and option filtering shape should the adapter mimic? | Future local browser adapter helper. |
 | 4 | `js/src/types.ts` | integrated: API surface pass 004 | Which request/profile fields are real API surface versus convenience wrappers? | Tool CD/policy schema audit. |
 | 5 | `js/src/args.ts` | integrated: arg compiler pass 005 | How should profile args be deduped and overridden without caller authority? | Profile compiler tests and denied-field projection. |
-| 6 | `js/src/config.ts` | pending | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
+| 6 | `js/src/config.ts` | integrated: dependency lifecycle pass 006 | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
 | 7 | `js/src/download.ts` | pending | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
 | 8 | `js/src/proxy.ts` | mapped seed, deferred | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
 | 9 | `js/src/geoip.ts` | pending, deferred | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability, deferred. |
@@ -388,6 +388,49 @@ policy defaults
 -> dedupe by flag key
 -> internal override telemetry only
 -> raw caller args still rejected
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 006: `js/src/config.ts`
+
+Status: `integrated: dependency lifecycle contract`
+
+Source lines inspected: 1-212
+
+This file is useful because it separates browser-provider configuration from launch execution: wrapper version, platform detection, per-platform browser version map, cache roots, binary path resolution, explicit local-binary override, download URLs, version markers, ignored default args, and generated stealth defaults. The portable pattern for Infring is provider readiness and dependency lifecycle visibility. The non-portable part is copying CloakBrowser's exact Chromium versions, download URLs, or stealth defaults into ordinary research.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 8-19 | Wrapper version comes from package metadata with fail-soft fallback. | Provider readiness should report version/source state, but user-facing research should not depend on wrapper packaging details. | Accepted as readiness pattern only. |
+| 25-70 | Platform tags are runtime-owned and unsupported platforms fail with an availability error. | Runtime owns platform detection; workflows/tools only see dependency-ready or dependency-unavailable state. | Integrated as dependency lifecycle contract. |
+| 74-96 | Cache root, binary dir, and binary path are centrally derived. | Browser binary/cache paths remain policy/runtime-owned and not chat-visible. Cleanup is tied to system cleanup. | Integrated as dependency lifecycle contract. |
+| 98-131 | Downloads use primary/fallback URLs and local binary override can bypass availability. | No surprise downloads during ordinary research; install/override requires explicit operator/capability action. Raw download URLs are not final-answer material. | Integrated as denied/default-off lifecycle policy. |
+| 133-164 | Version markers can select newer installed binaries only if the binary exists. | Version promotion should require an installed binary/readiness proof. | Integrated as lifecycle invariant. |
+| 176-182 | Some default browser args should be suppressed because they reveal automation. | Keep as future policy-owned profile compiler behavior; do not expose as caller flags. | Accepted as future compiler behavior. |
+| 189-212 | Default stealth args include random fingerprint seed and platform spoofing. | Defer; generated fingerprint/stealth behavior is not part of the first stateless materialization primitive. | Deferred. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `dependency_lifecycle` policy metadata for platform detection, cache ownership, install/download behavior, binary path visibility, and unsupported-platform status. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the dependency lifecycle through browser materialization readiness metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same dependency lifecycle to the browser materialization Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted no surprise downloads, no raw binary path chat visibility, and lifecycle source projection. |
+
+### Pass 006 Outcome
+
+Browser dependency lifecycle is now visible as a readiness contract without enabling live execution:
+
+```text
+runtime-owned platform detection
+-> policy-owned cache/install lifecycle
+-> no ordinary-research surprise downloads
+-> raw binary/download details stay internal
+-> unsupported platform becomes dependency state, not synthesis text
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

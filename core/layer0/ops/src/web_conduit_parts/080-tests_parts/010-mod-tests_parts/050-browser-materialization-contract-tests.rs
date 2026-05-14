@@ -105,6 +105,21 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_platform_version_cache_contract")
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/surprise_download_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/raw_binary_path_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.get("raw_payload_chat_visible").and_then(Value::as_bool),
             Some(false)
         );

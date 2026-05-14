@@ -344,6 +344,23 @@ fn default_policy() -> Value {
                         "denied_option_count"
                     ]
                 },
+                "dependency_lifecycle": {
+                    "version": "browser_dependency_lifecycle_contract_v1",
+                    "source_pattern": "cloakbrowser_platform_version_cache_contract",
+                    "platform_detection": "runtime_owned",
+                    "platform_tag_chat_visible": false,
+                    "binary_version_source": "provider_readiness_manifest",
+                    "local_binary_override_allowed": false,
+                    "surprise_download_allowed": false,
+                    "ordinary_research_may_install_dependency": false,
+                    "install_requires_explicit_operator_action": true,
+                    "cache_root_policy_owned": true,
+                    "cache_cleanup_tied_to_system_cleanup": true,
+                    "version_marker_may_upgrade_only_if_binary_exists": true,
+                    "raw_binary_path_chat_visible": false,
+                    "download_url_chat_visible": false,
+                    "unsupported_platform_status": "dependency_unavailable"
+                },
                 "smart_wait": {
                     "enabled": true,
                     "dom_stable_ms": 1500,
