@@ -77,6 +77,62 @@ fn default_runtime_web_tools_metadata() -> Value {
             "tool_surface_health": default_runtime_web_family_health(WebProviderFamily::Fetch),
             "diagnostics": []
         },
+        "browser_materialization": {
+            "enabled": false,
+            "selected_provider": "local_browser",
+            "provider_source": "policy_default",
+            "tool_surface_health": {
+                "status": "unavailable",
+                "selected_provider_ready": false,
+                "selected_provider_requires_credential": false,
+                "selected_provider_credential_state": "not_required",
+                "blocking_reason": "capability_not_enabled",
+                "available_provider_count": 1,
+                "diagnostic_count": 0
+            },
+            "execution_gate": {
+                "should_execute": false,
+                "mode": "blocked",
+                "reason": "capability_not_enabled",
+                "retry_recommended": false,
+                "retry_lane": "none"
+            },
+            "capability_contract": {
+                "capability_id": "browser_materialize_page",
+                "optional_capability": true,
+                "chat_visibility": "hidden_until_synthesized",
+                "request_contract": {
+                    "required_fields": ["url", "admission_ref"],
+                    "denied_fields": [
+                        "browser_args",
+                        "launch_args",
+                        "cdp_command",
+                        "user_script",
+                        "proxy",
+                        "proxy_url",
+                        "proxy_credentials",
+                        "session_id",
+                        "storage_state",
+                        "local_file"
+                    ]
+                },
+                "profile_contract": {
+                    "default_profile": "stateless_public_materialization",
+                    "state_scope": "stateless",
+                    "caller_override_allowed": false
+                },
+                "evidence_handoff": {
+                    "target_lane": "candidate_enrichment",
+                    "raw_payload_chat_visible": false
+                },
+                "readiness_lifecycle": {
+                    "state": "not_configured",
+                    "ordinary_research_may_install_dependency": false,
+                    "cleanup_tied_to_system_cleanup": true
+                }
+            },
+            "diagnostics": []
+        },
         "image_tool": default_image_tool_runtime_metadata(),
         "openclaw_web_tools_contract": {
             "exports": runtime_web_tools_exports_contract(),
@@ -84,6 +140,19 @@ fn default_runtime_web_tools_metadata() -> Value {
             "fetch_unit_test_harness": runtime_web_fetch_unit_test_harness_contract()
         },
         "tool_surface_health": default_runtime_web_tools_health_summary(),
+        "tool_execution_gate": {
+            "search": default_runtime_web_execution_gate(),
+            "fetch": default_runtime_web_execution_gate(),
+            "browser_materialization": {
+                "should_execute": false,
+                "mode": "blocked",
+                "reason": "capability_not_enabled",
+                "retry_recommended": false,
+                "retry_lane": "none"
+            },
+            "overall_should_execute": false,
+            "overall_mode": "blocked_all"
+        },
         "diagnostics": []
     })
 }

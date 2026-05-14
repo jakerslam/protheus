@@ -18,6 +18,164 @@ fn fetch_provider_request_contract() -> Value {
     })
 }
 
+fn browser_materialization_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/web_conduit/browser_materialization/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn browser_materialization_request_contract(policy: &Value) -> Value {
+    let config = policy
+        .pointer("/web_conduit/browser_materialization")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    json!({
+        "capability_id": "browser_materialize_page",
+        "enabled": browser_materialization_enabled(policy),
+        "permission_class": config
+            .get("permission_class")
+            .and_then(Value::as_str)
+            .unwrap_or("public_web_dynamic_read"),
+        "requires_explicit_admission": config
+            .get("requires_explicit_admission")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "input_contract": {
+            "required_fields": config
+                .pointer("/request_contract/required_fields")
+                .cloned()
+                .unwrap_or_else(|| json!(["url", "admission_ref"])),
+            "optional_fields": config
+                .pointer("/request_contract/optional_fields")
+                .cloned()
+                .unwrap_or_else(|| json!([
+                    "request_id",
+                    "extract_mode",
+                    "wait_until",
+                    "wait_for_selector",
+                    "timeout_ms",
+                    "max_response_bytes",
+                    "profile_ref",
+                    "evidence_gap_reason"
+                ])),
+            "denied_fields": config
+                .pointer("/request_contract/denied_fields")
+                .cloned()
+                .unwrap_or_else(|| json!([
+                    "browser_args",
+                    "launch_args",
+                    "cdp_command",
+                    "user_script",
+                    "proxy",
+                    "proxy_url",
+                    "proxy_credentials",
+                    "session_id",
+                    "storage_state",
+                    "local_file"
+                ])),
+            "caller_controlled_browser_args_allowed": false,
+            "proxy_fields_allowed": false,
+            "persistent_session_fields_allowed": false,
+            "raw_cdp_commands_allowed": false,
+            "arbitrary_user_scripts_allowed": false
+        },
+        "profile_contract": config
+            .get("profile_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "profile_source": "tool_cd_policy",
+                "default_profile": "stateless_public_materialization",
+                "state_scope": "stateless",
+                "proxy_capability_required": true,
+                "persistent_session_capability_required": true,
+                "caller_override_allowed": false,
+                "denied_launch_args": [
+                    "--remote-debugging-port",
+                    "--disable-web-security",
+                    "--ignore-certificate-errors",
+                    "--allow-file-access-from-files",
+                    "--load-extension"
+                ],
+                "telemetry_fields": [
+                    "profile_ref",
+                    "state_scope",
+                    "effective_profile_hash",
+                    "denied_option_count"
+                ]
+            })),
+        "security_contract": config
+            .get("security")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "allowed_schemes": ["http", "https"],
+                "reject_url_credentials": true,
+                "block_private_network_targets": true,
+                "revalidate_final_url_after_navigation": true,
+                "reject_caller_supplied_browser_args": true,
+                "max_redirects": 8,
+                "url_safety_status_values": [
+                    "allowed",
+                    "scheme_blocked",
+                    "private_network_blocked",
+                    "redirect_target_blocked",
+                    "credentials_redacted",
+                    "invalid_url"
+                ]
+            })),
+        "output_contract": config
+            .get("output_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "fields": [
+                    "source_url",
+                    "final_url",
+                    "status_code",
+                    "title",
+                    "main_text_or_markdown",
+                    "links_summary",
+                    "blocker_classification",
+                    "extraction_confidence",
+                    "artifact_ref"
+                ],
+                "chat_visible": false
+            })),
+        "evidence_handoff": config
+            .get("evidence_handoff")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "target_lane": "candidate_enrichment",
+                "promotion_requires": [
+                    "safe_final_url",
+                    "substantive_main_text",
+                    "query_relevance",
+                    "not_blocker_shell"
+                ],
+                "confidence_values": ["usable", "low_confidence_raw", "rejected"],
+                "raw_payload_chat_visible": false
+            })),
+        "blocker_taxonomy": {
+            "classes": [
+                "anti_bot_challenge",
+                "needs_js",
+                "rate_limited",
+                "access_denied",
+                "provider_degraded",
+                "content_materialization_missing",
+                "off_intent_noise",
+                "low_signal"
+            ],
+            "decision_authority": "tool_diagnostics_and_policy",
+            "chat_visibility": "telemetry_only_until_synthesized"
+        },
+        "non_goals": [
+            "do_not_make_browser_materialization_default_search",
+            "do_not_expose_raw_cdp_or_browser_traces_to_chat",
+            "do_not_use_proxy_or_persistent_sessions_without_a_separate_admitted_capability"
+        ]
+    })
+}
+
 fn public_artifact_candidates(family: WebProviderFamily) -> &'static [&'static str] {
     match family {
         WebProviderFamily::Search => SEARCH_PUBLIC_ARTIFACT_CANDIDATES,
@@ -157,13 +315,32 @@ pub(crate) fn fetch_provider_registration_contract(policy: &Value) -> Value {
 pub(crate) fn web_provider_public_artifact_contracts() -> Value {
     json!({
         "search": public_artifact_contract_for_family(WebProviderFamily::Search),
-        "fetch": public_artifact_contract_for_family(WebProviderFamily::Fetch)
+        "fetch": public_artifact_contract_for_family(WebProviderFamily::Fetch),
+        "browser_materialization": {
+            "family": "browser_materialization",
+            "runtime_mode": "optional_capability",
+            "resolution_mode": "tool_cd_and_gateway_admission",
+            "artifact_candidates": [],
+            "allowlisted_provider_ids": ["local_browser"]
+        }
     })
 }
 
 pub(crate) fn web_tool_catalog_snapshot(policy: &Value) -> Value {
     let search_chain = resolved_search_provider_chain("", &json!({}), policy);
     let fetch_chain = fetch_provider_chain_from_request("", &json!({}), policy);
+    let browser_provider_chain = policy
+        .pointer("/web_conduit/browser_materialization/provider_order")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| clean_text(row, 80))
+                .filter(|row| !row.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .filter(|rows| !rows.is_empty())
+        .unwrap_or_else(|| vec!["local_browser".to_string()]);
     json!([
         {
             "tool": "web_search",
@@ -184,6 +361,29 @@ pub(crate) fn web_tool_catalog_snapshot(policy: &Value) -> Value {
             "default_provider_chain": fetch_chain,
             "request_contract": fetch_provider_request_contract(),
             "registration_contract": fetch_provider_registration_contract(policy)
+        },
+        {
+            "tool": "web_browser_materialize_page",
+            "label": "Browser Materialize Page",
+            "family": "browser_materialization",
+            "enabled": policy.pointer("/web_conduit/enabled").and_then(Value::as_bool).unwrap_or(true)
+                && browser_materialization_enabled(policy),
+            "optional_capability": true,
+            "default_provider": browser_provider_chain.first().cloned().unwrap_or_else(|| "local_browser".to_string()),
+            "default_provider_chain": browser_provider_chain,
+            "request_contract": browser_materialization_request_contract(policy),
+            "registration_contract": {
+                "family": "browser_materialization",
+                "selection_policy_path": "/web_conduit/browser_materialization/provider_order",
+                "supported_provider_ids": ["local_browser"],
+                "credential_types_supported": ["none"],
+                "runtime_resolution_contract": {
+                    "family": "browser_materialization",
+                    "runtime_mode": "optional_capability",
+                    "supports_runtime_registry": false,
+                    "configured_provider_fallback": "none"
+                }
+            }
         }
     ])
 }

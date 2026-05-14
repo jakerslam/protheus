@@ -25,6 +25,88 @@
             .and_then(Value::as_array)
             .map(|rows| !rows.is_empty())
             .unwrap_or(false));
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/browser_materialization/enabled")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/browser_materialization/tool_surface_health/blocking_reason")
+                .and_then(Value::as_str),
+            Some("capability_not_enabled")
+        );
+        assert!(out
+            .pointer("/tool_catalog")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| {
+                row.get("tool").and_then(Value::as_str)
+                    == Some("web_browser_materialize_page")
+                    && row.get("optional_capability").and_then(Value::as_bool) == Some(true)
+            }))
+            .unwrap_or(false));
+        let browser_catalog = out
+            .pointer("/tool_catalog")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("tool").and_then(Value::as_str)
+                        == Some("web_browser_materialize_page")
+                })
+            })
+            .expect("browser materialization catalog row");
+        assert_eq!(
+            browser_catalog
+                .pointer("/request_contract/input_contract/required_fields/1")
+                .and_then(Value::as_str),
+            Some("admission_ref")
+        );
+        assert!(browser_catalog
+            .pointer("/request_contract/input_contract/denied_fields")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("browser_args")))
+            .unwrap_or(false));
+        assert_eq!(
+            browser_catalog
+                .pointer("/request_contract/profile_contract/state_scope")
+                .and_then(Value::as_str),
+            Some("stateless")
+        );
+        assert_eq!(
+            browser_catalog
+                .pointer("/request_contract/security_contract/reject_url_credentials")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            browser_catalog
+                .pointer("/request_contract/evidence_handoff/raw_payload_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            browser_catalog
+                .pointer("/request_contract/blocker_taxonomy/classes/0")
+                .and_then(Value::as_str),
+            Some("anti_bot_challenge")
+        );
+        assert!(out
+            .pointer("/tool_effective_inventory/rows")
+            .and_then(Value::as_array)
+            .map(|rows| rows.iter().any(|row| {
+                row.get("tool_id").and_then(Value::as_str)
+                    == Some("web.browser_materialize_page")
+                    && row.get("optional_capability").and_then(Value::as_bool) == Some(true)
+                    && row.get("blocking_reason").and_then(Value::as_str)
+                        == Some("capability_not_enabled")
+            }))
+            .unwrap_or(false));
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/browser_materialization/capability_contract/readiness_lifecycle/state")
+                .and_then(Value::as_str),
+            Some("not_configured")
+        );
     }
 
     #[test]

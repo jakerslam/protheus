@@ -106,6 +106,85 @@ mod web_quality_diagnostics_tests {
             out.pointer("/tool_result_quality/retry/recommended").and_then(Value::as_bool),
             Some(true)
         );
+        assert_eq!(
+            out.pointer(
+                "/tool_result_quality/browser_materialization/recommended_when_policy_allows"
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/capability")
+                .and_then(Value::as_str),
+            Some("browser_materialize_page")
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/decision_authority")
+                .and_then(Value::as_str),
+            Some("tool_cd_and_gateway_policy")
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/blocker_taxonomy/primary_class")
+                .and_then(Value::as_str),
+            Some("anti_bot_challenge")
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/blocker_class")
+                .and_then(Value::as_str),
+            Some("anti_bot_challenge")
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/evidence_handoff/raw_payload_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn blocker_taxonomy_splits_js_rate_limit_and_access_denied_failures() {
+        let report = web_tool_quality_report(
+            "current public research evidence",
+            "no_results",
+            0,
+            0,
+            &[
+                "needs_js: please enable javascript before content renders".to_string(),
+                "http_429 provider rate limit".to_string(),
+                "access denied 403 forbidden".to_string(),
+            ],
+            &[],
+            &[],
+        );
+        assert_eq!(
+            report
+                .pointer("/blocker_taxonomy/primary_class")
+                .and_then(Value::as_str),
+            Some("needs_js")
+        );
+        assert_eq!(
+            report.pointer("/retry/reason").and_then(Value::as_str),
+            Some("needs_js")
+        );
+        let classes = report
+            .pointer("/blocker_taxonomy/classes")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        for expected in ["needs_js", "rate_limited", "access_denied"] {
+            assert!(
+                classes.iter().any(|row| {
+                    row.get("class").and_then(Value::as_str) == Some(expected)
+                        && row.get("present").and_then(Value::as_bool) == Some(true)
+                }),
+                "{report:#?}"
+            );
+        }
+        assert_eq!(
+            report
+                .pointer("/browser_materialization/recommended_when_policy_allows")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]

@@ -29,7 +29,10 @@ fn source_trust_adjustment(candidate: &Candidate) -> f64 {
     let domain = candidate_domain_hint(candidate).to_ascii_lowercase();
     let locator = clean_text(&candidate.locator, 2_200).to_ascii_lowercase();
     let combined = clean_text(
-        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
         2_400,
     )
     .to_ascii_lowercase();
@@ -208,7 +211,11 @@ fn research_facet_from_text(text: &str, index: usize, min_terms: usize) -> Optio
     research_facet_from_text_with_required_terms(text, index, min_terms, "inferred")
 }
 
-fn research_facet_from_metadata_text(text: &str, index: usize, kind: &str) -> Option<ResearchFacet> {
+fn research_facet_from_metadata_text(
+    text: &str,
+    index: usize,
+    kind: &str,
+) -> Option<ResearchFacet> {
     research_facet_from_text_with_required_terms(text, index, 1, kind)
 }
 
@@ -344,7 +351,10 @@ fn infer_research_facets(
 
 fn candidate_facet_overlap(facet: &ResearchFacet, candidate: &Candidate) -> usize {
     let haystack = tokenize_relevance(
-        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
         160,
     );
     facet
@@ -354,18 +364,17 @@ fn candidate_facet_overlap(facet: &ResearchFacet, candidate: &Candidate) -> usiz
         .count()
 }
 
-fn candidate_matches_facet(
-    facet: &ResearchFacet,
-    candidate: &Candidate,
-    min_terms: usize,
-) -> bool {
+fn candidate_matches_facet(facet: &ResearchFacet, candidate: &Candidate, min_terms: usize) -> bool {
     let overlap = candidate_facet_overlap(facet, candidate);
     if overlap == 0 {
         return false;
     }
     if !facet.distinctive_terms.is_empty() {
         let haystack = tokenize_relevance(
-            &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+            &format!(
+                "{} {} {}",
+                candidate.title, candidate.snippet, candidate.locator
+            ),
             160,
         );
         if !facet
@@ -589,10 +598,12 @@ fn coverage_gap_recovery_needed(
     covered < coverage_gap_recovery_min_covered_facets(policy, facets.len(), budget)
 }
 
-fn expand_coverage_gap_recovery_template(template: &str, query: &str, facet: &str) -> Option<String> {
-    let expanded = template
-        .replace("{query}", query)
-        .replace("{facet}", facet);
+fn expand_coverage_gap_recovery_template(
+    template: &str,
+    query: &str,
+    facet: &str,
+) -> Option<String> {
+    let expanded = template.replace("{query}", query).replace("{facet}", facet);
     let cleaned = clean_text(&expanded, 600);
     if cleaned.is_empty() {
         None
@@ -696,10 +707,7 @@ fn evidence_pack_source_class(policy: &Value, candidate: &Candidate) -> String {
         .and_then(Value::as_array)
     {
         for rule in rules {
-            let class = clean_text(
-                rule.get("class").and_then(Value::as_str).unwrap_or(""),
-                80,
-            );
+            let class = clean_text(rule.get("class").and_then(Value::as_str).unwrap_or(""), 80);
             if class.is_empty() {
                 continue;
             }
@@ -766,11 +774,25 @@ fn evidence_pack_claim_hints(query: &str, snippet: &str, limit: usize) -> Vec<St
     out
 }
 
+fn content_rich_text(text: &str) -> bool {
+    let cleaned = clean_text(text, 1_800);
+    if cleaned.split_whitespace().count() < 22 {
+        return false;
+    }
+    !looks_like_low_signal_search_summary(&cleaned)
+        && !looks_like_source_only_snippet(&cleaned)
+        && !contains_web_junk_marker(&cleaned)
+        && !looks_like_ack_only(&cleaned)
+}
+
 fn evidence_pack_term_hints(query: &str, candidate: &Candidate, limit: usize) -> Vec<String> {
     let mut seen = HashSet::<String>::new();
     let mut out = Vec::<String>::new();
     for term in tokenize_relevance(
-        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        &format!(
+            "{} {} {}",
+            candidate.title, candidate.snippet, candidate.locator
+        ),
         160,
     ) {
         if term.len() < 4 {
@@ -858,7 +880,13 @@ fn value_array_len(value: &Value) -> usize {
     value.as_array().map(Vec::len).unwrap_or(0)
 }
 
-fn policy_usize_at(policy: &Value, pointer: &str, default_value: usize, min: usize, max: usize) -> usize {
+fn policy_usize_at(
+    policy: &Value,
+    pointer: &str,
+    default_value: usize,
+    min: usize,
+    max: usize,
+) -> usize {
     policy
         .pointer(pointer)
         .and_then(Value::as_u64)
@@ -878,7 +906,11 @@ fn source_class_diversity_min(policy: &Value, query: &str) -> usize {
     )
 }
 
-fn evidence_pack_quality_report(policy: &Value, evidence_pack: &Value, evidence_coverage: &Value) -> Value {
+fn evidence_pack_quality_report(
+    policy: &Value,
+    evidence_pack: &Value,
+    evidence_coverage: &Value,
+) -> Value {
     let min_usable = policy_usize_at(
         policy,
         "/batch_query/evidence_pack_quality/min_usable_items",
@@ -895,6 +927,8 @@ fn evidence_pack_quality_report(policy: &Value, evidence_pack: &Value, evidence_
     );
     let mut usable_count = 0usize;
     let mut low_confidence_count = 0usize;
+    let mut content_rich_count = 0usize;
+    let mut claim_hint_count = 0usize;
     let mut domains = HashSet::<String>::new();
     let mut source_classes = HashSet::<String>::new();
     if let Some(rows) = evidence_pack.as_array() {
@@ -908,6 +942,27 @@ fn evidence_pack_quality_report(policy: &Value, evidence_pack: &Value, evidence_
             } else {
                 usable_count += 1;
             }
+            if row
+                .get("snippet")
+                .and_then(Value::as_str)
+                .map(content_rich_text)
+                .unwrap_or(false)
+            {
+                content_rich_count += 1;
+            }
+            claim_hint_count += row
+                .get("claim_hints")
+                .and_then(Value::as_array)
+                .map(|rows| {
+                    rows.iter()
+                        .filter(|row| {
+                            row.as_str()
+                                .map(|raw| !raw.trim().is_empty())
+                                .unwrap_or(false)
+                        })
+                        .count()
+                })
+                .unwrap_or(0);
             let domain = clean_text(
                 row.get("source_domain")
                     .or_else(|| row.get("source_scope"))
@@ -920,7 +975,9 @@ fn evidence_pack_quality_report(policy: &Value, evidence_pack: &Value, evidence_
                 domains.insert(domain);
             }
             let source_class = clean_text(
-                row.get("source_class").and_then(Value::as_str).unwrap_or(""),
+                row.get("source_class")
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
                 120,
             )
             .to_ascii_lowercase();
@@ -945,7 +1002,12 @@ fn evidence_pack_quality_report(policy: &Value, evidence_pack: &Value, evidence_
         "absent"
     } else if usable_count == 0 {
         "low_confidence_only"
-    } else if usable_count < min_usable || domains.len() < min_domains || missing_facets > 0 {
+    } else if usable_count < min_usable
+        || domains.len() < min_domains
+        || missing_facets > 0
+        || content_rich_count == 0
+        || claim_hint_count == 0
+    {
         "thin"
     } else {
         "usable"
@@ -956,13 +1018,17 @@ fn evidence_pack_quality_report(policy: &Value, evidence_pack: &Value, evidence_
         "item_count": item_count,
         "usable_count": usable_count,
         "low_confidence_count": low_confidence_count,
+        "content_rich_item_count": content_rich_count,
+        "claim_hint_count": claim_hint_count,
         "source_domain_count": domains.len(),
         "source_class_count": source_classes.len(),
         "missing_facet_count": missing_facets,
         "weak_facet_count": weak_facets,
         "thresholds": {
             "min_usable_items": min_usable,
-            "min_source_domains": min_domains
+            "min_source_domains": min_domains,
+            "min_content_rich_items": 1,
+            "min_claim_hint_items": 1
         },
         "synthesis_boundary": "quality metadata is calibration context, not citable evidence or final answer structure"
     })
@@ -980,7 +1046,9 @@ fn source_class_coverage_from_evidence_pack(
     if let Some(rows) = evidence_pack.as_array() {
         for row in rows {
             let source_class = clean_text(
-                row.get("source_class").and_then(Value::as_str).unwrap_or("general_web"),
+                row.get("source_class")
+                    .and_then(Value::as_str)
+                    .unwrap_or("general_web"),
                 120,
             )
             .to_ascii_lowercase();
@@ -1347,8 +1415,7 @@ fn fallback_link_score(query: &str, link: &str) -> f64 {
         .next()
         .unwrap_or_default()
         .to_ascii_lowercase();
-    if domain.is_empty() || is_search_engine_domain(&domain) || contains_web_junk_marker(&lowered)
-    {
+    if domain.is_empty() || is_search_engine_domain(&domain) || contains_web_junk_marker(&lowered) {
         return -1.0;
     }
     let mut score: f64 = 0.0;
@@ -1407,7 +1474,11 @@ fn ranked_payload_links_for_fallback_with_min_score(
         .collect::<Vec<_>>()
 }
 
-fn ranked_payload_links_for_fallback(query: &str, payload: &Value, max_links: usize) -> Vec<String> {
+fn ranked_payload_links_for_fallback(
+    query: &str,
+    payload: &Value,
+    max_links: usize,
+) -> Vec<String> {
     ranked_payload_links_for_fallback_with_min_score(query, payload, max_links, -1.0)
 }
 
@@ -1417,6 +1488,24 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
         let lowered = clean_text(failure, 320).to_ascii_lowercase();
         if lowered.contains("anti_bot_challenge") {
             flags.push("anti_bot_filtered".to_string());
+        }
+        if lowered.contains("needs_js") || lowered.contains("javascript required") {
+            flags.push("needs_js".to_string());
+        }
+        if lowered.contains("rate_limited")
+            || lowered.contains("rate limit")
+            || lowered.contains("http_429")
+            || lowered.contains("429")
+        {
+            flags.push("rate_limited".to_string());
+        }
+        if lowered.contains("access denied")
+            || lowered.contains("403")
+            || lowered.contains("login required")
+            || lowered.contains("subscription")
+            || lowered.contains("region block")
+        {
+            flags.push("access_denied".to_string());
         }
         if lowered.contains("junk_page") {
             flags.push("junk_filtered".to_string());
@@ -1451,9 +1540,233 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
     flags
 }
 
+fn text_has_any_marker(text: &str, markers: &[&str]) -> bool {
+    markers.iter().any(|marker| text.contains(*marker))
+}
+
+fn blocker_taxonomy_row(
+    class: &str,
+    present: bool,
+    retryable: bool,
+    recommended_next_capability: &str,
+    evidence_impact: &str,
+) -> Value {
+    json!({
+        "class": class,
+        "present": present,
+        "retryable": retryable,
+        "recommended_next_capability": recommended_next_capability,
+        "evidence_impact": evidence_impact
+    })
+}
+
+fn browser_materialization_blocker_taxonomy(
+    flags: &[String],
+    partial_failures: &[String],
+) -> Value {
+    let combined = partial_failures
+        .iter()
+        .map(|failure| clean_text(failure, 320).to_ascii_lowercase())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let has_flag = |needle: &str| flags.iter().any(|flag| flag == needle);
+    let anti_bot = has_flag("anti_bot_filtered")
+        || text_has_any_marker(
+            &combined,
+            &[
+                "captcha",
+                "cloudflare",
+                "verify you are human",
+                "checking your browser",
+                "bot wall",
+                "cf-challenge",
+            ],
+        );
+    let needs_js = has_flag("needs_js")
+        || text_has_any_marker(
+            &combined,
+            &["needs_js", "javascript required", "please enable javascript"],
+        );
+    let rate_limited = has_flag("rate_limited")
+        || text_has_any_marker(&combined, &["rate limit", "rate_limited", "http_429", "429"]);
+    let access_denied = has_flag("access_denied")
+        || text_has_any_marker(
+            &combined,
+            &[
+                "access denied",
+                "403",
+                "forbidden",
+                "login required",
+                "subscribe to continue",
+                "region block",
+            ],
+        );
+    let provider_degraded = has_flag("provider_degraded") || has_flag("provider_timeout");
+    let content_materialization_missing =
+        has_flag("content_rich_evidence_missing") || has_flag("claim_hints_missing");
+    let off_intent_noise = has_flag("low_relevance_filtered")
+        || has_flag("query_result_mismatch")
+        || has_flag("junk_filtered");
+    let low_signal = has_flag("low_signal") || has_flag("insufficient_evidence");
+    let classes = vec![
+        blocker_taxonomy_row(
+            "anti_bot_challenge",
+            anti_bot,
+            true,
+            "browser_materialize_page_when_policy_allows",
+            "raw blocker page is not evidence",
+        ),
+        blocker_taxonomy_row(
+            "needs_js",
+            needs_js,
+            true,
+            "browser_materialize_page_when_policy_allows",
+            "static result may be shell-only",
+        ),
+        blocker_taxonomy_row(
+            "rate_limited",
+            rate_limited,
+            true,
+            "retry_or_alternate_provider",
+            "provider returned throttling signal",
+        ),
+        blocker_taxonomy_row(
+            "access_denied",
+            access_denied,
+            false,
+            "alternate_source_or_permission_boundary",
+            "denied page is not evidence",
+        ),
+        blocker_taxonomy_row(
+            "provider_degraded",
+            provider_degraded,
+            true,
+            "alternate_provider_or_runtime_repair",
+            "provider health limits evidence confidence",
+        ),
+        blocker_taxonomy_row(
+            "content_materialization_missing",
+            content_materialization_missing,
+            true,
+            "browser_materialize_page_when_policy_allows",
+            "candidate exists but extracted content is too thin",
+        ),
+        blocker_taxonomy_row(
+            "off_intent_noise",
+            off_intent_noise,
+            true,
+            "refine_query_pack_or_filter_terms",
+            "lexical overlap did not produce relevant evidence",
+        ),
+        blocker_taxonomy_row(
+            "low_signal",
+            low_signal,
+            true,
+            "refine_query_pack_or_alternate_provider",
+            "retrieval produced insufficient citable signal",
+        ),
+    ];
+    let primary = classes
+        .iter()
+        .find(|row| row.get("present").and_then(Value::as_bool) == Some(true))
+        .and_then(|row| row.get("class").and_then(Value::as_str))
+        .unwrap_or("none");
+    json!({
+        "version": "web_blocker_taxonomy_v1",
+        "primary_class": primary,
+        "classes": classes,
+        "decision_authority": "tool_diagnostics_and_policy",
+        "chat_visibility": "telemetry_only_until_synthesized"
+    })
+}
+
+fn browser_materialization_recovery_report(
+    flags: &[String],
+    partial_failures: &[String],
+    retry_reason: &str,
+    blocker_taxonomy: &Value,
+) -> Value {
+    let combined_failures = partial_failures
+        .iter()
+        .map(|failure| clean_text(failure, 320).to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    let has_access_or_render_blocker = flags.iter().any(|flag| {
+        matches!(
+            flag.as_str(),
+            "anti_bot_filtered"
+                | "content_rich_evidence_missing"
+                | "claim_hints_missing"
+                | "provider_degraded"
+        )
+    }) || combined_failures.iter().any(|failure| {
+        [
+            "captcha",
+            "cloudflare",
+            "verify you are human",
+            "checking your browser",
+            "needs_js",
+            "javascript required",
+            "bot wall",
+            "waf",
+            "access denied",
+            "request blocked",
+        ]
+        .iter()
+        .any(|marker| failure.contains(marker))
+    });
+    let attempted = combined_failures
+        .iter()
+        .any(|failure| failure.contains("browser_materialization_attempted"));
+    let recommended_when_policy_allows =
+        has_access_or_render_blocker && retry_reason != "none" && !attempted;
+    let reason = if attempted {
+        "already_attempted"
+    } else if recommended_when_policy_allows {
+        retry_reason
+    } else {
+        "not_needed_or_not_observed"
+    };
+    let blocker_class = blocker_taxonomy
+        .get("primary_class")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    json!({
+        "version": "browser_materialization_recovery_v1",
+        "capability": "browser_materialize_page",
+        "blocker_class": blocker_class,
+        "decision_authority": "tool_cd_and_gateway_policy",
+        "chat_visibility": "telemetry_only",
+        "recommended_when_policy_allows": recommended_when_policy_allows,
+        "attempted": attempted,
+        "availability": "not_observed_in_batch_query",
+        "availability_source": "web_conduit_status_or_tool_cd",
+        "reason": reason,
+        "guardrails": [
+            "not_default_search",
+            "public_http_https_only",
+            "ssrf_and_redirect_safety_required",
+            "no_proxy_or_persistent_session_without_separate_admission"
+        ],
+        "evidence_handoff": {
+            "target_lane": "candidate_enrichment",
+            "promotion_requires": [
+                "safe_final_url",
+                "substantive_main_text",
+                "query_relevance",
+                "not_blocker_shell"
+            ],
+            "raw_payload_chat_visible": false,
+            "browser_success_is_not_source_truth_without_evidence_packaging": true
+        }
+    })
+}
+
 fn strong_evidence_available(query: &str, actionable_ranked: &[(Candidate, f64)]) -> bool {
     actionable_ranked.iter().any(|(candidate, score)| {
         if *score < 0.75 || candidate_is_low_confidence_retained(candidate) {
+            return false;
+        }
+        if !content_rich_text(&candidate.snippet) {
             return false;
         }
         let flags = candidate_quality_flags(query, candidate, *score);
@@ -1474,11 +1787,8 @@ fn potential_source_conflict(actionable_ranked: &[(Candidate, f64)]) -> bool {
     let mut positive_claim = false;
     let mut limiting_claim = false;
     for (candidate, _) in actionable_ranked {
-        let text = clean_text(
-            &format!("{} {}", candidate.title, candidate.snippet),
-            1_600,
-        )
-        .to_ascii_lowercase();
+        let text = clean_text(&format!("{} {}", candidate.title, candidate.snippet), 1_600)
+            .to_ascii_lowercase();
         positive_claim |= [
             "best",
             "better",
@@ -1530,6 +1840,38 @@ fn web_tool_quality_report(
         .any(|(candidate, _)| candidate_is_low_confidence_retained(candidate))
     {
         flags.push("low_confidence_raw_evidence".to_string());
+    }
+    let content_rich_candidate_count = actionable_ranked
+        .iter()
+        .filter(|(candidate, _)| content_rich_text(&candidate.snippet))
+        .count();
+    let claim_hint_count = actionable_ranked
+        .iter()
+        .map(|(candidate, _)| evidence_pack_claim_hints(query, &candidate.snippet, 2).len())
+        .sum::<usize>();
+    if evidence_count > 0 && content_rich_candidate_count == 0 {
+        flags.push("content_rich_evidence_missing".to_string());
+    }
+    if evidence_count > 0 && claim_hint_count == 0 {
+        flags.push("claim_hints_missing".to_string());
+    }
+    if status == "ok"
+        && evidence_count > 0
+        && claim_hint_count > 0
+        && hard_partial_failures.is_empty()
+        && !flags.iter().any(|flag| {
+            matches!(
+                flag.as_str(),
+                "anti_bot_filtered"
+                    | "needs_js"
+                    | "rate_limited"
+                    | "access_denied"
+                    | "provider_degraded"
+                    | "insufficient_evidence"
+            )
+        })
+    {
+        flags.retain(|flag| flag != "low_signal");
     }
     let mut domains = HashSet::<String>::new();
     for (candidate, _) in actionable_ranked {
@@ -1616,6 +1958,12 @@ fn web_tool_quality_report(
     missing_buckets.dedup();
     let retry_reason = if flags.iter().any(|flag| flag == "anti_bot_filtered") {
         "anti_bot_filtered"
+    } else if flags.iter().any(|flag| flag == "needs_js") {
+        "needs_js"
+    } else if flags.iter().any(|flag| flag == "rate_limited") {
+        "rate_limited"
+    } else if flags.iter().any(|flag| flag == "access_denied") {
+        "access_denied"
     } else if flags.iter().any(|flag| flag == "provider_degraded") {
         "provider_degraded"
     } else if flags.iter().any(|flag| flag == "insufficient_evidence") {
@@ -1632,6 +1980,13 @@ fn web_tool_quality_report(
     } else {
         "none"
     };
+    let blocker_taxonomy = browser_materialization_blocker_taxonomy(&flags, partial_failures);
+    let browser_materialization = browser_materialization_recovery_report(
+        &flags,
+        partial_failures,
+        retry_reason,
+        &blocker_taxonomy,
+    );
     json!({
         "version": web_tool_quality_version(),
         "status": status,
@@ -1648,7 +2003,11 @@ fn web_tool_quality_report(
             "current_intent": current_web_intent(query),
             "current_year": current_year()
         },
+        "content_rich_candidate_count": content_rich_candidate_count,
+        "claim_hint_count": claim_hint_count,
         "candidate_quality": candidate_quality,
+        "blocker_taxonomy": blocker_taxonomy,
+        "browser_materialization": browser_materialization,
         "synthesis_contract": {
             "authority": "agent_authored",
             "must_not_claim_more_than_evidence": true,

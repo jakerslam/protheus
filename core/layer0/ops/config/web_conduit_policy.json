@@ -26,6 +26,118 @@
     "fetch_provider_order": [
       "direct_http"
     ],
+    "browser_materialization": {
+      "enabled": false,
+      "provider_order": [
+        "local_browser"
+      ],
+      "requires_explicit_admission": true,
+      "permission_class": "public_web_dynamic_read",
+      "default_timeout_ms": 30000,
+      "max_response_bytes": 350000,
+      "request_contract": {
+        "required_fields": [
+          "url",
+          "admission_ref"
+        ],
+        "optional_fields": [
+          "request_id",
+          "extract_mode",
+          "wait_until",
+          "wait_for_selector",
+          "timeout_ms",
+          "max_response_bytes",
+          "profile_ref",
+          "evidence_gap_reason"
+        ],
+        "denied_fields": [
+          "browser_args",
+          "launch_args",
+          "cdp_command",
+          "user_script",
+          "proxy",
+          "proxy_url",
+          "proxy_credentials",
+          "session_id",
+          "storage_state",
+          "local_file"
+        ]
+      },
+      "profile_contract": {
+        "profile_source": "tool_cd_policy",
+        "default_profile": "stateless_public_materialization",
+        "state_scope": "stateless",
+        "proxy_capability_required": true,
+        "persistent_session_capability_required": true,
+        "caller_override_allowed": false,
+        "denied_launch_args": [
+          "--remote-debugging-port",
+          "--disable-web-security",
+          "--ignore-certificate-errors",
+          "--allow-file-access-from-files",
+          "--load-extension"
+        ],
+        "telemetry_fields": [
+          "profile_ref",
+          "state_scope",
+          "effective_profile_hash",
+          "denied_option_count"
+        ]
+      },
+      "smart_wait": {
+        "enabled": true,
+        "dom_stable_ms": 1500,
+        "max_settle_ms": 15000
+      },
+      "security": {
+        "allowed_schemes": [
+          "http",
+          "https"
+        ],
+        "reject_url_credentials": true,
+        "block_private_network_targets": true,
+        "revalidate_final_url_after_navigation": true,
+        "reject_caller_supplied_browser_args": true,
+        "max_redirects": 8,
+        "url_safety_status_values": [
+          "allowed",
+          "scheme_blocked",
+          "private_network_blocked",
+          "redirect_target_blocked",
+          "credentials_redacted",
+          "invalid_url"
+        ]
+      },
+      "output_contract": {
+        "fields": [
+          "source_url",
+          "final_url",
+          "status_code",
+          "title",
+          "main_text_or_markdown",
+          "links_summary",
+          "blocker_classification",
+          "extraction_confidence",
+          "artifact_ref"
+        ],
+        "chat_visible": false
+      },
+      "evidence_handoff": {
+        "target_lane": "candidate_enrichment",
+        "promotion_requires": [
+          "safe_final_url",
+          "substantive_main_text",
+          "query_relevance",
+          "not_blocker_shell"
+        ],
+        "confidence_values": [
+          "usable",
+          "low_confidence_raw",
+          "rejected"
+        ],
+        "raw_payload_chat_visible": false
+      }
+    },
     "native_codex_web_search": {
       "enabled": false,
       "mode": "cached",

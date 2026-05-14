@@ -29,6 +29,9 @@
       "tool_result_quality.retry.reason",
       "tool_result_quality.retry.next_action",
       "tool_result_quality.retry.query_strategy_hints",
+      "tool_result_quality.browser_materialization.recommended_when_policy_allows",
+      "tool_result_quality.browser_materialization.attempted",
+      "tool_result_quality.browser_materialization.reason",
       "tool_result_quality.coverage.bucket_status",
       "tool_result_quality.coverage.missing_buckets",
       "retrieval_broker.version",
@@ -310,6 +313,40 @@
           "side_effects": "network_read_only",
           "profile_support": ["default", "worktree"],
           "adapter_ref": "core/layer0/ops:web_conduit.fetch.direct_http"
+        },
+        {
+          "provider_id": "browser_materialize_page",
+          "lane_support": ["candidate_enrichment"],
+          "input_schema_ref": "web_research.browser_materialization_request.v1",
+          "output_schema_ref": "web_research.browser_materialized_page.v1",
+          "capabilities": [
+            "dynamic_page_materialization",
+            "javascript_rendered_content",
+            "anti_bot_or_throttle_diagnostics",
+            "blocker_classification",
+            "smart_dom_settle_wait"
+          ],
+          "cost_budget": "optional_browser_runtime_read",
+          "failure_modes": [
+            "capability_not_enabled",
+            "adapter_not_ready",
+            "ssrf_blocked",
+            "redirect_target_blocked",
+            "unsafe_caller_args_rejected",
+            "navigation_timeout",
+            "browser_blocked",
+            "content_too_thin"
+          ],
+          "side_effects": "network_read_only_browser_runtime",
+          "profile_support": ["worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.browser_materialize_page",
+          "admission": {
+            "default_enabled": false,
+            "requires_explicit_admission": true,
+            "permission_class": "public_web_dynamic_read",
+            "proxy_support": "not_admitted_without_separate_proxy_capability",
+            "persistent_session_support": "not_admitted_without_separate_session_capability"
+          }
         }
       ],
       "broker_report_fields": [
@@ -321,6 +358,162 @@
         "retrieval_broker.tool_result_quality_flags"
       ],
       "synthesis_boundary": "The broker report calibrates what happened and what remains weak; it does not prescribe visible answer structure, phrasing, or source conclusions."
+    },
+    "browser_materialization_capability_contract": {
+      "version": "browser_materialization_capability_v0",
+      "source_pattern": "cloakbrowser_gated_browser_materialization",
+      "authority": "tool_cd_declares_capability_runtime_must_admit_before_execution",
+      "purpose": "Provide an optional, measured page-materialization recovery lane when ordinary search/fetch providers are blocked, throttled, JavaScript-dependent, or too thin for synthesis.",
+      "default_enabled": false,
+      "trigger_signals": [
+        "anti_bot_challenge",
+        "throttle_or_rate_limit",
+        "access_blocked",
+        "needs_js",
+        "content_materialization_missing",
+        "candidate_snippet_relevant_but_thin"
+      ],
+      "request_contract": {
+        "required_fields": ["url", "admission_ref"],
+        "optional_fields": [
+          "request_id",
+          "extract_mode",
+          "wait_until",
+          "wait_for_selector",
+          "timeout_ms",
+          "max_response_bytes",
+          "profile_ref",
+          "evidence_gap_reason"
+        ],
+        "denied_fields": [
+          "browser_args",
+          "launch_args",
+          "cdp_command",
+          "user_script",
+          "proxy",
+          "proxy_url",
+          "proxy_credentials",
+          "session_id",
+          "storage_state",
+          "local_file"
+        ],
+        "caller_controlled_browser_args_allowed": false,
+        "proxy_fields_allowed": false,
+        "persistent_session_fields_allowed": false,
+        "raw_cdp_commands_allowed": false,
+        "arbitrary_user_scripts_allowed": false
+      },
+      "profile_contract": {
+        "source_pattern": "cloakbrowser_launch_profile_compiler",
+        "profile_source": "tool_cd_policy",
+        "default_profile": "stateless_public_materialization",
+        "state_scope": "stateless",
+        "caller_override_allowed": false,
+        "proxy_capability_required": true,
+        "persistent_session_capability_required": true,
+        "compile_before_adapter_launch": true,
+        "normalize_or_reject_context_conflicts": true,
+        "denied_launch_args": [
+          "--remote-debugging-port",
+          "--disable-web-security",
+          "--ignore-certificate-errors",
+          "--allow-file-access-from-files",
+          "--load-extension"
+        ],
+        "telemetry_fields": [
+          "profile_ref",
+          "state_scope",
+          "effective_profile_hash",
+          "denied_option_count"
+        ],
+        "raw_launch_args_chat_visible": false
+      },
+      "security_contract": {
+        "allowed_schemes": ["http", "https"],
+        "reject_url_credentials": true,
+        "block_private_network_targets": true,
+        "revalidate_final_url_after_navigation": true,
+        "max_redirects": 8,
+        "reject_caller_supplied_browser_args": true,
+        "redact_raw_browser_trace_from_chat": true,
+        "url_safety_status_values": [
+          "allowed",
+          "scheme_blocked",
+          "private_network_blocked",
+          "redirect_target_blocked",
+          "credentials_redacted",
+          "invalid_url"
+        ]
+      },
+      "output_contract": {
+        "chat_visible": false,
+        "fields": [
+          "source_url",
+          "final_url",
+          "status_code",
+          "title",
+          "main_text_or_markdown",
+          "links_summary",
+          "blocker_classification",
+          "extraction_confidence",
+          "artifact_ref"
+        ]
+      },
+      "blocker_taxonomy": {
+        "source_pattern": "cloakbrowser_blocker_classification",
+        "classes": [
+          "anti_bot_challenge",
+          "needs_js",
+          "rate_limited",
+          "access_denied",
+          "provider_degraded",
+          "content_materialization_missing",
+          "off_intent_noise",
+          "low_signal"
+        ],
+        "classification_output_fields": [
+          "blocker_class",
+          "retryable",
+          "recommended_next_capability",
+          "evidence_impact",
+          "telemetry_summary"
+        ],
+        "chat_visibility": "telemetry_only_until_synthesized"
+      },
+      "evidence_handoff_contract": {
+        "target_lane": "candidate_enrichment",
+        "source_pattern": "browser_materialized_page_to_evidence_pack",
+        "promotion_requires": [
+          "safe_final_url",
+          "substantive_main_text",
+          "query_relevance",
+          "not_blocker_shell"
+        ],
+        "confidence_values": ["usable", "low_confidence_raw", "rejected"],
+        "evidence_item_marks": ["browser_enriched"],
+        "raw_payload_chat_visible": false,
+        "browser_success_is_not_source_truth_without_packaging": true
+      },
+      "readiness_lifecycle_contract": {
+        "states": [
+          "not_configured",
+          "not_installed",
+          "version_mismatch",
+          "ready",
+          "degraded",
+          "blocked",
+          "cleanup_required"
+        ],
+        "default_state": "not_configured",
+        "ordinary_research_may_install_dependency": false,
+        "cleanup_tied_to_system_cleanup": true
+      },
+      "non_goals": [
+        "do_not_make_browser_materialization_default_search",
+        "do_not_expose_raw_cdp_or_browser_traces_to_chat",
+        "do_not_add_proxy_rotation_or_persistent_profiles_without_separate_admission",
+        "do_not_treat_browser_success_as source_truth_without_evidence_packaging"
+      ]
     },
     "progressive_retrieval_contract": {
       "authority": "tool_cd_declares_strategy_rust_executes_without_domain_routes",

@@ -148,9 +148,114 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
     })
 }
 
+fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Value {
+    let config = policy
+        .pointer("/web_conduit/browser_materialization")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let enabled = config
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let selected_provider = config
+        .get("provider_order")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.first())
+        .and_then(Value::as_str)
+        .map(|raw| clean_text(raw, 80))
+        .filter(|raw| !raw.is_empty())
+        .unwrap_or_else(|| "local_browser".to_string());
+    let adapter_ready = enabled
+        && config
+            .get("adapter_ready")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+    let status = if !enabled {
+        "unavailable"
+    } else if adapter_ready {
+        "ready"
+    } else {
+        "degraded"
+    };
+    let blocking_reason = if !enabled {
+        "capability_not_enabled"
+    } else if adapter_ready {
+        "none"
+    } else {
+        "adapter_not_ready"
+    };
+    let execution_gate = if !enabled {
+        json!({
+            "should_execute": false,
+            "mode": "blocked",
+            "reason": "capability_not_enabled",
+            "retry_recommended": false,
+            "retry_lane": "none"
+        })
+    } else {
+        runtime_web_execution_gate(status, adapter_ready, false, blocking_reason)
+    };
+    let diagnostics = if enabled && !adapter_ready {
+        vec![runtime_diagnostic(
+            "WEB_BROWSER_MATERIALIZATION_ADAPTER_NOT_READY",
+            "browser materialization is policy-enabled but no admitted browser adapter is ready; search/fetch providers remain the default path.".to_string(),
+            "/web_conduit/browser_materialization",
+        )]
+    } else {
+        Vec::new()
+    };
+    json!({
+        "enabled": enabled,
+        "selected_provider": selected_provider,
+        "provider_source": "policy",
+        "permission_class": config
+            .get("permission_class")
+            .and_then(Value::as_str)
+            .unwrap_or("public_web_dynamic_read"),
+        "requires_explicit_admission": config
+            .get("requires_explicit_admission")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "tool_surface_health": {
+            "status": status,
+            "selected_provider_ready": adapter_ready,
+            "selected_provider_requires_credential": false,
+            "selected_provider_credential_state": "not_required",
+            "blocking_reason": blocking_reason,
+            "available_provider_count": 1,
+            "diagnostic_count": diagnostics.len()
+        },
+        "execution_gate": execution_gate,
+        "capability_contract": {
+            "capability_id": "browser_materialize_page",
+            "optional_capability": true,
+            "chat_visibility": "hidden_until_synthesized",
+            "security": config.get("security").cloned().unwrap_or_else(|| json!({})),
+            "output_contract": config.get("output_contract").cloned().unwrap_or_else(|| json!({})),
+            "request_contract": config.get("request_contract").cloned().unwrap_or_else(|| json!({})),
+            "profile_contract": config.get("profile_contract").cloned().unwrap_or_else(|| json!({})),
+            "evidence_handoff": config.get("evidence_handoff").cloned().unwrap_or_else(|| json!({})),
+            "readiness_lifecycle": {
+                "state": if !enabled {
+                    "not_configured"
+                } else if adapter_ready {
+                    "ready"
+                } else {
+                    "not_installed"
+                },
+                "ordinary_research_may_install_dependency": false,
+                "cleanup_tied_to_system_cleanup": true
+            },
+            "state_path": runtime_web_tools_state_path(root).display().to_string()
+        },
+        "diagnostics": diagnostics
+    })
+}
+
 pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
     let search = runtime_web_family_metadata(root, policy, WebProviderFamily::Search);
     let fetch = runtime_web_family_metadata(root, policy, WebProviderFamily::Fetch);
+    let browser_materialization = runtime_browser_materialization_metadata(root, policy);
     let image_tool = image_tool_runtime_resolution_snapshot(root, policy, &json!({}));
     let search_status = search
         .pointer("/tool_surface_health/status")
@@ -168,11 +273,27 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
         .pointer("/tool_surface_health/selected_provider_ready")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let browser_materialization_status = browser_materialization
+        .pointer("/tool_surface_health/status")
+        .and_then(Value::as_str)
+        .unwrap_or("unavailable");
+    let browser_materialization_ready = browser_materialization
+        .pointer("/tool_surface_health/selected_provider_ready")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let browser_materialization_enabled = browser_materialization
+        .get("enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let search_execution_gate = search
         .get("execution_gate")
         .cloned()
         .unwrap_or_else(default_runtime_web_execution_gate);
     let fetch_execution_gate = fetch
+        .get("execution_gate")
+        .cloned()
+        .unwrap_or_else(default_runtime_web_execution_gate);
+    let browser_materialization_execution_gate = browser_materialization
         .get("execution_gate")
         .cloned()
         .unwrap_or_else(default_runtime_web_execution_gate);
@@ -183,10 +304,18 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
         || fetch_execution_gate
             .get("should_execute")
             .and_then(Value::as_bool)
+            .unwrap_or(false)
+        || browser_materialization_execution_gate
+            .get("should_execute")
+            .and_then(Value::as_bool)
             .unwrap_or(false);
     let overall_status = if search_status == "unavailable" || fetch_status == "unavailable" {
         "unavailable"
+    } else if browser_materialization_enabled && browser_materialization_status == "unavailable" {
+        "unavailable"
     } else if search_status == "degraded" || fetch_status == "degraded" {
+        "degraded"
+    } else if browser_materialization_enabled && browser_materialization_status == "degraded" {
         "degraded"
     } else {
         "ready"
@@ -206,6 +335,14 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
                 .cloned(),
         )
         .chain(
+            browser_materialization
+                .get("diagnostics")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .cloned(),
+        )
+        .chain(
             image_tool
                 .get("diagnostics")
                 .and_then(Value::as_array)
@@ -217,6 +354,7 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
     let metadata = json!({
         "search": search,
         "fetch": fetch,
+        "browser_materialization": browser_materialization,
         "image_tool": image_tool,
         "openclaw_web_tools_contract": {
             "exports": runtime_web_tools_exports_contract(),
@@ -227,12 +365,15 @@ pub(crate) fn runtime_web_tools_snapshot(root: &Path, policy: &Value) -> Value {
             "status": overall_status,
             "search_status": search_status,
             "fetch_status": fetch_status,
+            "browser_materialization_status": browser_materialization_status,
             "search_ready": search_ready,
-            "fetch_ready": fetch_ready
+            "fetch_ready": fetch_ready,
+            "browser_materialization_ready": browser_materialization_ready
         },
         "tool_execution_gate": {
             "search": search_execution_gate,
             "fetch": fetch_execution_gate,
+            "browser_materialization": browser_materialization_execution_gate,
             "overall_should_execute": overall_should_execute,
             "overall_mode": if overall_should_execute { "allow_any" } else { "blocked_all" }
         },
