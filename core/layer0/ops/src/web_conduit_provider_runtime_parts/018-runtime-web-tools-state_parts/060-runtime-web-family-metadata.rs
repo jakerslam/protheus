@@ -188,8 +188,21 @@ fn browser_materialization_profile_compilation_contract(
             "launch_args",
             "args",
             "stealthArgs",
+            "stealth_args",
             "extra_args",
             "_strategy_args",
+            "ignoreDefaultArgs",
+            "ignore_default_args",
+            "binary_path",
+            "binaryPath",
+            "download_url",
+            "downloadUrl",
+            "cache_dir",
+            "cacheDir",
+            "chromium_version",
+            "chromiumVersion",
+            "fingerprint_seed",
+            "fingerprintSeed",
             "backend",
             "browser_backend",
             "browserBackend",
@@ -394,6 +407,26 @@ fn browser_materialization_profile_compilation_contract(
                 "direct_timezone_alias_fields_allowed": false,
                 "raw_driver_instance_chat_visible": false,
                 "raw_profile_path_chat_visible": false
+            })),
+        "default_config_contract": profile_contract
+            .get("default_config_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "version": "browser_default_config_contract_v1",
+                "source_pattern": "cloakbrowser_python_config_defaults",
+                "platform_version_map_policy_owned": true,
+                "per_platform_version_selection_runtime_owned": true,
+                "ignored_default_args_policy_owned": true,
+                "caller_ignore_default_args_allowed": false,
+                "default_viewport_policy_owned": true,
+                "download_base_url_policy_owned": true,
+                "local_binary_override_env_allowed_only_operator_readiness": true,
+                "stealth_default_args_separate_capability_required": true,
+                "random_fingerprint_seed_not_ordinary_research": true,
+                "platform_spoofing_not_ordinary_research": true,
+                "latest_version_marker_platform_scoped": true,
+                "raw_version_marker_chat_visible": false,
+                "raw_download_url_chat_visible": false
             })),
         "argument_compiler": profile_contract
             .get("argument_compiler")

@@ -174,6 +174,21 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/default_config_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_python_config_defaults")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/default_config_contract/caller_ignore_default_args_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/default_config_contract/random_fingerprint_seed_not_ordinary_research")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_platform_version_cache_contract")
@@ -313,6 +328,9 @@
             ("contextOptions", json!({"locale": "en-US"})),
             ("args", json!(["--disable-web-security"])),
             ("stealthArgs", json!(false)),
+            ("ignoreDefaultArgs", json!(["--enable-automation"])),
+            ("download_url", json!("https://example.com/browser.tar.gz")),
+            ("fingerprintSeed", json!(12345)),
             ("backend", json!("puppeteer")),
             ("browserBackend", json!("playwright")),
             ("adapter_kind", json!("puppeteer")),

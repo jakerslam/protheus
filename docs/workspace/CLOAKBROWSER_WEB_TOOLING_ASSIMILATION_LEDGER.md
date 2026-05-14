@@ -143,6 +143,7 @@ all web research always uses stealth browser by default
 | `js/src/proxy.ts` | level 5 pass 008 integrated | Proxy URL parsing, credential separation, SOCKS adapter arg lane, credential encoding, bypass ownership, and redaction requirements. |
 | `js/src/geoip.ts` | level 5 pass 009 integrated | Proxy exit IP resolution, timezone/locale inference, bounded timeout, optional dependency behavior, WebRTC IP consistency. |
 | `js/src/puppeteer.ts` | level 5 pass 010 integrated | Cross-adapter launch parity, shared compiler/geo/proxy hooks, adapter-specific proxy auth patching, and humanize gate parity. |
+| `cloakbrowser/config.py` | level 5 pass 012 integrated | Python provider defaults, per-platform browser version map, ignored default args, default viewport, cache/download paths, version markers, and local binary override boundaries. |
 | `js/src/human/config.ts` | parsed | Centralized human interaction presets and action timing knobs. |
 | `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
 | `js/src/human/index.ts` | parsed | Method patching, isolated-world DOM reads, cursor state, trusted key dispatch support. |
@@ -245,6 +246,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-036` | integrated | medium | Complete Level 5 pass 009 for TypeScript GeoIP consistency. | Browser materialization geo/proxy consistency contract | `CLOAK-TASK-035` | Added future geo consistency metadata for timeout-bounded exit-IP lookup, policy-owned GeoIP cache lifecycle, no surprise GeoIP downloads, explicit profile precedence, unresolved WebRTC auto-IP removal, and raw exit-IP redaction. |
 | `CLOAK-TASK-037` | integrated | medium | Complete Level 5 pass 010 for TypeScript Puppeteer adapter parity. | Browser materialization cross-adapter contract | `CLOAK-TASK-036` | Added adapter parity metadata, denied direct backend/adapter selection fields, and required shared compiler/proxy/geo/human gates across future adapter families. |
 | `CLOAK-TASK-038` | integrated | medium | Complete Level 5 pass 011 for Python wrapper lifecycle. | Browser materialization lifecycle contract | `CLOAK-TASK-037` | Added wrapper lifecycle metadata for sync/async parity, driver cleanup, async cancellation cleanup, persistent profile separation, backend policy ownership, timezone alias normalization, and raw profile/driver redaction. |
+| `CLOAK-TASK-039` | integrated | medium | Complete Level 5 pass 012 for Python provider defaults. | Browser materialization default config contract | `CLOAK-TASK-038` | Added default config metadata for per-platform version selection, ignored default arg ownership, default viewport ownership, operator-only local binary/download hooks, fingerprint/stealth capability separation, and raw marker/download redaction. |
 
 ## Open Questions
 
@@ -704,3 +706,25 @@ Validation:
 Important boundary:
 
 This wave still does not add live browser execution, persistent sessions, backend switching, or humanized interaction. It only records the lifecycle contract any future explicit adapter must satisfy.
+
+## Assimilation Wave 21: Level 5 Default Config Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `cloakbrowser/config.py` as the syntax-level source of CloakBrowser's Python provider defaults, platform/version map, ignored default args, cache paths, download URLs, and local binary override behavior.
+- Preserved the useful primitive: provider defaults and readiness knobs are policy-owned metadata, not caller-owned request parameters.
+- Kept random fingerprint seeds, platform spoofing, ignored default args, local binary overrides, download URLs, cache roots, and version markers out of ordinary research authority.
+- Added fail-closed rejection for direct default/config aliases such as `ignoreDefaultArgs`, `download_url`, and `fingerprintSeed`.
+- Added mock-fast assertions for default config metadata and direct config field rejection.
+
+Validation:
+
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not add live browser execution, stealth defaults, local binary override, or any install/download behavior during ordinary research. It only records the policy contract for future explicit readiness/admission.

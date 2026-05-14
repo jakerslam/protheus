@@ -94,7 +94,7 @@ Status values:
 | 9 | `js/src/geoip.ts` | integrated: geo consistency pass 009 | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability contract, deferred. |
 | 10 | `js/src/puppeteer.ts` | integrated: adapter parity pass 010 | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
 | 11 | `cloakbrowser/browser.py` | integrated: wrapper lifecycle pass 011 | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime lifecycle contract. |
-| 12 | `cloakbrowser/config.py` | pending | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
+| 12 | `cloakbrowser/config.py` | integrated: default config pass 012 | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
 | 13 | `cloakbrowser/download.py` | pending | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
 | 14 | `cloakbrowser/geoip.py` | pending, deferred | What proxy-exit metadata is useful but permission-sensitive? | Proxy/geo capability, deferred. |
 | 15 | `bin/cloakserve` | mapped seed, deferred | Is CDP service pooling worth a future provider mode? | Service/pool capability, deferred. |
@@ -647,6 +647,50 @@ sync/async semantic parity
 -> persistent profiles require separate capability
 -> backend/env selection is policy-owned
 -> timezone aliases are normalized internally, not caller-owned
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 012: `cloakbrowser/config.py`
+
+Status: `integrated: default config contract`
+
+Source lines inspected: 1-238
+
+This file is useful because it separates provider defaults from launch execution: per-platform browser versions, ignored default browser args, generated stealth/fingerprint defaults, default viewport, platform support, cache roots, version markers, download URLs, and local binary overrides. For Infring, those defaults belong to policy/readiness metadata. They should not become caller request fields or chat-visible raw implementation detail.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 13-27, 87-90 | Browser version is platform-specific even when a display/reference version exists. | Platform version selection is runtime/provider owned; workflow sees readiness state, not raw version-map authority. | Integrated. |
+| 29-35 | Ignored default args suppress automation-sensitive browser defaults. | Ignored-default-arg choices are policy-owned; callers cannot supply `ignoreDefaultArgs`. | Integrated and denied. |
+| 40-62 | Default stealth args include random fingerprint seed and platform spoofing choices. | Stealth/fingerprint defaults require separate capability admission and are not ordinary research behavior. | Integrated as default config contract. |
+| 64-69 | Default viewport is centralized. | Viewport is a policy profile field, not direct caller authority. | Integrated. |
+| 74-104, 141-156 | Platform support and availability checks fail clearly before binary use. | Unsupported platforms become dependency/readiness state, not synthesis text or raw adapter errors. | Already integrated; confirmed by Python runtime. |
+| 109-138, 159-176 | Cache roots, binary paths, and platform-scoped latest-version markers are deterministic and policy-owned. | Cache and marker lifecycle stay internal; raw paths and markers are not chat-visible. | Integrated. |
+| 197-226, 233-238 | Download base URLs and local binary overrides are environment/config hooks. | Download URLs and local binary overrides belong to operator readiness, not ordinary user requests. | Integrated and denied. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `default_config_contract` metadata and denied caller fields for ignored defaults, binary/cache/download URLs, version, and fingerprint seed. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected default config metadata through runtime profile-compilation diagnostics. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` | Added config/default aliases to fail-closed caller-control rejection. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same default config contract and denied field aliases to the Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted default config metadata and direct `ignoreDefaultArgs`, `download_url`, and `fingerprintSeed` rejection. |
+
+### Pass 012 Outcome
+
+Default browser-provider config now has a precise contract without exposing config knobs to ordinary research:
+
+```text
+policy owns default config
+-> platform/version/cache/download details stay readiness metadata
+-> ignored default args are policy-owned
+-> random fingerprint and platform spoofing require separate capability
+-> raw binary/cache/download/version marker data stays out of chat
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
