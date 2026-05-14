@@ -152,6 +152,7 @@ all web research always uses stealth browser by default
 | `js/src/human/index.ts` | parsed | Method patching, isolated-world DOM reads, cursor state, trusted key dispatch support. |
 | `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
 | `tests/test_launch_context.py` | level 5 pass 018 integrated | Context option lane separation, policy-owned viewport/profile fields, locale/timezone CDP-emulation denial, storage-state capability boundary, and cleanup expectations. |
+| `tests/test_build_args.py` | level 5 pass 019 integrated | Argument compiler dedupe, dedicated field precedence, alias consumption, non-value flag admission, and WebRTC/fingerprint arg quarantine. |
 | `tests/test_proxy.py` | parsed | Proxy parsing and GeoIP behavior tests. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
@@ -257,6 +258,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-043` | integrated | medium | Complete Level 5 pass 016 for CDP service pool tests. | Browser materialization service/pool capability contract | `CLOAK-TASK-042` | Added metadata for workflow denial of generic fingerprint query params, explicit repeated-query policy, policy-owned service CLI/data-dir/headless/debug flags, remote-debugging passthrough stripping, and Gateway-owned WebSocket scheme resolution. |
 | `CLOAK-TASK-044` | integrated | medium | Complete Level 5 pass 017 for basic launch tests. | Browser materialization launch execution contract | `CLOAK-TASK-043` | Added metadata for admitted-adapter launch requirements, close-after-capture, sync/async parity, page navigation not becoming evidence before packaging, binary-info telemetry, handle quarantine, and fingerprint probe telemetry-only boundaries. |
 | `CLOAK-TASK-045` | integrated | medium | Complete Level 5 pass 018 for launch context tests. | Browser materialization context option contract | `CLOAK-TASK-044` | Added metadata for policy-owned viewport/user-agent/color-scheme lanes, locale/timezone CDP-emulation denial, proxy-gated GeoIP fills, generic context kwarg denial from workflows, and storage-state session capability requirements. |
+| `CLOAK-TASK-046` | integrated | medium | Complete Level 5 pass 019 for build-args tests. | Browser materialization argument compiler contract | `CLOAK-TASK-045` | Added metadata for single effective flag per key, dedicated locale/timezone precedence, policy admission for non-value flags, timezone alias consumption, raw fingerprint/WebRTC arg denial, admitted proxy exit-IP dependency, and raw WebRTC IP redaction. |
 
 ## Open Questions
 
@@ -875,3 +877,26 @@ Validation:
 Important boundary:
 
 This wave still does not enable raw Playwright context option passthrough, persistent storage state, GeoIP/proxy behavior, or locale/timezone spoofing from user/workflow request fields.
+
+## Assimilation Wave 28: Level 5 Argument Compiler Test Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `tests/test_build_args.py` as the syntax-level source of timezone/locale injection, alias resolution, argument deduplication, dedicated-field precedence, non-value flag preservation, debug override logging, and WebRTC IP flag resolution.
+- Preserved the useful primitive: browser launch arguments must compile from policy/profile state into one effective flag per key before adapter launch.
+- Kept unsafe portability boundaries intact: ordinary workflows cannot pass raw fingerprint args, raw WebRTC IP args, arbitrary non-value flags, or hidden browser args.
+- Added argument compiler metadata for single-effective-flag enforcement, dedicated locale/timezone precedence, policy admission for non-value flags, timezone alias consumption before context kwargs, admitted proxy exit-IP requirements for WebRTC auto resolution, unresolved-auto removal, and raw WebRTC IP redaction.
+- Kept override/debug traces telemetry-only.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable raw browser argument passthrough, fingerprint spoofing, WebRTC IP spoofing, proxy use, or live browser execution.

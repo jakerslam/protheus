@@ -547,6 +547,15 @@ fn browser_materialization_profile_compilation_contract(
                 ],
                 "caller_supplied_args_allowed": false,
                 "dedicated_profile_fields_override_default_args": true,
+                "single_effective_flag_per_key_required": true,
+                "dedicated_locale_timezone_fields_override_compiled_args": true,
+                "non_value_flags_must_be_policy_admitted": true,
+                "timezone_alias_consumed_before_context_kwargs": true,
+                "raw_fingerprint_args_allowed_from_workflow": false,
+                "raw_webrtc_ip_arg_allowed_from_workflow": false,
+                "webrtc_auto_resolution_requires_admitted_proxy_exit_ip": true,
+                "unresolved_webrtc_auto_removed_before_adapter": true,
+                "raw_webrtc_ip_chat_visible": false,
                 "debug_override_logs_chat_visible": false
             })),
         "proxy_capability_required": profile_contract

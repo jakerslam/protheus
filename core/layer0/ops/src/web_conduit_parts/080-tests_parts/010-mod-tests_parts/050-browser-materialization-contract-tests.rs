@@ -125,6 +125,37 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer(
+                "/profile_compilation/argument_compiler/single_effective_flag_per_key_required",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/argument_compiler/dedicated_locale_timezone_fields_override_compiled_args",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/argument_compiler/raw_fingerprint_args_allowed_from_workflow")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/argument_compiler/webrtc_auto_resolution_requires_admitted_proxy_exit_ip",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/argument_compiler/raw_webrtc_ip_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/proxy_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_proxy_url_resolution")

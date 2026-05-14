@@ -101,7 +101,7 @@ Status values:
 | 16 | `tests/test_cloakserve.py` | integrated: service pool test contract pass 016 | Which pool/session invariants would be required before service mode? | Future service/pool tests. |
 | 17 | `tests/test_launch.py` | integrated: launch test contract pass 017 | What launch contract tests can be ported without live detection sites? | Browser adapter mock-fast tests. |
 | 18 | `tests/test_launch_context.py` | integrated: context option lane pass 018 | Which context cleanup and option filtering cases matter? | Browser adapter context tests. |
-| 19 | `tests/test_build_args.py` | pending | Which arg compiler invariants must be copied as tests, not code? | Profile compiler tests. |
+| 19 | `tests/test_build_args.py` | integrated: arg compiler test pass 019 | Which arg compiler invariants must be copied as tests, not code? | Profile compiler tests. |
 | 20 | `tests/test_backend.py` | pending | Is backend selection relevant to Infring or CloakBrowser-only? | Probably reject/defer. |
 | 21 | `tests/test_config.py` | pending | Which config/default invariants are portable? | Policy/default tests. |
 | 22 | `tests/test_proxy.py` | pending, deferred | Which proxy parsing and redaction tests belong to a future admitted proxy lane? | Proxy capability tests, deferred. |
