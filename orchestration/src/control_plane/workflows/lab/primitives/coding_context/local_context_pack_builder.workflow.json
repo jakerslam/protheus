@@ -1,0 +1,307 @@
+{
+  "name": "local_context_pack_builder",
+  "workflow_type": "control_plane_orchestration_workflow",
+  "workflow_role": "assistant_response_workflow",
+  "default": false,
+  "description": "Primitive for constructing a bounded local coding context pack before implementation. It selects the files, constraints, memory hints, validation commands, and open risks a coding executor needs without writing code.",
+  "stages": [
+    "input_normalization",
+    "project_root_and_task_scope_resolution",
+    "current_file_authority_check",
+    "memory_hint_intake",
+    "known_distractor_skip_list_projection",
+    "targeted_file_discovery",
+    "evidence_selection_and_budgeting",
+    "validation_command_projection",
+    "risk_unknown_and_question_capture",
+    "context_pack_receipt_packaging"
+  ],
+  "workflow_composition": {
+    "primitive_level": 0,
+    "composed_of_workflow_ids": []
+  },
+  "final_response_policy": "control_plane_packaged_response",
+  "final_output_contract": {
+    "schema_version": "local_context_pack_builder_final_output_contract_v1",
+    "source": "workflow_cd",
+    "visible_chat_source": "llm_final_answer_only",
+    "required_summary_fields": [
+      "project_root",
+      "task_goal",
+      "context_pack_ref",
+      "selected_files",
+      "selection_rationale_by_file",
+      "excluded_paths",
+      "known_distractors_skipped",
+      "validation_commands",
+      "memory_hint_refs",
+      "open_questions",
+      "confidence_score",
+      "source_of_truth_status"
+    ],
+    "internal_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace"
+    ],
+    "quality_contract": {
+      "answer_user_goal": "provide the smallest sufficient evidence pack for a bounded local coding slice",
+      "scope_boundary": "do not implement, patch, format, or validate code; only construct the context pack",
+      "validation_calibration": "report validation commands as discovered, inferred, or unknown without executing them",
+      "visibility": "return compact refs and summaries; do not expose raw internal traces or unnecessary file bodies"
+    }
+  },
+  "local_context_pack_contract": {
+    "version": "local_context_pack_builder_v1",
+    "purpose": "Reduce coding failure by making file selection, current-file authority, memory hints, and validation surfaces explicit before invoking a coding executor.",
+    "input_contract": {
+      "schema": "local_context_pack_builder_input_envelope_v1",
+      "required_fields": [
+        "project_root",
+        "task_goal",
+        "checkpoint_or_slice_goal"
+      ],
+      "optional_fields": [
+        "project_context_capture_ref",
+        "resume_context_ref",
+        "memory_freshness_status",
+        "user_provided_files",
+        "known_validation_commands",
+        "context_budget"
+      ]
+    },
+    "context_budget_defaults": {
+      "max_selected_files": 20,
+      "max_primary_files": 8,
+      "max_test_files": 6,
+      "max_config_files": 6,
+      "max_total_source_chars": 60000,
+      "prefer_refs_over_full_bodies": true
+    },
+    "required_behaviors": [
+      "read_current_files_before_trusting_memory_hints",
+      "treat_current_workspace_files_as_source_of_truth",
+      "extract_known_distractors_from_memory_user_prompt_and_current_manifest_before_file_reads",
+      "skip_known_distractor_files_unless_a_selected_current_file_proves_they_are_required",
+      "record_skipped_distractors_in_excluded_files_even_when_they_were_not_read",
+      "copy_all_known_distractor_paths_into_top_level_excluded_files_array",
+      "do_not_record_known_distractors_only_inside_notes_memory_refs_or_risks",
+      "emit_source_of_truth_status_with_current_and_authoritative_language",
+      "select_files_by_task_relevance_not_repo_exhaustiveness",
+      "include_entrypoints_interfaces_tests_configs_and_recent_checkpoint_receipts_when_relevant",
+      "record_selection_rationale_for_each_file",
+      "record_explicitly_excluded_paths_when budgets_or_ignore_rules_skip_them",
+      "separate_facts_from_inferences",
+      "record_unknowns_that_may_require_parent_planning_or_user_input",
+      "emit_validation_commands_with_confidence_and_source",
+      "always_emit_validation_commands_as_empty_array_only_when_no_manifest_test_or_readme_signal_exists",
+      "set_validation_executed_false_when projecting commands_without_running_them",
+      "avoid_unbounded_recursive_file_listing",
+      "avoid_implementation_work"
+    ],
+    "output_artifacts": [
+      "context_pack_ref",
+      "selected_file_manifest",
+      "file_selection_rationale",
+      "validation_command_receipt",
+      "memory_hint_receipt",
+      "known_distractor_skip_receipt",
+      "risk_unknown_receipt"
+    ],
+    "confidence_contract": {
+      "score_range": [
+        0.0,
+        1.0
+      ],
+      "execute_ready_min_score": 0.8,
+      "ask_parent_or_user_below_score": 0.6,
+      "score_factors": [
+        "selected_files_cover_entrypoints_and_edit_targets",
+        "tests_or_validation_commands_identified",
+        "architecture_or_contract_files_checked",
+        "memory_hints_are_fresh_or_downgraded",
+        "unknowns_do_not_materially_change_slice_plan"
+      ]
+    },
+    "non_goals": [
+      "do_not_write_code",
+      "do_not_run_validation",
+      "do_not_replace_implementation_planning",
+      "do_not_store_full_repository_snapshots",
+      "do_not_expand_context_after_budget_without_parent_approval"
+    ]
+  },
+  "gate_contract": "control_plane_lifecycle_v1",
+  "observation_lifecycle_contract": {
+    "version": "run_observation_lifecycle_v1",
+    "policy_ref": "orchestration/config/run_observation_lifecycle_policy.json",
+    "purpose": "Record compact context-pack receipts for local coding workflows while avoiding raw repo dumps.",
+    "required_lanes": [
+      "compact_ledger",
+      "artifact_ref_retention",
+      "failure_lifecycle_archive",
+      "hot_ring_buffer"
+    ],
+    "non_goals": [
+      "do_not_hide_current_failures",
+      "do_not_store_raw_tool_payloads",
+      "do_not_store_large_source_bodies",
+      "do_not_duplicate_project_context_capture"
+    ]
+  },
+  "typed_execution_contract": {
+    "gate_kind": "structured_control_plane_gate",
+    "input_kind": "multiple_choice_or_text_input",
+    "allowed_transitions": [
+      "input_normalization->project_root_and_task_scope_resolution",
+      "project_root_and_task_scope_resolution->current_file_authority_check",
+      "current_file_authority_check->memory_hint_intake",
+      "memory_hint_intake->targeted_file_discovery",
+      "memory_hint_intake->known_distractor_skip_list_projection",
+      "known_distractor_skip_list_projection->targeted_file_discovery",
+      "targeted_file_discovery->evidence_selection_and_budgeting",
+      "evidence_selection_and_budgeting->validation_command_projection",
+      "validation_command_projection->risk_unknown_and_question_capture",
+      "risk_unknown_and_question_capture->context_pack_receipt_packaging",
+      "context_pack_receipt_packaging->completed",
+      "project_root_and_task_scope_resolution->blocked",
+      "evidence_selection_and_budgeting->needs_input"
+    ],
+    "timeout_ms": 45000,
+    "retry_policy": {
+      "max_retries": 1,
+      "on_failure": "return_structured_failure"
+    },
+    "terminal_states": [
+      "completed",
+      "blocked",
+      "needs_input",
+      "failed",
+      "aborted"
+    ],
+    "telemetry_streams": [
+      "workflow_state",
+      "agent_internal_notes",
+      "tool_trace",
+      "eval_trace",
+      "final_answer"
+    ],
+    "tool_family_contracts": [
+      "workspace",
+      "web",
+      "memory",
+      "agent",
+      "shell",
+      "browser"
+    ],
+    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "run_budgets": {
+      "max_stages": 9,
+      "max_model_turns": 2,
+      "max_tool_calls": 10,
+      "token_budget": 10000,
+      "loop_signature_detector": "local_context_pack_builder_v1"
+    }
+  },
+  "workflow_source_of_truth_contract": {
+    "interaction_source": "json_workflow_spec",
+    "rust_reader_role": "validate_execute_trace_only",
+    "hardcoded_interaction_behavior_allowed": false,
+    "json_owns": [
+      "interaction_gates",
+      "gate_options",
+      "gate_transitions",
+      "tool_family_menus",
+      "tool_input_schemas",
+      "confirmation_states",
+      "loopbacks",
+      "final_output_contract"
+    ],
+    "rust_owns": [
+      "json_loading",
+      "schema_validation",
+      "state_transition_execution",
+      "tool_execution_handoff",
+      "receipt_binding",
+      "trace_export",
+      "kernel_policy_enforcement"
+    ]
+  },
+  "interaction_gate_contract": {
+    "version": "llm_toolbox_gate_contract_v1",
+    "tool_family_menu_stage": "gate_2_tool_family_menu",
+    "tool_request_payload_stage": "gate_4_request_payload_input",
+    "tool_observation_stage": "tool_observation",
+    "final_answer_stage": "gate_6_llm_final_output",
+    "recovery_stage": "context_pack_receipt_packaging",
+    "gates": [
+      {
+        "stage": "gate_1_need_tool_access_menu",
+        "parser_kind": "need_tools",
+        "true_values": [
+          "yes",
+          "y",
+          "true",
+          "t",
+          "1"
+        ],
+        "false_values": [
+          "no",
+          "n",
+          "false",
+          "f",
+          "0"
+        ]
+      },
+      {
+        "stage": "gate_2_tool_family_menu",
+        "parser_kind": "tool_family",
+        "choice_base": 1
+      },
+      {
+        "stage": "gate_3_tool_menu",
+        "parser_kind": "tool_name"
+      },
+      {
+        "stage": "gate_4_request_payload_input",
+        "parser_kind": "request_payload"
+      },
+      {
+        "stage": "gate_5_post_tool_menu",
+        "parser_kind": "post_tool",
+        "finish_values": [
+          "finish",
+          "done",
+          "submit"
+        ],
+        "another_tool_values": [
+          "another",
+          "another tool",
+          "use another tool"
+        ]
+      }
+    ]
+  },
+  "workflow_composition_contract": {
+    "version": "workflow_composition_contract_v1",
+    "cd_kind": "primitive",
+    "returns_exactly_one_terminal_artifact": true,
+    "terminal_artifact_contract": {
+      "artifact_schema": "workflow_terminal_artifact_v1",
+      "allowed_kinds": [
+        "completed_final_answer",
+        "clarification_request",
+        "structured_failure",
+        "delegated_workflow_result"
+      ],
+      "parent_receives": "terminal_artifact_only_refs_for_internals"
+    },
+    "child_workflow_calls": [],
+    "non_goals": [
+      "do_not_call_child_workflows",
+      "do_not_return_raw_tool_payloads",
+      "do_not_expose_internal_trace"
+    ]
+  }
+}
