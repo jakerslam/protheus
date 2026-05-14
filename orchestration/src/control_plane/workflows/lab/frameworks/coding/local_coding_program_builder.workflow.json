@@ -50,6 +50,14 @@
         "internal_trace_visibility": "refs_only"
       },
       {
+        "capability": "local_context_pack_build",
+        "workflow_id": "local_context_pack_builder",
+        "input_contract": "local_context_pack_builder_input_envelope_v1",
+        "output_artifact": "local_context_pack_builder_result_artifact_v1",
+        "return_policy": "return_single_terminal_artifact_to_parent",
+        "internal_trace_visibility": "refs_only"
+      },
+      {
         "capability": "coding_ingress_guard",
         "workflow_id": "local_coding_ingress_guard",
         "input_contract": "local_coding_ingress_guard_input_envelope_v1",
@@ -185,11 +193,12 @@
     ]
   },
   "default": false,
-  "description": "Higher-level local coding workflow that defines a bounded checkpoint, initializes or stabilizes project architecture, decomposes work into slices, routes implementation through safe local code-edit execution, validates the result, and loops only within explicit stop constraints.",
+  "description": "Higher-level local coding workflow that can operate in single-checkpoint mode or long-run project-operator mode: it defines bounded checkpoints, initializes or stabilizes architecture, decomposes work into slices, routes implementation through safe local code-edit execution, validates results, writes handoff memory, and continues only through explicit roadmap and stop constraints.",
   "stages": [
     "intake_normalization",
     "memory_resume_context_retrieval",
     "memory_freshness_guard",
+    "local_context_pack_construction",
     "coding_ingress_guard_initialization",
     "session_bootstrap_guard_initialization",
     "remote_service_guard_initialization",
@@ -219,6 +228,7 @@
       "project_context_capture",
       "resume_context_retrieval",
       "memory_freshness_guard",
+      "local_context_pack_builder",
       "local_coding_ingress_guard",
       "cli_intent_argument_ingress",
       "interactive_input_session_state",
@@ -290,6 +300,43 @@
       "checkpoint_handoff",
       "checkpoint_memory_write",
       "level6_existing_project_evidence_contract"
+    ]
+  },
+  "local_context_pack_integration_contract": {
+    "version": "local_coding_context_pack_integration_v1",
+    "child_workflow_id": "local_context_pack_builder",
+    "purpose": "Build a bounded file and validation evidence pack before implementation so local coding execution receives the right current context without expanding into unbounded repo reads.",
+    "runs_after": [
+      "project_context_capture",
+      "resume_context_retrieval",
+      "memory_freshness_guard"
+    ],
+    "runs_before": [
+      "implementation_planning",
+      "local_code_execution_loop"
+    ],
+    "required_inputs": [
+      "project_root",
+      "task_goal",
+      "checkpoint_or_slice_goal",
+      "project_context_capture_ref",
+      "resume_context_ref",
+      "memory_freshness_status"
+    ],
+    "required_outputs": [
+      "context_pack_ref",
+      "selected_files",
+      "selection_rationale_by_file",
+      "validation_commands",
+      "open_questions",
+      "confidence_score"
+    ],
+    "source_of_truth_rule": "context_pack_guides_execution_current_workspace_files_remain_authoritative",
+    "non_goals": [
+      "do_not_execute_code",
+      "do_not_validate",
+      "do_not_replace_checkpoint_planning",
+      "do_not_inline_file_selection_logic_into_forgecode_execution"
     ]
   },
   "coding_memory_resume_contract": {
@@ -770,6 +817,111 @@
         ]
       }
     },
+    "long_run_project_operator_contract": {
+      "version": "local_coding_project_operator_v1",
+      "activation_policy": "activate when the user asks for a multi-checkpoint build, long-running autonomous coding work, project creation beyond a single checkpoint, or continued execution after the current checkpoint",
+      "mode_boundary": {
+        "single_checkpoint_mode": "default for bounded requests; execute only the current checkpoint and stop with a recommended next checkpoint",
+        "project_operator_mode": "own the roadmap, checkpoint queue, continuation decisions, milestone reporting, and project memory refresh while still delegating code changes to lower coding workflows",
+        "do_not_write_code_directly": true
+      },
+      "roadmap_policy": {
+        "required_fields": [
+          "product_goal",
+          "architecture_intent",
+          "stack_and_runtime",
+          "milestones",
+          "checkpoint_queue",
+          "non_goals",
+          "risk_register",
+          "validation_strategy",
+          "stop_conditions"
+        ],
+        "checkpoint_queue_rules": [
+          "each checkpoint must be independently reviewable and validated",
+          "each checkpoint must include acceptance criteria and excluded scope",
+          "checkpoint order must reduce architecture risk before feature breadth",
+          "do not enqueue speculative product scope unless the user goal requires it"
+        ]
+      },
+      "resume_policy": {
+        "read_project_memory_before_roadmap_changes": true,
+        "compare_memory_to_current_files_before_trusting_it": true,
+        "refresh_context_pack_before_each_checkpoint": true,
+        "write_milestone_memory_after_validated_checkpoint": true,
+        "record_conflicts_between_memory_and_current_files": true
+      },
+      "checkpoint_continuation_policy": {
+        "after_each_checkpoint_decide": [
+          "continue_to_next_checkpoint",
+          "stop_completed_milestone",
+          "stop_user_decision_required",
+          "stop_repair_budget_exhausted",
+          "stop_architecture_or_data_risk",
+          "stop_autonomy_budget_exhausted"
+        ],
+        "continue_only_if": [
+          "current checkpoint validation passed or the failure envelope is explicitly non-blocking",
+          "next checkpoint is already defined with acceptance criteria",
+          "risk register has no unresolved user-owned blocker",
+          "context has been refreshed or confirmed fresh",
+          "cumulative changes remain inside roadmap scope"
+        ],
+        "must_stop_if": [
+          "next checkpoint changes product goal, architecture, persistence model, external service, security posture, or deployment target",
+          "validation or migration risk would be compounded by continuing",
+          "dirty or externally modified files invalidate the roadmap",
+          "memory conflicts with current files and cannot be safely reconciled",
+          "user budget, time, or checkpoint limit is reached"
+        ]
+      },
+      "anti_decay_policy": {
+        "rules": [
+          "do not accumulate broad refactors across checkpoints without an architecture receipt",
+          "do not create parallel models, repositories, service layers, or CLIs without deprecating the old path",
+          "do not let generated tests define product behavior without grounding in the roadmap",
+          "do not bypass validation because prior checkpoints passed",
+          "do not continue after a repair unless the repaired scope is smaller or better evidenced"
+        ],
+        "risk_register_required_fields": [
+          "risk",
+          "source",
+          "impact",
+          "owner",
+          "mitigation",
+          "status"
+        ]
+      },
+      "milestone_reporting_policy": {
+        "required_after_each_checkpoint": true,
+        "required_fields": [
+          "completed_checkpoint",
+          "validation_summary",
+          "changed_files",
+          "architecture_decisions",
+          "risk_register_updates",
+          "memory_written",
+          "next_checkpoint_decision"
+        ],
+        "visible_user_summary": "summarize milestone progress and next decision without exposing raw workflow state"
+      },
+      "subworkflow_usage": {
+        "context": "local_context_pack_builder",
+        "execution": "lower local coding execution primitives through local_code_edit_execution and local_runtime_execution_loop",
+        "repair": "bounded_repair_loop",
+        "handoff": "checkpoint_handoff",
+        "memory": "resume_context_retrieval"
+      },
+      "required_receipts": [
+        "project_operator_roadmap_receipt",
+        "checkpoint_queue_receipt",
+        "context_refresh_receipt_per_checkpoint",
+        "continuation_decision_receipt",
+        "risk_register_receipt",
+        "milestone_memory_receipt",
+        "milestone_report_receipt"
+      ]
+    },
     "coding_safety_layer_contract": {
       "source": "forgecode_assimilated_safety_layer",
       "required_primitive_workflow_ids": [
@@ -1082,7 +1234,8 @@
       "implementation exceeds slice or complexity budget",
       "tooling cannot read, write, or execute required local work",
       "security, privacy, licensing, or data-loss risk is discovered",
-      "request expands beyond the current checkpoint"
+      "request expands beyond the current checkpoint",
+      "long-run checkpoint queue requires a user-owned product decision or exceeds autonomy budget"
     ],
     "unexpected_discovery_policy": {
       "continue_if": [
@@ -1113,7 +1266,13 @@
       "files_created",
       "files_edited",
       "architecture_drift_events",
-      "user_decisions_required"
+      "user_decisions_required",
+      "checkpoints_planned",
+      "checkpoints_completed",
+      "continuation_decisions",
+      "milestone_reports_written",
+      "project_memory_refreshes",
+      "long_run_stop_reasons"
     ],
     "breakpoint_triage_policy": {
       "run_before_followup_clarification_gate": true,
