@@ -329,6 +329,24 @@ fn browser_materialization_profile_compilation_contract(
             .get("humanized_interaction_allowed")
             .and_then(Value::as_bool)
             .unwrap_or(false),
+        "launch_execution_contract": profile_contract
+            .get("launch_execution_contract")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "version": "browser_launch_execution_contract_v1",
+                "source_pattern": "cloakbrowser_basic_launch_contract_tests",
+                "launch_requires_admitted_adapter": true,
+                "launch_success_requires_connected_browser": true,
+                "close_required_after_capture": true,
+                "sync_async_launch_semantic_parity_required": true,
+                "page_navigation_success_is_not_evidence_without_packaging": true,
+                "page_title_is_candidate_metadata_only": true,
+                "raw_browser_handle_chat_visible": false,
+                "raw_page_handle_chat_visible": false,
+                "binary_info_telemetry_only": true,
+                "fingerprint_probe_results_telemetry_only": true,
+                "stealth_patch_requires_separate_capability": true
+            })),
         "proxy_contract": profile_contract
             .get("proxy_contract")
             .cloned()

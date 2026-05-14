@@ -215,6 +215,30 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/launch_execution_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_basic_launch_contract_tests")
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/launch_execution_contract/page_navigation_success_is_not_evidence_without_packaging",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/launch_execution_contract/fingerprint_probe_results_telemetry_only",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/launch_execution_contract/raw_browser_handle_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/wrapper_lifecycle_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_python_wrapper_lifecycle")

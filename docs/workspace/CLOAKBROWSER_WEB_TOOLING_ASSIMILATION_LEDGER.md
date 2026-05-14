@@ -150,7 +150,7 @@ all web research always uses stealth browser by default
 | `js/src/human/config.ts` | parsed | Centralized human interaction presets and action timing knobs. |
 | `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
 | `js/src/human/index.ts` | parsed | Method patching, isolated-world DOM reads, cursor state, trusted key dispatch support. |
-| `tests/test_launch.py` | parsed | Launch and basic anti-detection invariant tests. |
+| `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
 | `tests/test_proxy.py` | parsed | Proxy parsing and GeoIP behavior tests. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
@@ -254,6 +254,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-041` | integrated | medium | Complete Level 5 pass 014 for Python GeoIP lifecycle. | Browser materialization geo/proxy capability contract | `CLOAK-TASK-040` | Added metadata for optional GeoIP dependency state, no first-use GeoIP DB downloads during research, source admission, atomic DB replacement, policy-owned exit-IP echo provider order, raw proxy-host IP redaction, and nonfatal dependency failures. |
 | `CLOAK-TASK-042` | integrated | medium | Complete Level 5 pass 015 for CDP service pool boundary. | Browser materialization service/pool capability contract | `CLOAK-TASK-041` | Added metadata for Gateway-admitted service mode, raw CDP denial, per-seed process isolation, seed validation, local port allocation, connection refcounting, data-dir-confined cleanup, profile override denial, and telemetry-only debugger URL handling. |
 | `CLOAK-TASK-043` | integrated | medium | Complete Level 5 pass 016 for CDP service pool tests. | Browser materialization service/pool capability contract | `CLOAK-TASK-042` | Added metadata for workflow denial of generic fingerprint query params, explicit repeated-query policy, policy-owned service CLI/data-dir/headless/debug flags, remote-debugging passthrough stripping, and Gateway-owned WebSocket scheme resolution. |
+| `CLOAK-TASK-044` | integrated | medium | Complete Level 5 pass 017 for basic launch tests. | Browser materialization launch execution contract | `CLOAK-TASK-043` | Added metadata for admitted-adapter launch requirements, close-after-capture, sync/async parity, page navigation not becoming evidence before packaging, binary-info telemetry, handle quarantine, and fingerprint probe telemetry-only boundaries. |
 
 ## Open Questions
 
@@ -827,3 +828,26 @@ Validation:
 Important boundary:
 
 This wave still does not enable service mode, raw CDP, query-profile overrides, public debug ports, persistent sessions, proxy behavior, or live browser execution. It tightens the future service-provider admission checklist.
+
+## Assimilation Wave 26: Level 5 Launch Test Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `tests/test_launch.py` as the syntax-level source of basic launch, close, page navigation, sync/async launch parity, binary-info, extra-args, and browser-surface probe invariants.
+- Preserved the useful primitive: a future browser adapter must prove launch, connection, page navigation, and cleanup as internal runtime facts before any page content can be promoted.
+- Quarantined non-portable anti-detection-style checks by treating fingerprint/browser-surface probe results as telemetry only; they do not become ordinary research evidence and do not justify stealth behavior by default.
+- Added launch execution contract metadata for admitted-adapter launch, connected-browser proof, close-after-capture, sync/async parity, page-title candidate metadata, page-navigation packaging requirements, raw handle redaction, binary-info telemetry, and separate capability requirements for stealth patches.
+- Added mock-fast assertions that the launch contract is visible in browser materialization diagnostics without enabling live browser execution.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable live browser execution, stealth patching, proxy/session behavior, arbitrary launch args, or treating browser-surface probes as user-facing evidence.
