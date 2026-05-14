@@ -155,7 +155,7 @@ all web research always uses stealth browser by default
 | `tests/test_build_args.py` | level 5 pass 019 integrated | Argument compiler dedupe, dedicated field precedence, alias consumption, non-value flag admission, and WebRTC/fingerprint arg quarantine. |
 | `tests/test_backend.py` | level 5 pass 020 reviewed, already covered | Backend resolution default/param/env/invalid cases; no new code because policy-owned adapter selection and direct backend rejection were already integrated. |
 | `tests/test_config.py` | level 5 pass 021 integrated | Platform-specific binary/archive/cache defaults, operator-only fallback URL/cache overrides, unsupported-platform fail-closed behavior, and stealth seed/GPU flag quarantine. |
-| `tests/test_proxy.py` | parsed | Proxy parsing and GeoIP behavior tests. |
+| `tests/test_proxy.py` | level 5 pass 022 integrated, deferred capability | Proxy parsing, credential separation, SOCKS/SOCKS5H adapter lane, encoding idempotence/redaction, malformed/nonstandard URL rejection, IPv6 preservation, and proxy/GeoIP capability boundaries. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
@@ -263,6 +263,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-046` | integrated | medium | Complete Level 5 pass 019 for build-args tests. | Browser materialization argument compiler contract | `CLOAK-TASK-045` | Added metadata for single effective flag per key, dedicated locale/timezone precedence, policy admission for non-value flags, timezone alias consumption, raw fingerprint/WebRTC arg denial, admitted proxy exit-IP dependency, and raw WebRTC IP redaction. |
 | `CLOAK-TASK-047` | reviewed | low | Complete Level 5 pass 020 for backend resolution tests. | Browser materialization adapter parity contract | `CLOAK-TASK-046` | Reviewed backend default/explicit/env/invalid cases and confirmed they are already covered by policy-owned backend selection, direct backend request denial, invalid backend fail-closed semantics, and no live backend switching. |
 | `CLOAK-TASK-048` | integrated | medium | Complete Level 5 pass 021 for config tests. | Browser materialization default config and dependency readiness contracts | `CLOAK-TASK-047` | Added metadata for policy-owned platform binary path templates, archive naming, fallback download URLs, operator-only cache/env overrides, unsupported-platform fail-closed behavior, operator-only random seed generation, GPU fingerprint flag quarantine, and cache-dir redaction. |
+| `CLOAK-TASK-049` | integrated | medium | Complete Level 5 pass 022 for proxy tests. | Browser materialization proxy capability contract | `CLOAK-TASK-048` | Added metadata for schemeless proxy normalization after admission, credential removal from server URLs, username-only support, SOCKS5H support, idempotent credential encoding, redacted encoding notices, nonstandard SOCKS path/query rejection, IPv6 bracket preservation, and port-zero policy admission. |
 
 ## Open Questions
 
@@ -944,3 +945,25 @@ Validation:
 Important boundary:
 
 This wave does not enable surprise dependency installation, custom download URLs, cache directory overrides, platform spoofing, random fingerprint generation, or GPU fingerprint control during ordinary research.
+
+## Assimilation Wave 31: Level 5 Proxy Test Contract
+
+Status: integrated into future proxy capability contract; capability remains deferred.
+
+Implemented:
+
+- Parsed `tests/test_proxy.py` as the syntax-level source of proxy URL parsing, credential extraction, bare proxy normalization, SOCKS/SOCKS5H detection, adapter arg lane selection, credential encoding/idempotence, redacted notices, malformed proxy handling, IPv6 bracket preservation, and GeoIP proxy-server extraction.
+- Preserved the useful primitive: proxy data is structured, secret-bearing capability input, never an ordinary research request field.
+- Added proxy contract metadata for schemeless normalization after admission, credential removal from server URLs, username-only credentials, SOCKS5H support, idempotent SOCKS credential encoding, redacted encoding notices, malformed/nonstandard SOCKS rejection before adapter execution, IPv6 bracket preservation, and port-zero proxy policy admission.
+- Kept the Infring behavior stricter than CloakBrowser where appropriate: malformed/nonstandard proxy shapes should fail closed before adapter execution instead of being passed through to Chromium.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable proxy use, proxy rotation, proxy credentials in workflow requests, GeoIP lookup, WebRTC spoofing, or live browser execution.

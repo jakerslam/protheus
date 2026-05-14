@@ -507,11 +507,20 @@
           "raw_proxy_url_chat_visible": false,
           "raw_proxy_credentials_chat_visible": false,
           "scheme_normalization_allowed_after_admission": true,
+          "schemeless_proxy_normalized_after_admission": true,
+          "credentials_removed_from_server_url": true,
+          "username_only_proxy_credentials_supported": true,
           "socks_proxy_requires_adapter_arg_lane": true,
+          "socks5h_scheme_supported_after_admission": true,
           "credential_percent_encoding_internal": true,
+          "socks_credential_encoding_idempotent": true,
+          "proxy_encoding_notice_redacts_credentials": true,
           "credential_encoding_notice_chat_visible": false,
           "proxy_bypass_list_policy_owned": true,
-          "malformed_proxy_config_rejected_before_adapter": true
+          "malformed_proxy_config_rejected_before_adapter": true,
+          "nonstandard_socks_path_query_rejected_before_adapter": true,
+          "ipv6_proxy_host_brackets_preserved_after_admission": true,
+          "port_zero_proxy_requires_policy_admission": true
         },
         "geo_consistency_contract": {
           "version": "browser_geo_consistency_contract_v1",

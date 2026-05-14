@@ -171,6 +171,28 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/proxy_contract/credentials_removed_from_server_url")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/proxy_contract/socks5h_scheme_supported_after_admission")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/proxy_contract/proxy_encoding_notice_redacts_credentials")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/proxy_contract/nonstandard_socks_path_query_rejected_before_adapter",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/geo_consistency_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_geoip_exit_ip_consistency")
