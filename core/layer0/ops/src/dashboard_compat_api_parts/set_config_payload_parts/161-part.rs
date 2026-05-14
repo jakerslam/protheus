@@ -208,7 +208,7 @@ fn tool_result_hidden_artifact_value(payload: &Value, key: &str) -> Option<Value
                 })
             })
             .or_else(|| derive_hidden_tool_result_artifact(payload, key)),
-        "evidence_refs" => value
+        "evidence_refs" | "evidence_pack" | "evidence_pack_candidates" => value
             .and_then(|value| {
                 value.as_array().and_then(|rows| {
                     let projected = rows.iter().take(6).cloned().collect::<Vec<_>>();
@@ -426,6 +426,10 @@ fn derive_hidden_provider_results_from_web_payload(payload: &Value) -> Option<Va
 
 fn derive_hidden_evidence_refs_from_web_payload(payload: &Value) -> Option<Value> {
     for pointer in [
+        "/evidence_pack_candidates",
+        "/tool_pipeline/raw_payload/evidence_pack_candidates",
+        "/evidence_pack",
+        "/tool_pipeline/raw_payload/evidence_pack",
         "/tool_result_quality/candidate_quality",
         "/tool_pipeline/raw_payload/tool_result_quality/candidate_quality",
         "/search_results",
@@ -532,6 +536,8 @@ fn carry_hidden_tool_result_artifacts(card: &mut Value, payload: &Value) {
     for key in [
         "search_results",
         "provider_results",
+        "evidence_pack",
+        "evidence_pack_candidates",
         "evidence_refs",
         "tool_result_quality",
     ] {
@@ -682,6 +688,53 @@ mod response_tool_card_tests {
             card.pointer("/tool_result_quality/version")
                 .and_then(Value::as_str),
             Some("v1")
+        );
+    }
+
+    #[test]
+    fn response_tool_card_carries_materialized_evidence_candidates() {
+        let payload = json!({
+            "tool_pipeline": {
+                "raw_payload": {
+                    "evidence_pack_candidates": [
+                        {
+                            "source_kind": "browser_materialized_page",
+                            "title": "Rendered research page",
+                            "locator": "https://example.test/rendered",
+                            "snippet": "The rendered page contains enough extracted body text to support synthesis through the normal evidence pack lane.",
+                            "claim_hints": [
+                                "Rendered content can enter synthesis as packaged evidence."
+                            ],
+                            "term_hints": ["rendered", "evidence"],
+                            "score": 76.0,
+                            "confidence": "usable"
+                        }
+                    ]
+                }
+            }
+        });
+
+        let card = response_tool_card(
+            "tool-direct-browser_materialize_page".to_string(),
+            "browser_materialize_page",
+            &json!({"url": "https://example.test/rendered"}),
+            &payload,
+            false,
+            "ok",
+        );
+
+        assert_eq!(
+            card.pointer("/evidence_pack_candidates/0/source_kind")
+                .and_then(Value::as_str),
+            Some("browser_materialized_page")
+        );
+        assert_eq!(
+            card.pointer("/evidence_refs/0/locator").and_then(Value::as_str),
+            Some("https://example.test/rendered")
+        );
+        assert_eq!(
+            card.pointer("/evidence_refs/0/title").and_then(Value::as_str),
+            Some("Rendered research page")
         );
     }
 

@@ -1284,6 +1284,12 @@ fn response_tools_have_recorded_evidence_refs(response_tools: &[Value]) -> bool 
             .and_then(Value::as_array)
             .map(|rows| rows.iter().any(recorded_evidence_ref_is_substantive))
             .unwrap_or(false)
+            || tool_hidden_array(row, "evidence_pack")
+                .iter()
+                .any(recorded_evidence_ref_is_substantive)
+            || tool_hidden_array(row, "evidence_pack_candidates")
+                .iter()
+                .any(recorded_evidence_ref_is_substantive)
             || row
                 .pointer("/tool_result_quality/evidence_count")
                 .and_then(Value::as_u64)
@@ -2940,6 +2946,49 @@ mod workflow_fallback_tests {
             "Bottom line: the recorded source supports typed agent outputs, but it does not prove production maturity. Treat the evidence as useful for capability fit and still verify operations, support, and deployment references.",
             &tools,
         ));
+    }
+
+    #[test]
+    fn final_verifier_treats_materialized_candidates_as_recorded_evidence() {
+        let tools = vec![json!({
+            "name": "browser_materialize_page",
+            "status": "ok",
+            "result": "Rendered page extracted through materialization.",
+            "evidence_pack_candidates": [{
+                "source_kind": "browser_materialized_page",
+                "title": "Rendered source",
+                "locator": "https://example.test/rendered",
+                "snippet": "The rendered page provides enough text for normal synthesis consumption.",
+                "claim_hints": ["Rendered source supports the research claim."],
+                "score": 76.0,
+                "confidence": "usable"
+            }]
+        })];
+
+        assert!(response_violates_tool_backed_final_verifier(
+            "No evidence was found for this question.",
+            &tools,
+        ));
+
+        let synthesis_input = workflow_synthesis_input_for_final_response(
+            "research the rendered source",
+            &tools,
+            &json!({}),
+        );
+        assert_eq!(
+            synthesis_input
+                .pointer("/evidence_pack/0/source")
+                .and_then(Value::as_str),
+            Some("evidence_pack_candidate"),
+            "{synthesis_input:#?}"
+        );
+        assert_eq!(
+            synthesis_input
+                .pointer("/evidence_pack/0/source_kind")
+                .and_then(Value::as_str),
+            Some("browser_materialized_page"),
+            "{synthesis_input:#?}"
+        );
     }
 
     #[test]

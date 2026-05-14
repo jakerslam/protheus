@@ -297,6 +297,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-L6-TASK-006` | integrated | high | Complete Level 6 pass 006 for final URL safety before artifacts. | Browser materialization final URL revalidation and tests | `CLOAK-L6-TASK-005` | Moved fixture-provider final URL revalidation ahead of fixture read/extraction/artifact creation, blocked private, credentialed, and non-HTTP(S) final URLs, redacted credentialed final URLs, and proved no materialized/evidence artifact is created on unsafe final URL. |
 | `CLOAK-L6-TASK-007` | integrated | high | Complete Level 6 pass 007 for timeout/blocker classification. | Browser materialization blocker taxonomy and evidence promotion | `CLOAK-L6-TASK-006` | Added structured materialization blocker classes for adapter readiness, unsafe final URLs, fixture extraction failures, and content-too-thin captures; evidence promotion now keeps thin safe captures as `low_confidence_raw` instead of over-promoting them as usable evidence. |
 | `CLOAK-L6-TASK-008` | integrated | high | Complete Level 6 pass 008 for materialization web-tooling gates. | Browser materialization gate diagnostics | `CLOAK-L6-TASK-007` | Added `web_tooling_gates` snapshots for provider readiness, URL safety, materialization attempt/result, extraction quality, evidence promotion, and downstream synthesis consumption, with hard/soft/not-evaluated summaries. |
+| `CLOAK-L6-TASK-009` | integrated | high | Complete Level 6 pass 009 for research workflow consumption. | Tool-card evidence artifacts, live synthesis input, final verifier, research golden scorer | `CLOAK-L6-TASK-008` | Materialized `evidence_pack_candidates` now carry through hidden evidence artifacts, synthesis input, verifier evidence detection, and golden retrieval-quality scoring without exposing web tooling gates or forcing output formats. |
 
 ## Open Questions
 
@@ -1444,3 +1445,28 @@ Validation:
 Important boundary:
 
 This wave makes the web tooling less of a black box. It does not add workflow prompt steering, hidden browser execution, or source-domain-specific behavior.
+
+## Assimilation Wave 52: Level 6 Research Workflow Consumption
+
+Status: integrated into the research evidence-consumption path; live impact measurement remains the next slice.
+
+Implemented:
+
+- Advanced Level 6 pass 009 from the implementation proof map.
+- Added a workflow-CD quality clause that treats browser materialization, reader output, direct fetch, and search output as packaged evidence inputs after evidence packaging, not final-answer trace text.
+- Carried `evidence_pack_candidates` through hidden tool-card artifacts alongside `evidence_pack` and `evidence_refs`.
+- Added materialized evidence candidates to live synthesis input packing and tool-result quality counts.
+- Made the final-answer verifier recognize materialized candidates as recorded evidence, so answers claiming no evidence exists are rejected when packaged candidates exist.
+- Made the golden scorer count materialized evidence candidates as candidates/evidence/content-rich/claim-hint signal and treat `web_gate_*`/`web_tooling_gates` as internal-leak markers if they appear in final prose.
+
+Validation:
+
+- `cargo fmt --check`
+- `cargo test -p infring-ops-core response_tool_card_carries_materialized_evidence_candidates --lib`
+- `cargo test -p infring-ops-core final_verifier_treats_materialized_candidates_as_recorded_evidence --lib`
+- `cargo test --manifest-path orchestration/Cargo.toml --bin eval_runtime materialized_evidence_candidates_count_as_retrieval_quality`
+- `cargo test --manifest-path orchestration/Cargo.toml --bin eval_runtime web_tooling_gate_names_are_internal_leaks`
+
+Important boundary:
+
+This wave does not enable live browser execution, proxy/session behavior, or domain-specific synthesis. It only proves that once a materializer produces packaged evidence candidates, the research workflow can consume them through the normal evidence path.

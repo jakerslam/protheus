@@ -333,6 +333,12 @@ fn synthesis_evidence_pack_for_tools(response_tools: &[Value], limit: usize) -> 
             }
             items.push(compact_tool_evidence_item("evidence_pack", &row));
         }
+        for row in tool_hidden_array(tool, "evidence_pack_candidates") {
+            if items.len() >= limit {
+                return Value::Array(items);
+            }
+            items.push(compact_tool_evidence_item("evidence_pack_candidate", &row));
+        }
         for row in tool_hidden_array(tool, "evidence_refs") {
             if items.len() >= limit {
                 return Value::Array(items);
@@ -399,7 +405,11 @@ fn synthesis_tool_result_quality(response_tools: &[Value]) -> String {
         .sum::<usize>();
     let evidence_ref_count = response_tools
         .iter()
-        .map(|tool| tool_hidden_array_len(tool, "evidence_refs") + tool_hidden_array_len(tool, "evidence_pack"))
+        .map(|tool| {
+            tool_hidden_array_len(tool, "evidence_refs")
+                + tool_hidden_array_len(tool, "evidence_pack")
+                + tool_hidden_array_len(tool, "evidence_pack_candidates")
+        })
         .sum::<usize>();
     let has_evidence = search_result_count > 0 || provider_result_count > 0 || evidence_ref_count > 0;
     let has_error = !response_tools_failure_reason_for_user(response_tools, 4)
@@ -473,7 +483,14 @@ fn workflow_tool_state_prompt_context(response_tools: &[Value]) -> String {
         .collect::<Vec<_>>();
     let search_result_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "search_results")).sum::<usize>();
     let provider_result_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "provider_results")).sum::<usize>();
-    let evidence_ref_count = limited.iter().map(|tool| tool_hidden_array_len(tool, "evidence_refs")).sum::<usize>();
+    let evidence_ref_count = limited
+        .iter()
+        .map(|tool| {
+            tool_hidden_array_len(tool, "evidence_refs")
+                + tool_hidden_array_len(tool, "evidence_pack")
+                + tool_hidden_array_len(tool, "evidence_pack_candidates")
+        })
+        .sum::<usize>();
     let tool_statuses = limited
         .iter()
         .filter_map(|tool| tool.get("status").and_then(Value::as_str))

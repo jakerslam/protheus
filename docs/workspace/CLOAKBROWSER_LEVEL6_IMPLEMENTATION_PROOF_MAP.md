@@ -85,7 +85,7 @@ Status values:
 | 6 | Redirect and final URL safety proof | integrated: final URL revalidation proof pass 006 | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
 | 7 | Timeout/blocker classification | integrated: blocker taxonomy proof pass 007 | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
 | 8 | Web tooling gate split | integrated: materialization gate snapshot pass 008 | Can tooling stats isolate readiness, URL safety, materialization, extraction, evidence promotion, and synthesis consumption? | Web retrieval gate diagnostics/eval reporting. |
-| 9 | Research workflow consumption | pending | Does the research CD consume materialized evidence as normal evidence rather than tool trace text? | Research workflow CD/eval path; no prompt hardcoding. |
+| 9 | Research workflow consumption | integrated: evidence-consumption proof pass 009 | Does the research CD consume materialized evidence as normal evidence rather than tool trace text? | Research workflow CD/eval path; no prompt hardcoding. |
 | 10 | Golden/live impact pass | pending | Does the primitive improve weak-data cases without regressing upstream gates? | Research golden eval, web tooling eval, failure archive. |
 
 ## Slice Details
@@ -338,6 +338,8 @@ Covered by browser materialization tests for fake success, thin-content soft fai
 
 Goal: make the research CD consume materialized evidence through the same synthesis path as other evidence.
 
+Status: integrated at the tool-card, synthesis handoff, verifier, and golden scoring boundaries. Materialized evidence candidates now enter the same hidden evidence-pack path as search/fetch evidence.
+
 Required behavior:
 
 - No research-domain hardcoding.
@@ -351,6 +353,27 @@ Exit tests:
 - synthesis sees evidence refs from materialized output,
 - final answer does not mention internal gate names/tool traces,
 - verifier can reject answers that ignore materialized evidence.
+
+Implemented:
+
+- Added `materialized_evidence_consumption` to the research CD quality contract so browser-materialized pages, reader output, direct fetches, and search results are all treated as packaged evidence inputs rather than trace text.
+- Carried `evidence_pack_candidates` through hidden tool artifacts and derived evidence refs when explicit refs are absent.
+- Added `evidence_pack_candidates` to live synthesis input packing and tool-result quality counts.
+- Taught the final-answer verifier to treat packaged materialized candidates as recorded evidence, so a final answer cannot claim no evidence exists when materialized evidence is present.
+- Taught golden retrieval quality scoring that materialized evidence candidates count as provider candidates, evidence, content-rich candidates, and claim-hint sources.
+- Added internal-leak scoring markers for `web_gate_*` and `web_tooling_gates` so web tooling gates remain diagnostic-only.
+
+Validation:
+
+- `cargo fmt --check`
+- `cargo test -p infring-ops-core response_tool_card_carries_materialized_evidence_candidates --lib`
+- `cargo test -p infring-ops-core final_verifier_treats_materialized_candidates_as_recorded_evidence --lib`
+- `cargo test --manifest-path orchestration/Cargo.toml --bin eval_runtime materialized_evidence_candidates_count_as_retrieval_quality`
+- `cargo test --manifest-path orchestration/Cargo.toml --bin eval_runtime web_tooling_gate_names_are_internal_leaks`
+
+Impact:
+
+This does not enable live browser execution. It closes the next consumption gap: if a materializer produces packaged candidates, the user-facing research path can now consume them through normal evidence machinery and the scorer can tell whether that evidence would support quality output.
 
 ### L6-010 Golden And Live Impact Pass
 
