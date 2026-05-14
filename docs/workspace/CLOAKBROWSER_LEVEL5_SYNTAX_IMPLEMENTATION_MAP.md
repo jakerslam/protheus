@@ -86,7 +86,7 @@ Status values:
 | 1 | `examples/integrations/aws_lambda/lambda_handler.py` | integrated: boundary contract pass 001 | What is the smallest safe one-shot navigate/wait/capture/close loop? | `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` plus future adapter part. |
 | 2 | `tests/test_lambda_security.py` | integrated: safety test pass 002 | Which security invariants must be locked before live browser execution? | Browser materialization contract tests. |
 | 3 | `js/src/playwright.ts` | integrated: context boundary pass 003 | What launch/context cleanup and option filtering shape should the adapter mimic? | Future local browser adapter helper. |
-| 4 | `js/src/types.ts` | pending | Which request/profile fields are real API surface versus convenience wrappers? | Tool CD/policy schema audit. |
+| 4 | `js/src/types.ts` | integrated: API surface pass 004 | Which request/profile fields are real API surface versus convenience wrappers? | Tool CD/policy schema audit. |
 | 5 | `js/src/args.ts` | mapped seed, needs line pass | How should profile args be deduped and overridden without caller authority? | Profile compiler tests and denied-field projection. |
 | 6 | `js/src/config.ts` | pending | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
 | 7 | `js/src/download.ts` | pending | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
@@ -299,6 +299,56 @@ workflow/tool request
 Validation: `cargo test -p infring-ops-core browser_materialization --lib` passed 11/11 targeted tests.
 
 The next source file is `js/src/types.ts`, which should be used to audit the public API surface and decide which fields remain denied, deferred, or promoted into Tool CD request/profile schema.
+
+## File Pass 004: `js/src/types.ts`
+
+Status: `integrated: API surface audit`
+
+Source lines inspected: 1-72
+
+This file is useful because it names the public knobs CloakBrowser lets callers pass into browser launch, context launch, persistent context launch, and binary readiness surfaces. For Infring, the pattern is not "copy these fields into the user request." The pattern is to make the request boundary explicit about which browser controls are caller-owned, policy-owned, deferred, or never chat-visible.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 8-36 | `LaunchOptions` exposes headless mode, proxy, raw Chromium args, stealth-arg toggle, timezone, locale, geoip, raw launch options, and humanization controls. | These are profile/capability controls, not ordinary materialization request fields. The current primitive rejects the direct aliases and keeps profile compilation policy-owned. | Integrated as denied caller fields. |
+| 38-58 | `LaunchContextOptions` adds user-agent, viewport, timezone alias, color scheme, and raw `contextOptions` including storage state, permissions, geolocation, headers, and credentials. | Context conflict and raw context fields stay adapter-owned until separately admitted. Direct caller context overrides are denied before URL safety or adapter readiness. | Integrated as denied caller fields and context contract. |
+| 60-63 | Persistent context requires `userDataDir`. | Persistent profile/session retention is a separate future capability with TTL, cleanup, and identity rules. It is not part of stateless browser materialization. | Integrated as denied caller field. |
+| 65-72 | `BinaryInfo` exposes version, platform, path, installed state, cache dir, and download URL. | Readiness lifecycle may project installed/version/status, but raw binary paths/download URLs should remain provider diagnostics rather than user-facing evidence. | Accepted as readiness metadata pattern; no new user request field. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` | Expanded denied request fields to include CloakBrowser's public API aliases: `args`, `stealthArgs`, camelCase proxy/session/storage/local-file aliases, and `userDataDir`. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added the same API-surface denial list to default policy so the CD/player boundary stays visible. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the same denied API surface through runtime profile-compilation metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same API-surface fields to the Tool CD request contract. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Extended mock-fast rejection tests for raw args, stealth arg toggles, persistent user data dirs, and storage state. |
+
+### Rejected Or Deferred From This File
+
+| Source Feature | Decision | Reason |
+| --- | --- | --- |
+| Direct caller `args` / `stealthArgs` | Reject for current primitive | Launch flags are policy/profile compiler output, not request authority. |
+| Direct caller `proxy` / proxy credentials | Defer | Proxy use requires a separate permission and secret-redaction lane. |
+| Direct caller `storageState` / `userDataDir` | Defer | Persistent state changes identity, retention, cleanup, and privacy obligations. |
+| Direct caller user-agent, viewport, locale, timezone, color scheme | Defer | These can be profile fields later, but the first primitive should prove stateless materialization before admitting fingerprint/profile overrides. |
+| User-visible raw binary path/cache/download URL | Reject | Binary lifecycle is runtime/provider readiness, not research evidence. |
+
+### Pass 004 Outcome
+
+The browser materialization request is now aligned against CloakBrowser's public API surface:
+
+```text
+URL + admission handle + bounded extraction/readiness fields
+-> deny direct launch/context/profile/session/proxy controls
+-> project profile/readiness metadata internally
+-> keep future profile/session/proxy capabilities explicit
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
 
 ## Second Slice: Launch/Profile Compiler
 

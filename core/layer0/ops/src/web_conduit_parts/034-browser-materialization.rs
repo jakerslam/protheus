@@ -362,6 +362,8 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
         &[
             "browser_args",
             "launch_args",
+            "args",
+            "stealthArgs",
             "extra_args",
             "_strategy_args",
             "launchOptions",
@@ -384,9 +386,15 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "proxy",
             "proxy_url",
             "proxy_credentials",
+            "proxyUrl",
+            "proxyCredentials",
             "session_id",
+            "sessionId",
             "storage_state",
+            "storageState",
             "local_file",
+            "localFile",
+            "userDataDir",
         ],
     );
     if let Some(field) = browser_materialization_first_denied_request_field(request, &denied_fields)

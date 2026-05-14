@@ -261,6 +261,8 @@ fn default_policy() -> Value {
                     "denied_fields": [
                         "browser_args",
                         "launch_args",
+                        "args",
+                        "stealthArgs",
                         "extra_args",
                         "_strategy_args",
                         "launchOptions",
@@ -283,9 +285,15 @@ fn default_policy() -> Value {
                         "proxy",
                         "proxy_url",
                         "proxy_credentials",
+                        "proxyUrl",
+                        "proxyCredentials",
                         "session_id",
+                        "sessionId",
                         "storage_state",
-                        "local_file"
+                        "storageState",
+                        "local_file",
+                        "localFile",
+                        "userDataDir"
                     ]
                 },
                 "profile_contract": {

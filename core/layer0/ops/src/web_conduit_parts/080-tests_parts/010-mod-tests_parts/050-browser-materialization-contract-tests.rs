@@ -197,12 +197,16 @@
         for (field, value) in [
             ("launchOptions", json!({"slowMo": 100})),
             ("contextOptions", json!({"locale": "en-US"})),
+            ("args", json!(["--disable-web-security"])),
+            ("stealthArgs", json!(false)),
             ("viewport", json!({"width": 1024, "height": 768})),
             ("userAgent", json!("custom-agent")),
             ("timezoneId", json!("America/New_York")),
             ("locale", json!("en-US")),
             ("humanize", json!(true)),
             ("geoip", json!(true)),
+            ("userDataDir", json!("/tmp/persistent-profile")),
+            ("storageState", json!({"cookies": []})),
         ] {
             let mut request = json!({
                 "url": "https://example.com/research",

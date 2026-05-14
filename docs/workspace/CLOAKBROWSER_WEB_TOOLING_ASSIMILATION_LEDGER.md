@@ -136,6 +136,7 @@ all web research always uses stealth browser by default
 | `README.md` | parsed | Product positioning, capability taxonomy, stealth/browser/anti-bot claims, integration vocabulary. |
 | `cloakbrowser/browser.py` | parsed | Python launch/context wrapper, backend selection, proxy resolution, geoip, cleanup-on-close, humanize hook. |
 | `js/src/playwright.ts` | level 5 pass 003 integrated | TypeScript launch/context wrapper, context option filtering, geoip/WebRTC consistency, humanize patch points, context cleanup, and persistent-session split. |
+| `js/src/types.ts` | level 5 pass 004 integrated | Public launch/context/persistent-context API surface, direct browser/profile controls, storage/session fields, and binary readiness metadata. |
 | `js/src/args.ts` | parsed | Deduped argument compiler with explicit override order. |
 | `js/src/config.ts` | parsed | Platform detection, binary cache path, version map, ignored default args, default stealth args. |
 | `js/src/proxy.ts` | parsed | Robust proxy URL parsing, SOCKS handling, credential normalization, pass-through fallback. |
@@ -234,6 +235,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-028` | integrated | high | Complete Level 5 pass 001 for Lambda one-shot materialization syntax. | Browser materialization contract and tests | `CLOAK-TASK-027` | Added boundary diagnostics for pre-navigation URL safety, final URL safety, navigation/readiness strategy, cleanup status, and retry recommendations without enabling live browser execution. Next step is security-test pass 002. |
 | `CLOAK-TASK-029` | integrated | high | Complete Level 5 pass 002 for Lambda security tests. | Browser materialization contract and shared SSRF guard | `CLOAK-TASK-028` | Added mock-fast coverage for non-HTTP scheme rejection, private/internal targets, caller `extra_args` / `_strategy_args` denial, and case-insensitive HTTP authority parsing. |
 | `CLOAK-TASK-030` | integrated | high | Complete Level 5 pass 003 for Playwright context boundary. | Browser materialization profile/context contract | `CLOAK-TASK-029` | Added context lifecycle contract metadata, denied direct Playwright/profile override fields, and kept persistent sessions, humanized interaction, proxy, and geo behavior behind future explicit capabilities. |
+| `CLOAK-TASK-031` | integrated | high | Complete Level 5 pass 004 for TypeScript API surface audit. | Browser materialization request contract and Tool CD | `CLOAK-TASK-030` | Audited `LaunchOptions`, `LaunchContextOptions`, `LaunchPersistentContextOptions`, and `BinaryInfo`; denied direct public aliases such as raw args, stealth args, persistent profile dirs, storage state, and camelCase proxy/session/local-file fields. |
 
 ## Open Questions
 
@@ -517,3 +519,25 @@ Validation:
 Important boundary:
 
 This wave is not live adapter implementation. It gives us the tracking surface needed to work through Level 5 one file at a time without accidentally claiming full assimilation from broad pattern reads.
+
+## Assimilation Wave 13: Level 5 API Surface Audit
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `js/src/types.ts` as the syntax-level source of CloakBrowser's public launch/context API surface.
+- Mapped broad caller-facing launch fields to Infring policy-owned profile controls rather than user request authority.
+- Added CloakBrowser public aliases such as raw `args`, `stealthArgs`, camelCase proxy/session/storage/local-file fields, and `userDataDir` to the browser materialization denial contract.
+- Kept binary path/cache/download metadata in the runtime readiness lane, not in user-facing evidence or chat-visible output.
+- Extended mock-fast materialization tests so these public API aliases fail before URL safety, adapter readiness, or browser launch.
+
+Validation:
+
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not add live browser execution. It closes request-contract gaps before adapter work so future browser/profile/session/proxy capability admission has a clean primitive boundary.

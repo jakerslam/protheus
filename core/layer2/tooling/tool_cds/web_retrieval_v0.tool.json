@@ -388,6 +388,8 @@
         "denied_fields": [
           "browser_args",
           "launch_args",
+          "args",
+          "stealthArgs",
           "extra_args",
           "_strategy_args",
           "launchOptions",
@@ -410,9 +412,15 @@
           "proxy",
           "proxy_url",
           "proxy_credentials",
+          "proxyUrl",
+          "proxyCredentials",
           "session_id",
+          "sessionId",
           "storage_state",
-          "local_file"
+          "storageState",
+          "local_file",
+          "localFile",
+          "userDataDir"
         ],
         "caller_controlled_browser_args_allowed": false,
         "proxy_fields_allowed": false,

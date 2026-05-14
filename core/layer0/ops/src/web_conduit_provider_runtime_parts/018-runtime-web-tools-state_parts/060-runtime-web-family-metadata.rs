@@ -186,6 +186,8 @@ fn browser_materialization_profile_compilation_contract(
         &[
             "browser_args",
             "launch_args",
+            "args",
+            "stealthArgs",
             "extra_args",
             "_strategy_args",
             "launchOptions",
@@ -208,9 +210,15 @@ fn browser_materialization_profile_compilation_contract(
             "proxy",
             "proxy_url",
             "proxy_credentials",
+            "proxyUrl",
+            "proxyCredentials",
             "session_id",
+            "sessionId",
             "storage_state",
+            "storageState",
             "local_file",
+            "localFile",
+            "userDataDir",
         ],
     );
     let denied_launch_args = browser_materialization_array_field(
