@@ -53,10 +53,84 @@ fn browser_materialization_safety_projection(url: &str, ssrf_guard: &Value) -> V
     })
 }
 
+fn browser_materialization_output_contract_projection(config: &Value) -> Value {
+    let output_contract = config
+        .get("output_contract")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    json!({
+        "version": "browser_materialized_page_contract_v1",
+        "schema_ref": "web_research.browser_materialized_page.v1",
+        "fields": output_contract
+            .get("fields")
+            .cloned()
+            .unwrap_or_else(|| json!([
+                "source_url",
+                "final_url",
+                "status_code",
+                "title",
+                "main_text_or_markdown",
+                "links_summary",
+                "blocker_classification",
+                "extraction_confidence",
+                "artifact_ref"
+            ])),
+        "chat_visible": output_contract
+            .get("chat_visible")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "raw_payload_chat_visible": false
+    })
+}
+
+fn browser_materialization_evidence_handoff_projection(config: &Value) -> Value {
+    let handoff = config
+        .get("evidence_handoff")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    json!({
+        "version": "browser_materialized_page_evidence_handoff_v1",
+        "target_lane": handoff
+            .get("target_lane")
+            .and_then(Value::as_str)
+            .unwrap_or("candidate_enrichment"),
+        "promotion_requires": handoff
+            .get("promotion_requires")
+            .cloned()
+            .unwrap_or_else(|| json!([
+                "safe_final_url",
+                "substantive_main_text",
+                "query_relevance",
+                "not_blocker_shell"
+            ])),
+        "confidence_values": handoff
+            .get("confidence_values")
+            .cloned()
+            .unwrap_or_else(|| json!(["usable", "low_confidence_raw", "rejected"])),
+        "evidence_candidate_state": "not_created",
+        "raw_payload_chat_visible": handoff
+            .get("raw_payload_chat_visible")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "browser_success_is_not_source_truth_without_packaging": true
+    })
+}
+
+fn browser_materialization_artifact_quarantine_projection() -> Value {
+    json!({
+        "version": "browser_materialization_artifact_quarantine_v1",
+        "state": "not_created",
+        "artifact_ref": Value::Null,
+        "raw_payload_chat_visible": false,
+        "browser_trace_chat_visible": false
+    })
+}
+
 fn browser_materialization_fail_closed(
     error: &str,
     reason: &str,
     url: &str,
+    config: &Value,
     runtime_metadata: &Value,
     url_safety: Value,
 ) -> Value {
@@ -74,6 +148,9 @@ fn browser_materialization_fail_closed(
         "materialized_page": Value::Null,
         "evidence_candidate": Value::Null,
         "artifact_ref": Value::Null,
+        "materialized_page_contract": browser_materialization_output_contract_projection(config),
+        "evidence_handoff_contract": browser_materialization_evidence_handoff_projection(config),
+        "artifact_quarantine": browser_materialization_artifact_quarantine_projection(),
         "url_safety": url_safety,
         "profile_compilation": runtime_metadata
             .pointer("/profile_compilation")
@@ -122,6 +199,7 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "missing_required_field",
             "Browser materialization requires a URL.",
             "",
+            &config,
             &runtime_metadata,
             blank_safety,
         );
@@ -131,6 +209,7 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "missing_required_field",
             "Browser materialization requires an admission_ref capability handle.",
             &url,
+            &config,
             &runtime_metadata,
             blank_safety,
         );
@@ -158,6 +237,7 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "unsafe_caller_control_rejected",
             &format!("Caller-supplied browser control field rejected: {field}."),
             &url,
+            &config,
             &runtime_metadata,
             blank_safety,
         );
@@ -174,6 +254,7 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "url_safety_blocked",
             "Browser materialization rejected the URL before adapter execution.",
             &url,
+            &config,
             &runtime_metadata,
             url_safety,
         );
@@ -188,6 +269,7 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "capability_not_enabled",
             "Browser materialization is declared but not enabled by policy.",
             &url,
+            &config,
             &runtime_metadata,
             url_safety,
         );
@@ -202,6 +284,7 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "adapter_not_ready",
             "Browser materialization is enabled, but no admitted adapter is ready.",
             &url,
+            &config,
             &runtime_metadata,
             url_safety,
         );
@@ -211,6 +294,7 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
         "browser_adapter_stub_only",
         "Browser materialization adapter boundary exists, but live execution is not implemented in this primitive yet.",
         &url,
+        &config,
         &runtime_metadata,
         url_safety,
     )

@@ -39,6 +39,33 @@
             out.get("raw_payload_chat_visible").and_then(Value::as_bool),
             Some(false)
         );
+        assert_eq!(
+            out.pointer("/materialized_page_contract/schema_ref")
+                .and_then(Value::as_str),
+            Some("web_research.browser_materialized_page.v1")
+        );
+        assert!(out
+            .pointer("/materialized_page_contract/fields")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("main_text_or_markdown")))
+            .unwrap_or(false));
+        assert_eq!(
+            out.pointer("/evidence_handoff_contract/target_lane")
+                .and_then(Value::as_str),
+            Some("candidate_enrichment")
+        );
+        assert_eq!(
+            out.pointer("/evidence_handoff_contract/evidence_candidate_state")
+                .and_then(Value::as_str),
+            Some("not_created")
+        );
+        assert_eq!(
+            out.pointer("/artifact_quarantine/raw_payload_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
     }
 
     #[test]
@@ -135,5 +162,49 @@
         assert_eq!(
             out.pointer("/readiness_lifecycle/state").and_then(Value::as_str),
             Some("not_installed")
+        );
+    }
+
+    #[test]
+    fn browser_materialization_ready_adapter_still_uses_stub_until_adapter_exists() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com/research",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("browser_adapter_stub_only")
+        );
+        assert_eq!(
+            out.get("browser_launch_attempted").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/status").and_then(Value::as_str),
+            Some("ready_for_adapter")
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/state").and_then(Value::as_str),
+            Some("ready")
+        );
+        assert!(out.get("materialized_page").map(Value::is_null).unwrap_or(false));
+        assert_eq!(
+            out.pointer("/evidence_handoff_contract/browser_success_is_not_source_truth_without_packaging")
+                .and_then(Value::as_bool),
+            Some(true)
         );
     }

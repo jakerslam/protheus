@@ -246,3 +246,23 @@ Validation:
 Boundary:
 
 This slice is still not a live browser adapter. It is the primitive call boundary that a later adapter must satisfy.
+
+### Slice 4: Output And Evidence Handoff Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Projected the `web_research.browser_materialized_page.v1` output contract on every browser materialization response.
+- Projected the evidence handoff contract separately from page output so raw browser success cannot skip evidence packaging.
+- Added artifact quarantine state for the future raw page/browser payload refs.
+- Added ready-adapter stub coverage to prove the boundary remains fail-closed even when policy says the adapter is ready but no live adapter exists.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -q -p infring-ops-core --lib browser_materialization -- --nocapture`
+
+Boundary:
+
+This slice does not materialize pages. It locks the adapter output and evidence promotion obligations before live execution is added.

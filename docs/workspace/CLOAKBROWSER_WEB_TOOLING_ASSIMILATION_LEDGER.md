@@ -227,6 +227,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-023` | integrated | medium | Project browser profile compilation at runtime. | Provider runtime metadata | `CLOAK-L4-004` | Runtime status now compiles the default profile, denied caller fields, denied launch args, and chat-hidden trace boundary without launching a browser. |
 | `CLOAK-TASK-024` | integrated | medium | Surface browser profile/readiness state in effective inventory. | Web tooling inventory | `CLOAK-L4-004/006` | Inventory consumers can now see the optional browser lane's profile compilation status and readiness lifecycle without knowing deep runtime metadata paths. |
 | `CLOAK-TASK-025` | integrated | high | Add default-off browser materialization API boundary. | web-conduit API/CLI + tests | `CLOAK-L4-003/004/005/006` | `api_browser_materialize_page` validates URL/admission fields, rejects caller browser controls, reuses SSRF safety, and fails closed until an admitted adapter exists. |
+| `CLOAK-TASK-026` | integrated | medium | Project materialized-page output and evidence handoff contracts. | web-conduit API + tests | `CLOAK-TASK-025` | Browser materialization responses now expose the page-output schema, evidence promotion requirements, and artifact quarantine state without creating raw payloads. |
 
 ## Open Questions
 
@@ -469,3 +470,24 @@ Validation:
 Important boundary:
 
 This wave still does not add live browser execution, stealth behavior, proxy behavior, persistent sessions, humanized interaction, hidden retries, or browser installation. It creates a measurable primitive boundary that can later host an admitted adapter.
+
+## Assimilation Wave 11: Materialized Page Output And Evidence Handoff Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Added `materialized_page_contract` to browser materialization API responses so adapter work has a fixed output schema to satisfy.
+- Added `evidence_handoff_contract` to responses, including candidate-enrichment target lane, promotion requirements, confidence vocabulary, and the rule that browser success is not source truth until packaged as evidence.
+- Added `artifact_quarantine` projection to keep raw browser/page payload state explicit and non-chat-visible.
+- Preserved fail-closed behavior for default-off, adapter-not-ready, and adapter-stub-only states.
+- Added mock-fast coverage for output contract fields, evidence handoff, artifact quarantine, and ready-adapter stub behavior.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -q -p infring-ops-core --lib browser_materialization -- --nocapture`
+
+Important boundary:
+
+This wave still does not create materialized page content. It makes the future adapter's output and evidence promotion obligations visible before live browser execution exists.
