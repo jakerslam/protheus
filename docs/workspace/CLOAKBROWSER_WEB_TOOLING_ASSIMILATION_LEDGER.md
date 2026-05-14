@@ -293,6 +293,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-L6-TASK-002` | integrated | high | Complete Level 6 pass 002 for fixture artifact quarantine. | Browser materialization artifact manifest and tests | `CLOAK-L6-TASK-001` | Added a ref-only artifact manifest for raw HTML, extracted text, and browser trace material, rejected caller raw payload fields, and proved evidence receives extracted text/metadata rather than raw browser payloads. |
 | `CLOAK-L6-TASK-003` | integrated | high | Complete Level 6 pass 003 for evidence candidate conversion. | Browser materialization evidence-pack candidate and refs | `CLOAK-L6-TASK-002` | Converted fake materialization output into an `evidence_pack_v1` candidate with claim hints, term hints, score components, quality flags, promotion metadata, artifact refs, and synthesis-safe evidence refs. |
 | `CLOAK-L6-TASK-004` | integrated | high | Complete Level 6 pass 004 for policy-owned local static fixture materialization. | Browser materialization local fixture provider and tests | `CLOAK-L6-TASK-003` | Added a policy-selected `local_static_fixture` provider that reads only safe policy-owned fixture paths under the runtime/test root, preserves public URL safety, extracts title/text/links, emits evidence candidates, and proves cleanup on success/failure without exposing raw paths, raw HTML, browser handles, or CDP URLs. |
+| `CLOAK-L6-TASK-005` | integrated | high | Complete Level 6 pass 005 for policy-owned JS-rendered fixture materialization. | Browser materialization rendered fixture provider and tests | `CLOAK-L6-TASK-004` | Added a `local_js_rendered_fixture` provider proof that direct static extraction misses a rendered marker while materialization receives policy-owned rendered text, keeps readiness policy-owned, rejects caller scripts, and emits normal evidence candidates without exposing raw scripts, fixture paths, browser handles, or CDP URLs. |
 
 ## Open Questions
 
@@ -1345,3 +1346,27 @@ Validation:
 Important boundary:
 
 This wave still does not improve live retrieval by itself. It gives us a deterministic local extraction proof so the next slice can isolate whether JavaScript-rendered fixture content actually needs browser materialization.
+
+## Assimilation Wave 48: Level 6 Local JS-Rendered Fixture Provider
+
+Status: integrated into browser materialization rendered-content proof; live browser execution remains deferred.
+
+Implemented:
+
+- Advanced Level 6 pass 005 from the implementation proof map.
+- Added a policy-selected `local_js_rendered_fixture` materialization provider.
+- Proved the direct static extraction path can miss a rendered-content marker while the materialization path receives a policy-owned rendered-text fixture.
+- Added `js_render_proof` fields for direct-fetch marker absence, materialized marker presence, policy-owned readiness, caller-script denial, and raw script visibility.
+- Extended denied request fields so caller-supplied scripts/evaluate/wait-script controls fail closed before provider execution.
+- Kept rendered fixture paths, raw fixture payloads, raw scripts, browser handles, and CDP URLs out of chat-visible/tool projection output.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not claim anti-bot improvement or live browser rendering. It turns the JS-rendered-content requirement into a measurable materialization contract so a real adapter can be swapped in later without changing workflow behavior.

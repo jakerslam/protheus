@@ -229,9 +229,10 @@ fn browser_materialization_retry_diagnostics_projection(error: &str) -> Value {
         "adapter_not_ready" => "satisfy_adapter_readiness_before_retry",
         "browser_adapter_stub_only" => "implement_or_admit_browser_adapter_before_retry",
         "capability_not_enabled" => "admit_capability_before_retry",
-        "local_static_fixture_unavailable" | "local_static_fixture_url_mismatch" => {
-            "fix_policy_owned_fixture_before_retry"
-        }
+        "local_static_fixture_unavailable"
+        | "local_static_fixture_url_mismatch"
+        | "local_js_rendered_fixture_unavailable"
+        | "local_js_rendered_fixture_url_mismatch" => "fix_policy_owned_fixture_before_retry",
         "url_safety_blocked" | "unsafe_caller_control_rejected" => "do_not_retry_without_request_change",
         _ => "no_retry_recommendation",
     };
@@ -569,9 +570,15 @@ fn browser_materialization_ref_hash(parts: &[&str]) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-fn browser_materialization_local_fixture_config(config: &Value) -> Value {
+fn browser_materialization_local_fixture_config(config: &Value, provider: &str) -> Value {
+    let primary_key = if provider == "local_js_rendered_fixture" {
+        "local_js_rendered_fixture"
+    } else {
+        "local_static_fixture"
+    };
     config
-        .get("local_static_fixture")
+        .get(primary_key)
+        .or_else(|| config.get("local_static_fixture"))
         .cloned()
         .unwrap_or_else(|| json!({}))
 }
@@ -604,11 +611,19 @@ fn browser_materialization_local_fixture_path(
     root: &Path,
     fixture_config: &Value,
 ) -> Result<PathBuf, String> {
+    browser_materialization_local_fixture_path_for_key(root, fixture_config, "fixture_rel_path")
+}
+
+fn browser_materialization_local_fixture_path_for_key(
+    root: &Path,
+    fixture_config: &Value,
+    key: &str,
+) -> Result<PathBuf, String> {
     let rel = fixture_config
-        .get("fixture_rel_path")
+        .get(key)
         .and_then(Value::as_str)
         .and_then(browser_materialization_safe_relative_path)
-        .ok_or_else(|| "local_static_fixture_missing_safe_relative_path".to_string())?;
+        .ok_or_else(|| format!("local_fixture_missing_safe_relative_path:{key}"))?;
     let candidate = root.join(rel);
     if candidate.exists() {
         let root_canonical = root
@@ -793,7 +808,17 @@ fn browser_materialization_fake_success(
     })
 }
 
-fn browser_materialization_local_static_fixture_failure(
+fn browser_materialization_local_fixture_error_code(provider: &str, suffix: &str) -> &'static str {
+    match (provider, suffix) {
+        ("local_js_rendered_fixture", "url_mismatch") => "local_js_rendered_fixture_url_mismatch",
+        ("local_js_rendered_fixture", _) => "local_js_rendered_fixture_unavailable",
+        ("local_static_fixture", "url_mismatch") => "local_static_fixture_url_mismatch",
+        _ => "local_static_fixture_unavailable",
+    }
+}
+
+fn browser_materialization_local_fixture_failure(
+    provider: &str,
     error: &str,
     reason: &str,
     url: &str,
@@ -803,12 +828,18 @@ fn browser_materialization_local_static_fixture_failure(
 ) -> Value {
     let mut out =
         browser_materialization_fail_closed(error, reason, url, config, runtime_metadata, url_safety);
-    out["provider"] = json!("local_static_fixture");
+    let provider = clean_text(provider, 80);
+    let provider_metadata_key = if provider == "local_js_rendered_fixture" {
+        "local_js_rendered_fixture"
+    } else {
+        "local_static_fixture"
+    };
+    out["provider"] = json!(provider);
     out["tool_execution_attempted"] = json!(true);
     out["cleanup_status"] =
         browser_materialization_local_fixture_cleanup_status_projection("completed_after_failure");
     out["retry_diagnostics"] = browser_materialization_retry_diagnostics_projection(error);
-    out["local_static_fixture"] = json!({
+    out[provider_metadata_key] = json!({
         "version": "browser_materialization_local_static_fixture_v1",
         "source": "policy_owned_fixture",
         "fixture_path_chat_visible": false,
@@ -818,15 +849,22 @@ fn browser_materialization_local_static_fixture_failure(
     out
 }
 
-fn browser_materialization_local_static_fixture_success(
+fn browser_materialization_local_fixture_success(
     root: &Path,
     url: &str,
     config: &Value,
     runtime_metadata: &Value,
     pre_navigation_url_safety: Value,
     request: &Value,
+    provider: &str,
 ) -> Value {
-    let fixture_config = browser_materialization_local_fixture_config(config);
+    let provider = clean_text(provider, 80).to_ascii_lowercase();
+    let provider = if provider == "local_js_rendered_fixture" {
+        "local_js_rendered_fixture"
+    } else {
+        "local_static_fixture"
+    };
+    let fixture_config = browser_materialization_local_fixture_config(config, provider);
     let fixture_url = clean_text(
         fixture_config
             .get("fixture_url")
@@ -835,8 +873,9 @@ fn browser_materialization_local_static_fixture_success(
         2200,
     );
     if fixture_url != clean_text(url, 2200) {
-        return browser_materialization_local_static_fixture_failure(
-            "local_static_fixture_url_mismatch",
+        return browser_materialization_local_fixture_failure(
+            provider,
+            browser_materialization_local_fixture_error_code(provider, "url_mismatch"),
             "Policy-owned local static fixture does not admit this URL.",
             url,
             config,
@@ -847,8 +886,9 @@ fn browser_materialization_local_static_fixture_success(
     let fixture_path = match browser_materialization_local_fixture_path(root, &fixture_config) {
         Ok(path) => path,
         Err(reason) => {
-            return browser_materialization_local_static_fixture_failure(
-                "local_static_fixture_unavailable",
+            return browser_materialization_local_fixture_failure(
+                provider,
+                browser_materialization_local_fixture_error_code(provider, "unavailable"),
                 &reason,
                 url,
                 config,
@@ -860,8 +900,9 @@ fn browser_materialization_local_static_fixture_success(
     let raw_html = match fs::read_to_string(&fixture_path) {
         Ok(raw) => raw,
         Err(err) => {
-            return browser_materialization_local_static_fixture_failure(
-                "local_static_fixture_unavailable",
+            return browser_materialization_local_fixture_failure(
+                provider,
+                browser_materialization_local_fixture_error_code(provider, "unavailable"),
                 &format!("policy_owned_fixture_read_failed:{err}"),
                 url,
                 config,
@@ -880,7 +921,8 @@ fn browser_materialization_local_static_fixture_success(
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        return browser_materialization_local_static_fixture_failure(
+        return browser_materialization_local_fixture_failure(
+            provider,
             "url_safety_blocked",
             "Policy-owned local fixture final URL failed revalidation before artifact creation.",
             url,
@@ -916,8 +958,71 @@ fn browser_materialization_local_static_fixture_success(
         .or_else(|| config.get("max_response_bytes").and_then(Value::as_u64))
         .unwrap_or(350000)
         .clamp(256, 1_000_000) as usize;
-    let (main_text, title_from_html, truncated, extractor) =
+    let (direct_text, title_from_html, direct_truncated, direct_extractor) =
         extract_fetch_content_with_extractor(&raw_html, &content_type, extract_mode, max_chars);
+    let mut main_text = direct_text.clone();
+    let mut truncated = direct_truncated;
+    let mut extractor = direct_extractor.clone();
+    let rendered_marker = clean_text(
+        fixture_config
+            .get("rendered_marker")
+            .and_then(Value::as_str)
+            .unwrap_or("Rendered JS fixture content"),
+        220,
+    );
+    let mut js_render_proof = Value::Null;
+    if provider == "local_js_rendered_fixture" {
+        let rendered_path = match browser_materialization_local_fixture_path_for_key(
+            root,
+            &fixture_config,
+            "rendered_text_rel_path",
+        ) {
+            Ok(path) => path,
+            Err(reason) => {
+                return browser_materialization_local_fixture_failure(
+                    provider,
+                    browser_materialization_local_fixture_error_code(provider, "unavailable"),
+                    &reason,
+                    url,
+                    config,
+                    runtime_metadata,
+                    pre_navigation_url_safety,
+                );
+            }
+        };
+        let rendered_raw = match fs::read_to_string(&rendered_path) {
+            Ok(raw) => raw,
+            Err(err) => {
+                return browser_materialization_local_fixture_failure(
+                    provider,
+                    browser_materialization_local_fixture_error_code(provider, "unavailable"),
+                    &format!("policy_owned_rendered_fixture_read_failed:{err}"),
+                    url,
+                    config,
+                    runtime_metadata,
+                    pre_navigation_url_safety,
+                );
+            }
+        };
+        let normalized_rendered = normalize_block_text(&strip_invisible_unicode(&rendered_raw));
+        let (rendered, rendered_truncated) = truncate_chars(&normalized_rendered, max_chars);
+        main_text = rendered;
+        truncated = rendered_truncated;
+        extractor = "policy_owned_js_render_fixture".to_string();
+        js_render_proof = json!({
+            "version": "browser_materialization_local_js_render_proof_v1",
+            "source": "policy_owned_rendered_fixture",
+            "direct_fetch_probe_extractor": direct_extractor,
+            "direct_fetch_contains_rendered_marker": !rendered_marker.is_empty()
+                && direct_text.contains(&rendered_marker),
+            "materialized_contains_rendered_marker": !rendered_marker.is_empty()
+                && main_text.contains(&rendered_marker),
+            "readiness_strategy_policy_owned": true,
+            "caller_supplied_script_allowed": false,
+            "raw_script_chat_visible": false,
+            "raw_rendered_fixture_payload_chat_visible": false
+        });
+    }
     let title = title_from_html
         .filter(|row| !row.is_empty())
         .unwrap_or_else(|| {
@@ -936,14 +1041,14 @@ fn browser_materialization_local_static_fixture_success(
     };
     let links_summary = browser_materialization_links_summary_from_html(&raw_html, &final_url);
     let body_hash = sha256_hex(&raw_html);
-    let artifact_hash = browser_materialization_ref_hash(&[
-        "local_static_fixture",
-        url,
-        &final_url,
-        &body_hash,
-    ]);
+    let artifact_hash = browser_materialization_ref_hash(&[provider, url, &final_url, &body_hash]);
+    let artifact_segment = if provider == "local_js_rendered_fixture" {
+        "local-js"
+    } else {
+        "local-static"
+    };
     let artifact_ref = format!(
-        "artifact://web_conduit/browser_materialization/local-static/{}",
+        "artifact://web_conduit/browser_materialization/{artifact_segment}/{}",
         clean_text(&artifact_hash, 64)
     );
     let artifact_manifest =
@@ -991,9 +1096,9 @@ fn browser_materialization_local_static_fixture_success(
             .unwrap_or_else(|| json!("public_web")),
         "artifact_ref": artifact_ref.clone()
     });
-    let materialized_page = json!({
+    let mut materialized_page = json!({
         "version": "browser_materialized_page_v1",
-        "provider": "local_static_fixture",
+        "provider": provider,
         "source_url": clean_text(url, 2200),
         "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
         "final_url": final_url.clone(),
@@ -1022,19 +1127,40 @@ fn browser_materialization_local_static_fixture_success(
         "browser_trace_chat_visible": false,
         "browser_handle_visible": false,
         "cdp_url_visible": false,
-        "local_static_fixture": {
+        "local_fixture": {
             "version": "browser_materialization_local_static_fixture_v1",
             "source": "policy_owned_fixture",
             "fixture_path_chat_visible": false,
             "raw_fixture_payload_chat_visible": false
         }
     });
+    if provider == "local_js_rendered_fixture" {
+        materialized_page["local_js_rendered_fixture"] = json!({
+            "version": "browser_materialization_local_js_rendered_fixture_v1",
+            "source": "policy_owned_rendered_fixture",
+            "rendered_text_path_chat_visible": false,
+            "raw_rendered_fixture_payload_chat_visible": false,
+            "caller_supplied_script_allowed": false
+        });
+        materialized_page["js_render_proof"] = js_render_proof.clone();
+    } else {
+        materialized_page["local_static_fixture"] = json!({
+            "version": "browser_materialization_local_static_fixture_v1",
+            "source": "policy_owned_fixture",
+            "fixture_path_chat_visible": false,
+            "raw_fixture_payload_chat_visible": false
+        });
+    }
     json!({
         "ok": true,
         "type": "web_conduit_browser_materialization",
         "capability": "browser_materialize_page",
-        "provider": "local_static_fixture",
-        "reason": "Policy-owned local static fixture materialized through the browser materialization contract.",
+        "provider": provider,
+        "reason": if provider == "local_js_rendered_fixture" {
+            "Policy-owned local JS-rendered fixture materialized through the browser materialization contract."
+        } else {
+            "Policy-owned local static fixture materialized through the browser materialization contract."
+        },
         "url": clean_text(url, 2200),
         "tool_execution_attempted": true,
         "browser_launch_attempted": false,
@@ -1044,7 +1170,7 @@ fn browser_materialization_local_static_fixture_success(
         "evidence_candidate": evidence_candidate.clone(),
         "evidence_pack_candidates": [evidence_candidate],
         "evidence_refs": [evidence_ref],
-        "artifact_ref": format!("artifact://web_conduit/browser_materialization/local-static/{artifact_hash}"),
+        "artifact_ref": format!("artifact://web_conduit/browser_materialization/{artifact_segment}/{artifact_hash}"),
         "artifact_manifest": artifact_manifest.clone(),
         "materialized_page_contract": browser_materialization_output_contract_projection(config),
         "evidence_handoff_contract": browser_materialization_evidence_handoff_projection_with_state(
@@ -1075,6 +1201,7 @@ fn browser_materialization_local_static_fixture_success(
             .get("execution_gate")
             .cloned()
             .unwrap_or_else(|| json!({})),
+        "js_render_proof": js_render_proof,
         "local_static_fixture": {
             "version": "browser_materialization_local_static_fixture_v1",
             "source": "policy_owned_fixture",
@@ -1228,6 +1355,13 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "humanPreset",
             "humanConfig",
             "geoip",
+            "script",
+            "scripts",
+            "javascript",
+            "evaluate",
+            "evaluate_script",
+            "wait_script",
+            "raw_wait_script",
             "cdp_command",
             "user_script",
             "proxy",
@@ -1321,14 +1455,17 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
     if browser_materialization_selected_provider(&config) == "fake_materialization" {
         return browser_materialization_fake_success(&url, &config, &runtime_metadata, url_safety);
     }
-    if browser_materialization_selected_provider(&config) == "local_static_fixture" {
-        return browser_materialization_local_static_fixture_success(
+    let selected_provider = browser_materialization_selected_provider(&config);
+    if selected_provider == "local_static_fixture" || selected_provider == "local_js_rendered_fixture"
+    {
+        return browser_materialization_local_fixture_success(
             root,
             &url,
             &config,
             &runtime_metadata,
             url_safety,
             request,
+            &selected_provider,
         );
     }
 

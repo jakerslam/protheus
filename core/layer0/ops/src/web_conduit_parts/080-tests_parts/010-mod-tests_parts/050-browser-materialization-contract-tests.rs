@@ -1658,3 +1658,155 @@
         );
         assert!(out.get("provider").is_none());
     }
+
+    #[test]
+    fn browser_materialization_local_js_fixture_proves_rendered_content_gap() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let fixture_dir = tmp.path().join("fixtures");
+        std::fs::create_dir_all(&fixture_dir).expect("fixture dir");
+        std::fs::write(
+            fixture_dir.join("js-shell.html"),
+            r#"<!doctype html>
+            <html>
+              <head><title>Local JS Fixture Research</title></head>
+              <body>
+                <main>
+                  <h1>JS shell</h1>
+                  <div id="app">Loading...</div>
+                  <script>
+                    document.getElementById('app').textContent = 'Rendered JS fixture content: study result from hydrated page.';
+                  </script>
+                </main>
+              </body>
+            </html>"#,
+        )
+        .expect("fixture write");
+        std::fs::write(
+            fixture_dir.join("js-rendered.txt"),
+            "Rendered JS fixture content: study result from hydrated page with enough detail for evidence packaging.",
+        )
+        .expect("rendered fixture write");
+
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["local_js_rendered_fixture"]);
+        browser_config["local_js_rendered_fixture"] = json!({
+            "fixture_url": "https://example.com/js-research",
+            "fixture_rel_path": "fixtures/js-shell.html",
+            "rendered_text_rel_path": "fixtures/js-rendered.txt",
+            "rendered_marker": "Rendered JS fixture content",
+            "content_type": "text/html; charset=utf-8"
+        });
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com/js-research",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("provider").and_then(Value::as_str),
+            Some("local_js_rendered_fixture")
+        );
+        assert_eq!(
+            out.pointer("/js_render_proof/direct_fetch_contains_rendered_marker")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/js_render_proof/materialized_contains_rendered_marker")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/js_render_proof/readiness_strategy_policy_owned")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/js_render_proof/caller_supplied_script_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert!(
+            out.pointer("/materialized_page/main_text_or_markdown")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("Rendered JS fixture content")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/extractor")
+                .and_then(Value::as_str),
+            Some("policy_owned_js_render_fixture")
+        );
+        assert_eq!(
+            out.pointer("/materialized_page/local_js_rendered_fixture/caller_supplied_script_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/cleanup_status/status").and_then(Value::as_str),
+            Some("completed")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/snippet")
+                .and_then(Value::as_str)
+                .map(|snippet| snippet.contains("Rendered JS fixture content")),
+            Some(true)
+        );
+        let encoded = serde_json::to_string(&out).expect("encode output");
+        assert!(!encoded.contains("document.getElementById"));
+        assert!(!encoded.contains("js-shell.html"));
+        assert!(!encoded.contains("js-rendered.txt"));
+        assert!(!encoded.contains("ws://"));
+        assert!(!encoded.contains("devtools"));
+    }
+
+    #[test]
+    fn browser_materialization_rejects_caller_supplied_render_scripts() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["local_js_rendered_fixture"]);
+        browser_config["local_js_rendered_fixture"] = json!({
+            "fixture_url": "https://example.com/js-research",
+            "fixture_rel_path": "fixtures/js-shell.html",
+            "rendered_text_rel_path": "fixtures/js-rendered.txt",
+            "rendered_marker": "Rendered JS fixture content"
+        });
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        for field in ["script", "javascript", "evaluate_script", "raw_wait_script"] {
+            let mut request = json!({
+                "url": "https://example.com/js-research",
+                "admission_ref": "test-browser-capability"
+            });
+            request[field] = json!("document.body.innerText = 'caller controlled'");
+            let out = api_browser_materialize_page(tmp.path(), &request);
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+            assert_eq!(
+                out.get("error").and_then(Value::as_str),
+                Some("unsafe_caller_control_rejected")
+            );
+            assert_eq!(
+                out.get("browser_launch_attempted").and_then(Value::as_bool),
+                Some(false)
+            );
+            assert_eq!(
+                out.pointer("/artifact_quarantine/state").and_then(Value::as_str),
+                Some("not_created")
+            );
+        }
+    }

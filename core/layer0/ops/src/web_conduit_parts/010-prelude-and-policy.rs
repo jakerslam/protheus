@@ -251,6 +251,17 @@ fn default_policy() -> Value {
                         "fixture_path_chat_visible": false,
                         "raw_fixture_payload_chat_visible": false
                     },
+                    "local_js_rendered_fixture": {
+                        "source": "policy_owned_test_fixture",
+                        "fixture_url": "",
+                        "fixture_rel_path": "",
+                        "rendered_text_rel_path": "",
+                        "rendered_marker": "",
+                        "fixture_path_chat_visible": false,
+                        "raw_fixture_payload_chat_visible": false,
+                        "raw_rendered_fixture_payload_chat_visible": false,
+                        "caller_supplied_script_allowed": false
+                    },
                     "default_timeout_ms": 30000,
                     "max_response_bytes": 350000,
                 "request_contract": {
@@ -306,6 +317,13 @@ fn default_policy() -> Value {
                         "humanPreset",
                         "humanConfig",
                         "geoip",
+                        "script",
+                        "scripts",
+                        "javascript",
+                        "evaluate",
+                        "evaluate_script",
+                        "wait_script",
+                        "raw_wait_script",
                         "cdp_command",
                         "user_script",
                         "proxy",
@@ -816,7 +834,9 @@ fn default_policy() -> Value {
                         "readiness_strategy",
                         "cleanup_status",
                         "retry_diagnostics",
-                        "local_static_fixture"
+                        "local_static_fixture",
+                        "local_js_rendered_fixture",
+                        "js_render_proof"
                     ],
                     "chat_visible": false
                 },

@@ -81,7 +81,7 @@ Status values:
 | 2 | Fixture artifact quarantine | integrated: ref-only artifact proof pass 002 | Are raw HTML/screenshot-like payloads stored by ref and never chat-visible? | Web conduit artifact/quarantine helpers and tests. |
 | 3 | Evidence candidate conversion | integrated: evidence-pack candidate proof pass 003 | Can a materialized page become evidence-pack candidates with title, final URL, text, links, claim hints, score, quality flags, and refs? | Batch query/evidence pack pipeline plus Tool CD output contract. |
 | 4 | Local static page provider proof | integrated: policy-owned fixture proof pass 004 | Can the adapter fetch a local fixture page through the materialization API with full cleanup? | Browser adapter helper, CLI proof, local fixture tests. |
-| 5 | Local JS-rendered page proof | pending | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
+| 5 | Local JS-rendered page proof | integrated: policy-owned rendered fixture proof pass 005 | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
 | 6 | Redirect and final URL safety proof | pending | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
 | 7 | Timeout/blocker classification | pending | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
 | 8 | Web tooling gate split | pending | Can tooling stats isolate readiness, URL safety, materialization, extraction, evidence promotion, and synthesis consumption? | Web retrieval gate diagnostics/eval reporting. |
@@ -250,12 +250,18 @@ This is still not live browser execution. It proves the extraction/evidence path
 
 Goal: prove browser materialization gives us something ordinary fetch cannot: rendered content after bounded readiness.
 
+Status: integrated as a policy-owned rendered fixture proof. It proves the extraction/evidence contract for rendered content without claiming live browser execution yet.
+
 Exit tests:
 
-- direct fetch lacks rendered text,
-- browser materialization captures rendered text,
-- readiness strategy is policy-owned,
-- no caller-supplied script is accepted.
+- direct fetch lacks rendered text: covered by `browser_materialization_local_js_fixture_proves_rendered_content_gap`,
+- browser materialization captures rendered text: covered by the same test,
+- readiness strategy is policy-owned: covered by `js_render_proof/readiness_strategy_policy_owned`,
+- no caller-supplied script is accepted: covered by `browser_materialization_rejects_caller_supplied_render_scripts`.
+
+Important boundary:
+
+The rendered text is policy-owned fixture material, not arbitrary user script execution and not a live browser claim. This keeps L6-005 useful as an isolation proof before admitting a real browser adapter.
 
 ### L6-006 Redirect And Final URL Safety Proof
 

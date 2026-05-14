@@ -390,6 +390,24 @@
         "raw_browser_handle_chat_visible": false,
         "raw_cdp_url_chat_visible": false
       },
+      "local_js_rendered_fixture_provider_contract": {
+        "version": "browser_materialization_local_js_rendered_fixture_v1",
+        "purpose": "Prove the readiness/rendered-content handoff with policy-owned local fixtures before admitting live browser execution.",
+        "provider_id": "local_js_rendered_fixture",
+        "default_enabled": false,
+        "ordinary_user_request_may_supply_fixture_path": false,
+        "ordinary_user_request_may_supply_script": false,
+        "fixture_source": "policy_owned_test_fixture",
+        "rendered_text_source": "policy_owned_rendered_fixture",
+        "direct_fetch_probe_required": true,
+        "direct_fetch_must_not_contain_rendered_marker": true,
+        "materialized_output_must_contain_rendered_marker": true,
+        "readiness_strategy_policy_owned": true,
+        "raw_fixture_payload_chat_visible": false,
+        "raw_rendered_fixture_payload_chat_visible": false,
+        "raw_browser_handle_chat_visible": false,
+        "raw_cdp_url_chat_visible": false
+      },
       "request_contract": {
         "required_fields": ["url", "admission_ref"],
         "optional_fields": [
@@ -443,6 +461,13 @@
           "humanPreset",
           "humanConfig",
           "geoip",
+          "script",
+          "scripts",
+          "javascript",
+          "evaluate",
+          "evaluate_script",
+          "wait_script",
+          "raw_wait_script",
           "cdp_command",
           "user_script",
           "proxy",
@@ -959,7 +984,9 @@
           "readiness_strategy",
           "cleanup_status",
           "retry_diagnostics",
-          "local_static_fixture"
+          "local_static_fixture",
+          "local_js_rendered_fixture",
+          "js_render_proof"
         ]
       },
       "blocker_taxonomy": {
