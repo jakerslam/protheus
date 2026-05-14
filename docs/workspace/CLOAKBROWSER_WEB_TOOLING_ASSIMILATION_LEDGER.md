@@ -154,6 +154,7 @@ all web research always uses stealth browser by default
 | `tests/test_launch_context.py` | level 5 pass 018 integrated | Context option lane separation, policy-owned viewport/profile fields, locale/timezone CDP-emulation denial, storage-state capability boundary, and cleanup expectations. |
 | `tests/test_build_args.py` | level 5 pass 019 integrated | Argument compiler dedupe, dedicated field precedence, alias consumption, non-value flag admission, and WebRTC/fingerprint arg quarantine. |
 | `tests/test_backend.py` | level 5 pass 020 reviewed, already covered | Backend resolution default/param/env/invalid cases; no new code because policy-owned adapter selection and direct backend rejection were already integrated. |
+| `tests/test_config.py` | level 5 pass 021 integrated | Platform-specific binary/archive/cache defaults, operator-only fallback URL/cache overrides, unsupported-platform fail-closed behavior, and stealth seed/GPU flag quarantine. |
 | `tests/test_proxy.py` | parsed | Proxy parsing and GeoIP behavior tests. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
@@ -261,6 +262,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-045` | integrated | medium | Complete Level 5 pass 018 for launch context tests. | Browser materialization context option contract | `CLOAK-TASK-044` | Added metadata for policy-owned viewport/user-agent/color-scheme lanes, locale/timezone CDP-emulation denial, proxy-gated GeoIP fills, generic context kwarg denial from workflows, and storage-state session capability requirements. |
 | `CLOAK-TASK-046` | integrated | medium | Complete Level 5 pass 019 for build-args tests. | Browser materialization argument compiler contract | `CLOAK-TASK-045` | Added metadata for single effective flag per key, dedicated locale/timezone precedence, policy admission for non-value flags, timezone alias consumption, raw fingerprint/WebRTC arg denial, admitted proxy exit-IP dependency, and raw WebRTC IP redaction. |
 | `CLOAK-TASK-047` | reviewed | low | Complete Level 5 pass 020 for backend resolution tests. | Browser materialization adapter parity contract | `CLOAK-TASK-046` | Reviewed backend default/explicit/env/invalid cases and confirmed they are already covered by policy-owned backend selection, direct backend request denial, invalid backend fail-closed semantics, and no live backend switching. |
+| `CLOAK-TASK-048` | integrated | medium | Complete Level 5 pass 021 for config tests. | Browser materialization default config and dependency readiness contracts | `CLOAK-TASK-047` | Added metadata for policy-owned platform binary path templates, archive naming, fallback download URLs, operator-only cache/env overrides, unsupported-platform fail-closed behavior, operator-only random seed generation, GPU fingerprint flag quarantine, and cache-dir redaction. |
 
 ## Open Questions
 
@@ -920,3 +922,25 @@ Validation:
 Important boundary:
 
 This wave does not enable Playwright/Patchright/Puppeteer selection, environment-driven backend switching for user-facing workflows, or any live browser backend.
+
+## Assimilation Wave 30: Level 5 Config Test Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `tests/test_config.py` as the syntax-level source of platform-specific binary paths, archive extension/name construction, fallback download URL shape, cache directory overrides, unsupported platform handling, and default stealth/fingerprint args.
+- Preserved the useful primitive: platform and dependency paths are runtime/operator readiness facts, not workflow/user-facing research controls.
+- Added default config metadata for policy-owned platform binary path templates, archive extension/name ownership, fallback download URLs as operator-only readiness behavior, cache dir env override boundaries, unsupported-platform fail-closed behavior, random seed generation as operator-profile-only behavior, GPU fingerprint flag quarantine, and cache-dir redaction.
+- Kept previous boundaries intact: ordinary research does not install/download, switch platform, spoof fingerprint state, or expose raw cache/download paths.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave does not enable surprise dependency installation, custom download URLs, cache directory overrides, platform spoofing, random fingerprint generation, or GPU fingerprint control during ordinary research.

@@ -103,7 +103,7 @@ Status values:
 | 18 | `tests/test_launch_context.py` | integrated: context option lane pass 018 | Which context cleanup and option filtering cases matter? | Browser adapter context tests. |
 | 19 | `tests/test_build_args.py` | integrated: arg compiler test pass 019 | Which arg compiler invariants must be copied as tests, not code? | Profile compiler tests. |
 | 20 | `tests/test_backend.py` | reviewed: covered by adapter parity contract pass 020 | Is backend selection relevant to Infring or CloakBrowser-only? | No new code; policy-owned backend selection already integrated. |
-| 21 | `tests/test_config.py` | pending | Which config/default invariants are portable? | Policy/default tests. |
+| 21 | `tests/test_config.py` | integrated: config test contract pass 021 | Which config/default invariants are portable? | Policy/default tests. |
 | 22 | `tests/test_proxy.py` | pending, deferred | Which proxy parsing and redaction tests belong to a future admitted proxy lane? | Proxy capability tests, deferred. |
 | 23 | `tests/test_geoip.py` | pending, deferred | Which geo tests belong behind proxy admission? | Geo/proxy capability tests, deferred. |
 | 24 | `tests/test_update.py` | pending, deferred | Which update tests inform provider dependency lifecycle? | Optional readiness/install tests. |

@@ -320,6 +320,39 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer(
+                "/profile_compilation/default_config_contract/platform_binary_path_template_policy_owned",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/default_config_contract/cache_dir_env_override_allowed_only_operator_readiness",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/default_config_contract/unsupported_platform_fails_closed",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/default_config_contract/gpu_fingerprint_flags_not_policy_surface",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/default_config_contract/raw_cache_dir_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_platform_version_cache_contract")
