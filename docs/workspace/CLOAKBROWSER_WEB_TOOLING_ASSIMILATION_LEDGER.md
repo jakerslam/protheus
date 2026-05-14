@@ -153,6 +153,7 @@ all web research always uses stealth browser by default
 | `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
 | `tests/test_launch_context.py` | level 5 pass 018 integrated | Context option lane separation, policy-owned viewport/profile fields, locale/timezone CDP-emulation denial, storage-state capability boundary, and cleanup expectations. |
 | `tests/test_build_args.py` | level 5 pass 019 integrated | Argument compiler dedupe, dedicated field precedence, alias consumption, non-value flag admission, and WebRTC/fingerprint arg quarantine. |
+| `tests/test_backend.py` | level 5 pass 020 reviewed, already covered | Backend resolution default/param/env/invalid cases; no new code because policy-owned adapter selection and direct backend rejection were already integrated. |
 | `tests/test_proxy.py` | parsed | Proxy parsing and GeoIP behavior tests. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
@@ -259,6 +260,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-044` | integrated | medium | Complete Level 5 pass 017 for basic launch tests. | Browser materialization launch execution contract | `CLOAK-TASK-043` | Added metadata for admitted-adapter launch requirements, close-after-capture, sync/async parity, page navigation not becoming evidence before packaging, binary-info telemetry, handle quarantine, and fingerprint probe telemetry-only boundaries. |
 | `CLOAK-TASK-045` | integrated | medium | Complete Level 5 pass 018 for launch context tests. | Browser materialization context option contract | `CLOAK-TASK-044` | Added metadata for policy-owned viewport/user-agent/color-scheme lanes, locale/timezone CDP-emulation denial, proxy-gated GeoIP fills, generic context kwarg denial from workflows, and storage-state session capability requirements. |
 | `CLOAK-TASK-046` | integrated | medium | Complete Level 5 pass 019 for build-args tests. | Browser materialization argument compiler contract | `CLOAK-TASK-045` | Added metadata for single effective flag per key, dedicated locale/timezone precedence, policy admission for non-value flags, timezone alias consumption, raw fingerprint/WebRTC arg denial, admitted proxy exit-IP dependency, and raw WebRTC IP redaction. |
+| `CLOAK-TASK-047` | reviewed | low | Complete Level 5 pass 020 for backend resolution tests. | Browser materialization adapter parity contract | `CLOAK-TASK-046` | Reviewed backend default/explicit/env/invalid cases and confirmed they are already covered by policy-owned backend selection, direct backend request denial, invalid backend fail-closed semantics, and no live backend switching. |
 
 ## Open Questions
 
@@ -900,3 +902,21 @@ Validation:
 Important boundary:
 
 This wave still does not enable raw browser argument passthrough, fingerprint spoofing, WebRTC IP spoofing, proxy use, or live browser execution.
+
+## Assimilation Wave 29: Level 5 Backend Resolution Review
+
+Status: reviewed; no new code required.
+
+Reviewed:
+
+- Parsed `tests/test_backend.py` as the syntax-level source of backend defaulting, explicit backend selection, environment fallback, parameter-over-env precedence, and invalid backend failure.
+- Confirmed this file does not add a new primitive beyond previous adapter parity and wrapper lifecycle passes.
+- Kept the relevant Infring rule unchanged: backend selection is policy/operator-owned, ordinary workflows cannot select a browser backend, invalid backend config must fail closed, and no backend-specific path may bypass the shared argument, proxy, geo, cleanup, evidence, or redaction contracts.
+
+Validation:
+
+- `git diff --check -- docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+
+Important boundary:
+
+This wave does not enable Playwright/Patchright/Puppeteer selection, environment-driven backend switching for user-facing workflows, or any live browser backend.
