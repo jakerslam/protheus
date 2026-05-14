@@ -25,7 +25,8 @@
       "options",
       "multiple_allowed",
       "blocking_reason",
-      "answer_receipt"
+      "answer_receipt",
+      "failure_result_envelope"
     ],
     "internal_streams": [
       "workflow_state",
@@ -37,8 +38,40 @@
       "answer_user_goal": "ask the smallest question needed to proceed safely",
       "scope_boundary": "do not use follow-up for questions that can be answered from local context",
       "validation_calibration": "state what decision is blocked",
+      "failure_routing": "emit coding_failure_result_envelope_v1 with needs_user_input so the parent workflow can pause and ask the user",
       "visibility": "make the question visible and keep internal traces hidden"
     }
+  },
+  "failure_result_envelope_contract": {
+    "schema_version": "coding_failure_result_envelope_v1",
+    "required_fields": [
+      "status",
+      "failure_class",
+      "user_summary",
+      "recommended_next_action",
+      "safe_to_retry",
+      "requires_user_input",
+      "repair_scope",
+      "evidence_refs"
+    ],
+    "fixed_values": {
+      "status": "needs_user_input",
+      "failure_class": "user_decision_required",
+      "recommended_next_action": "ask_user_for_decision",
+      "safe_to_retry": false,
+      "requires_user_input": true
+    },
+    "user_summary_policy": "state the blocked decision in user-facing language and offer bounded options when available",
+    "fixed_values_when_gate_accepts": {
+      "breakpoint_validity": "valid_user_feedback_request",
+      "requires_user_input": true,
+      "recommended_next_action": "ask_user_for_decision"
+    },
+    "required_rejection_behavior": [
+      "do_not_ask_user_for_repairable_local_failure",
+      "do_not_ask_user_for_workflow_or_agent_defect",
+      "do_not_ask_user_for_environment_blocker_when_viable_fallback_exists"
+    ]
   },
   "gate_contract": "control_plane_lifecycle_v1",
   "observation_lifecycle_contract": {
@@ -222,5 +255,64 @@
       "do_not_return_raw_tool_payloads",
       "do_not_expose_internal_trace"
     ]
-  }
+  },
+  "user_feedback_gate_contract": {
+    "schema_version": "coding_user_feedback_gate_v1",
+    "purpose": "Allow user-facing clarification only for decisions the user must make; reject repairable or workflow-defect breakpoints.",
+    "entry_requirements": {
+      "breakpoint_triage_completed": true,
+      "bounded_repair_attempted_when_safe": true,
+      "failure_envelope_has_breakpoint_class": true,
+      "failure_envelope_has_breakpoint_validity": true
+    },
+    "reject_as_invalid_user_feedback_classes": [
+      "setup_boundary_recovery",
+      "runtime_or_language_compatibility_recovery",
+      "validation_and_evidence_completion",
+      "environment_availability_with_viable_fallback",
+      "behavior_preserving_runtime_compatibility_recovery",
+      "validation_command_discovery_recovery",
+      "workspace_root_lock_recovery",
+      "artifact_hygiene_recovery",
+      "repairable_local_failure",
+      "workflow_or_agent_defect"
+    ],
+    "observed_rejected_breakpoints": [
+      "assigned_root_missing",
+      "parent_workspace_or_project_boundary_conflict",
+      "runtime_api_compatibility_bug",
+      "validation_receipt_missing_or_incomplete",
+      "worker_report_missing_validation_summary",
+      "repairable_local_failure",
+      "workflow_or_agent_defect"
+    ],
+    "allow_user_feedback_only_for": [
+      "ambiguous_acceptance_criteria",
+      "conflicting_requirements",
+      "missing_credentials_or_secret",
+      "destructive_or_externally_visible_action_required",
+      "unavailable_required_runtime_with_no_acceptable_fallback",
+      "architecture_or_stack_choice_requires_product_decision",
+      "legal_security_privacy_or_data_retention_decision_required"
+    ],
+    "on_rejected_breakpoint": "return_to_failure_diagnosis_or_bounded_repair_loop",
+    "forbidden_user_question_policy": {
+      "do_not_ask_for_behavior_preserving_local_repair": true,
+      "do_not_ask_for_runtime_alias_substitution_when_available": true,
+      "do_not_ask_for_explicit_test_discovery_repair": true,
+      "do_not_ask_for_assigned_root_creation_or_cwd_lock": true,
+      "do_not_ask_for_compact_receipt_or_artifact_rewrite": true
+    },
+    "required_user_prompt_shape": {
+      "include_concrete_decision_needed": true,
+      "include_why_agent_cannot_safely_choose": true,
+      "include_2_to_3_recommended_options_when_possible": true,
+      "avoid_exposing_internal_workflow_errors_as_user_tasks": true
+    }
+  },
+  "quality_contracts": [
+    "user_feedback_allowlist_enforced",
+    "invalid_breakpoint_rejection",
+    "concrete_user_decision_only"
+  ]
 }

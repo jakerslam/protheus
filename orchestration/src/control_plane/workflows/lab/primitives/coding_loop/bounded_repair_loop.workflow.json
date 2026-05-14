@@ -95,7 +95,8 @@
       "changed_files",
       "validation_results",
       "undo_actions",
-      "stop_reason"
+      "stop_reason",
+      "failure_result_envelope"
     ],
     "internal_streams": [
       "workflow_state",
@@ -108,8 +109,65 @@
       "scope_boundary": "repair only the smallest diagnosed scope",
       "validation_calibration": "report validation reruns and failures exactly",
       "architecture_calibration": "stop if repair would change architecture or product scope",
+      "failure_routing": "return coding_failure_result_envelope_v1 when repair is blocked, fails, needs user input, or exhausts budget",
       "visibility": "do not expose raw workflow state or hidden reasoning"
     }
+  },
+  "failure_result_envelope_contract": {
+    "schema_version": "coding_failure_result_envelope_v1",
+    "required_when_terminal_state_in": [
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "required_fields": [
+      "status",
+      "failure_class",
+      "user_summary",
+      "recommended_next_action",
+      "safe_to_retry",
+      "requires_user_input",
+      "repair_scope",
+      "repair_attempts",
+      "evidence_refs",
+      "schema_version",
+      "breakpoint_validity",
+      "internal_repair_attempted",
+      "repair_result",
+      "user_visible_summary"
+    ],
+    "repair_outcomes": {
+      "repair_succeeded": {
+        "status": "passed",
+        "failure_class": "none",
+        "recommended_next_action": "continue"
+      },
+      "runtime_unavailable": {
+        "status": "blocked",
+        "recommended_next_action": "ask_user_to_install_runtime_or_switch_stack"
+      },
+      "repair_budget_exhausted": {
+        "status": "failed",
+        "recommended_next_action": "stop_and_report"
+      },
+      "user_decision_required": {
+        "status": "needs_user_input",
+        "recommended_next_action": "ask_user_for_decision"
+      }
+    },
+    "repair_result_values": [
+      "repaired",
+      "not_repaired",
+      "not_attempted",
+      "blocked_by_environment",
+      "blocked_by_user_decision"
+    ],
+    "required_behavior": [
+      "normalize_failure_result_before_returning_to_parent",
+      "mark_invalid_user_feedback_requests_as_requires_user_input_false",
+      "include_internal_repair_attempted_and_repair_result"
+    ]
   },
   "gate_contract": "control_plane_lifecycle_v1",
   "observation_lifecycle_contract": {
@@ -193,6 +251,7 @@
     ],
     "required_behaviors": [
       "diagnose_before_retry",
+      "normalize_failure_result_before_returning_to_parent",
       "retry_only_smallest_repair_scope",
       "rerun_validation_after_repair",
       "undo_or_escalate_if_repair_makes_state_worse",
@@ -201,6 +260,7 @@
     ],
     "stop_conditions": [
       "repair_budget_exhausted",
+      "runtime_unavailable",
       "repair_scope_would_expand_checkpoint",
       "user_decision_required",
       "undo_required_but_snapshot_missing",
@@ -284,6 +344,118 @@
           "use another tool"
         ]
       }
+    ]
+  },
+  "breakpoint_repair_contract": {
+    "schema_version": "coding_bad_breakpoint_repair_v1",
+    "purpose": "Convert invalid user-feedback breakpoints into bounded internal repair actions before returning to the parent workflow.",
+    "selection_policy": "Select repairs by generalized repair class first; use observed repairable breakpoints only as regression examples and compatibility fixtures.",
+    "repair_strategy_classes": [
+      {
+        "class": "setup_boundary_recovery",
+        "repair": "prepare_local_workspace_boundary_and_continue",
+        "applies_to": [
+          "missing_or_uninitialized_assigned_root",
+          "project_boundary_or_workspace_detection_problem",
+          "local_output_path_not_prepared",
+          "current_working_directory_not_locked_to_assigned_root",
+          "generated_files_detected_outside_assigned_root"
+        ]
+      },
+      {
+        "class": "runtime_or_language_compatibility_recovery",
+        "repair": "adapt_implementation_to_available_runtime_without_changing_user_visible_behavior",
+        "applies_to": [
+          "language_api_not_supported_by_available_runtime",
+          "toolchain_invocation_needs_local_environment_adjustment",
+          "stdlib_or_dependency_mode_constraint_requires_equivalent_implementation",
+          "runtime_command_alias_needs_resolution",
+          "behavior_preserving_language_api_substitution_available"
+        ]
+      },
+      {
+        "class": "validation_and_evidence_completion",
+        "repair": "complete_or_regenerate_validation_evidence_before_returning",
+        "applies_to": [
+          "validation_was_not_run",
+          "validation_passed_but_receipt_is_missing",
+          "worker_report_omits_required_evidence",
+          "validation_command_did_not_discover_tests",
+          "validation_command_uses_missing_runtime_alias",
+          "receipt_or_artifact_write_needs_compaction"
+        ]
+      },
+      {
+        "class": "environment_availability_with_viable_fallback",
+        "repair": "choose_available_compatible_runtime_or_tooling_path_and_record_substitution",
+        "applies_to": [
+          "required_runtime_missing_with_alternate_allowed",
+          "required_tool_missing_with_compatible_builtin_or_stdlib_path"
+        ]
+      }
+    ],
+    "mandatory_internal_repair_rules": {
+      "behavior_preserving_compatibility_fix": "must_repair_without_user_feedback",
+      "runtime_command_alias_resolution": "must_resolve_available_alias_before_returning_environment_blocker",
+      "assigned_root_or_cwd_fix": "must_prepare_or_lock_root_before_escalation",
+      "zero_test_validation_fix": "must_replace_with_explicit_test_discovery_before_counting_validation",
+      "receipt_or_artifact_compaction": "must_compact_evidence_before_escalating_disk_or_artifact_size_issue"
+    },
+    "observed_repairable_breakpoints": [
+      {
+        "breakpoint": "assigned_root_missing",
+        "repair": "create_assigned_root_and_continue",
+        "max_attempts": 1
+      },
+      {
+        "breakpoint": "parent_workspace_or_project_boundary_conflict",
+        "repair": "isolate_project_boundary_or_set_local_target_dir",
+        "max_attempts": 1
+      },
+      {
+        "breakpoint": "runtime_api_compatibility_bug",
+        "repair": "replace_api_with_runtime_compatible_equivalent",
+        "max_attempts": 1
+      },
+      {
+        "breakpoint": "validation_receipt_missing_or_incomplete",
+        "repair": "rerun_or_summarize_validation_and_emit_receipt",
+        "max_attempts": 1
+      },
+      {
+        "breakpoint": "worker_report_missing_validation_summary",
+        "repair": "request_or_regenerate_validation_summary_before_counting_attempt",
+        "max_attempts": 1
+      }
+    ],
+    "non_repairable_user_feedback_breakpoints": [
+      "ambiguous_acceptance_criteria",
+      "conflicting_requirements",
+      "missing_credentials_or_secret",
+      "destructive_or_externally_visible_action_required",
+      "unavailable_required_runtime_with_no_acceptable_fallback",
+      "architecture_or_stack_choice_requires_product_decision",
+      "legal_security_privacy_or_data_retention_decision_required"
+    ],
+    "return_policy": {
+      "repaired_and_validated": "return_success_with_repair_note_and_evidence",
+      "repair_failed_but_user_not_needed": "return_failure_envelope_with_requires_user_input_false",
+      "user_decision_required": "return_failure_envelope_with_requires_user_input_true"
+    }
+  },
+  "quality_contracts": [
+    "bad_breakpoint_repair",
+    "bounded_internal_recovery",
+    "no_invalid_user_feedback_escalation"
+  ],
+  "loop_contract": {
+    "setup_and_evidence_repairs_are_in_scope": true,
+    "safe_repairs_do_not_consume_user_feedback_checkpoint": true,
+    "stop_conditions": [
+      "repair_budget_exhausted",
+      "valid_user_feedback_checkpoint",
+      "true_environment_blocker_without_fallback",
+      "validation_passed_with_evidence"
     ]
   }
 }

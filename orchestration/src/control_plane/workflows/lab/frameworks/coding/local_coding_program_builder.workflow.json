@@ -252,6 +252,7 @@
       "completed_checkpoint",
       "changed_files",
       "validation_results",
+      "failure_result_envelope",
       "known_risks",
       "intentionally_excluded_scope",
       "recommended_next_checkpoint"
@@ -267,7 +268,107 @@
       "scope_boundary": "final handoff distinguishes completed scope from excluded future scope",
       "validation_calibration": "final handoff reports validation performed, skipped, failed, or blocked without overstating confidence",
       "architecture_calibration": "final handoff reports material architecture decisions and any drift risks",
+      "failure_routing": "any non-completed terminal state must expose a coding_failure_result_envelope_v1 that the parent workflow can route without reading raw tool output",
       "visibility": "do not expose raw workflow state, private reasoning, or raw tool payloads as visible chat"
+    }
+  },
+  "failure_result_envelope_contract": {
+    "schema_version": "coding_failure_result_envelope_v1",
+    "purpose": "Normalize coding workflow stops, validation failures, runtime blocks, analyzer contract failures, and user-decision gates into a parent-routable terminal artifact.",
+    "required_when_terminal_state_in": [
+      "needs_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "required_fields": [
+      "status",
+      "failure_class",
+      "user_summary",
+      "recommended_next_action",
+      "safe_to_retry",
+      "requires_user_input",
+      "repair_scope",
+      "evidence_refs",
+      "schema_version",
+      "breakpoint_validity",
+      "internal_repair_attempted",
+      "repair_result",
+      "user_visible_summary"
+    ],
+    "status_values": [
+      "passed",
+      "needs_repair",
+      "needs_user_input",
+      "blocked",
+      "failed",
+      "aborted"
+    ],
+    "failure_class_values": [
+      "none",
+      "runtime_unavailable",
+      "validation_failed",
+      "validation_receipt_missing_or_invalid",
+      "analyzer_contract_failed",
+      "architecture_or_integration_gap",
+      "evidence_gap",
+      "permission_or_policy_blocked",
+      "tooling_unavailable",
+      "user_decision_required",
+      "repair_budget_exhausted",
+      "scope_or_checkpoint_blocked",
+      "unexpected_external_change",
+      "unknown",
+      "repairable_local_failure",
+      "workflow_or_agent_defect",
+      "environment_blocker",
+      "needs_user_decision"
+    ],
+    "recommended_next_action_values": [
+      "continue",
+      "retry_same_scope",
+      "run_bounded_repair_loop",
+      "ask_user_for_decision",
+      "ask_user_to_install_runtime_or_switch_stack",
+      "repair_evidence_receipts",
+      "repair_architecture_or_integration_gap",
+      "stop_and_report"
+    ],
+    "routing_policy": {
+      "runtime_unavailable": "ask_user_to_install_runtime_or_switch_stack",
+      "validation_failed": "run_bounded_repair_loop_when_within_budget",
+      "validation_receipt_missing_or_invalid": "repair_evidence_receipts_without_rewriting_working_code",
+      "analyzer_contract_failed": "repair_evidence_or_integration_gap_based_on_analyzer_failure",
+      "architecture_or_integration_gap": "repair_architecture_or_integration_gap_when_within_checkpoint",
+      "evidence_gap": "repair_evidence_receipts_without_claiming_code_failure",
+      "user_decision_required": "ask_user_for_decision",
+      "repair_budget_exhausted": "stop_and_report"
+    },
+    "user_visible_summary_policy": "summarize the actionable reason and next decision without exposing raw workflow state or private traces",
+    "breakpoint_validity_values": [
+      "valid_user_feedback_request",
+      "invalid_user_feedback_request",
+      "not_applicable"
+    ],
+    "repair_result_values": [
+      "repaired",
+      "not_repaired",
+      "not_attempted",
+      "blocked_by_environment",
+      "blocked_by_user_decision"
+    ],
+    "user_feedback_gate": {
+      "must_classify_breakpoint_before_user_request": true,
+      "invalid_user_feedback_requests_must_be_repaired_or_reclassified": true,
+      "user_feedback_allowed_only_for": [
+        "ambiguous_acceptance_criteria",
+        "conflicting_requirements",
+        "missing_credentials_or_secret",
+        "destructive_or_externally_visible_action_required",
+        "unavailable_required_runtime_with_no_acceptable_fallback",
+        "architecture_or_stack_choice_requires_product_decision",
+        "legal_security_privacy_or_data_retention_decision_required"
+      ]
     }
   },
   "gate_contract": "control_plane_lifecycle_v1",
@@ -343,6 +444,30 @@
       "max_retries": 2,
       "on_failure": "focused_repair_or_escalate"
     },
+    "terminal_failure_envelope_policy": {
+      "required_for_terminal_states": [
+        "needs_input",
+        "blocked",
+        "failed",
+        "aborted"
+      ],
+      "source_priority": [
+        "bounded_repair_loop_result_artifact_v1",
+        "failure_diagnosis_result_artifact_v1",
+        "followup_clarification_gate_result_artifact_v1",
+        "validation_command_runner_result_artifact_v1",
+        "local_runtime_execution_loop_result_artifact_v1"
+      ],
+      "fallback_if_child_missing_envelope": {
+        "status": "failed",
+        "failure_class": "unknown",
+        "recommended_next_action": "stop_and_report",
+        "safe_to_retry": false
+      },
+      "parent_visibility": "parent receives normalized envelope plus evidence refs, not raw tool logs",
+      "invalid_feedback_breakpoints_must_not_reach_user": true,
+      "emit_failure_envelope_only_after_triage_and_bounded_repair": true
+    },
     "terminal_states": [
       "completed",
       "needs_input",
@@ -372,6 +497,18 @@
       "max_tool_calls": 24,
       "token_budget": 32000,
       "loop_signature_detector": "checkpoint_slice_tool_signature_v1"
+    },
+    "setup_preflight_policy": {
+      "create_assigned_root_if_missing": true,
+      "lock_current_working_directory_to_assigned_root_before_writes": true,
+      "confirm_writable_project_root_before_coding": true,
+      "detect_parent_workspace_conflicts_before_validation": true,
+      "detect_required_runtime_availability_before_committing_to_stack": true,
+      "resolve_runtime_command_aliases_before_validation": true,
+      "prefer_explicit_test_discovery_commands": true,
+      "check_local_disk_space_before_artifact_heavy_tasks": true,
+      "compact_generated_artifacts_when_space_is_low": true,
+      "treat_setup_preflight_misses_as_internal_repair_events": true
     }
   },
   "program_builder_contract": {
@@ -498,7 +635,19 @@
       "max_integration_repair_attempts": 2,
       "max_validation_attempts": 3,
       "repair_prompt_policy": "route focused failures through bounded_repair_loop, diagnose the failure class, retry the smallest failing scope through local_code_edit_execution, rerun the relevant validation command, and undo or escalate if the repair makes the checkpoint worse",
-      "do_not_continue_to": "future product scope outside the checkpoint"
+      "do_not_continue_to": "future product scope outside the checkpoint",
+      "bounded_repair_required_for_invalid_feedback_breakpoints": true,
+      "count_repaired_attempt_as_final_pass_if_validation_and_evidence_pass": true,
+      "count_unrepaired_invalid_feedback_breakpoint_as_workflow_defect_not_user_blocker": true
+    },
+    "failure_result_routing_policy": {
+      "required_contract": "coding_failure_result_envelope_v1",
+      "normalize_before_final_handoff": true,
+      "runtime_unavailable_behavior": "stop and ask whether to install the missing runtime, switch stack, or mark the stack unsupported for this checkpoint",
+      "validation_failure_behavior": "route through bounded_repair_loop while repair budget remains, then return envelope with repair_budget_exhausted",
+      "analyzer_contract_failure_behavior": "distinguish evidence-only gaps from true architecture or integration gaps before retrying code changes",
+      "needs_user_input_behavior": "route through followup_clarification_gate and ask the smallest bounded decision question",
+      "do_not_hide_failures": true
     },
     "coding_ingress_guard_contract": {
       "source": "forgecode_assimilated_ingress_layer",
@@ -769,7 +918,33 @@
       "files_edited",
       "architecture_drift_events",
       "user_decisions_required"
-    ]
+    ],
+    "breakpoint_triage_policy": {
+      "run_before_followup_clarification_gate": true,
+      "run_before_terminal_failure": true,
+      "invalid_feedback_breakpoint_classes": [
+        "setup_boundary_recovery",
+        "runtime_or_language_compatibility_recovery",
+        "validation_and_evidence_completion",
+        "environment_availability_with_viable_fallback"
+      ],
+      "observed_invalid_feedback_examples": [
+        "missing_assigned_root",
+        "missing_validation_receipt",
+        "runtime_api_compatibility_bug",
+        "parent_workspace_conflict",
+        "worker_report_missing_validation_summary"
+      ],
+      "user_feedback_examples": [
+        "ambiguous_acceptance_criteria",
+        "conflicting_requirements",
+        "missing_credentials_or_secret",
+        "destructive_or_externally_visible_action_required",
+        "unavailable_required_runtime_with_no_acceptable_fallback",
+        "architecture_or_stack_choice_requires_product_decision",
+        "legal_security_privacy_or_data_retention_decision_required"
+      ]
+    }
   },
   "state_tracking_contract": {
     "version": "local_coding_program_builder_state_v1",
@@ -786,7 +961,14 @@
       "validation_results",
       "files_changed",
       "decisions_made",
-      "next_actions"
+      "next_actions",
+      "strategic_plan_summary",
+      "planning_confidence_score",
+      "planning_confidence_rationale",
+      "slice_contract",
+      "parent_owned_decisions",
+      "tactical_execution_plan",
+      "handoff_rejections"
     ],
     "code_edit_slice_return_contract": {
       "changed_files": "path, reason, and kind for each created, edited, or deleted file",
@@ -877,5 +1059,325 @@
         ]
       }
     ]
+  },
+  "breakpoint_triage_contract": {
+    "schema_version": "coding_breakpoint_triage_v1",
+    "principle": "A breakpoint is a diagnosis event first. It may become user-facing only after safe internal repair is impossible or unsafe.",
+    "classification_axes": {
+      "setup_boundary_recovery": [
+        "missing_or_uninitialized_assigned_root",
+        "project_boundary_or_workspace_detection_problem",
+        "local_output_path_not_prepared",
+        "current_working_directory_not_locked_to_assigned_root",
+        "generated_files_detected_outside_assigned_root"
+      ],
+      "runtime_or_language_compatibility_recovery": [
+        "language_api_not_supported_by_available_runtime",
+        "toolchain_invocation_needs_local_environment_adjustment",
+        "stdlib_or_dependency_mode_constraint_requires_equivalent_implementation",
+        "runtime_command_alias_needs_resolution",
+        "behavior_preserving_language_api_substitution_available"
+      ],
+      "validation_and_evidence_completion": [
+        "validation_was_not_run",
+        "validation_passed_but_receipt_is_missing",
+        "worker_report_omits_required_evidence",
+        "validation_command_did_not_discover_tests",
+        "validation_command_uses_missing_runtime_alias",
+        "receipt_or_artifact_write_needs_compaction"
+      ],
+      "environment_availability": [
+        "required_runtime_missing",
+        "required_tool_missing",
+        "required_service_unavailable",
+        "local_disk_space_below_task_budget"
+      ],
+      "product_or_user_decision": [
+        "ambiguous_acceptance_criteria",
+        "conflicting_requirements",
+        "destructive_or_externally_visible_action_required",
+        "credential_or_secret_required"
+      ]
+    },
+    "generalized_repair_strategy_templates": [
+      {
+        "class": "setup_boundary_recovery",
+        "default_action": "prepare_local_workspace_boundary_and_continue",
+        "user_feedback_allowed": false
+      },
+      {
+        "class": "runtime_or_language_compatibility_recovery",
+        "default_action": "adapt_implementation_to_available_runtime_without_changing_user_visible_behavior",
+        "user_feedback_allowed": false
+      },
+      {
+        "class": "validation_and_evidence_completion",
+        "default_action": "complete_or_regenerate_validation_evidence_before_returning",
+        "user_feedback_allowed": false
+      },
+      {
+        "class": "environment_availability",
+        "default_action": "use_viable_available_fallback_or_return_environment_blocker",
+        "user_feedback_allowed": "only_when_required_runtime_or_tool_has_no_acceptable_fallback"
+      },
+      {
+        "class": "product_or_user_decision",
+        "default_action": "ask_user_for_concrete_decision",
+        "user_feedback_allowed": true
+      }
+    ],
+    "observed_invalid_feedback_breakpoints": [
+      {
+        "breakpoint": "assigned_root_missing",
+        "classification": "workflow_or_agent_defect",
+        "internal_repair": "create_assigned_root_and_continue",
+        "user_feedback_allowed": false
+      },
+      {
+        "breakpoint": "parent_workspace_or_project_boundary_conflict",
+        "classification": "repairable_local_failure",
+        "internal_repair": "isolate_project_boundary_or_set_local_target_dir",
+        "user_feedback_allowed": false
+      },
+      {
+        "breakpoint": "runtime_api_compatibility_bug",
+        "classification": "repairable_local_failure",
+        "internal_repair": "replace_api_with_runtime_compatible_equivalent",
+        "user_feedback_allowed": false
+      },
+      {
+        "breakpoint": "validation_receipt_missing_or_incomplete",
+        "classification": "workflow_or_agent_defect",
+        "internal_repair": "rerun_or_summarize_validation_and_emit_receipt",
+        "user_feedback_allowed": false
+      },
+      {
+        "breakpoint": "worker_report_missing_validation_summary",
+        "classification": "workflow_or_agent_defect",
+        "internal_repair": "request_or_regenerate_validation_summary_before_counting_attempt",
+        "user_feedback_allowed": false
+      }
+    ],
+    "environment_blocker_policy": {
+      "classification": "environment_blocker",
+      "ask_user_only_if": [
+        "the missing runtime_or_tool is explicitly required by the user",
+        "no compatible fallback implementation path exists",
+        "installing or changing the environment would be externally visible or risky"
+      ],
+      "otherwise": "choose an available compatible runtime_or_tooling_path and record the substitution in evidence"
+    },
+    "user_feedback_allowlist": [
+      "ambiguous_acceptance_criteria",
+      "conflicting_requirements",
+      "missing_credentials_or_secret",
+      "destructive_or_externally_visible_action_required",
+      "unavailable_required_runtime_with_no_acceptable_fallback",
+      "architecture_or_stack_choice_requires_product_decision",
+      "legal_security_privacy_or_data_retention_decision_required"
+    ],
+    "stop_policy": {
+      "repairable_local_failure": "attempt_bounded_repair_before_returning",
+      "workflow_or_agent_defect": "repair_or_normalize_evidence_before_returning",
+      "environment_blocker": "return_failure_envelope_unless_user_decision_is_required",
+      "needs_user_decision": "return_followup_request_with_concrete_options"
+    },
+    "mandatory_internal_repair_before_user_feedback": {
+      "root_and_cwd": "create_or_lock_assigned_root_before_any_write_and_move_only_agent_created_misplaced_files_back_inside_scope",
+      "runtime_aliases": "resolve_available_runtime_command_aliases_before_validation_or_execution",
+      "validation_discovery": "prefer_explicit_test_discovery_commands_and_repair_zero_test_validation_commands",
+      "compatibility": "apply_behavior_preserving_runtime_or_language_api_substitutions_without_asking_user",
+      "artifact_hygiene": "compact_receipts_and_generated_outputs_when_disk_space_or_artifact_size_blocks_evidence"
+    },
+    "required_failure_envelope_fields_when_not_repaired": [
+      "schema_version",
+      "status",
+      "failure_class",
+      "breakpoint_class",
+      "breakpoint_validity",
+      "internal_repair_attempted",
+      "repair_result",
+      "safe_to_retry",
+      "requires_user_input",
+      "recommended_next_action",
+      "user_visible_summary"
+    ]
+  },
+  "quality_contracts": [
+    "breakpoint_triage",
+    "bad_breakpoint_internal_repair",
+    "user_feedback_allowlist_enforced",
+    "strategic_planning_contract",
+    "planning_confidence_gate",
+    "slice_handoff_contract",
+    "planning_collision_prevention"
+  ],
+  "strategic_planning_contract": {
+    "schema_version": "local_coding_strategic_planning_v1",
+    "purpose": "Own philosophy, goals, architecture, stack, checkpoint, acceptance criteria, and user-question decisions before handing an executable slice to ForgeCode-style tactical execution.",
+    "owns_decisions": [
+      "product_goal_and_success_definition",
+      "architecture_direction",
+      "stack_and_runtime_choice",
+      "project_initialization_strategy",
+      "checkpoint_or_slice_boundary",
+      "acceptance_criteria",
+      "quality_bar_and_validation_strategy",
+      "user_owned_open_questions"
+    ],
+    "does_not_own": [
+      "exact_file_edit_order_inside_a_handed_off_slice",
+      "internal_helper_function_names",
+      "small_local_algorithm_choices_that_do_not_change_product_intent",
+      "repair_of_local_validation_or_evidence_failures"
+    ],
+    "required_outputs_before_execution_handoff": [
+      "strategic_plan_summary",
+      "architecture_choice",
+      "stack_choice",
+      "checkpoint_scope",
+      "slice_contract",
+      "acceptance_criteria",
+      "validation_strategy",
+      "assumptions",
+      "known_unknowns",
+      "planning_confidence_score",
+      "planning_confidence_rationale",
+      "user_decisions_required"
+    ],
+    "collision_rule": "Strategic planning may define or revise intent before execution; ForgeCode tactical planning may refine execution strategy but may not revise strategic intent."
+  },
+  "planning_confidence_gate": {
+    "schema_version": "local_coding_planning_confidence_gate_v1",
+    "purpose": "Minimize legitimate user questions by forcing the agent to grade, repair, or clarify the plan before coding begins.",
+    "score_range": "0.0_to_1.0",
+    "required_inputs": [
+      "strategic_plan_summary",
+      "architecture_choice",
+      "stack_choice",
+      "checkpoint_scope",
+      "acceptance_criteria",
+      "validation_strategy",
+      "assumptions",
+      "known_unknowns",
+      "execution_risks"
+    ],
+    "required_outputs": [
+      "planning_confidence_score",
+      "planning_confidence_rationale",
+      "confidence_risk_factors",
+      "assumptions_safe_to_make",
+      "questions_rejected_as_agent_solvable",
+      "user_decisions_required",
+      "gate_decision"
+    ],
+    "thresholds": {
+      "execute": {
+        "min_score": 0.8,
+        "action": "handoff_slice_to_forgecode_tactical_execution"
+      },
+      "self_repair_plan": {
+        "min_score": 0.6,
+        "max_score_exclusive": 0.8,
+        "action": "tighten_plan_once_before_user_followup",
+        "repair_methods": [
+          "reduce_checkpoint_scope",
+          "choose_conservative_default_with_recorded_assumption",
+          "strengthen_validation_strategy",
+          "split_uncertain_work_into_smaller_slice",
+          "mark_parent_owned_decisions_as_immutable"
+        ]
+      },
+      "block_for_refinement_or_question": {
+        "max_score_exclusive": 0.6,
+        "action": "run_research_or_planning_refinement_then_route_only_user_owned_uncertainty_to_followup_gate"
+      }
+    },
+    "question_gate_policy": {
+      "ask_user_only_if": [
+        "uncertainty_materially_changes_product_goal_architecture_stack_data_model_or_checkpoint",
+        "the agent cannot safely choose a default without risking user intent",
+        "the uncertainty is user_owned_not_agent_solvable",
+        "the question passed followup_clarification_gate"
+      ],
+      "reject_questions_when": [
+        "the agent can choose a conventional default and record it as an assumption",
+        "the issue is a local setup_runtime_validation_or_evidence problem",
+        "the question is about tactical file layout_or_helper_names_only",
+        "the question asks the user to do the agent_work"
+      ],
+      "approved_question_shape": [
+        "state_the_material_decision",
+        "explain_why_the_agent_cannot_safely_choose",
+        "offer_2_to_3_concrete_options_when_possible",
+        "recommend_one_default_when_safe"
+      ]
+    },
+    "metrics": [
+      "planning_confidence_score",
+      "questions_asked_before_execution",
+      "questions_rejected_by_gate",
+      "plan_self_repairs_attempted",
+      "handoff_rejections_by_forgecode",
+      "downstream_repair_events_after_handoff"
+    ]
+  },
+  "slice_handoff_contract": {
+    "schema_version": "local_coding_slice_handoff_v1",
+    "purpose": "Pass strategic intent into ForgeCode tactical execution without letting the lower workflow reopen parent-owned decisions.",
+    "required_fields": [
+      "slice_id",
+      "goal",
+      "checkpoint_scope",
+      "immutable_decisions",
+      "flexible_decisions",
+      "acceptance_criteria",
+      "validation_contract",
+      "allowed_assumptions",
+      "escalation_triggers",
+      "planning_confidence_score",
+      "parent_plan_reference"
+    ],
+    "immutable_decisions_default": [
+      "product_goal",
+      "architecture_direction",
+      "stack_choice",
+      "runtime_constraints",
+      "checkpoint_scope",
+      "acceptance_criteria",
+      "data_persistence_strategy_when_specified"
+    ],
+    "flexible_decisions_default": [
+      "file_layout_inside_slice",
+      "helper_names",
+      "internal_algorithm_details",
+      "test_fixture_shape",
+      "minor_cli_wording_that_preserves_contract"
+    ],
+    "escalation_triggers_default": [
+      "parent_owned_decision_missing_or_conflicting",
+      "implementation_requires_scope_change",
+      "acceptance_criteria_conflict_with_validation_contract",
+      "required_runtime_unavailable_with_no_allowed_fallback",
+      "destructive_or_externally_visible_action_needed"
+    ],
+    "downstream_contract": "ForgeCode may refine tactical execution strategy, but may not revise strategic intent."
+  },
+  "workflow_phase_contract": {
+    "phase_order": [
+      "intake",
+      "strategic_planning",
+      "planning_confidence_gate",
+      "followup_clarification_gate_when_required",
+      "slice_handoff_contract",
+      "forgecode_tactical_execution",
+      "validation_and_checkpoint_handoff"
+    ],
+    "planning_collision_prevention": {
+      "parent_owns_strategy": true,
+      "forgecode_owns_tactical_execution": true,
+      "parent_owned_decisions_are_immutable_during_slice_execution": true,
+      "tactical_plan_changes_that_affect_strategy_must_return_to_parent": true
+    }
   }
 }

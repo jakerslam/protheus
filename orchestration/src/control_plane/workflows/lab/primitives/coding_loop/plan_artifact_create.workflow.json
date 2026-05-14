@@ -224,5 +224,93 @@
       "do_not_return_raw_tool_payloads",
       "do_not_expose_internal_trace"
     ]
-  }
+  },
+  "tactical_planning_contract": {
+    "schema_version": "forgecode_tactical_slice_planning_v1",
+    "purpose": "Create or update implementation-level plan artifacts for a handed-off slice without reopening parent-owned strategic decisions.",
+    "owns_decisions": [
+      "files_to_read_or_edit_for_slice",
+      "implementation_order",
+      "local_test_or_validation_commands",
+      "local_repair_strategy",
+      "evidence_to_return"
+    ],
+    "does_not_own": [
+      "product_goal",
+      "architecture_direction",
+      "stack_choice",
+      "checkpoint_scope",
+      "acceptance_criteria",
+      "data_persistence_strategy_when_specified"
+    ],
+    "input_contract": {
+      "requires_slice_handoff_contract": true,
+      "parent_owned_decisions_must_be_marked_immutable": true,
+      "tactical_plan_must_reference_parent_plan": true
+    },
+    "output_contract": {
+      "required_fields": [
+        "tactical_plan_summary",
+        "files_expected_to_touch",
+        "implementation_order",
+        "validation_steps",
+        "local_assumptions",
+        "slice_execution_readiness_score",
+        "readiness_rationale",
+        "escalation_if_not_ready"
+      ]
+    },
+    "collision_rule": "If tactical planning discovers that the slice requires changing parent-owned strategy, return needs_parent_planning instead of silently changing scope."
+  },
+  "slice_execution_readiness_gate": {
+    "schema_version": "forgecode_slice_execution_readiness_gate_v1",
+    "purpose": "Check whether ForgeCode can execute the handed-off slice without altering strategic intent.",
+    "score_range": "0.0_to_1.0",
+    "execute_threshold": 0.8,
+    "repair_plan_threshold": 0.6,
+    "required_checks": [
+      "slice_goal_is_clear",
+      "immutable_parent_decisions_are_present",
+      "acceptance_criteria_are_testable",
+      "validation_contract_is_actionable",
+      "required_files_or_roots_are_available_or_repairable",
+      "runtime_constraints_are_satisfied_or_have_allowed_fallback",
+      "runtime_command_aliases_are_resolved_or_repairable",
+      "validation_commands_have_explicit_test_discovery_when_needed",
+      "artifact_budget_is_compatible_with_available_disk_space",
+      "current_working_directory_is_locked_to_assigned_root_before_writes",
+      "no_parent_owned_decision_needs_revision"
+    ],
+    "allowed_when_not_ready": [
+      "repair_local_setup_boundary",
+      "tighten_tactical_file_plan",
+      "choose_internal_implementation_default_that_preserves_parent_contract",
+      "resolve_runtime_command_aliases",
+      "replace_behavior_preserving_unsupported_runtime_api",
+      "repair_validation_discovery_command",
+      "compact_validation_receipts_or_generated_artifacts",
+      "return_needs_parent_planning_envelope",
+      "return_needs_user_decision_envelope_only_after_followup_gate"
+    ],
+    "forbidden_when_not_ready": [
+      "change_stack_choice",
+      "expand_checkpoint_scope",
+      "change_architecture_direction",
+      "ask_user_about_tactical_agent_solvable_details",
+      "silently_ignore_acceptance_criteria"
+    ],
+    "return_envelopes": {
+      "ready": "execute_slice",
+      "locally_repairable": "repair_then_execute_slice",
+      "parent_plan_gap": "needs_parent_planning",
+      "user_owned_gap": "needs_user_decision",
+      "unrecoverable_environment_gap": "environment_blocker"
+    }
+  },
+  "quality_contracts": [
+    "tactical_planning_only",
+    "slice_execution_readiness_gate",
+    "parent_owned_decision_immutability",
+    "planning_collision_prevention"
+  ]
 }

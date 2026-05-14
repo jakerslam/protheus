@@ -3,11 +3,26 @@ use super::workflow_contracts::{
     workflow_registry_contract_ok, REQUIRED_JSON_OWNS, REQUIRED_RUST_OWNS,
 };
 use super::workflow_lab_replay::{
-    local_coding_program_builder_lab_execution_report, local_coding_program_builder_lab_replay_report,
+    local_coding_program_builder_lab_execution_report,
+    local_coding_program_builder_lab_replay_report,
 };
 use super::workflow_runtime::select_runtime_workflow;
 use serde_json::Value;
 use std::path::Path;
+
+fn workflow_source_json(relative_path: &str) -> Value {
+    let source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative_path);
+    let raw = std::fs::read_to_string(source_path).expect("workflow source");
+    serde_json::from_str(&raw).expect("workflow json")
+}
+
+fn string_array_contains(value: &Value, pointer: &str, expected: &str) -> bool {
+    value
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .map(|items| items.iter().any(|item| item.as_str() == Some(expected)))
+        .unwrap_or(false)
+}
 
 #[test]
 fn workflow_specs_compile_to_no_injection_graphs() {
@@ -168,11 +183,9 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .any(|row| row == child_id));
     }
 
-    let source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+    let source = workflow_source_json(
         "src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json",
     );
-    let raw = std::fs::read_to_string(source_path).expect("local coding program builder source");
-    let source: Value = serde_json::from_str(&raw).expect("local coding program builder json");
     let composition = source
         .get("workflow_composition_contract")
         .expect("composition contract");
@@ -252,6 +265,283 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .iter()
             .any(|item| item.as_str() == Some("recommended_next_checkpoint")))
         .unwrap_or(false));
+}
+
+#[test]
+fn local_coding_program_builder_declares_strategic_planning_confidence_gate() {
+    let source = workflow_source_json(
+        "src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json",
+    );
+
+    assert_eq!(
+        source
+            .pointer("/strategic_planning_contract/schema_version")
+            .and_then(Value::as_str),
+        Some("local_coding_strategic_planning_v1")
+    );
+    for decision in [
+        "product_goal_and_success_definition",
+        "architecture_direction",
+        "stack_and_runtime_choice",
+        "checkpoint_or_slice_boundary",
+        "quality_bar_and_validation_strategy",
+        "user_owned_open_questions",
+    ] {
+        assert!(
+            string_array_contains(
+                &source,
+                "/strategic_planning_contract/owns_decisions",
+                decision
+            ),
+            "missing strategic decision owner {decision}"
+        );
+    }
+    assert_eq!(
+        source
+            .pointer("/planning_confidence_gate/schema_version")
+            .and_then(Value::as_str),
+        Some("local_coding_planning_confidence_gate_v1")
+    );
+    assert_eq!(
+        source
+            .pointer("/planning_confidence_gate/thresholds/execute/min_score")
+            .and_then(Value::as_f64),
+        Some(0.8)
+    );
+    assert_eq!(
+        source
+            .pointer("/planning_confidence_gate/thresholds/self_repair_plan/min_score")
+            .and_then(Value::as_f64),
+        Some(0.6)
+    );
+    assert!(string_array_contains(
+        &source,
+        "/planning_confidence_gate/question_gate_policy/ask_user_only_if",
+        "uncertainty_materially_changes_product_goal_architecture_stack_data_model_or_checkpoint"
+    ));
+    assert!(string_array_contains(
+        &source,
+        "/planning_confidence_gate/question_gate_policy/reject_questions_when",
+        "the issue is a local setup_runtime_validation_or_evidence problem"
+    ));
+    assert_eq!(
+        source
+            .pointer("/slice_handoff_contract/schema_version")
+            .and_then(Value::as_str),
+        Some("local_coding_slice_handoff_v1")
+    );
+    for field in [
+        "immutable_decisions",
+        "flexible_decisions",
+        "acceptance_criteria",
+        "validation_contract",
+        "planning_confidence_score",
+    ] {
+        assert!(
+            string_array_contains(&source, "/slice_handoff_contract/required_fields", field),
+            "missing slice handoff field {field}"
+        );
+    }
+    assert!(string_array_contains(
+        &source,
+        "/slice_handoff_contract/immutable_decisions_default",
+        "stack_choice"
+    ));
+    assert!(string_array_contains(
+        &source,
+        "/slice_handoff_contract/flexible_decisions_default",
+        "file_layout_inside_slice"
+    ));
+    assert!(string_array_contains(
+        &source,
+        "/workflow_phase_contract/phase_order",
+        "planning_confidence_gate"
+    ));
+    assert_eq!(
+        source
+            .pointer("/workflow_phase_contract/planning_collision_prevention/parent_owned_decisions_are_immutable_during_slice_execution")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+}
+
+#[test]
+fn forgecode_plan_artifact_is_tactical_only_and_readiness_gated() {
+    let source = workflow_source_json(
+        "src/control_plane/workflows/lab/primitives/coding_loop/plan_artifact_create.workflow.json",
+    );
+
+    assert_eq!(
+        source
+            .pointer("/tactical_planning_contract/schema_version")
+            .and_then(Value::as_str),
+        Some("forgecode_tactical_slice_planning_v1")
+    );
+    for decision in [
+        "files_to_read_or_edit_for_slice",
+        "implementation_order",
+        "local_test_or_validation_commands",
+        "local_repair_strategy",
+        "evidence_to_return",
+    ] {
+        assert!(
+            string_array_contains(
+                &source,
+                "/tactical_planning_contract/owns_decisions",
+                decision
+            ),
+            "missing tactical decision owner {decision}"
+        );
+    }
+    for parent_owned in [
+        "product_goal",
+        "architecture_direction",
+        "stack_choice",
+        "checkpoint_scope",
+        "acceptance_criteria",
+    ] {
+        assert!(
+            string_array_contains(
+                &source,
+                "/tactical_planning_contract/does_not_own",
+                parent_owned
+            ),
+            "missing tactical exclusion {parent_owned}"
+        );
+    }
+    assert_eq!(
+        source
+            .pointer("/tactical_planning_contract/input_contract/requires_slice_handoff_contract")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        source
+            .pointer("/slice_execution_readiness_gate/schema_version")
+            .and_then(Value::as_str),
+        Some("forgecode_slice_execution_readiness_gate_v1")
+    );
+    assert_eq!(
+        source
+            .pointer("/slice_execution_readiness_gate/execute_threshold")
+            .and_then(Value::as_f64),
+        Some(0.8)
+    );
+    assert!(string_array_contains(
+        &source,
+        "/slice_execution_readiness_gate/required_checks",
+        "no_parent_owned_decision_needs_revision"
+    ));
+    assert!(string_array_contains(
+        &source,
+        "/slice_execution_readiness_gate/forbidden_when_not_ready",
+        "change_stack_choice"
+    ));
+    assert_eq!(
+        source
+            .pointer("/slice_execution_readiness_gate/return_envelopes/parent_plan_gap")
+            .and_then(Value::as_str),
+        Some("needs_parent_planning")
+    );
+    assert!(string_array_contains(
+        &source,
+        "/quality_contracts",
+        "parent_owned_decision_immutability"
+    ));
+}
+
+#[test]
+fn coding_workflow_routes_internal_breakpoints_to_repair_not_user_feedback() {
+    let main = workflow_source_json(
+        "src/control_plane/workflows/lab/frameworks/coding/local_coding_program_builder.workflow.json",
+    );
+    assert!(string_array_contains(
+        &main,
+        "/breakpoint_triage_contract/classification_axes/runtime_or_language_compatibility_recovery",
+        "behavior_preserving_language_api_substitution_available"
+    ));
+    assert!(string_array_contains(
+        &main,
+        "/breakpoint_triage_contract/classification_axes/validation_and_evidence_completion",
+        "validation_command_did_not_discover_tests"
+    ));
+    assert_eq!(
+        main.pointer(
+            "/typed_execution_contract/setup_preflight_policy/lock_current_working_directory_to_assigned_root_before_writes",
+        )
+        .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        main.pointer(
+            "/breakpoint_triage_contract/mandatory_internal_repair_before_user_feedback/compatibility",
+        )
+        .and_then(Value::as_str),
+        Some("apply_behavior_preserving_runtime_or_language_api_substitutions_without_asking_user")
+    );
+
+    let diagnosis = workflow_source_json(
+        "src/control_plane/workflows/lab/primitives/coding_loop/failure_diagnosis.workflow.json",
+    );
+    assert_eq!(
+        diagnosis
+            .pointer(
+                "/breakpoint_triage_contract/generalized_classification_policy/behavior_preserving_local_repairs_are_never_user_questions",
+            )
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+
+    let repair = workflow_source_json(
+        "src/control_plane/workflows/lab/primitives/coding_loop/bounded_repair_loop.workflow.json",
+    );
+    assert_eq!(
+        repair
+            .pointer(
+                "/breakpoint_repair_contract/mandatory_internal_repair_rules/behavior_preserving_compatibility_fix",
+            )
+            .and_then(Value::as_str),
+        Some("must_repair_without_user_feedback")
+    );
+    assert_eq!(
+        repair
+            .pointer(
+                "/breakpoint_repair_contract/mandatory_internal_repair_rules/zero_test_validation_fix",
+            )
+            .and_then(Value::as_str),
+        Some("must_replace_with_explicit_test_discovery_before_counting_validation")
+    );
+
+    let followup = workflow_source_json(
+        "src/control_plane/workflows/lab/primitives/coding_loop/followup_clarification_gate.workflow.json",
+    );
+    assert_eq!(
+        followup
+            .pointer(
+                "/user_feedback_gate_contract/forbidden_user_question_policy/do_not_ask_for_behavior_preserving_local_repair",
+            )
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(string_array_contains(
+        &followup,
+        "/user_feedback_gate_contract/reject_as_invalid_user_feedback_classes",
+        "validation_command_discovery_recovery"
+    ));
+
+    let plan = workflow_source_json(
+        "src/control_plane/workflows/lab/primitives/coding_loop/plan_artifact_create.workflow.json",
+    );
+    assert!(string_array_contains(
+        &plan,
+        "/slice_execution_readiness_gate/required_checks",
+        "validation_commands_have_explicit_test_discovery_when_needed"
+    ));
+    assert!(string_array_contains(
+        &plan,
+        "/slice_execution_readiness_gate/allowed_when_not_ready",
+        "replace_behavior_preserving_unsupported_runtime_api"
+    ));
 }
 
 #[test]
