@@ -106,7 +106,7 @@ Status values:
 | 21 | `tests/test_config.py` | integrated: config test contract pass 021 | Which config/default invariants are portable? | Policy/default tests. |
 | 22 | `tests/test_proxy.py` | integrated: proxy test contract pass 022, deferred capability | Which proxy parsing and redaction tests belong to a future admitted proxy lane? | Future proxy capability tests. |
 | 23 | `tests/test_geoip.py` | integrated: geo test contract pass 023, deferred capability | Which geo tests belong behind proxy admission? | Future geo/proxy capability tests. |
-| 24 | `tests/test_update.py` | pending, deferred | Which update tests inform provider dependency lifecycle? | Optional readiness/install tests. |
+| 24 | `tests/test_update.py` | integrated: update test contract pass 024, deferred capability | Which update tests inform provider dependency lifecycle? | Optional readiness/install tests. |
 | 25 | `tests/test_extract.py` | mapped seed, deferred | Which archive hardening rules matter if provider install/extract exists? | Dependency extraction guard, deferred. |
 | 26 | `js/src/human/config.ts` | mapped seed, deferred | What action-budget schema would be needed later? | Human interaction capability, deferred. |
 | 27 | `js/src/human/index.ts` | mapped seed, deferred | Which isolated-world DOM-read pattern is useful for extraction without interaction? | Possible read-only DOM extraction, later. |

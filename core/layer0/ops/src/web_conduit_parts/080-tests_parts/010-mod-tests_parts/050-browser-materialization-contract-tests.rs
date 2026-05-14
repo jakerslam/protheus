@@ -423,6 +423,16 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/checksum_manifest_standard_and_binary_mode_supported")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/checksum_mismatch_blocks_install")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/custom_download_url_disables_public_fallback")
                 .and_then(Value::as_bool),
             Some(true)
@@ -438,7 +448,32 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/update_checks_disabled_by_auto_update_env")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/semantic_version_tuple_variable_length_allowed")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/draft_releases_ignored")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/platform_release_asset_match_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/no_platform_release_asset_is_nonfatal_unavailable")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/binary_info_contract/install_result_revalidated_before_ready")
                 .and_then(Value::as_bool),
             Some(true)
         );

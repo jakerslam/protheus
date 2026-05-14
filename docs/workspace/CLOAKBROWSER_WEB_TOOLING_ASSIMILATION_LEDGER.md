@@ -157,6 +157,7 @@ all web research always uses stealth browser by default
 | `tests/test_config.py` | level 5 pass 021 integrated | Platform-specific binary/archive/cache defaults, operator-only fallback URL/cache overrides, unsupported-platform fail-closed behavior, and stealth seed/GPU flag quarantine. |
 | `tests/test_proxy.py` | level 5 pass 022 integrated, deferred capability | Proxy parsing, credential separation, SOCKS/SOCKS5H adapter lane, encoding idempotence/redaction, malformed/nonstandard URL rejection, IPv6 preservation, and proxy/GeoIP capability boundaries. |
 | `tests/test_geoip.py` | level 5 pass 023 integrated, deferred capability | Proxy IP extraction telemetry, BCP47 country-locale map, explicit profile precedence, timeout/nonfatal GeoIP behavior, and private IP evidence quarantine. |
+| `tests/test_update.py` | level 5 pass 024 integrated, deferred capability | Version tuple ordering, rate-limited and disabled update checks, platform-matched release admission, checksum parsing/verification, nonfatal update failures, and install readiness revalidation. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
@@ -266,6 +267,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-048` | integrated | medium | Complete Level 5 pass 021 for config tests. | Browser materialization default config and dependency readiness contracts | `CLOAK-TASK-047` | Added metadata for policy-owned platform binary path templates, archive naming, fallback download URLs, operator-only cache/env overrides, unsupported-platform fail-closed behavior, operator-only random seed generation, GPU fingerprint flag quarantine, and cache-dir redaction. |
 | `CLOAK-TASK-049` | integrated | medium | Complete Level 5 pass 022 for proxy tests. | Browser materialization proxy capability contract | `CLOAK-TASK-048` | Added metadata for schemeless proxy normalization after admission, credential removal from server URLs, username-only support, SOCKS5H support, idempotent credential encoding, redacted encoding notices, nonstandard SOCKS path/query rejection, IPv6 bracket preservation, and port-zero policy admission. |
 | `CLOAK-TASK-050` | integrated | medium | Complete Level 5 pass 023 for GeoIP tests. | Browser materialization geo/proxy capability contract | `CLOAK-TASK-049` | Added metadata for literal proxy IP extraction as telemetry, invalid proxy GeoIP nonfatal behavior, BCP47 country-locale map requirements, fill-only-missing profile fields, exit-IP consistency even when profile fields are complete, timeout preservation, and private IP evidence quarantine. |
+| `CLOAK-TASK-051` | integrated | medium | Complete Level 5 pass 024 for update tests. | Browser materialization operator update/install contract | `CLOAK-TASK-050` | Added metadata for variable-length version tuple comparison, auto-update env disablement, draft/non-Chromium release filtering, no-platform-asset nonfatal unavailability, checksum manifest parsing and mismatch blocking, cached binary reuse, missing local override fail-closed behavior, and install revalidation before ready. |
 
 ## Open Questions
 
@@ -991,3 +993,25 @@ Validation:
 Important boundary:
 
 This wave still does not enable proxy use, GeoIP lookup, GeoIP DB download, WebRTC spoofing, private IP evidence, profile spoofing, or live browser execution.
+
+## Assimilation Wave 33: Level 5 Update Test Contract
+
+Status: integrated into future operator install/update contract; capability remains deferred.
+
+Implemented:
+
+- Parsed `tests/test_update.py` as the syntax-level source of version comparison, release admission, rate limiting, checksum parsing, fallback suppression, cache clearing, local override, and install/update readiness behavior.
+- Preserved the useful primitive: optional browser dependencies may have a managed operator lifecycle, but ordinary user research cannot trigger surprise update checks, installs, downloads, or wrapper notices.
+- Added update metadata for auto-update env disablement, variable-length version tuple ordering, draft/non-Chromium release filtering, no-platform-asset nonfatal unavailable state, and nonfatal network/update failures.
+- Added checksum/install metadata for standard and binary-mode checksum manifests, lowercase hash normalization, checksum mismatch blocking, cached binary reuse, missing local override fail-closed behavior, and revalidation before marking a binary ready.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable dependency installation, background update checks during ordinary research, custom download URLs from workflows, cache clearing from chat, wrapper update notices in chat, or live browser execution.
