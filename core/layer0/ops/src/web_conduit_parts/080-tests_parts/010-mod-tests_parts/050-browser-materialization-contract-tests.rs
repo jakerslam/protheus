@@ -120,6 +120,30 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/geo_consistency_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_geoip_exit_ip_consistency")
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/direct_request_geo_fields_allowed",
+            )
+            .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/geo_consistency_contract/external_geo_db_download_allowed_during_research",
+            )
+            .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/geo_consistency_contract/raw_exit_ip_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_platform_version_cache_contract")

@@ -334,6 +334,26 @@ fn default_policy() -> Value {
                         "proxy_bypass_list_policy_owned": true,
                         "malformed_proxy_config_rejected_before_adapter": true
                     },
+                    "geo_consistency_contract": {
+                        "version": "browser_geo_consistency_contract_v1",
+                        "source_pattern": "cloakbrowser_geoip_exit_ip_consistency",
+                        "default_admitted": false,
+                        "separate_capability_required": true,
+                        "depends_on_proxy_capability": true,
+                        "direct_request_geo_fields_allowed": false,
+                        "exit_ip_resolution_timeout_bounded": true,
+                        "exit_ip_resolution_timeout_ms": 5000,
+                        "external_geo_db_download_allowed_during_research": false,
+                        "geo_db_cache_lifecycle_policy_owned": true,
+                        "geo_db_update_interval_days": 30,
+                        "locale_timezone_fill_allowed_after_admission": true,
+                        "explicit_profile_fields_take_precedence": true,
+                        "webrtc_ip_auto_requires_proxy_exit_ip": true,
+                        "unresolved_webrtc_auto_removed_before_adapter": true,
+                        "raw_exit_ip_chat_visible": false,
+                        "raw_geo_db_path_chat_visible": false,
+                        "geo_resolution_failure_nonfatal": true
+                    },
                     "argument_compiler": {
                         "version": "browser_argument_compiler_contract_v1",
                         "source_pattern": "cloakbrowser_build_args",

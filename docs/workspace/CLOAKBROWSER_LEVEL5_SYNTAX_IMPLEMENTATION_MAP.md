@@ -91,7 +91,7 @@ Status values:
 | 6 | `js/src/config.ts` | integrated: dependency lifecycle pass 006 | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
 | 7 | `js/src/download.ts` | integrated: installer hardening pass 007 | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
 | 8 | `js/src/proxy.ts` | integrated: proxy capability pass 008 | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
-| 9 | `js/src/geoip.ts` | pending, deferred | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability, deferred. |
+| 9 | `js/src/geoip.ts` | integrated: geo consistency pass 009 | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability contract, deferred. |
 | 10 | `js/src/puppeteer.ts` | pending | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
 | 11 | `cloakbrowser/browser.py` | mapped seed, needs line pass | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime parity notes, not direct Rust code. |
 | 12 | `cloakbrowser/config.py` | pending | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
@@ -517,6 +517,49 @@ separate proxy capability
 -> SOCKS needs adapter arg lane
 -> malformed proxy config fails before adapter
 -> raw proxy URL/credentials never chat-visible
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 009: `js/src/geoip.ts`
+
+Status: `integrated: future geo consistency contract`
+
+Source lines inspected: 1-422
+
+This file is useful because it ties proxy identity to browser-observable location signals without treating those signals as ordinary user request fields. It resolves proxy exit IP with a bounded timeout, infers timezone and locale from a cached GeoIP database, lets explicit profile fields win over inferred fields, and removes automatic WebRTC IP spoofing when the exit IP cannot be resolved. For Infring, those patterns stay behind a separate geo/proxy capability and become metadata contracts rather than ambient research behavior.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 19-20, 275-335 | GeoIP database is optional, cached, and refreshed on a fixed lifecycle. | Geo DB cache/download lifecycle must be policy-owned and never surprise-run during ordinary research. | Integrated as geo consistency contract. |
+| 41-99 | Geo resolution never treats missing timezone/locale as fatal. | Geo/profile enrichment failure is nonfatal telemetry, not a user-visible research failure. | Integrated. |
+| 101-118, 172-267 | Exit-IP lookup is timeout bounded and tries proxy exit before proxy host IP. | Exit-IP resolution must have bounded budgets and stay behind admitted proxy/geo capability. | Integrated. |
+| 341-357 | Proxy URL extraction depends on proxy parser and SOCKS reconstruction. | Geo consistency depends on the separate proxy capability and cannot be admitted alone. | Integrated. |
+| 364-382 | Explicit timezone/locale settings take precedence over inferred GeoIP. | Policy/profile fields override inferred metadata after admission. | Integrated. |
+| 388-422 | `--fingerprint-webrtc-ip=auto` is replaced with exit IP or removed when unresolved. | Automatic WebRTC IP binding requires resolved exit IP; unresolved auto values must be removed before adapter launch. | Integrated as future adapter contract. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `geo_consistency_contract` metadata to browser materialization profile policy. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the geo consistency contract through runtime profile-compilation metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same geo/proxy consistency contract to the Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted direct geo fields remain denied, GeoIP downloads are not allowed during ordinary research, and raw exit IP is not chat-visible. |
+
+### Pass 009 Outcome
+
+GeoIP handling now has a precise future capability contract without enabling proxy or geo behavior:
+
+```text
+separate geo/proxy capability
+-> bounded exit-IP resolution
+-> no surprise GeoIP DB download during ordinary research
+-> explicit profile fields override inferred fields
+-> unresolved WebRTC auto IP is removed before adapter
+-> raw exit IP and DB paths never become chat-visible
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
