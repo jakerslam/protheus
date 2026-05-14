@@ -385,6 +385,26 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/raw_mouse_interface_exposed_to_workflow")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/bezier_mouse_path_policy_owned")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/click_targeting_requires_element_box")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/raw_mouse_coordinates_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/human_interaction_contract/raw_behavior_parameters_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)

@@ -148,7 +148,7 @@ all web research always uses stealth browser by default
 | `cloakbrowser/config.py` | level 5 pass 012 integrated | Python provider defaults, per-platform browser version map, ignored default args, default viewport, cache/download paths, version markers, and local binary override boundaries. |
 | `tests/test_cloakserve.py` | level 5 pass 016 integrated | Service query/CLI parsing, debugger URL rewrite, refcounting, seed validation, and data-dir cleanup containment invariants. |
 | `js/src/human/config.ts` | level 5 pass 026 integrated, deferred capability | Human interaction preset schema, bounded numeric timing/randomization parameters, non-mutating config merges, per-call override boundary, and default-off idle behavior. |
-| `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
+| `js/src/human/mouse.ts` | level 5 pass 028 integrated, deferred capability | Bezier mouse movement, bounded randomization, click targeting from element boxes, input click bias, idle drift, and raw mouse-coordinate redaction. |
 | `js/src/human/index.ts` | level 5 pass 027 integrated, deferred interaction | Isolated-world DOM reads with navigation invalidation, runtime-owned predicates, fallback telemetry, and explicit gating for page/frame/element-handle patching, cursor state, and trusted key dispatch. |
 | `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
 | `tests/test_launch_context.py` | level 5 pass 018 integrated | Context option lane separation, policy-owned viewport/profile fields, locale/timezone CDP-emulation denial, storage-state capability boundary, and cleanup expectations. |
@@ -271,6 +271,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-052` | integrated | medium | Complete Level 5 pass 025 for extraction tests. | Browser materialization operator archive extraction contract | `CLOAK-TASK-051` | Added metadata for tar.gz and zip parity, archive path traversal rejection, absolute symlink target skipping, single-root flattening only, macOS app bundle preservation, multiple top-level entry preservation, executable permission checks, and operator-only quarantine handling. |
 | `CLOAK-TASK-053` | integrated | medium | Complete Level 5 pass 026 for human config. | Browser materialization human interaction capability contract | `CLOAK-TASK-052` | Added metadata for default-off humanized interaction, policy-owned presets, bounded numeric action-budget schema, per-call override capability requirements, non-mutating config merges, randomization budget ownership, and hidden raw behavior parameters. |
 | `CLOAK-TASK-054` | integrated | medium | Complete Level 5 pass 027 for human index. | Browser materialization read-only DOM probe contract | `CLOAK-TASK-053` | Added metadata for isolated-world DOM reads, navigation invalidation/recreation, runtime-owned probe predicates, telemetry-only main-world fallback, hidden raw probe expressions, capability-gated page/frame/element-handle patching, local-only cursor state, and trusted key dispatch gating. |
+| `CLOAK-TASK-055` | integrated | medium | Complete Level 5 pass 028 for human mouse. | Browser materialization human interaction capability contract | `CLOAK-TASK-054` | Added metadata for raw mouse interface denial, policy-owned Bezier path generation, bounded movement randomization, element-box click targeting, input click bias ownership, idle drift capability gating, and hidden raw coordinates. |
 
 ## Open Questions
 
@@ -1082,3 +1083,24 @@ Validation:
 Important boundary:
 
 This wave still does not enable caller scripts, arbitrary page evaluation, humanized interaction, trusted key dispatch, cursor movement, frame patching, element-handle patching, or live browser execution during ordinary research.
+
+## Assimilation Wave 37: Level 5 Human Mouse Contract
+
+Status: integrated into future human interaction capability contract; capability remains deferred.
+
+Implemented:
+
+- Parsed `js/src/human/mouse.ts` as the syntax-level source of raw mouse interface wrapping, Bezier movement, wobble/overshoot, burst pauses, click targeting, input bias, click hold timing, and idle drift.
+- Preserved the useful primitive: movement/click realism is an explicitly admitted interaction capability, not a web research retrieval behavior and not a user-controllable request field.
+- Extended `human_interaction_contract` metadata with raw mouse interface denial, policy-owned Bezier paths, bounded randomization, element-box click targeting, input click bias ownership, idle drift capability gating, and hidden raw coordinates.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable mouse movement, clicking, idle drift, coordinate control, interaction bypasses, CAPTCHAs, bot-wall solving, or live browser execution during ordinary research.

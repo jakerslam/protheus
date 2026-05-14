@@ -110,7 +110,7 @@ Status values:
 | 25 | `tests/test_extract.py` | integrated: extraction test contract pass 025, deferred capability | Which archive hardening rules matter if provider install/extract exists? | Dependency extraction guard, deferred. |
 | 26 | `js/src/human/config.ts` | integrated: human config contract pass 026, deferred capability | What action-budget schema would be needed later? | Human interaction capability, deferred. |
 | 27 | `js/src/human/index.ts` | integrated: isolated DOM probe contract pass 027, deferred interaction | Which isolated-world DOM-read pattern is useful for extraction without interaction? | Read-only DOM probe contract plus deferred human interaction. |
-| 28 | `js/src/human/mouse.ts` | pending, deferred | Which movement primitives are out of scope for research retrieval? | Human interaction capability, deferred. |
+| 28 | `js/src/human/mouse.ts` | integrated: mouse contract pass 028, deferred capability | Which movement primitives are out of scope for research retrieval? | Human interaction capability, deferred. |
 | 29 | `js/src/human/keyboard.ts` | pending, deferred | Which trusted-input primitives are out of scope for research retrieval? | Human interaction capability, deferred. |
 | 30 | `js/src/human/scroll.ts` | pending, deferred | Which scroll/readiness ideas can be reduced to read-only page settling? | Page readiness, later. |
 | 31 | `tests/test_stealth_unit.py` | mapped seed, deferred | Which isolated-world tests can become read-only extraction tests? | Browser extraction tests, later. |

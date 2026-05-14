@@ -385,6 +385,13 @@ fn browser_materialization_profile_compilation_contract(
                 "page_frame_element_handle_patching_requires_capability": true,
                 "cursor_state_capability_local_only": true,
                 "trusted_key_dispatch_requires_human_capability": true,
+                "raw_mouse_interface_exposed_to_workflow": false,
+                "bezier_mouse_path_policy_owned": true,
+                "movement_randomization_budget_bounded": true,
+                "click_targeting_requires_element_box": true,
+                "input_click_bias_policy_owned": true,
+                "idle_mouse_drift_capability_only": true,
+                "raw_mouse_coordinates_chat_visible": false,
                 "original_method_handles_chat_visible": false,
                 "raw_behavior_parameters_chat_visible": false
             })),
