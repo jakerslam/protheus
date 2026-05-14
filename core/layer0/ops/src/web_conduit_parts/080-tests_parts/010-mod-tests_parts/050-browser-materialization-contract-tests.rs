@@ -180,6 +180,26 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/service_pool_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_cdp_multiplexer_pool")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/service_pool_contract/workflow_raw_cdp_authority_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/service_pool_contract/cleanup_confined_to_service_data_dir")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/service_pool_contract/passthrough_browser_args_allowed_from_workflow")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/wrapper_lifecycle_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_python_wrapper_lifecycle")

@@ -152,7 +152,7 @@ all web research always uses stealth browser by default
 | `tests/test_launch.py` | parsed | Launch and basic anti-detection invariant tests. |
 | `tests/test_proxy.py` | parsed | Proxy parsing and GeoIP behavior tests. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
-| `bin/cloakserve` | parsed | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting. |
+| `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
 | `examples/integrations/aws_lambda/lambda_handler.py` | level 5 pass 001 integrated | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening, final URL revalidation, cleanup, and telemetry-only retry history. |
 | `tests/test_lambda_security.py` | level 5 pass 002 integrated | Scheme allowlist, SSRF/private IP rejection, redirect revalidation, caller argument filtering, hardening flags, uppercase scheme parsing, CGNAT, and IPv4-mapped IPv6 safety. |
@@ -251,6 +251,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-039` | integrated | medium | Complete Level 5 pass 012 for Python provider defaults. | Browser materialization default config contract | `CLOAK-TASK-038` | Added default config metadata for per-platform version selection, ignored default arg ownership, default viewport ownership, operator-only local binary/download hooks, fingerprint/stealth capability separation, and raw marker/download redaction. |
 | `CLOAK-TASK-040` | integrated | medium | Complete Level 5 pass 013 for Python binary download lifecycle. | Browser materialization operator install/update contract | `CLOAK-TASK-039` | Added metadata for custom download fallback suppression, checksum manifest policy, platform-matched release updates, pre-network update timestamping, next-launch binary updates, and raw binary-info redaction. |
 | `CLOAK-TASK-041` | integrated | medium | Complete Level 5 pass 014 for Python GeoIP lifecycle. | Browser materialization geo/proxy capability contract | `CLOAK-TASK-040` | Added metadata for optional GeoIP dependency state, no first-use GeoIP DB downloads during research, source admission, atomic DB replacement, policy-owned exit-IP echo provider order, raw proxy-host IP redaction, and nonfatal dependency failures. |
+| `CLOAK-TASK-042` | integrated | medium | Complete Level 5 pass 015 for CDP service pool boundary. | Browser materialization service/pool capability contract | `CLOAK-TASK-041` | Added metadata for Gateway-admitted service mode, raw CDP denial, per-seed process isolation, seed validation, local port allocation, connection refcounting, data-dir-confined cleanup, profile override denial, and telemetry-only debugger URL handling. |
 
 ## Open Questions
 
@@ -778,3 +779,26 @@ Validation:
 Important boundary:
 
 This wave still does not enable proxy, GeoIP lookup, WebRTC spoofing, GeoIP DB download, or live browser execution. It tightens the future capability contract so those behaviors cannot appear as ambient research side effects.
+
+## Assimilation Wave 24: Level 5 CDP Service Pool Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `bin/cloakserve` as the syntax-level source of CloakBrowser's CDP multiplexer, per-seed process pool, local port allocation, connection refcounting, debugger URL rewrite, service data-dir cleanup, and host binding behavior.
+- Preserved the useful primitive: service pooling can amortize browser launch cost later, but it is a separate Gateway-admitted capability, not ordinary web research execution.
+- Added contract metadata for raw CDP denial, raw debugger port redaction, Gateway admission before public binding, policy-owned host binding, per-session identity seeds, seed validation and reserved seed blocklist, per-seed locking/process isolation, refcounts, localhost CDP allocation, bounded readiness polling, first-launch-wins session profile behavior, query/profile override denial, workflow passthrough arg denial, telemetry-only URL rewrite, and child-process shutdown.
+- Kept service internals, ports, debugger URLs, raw CDP authority, fingerprint seed controls, passthrough browser args, and persistent session handles out of chat-visible research output.
+- Added mock-fast assertions for service pool source pattern, raw CDP denial, data-dir-confined cleanup, and workflow passthrough-arg denial.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable a service adapter, raw CDP, persistent sessions, proxy behavior, fingerprint seed controls, public debug ports, or live browser execution. It only records the safety contract a future service/pool provider must satisfy.

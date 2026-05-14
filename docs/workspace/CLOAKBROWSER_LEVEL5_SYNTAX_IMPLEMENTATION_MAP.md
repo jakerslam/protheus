@@ -97,7 +97,7 @@ Status values:
 | 12 | `cloakbrowser/config.py` | integrated: default config pass 012 | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
 | 13 | `cloakbrowser/download.py` | integrated: operator install/update pass 013 | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
 | 14 | `cloakbrowser/geoip.py` | integrated: Python geo lifecycle pass 014 | What proxy-exit metadata is useful but permission-sensitive? | Proxy/geo capability, deferred. |
-| 15 | `bin/cloakserve` | mapped seed, deferred | Is CDP service pooling worth a future provider mode? | Service/pool capability, deferred. |
+| 15 | `bin/cloakserve` | integrated: service pool contract pass 015 | Is CDP service pooling worth a future provider mode? | Service/pool capability, deferred. |
 | 16 | `tests/test_cloakserve.py` | mapped seed, deferred | Which pool/session invariants would be required before service mode? | Future service/pool tests. |
 | 17 | `tests/test_launch.py` | pending | What launch contract tests can be ported without live detection sites? | Browser adapter mock-fast tests. |
 | 18 | `tests/test_launch_context.py` | pending | Which context cleanup and option filtering cases matter? | Browser adapter context tests. |
@@ -779,6 +779,52 @@ admitted proxy/geo capability
 -> bounded exit-IP lookup
 -> policy-owned locale/timezone enrichment
 -> atomic DB lifecycle and telemetry-only failures
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 015: `bin/cloakserve`
+
+Status: `integrated: service pool capability contract`
+
+Source lines inspected: 1-672
+
+This file is useful as a future service-mode boundary, not as a default retrieval mechanic. It runs a CDP multiplexer, launches one browser process per identity seed, refcounts connections, rewrites debugger URLs, allocates local CDP ports, confines cleanup to its service data dir, and strips service-owned CLI flags. For Infring, the portable pattern is a Gateway-admitted service/pool capability with strict authority boundaries, not ambient raw CDP workflow access.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 43-49, 82-93 | Service has base Chrome args, base CDP port, seed validation, and reserved seed names. | Service mode requires policy-owned launch defaults and seed validation; workflows cannot pass raw seed/arg authority. | Integrated. |
+| 68-292 | Pool owns per-seed process isolation, locks, local port allocation, CDP readiness polling, refcounting, and cleanup. | Future service capability must prove session/process isolation, localhost-only CDP, bounded readiness checks, refcounts, and child cleanup. | Integrated. |
+| 112-119, 282-292 | Data-dir cleanup refuses paths outside the service root and shutdown terminates all children. | Cleanup must be confined to capability-owned data roots. | Integrated. |
+| 302-334, 596-633 | Query/CLI params can set fingerprint, proxy, geoip, locale, timezone, and generic fingerprint args. | Query/profile overrides and passthrough browser args are denied from workflow authority unless a separate capability admits them. | Integrated. |
+| 352-485 | `/json/version` and `/json/list` rewrite WebSocket debugger URLs through the multiplexer. | Raw CDP endpoints and debugger ports stay telemetry-only and behind Gateway/service admission. | Integrated. |
+| 491-586 | WebSocket proxy refcounts and cancels paired tasks when either side completes. | Service adapters need explicit connection accounting and cleanup semantics. | Integrated. |
+| 642-672 | Host binding is localhost outside containers and public inside containers. | Host binding is policy-owned; public binds require Gateway admission. | Integrated. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `service_pool_contract` metadata for raw CDP denial, Gateway admission, seed/session/process isolation, local port allocation, refcounting, data-dir cleanup, profile override denial, and child shutdown. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the service pool contract through runtime profile diagnostics. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the service/pool contract to the browser materialization Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted service source pattern, raw CDP denial, data-dir-confined cleanup, and workflow passthrough-arg denial. |
+
+### Pass 015 Outcome
+
+Service pooling is now captured as a future explicit capability:
+
+```text
+ordinary research
+-> no raw CDP, no service session handles, no profile query overrides
+admitted service pool capability
+-> Gateway-owned public boundary
+-> per-session identity/process isolation
+-> local CDP port discipline
+-> refcount and cleanup obligations
+-> telemetry-only debugger URLs and service internals
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
