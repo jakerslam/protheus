@@ -120,6 +120,21 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/checksum_verification_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/download_install_contract/archive_path_traversal_rejected")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/readiness_lifecycle/dependency_lifecycle/update_contract/background_update_during_ordinary_research_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.get("raw_payload_chat_visible").and_then(Value::as_bool),
             Some(false)
         );

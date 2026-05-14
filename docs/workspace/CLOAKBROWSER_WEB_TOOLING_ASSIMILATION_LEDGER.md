@@ -139,6 +139,7 @@ all web research always uses stealth browser by default
 | `js/src/types.ts` | level 5 pass 004 integrated | Public launch/context/persistent-context API surface, direct browser/profile controls, storage/session fields, and binary readiness metadata. |
 | `js/src/args.ts` | level 5 pass 005 integrated | Deduped argument compiler, fixed precedence, policy-owned profile arg assembly, and telemetry-only override visibility. |
 | `js/src/config.ts` | level 5 pass 006 integrated | Platform detection, binary/cache/version readiness lifecycle, explicit install boundary, ignored default args, and deferred stealth defaults. |
+| `js/src/download.ts` | level 5 pass 007 integrated | Atomic download, checksum verification, extraction hardening, cleanup on failure, and rate-limited update checks. |
 | `js/src/proxy.ts` | parsed | Robust proxy URL parsing, SOCKS handling, credential normalization, pass-through fallback. |
 | `js/src/geoip.ts` | parsed | Proxy exit IP resolution, timezone/locale inference, bounded timeout, optional dependency behavior. |
 | `js/src/human/config.ts` | parsed | Centralized human interaction presets and action timing knobs. |
@@ -238,6 +239,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-031` | integrated | high | Complete Level 5 pass 004 for TypeScript API surface audit. | Browser materialization request contract and Tool CD | `CLOAK-TASK-030` | Audited `LaunchOptions`, `LaunchContextOptions`, `LaunchPersistentContextOptions`, and `BinaryInfo`; denied direct public aliases such as raw args, stealth args, persistent profile dirs, storage state, and camelCase proxy/session/local-file fields. |
 | `CLOAK-TASK-032` | integrated | high | Complete Level 5 pass 005 for TypeScript argument compiler. | Browser materialization profile compiler contract | `CLOAK-TASK-031` | Added a policy-owned argument compiler contract with flag-key dedupe, explicit precedence, raw caller-arg denial, and telemetry-only override traces. |
 | `CLOAK-TASK-033` | integrated | medium | Complete Level 5 pass 006 for TypeScript config/defaults. | Browser materialization dependency readiness lifecycle | `CLOAK-TASK-032` | Added dependency lifecycle metadata for runtime-owned platform detection, policy-owned cache/install boundaries, no surprise downloads, internal binary/download paths, and unsupported-platform readiness state. |
+| `CLOAK-TASK-034` | integrated | medium | Complete Level 5 pass 007 for TypeScript binary download lifecycle. | Browser materialization install/update readiness contract | `CLOAK-TASK-033` | Added install/update hardening metadata for temp downloads, partial cleanup, checksum verification, archive traversal rejection, atomic update markers, and no background updates during ordinary research. |
 
 ## Open Questions
 
@@ -587,3 +589,25 @@ Validation:
 Important boundary:
 
 This wave still does not install, download, or launch a browser. It makes dependency readiness auditable so a future adapter cannot hide heavy runtime setup inside normal research.
+
+## Assimilation Wave 16: Level 5 Installer Hardening Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `js/src/download.ts` as the syntax-level source of CloakBrowser's binary install, checksum, extraction, cleanup, and update mechanics.
+- Preserved the useful primitive: any optional browser dependency lane must be atomic, checksum-verified, archive-hardened, cleanup-aware, and update-rate-limited.
+- Kept installs, local binary overrides, primary/fallback download URLs, wrapper update notices, and background updates out of ordinary research execution.
+- Extended browser dependency lifecycle metadata in default policy, runtime readiness metadata, and the Tool CD.
+- Added mock-fast assertions for checksum requirement, archive traversal rejection, and no background updates during ordinary research.
+
+Validation:
+
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not create an installer or live browser adapter. It records the install/update safety rules the future explicit readiness lane must satisfy.

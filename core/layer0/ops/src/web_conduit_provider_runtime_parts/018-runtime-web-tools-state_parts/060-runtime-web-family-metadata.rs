@@ -371,6 +371,24 @@ fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Valu
                     "cache_root_policy_owned": true,
                     "cache_cleanup_tied_to_system_cleanup": true,
                     "version_marker_may_upgrade_only_if_binary_exists": true,
+                    "download_install_contract": {
+                        "source_pattern": "cloakbrowser_atomic_download_checksum_extract",
+                        "temp_download_required": true,
+                        "partial_download_cleanup_required": true,
+                        "checksum_verification_required": true,
+                        "checksum_skip_allowed_for_ordinary_research": false,
+                        "primary_fallback_download_allowed_only_in_operator_install": true,
+                        "archive_path_traversal_rejected": true,
+                        "single_root_flatten_allowed": true,
+                        "extract_sets_executable_permissions": true
+                    },
+                    "update_contract": {
+                        "source_pattern": "cloakbrowser_rate_limited_background_update",
+                        "background_update_during_ordinary_research_allowed": false,
+                        "rate_limited_update_checks_required": true,
+                        "update_marker_write_atomic_required": true,
+                        "wrapper_update_notice_chat_visible": false
+                    },
                     "raw_binary_path_chat_visible": false,
                     "download_url_chat_visible": false,
                     "unsupported_platform_status": "dependency_unavailable"

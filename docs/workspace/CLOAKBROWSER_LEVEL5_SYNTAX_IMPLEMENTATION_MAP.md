@@ -89,7 +89,7 @@ Status values:
 | 4 | `js/src/types.ts` | integrated: API surface pass 004 | Which request/profile fields are real API surface versus convenience wrappers? | Tool CD/policy schema audit. |
 | 5 | `js/src/args.ts` | integrated: arg compiler pass 005 | How should profile args be deduped and overridden without caller authority? | Profile compiler tests and denied-field projection. |
 | 6 | `js/src/config.ts` | integrated: dependency lifecycle pass 006 | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
-| 7 | `js/src/download.ts` | pending | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
+| 7 | `js/src/download.ts` | integrated: installer hardening pass 007 | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
 | 8 | `js/src/proxy.ts` | mapped seed, deferred | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
 | 9 | `js/src/geoip.ts` | pending, deferred | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability, deferred. |
 | 10 | `js/src/puppeteer.ts` | pending | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
@@ -431,6 +431,49 @@ runtime-owned platform detection
 -> no ordinary-research surprise downloads
 -> raw binary/download details stay internal
 -> unsupported platform becomes dependency state, not synthesis text
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 007: `js/src/download.ts`
+
+Status: `integrated: installer hardening contract`
+
+Source lines inspected: 1-577
+
+This file is useful because it shows the hardening required if an optional browser provider ever installs or updates its dependency: local override validation, platform availability check, installed binary/executable check, temp-file download, primary/fallback source handling, checksum verification, archive extraction hardening, cleanup on failure, and rate-limited update checks. For Infring, this belongs to an explicit operator install/readiness lane, not ordinary research execution.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 37-92 | `ensureBinary` checks local override, platform availability, existing executable, fallback installed version, then downloads if missing. | Ordinary research must not install; this becomes an operator/readiness contract. Local override remains disallowed for the current primitive. | Integrated as lifecycle contract. |
+| 141-186 | Download uses a temp archive, primary/fallback URLs, checksum verification, extraction, and finally cleanup. | Optional installer must be atomic and cleanup partial downloads; raw URLs/paths stay internal. | Integrated as install contract metadata. |
+| 188-253 | Checksum discovery/parsing/verification uses SHA-256 and fails on mismatch. | Checksum verification should be required for admitted installs; skipping checksums is not allowed for ordinary research. | Integrated as install contract metadata. |
+| 255-363 | Download streams with timeout and destroys file handles on failure. | Installer must preserve bounded download and failure cleanup semantics. | Accepted as future installer behavior. |
+| 366-447 | Extract cleans target dir, rejects tar path traversal, flattens single wrapper dirs, sets executable bit, removes macOS quarantine. | Archive path traversal rejection and post-extract normalization are required before any install lane exists. | Integrated as install contract metadata. |
+| 456-577 | Background update is rate-limited, disabled by override/custom URL/env, marker writes are atomic, and failures are non-fatal. | Background updates are not allowed during ordinary research; update checks belong to explicit readiness/maintenance lanes. | Integrated as update contract metadata. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Extended `dependency_lifecycle` with download/install and update hardening contracts. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the same install/update contract through readiness metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added install/update hardening fields to the browser materialization Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted checksum verification, archive traversal rejection, and no ordinary-research background updates. |
+
+### Pass 007 Outcome
+
+The optional browser dependency lane now has install/update guardrails without adding an installer:
+
+```text
+operator/readiness lane only
+-> temp download + cleanup
+-> checksum required
+-> archive traversal rejected
+-> update marker writes atomic
+-> no background updates during ordinary research
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
