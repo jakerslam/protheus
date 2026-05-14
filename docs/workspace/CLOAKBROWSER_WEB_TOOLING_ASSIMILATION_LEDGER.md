@@ -18,6 +18,8 @@ Level 2 behavioral contract map: `/Users/jay/.openclaw/workspace/docs/workspace/
 
 Level 3 mechanics/algorithm map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL3_MECHANICS_ALGORITHM_MAP.md`
 
+Level 4 implementation-structure map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md`
+
 ## Guardrails
 
 - Keep ordinary research retrieval provider-neutral and policy/CD-driven.
@@ -216,6 +218,14 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-014` | integrated | medium | Add provider normalization report. | Retrieval broker | Provider attempts | Broker now separates provider normalization status from evidence quality and synthesis readiness. |
 | `CLOAK-TASK-015` | integrated | high | Add retry stop-condition diagnostics. | Retrieval broker | Retrieval decision lattice | Broker now reports stop/continue state, observed budgets, quality state, and capability requirements without executing hidden retries. |
 | `CLOAK-TASK-016` | integrated | high | Add artifact quarantine diagnostics. | Retrieval broker and evidence pack | Evidence promotion metadata | Broker now reports raw artifact refs as quarantined and confirms raw payloads are not chat-visible. |
+| `CLOAK-TASK-017` | integrated | high | Add candidate URL safety diagnostics. | Web tooling diagnostics | Browser materialization contract | Candidate refs now expose materialization URL safety status and block internal/credentialed/non-HTTP(S) locators. |
+| `CLOAK-TASK-018` | integrated | medium | Add browser profile compilation diagnostics. | Browser materialization diagnostics | Tool CD profile contract | Diagnostics now project default-off profile source, denied caller fields, and separately admitted capabilities. |
+| `CLOAK-TASK-019` | integrated | medium | Add page readiness and extraction handoff diagnostics. | Retrieval broker | Provider results and evidence pack | Broker now separates evidence packaged, blocker shell, thin extraction, fetch/materialization-needed, and not-observed states. |
+| `CLOAK-TASK-020` | integrated | medium | Add optional browser readiness lifecycle diagnostics. | Browser materialization diagnostics | Dependency readiness lifecycle | Diagnostics now report default-off readiness state and prevent missing browser dependencies from being mistaken for search quality. |
+| `CLOAK-TASK-021` | integrated | high | Create Level 4 implementation-structure map. | Assimilation docs and ownership ledger | Level 3 closure | Maps each CloakBrowser-derived mechanic to a concrete CD/module/test owner before live adapter work. |
+| `CLOAK-TASK-022` | integrated | high | Enforce URL-credential rejection at fetch preflight. | web-conduit SSRF guard + Tool CD/policy vocabulary | `CLOAK-L4-003` | Fetch-boundary safety now matches candidate/materialization diagnostics before any provider execution. |
+| `CLOAK-TASK-023` | integrated | medium | Project browser profile compilation at runtime. | Provider runtime metadata | `CLOAK-L4-004` | Runtime status now compiles the default profile, denied caller fields, denied launch args, and chat-hidden trace boundary without launching a browser. |
+| `CLOAK-TASK-024` | integrated | medium | Surface browser profile/readiness state in effective inventory. | Web tooling inventory | `CLOAK-L4-004/006` | Inventory consumers can now see the optional browser lane's profile compilation status and readiness lifecycle without knowing deep runtime metadata paths. |
 
 ## Open Questions
 
@@ -347,3 +357,91 @@ Validation:
 Important boundary:
 
 This wave still does not add live browser execution, hidden retry generation, proxy behavior, or a research-domain prompt. It exposes whether the broker should stop or continue and whether raw artifacts stayed quarantined.
+
+## Assimilation Wave 6: URL Safety, Profile Contract, And Extraction Readiness
+
+Status: integrated and narrowly tested.
+
+Implemented:
+
+- Added `url_safety_assessment_v1` for candidate locators.
+- Blocked browser-materialization candidate state when the only candidate URL is internal, credentialed, or non-HTTP(S).
+- Added URL-safety status to retrieval decision candidate refs and evidence-promotion safety metadata.
+- Added `browser_profile_compilation_v1` under browser-materialization diagnostics, including denied caller fields and separately admitted proxy/session/interaction/pool capabilities.
+- Added `page_readiness_extraction_v1` to the retrieval broker to separate extraction readiness from provider retrieval health.
+- Added `browser_capability_readiness_lifecycle_v1` so optional browser dependency state is observable without surprise installs or launches.
+- Added mock-fast assertions for safe public URL candidates, internal/credentialed URL blocking, default-off profile compilation, and page readiness/extraction projection.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/batch_query_primitive_parts/016-web-quality-diagnostics.rs core/layer0/ops/src/batch_query_primitive_parts/043-web-quality-diagnostics-tests.rs docs/workspace/CLOAKBROWSER_LEVEL3_MECHANICS_ALGORITHM_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -p infring-ops-core web_quality_diagnostics_tests -- --nocapture`
+
+Important boundary:
+
+This wave remains diagnostic/contract-level. It does not add live browser navigation, proxy handling, persistent sessions, humanized interaction, or raw DOM extraction.
+
+## Assimilation Wave 7: Level 4 Implementation Structure Map
+
+Status: integrated as ownership map.
+
+Implemented:
+
+- Created `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md`.
+- Mapped each Level 3 mechanic to a concrete Level 4 owner surface: Tool CD, web conduit, batch query, artifact store, workflow CD, Gateway/Kernel policy, Assurance/evals, or Shell projection.
+- Named implementation targets for Tool CD linkage, web-conduit policy, URL safety, profile compilation, browser materialization, provider readiness, page extraction, evidence packaging, artifact quarantine, workflow CD integration, and eval ownership.
+- Defined a phase order that starts with CD metadata and URL-safety parity before any live browser adapter.
+- Preserved the boundary that browser materialization remains default-off and capability-admitted, with proxy/session/humanized/service-pool behavior deferred.
+
+Validation:
+
+- `git diff --check -- docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md docs/workspace/CLOAKBROWSER_LEVEL3_MECHANICS_ALGORITHM_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+
+Important boundary:
+
+This wave does not add runtime behavior. It exists to prevent the next runtime wave from scattering browser-specific authority across workflow Rust, shell state, or prompt-specific code.
+
+## Assimilation Wave 8: Level 4 CD And URL-Safety Parity
+
+Status: integrated and narrowly tested.
+
+Implemented:
+
+- Aligned browser-materialization URL safety status vocabulary in the Tool CD, checked-in web-conduit policy, and default policy.
+- Added `blocked_url_credentials` and `blocked_internal_host_hint` to the admitted status vocabulary so the CD matches existing batch-query diagnostics.
+- Added fetch-boundary credential detection to the web-conduit SSRF guard.
+- Added `url_safety_status` to fetch SSRF guard output so fetch, redirect, and future browser-materialization paths can report a common safety state.
+- Added focused tests proving credentialed URLs do not execute and guard safety status is projected.
+
+Validation:
+
+- `jq empty core/layer0/ops/config/web_conduit_policy.json core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/031-fetch-transport-and-ssrf.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/020-fetch-policy-and-provider-contract-tests.rs core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/config/web_conduit_policy.json core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -q -p infring-ops-core --lib fetch_credentials_in_url_are_blocked_before_execution -- --nocapture`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -q -p infring-ops-core --lib ssrf_guard_reports_redirect_target_safety_status -- --nocapture`
+
+Important boundary:
+
+This wave does not add live browser execution. It makes the existing static fetch boundary obey the same URL-safety contract that the browser-materialization lane will need.
+
+## Assimilation Wave 9: Level 4 Browser Profile Policy Projection
+
+Status: integrated and narrowly tested.
+
+Implemented:
+
+- Added `browser_profile_compilation_v1` to browser-materialization runtime metadata.
+- Compiled Tool-CD/policy profile fields into one effective adapter envelope: profile source, default profile, state scope, denied caller fields, denied launch args, telemetry fields, and hidden raw-trace flags.
+- Projected disabled, adapter-not-ready, and adapter-ready statuses without installing or launching a browser.
+- Preserved separate admission boundaries for proxy, persistent sessions, caller-controlled launch args, raw CDP, and arbitrary user scripts.
+- Added status-surface assertions so future browser adapter work has a visible contract to obey.
+- Exposed profile compilation and readiness lifecycle state on the effective inventory row for the optional browser lane.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer0/ops/src/web_conduit_parts/041-tooling-inventory-and-policy.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/010-status-and-provider-catalog-tests.rs docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -q -p infring-ops-core --lib status_bootstraps_default_policy_and_receipts_surface -- --nocapture`
+
+Important boundary:
+
+This wave still does not add browser execution, proxy handling, persistent sessions, humanized interaction, hidden retries, or final-answer formatting rules.

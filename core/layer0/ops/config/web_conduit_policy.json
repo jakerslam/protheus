@@ -99,14 +99,16 @@
         "revalidate_final_url_after_navigation": true,
         "reject_caller_supplied_browser_args": true,
         "max_redirects": 8,
-        "url_safety_status_values": [
-          "allowed",
-          "scheme_blocked",
-          "private_network_blocked",
-          "redirect_target_blocked",
-          "credentials_redacted",
-          "invalid_url"
-        ]
+          "url_safety_status_values": [
+            "allowed",
+            "scheme_blocked",
+            "private_network_blocked",
+            "redirect_target_blocked",
+            "blocked_url_credentials",
+            "blocked_internal_host_hint",
+            "credentials_redacted",
+            "invalid_url"
+          ]
       },
       "output_contract": {
         "fields": [

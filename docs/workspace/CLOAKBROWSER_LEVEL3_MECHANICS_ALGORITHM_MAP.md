@@ -25,7 +25,7 @@ This document is still pattern assimilation, not source copying. It should guide
 | 1 | Architecture / pattern | What patterns are useful and where do they belong? | CloakBrowser assimilation ledger |
 | 2 | Behavioral contract | What must the system accept, reject, classify, expose, hide, and prove? | Level 2 contract map |
 | 3 | Mechanics / algorithm | How should the system classify, decide, retry, extract, score, and promote? | This document |
-| 4 | Implementation structure | Which modules, files, CD fields, adapters, and tests own each behavior? | Next wave |
+| 4 | Implementation structure | Which modules, files, CD fields, adapters, and tests own each behavior? | Level 4 implementation structure map |
 | 5 | Syntax | Exact code, branches, fields, regexes, and assertions. | Last wave |
 
 ## Guardrails
@@ -65,13 +65,13 @@ user goal
 | `CLOAK-L3-002` | Blocker signal extraction | Detect access/render/provider blockers before weak data is treated as evidence. | Anti-detection and Lambda failure tests | web quality diagnostics | integrated |
 | `CLOAK-L3-003` | Retrieval decision lattice | Choose synthesize/retry/fetch/browser/alternate/low-evidence based on evidence state. | Lambda retry classification | retrieval broker diagnostics | integrated |
 | `CLOAK-L3-004` | Query refinement signal generation | Help the agent issue better query packs from low-signal results without hardcoding prompts. | Failure-class-driven retry strategy | batch-query strategy hints | integrated |
-| `CLOAK-L3-005` | URL safety mechanics | Validate initial and final URLs around any materialization attempt. | Lambda SSRF/redirect checks | Gateway/web-conduit safety | partial |
-| `CLOAK-L3-006` | Profile compilation mechanics | Build one deterministic browser launch/profile artifact from policy. | `args.ts` and context option filtering | Tool CD profile compiler | mapped |
-| `CLOAK-L3-007` | Page settle/readiness mechanics | Decide when a browser-materialized page is ready to extract. | Lambda smart waits and humanized readiness ideas | future browser materializer | mapped |
-| `CLOAK-L3-008` | Main content extraction mechanics | Convert rendered page state into bounded text/markdown candidates. | Browser DOM/readability extraction pattern | evidence candidate enrichment | mapped |
+| `CLOAK-L3-005` | URL safety mechanics | Validate initial and final URLs around any materialization attempt. | Lambda SSRF/redirect checks | Gateway/web-conduit safety | diagnostics integrated |
+| `CLOAK-L3-006` | Profile compilation mechanics | Build one deterministic browser launch/profile artifact from policy. | `args.ts` and context option filtering | Tool CD profile compiler | diagnostics integrated |
+| `CLOAK-L3-007` | Page settle/readiness mechanics | Decide when a browser-materialized page is ready to extract. | Lambda smart waits and humanized readiness ideas | future browser materializer | diagnostics integrated |
+| `CLOAK-L3-008` | Main content extraction mechanics | Convert rendered page state into bounded text/markdown candidates. | Browser DOM/readability extraction pattern | evidence candidate enrichment | diagnostics integrated |
 | `CLOAK-L3-009` | Evidence promotion scoring | Promote only relevant, substantive, safe, source-classified content. | Extracted page output discipline | evidence pack | integrated |
 | `CLOAK-L3-010` | Retry budget and stop conditions | Prevent loops, provider thrash, and repeated weak-result cycling. | Bounded retry patterns | batch-query/retrieval gates | diagnostics integrated |
-| `CLOAK-L3-011` | Readiness lifecycle mechanics | Report missing/installed/degraded/cleanup states without surprise installs. | Binary/cache/update lifecycle | web-conduit status | mapped |
+| `CLOAK-L3-011` | Readiness lifecycle mechanics | Report missing/installed/degraded/cleanup states without surprise installs. | Binary/cache/update lifecycle | web-conduit status | diagnostics integrated |
 | `CLOAK-L3-012` | Artifact quarantine mechanics | Keep raw payloads accessible by ref, not chat-visible. | Service/browser trace separation | artifact store and telemetry | diagnostics integrated |
 | `CLOAK-L3-013` | Mock-fast mechanics tests | Prove decisions with fixtures before live browser/runtime work. | Unit tests around launch/proxy/security | ops tests | integrated |
 
@@ -156,6 +156,36 @@ Mechanics now represented in diagnostics:
 Important boundary:
 
 This wave does not enforce retry execution or cleanup policy by itself. It makes the broker's continuation and quarantine state explicit so workflow gates can diagnose whether retrieval stopped for a good reason.
+
+## Level 3 Assimilation Wave 4: URL Safety, Profile Contract, And Extraction Readiness
+
+Status: integrated as diagnostics.
+
+Implemented targets:
+
+- `CLOAK-L3-005`: candidate URLs now receive `url_safety_assessment_v1` with scheme, credentials, internal-host, rejection reasons, and redirect revalidation requirements.
+- `CLOAK-L3-006`: browser materialization diagnostics now include `browser_profile_compilation_v1`, making denied launch controls and separately admitted capabilities explicit.
+- `CLOAK-L3-007`: broker diagnostics now emit `page_readiness_extraction_v1`, distinguishing evidence already packaged, blocker/shell pages, thin extraction, and materialization/fetch-needed states.
+- `CLOAK-L3-008`: extraction readiness now records the main-text/metadata/raw-artifact contract without exposing raw bodies.
+- `CLOAK-L3-011`: browser materialization diagnostics now include `browser_capability_readiness_lifecycle_v1`, keeping missing/install/update/cleanup state separate from search-result quality.
+- `CLOAK-L3-013`: mock-fast tests cover allowed public URLs, internal/credentialed URL blocking, profile contract projection, and page-readiness projection.
+
+Implementation files:
+
+- `/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/016-web-quality-diagnostics.rs`
+- `/Users/jay/.openclaw/workspace/core/layer0/ops/src/batch_query_primitive_parts/043-web-quality-diagnostics-tests.rs`
+
+Mechanics now represented in diagnostics:
+
+- Browser materialization only sees `candidate_url_ref_available` when at least one candidate passes the public HTTP/HTTPS URL safety screen.
+- Internal hosts, URL credentials, and non-HTTP(S) locators block materialization recommendation and route back to alternate-provider/refinement behavior.
+- Browser profile compilation is observable as a default-off Tool-CD contract, with raw browser args, debugging flags, certificate bypass, local file access, extensions, proxy/session fields, and raw scripts/CDP commands denied at the boundary.
+- Page readiness/extraction status is separated from provider retrieval status so a provider can succeed while extraction remains thin, shell-blocked, or not yet promoted.
+- Optional browser readiness is explicit and default-off: ordinary research does not install dependencies or launch a browser just because a result was low-signal.
+
+Important boundary:
+
+This wave still does not add live navigation, DNS/IP resolution, redirect traversal, DOM extraction, Playwright/Puppeteer invocation, proxy/session behavior, or page waiting. It makes those future mechanics explicit and testable at the diagnostic contract layer first.
 
 ## Mechanic 1: Provider Result Normalization
 
@@ -594,7 +624,7 @@ never inject artifact body into final chat
 
 ## Level 3 Exit Criteria
 
-Before moving to Level 4 implementation-structure mapping, we should have:
+Before moving to Level 4 implementation-structure mapping, we needed:
 
 - A concrete decision lattice that explains retry/fetch/browser/synthesis/low-evidence outcomes.
 - Blocker extraction rules for provider errors, status codes, and text markers.
@@ -610,3 +640,5 @@ Before moving to Level 4 implementation-structure mapping, we should have:
 The highest-ROI Level 3 work is not the live browser executor yet. It is the decision lattice and evidence-promotion mechanics. Those are the pieces that tell us whether weak web results should trigger another query, direct fetch, browser materialization, alternate provider, or a bounded low-evidence answer.
 
 Once that decision lattice is explicit and tested, a future browser executor can plug into a known lane instead of becoming another black box.
+
+Level 4 owner mapping now lives in `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md`.

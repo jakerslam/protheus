@@ -148,6 +148,133 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
     })
 }
 
+fn browser_materialization_array_field(
+    source: &Value,
+    field: &str,
+    fallback: &[&str],
+) -> Value {
+    source
+        .get(field)
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|row| json!(clean_text(row, 160)))
+                .collect::<Vec<_>>()
+        })
+        .filter(|rows| !rows.is_empty())
+        .map(Value::Array)
+        .unwrap_or_else(|| Value::Array(fallback.iter().map(|row| json!(row)).collect()))
+}
+
+fn browser_materialization_profile_compilation_contract(
+    config: &Value,
+    enabled: bool,
+    adapter_ready: bool,
+) -> Value {
+    let profile_contract = config
+        .get("profile_contract")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let request_contract = config
+        .get("request_contract")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let denied_fields = browser_materialization_array_field(
+        &request_contract,
+        "denied_fields",
+        &[
+            "browser_args",
+            "launch_args",
+            "cdp_command",
+            "user_script",
+            "proxy",
+            "proxy_url",
+            "proxy_credentials",
+            "session_id",
+            "storage_state",
+            "local_file",
+        ],
+    );
+    let denied_launch_args = browser_materialization_array_field(
+        &profile_contract,
+        "denied_launch_args",
+        &[
+            "--remote-debugging-port",
+            "--disable-web-security",
+            "--ignore-certificate-errors",
+            "--allow-file-access-from-files",
+            "--load-extension",
+        ],
+    );
+    let telemetry_fields = browser_materialization_array_field(
+        &profile_contract,
+        "telemetry_fields",
+        &[
+            "profile_ref",
+            "state_scope",
+            "effective_profile_hash",
+            "denied_option_count",
+        ],
+    );
+    json!({
+        "version": "browser_profile_compilation_v1",
+        "source_pattern": "cloakbrowser_launch_profile_compiler",
+        "compile_before_adapter_launch": true,
+        "status": if !enabled {
+            "prepared_capability_disabled"
+        } else if adapter_ready {
+            "ready_for_adapter"
+        } else {
+            "blocked_adapter_not_ready"
+        },
+        "profile_source": profile_contract
+            .get("profile_source")
+            .and_then(Value::as_str)
+            .unwrap_or("tool_cd_policy"),
+        "default_profile": profile_contract
+            .get("default_profile")
+            .and_then(Value::as_str)
+            .unwrap_or("stateless_public_materialization"),
+        "effective_profile_ref": profile_contract
+            .get("default_profile")
+            .and_then(Value::as_str)
+            .unwrap_or("stateless_public_materialization"),
+        "state_scope": profile_contract
+            .get("state_scope")
+            .and_then(Value::as_str)
+            .unwrap_or("stateless"),
+        "caller_override_allowed": profile_contract
+            .get("caller_override_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "normalize_or_reject_context_conflicts": profile_contract
+            .get("normalize_or_reject_context_conflicts")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "proxy_capability_required": profile_contract
+            .get("proxy_capability_required")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "persistent_session_capability_required": profile_contract
+            .get("persistent_session_capability_required")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "separate_admission_required_for": [
+            "proxy",
+            "persistent_session",
+            "caller_controlled_launch_args",
+            "raw_cdp_commands",
+            "arbitrary_user_scripts"
+        ],
+        "denied_caller_fields": denied_fields,
+        "denied_launch_args": denied_launch_args,
+        "telemetry_fields": telemetry_fields,
+        "raw_launch_args_chat_visible": false,
+        "raw_browser_trace_chat_visible": false
+    })
+}
+
 fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Value {
     let config = policy
         .pointer("/web_conduit/browser_materialization")
@@ -248,6 +375,11 @@ fn runtime_browser_materialization_metadata(root: &Path, policy: &Value) -> Valu
             },
             "state_path": runtime_web_tools_state_path(root).display().to_string()
         },
+        "profile_compilation": browser_materialization_profile_compilation_contract(
+            &config,
+            enabled,
+            adapter_ready,
+        ),
         "diagnostics": diagnostics
     })
 }

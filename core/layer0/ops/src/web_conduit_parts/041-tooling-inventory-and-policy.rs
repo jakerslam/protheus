@@ -111,6 +111,10 @@ fn runtime_web_tooling_effective_inventory(
         .pointer("/tool_execution_gate/fetch")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let browser_materialization_gate = runtime_web_tools_metadata
+        .pointer("/tool_execution_gate/browser_materialization")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     let search_surface_status = clean_text(
         runtime_web_tools_metadata
             .pointer("/tool_surface_health/search_status")
@@ -124,6 +128,14 @@ fn runtime_web_tooling_effective_inventory(
             .pointer("/tool_surface_health/fetch_status")
             .and_then(Value::as_str)
             .unwrap_or("unknown"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let browser_materialization_surface_status = clean_text(
+        runtime_web_tools_metadata
+            .pointer("/tool_surface_health/browser_materialization_status")
+            .and_then(Value::as_str)
+            .unwrap_or("unavailable"),
         40,
     )
     .to_ascii_lowercase();
@@ -173,6 +185,49 @@ fn runtime_web_tooling_effective_inventory(
             &fetch_gate,
         ),
     ];
+    let mut browser_row = runtime_web_tooling_effective_row(
+        "web.browser_materialize_page",
+        "browser_materialization",
+        "runtime_web_tools_metadata",
+        &browser_materialization_surface_status,
+        &clean_text(
+            runtime_web_tools_metadata
+                .pointer("/browser_materialization/selected_provider")
+                .and_then(Value::as_str)
+                .unwrap_or("local_browser"),
+            80,
+        ),
+        "not_required",
+        &browser_materialization_gate,
+    );
+    if let Some(obj) = browser_row.as_object_mut() {
+        obj.insert("optional_capability".to_string(), json!(true));
+        obj.insert(
+            "capability_contract_ref".to_string(),
+            json!("core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#browser_materialization_capability_contract"),
+        );
+        obj.insert(
+            "profile_compilation_status".to_string(),
+            json!(clean_text(
+                runtime_web_tools_metadata
+                    .pointer("/browser_materialization/profile_compilation/status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
+                80,
+            )),
+        );
+        obj.insert(
+            "readiness_lifecycle_state".to_string(),
+            json!(clean_text(
+                runtime_web_tools_metadata
+                    .pointer("/browser_materialization/capability_contract/readiness_lifecycle/state")
+                    .and_then(Value::as_str)
+                    .unwrap_or("unknown"),
+                80,
+            )),
+        );
+    }
+    rows.push(browser_row);
     let image_execution_mode = clean_text(
         runtime_web_tools_metadata
             .pointer("/image_tool/execution_mode")
@@ -264,7 +319,10 @@ fn runtime_web_tooling_effective_inventory(
         .iter()
         .filter(|row| row.get("should_execute").and_then(Value::as_bool) == Some(true))
         .count() as u64;
-    let blocked_tools = total_tools.saturating_sub(enabled_tools);
+    let blocked_tools = rows
+        .iter()
+        .filter(|row| runtime_web_tooling_row_counts_as_blocked(row))
+        .count() as u64;
     let degraded_tools = rows
         .iter()
         .filter(|row| row.get("surface_status").and_then(Value::as_str) == Some("degraded"))
@@ -295,6 +353,24 @@ fn runtime_web_tooling_effective_inventory(
             "blocking_error_codes": blocking_error_codes
         }
     })
+}
+
+fn runtime_web_tooling_row_counts_as_blocked(row: &Value) -> bool {
+    if row.get("should_execute").and_then(Value::as_bool) == Some(true) {
+        return false;
+    }
+    let optional_capability = row
+        .get("optional_capability")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let blocking_reason = clean_text(
+        row.get("blocking_reason")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    )
+    .to_ascii_lowercase();
+    !(optional_capability && blocking_reason == "capability_not_enabled")
 }
 
 fn runtime_web_tooling_policy_pipeline(
@@ -524,8 +600,24 @@ fn runtime_web_tooling_decision_trace(
             };
             if should_execute {
                 executable_tools += 1;
-            } else {
+            } else if runtime_web_tooling_row_counts_as_blocked(row) {
                 blocked_tools += 1;
+            } else {
+                trace_rows.push(json!({
+                    "tool_id": tool_id,
+                    "family": family,
+                    "execution_mode": execution_mode,
+                    "surface_status": surface_status,
+                    "selected_provider": selected_provider,
+                    "should_execute": should_execute,
+                    "blocking_error_code": blocking_error_code,
+                    "blocking_reason": blocking_reason,
+                    "retry_recommended": retry_recommended,
+                    "retry_attempts": retry_attempts,
+                    "retry_lane": retry_lane,
+                    "next_action": "optional_capability_not_enabled"
+                }));
+                continue;
             }
             if retry_recommended {
                 retryable_tools += 1;

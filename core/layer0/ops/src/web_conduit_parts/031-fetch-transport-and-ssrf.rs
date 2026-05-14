@@ -64,6 +64,10 @@ fn fetch_url_host(raw_url: &str) -> String {
     .to_ascii_lowercase()
 }
 
+fn fetch_url_has_credentials(raw_url: &str) -> bool {
+    fetch_url_authority(raw_url).contains('@')
+}
+
 fn fetch_url_origin(raw_url: &str) -> String {
     let scheme = fetch_url_scheme(raw_url);
     let authority = fetch_url_authority(raw_url);
@@ -201,8 +205,20 @@ fn evaluate_fetch_ssrf_guard(
         return json!({
             "ok": false,
             "error": "invalid_fetch_url",
+            "url_safety_status": "invalid_url",
             "url": cleaned,
             "host": host,
+            "resolved_ip_addrs": []
+        });
+    }
+    if fetch_url_has_credentials(&cleaned) {
+        return json!({
+            "ok": false,
+            "error": "blocked_url_credentials",
+            "url_safety_status": "blocked_url_credentials",
+            "url": cleaned,
+            "host": host,
+            "credentials_in_url": true,
             "resolved_ip_addrs": []
         });
     }
@@ -210,6 +226,7 @@ fn evaluate_fetch_ssrf_guard(
         return json!({
             "ok": false,
             "error": "blocked_hostname",
+            "url_safety_status": "private_network_blocked",
             "url": cleaned,
             "host": host,
             "resolved_ip_addrs": []
@@ -220,6 +237,7 @@ fn evaluate_fetch_ssrf_guard(
             return json!({
                 "ok": false,
                 "error": "blocked_private_network_target",
+                "url_safety_status": "private_network_blocked",
                 "url": cleaned,
                 "host": host,
                 "resolved_ip_addrs": [literal.to_string()]
@@ -227,6 +245,7 @@ fn evaluate_fetch_ssrf_guard(
         }
         return json!({
             "ok": true,
+            "url_safety_status": "allowed",
             "url": cleaned,
             "host": host,
             "resolved_ip_addrs": [literal.to_string()]
@@ -243,6 +262,7 @@ fn evaluate_fetch_ssrf_guard(
         return json!({
             "ok": false,
             "error": "blocked_private_network_target",
+            "url_safety_status": "private_network_blocked",
             "url": cleaned,
             "host": host,
             "resolved_ip_addrs": resolved.iter().map(|row| row.to_string()).collect::<Vec<_>>()
@@ -250,6 +270,7 @@ fn evaluate_fetch_ssrf_guard(
     }
     json!({
         "ok": true,
+        "url_safety_status": "allowed",
         "url": cleaned,
         "host": host,
         "resolved_ip_addrs": resolved.iter().map(|row| row.to_string()).collect::<Vec<_>>()

@@ -306,6 +306,8 @@ fn default_policy() -> Value {
                         "scheme_blocked",
                         "private_network_blocked",
                         "redirect_target_blocked",
+                        "blocked_url_credentials",
+                        "blocked_internal_host_hint",
                         "credentials_redacted",
                         "invalid_url"
                     ]

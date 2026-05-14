@@ -102,10 +102,59 @@
                         == Some("capability_not_enabled")
             }))
             .unwrap_or(false));
+        let browser_inventory = out
+            .pointer("/tool_effective_inventory/rows")
+            .and_then(Value::as_array)
+            .and_then(|rows| {
+                rows.iter().find(|row| {
+                    row.get("tool_id").and_then(Value::as_str)
+                        == Some("web.browser_materialize_page")
+                })
+            })
+            .expect("browser materialization inventory row");
+        assert_eq!(
+            browser_inventory
+                .get("profile_compilation_status")
+                .and_then(Value::as_str),
+            Some("prepared_capability_disabled")
+        );
+        assert_eq!(
+            browser_inventory
+                .get("readiness_lifecycle_state")
+                .and_then(Value::as_str),
+            Some("not_configured")
+        );
         assert_eq!(
             out.pointer("/runtime_web_tools_metadata/browser_materialization/capability_contract/readiness_lifecycle/state")
                 .and_then(Value::as_str),
             Some("not_configured")
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/browser_materialization/profile_compilation/version")
+                .and_then(Value::as_str),
+            Some("browser_profile_compilation_v1")
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/browser_materialization/profile_compilation/status")
+                .and_then(Value::as_str),
+            Some("prepared_capability_disabled")
+        );
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/browser_materialization/profile_compilation/state_scope")
+                .and_then(Value::as_str),
+            Some("stateless")
+        );
+        assert!(out
+            .pointer("/runtime_web_tools_metadata/browser_materialization/profile_compilation/denied_caller_fields")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("browser_args")))
+            .unwrap_or(false));
+        assert_eq!(
+            out.pointer("/runtime_web_tools_metadata/browser_materialization/profile_compilation/raw_browser_trace_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
         );
     }
 

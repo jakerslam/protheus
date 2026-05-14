@@ -109,6 +109,68 @@
     }
 
     #[test]
+    fn fetch_credentials_in_url_are_blocked_before_execution() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_fetch(
+            tmp.path(),
+            &json!({"url": "https://user:secret@example.com/private"}),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("blocked_url_credentials")
+        );
+        assert_eq!(
+            out.get("tool_execution_attempted").and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/tool_execution_gate/reason")
+                .and_then(Value::as_str),
+            Some("ssrf_blocked")
+        );
+        assert_eq!(
+            out.pointer("/ssrf_guard/url_safety_status")
+                .and_then(Value::as_str),
+            Some("blocked_url_credentials")
+        );
+        assert_eq!(
+            out.pointer("/ssrf_guard/credentials_in_url")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/retry/strategy").and_then(Value::as_str),
+            Some("use_public_http_or_https_target")
+        );
+    }
+
+    #[test]
+    fn ssrf_guard_reports_redirect_target_safety_status() {
+        let blocked = evaluate_fetch_ssrf_guard(
+            "https://example.com",
+            false,
+            Some(&["10.0.0.8".parse().expect("ip")]),
+        );
+        assert_eq!(blocked.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            blocked.get("url_safety_status").and_then(Value::as_str),
+            Some("private_network_blocked")
+        );
+
+        let allowed = evaluate_fetch_ssrf_guard(
+            "https://example.com",
+            false,
+            Some(&["93.184.216.34".parse().expect("ip")]),
+        );
+        assert_eq!(allowed.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            allowed.get("url_safety_status").and_then(Value::as_str),
+            Some("allowed")
+        );
+    }
+
+    #[test]
     fn fetch_early_validation_blocks_meta_conversational_input() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = api_fetch(tmp.path(), &json!({"url": "that was just a test"}));

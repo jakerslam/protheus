@@ -18,7 +18,7 @@ fn current_web_intent(query: &str) -> bool {
 }
 
 fn web_tool_quality_version() -> &'static str {
-    "web_tool_quality_v4"
+    "web_tool_quality_v5"
 }
 
 fn current_year() -> String {
@@ -862,6 +862,148 @@ fn locator_has_internal_host_hint(locator: &str) -> bool {
         || host.starts_with("172.31.")
 }
 
+fn locator_scheme(locator: &str) -> String {
+    let lowered = clean_text(locator, 2_200).to_ascii_lowercase();
+    lowered
+        .split_once("://")
+        .map(|(scheme, _)| clean_text(scheme, 40))
+        .filter(|scheme| !scheme.is_empty())
+        .unwrap_or_else(|| "none".to_string())
+}
+
+fn materialization_url_safety_assessment(locator: &str) -> Value {
+    let cleaned = clean_text(locator, 2_200);
+    let lowered = cleaned.to_ascii_lowercase();
+    let http_https = lowered.starts_with("http://") || lowered.starts_with("https://");
+    let credentials_in_url = locator_has_credentials(&cleaned);
+    let internal_host_hint = locator_has_internal_host_hint(&cleaned);
+    let mut rejection_reasons = Vec::<&str>::new();
+    if cleaned.is_empty() {
+        rejection_reasons.push("missing_locator");
+    }
+    if !http_https {
+        rejection_reasons.push("non_http_https_scheme");
+    }
+    if credentials_in_url {
+        rejection_reasons.push("credentials_in_url");
+    }
+    if internal_host_hint {
+        rejection_reasons.push("internal_host_hint");
+    }
+    rejection_reasons.sort();
+    rejection_reasons.dedup();
+    let materialization_allowed = rejection_reasons.is_empty();
+    let status = if materialization_allowed {
+        "allowed_public_http_https"
+    } else if internal_host_hint {
+        "blocked_internal_host_hint"
+    } else if credentials_in_url {
+        "blocked_url_credentials"
+    } else if !http_https {
+        "blocked_non_http_https_scheme"
+    } else {
+        "blocked_by_policy"
+    };
+    json!({
+        "version": "url_safety_assessment_v1",
+        "status": status,
+        "scheme": locator_scheme(&cleaned),
+        "materialization_allowed": materialization_allowed,
+        "http_https": http_https,
+        "credentials_in_url": credentials_in_url,
+        "internal_host_hint": internal_host_hint,
+        "rejection_reasons": rejection_reasons,
+        "redirect_revalidation_required": materialization_allowed,
+        "final_url_must_match_safety_contract": true,
+        "raw_payload_chat_visible": false
+    })
+}
+
+fn materialization_url_allowed(locator: &str) -> bool {
+    materialization_url_safety_assessment(locator)
+        .get("materialization_allowed")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn materialization_candidate_safety_refs(
+    actionable_ranked: &[(Candidate, f64)],
+    limit: usize,
+) -> Vec<Value> {
+    actionable_ranked
+        .iter()
+        .take(limit.max(1))
+        .map(|(candidate, score)| {
+            json!({
+                "locator": clean_text(&candidate.locator, 240),
+                "domain": candidate_domain_hint(candidate),
+                "score": (*score * 100.0).round() / 100.0,
+                "url_safety": materialization_url_safety_assessment(&candidate.locator)
+            })
+        })
+        .collect()
+}
+
+fn browser_profile_compilation_report() -> Value {
+    json!({
+        "version": "browser_profile_compilation_v1",
+        "status": "contract_ready_default_off",
+        "profile_source": "tool_cd_policy",
+        "default_profile": "stateless_public_materialization",
+        "effective_profile_required_before_launch": true,
+        "raw_launch_args_accepted_from_caller": false,
+        "denied_caller_fields": [
+            "raw_browser_args",
+            "raw_launch_args",
+            "remote_debugging_flags",
+            "certificate_bypass_flags",
+            "local_file_access_flags",
+            "extension_load_flags",
+            "proxy_session_fields_without_capability",
+            "raw_scripts_or_cdp_commands"
+        ],
+        "separately_admitted_capabilities": [
+            "proxy",
+            "persistent_session",
+            "humanized_interaction",
+            "service_pool"
+        ],
+        "chat_visibility": "telemetry_only",
+        "non_goals": [
+            "do_not_make_browser_materialization_default",
+            "do_not_accept_raw_browser_flags_from_workflow",
+            "do_not_smuggle_proxy_or_session_authority_through_request_shape"
+        ]
+    })
+}
+
+fn browser_capability_readiness_lifecycle_report() -> Value {
+    json!({
+        "version": "browser_capability_readiness_lifecycle_v1",
+        "status": "not_configured_default_off",
+        "ordinary_research_may_install_dependency": false,
+        "ordinary_research_may_launch_browser": false,
+        "states": [
+            "not_configured",
+            "not_installed",
+            "version_mismatch",
+            "ready",
+            "degraded",
+            "blocked",
+            "cleanup_required"
+        ],
+        "cheap_status_probe_allowed": true,
+        "install_or_update_requires_explicit_capability_action": true,
+        "cleanup_state_must_be_reported_separately": true,
+        "chat_visibility": "telemetry_only",
+        "non_goals": [
+            "do_not_surprise_install_browser_binary_during_research",
+            "do_not_treat_missing_browser_as_search_failure",
+            "do_not_hide_provider_readiness_state_inside_low_signal_quality"
+        ]
+    })
+}
+
 fn evidence_promotion_assessment(
     query: &str,
     candidate: &Candidate,
@@ -936,7 +1078,8 @@ fn evidence_promotion_assessment(
             "http_https": http_https,
             "credentials_in_url": credentials_in_url,
             "internal_host_hint": internal_host_hint,
-            "raw_payload_chat_visible": false
+            "raw_payload_chat_visible": false,
+            "url_safety": materialization_url_safety_assessment(&locator)
         },
         "components": {
             "query_overlap_terms": query_overlap_count,
@@ -1769,6 +1912,131 @@ fn retry_stop_conditions_report(
     })
 }
 
+fn page_readiness_and_extraction_report(
+    provider_results: &Value,
+    evidence_pack: &Value,
+    tool_result_quality: &Value,
+) -> Value {
+    let provider_result_count = value_array_len(provider_results);
+    let evidence_pack_count = value_array_len(evidence_pack);
+    let mut content_preview_count = 0usize;
+    let mut substantive_preview_count = 0usize;
+    let mut blocker_shell_count = 0usize;
+    let mut link_count = 0usize;
+    let mut extraction_signal_count = 0usize;
+    if let Some(rows) = provider_results.as_array() {
+        for row in rows {
+            if let Some(preview) = row.get("content_preview").and_then(Value::as_str) {
+                let cleaned = clean_text(preview, 1_800);
+                if !cleaned.is_empty() {
+                    content_preview_count += 1;
+                    extraction_signal_count += 1;
+                    if content_rich_text(&cleaned) {
+                        substantive_preview_count += 1;
+                    }
+                    let lowered = cleaned.to_ascii_lowercase();
+                    if contains_web_junk_marker(&cleaned)
+                        || text_has_any_marker(
+                            &lowered,
+                            &[
+                                "please enable javascript",
+                                "verify you are human",
+                                "checking your browser",
+                                "access denied",
+                                "captcha",
+                                "cloudflare",
+                            ],
+                        )
+                    {
+                        blocker_shell_count += 1;
+                    }
+                }
+            }
+            if let Some(links) = row.get("links").and_then(Value::as_array) {
+                link_count += links.len();
+                if !links.is_empty() {
+                    extraction_signal_count += 1;
+                }
+            }
+            if row
+                .get("failure_reasons")
+                .and_then(Value::as_array)
+                .map(|reasons| {
+                    reasons.iter().any(|reason| {
+                        reason
+                            .as_str()
+                            .map(|value| {
+                                value.contains("page_extraction")
+                                    || value.contains("content_materialization")
+                                    || value.contains("fetch_candidate")
+                            })
+                            .unwrap_or(false)
+                    })
+                })
+                .unwrap_or(false)
+            {
+                extraction_signal_count += 1;
+            }
+        }
+    }
+    let blocker_class = tool_result_quality
+        .pointer("/blocker_taxonomy/primary_class")
+        .and_then(Value::as_str)
+        .unwrap_or("none");
+    let retrieval_decision = tool_result_quality
+        .pointer("/retrieval_decision/decision")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let status = if evidence_pack_count > 0 {
+        "evidence_packaged"
+    } else if blocker_shell_count > 0 {
+        "blocked_or_shell_detected"
+    } else if substantive_preview_count > 0 {
+        "extraction_ready_for_promotion_review"
+    } else if extraction_signal_count > 0 {
+        "extraction_observed_but_thin"
+    } else if matches!(
+        retrieval_decision,
+        "browser_materialize_candidate" | "direct_fetch_candidate"
+    ) {
+        "materialization_or_fetch_needed"
+    } else if provider_result_count > 0 {
+        "retrieval_observed_without_extraction_signal"
+    } else {
+        "not_observed"
+    };
+    json!({
+        "version": "page_readiness_extraction_v1",
+        "status": status,
+        "provider_result_count": provider_result_count,
+        "content_preview_count": content_preview_count,
+        "substantive_preview_count": substantive_preview_count,
+        "blocker_shell_count": blocker_shell_count,
+        "link_count": link_count,
+        "extraction_signal_count": extraction_signal_count,
+        "evidence_pack_count": evidence_pack_count,
+        "blocker_class": blocker_class,
+        "retrieval_decision": retrieval_decision,
+        "readiness_contract": {
+            "ready_requires_substantive_main_text": true,
+            "blocker_shell_is_not_evidence": true,
+            "redirect_final_url_safety_required": true,
+            "bounded_extraction_required": true
+        },
+        "extraction_contract": {
+            "metadata_first": true,
+            "main_text_or_markdown_required_for_promotion": true,
+            "raw_html_artifact_only": true,
+            "console_or_network_logs_artifact_only": true
+        },
+        "non_goals": [
+            "do_not_wait_indefinitely_for_page_readiness",
+            "do_not_promote_shell_text_as_evidence",
+            "do_not_expose_raw_render_payloads_to_chat"
+        ]
+    })
+}
+
 fn retrieval_broker_report(
     status: &str,
     submitted_query_plan: Value,
@@ -1828,6 +2096,8 @@ fn retrieval_broker_report(
     );
     let artifact_quarantine =
         artifact_quarantine_report(provider_results, evidence_pack, tool_result_quality);
+    let page_readiness_extraction =
+        page_readiness_and_extraction_report(provider_results, evidence_pack, tool_result_quality);
     let enrichment_status = if enrichment_count > 0 {
         "attempted"
     } else if evidence_pack_count > 0 {
@@ -1884,6 +2154,7 @@ fn retrieval_broker_report(
         "provider_normalization": provider_normalization,
         "retry_stop_conditions": retry_stop_conditions,
         "artifact_quarantine": artifact_quarantine,
+        "page_readiness_extraction": page_readiness_extraction,
         "second_pass_recovery": second_pass_recovery,
         "source_class_coverage": source_class_coverage,
         "evidence_pack_quality": evidence_pack_quality,
@@ -2173,6 +2444,7 @@ fn browser_materialization_recovery_report(
     partial_failures: &[String],
     retry_reason: &str,
     blocker_taxonomy: &Value,
+    actionable_ranked: &[(Candidate, f64)],
 ) -> Value {
     let combined_failures = partial_failures
         .iter()
@@ -2218,6 +2490,11 @@ fn browser_materialization_recovery_report(
         .get("primary_class")
         .and_then(Value::as_str)
         .unwrap_or("none");
+    let candidate_safety = materialization_candidate_safety_refs(actionable_ranked, 3);
+    let materializable_candidate_count = actionable_ranked
+        .iter()
+        .filter(|(candidate, _)| materialization_url_allowed(&candidate.locator))
+        .count();
     json!({
         "version": "browser_materialization_recovery_v1",
         "capability": "browser_materialize_page",
@@ -2229,6 +2506,17 @@ fn browser_materialization_recovery_report(
         "availability": "not_observed_in_batch_query",
         "availability_source": "web_conduit_status_or_tool_cd",
         "reason": reason,
+        "url_safety": {
+            "version": "browser_materialization_url_safety_v1",
+            "candidate_count": actionable_ranked.len(),
+            "materializable_candidate_count": materializable_candidate_count,
+            "candidate_refs": candidate_safety,
+            "pre_navigation_safety_required": true,
+            "post_redirect_safety_required": true,
+            "raw_payload_chat_visible": false
+        },
+        "profile_compilation": browser_profile_compilation_report(),
+        "readiness_lifecycle": browser_capability_readiness_lifecycle_report(),
         "guardrails": [
             "not_default_search",
             "public_http_https_only",
@@ -2254,11 +2542,16 @@ fn flags_include(flags: &[String], needle: &str) -> bool {
 }
 
 fn candidate_url_state(candidate_count: usize, actionable_ranked: &[(Candidate, f64)]) -> String {
-    if actionable_ranked.iter().any(|(candidate, _)| {
+    let has_safe_candidate = actionable_ranked
+        .iter()
+        .any(|(candidate, _)| materialization_url_allowed(&candidate.locator));
+    let has_http_candidate = actionable_ranked.iter().any(|(candidate, _)| {
         candidate.locator.starts_with("http://") || candidate.locator.starts_with("https://")
-    })
-    {
+    });
+    if has_safe_candidate {
         "candidate_url_ref_available".to_string()
+    } else if has_http_candidate {
+        "candidate_url_ref_blocked_by_safety".to_string()
     } else if candidate_count > 0 {
         "candidate_count_observed_without_projected_url_ref".to_string()
     } else {
@@ -2275,7 +2568,11 @@ fn top_candidate_refs(actionable_ranked: &[(Candidate, f64)], limit: usize) -> V
                 "title": clean_text(&candidate.title, 120),
                 "locator": clean_text(&candidate.locator, 240),
                 "domain": candidate_domain_hint(candidate),
-                "score": (*score * 100.0).round() / 100.0
+                "score": (*score * 100.0).round() / 100.0,
+                "url_safety_status": materialization_url_safety_assessment(&candidate.locator)
+                    .get("status")
+                    .cloned()
+                    .unwrap_or_else(|| json!("unknown"))
             })
         })
         .collect()
@@ -2740,6 +3037,7 @@ fn web_tool_quality_report(
         partial_failures,
         retry_reason,
         &blocker_taxonomy,
+        actionable_ranked,
     );
     let retrieval_decision = retrieval_decision_lattice(
         status,

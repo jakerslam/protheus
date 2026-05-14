@@ -139,6 +139,26 @@ mod web_quality_diagnostics_tests {
             Some(false)
         );
         assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/profile_compilation/status")
+                .and_then(Value::as_str),
+            Some("contract_ready_default_off")
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/profile_compilation/raw_launch_args_accepted_from_caller")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/readiness_lifecycle/status")
+                .and_then(Value::as_str),
+            Some("not_configured_default_off")
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/browser_materialization/readiness_lifecycle/ordinary_research_may_install_dependency")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/tool_result_quality/retrieval_decision/decision")
                 .and_then(Value::as_str),
             Some("alternate_provider")
@@ -449,6 +469,11 @@ mod web_quality_diagnostics_tests {
                 .and_then(Value::as_bool),
             Some(false)
         );
+        assert_eq!(
+            out.pointer("/retrieval_broker/page_readiness_extraction/status")
+                .and_then(Value::as_str),
+            Some("evidence_packaged")
+        );
     }
 
     #[test]
@@ -511,6 +536,12 @@ mod web_quality_diagnostics_tests {
                 .pointer("/promotion/safety/raw_payload_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
+        );
+        assert_eq!(
+            first
+                .pointer("/promotion/safety/url_safety/status")
+                .and_then(Value::as_str),
+            Some("allowed_public_http_https")
         );
         assert_eq!(
             out.pointer("/retrieval_broker/artifact_quarantine/version")
@@ -596,6 +627,12 @@ mod web_quality_diagnostics_tests {
                 .pointer("/promotion/safety/internal_host_hint")
                 .and_then(Value::as_bool),
             Some(true)
+        );
+        assert_eq!(
+            first
+                .pointer("/promotion/safety/url_safety/status")
+                .and_then(Value::as_str),
+            Some("blocked_internal_host_hint")
         );
     }
 
@@ -713,6 +750,55 @@ mod web_quality_diagnostics_tests {
                 .pointer("/retrieval_decision/inputs/candidate_url_state")
                 .and_then(Value::as_str),
             Some("candidate_url_ref_available")
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/candidate_refs/0/url_safety_status")
+                .and_then(Value::as_str),
+            Some("allowed_public_http_https")
+        );
+    }
+
+    #[test]
+    fn unsafe_candidate_url_blocks_browser_materialization_recommendation() {
+        let report = web_tool_quality_report(
+            "public agency science breakthrough report",
+            "no_results",
+            1,
+            0,
+            &["needs_js: please enable javascript before content renders".to_string()],
+            &[],
+            &[(
+                candidate(
+                    "http://user:pass@127.0.0.1/admin",
+                    "Public agency science breakthrough report shell requiring JavaScript.",
+                ),
+                0.74,
+            )],
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/decision")
+                .and_then(Value::as_str),
+            Some("alternate_provider")
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/inputs/candidate_url_state")
+                .and_then(Value::as_str),
+            Some("candidate_url_ref_blocked_by_safety")
+        );
+        assert_eq!(
+            report
+                .pointer("/browser_materialization/url_safety/materializable_candidate_count")
+                .and_then(Value::as_u64),
+            Some(0)
+        );
+        assert_eq!(
+            report
+                .pointer("/browser_materialization/url_safety/candidate_refs/0/url_safety/status")
+                .and_then(Value::as_str),
+            Some("blocked_internal_host_hint")
         );
     }
 
