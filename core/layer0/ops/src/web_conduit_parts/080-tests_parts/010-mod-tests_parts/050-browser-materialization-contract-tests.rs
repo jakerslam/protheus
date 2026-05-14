@@ -425,6 +425,26 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/raw_scroll_interface_exposed_to_workflow")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/wheel_delta_randomization_budget_bounded")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/scroll_to_selector_requires_interaction_capability")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/raw_scroll_coordinates_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/human_interaction_contract/raw_behavior_parameters_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
@@ -443,6 +463,16 @@
             out.pointer("/profile_compilation/read_only_dom_probe_contract/caller_supplied_probe_scripts_allowed")
                 .and_then(Value::as_bool),
             Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/read_only_dom_probe_contract/page_settling_probe_may_detect_scroll_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/read_only_dom_probe_contract/selector_scroll_requires_interaction_capability")
+                .and_then(Value::as_bool),
+            Some(true)
         );
         assert_eq!(
             out.pointer("/profile_compilation/read_only_dom_probe_contract/raw_probe_expression_chat_visible")

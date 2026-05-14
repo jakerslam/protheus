@@ -400,6 +400,12 @@ fn browser_materialization_profile_compilation_contract(
                 "insert_text_fallback_capability_only": true,
                 "synthetic_keyboard_events_telemetry_only": true,
                 "raw_keyboard_text_chat_visible": false,
+                "raw_scroll_interface_exposed_to_workflow": false,
+                "human_scroll_motion_policy_owned": true,
+                "wheel_delta_randomization_budget_bounded": true,
+                "scroll_to_selector_requires_interaction_capability": true,
+                "scroll_target_zone_policy_owned": true,
+                "raw_scroll_coordinates_chat_visible": false,
                 "original_method_handles_chat_visible": false,
                 "raw_behavior_parameters_chat_visible": false
             })),
@@ -415,6 +421,9 @@ fn browser_materialization_profile_compilation_contract(
                 "probe_predicates_must_be_runtime_owned": true,
                 "main_world_evaluate_fallback_telemetry_only": true,
                 "read_only_probe_may_inform_extraction": true,
+                "page_settling_probe_may_detect_scroll_required": true,
+                "virtual_scroll_diagnostics_telemetry_only": true,
+                "selector_scroll_requires_interaction_capability": true,
                 "raw_probe_expression_chat_visible": false
             })),
         "launch_execution_contract": profile_contract
