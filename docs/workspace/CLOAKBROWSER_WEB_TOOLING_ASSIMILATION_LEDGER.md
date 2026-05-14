@@ -149,6 +149,7 @@ all web research always uses stealth browser by default
 | `tests/test_cloakserve.py` | level 5 pass 016 integrated | Service query/CLI parsing, debugger URL rewrite, refcounting, seed validation, and data-dir cleanup containment invariants. |
 | `js/src/human/config.ts` | level 5 pass 026 integrated, deferred capability | Human interaction preset schema, bounded numeric timing/randomization parameters, non-mutating config merges, per-call override boundary, and default-off idle behavior. |
 | `js/src/human/mouse.ts` | level 5 pass 028 integrated, deferred capability | Bezier mouse movement, bounded randomization, click targeting from element boxes, input click bias, idle drift, and raw mouse-coordinate redaction. |
+| `js/src/human/keyboard.ts` | level 5 pass 029 integrated, deferred capability | Human typing cadence, bounded mistype simulation, nearby-key error maps, CDP trusted shift-symbol dispatch, insertText fallback, synthetic event telemetry, and raw typed-text redaction. |
 | `js/src/human/index.ts` | level 5 pass 027 integrated, deferred interaction | Isolated-world DOM reads with navigation invalidation, runtime-owned predicates, fallback telemetry, and explicit gating for page/frame/element-handle patching, cursor state, and trusted key dispatch. |
 | `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
 | `tests/test_launch_context.py` | level 5 pass 018 integrated | Context option lane separation, policy-owned viewport/profile fields, locale/timezone CDP-emulation denial, storage-state capability boundary, and cleanup expectations. |
@@ -272,6 +273,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-053` | integrated | medium | Complete Level 5 pass 026 for human config. | Browser materialization human interaction capability contract | `CLOAK-TASK-052` | Added metadata for default-off humanized interaction, policy-owned presets, bounded numeric action-budget schema, per-call override capability requirements, non-mutating config merges, randomization budget ownership, and hidden raw behavior parameters. |
 | `CLOAK-TASK-054` | integrated | medium | Complete Level 5 pass 027 for human index. | Browser materialization read-only DOM probe contract | `CLOAK-TASK-053` | Added metadata for isolated-world DOM reads, navigation invalidation/recreation, runtime-owned probe predicates, telemetry-only main-world fallback, hidden raw probe expressions, capability-gated page/frame/element-handle patching, local-only cursor state, and trusted key dispatch gating. |
 | `CLOAK-TASK-055` | integrated | medium | Complete Level 5 pass 028 for human mouse. | Browser materialization human interaction capability contract | `CLOAK-TASK-054` | Added metadata for raw mouse interface denial, policy-owned Bezier path generation, bounded movement randomization, element-box click targeting, input click bias ownership, idle drift capability gating, and hidden raw coordinates. |
+| `CLOAK-TASK-056` | integrated | medium | Complete Level 5 pass 029 for human keyboard. | Browser materialization human interaction capability contract | `CLOAK-TASK-055` | Added metadata for raw keyboard interface denial, policy-owned typing cadence, bounded mistype simulation, policy-owned nearby-key maps, CDP-gated trusted shift-symbol dispatch, capability-only insertText fallback, telemetry-only synthetic events, and hidden raw typed text. |
 
 ## Open Questions
 
@@ -1104,3 +1106,24 @@ Validation:
 Important boundary:
 
 This wave still does not enable mouse movement, clicking, idle drift, coordinate control, interaction bypasses, CAPTCHAs, bot-wall solving, or live browser execution during ordinary research.
+
+## Assimilation Wave 38: Level 5 Human Keyboard Contract
+
+Status: integrated into future human interaction capability contract; capability remains deferred.
+
+Implemented:
+
+- Parsed `js/src/human/keyboard.ts` as the syntax-level source of per-character timing, bounded mistype simulation, nearby-key error maps, shift-key handling, CDP trusted key dispatch, insertText fallback, and synthetic keyboard event fallback.
+- Preserved the useful primitive: keyboard realism is an explicitly admitted interaction capability, not a web research retrieval behavior and not a user-controllable request field.
+- Extended `human_interaction_contract` metadata with raw keyboard interface denial, policy-owned typing cadence, bounded mistype simulation, policy-owned nearby-key maps, CDP-gated trusted shift-symbol dispatch, capability-only insertText fallback, telemetry-only synthetic events, and hidden raw typed text.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable typing, form filling, keyboard interaction, raw text injection, synthetic key-event injection, CAPTCHAs, bot-wall solving, or live browser execution during ordinary research.

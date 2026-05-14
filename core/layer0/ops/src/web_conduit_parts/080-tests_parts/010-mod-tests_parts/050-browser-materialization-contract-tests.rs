@@ -405,6 +405,26 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/raw_keyboard_interface_exposed_to_workflow")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/typing_cadence_policy_owned")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/shift_symbol_dispatch_requires_cdp_session")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/raw_keyboard_text_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/human_interaction_contract/raw_behavior_parameters_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
