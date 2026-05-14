@@ -98,7 +98,7 @@ Status values:
 | 13 | `cloakbrowser/download.py` | integrated: operator install/update pass 013 | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
 | 14 | `cloakbrowser/geoip.py` | integrated: Python geo lifecycle pass 014 | What proxy-exit metadata is useful but permission-sensitive? | Proxy/geo capability, deferred. |
 | 15 | `bin/cloakserve` | integrated: service pool contract pass 015 | Is CDP service pooling worth a future provider mode? | Service/pool capability, deferred. |
-| 16 | `tests/test_cloakserve.py` | mapped seed, deferred | Which pool/session invariants would be required before service mode? | Future service/pool tests. |
+| 16 | `tests/test_cloakserve.py` | integrated: service pool test contract pass 016 | Which pool/session invariants would be required before service mode? | Future service/pool tests. |
 | 17 | `tests/test_launch.py` | pending | What launch contract tests can be ported without live detection sites? | Browser adapter mock-fast tests. |
 | 18 | `tests/test_launch_context.py` | pending | Which context cleanup and option filtering cases matter? | Browser adapter context tests. |
 | 19 | `tests/test_build_args.py` | pending | Which arg compiler invariants must be copied as tests, not code? | Profile compiler tests. |
@@ -825,6 +825,48 @@ admitted service pool capability
 -> local CDP port discipline
 -> refcount and cleanup obligations
 -> telemetry-only debugger URLs and service internals
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 016: `tests/test_cloakserve.py`
+
+Status: `integrated: service pool test contract`
+
+Source lines inspected: 1-326
+
+This file is useful because it turns the CDP service idea into concrete invariants: query params are parsed into a narrow profile surface, service CLI flags are consumed rather than passed through to Chrome, remote-debugging flags are stripped, WebSocket URLs are rewritten through the service boundary, connection refcounts are independent per seed, seed values reject path traversal and reserved names, and cleanup refuses paths outside the service data dir.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 31-77 | Query parsing separates seed/timezone/locale/proxy/geoip from generic fingerprint args and takes first repeated values. | Workflow request authority must not expose generic fingerprint query params; repeated param policy must be explicit if service mode is admitted. | Integrated. |
+| 83-138 | CLI parsing owns port/data-dir/headless/default seed and strips remote-debugging flags from passthrough. | Service CLI flags, data dir, headless mode, and remote-debugging flags are policy-owned, not workflow/browser passthrough. | Integrated. |
+| 145-206 | Debugger WebSocket URLs are rewritten through the multiplexer and may use `wss` behind a TLS/proxy boundary. | URL rewrite and scheme choice are Gateway/service telemetry, not chat-visible raw CDP data. | Integrated. |
+| 213-252 | Connection counts are independent per seed and drop when disconnected. | Future service mode must maintain refcounted session accounting. | Already integrated; confirmed. |
+| 259-278 | Seed regex rejects traversal, path separators, null bytes, empty values, overlong values, and reserved names. | Seed validation and reserved seed blocklists are required before service/session admission. | Already integrated; confirmed. |
+| 286-326 | `_safe_rmtree` refuses data dir itself, outside paths, and traversal; only subdirectories are deleted. | Cleanup must be confined to service-owned data roots. | Already integrated; confirmed. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Extended `service_pool_contract` with query-param, CLI flag, data-dir, remote-debugging, headless, passthrough, and Gateway scheme ownership fields. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the same service-pool test invariants through runtime profile diagnostics. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the service-pool test invariants to the browser materialization Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted generic fingerprint query denial, remote-debugging passthrough stripping, and policy-owned service data dir. |
+
+### Pass 016 Outcome
+
+The service-pool contract now includes the test-derived invariants needed before a future CDP service mode:
+
+```text
+service mode remains deferred
+-> query/profile knobs are not workflow authority
+-> service CLI/data-dir/debug flags are policy-owned
+-> raw CDP/WebSocket rewrite details stay telemetry-only
+-> seed validation/refcount/cleanup rules are explicit
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

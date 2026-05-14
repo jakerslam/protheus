@@ -195,6 +195,21 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/service_pool_contract/generic_fingerprint_query_params_allowed_from_workflow")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/service_pool_contract/remote_debugging_cli_flags_stripped_from_passthrough")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/service_pool_contract/service_data_dir_policy_owned")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/service_pool_contract/passthrough_browser_args_allowed_from_workflow")
                 .and_then(Value::as_bool),
             Some(false)
