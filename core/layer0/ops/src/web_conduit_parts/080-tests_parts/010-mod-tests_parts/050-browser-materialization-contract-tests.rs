@@ -375,7 +375,37 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/page_frame_element_handle_patching_requires_capability")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/trusted_key_dispatch_requires_human_capability")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/human_interaction_contract/raw_behavior_parameters_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/read_only_dom_probe_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_isolated_world_dom_reads")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/read_only_dom_probe_contract/isolated_world_context_recreated_after_navigation")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/read_only_dom_probe_contract/caller_supplied_probe_scripts_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/read_only_dom_probe_contract/raw_probe_expression_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
         );

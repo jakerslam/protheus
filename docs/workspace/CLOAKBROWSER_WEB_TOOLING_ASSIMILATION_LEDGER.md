@@ -149,7 +149,7 @@ all web research always uses stealth browser by default
 | `tests/test_cloakserve.py` | level 5 pass 016 integrated | Service query/CLI parsing, debugger URL rewrite, refcounting, seed validation, and data-dir cleanup containment invariants. |
 | `js/src/human/config.ts` | level 5 pass 026 integrated, deferred capability | Human interaction preset schema, bounded numeric timing/randomization parameters, non-mutating config merges, per-call override boundary, and default-off idle behavior. |
 | `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
-| `js/src/human/index.ts` | parsed | Method patching, isolated-world DOM reads, cursor state, trusted key dispatch support. |
+| `js/src/human/index.ts` | level 5 pass 027 integrated, deferred interaction | Isolated-world DOM reads with navigation invalidation, runtime-owned predicates, fallback telemetry, and explicit gating for page/frame/element-handle patching, cursor state, and trusted key dispatch. |
 | `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
 | `tests/test_launch_context.py` | level 5 pass 018 integrated | Context option lane separation, policy-owned viewport/profile fields, locale/timezone CDP-emulation denial, storage-state capability boundary, and cleanup expectations. |
 | `tests/test_build_args.py` | level 5 pass 019 integrated | Argument compiler dedupe, dedicated field precedence, alias consumption, non-value flag admission, and WebRTC/fingerprint arg quarantine. |
@@ -270,6 +270,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-051` | integrated | medium | Complete Level 5 pass 024 for update tests. | Browser materialization operator update/install contract | `CLOAK-TASK-050` | Added metadata for variable-length version tuple comparison, auto-update env disablement, draft/non-Chromium release filtering, no-platform-asset nonfatal unavailability, checksum manifest parsing and mismatch blocking, cached binary reuse, missing local override fail-closed behavior, and install revalidation before ready. |
 | `CLOAK-TASK-052` | integrated | medium | Complete Level 5 pass 025 for extraction tests. | Browser materialization operator archive extraction contract | `CLOAK-TASK-051` | Added metadata for tar.gz and zip parity, archive path traversal rejection, absolute symlink target skipping, single-root flattening only, macOS app bundle preservation, multiple top-level entry preservation, executable permission checks, and operator-only quarantine handling. |
 | `CLOAK-TASK-053` | integrated | medium | Complete Level 5 pass 026 for human config. | Browser materialization human interaction capability contract | `CLOAK-TASK-052` | Added metadata for default-off humanized interaction, policy-owned presets, bounded numeric action-budget schema, per-call override capability requirements, non-mutating config merges, randomization budget ownership, and hidden raw behavior parameters. |
+| `CLOAK-TASK-054` | integrated | medium | Complete Level 5 pass 027 for human index. | Browser materialization read-only DOM probe contract | `CLOAK-TASK-053` | Added metadata for isolated-world DOM reads, navigation invalidation/recreation, runtime-owned probe predicates, telemetry-only main-world fallback, hidden raw probe expressions, capability-gated page/frame/element-handle patching, local-only cursor state, and trusted key dispatch gating. |
 
 ## Open Questions
 
@@ -1059,3 +1060,25 @@ Validation:
 Important boundary:
 
 This wave still does not enable humanized interaction, mouse movement, typing, scrolling, idle movement, CAPTCHAs, stealth claims, or any user-requested behavior-control fields in ordinary research.
+
+## Assimilation Wave 36: Level 5 Human Index Contract
+
+Status: integrated into read-only DOM probe and deferred human interaction contracts.
+
+Implemented:
+
+- Parsed `js/src/human/index.ts` as the syntax-level source of isolated-world DOM reads, navigation invalidation, fallback behavior, page/frame/element-handle patching, cursor state, and trusted key dispatch.
+- Preserved the useful primitive: read-only runtime-owned DOM probes can inform browser extraction without admitting interactive humanized behavior or caller-provided scripts.
+- Added `read_only_dom_probe_contract` metadata for policy-owned isolated-world reads, context recreation after navigation, runtime-owned predicates, telemetry-only main-world fallback, extraction handoff, and raw probe expression redaction.
+- Extended `human_interaction_contract` metadata to require capability admission before page/frame/element-handle patching, cursor state, or trusted key dispatch.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable caller scripts, arbitrary page evaluation, humanized interaction, trusted key dispatch, cursor movement, frame patching, element-handle patching, or live browser execution during ordinary research.

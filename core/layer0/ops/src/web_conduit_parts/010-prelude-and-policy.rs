@@ -360,7 +360,22 @@ fn default_policy() -> Value {
                         "randomization_budget_policy_owned": true,
                         "typing_mouse_scroll_controls_not_user_request_fields": true,
                         "idle_between_actions_default_off": true,
+                        "page_frame_element_handle_patching_requires_capability": true,
+                        "cursor_state_capability_local_only": true,
+                        "trusted_key_dispatch_requires_human_capability": true,
+                        "original_method_handles_chat_visible": false,
                         "raw_behavior_parameters_chat_visible": false
+                    },
+                    "read_only_dom_probe_contract": {
+                        "version": "browser_read_only_dom_probe_contract_v1",
+                        "source_pattern": "cloakbrowser_isolated_world_dom_reads",
+                        "isolated_world_dom_reads_policy_owned": true,
+                        "isolated_world_context_recreated_after_navigation": true,
+                        "caller_supplied_probe_scripts_allowed": false,
+                        "probe_predicates_must_be_runtime_owned": true,
+                        "main_world_evaluate_fallback_telemetry_only": true,
+                        "read_only_probe_may_inform_extraction": true,
+                        "raw_probe_expression_chat_visible": false
                     },
                     "launch_execution_contract": {
                         "version": "browser_launch_execution_contract_v1",
