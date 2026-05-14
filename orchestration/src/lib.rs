@@ -11,6 +11,7 @@ pub mod eval_authority_calibration;
 pub mod eval_chat_report;
 pub mod eval_coding_safety_layer;
 pub mod eval_feedback_router;
+pub mod eval_forge_level6_existing_project_modification;
 pub mod eval_local_coding_program_builder;
 pub mod eval_issue_authority;
 pub mod ingress;
