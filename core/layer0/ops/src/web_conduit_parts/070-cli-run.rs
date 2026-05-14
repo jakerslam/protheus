@@ -16,6 +16,9 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
     let nexus_connection = match command.as_str() {
         "fetch"
         | "browse"
+        | "browser-materialize"
+        | "browser-materialize-page"
+        | "materialize-page"
         | "media"
         | "audio-probe"
         | "pdf-extract"
@@ -265,6 +268,104 @@ pub fn run(root: &Path, argv: &[String]) -> i32 {
                         240
                     ),
                     "resolve_citation_redirect": resolve_citation_redirect
+                }),
+            )
+        }
+        "browser-materialize" | "browser-materialize-page" | "materialize-page" => {
+            let url = clean_text(
+                parsed
+                    .flags
+                    .get("url")
+                    .map(String::as_str)
+                    .unwrap_or_else(|| parsed.positional.get(1).map(String::as_str).unwrap_or("")),
+                2200,
+            );
+            api_browser_materialize_page(
+                root,
+                &json!({
+                    "url": url,
+                    "admission_ref": clean_text(
+                        parsed
+                            .flags
+                            .get("admission-ref")
+                            .or_else(|| parsed.flags.get("admission_ref"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        160
+                    ),
+                    "request_id": clean_text(
+                        parsed
+                            .flags
+                            .get("request-id")
+                            .or_else(|| parsed.flags.get("request_id"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        160
+                    ),
+                    "extract_mode": clean_text(
+                        parsed
+                            .flags
+                            .get("extract-mode")
+                            .or_else(|| parsed.flags.get("extract_mode"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        24
+                    ),
+                    "wait_until": clean_text(
+                        parsed
+                            .flags
+                            .get("wait-until")
+                            .or_else(|| parsed.flags.get("wait_until"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        80
+                    ),
+                    "wait_for_selector": clean_text(
+                        parsed
+                            .flags
+                            .get("wait-for-selector")
+                            .or_else(|| parsed.flags.get("wait_for_selector"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        240
+                    ),
+                    "profile_ref": clean_text(
+                        parsed
+                            .flags
+                            .get("profile-ref")
+                            .or_else(|| parsed.flags.get("profile_ref"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        160
+                    ),
+                    "evidence_gap_reason": clean_text(
+                        parsed
+                            .flags
+                            .get("evidence-gap-reason")
+                            .or_else(|| parsed.flags.get("evidence_gap_reason"))
+                            .map(String::as_str)
+                            .unwrap_or(""),
+                        240
+                    ),
+                    "max_response_bytes": parse_u64(
+                        parsed
+                            .flags
+                            .get("max-response-bytes")
+                            .or_else(|| parsed.flags.get("max_response_bytes")),
+                        350000,
+                        4096,
+                        4000000
+                    ),
+                    "timeout_ms": parse_u64(
+                        parsed
+                            .flags
+                            .get("timeout-ms")
+                            .or_else(|| parsed.flags.get("timeout_ms")),
+                        30000,
+                        1000,
+                        120000
+                    ),
+                    "summary_only": parse_bool(parsed.flags.get("summary-only")) || parse_bool(parsed.flags.get("summary_only"))
                 }),
             )
         }

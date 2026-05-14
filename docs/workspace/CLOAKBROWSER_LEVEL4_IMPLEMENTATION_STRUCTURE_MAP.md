@@ -224,3 +224,25 @@ Validation:
 Boundary:
 
 This slice does not add live browser execution, profile persistence, proxy handling, hidden retry generation, or browser install behavior.
+
+### Slice 3: Default-Off Browser Materialization Boundary
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Added the web-conduit API seam for `browser_materialize_page`.
+- Added a CLI command that routes to the same API seam instead of creating a separate execution path.
+- Bound the seam to the existing Tool CD/policy contract: URL, `admission_ref`, denied caller controls, profile compilation, readiness lifecycle, and raw-payload chat boundary.
+- Reused fetch URL-safety/SSRF checks before any adapter state is considered.
+- Kept disabled, adapter-not-ready, and stub-only outcomes fail-closed with `browser_launch_attempted=false`.
+- Added mock-fast contract tests for default-off state, caller control rejection, credentialed URL rejection, and enabled-without-adapter readiness.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/web_conduit.rs core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/070-cli-run.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL4_IMPLEMENTATION_STRUCTURE_MAP.md`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -q -p infring-ops-core --lib browser_materialization -- --nocapture`
+
+Boundary:
+
+This slice is still not a live browser adapter. It is the primitive call boundary that a later adapter must satisfy.

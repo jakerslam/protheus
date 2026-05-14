@@ -28,6 +28,7 @@ include!("web_conduit_parts/030-serper-bing-and-fetch.rs");
 include!("web_conduit_parts/031-fetch-transport-and-ssrf.rs");
 include!("web_conduit_parts/032-fetch-output-safety.rs");
 include!("web_conduit_parts/033-fetch-provider-selection.rs");
+include!("web_conduit_parts/034-browser-materialization.rs");
 include!("web_conduit_parts/035-fetch-runtime.rs");
 include!("web_conduit_parts/040-receipts-and-fetch-api.rs");
 include!("web_conduit_parts/041-tooling-inventory-and-policy.rs");

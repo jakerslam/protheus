@@ -63,6 +63,9 @@ fn usage() {
         "  infring-ops web-conduit fetch --url=<https://...> [--provider=auto|direct-http|curl] [--extract-mode=text|markdown] [--max-chars=<n>] [--cache-ttl-minutes=<n>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(
+        "  infring-ops web-conduit browser-materialize --url=<https://...> --admission-ref=<capability-ref> [--extract-mode=text|markdown] [--wait-until=<event>] [--wait-for-selector=<selector>] [--profile-ref=<profile>] [--timeout-ms=<n>] [--max-response-bytes=<n>] [--summary-only=1]"
+    );
+    println!(
         "  infring-ops web-conduit media --url=<https://...|file://...>|--path=<local-path> [--workspace-dir=<path>] [--local-roots=<path,...>|any] [--host-read-capability=1] [--max-bytes=<n>] [--optimize-images=1] [--raw=1] [--resolve-citation-redirect=1] [--human-approved=1] [--approval-id=<id>] [--summary-only=1]"
     );
     println!(

@@ -226,6 +226,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-022` | integrated | high | Enforce URL-credential rejection at fetch preflight. | web-conduit SSRF guard + Tool CD/policy vocabulary | `CLOAK-L4-003` | Fetch-boundary safety now matches candidate/materialization diagnostics before any provider execution. |
 | `CLOAK-TASK-023` | integrated | medium | Project browser profile compilation at runtime. | Provider runtime metadata | `CLOAK-L4-004` | Runtime status now compiles the default profile, denied caller fields, denied launch args, and chat-hidden trace boundary without launching a browser. |
 | `CLOAK-TASK-024` | integrated | medium | Surface browser profile/readiness state in effective inventory. | Web tooling inventory | `CLOAK-L4-004/006` | Inventory consumers can now see the optional browser lane's profile compilation status and readiness lifecycle without knowing deep runtime metadata paths. |
+| `CLOAK-TASK-025` | integrated | high | Add default-off browser materialization API boundary. | web-conduit API/CLI + tests | `CLOAK-L4-003/004/005/006` | `api_browser_materialize_page` validates URL/admission fields, rejects caller browser controls, reuses SSRF safety, and fails closed until an admitted adapter exists. |
 
 ## Open Questions
 
@@ -445,3 +446,26 @@ Validation:
 Important boundary:
 
 This wave still does not add browser execution, proxy handling, persistent sessions, humanized interaction, hidden retries, or final-answer formatting rules.
+
+## Assimilation Wave 10: Default-Off Browser Materialization Boundary
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Added `api_browser_materialize_page` as the explicit web-conduit boundary for future browser-backed page materialization.
+- Wired a `browser-materialize` CLI command to the same boundary so tests and operators can inspect the capability without launching a browser.
+- Required URL and `admission_ref` fields before any execution path can proceed.
+- Rejected caller-supplied browser controls such as launch args, raw CDP commands, user scripts, proxies, sessions, storage state, and local files.
+- Reused the fetch SSRF/url-safety guard so credentialed, internal, invalid, or non-HTTP(S) targets fail before adapter execution.
+- Preserved default-off behavior: disabled capability, missing adapter, and adapter stub states all fail closed with no browser launch and no chat-visible raw payload.
+- Added mock-fast tests for default-off behavior, unsafe caller controls, credentialed URL blocking, and enabled-without-adapter readiness.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/web_conduit.rs core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/070-cli-run.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -q -p infring-ops-core --lib browser_materialization -- --nocapture`
+
+Important boundary:
+
+This wave still does not add live browser execution, stealth behavior, proxy behavior, persistent sessions, humanized interaction, hidden retries, or browser installation. It creates a measurable primitive boundary that can later host an admitted adapter.
