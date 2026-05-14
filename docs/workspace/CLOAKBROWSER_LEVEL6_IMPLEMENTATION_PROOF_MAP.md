@@ -82,7 +82,7 @@ Status values:
 | 3 | Evidence candidate conversion | integrated: evidence-pack candidate proof pass 003 | Can a materialized page become evidence-pack candidates with title, final URL, text, links, claim hints, score, quality flags, and refs? | Batch query/evidence pack pipeline plus Tool CD output contract. |
 | 4 | Local static page provider proof | integrated: policy-owned fixture proof pass 004 | Can the adapter fetch a local fixture page through the materialization API with full cleanup? | Browser adapter helper, CLI proof, local fixture tests. |
 | 5 | Local JS-rendered page proof | integrated: policy-owned rendered fixture proof pass 005 | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
-| 6 | Redirect and final URL safety proof | pending | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
+| 6 | Redirect and final URL safety proof | integrated: final URL revalidation proof pass 006 | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
 | 7 | Timeout/blocker classification | pending | Can the adapter classify timeout, access denied, anti-bot shell, JS-required, and content-too-thin separately? | Web tooling diagnostics and materialization result shape. |
 | 8 | Web tooling gate split | pending | Can tooling stats isolate readiness, URL safety, materialization, extraction, evidence promotion, and synthesis consumption? | Web retrieval gate diagnostics/eval reporting. |
 | 9 | Research workflow consumption | pending | Does the research CD consume materialized evidence as normal evidence rather than tool trace text? | Research workflow CD/eval path; no prompt hardcoding. |
@@ -267,12 +267,16 @@ The rendered text is policy-owned fixture material, not arbitrary user script ex
 
 Goal: ensure browser execution does not weaken the fetch SSRF safety boundary.
 
+Status: integrated at the materialization provider boundary. The local fixture providers now revalidate the observed/policy final URL before fixture read, extraction, evidence candidate creation, or artifact ref creation.
+
 Exit tests:
 
 - safe initial URL redirecting to private/internal host is blocked before extraction,
-- credentialed final URL is blocked,
+- credentialed final URL is blocked and redacted,
 - non-HTTP(S) final URL is blocked,
 - final URL safety result is projected in diagnostics.
+
+Covered by `browser_materialization_blocks_unsafe_final_urls_before_artifacts`.
 
 ### L6-007 Timeout And Blocker Classification
 

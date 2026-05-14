@@ -1810,3 +1810,78 @@
             );
         }
     }
+
+    #[test]
+    fn browser_materialization_blocks_unsafe_final_urls_before_artifacts() {
+        for (final_url, expected_status) in [
+            ("http://127.0.0.1/private", "private_network_blocked"),
+            (
+                "https://user:p4ssw0rd-leak@example.com/private",
+                "blocked_url_credentials",
+            ),
+            ("file:///etc/passwd", "invalid_url"),
+        ] {
+            let tmp = tempfile::tempdir().expect("tempdir");
+            let fixture_dir = tmp.path().join("fixtures");
+            std::fs::create_dir_all(&fixture_dir).expect("fixture dir");
+            std::fs::write(
+                fixture_dir.join("static.html"),
+                "<html><head><title>Unsafe final URL fixture</title></head><body><main>Should not be read into evidence.</main></body></html>",
+            )
+            .expect("fixture write");
+
+            let mut policy = default_policy();
+            let browser_config = policy
+                .pointer_mut("/web_conduit/browser_materialization")
+                .expect("browser materialization policy");
+            browser_config["enabled"] = json!(true);
+            browser_config["adapter_ready"] = json!(true);
+            browser_config["provider_order"] = json!(["local_static_fixture"]);
+            browser_config["local_static_fixture"] = json!({
+                "fixture_url": "https://example.com/redirect-start",
+                "final_url": final_url,
+                "fixture_rel_path": "fixtures/static.html",
+                "content_type": "text/html; charset=utf-8"
+            });
+            write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+            let out = api_browser_materialize_page(
+                tmp.path(),
+                &json!({
+                    "url": "https://example.com/redirect-start",
+                    "admission_ref": "test-browser-capability"
+                }),
+            );
+
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+            assert_eq!(
+                out.get("error").and_then(Value::as_str),
+                Some("url_safety_blocked")
+            );
+            assert_eq!(
+                out.pointer("/final_url_safety/status")
+                    .and_then(Value::as_str),
+                Some(expected_status)
+            );
+            assert_eq!(
+                out.pointer("/final_url_safety/revalidate_before_artifact_creation")
+                    .and_then(Value::as_bool),
+                Some(true)
+            );
+            assert_eq!(
+                out.pointer("/artifact_quarantine/state").and_then(Value::as_str),
+                Some("not_created")
+            );
+            assert!(out.get("materialized_page").map(Value::is_null).unwrap_or(false));
+            assert!(out.get("evidence_candidate").map(Value::is_null).unwrap_or(false));
+            assert_eq!(
+                out.pointer("/cleanup_status/status").and_then(Value::as_str),
+                Some("completed_after_failure")
+            );
+            let encoded = serde_json::to_string(&out).expect("encode output");
+            assert!(!encoded.contains("Should not be read into evidence"));
+            assert!(!encoded.contains("p4ssw0rd-leak"));
+            assert!(!encoded.contains("user:p4ssw0rd-leak"));
+            assert!(!encoded.contains("<html"));
+        }
+    }

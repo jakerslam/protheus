@@ -65,6 +65,22 @@ fn browser_materialization_final_url_safety_projection() -> Value {
     })
 }
 
+fn browser_materialization_redact_url_credentials(raw_url: &str) -> String {
+    let cleaned = clean_text(raw_url, 2200);
+    let scheme = fetch_url_scheme(&cleaned);
+    if scheme.is_empty() || !fetch_url_has_credentials(&cleaned) {
+        return cleaned;
+    }
+    let prefix = format!("{scheme}://");
+    let Some(rest) = cleaned.strip_prefix(&prefix) else {
+        return "[credentialed-url-redacted]".to_string();
+    };
+    let Some((_, after_credentials)) = rest.split_once('@') else {
+        return "[credentialed-url-redacted]".to_string();
+    };
+    format!("{prefix}[redacted]@{after_credentials}")
+}
+
 fn browser_materialization_observed_final_url_safety_projection(
     final_url: &str,
     ssrf_guard: &Value,
@@ -76,7 +92,7 @@ fn browser_materialization_observed_final_url_safety_projection(
             .get("url_safety_status")
             .and_then(Value::as_str)
             .unwrap_or("invalid_url"),
-        "final_url": clean_text(final_url, 2200),
+        "final_url": browser_materialization_redact_url_credentials(final_url),
         "host": ssrf_guard.get("host").cloned().unwrap_or(Value::Null),
         "resolved_ip_addrs": ssrf_guard
             .get("resolved_ip_addrs")
@@ -640,6 +656,16 @@ fn browser_materialization_local_fixture_path_for_key(
     Ok(candidate)
 }
 
+fn browser_materialization_local_fixture_final_url(fixture_config: &Value, url: &str) -> String {
+    clean_text(
+        fixture_config
+            .get("final_url")
+            .and_then(Value::as_str)
+            .unwrap_or(url),
+        2200,
+    )
+}
+
 fn browser_materialization_links_summary_from_html(raw_html: &str, base_url: &str) -> Value {
     let rows = regex_anchor()
         .captures_iter(raw_html)
@@ -897,6 +923,28 @@ fn browser_materialization_local_fixture_success(
             );
         }
     };
+    let final_url = browser_materialization_local_fixture_final_url(&fixture_config, url);
+    let final_ssrf_guard = evaluate_fetch_ssrf_guard(&final_url, false, None);
+    let final_url_safety =
+        browser_materialization_observed_final_url_safety_projection(&final_url, &final_ssrf_guard);
+    if !final_ssrf_guard
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        let mut out = browser_materialization_local_fixture_failure(
+            provider,
+            "url_safety_blocked",
+            "Policy-owned local fixture final URL failed revalidation before fixture read or artifact creation.",
+            url,
+            config,
+            runtime_metadata,
+            pre_navigation_url_safety,
+        );
+        out["final_url_safety"] = final_url_safety;
+        return out;
+    }
+
     let raw_html = match fs::read_to_string(&fixture_path) {
         Ok(raw) => raw,
         Err(err) => {
@@ -911,26 +959,6 @@ fn browser_materialization_local_fixture_success(
             );
         }
     };
-
-    let final_url = clean_text(url, 2200);
-    let final_ssrf_guard = evaluate_fetch_ssrf_guard(&final_url, false, None);
-    let final_url_safety =
-        browser_materialization_observed_final_url_safety_projection(&final_url, &final_ssrf_guard);
-    if !final_ssrf_guard
-        .get("ok")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        return browser_materialization_local_fixture_failure(
-            provider,
-            "url_safety_blocked",
-            "Policy-owned local fixture final URL failed revalidation before artifact creation.",
-            url,
-            config,
-            runtime_metadata,
-            pre_navigation_url_safety,
-        );
-    }
 
     let extract_mode = clean_text(
         request

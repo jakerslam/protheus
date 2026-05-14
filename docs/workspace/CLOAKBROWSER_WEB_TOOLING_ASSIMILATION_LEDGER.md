@@ -294,6 +294,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-L6-TASK-003` | integrated | high | Complete Level 6 pass 003 for evidence candidate conversion. | Browser materialization evidence-pack candidate and refs | `CLOAK-L6-TASK-002` | Converted fake materialization output into an `evidence_pack_v1` candidate with claim hints, term hints, score components, quality flags, promotion metadata, artifact refs, and synthesis-safe evidence refs. |
 | `CLOAK-L6-TASK-004` | integrated | high | Complete Level 6 pass 004 for policy-owned local static fixture materialization. | Browser materialization local fixture provider and tests | `CLOAK-L6-TASK-003` | Added a policy-selected `local_static_fixture` provider that reads only safe policy-owned fixture paths under the runtime/test root, preserves public URL safety, extracts title/text/links, emits evidence candidates, and proves cleanup on success/failure without exposing raw paths, raw HTML, browser handles, or CDP URLs. |
 | `CLOAK-L6-TASK-005` | integrated | high | Complete Level 6 pass 005 for policy-owned JS-rendered fixture materialization. | Browser materialization rendered fixture provider and tests | `CLOAK-L6-TASK-004` | Added a `local_js_rendered_fixture` provider proof that direct static extraction misses a rendered marker while materialization receives policy-owned rendered text, keeps readiness policy-owned, rejects caller scripts, and emits normal evidence candidates without exposing raw scripts, fixture paths, browser handles, or CDP URLs. |
+| `CLOAK-L6-TASK-006` | integrated | high | Complete Level 6 pass 006 for final URL safety before artifacts. | Browser materialization final URL revalidation and tests | `CLOAK-L6-TASK-005` | Moved fixture-provider final URL revalidation ahead of fixture read/extraction/artifact creation, blocked private, credentialed, and non-HTTP(S) final URLs, redacted credentialed final URLs, and proved no materialized/evidence artifact is created on unsafe final URL. |
 
 ## Open Questions
 
@@ -1370,3 +1371,27 @@ Validation:
 Important boundary:
 
 This wave still does not claim anti-bot improvement or live browser rendering. It turns the JS-rendered-content requirement into a measurable materialization contract so a real adapter can be swapped in later without changing workflow behavior.
+
+## Assimilation Wave 49: Level 6 Final URL Safety Before Artifacts
+
+Status: integrated into browser materialization URL-safety proof; live browser execution remains deferred.
+
+Implemented:
+
+- Advanced Level 6 pass 006 from the implementation proof map.
+- Added policy-owned final URL simulation for local fixture materialization providers.
+- Revalidated final URL safety before fixture read, extraction, evidence candidate creation, or artifact ref creation.
+- Blocked private/internal final URLs, credentialed final URLs, and non-HTTP(S) final URLs.
+- Redacted credentialed final URL projections so blocked URL secrets do not appear in diagnostics.
+- Added tests proving unsafe final URLs fail closed with no materialized page, evidence candidate, raw fixture text, or artifact creation.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave tightens the materialization safety envelope. It is not a retrieval-quality improvement by itself; it prevents the future live adapter from turning redirects into an SSRF/raw-artifact bypass.

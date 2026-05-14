@@ -247,6 +247,7 @@ fn default_policy() -> Value {
                     "local_static_fixture": {
                         "source": "policy_owned_test_fixture",
                         "fixture_url": "",
+                        "final_url": "",
                         "fixture_rel_path": "",
                         "fixture_path_chat_visible": false,
                         "raw_fixture_payload_chat_visible": false
@@ -254,6 +255,7 @@ fn default_policy() -> Value {
                     "local_js_rendered_fixture": {
                         "source": "policy_owned_test_fixture",
                         "fixture_url": "",
+                        "final_url": "",
                         "fixture_rel_path": "",
                         "rendered_text_rel_path": "",
                         "rendered_marker": "",
