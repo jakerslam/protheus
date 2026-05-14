@@ -162,6 +162,7 @@ all web research always uses stealth browser by default
 | `tests/test_update.py` | level 5 pass 024 integrated, deferred capability | Version tuple ordering, rate-limited and disabled update checks, platform-matched release admission, checksum parsing/verification, nonfatal update failures, and install readiness revalidation. |
 | `tests/test_stealth_unit.py` | level 5 pass 031 integrated, deferred behavior | Mock-fast isolated-world lifecycle, retry/invalidation, selector escaping, CDP key dispatch, no-evaluate-leak checks, slow browser quarantine, and anti-bot claim separation. |
 | `tests/test_humanize_unit.py` | level 5 pass 032 integrated, deferred behavior | Human config resolution, Bezier motion math, sync/async patch parity, focus checks, frame/locator/element-handle patch coverage, no-double-patch guards, timeout/config override containment, non-ASCII insertText, and slow behavioral-test quarantine. |
+| `tests/test_persistent_context.py` | level 5 pass 033 integrated, deferred capability | Persistent profile admission contract, broker-owned profile refs, direct `userDataDir` denial, profile-field normalization, proxy/session separation, cleanup parity, and raw profile/storage redaction. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
 | `examples/integrations/aws_lambda/lambda_handler.py` | level 5 pass 001 integrated | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening, final URL revalidation, cleanup, and telemetry-only retry history. |
@@ -279,6 +280,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-057` | integrated | medium | Complete Level 5 pass 030 for human scroll. | Browser materialization read-only readiness diagnostics plus human interaction capability contract | `CLOAK-TASK-056` | Added metadata for raw scroll interface denial, policy-owned human scroll motion, bounded wheel randomization, selector-scroll capability gating, policy-owned scroll target zones, hidden raw scroll coordinates, and read-only scroll-readiness diagnostics. |
 | `CLOAK-TASK-058` | integrated | medium | Complete Level 5 pass 031 for stealth unit tests. | Browser materialization mock-fast verification contract | `CLOAK-TASK-057` | Added metadata for mock-fast unit tests, isolated-world lifecycle/retry/invalidation, selector expression escaping, shift-symbol keymap completeness, trusted key dispatch tests, no-evaluate-leak interaction checks, slow browser quarantine, and anti-bot claim separation. |
 | `CLOAK-TASK-059` | integrated | medium | Complete Level 5 pass 032 for humanize unit tests. | Browser materialization human interaction verification contract | `CLOAK-TASK-058` | Added metadata for config resolution, motion math, sync/async patch parity, focus checks, frame/locator/element-handle patch coverage, no-double-patch guards, per-call timeout forwarding, per-call config containment, non-ASCII insertText handling, slow behavioral-test quarantine, and telemetry-only bot-detection results. |
+| `CLOAK-TASK-060` | integrated | medium | Complete Level 5 pass 033 for persistent context tests. | Browser materialization persistent session capability contract | `CLOAK-TASK-059` | Added metadata for broker-owned profile refs, direct `userDataDir` denial, argument compiler reuse, locale/timezone profile normalization, proxy dependency, sync/async close parity, and raw profile/storage redaction. |
 
 ## Open Questions
 
@@ -1196,3 +1198,24 @@ Validation:
 Important boundary:
 
 This wave still does not enable humanized interaction, frame/locator/element-handle patching, form filling, behavioral bot-wall testing, CAPTCHAs, or live browser execution during ordinary research.
+
+## Assimilation Wave 42: Level 5 Persistent Session Test Contract
+
+Status: integrated into future persistent session capability contract; capability remains deferred.
+
+Implemented:
+
+- Parsed `tests/test_persistent_context.py` as the syntax-level source of persistent context argument compilation, default/profile field handling, locale/timezone alias normalization, GeoIP fill behavior, proxy lane dependency, sync/async close parity, and persistent driver cleanup.
+- Preserved the useful primitive: persistent browser state may improve access later, but it must be admitted as a session capability with broker-owned profile refs rather than direct `userDataDir`, raw storage state, or workflow-controlled launch args.
+- Added `persistent_session_contract` metadata for default-off admission, separate capability requirement, direct profile-dir denial, argument compiler reuse, locale/timezone profile-field handling, proxy/GeoIP dependency, sync/async close parity, and raw profile/storage redaction.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable persistent profiles, direct profile directories, cookie/storage reuse, proxy use, GeoIP lookup, raw storage-state projection, or live browser execution during ordinary research.

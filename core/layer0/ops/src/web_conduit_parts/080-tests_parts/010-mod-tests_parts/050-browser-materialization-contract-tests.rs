@@ -417,6 +417,51 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_persistent_context_tests")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/separate_capability_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/direct_user_data_dir_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/session_profile_ref_broker_owned")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/caller_supplied_args_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/locale_timezone_binary_profile_fields_only")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/locale_timezone_context_kwargs_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/sync_async_close_stops_driver_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/persistent_session_contract/raw_persistent_profile_path_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/human_interaction_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_human_config_presets")

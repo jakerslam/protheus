@@ -115,7 +115,7 @@ Status values:
 | 30 | `js/src/human/scroll.ts` | integrated: scroll/readiness contract pass 030, deferred capability | Which scroll/readiness ideas can be reduced to read-only page settling? | Read-only readiness diagnostics plus deferred interaction. |
 | 31 | `tests/test_stealth_unit.py` | integrated: stealth unit test contract pass 031, deferred behavior | Which isolated-world tests can become read-only extraction tests? | Mock-fast provider contract tests; behavior remains gated. |
 | 32 | `tests/test_humanize_unit.py` | integrated: humanize unit test contract pass 032, deferred behavior | Which interaction tests should remain out of the first adapter? | Human interaction capability tests; behavior remains deferred. |
-| 33 | `tests/test_persistent_context.py` | pending, deferred | Which session-retention invariants are required before persistent profiles? | Session capability, deferred. |
+| 33 | `tests/test_persistent_context.py` | integrated: persistent session test contract pass 033, deferred capability | Which session-retention invariants are required before persistent profiles? | Session capability contract; behavior remains deferred. |
 | 34 | `examples/integrations/browser_use_example.py` | pending, reference only | Does integration style reveal useful adapter ergonomics? | Usually reject for core primitive. |
 | 35 | `examples/integrations/crawl4ai_example.py` | pending, reference only | Does integration style reveal useful page extraction handoff? | Compare with existing Crawl4AI assimilation. |
 | 36 | `examples/integrations/scrapling_example.py` | pending, reference only | Does integration style reveal useful fetch fallback handoff? | Compare with Scrapling assimilation. |
@@ -919,6 +919,61 @@ Required output shape:
 ```
 
 This JSON is an adapter contract example, not a user-visible answer format.
+
+## File Pass 033: `tests/test_persistent_context.py`
+
+Status: `integrated: persistent session test contract`, capability deferred
+
+Source lines inspected: 1-246
+
+This file is useful because it names the invariants required before Infring admits persistent browser profiles. The important lesson is not the direct `launch_persistent_context("/tmp/profile")` API; that form is specifically unsafe for our architecture. The portable pattern is that persistent state must remain a separately admitted session capability with broker-owned profile refs, profile-field normalization, and close/cleanup parity.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 22-35, 213-226 | Persistent context compiles launch args internally and supports sync/async parity. | Future persistent sessions must reuse the same policy-owned argument compiler as stateless materialization and must not admit caller launch args. | Accept as contract. |
+| 38-64 | Default viewport is applied internally; custom viewport is a typed profile field. | Viewport remains policy/admission-owned, not a free workflow knob in ordinary research. | Accept with capability boundary. |
+| 66-76, 120-133, 229-242 | User agent, timezone alias, locale, and color scheme are normalized before adapter invocation. | Profile fields may exist only behind capability admission; `timezone_id` aliases are consumed by policy and not passed through as raw context kwargs. | Accept as normalization pattern. |
+| 78-104 | Locale/timezone are emitted as binary/profile args rather than CDP context kwargs. | Preserve the existing rule: locale/timezone CDP emulation is not admitted for ordinary retrieval; binary/profile-field consistency belongs to the provider profile compiler. | Accept. |
+| 106-118 | GeoIP fills missing fields only when proxy metadata exists. | GeoIP fills require proxy capability and remain telemetry/profile metadata, not user-visible evidence. | Accept with proxy dependency. |
+| 135-148, 213-226 | Closing a persistent context also stops the driver instance. | Persistent session adapters must prove sync/async close parity and driver cleanup before admission. | Accept. |
+| 150-179 | Proxy strings/dicts are passed into persistent contexts. | Proxy use remains a separate Gateway/secret-backed capability; session admission cannot smuggle proxy authority. | Defer behind proxy capability. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added a `persistent_session_contract` beneath browser profile policy with broker-owned profile refs, raw `userDataDir` denial, argument compiler reuse, locale/timezone normalization, proxy dependency, cleanup parity, and chat redaction. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Mirrored the Tool CD contract in the web-conduit default policy. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the contract into runtime browser-materialization metadata without enabling persistent context execution. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Added mock-fast assertions that persistent sessions remain separate, broker-owned, no raw profile paths are chat-visible, and locale/timezone context kwargs remain denied. |
+
+### Rejected Or Deferred From This File
+
+| Source Feature | Decision | Reason |
+| --- | --- | --- |
+| Direct filesystem `user_data_dir` input | Reject | Session identity state must be allocated by a broker/capability handle, not accepted from workflow/user payloads. |
+| Persistent context as default retrieval mode | Reject | Ordinary research must stay stateless unless a distinct capability is admitted. |
+| Proxy inside persistent-session request | Defer | Proxy authority requires its own permission and secret handling. |
+| Raw storage state/profile path visibility | Reject | Profile paths, cookies, storage state, and session internals remain telemetry/artifact-only and never final-chat material. |
+
+### Pass 033 Outcome
+
+This pass added a persistent-session admission contract without enabling the behavior:
+
+```text
+session capability required
+-> broker-owned profile ref
+-> same policy-owned argument compiler
+-> no direct userDataDir/storageState
+-> locale/timezone normalized before adapter
+-> proxy/geo gated separately
+-> sync/async close parity required
+-> raw profile/storage state redacted
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
 
 ## Deferred Capability Slices
 
