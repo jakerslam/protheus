@@ -406,6 +406,130 @@ fn browser_materialization_artifact_quarantine_projection_with_ref(
     })
 }
 
+fn browser_materialization_term_hints(title: &str, text: &str, domain: &str) -> Vec<String> {
+    let mut seen = Vec::<String>::new();
+    for token in format!("{title} {text} {domain}")
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .map(|raw| clean_text(raw, 64).to_ascii_lowercase())
+        .filter(|raw| raw.len() >= 4)
+    {
+        if !seen.iter().any(|existing| existing == &token) {
+            seen.push(token);
+        }
+        if seen.len() >= 8 {
+            break;
+        }
+    }
+    seen
+}
+
+fn browser_materialization_evidence_pack_candidate(
+    final_url: &str,
+    final_url_safety: &Value,
+    title: &str,
+    main_text: &str,
+    artifact_ref: &str,
+    artifact_manifest: &Value,
+) -> Value {
+    let source_domain = extract_domain(final_url);
+    let excerpt_hash = sha256_hex(&format!("{title}\n{main_text}\n{final_url}"));
+    let final_url_status = final_url_safety
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let safe_final_url = final_url_safety
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let term_hints = browser_materialization_term_hints(title, main_text, &source_domain);
+    let quality_flags = if safe_final_url {
+        json!([
+            "browser_enriched",
+            "materialized_fixture",
+            "raw_artifact_quarantined",
+            "safe_final_url",
+            "not_blocker_shell"
+        ])
+    } else {
+        json!([
+            "browser_enriched",
+            "materialized_fixture",
+            "raw_artifact_quarantined",
+            "unsafe_final_url",
+            "not_promotable"
+        ])
+    };
+    json!({
+        "version": "browser_materialization_evidence_pack_candidate_v1",
+        "state": "evidence_pack_candidate_created",
+        "pack_version": "evidence_pack_v1",
+        "source_kind": "browser_materialized_page",
+        "source_class": "web_page",
+        "title": clean_text(title, 240),
+        "locator": clean_text(final_url, 2_200),
+        "source_scope": source_domain,
+        "source_domain": source_domain,
+        "snippet": clean_text(main_text, 1_800),
+        "claim_hints": [clean_text(main_text, 420)],
+        "term_hints": term_hints,
+        "excerpt_hash": excerpt_hash,
+        "score": 76.0,
+        "score_components": {
+            "relevance": 76.0,
+            "source_trust_delta": 2.0,
+            "freshness_delta": 0.0,
+            "materialization_quality": 84.0,
+            "artifact_quarantine": 100.0
+        },
+        "confidence": if safe_final_url { "usable" } else { "rejected" },
+        "quality_flags": quality_flags,
+        "coverage_facets": [],
+        "freshness": {
+            "status": "not_time_sensitive",
+            "current_intent": false
+        },
+        "timestamp": Value::Null,
+        "permissions": "public_web",
+        "artifact_ref": clean_text(artifact_ref, 260),
+        "artifact_manifest_ref": artifact_manifest.get("manifest_ref").cloned().unwrap_or(Value::Null),
+        "promotion": {
+            "version": "browser_materialization_evidence_promotion_v1",
+            "decision": if safe_final_url {
+                "candidate_ready_for_packaging"
+            } else {
+                "rejected_by_final_url_safety"
+            },
+            "safety": {
+                "status": final_url_status,
+                "safe_final_url": safe_final_url,
+                "raw_payload_chat_visible": false,
+                "url_safety": final_url_safety.clone()
+            },
+            "components": {
+                "substantive_main_text": main_text.split_whitespace().count() >= 12,
+                "claim_hint_count": 1,
+                "term_hint_count": browser_materialization_term_hints(title, main_text, final_url).len(),
+                "artifact_manifest_present": artifact_manifest.get("manifest_ref").is_some()
+            },
+            "non_goals": [
+                "candidate_is_not_final_answer_text",
+                "browser_success_is_not_source_truth_without_packaging",
+                "raw_payload_is_not_chat_visible"
+            ]
+        },
+        "evidence_artifacts": {
+            "materialized_page_ref": clean_text(artifact_ref, 260),
+            "manifest_ref": artifact_manifest.get("manifest_ref").cloned().unwrap_or(Value::Null),
+            "raw_html_ref": artifact_manifest.pointer("/artifacts/0/artifact_ref").cloned().unwrap_or(Value::Null),
+            "reader_text_ref": artifact_manifest.pointer("/artifacts/1/artifact_ref").cloned().unwrap_or(Value::Null),
+            "reader_screenshot_ref": artifact_manifest.pointer("/screenshot/artifact_ref").cloned().unwrap_or(Value::Null)
+        },
+        "raw_payload_chat_visible": false,
+        "visibility": "synthesis_context_after_promotion",
+        "promoted_to_evidence_pack": false
+    })
+}
+
 fn browser_materialization_selected_provider(config: &Value) -> String {
     config
         .get("provider_order")
@@ -449,12 +573,51 @@ fn browser_materialization_fake_success(
     let retry_diagnostics = browser_materialization_retry_diagnostics_projection("none");
     let title = "Deterministic browser materialization fixture";
     let main_text = "Fake browser materialization provider returned a deterministic rendered page fixture for contract proof. This text is extracted content, not raw HTML.";
+    let evidence_candidate = browser_materialization_evidence_pack_candidate(
+        &final_url,
+        &final_url_safety,
+        title,
+        main_text,
+        &artifact_ref,
+        &artifact_manifest,
+    );
+    let evidence_ref = json!({
+        "source_kind": evidence_candidate
+            .get("source_kind")
+            .cloned()
+            .unwrap_or_else(|| json!("browser_materialized_page")),
+        "title": evidence_candidate
+            .get("title")
+            .cloned()
+            .unwrap_or_else(|| json!(title)),
+        "locator": evidence_candidate
+            .get("locator")
+            .cloned()
+            .unwrap_or_else(|| json!(final_url.clone())),
+        "excerpt_hash": evidence_candidate
+            .get("excerpt_hash")
+            .cloned()
+            .unwrap_or_else(|| json!(sha256_hex(main_text))),
+        "score": evidence_candidate
+            .get("score")
+            .cloned()
+            .unwrap_or_else(|| json!(76.0)),
+        "timestamp": evidence_candidate
+            .get("timestamp")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "permissions": evidence_candidate
+            .get("permissions")
+            .cloned()
+            .unwrap_or_else(|| json!("public_web")),
+        "artifact_ref": artifact_ref.clone()
+    });
     let materialized_page = json!({
         "version": "browser_materialized_page_v1",
         "provider": "fake_materialization",
         "source_url": clean_text(url, 2200),
         "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
-        "final_url": final_url,
+        "final_url": final_url.clone(),
         "final_url_safety": final_url_safety.clone(),
         "status_code": 200,
         "title": title,
@@ -482,30 +645,6 @@ fn browser_materialization_fake_success(
         "raw_payload_chat_visible": false,
         "browser_trace_chat_visible": false
     });
-    let evidence_candidate = json!({
-        "version": "browser_materialization_evidence_candidate_shell_v1",
-        "state": "pending_evidence_packaging",
-        "source_kind": "browser_materialized_page",
-        "source_class": "web_page",
-        "title": title,
-        "locator": materialized_page
-            .get("final_url")
-            .cloned()
-            .unwrap_or_else(|| json!(clean_text(url, 2200))),
-        "snippet": main_text,
-        "confidence": "usable",
-        "quality_flags": ["materialized_fixture", "pending_evidence_pack_conversion"],
-        "artifact_ref": materialized_page
-            .get("artifact_ref")
-            .cloned()
-            .unwrap_or(Value::Null),
-        "artifact_manifest_ref": materialized_page
-            .get("artifact_manifest_ref")
-            .cloned()
-            .unwrap_or(Value::Null),
-        "raw_payload_chat_visible": false,
-        "promoted_to_evidence_pack": false
-    });
     json!({
         "ok": true,
         "type": "web_conduit_browser_materialization",
@@ -518,13 +657,15 @@ fn browser_materialization_fake_success(
         "raw_payload_chat_visible": false,
         "chat_visible": false,
         "materialized_page": materialized_page,
-        "evidence_candidate": evidence_candidate,
+        "evidence_candidate": evidence_candidate.clone(),
+        "evidence_pack_candidates": [evidence_candidate],
+        "evidence_refs": [evidence_ref],
         "artifact_ref": format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),
         "artifact_manifest": artifact_manifest.clone(),
         "materialized_page_contract": browser_materialization_output_contract_projection(config),
         "evidence_handoff_contract": browser_materialization_evidence_handoff_projection_with_state(
             config,
-            "pending_evidence_packaging",
+            "evidence_pack_candidate_created",
         ),
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
             &format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),

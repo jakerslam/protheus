@@ -79,7 +79,7 @@ Status values:
 | ---: | --- | --- | --- | --- |
 | 1 | Fake materialization provider | integrated: deterministic provider proof pass 001 | Can the existing API emit a valid materialized-page object without launching a browser? | `core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` and browser materialization tests. |
 | 2 | Fixture artifact quarantine | integrated: ref-only artifact proof pass 002 | Are raw HTML/screenshot-like payloads stored by ref and never chat-visible? | Web conduit artifact/quarantine helpers and tests. |
-| 3 | Evidence candidate conversion | pending | Can a materialized page become evidence-pack candidates with title, final URL, text, links, claim hints, score, quality flags, and refs? | Batch query/evidence pack pipeline plus Tool CD output contract. |
+| 3 | Evidence candidate conversion | integrated: evidence-pack candidate proof pass 003 | Can a materialized page become evidence-pack candidates with title, final URL, text, links, claim hints, score, quality flags, and refs? | Batch query/evidence pack pipeline plus Tool CD output contract. |
 | 4 | Local static page provider proof | pending | Can the adapter fetch a local fixture page through the materialization API with full cleanup? | Browser adapter helper, CLI proof, local fixture tests. |
 | 5 | Local JS-rendered page proof | pending | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
 | 6 | Redirect and final URL safety proof | pending | Does final URL revalidation block unsafe redirect targets before extraction? | SSRF/final URL guard tests. |
@@ -193,6 +193,26 @@ Exit tests:
 - evidence quality is `usable`, `low_signal`, or `rejected` based on extracted content,
 - blocker shells do not promote as source truth,
 - evidence refs are available to synthesis.
+
+Status: integrated in pass 003.
+
+Implemented:
+
+- Converted the fake materialization output into an `evidence_pack_v1` candidate shape.
+- Added source kind/class, title, locator, source domain, snippet, claim hints, term hints, score components, confidence, quality flags, freshness, permissions, promotion metadata, and artifact refs.
+- Added `evidence_pack_candidates` and `evidence_refs` to the materialization result so later synthesis handoff can consume references without seeing raw browser payloads.
+- Extended the policy and Tool CD output contract to declare the evidence candidate/ref fields.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Impact:
+
+This completes the first materialization-to-evidence bridge. It still uses the fake provider, but the output now has the evidence-pack shape needed before a local/live provider can improve retrieval quality.
 
 ### L6-004 Local Static Page Provider Proof
 

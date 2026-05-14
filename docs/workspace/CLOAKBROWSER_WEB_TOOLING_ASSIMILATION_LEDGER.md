@@ -291,6 +291,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-063` | integrated | medium | Complete Level 5 pass 036 for Scrapling integration example. | Browser materialization selector/fetch adapter handoff contract | `CLOAK-TASK-062` | Reviewed WebSocket debugger URL handoff and declared Gateway-owned CDP endpoint resolution, selector output evidence packaging, and raw CDP version response redaction. |
 | `CLOAK-L6-TASK-001` | integrated | high | Complete Level 6 pass 001 for fake materialization provider. | Browser materialization API and tests | Level 6 map | Added a CD-selected deterministic fake provider that returns a success-shaped materialized page, artifact ref, cleanup status, and evidence-candidate shell without launching a browser or exposing raw payloads. |
 | `CLOAK-L6-TASK-002` | integrated | high | Complete Level 6 pass 002 for fixture artifact quarantine. | Browser materialization artifact manifest and tests | `CLOAK-L6-TASK-001` | Added a ref-only artifact manifest for raw HTML, extracted text, and browser trace material, rejected caller raw payload fields, and proved evidence receives extracted text/metadata rather than raw browser payloads. |
+| `CLOAK-L6-TASK-003` | integrated | high | Complete Level 6 pass 003 for evidence candidate conversion. | Browser materialization evidence-pack candidate and refs | `CLOAK-L6-TASK-002` | Converted fake materialization output into an `evidence_pack_v1` candidate with claim hints, term hints, score components, quality flags, promotion metadata, artifact refs, and synthesis-safe evidence refs. |
 
 ## Open Questions
 
@@ -1296,3 +1297,25 @@ Validation:
 Important boundary:
 
 This wave still does not claim live retrieval quality improvement. It proves materialized page internals have a quarantine contract before L6-003 evidence candidate conversion promotes anything toward synthesis.
+
+## Assimilation Wave 46: Level 6 Evidence Candidate Conversion
+
+Status: integrated into browser materialization evidence handoff proof; live browser execution remains deferred.
+
+Implemented:
+
+- Advanced Level 6 pass 003 from the implementation proof map.
+- Converted the fake materialized page into an `evidence_pack_v1` candidate with source kind/class, title, final URL, source domain, snippet, claim hints, term hints, score components, confidence, quality flags, freshness, permissions, promotion metadata, and artifact refs.
+- Added `evidence_pack_candidates` and `evidence_refs` to the materialization output so synthesis can later consume bounded evidence references instead of raw tool traces.
+- Extended browser materialization output contract fields in policy and Tool CD to include evidence candidate/ref outputs.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave does not prove better live retrieval yet. It proves materialization output can now re-enter the evidence-pack lane before L6-004/L6-005 local provider work attempts real page capture.

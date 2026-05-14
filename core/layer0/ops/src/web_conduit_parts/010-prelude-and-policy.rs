@@ -801,6 +801,9 @@ fn default_policy() -> Value {
                         "blocker_classification",
                         "extraction_confidence",
                         "artifact_ref",
+                        "artifact_manifest_ref",
+                        "evidence_pack_candidates",
+                        "evidence_refs",
                         "readiness_strategy",
                         "cleanup_status",
                         "retry_diagnostics"

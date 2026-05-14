@@ -1284,16 +1284,83 @@
         assert_eq!(
             out.pointer("/evidence_handoff_contract/evidence_candidate_state")
                 .and_then(Value::as_str),
-            Some("pending_evidence_packaging")
+            Some("evidence_pack_candidate_created")
         );
         assert_eq!(
             out.pointer("/evidence_candidate/state").and_then(Value::as_str),
-            Some("pending_evidence_packaging")
+            Some("evidence_pack_candidate_created")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/pack_version")
+                .and_then(Value::as_str),
+            Some("evidence_pack_v1")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/source_kind")
+                .and_then(Value::as_str),
+            Some("browser_materialized_page")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/source_class")
+                .and_then(Value::as_str),
+            Some("web_page")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/source_domain")
+                .and_then(Value::as_str),
+            Some("example.com")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/permissions")
+                .and_then(Value::as_str),
+            Some("public_web")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/promotion/decision")
+                .and_then(Value::as_str),
+            Some("candidate_ready_for_packaging")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/promotion/safety/raw_payload_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/evidence_artifacts/raw_html_ref")
+                .and_then(Value::as_str)
+                .map(|raw| raw.ends_with("/raw-html")),
+            Some(true)
+        );
+        assert!(
+            out.pointer("/evidence_candidate/claim_hints/0")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .contains("deterministic rendered page fixture")
+        );
+        assert!(
+            out.pointer("/evidence_candidate/term_hints")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| row.as_str() == Some("materialization")))
+                .unwrap_or(false)
         );
         assert_eq!(
             out.pointer("/evidence_candidate/promoted_to_evidence_pack")
                 .and_then(Value::as_bool),
             Some(false)
+        );
+        assert_eq!(
+            out.pointer("/evidence_pack_candidates/0/pack_version")
+                .and_then(Value::as_str),
+            Some("evidence_pack_v1")
+        );
+        assert_eq!(
+            out.pointer("/evidence_refs/0/source_kind")
+                .and_then(Value::as_str),
+            Some("browser_materialized_page")
+        );
+        assert_eq!(
+            out.pointer("/evidence_refs/0/locator").and_then(Value::as_str),
+            Some("https://example.com/research")
         );
         assert_eq!(
             out.pointer("/evidence_candidate/artifact_manifest_ref").is_some(),
