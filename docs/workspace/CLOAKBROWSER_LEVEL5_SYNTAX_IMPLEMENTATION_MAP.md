@@ -87,7 +87,7 @@ Status values:
 | 2 | `tests/test_lambda_security.py` | integrated: safety test pass 002 | Which security invariants must be locked before live browser execution? | Browser materialization contract tests. |
 | 3 | `js/src/playwright.ts` | integrated: context boundary pass 003 | What launch/context cleanup and option filtering shape should the adapter mimic? | Future local browser adapter helper. |
 | 4 | `js/src/types.ts` | integrated: API surface pass 004 | Which request/profile fields are real API surface versus convenience wrappers? | Tool CD/policy schema audit. |
-| 5 | `js/src/args.ts` | mapped seed, needs line pass | How should profile args be deduped and overridden without caller authority? | Profile compiler tests and denied-field projection. |
+| 5 | `js/src/args.ts` | integrated: arg compiler pass 005 | How should profile args be deduped and overridden without caller authority? | Profile compiler tests and denied-field projection. |
 | 6 | `js/src/config.ts` | pending | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
 | 7 | `js/src/download.ts` | pending | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
 | 8 | `js/src/proxy.ts` | mapped seed, deferred | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
@@ -346,6 +346,48 @@ URL + admission handle + bounded extraction/readiness fields
 -> deny direct launch/context/profile/session/proxy controls
 -> project profile/readiness metadata internally
 -> keep future profile/session/proxy capabilities explicit
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 005: `js/src/args.ts`
+
+Status: `integrated: argument compiler contract`
+
+Source lines inspected: 1-54
+
+This file is useful because it shows CloakBrowser centralizing Chromium argument assembly instead of scattering flags across adapters. The important primitive is deterministic profile compilation: dedupe by flag key, fixed precedence, and telemetry-only override visibility. The part Infring rejects is letting a normal tool caller pass arbitrary raw `args`.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 13-16 | Precedence is explicit: stealth defaults, then user args, then dedicated timezone/locale params. | Preserve explicit precedence as a policy-owned compiler contract, but replace user args with admitted policy/profile args. | Integrated as contract metadata. |
+| 17-24, 34-42, 45-51 | Args are deduped by the flag name before `=` and later sources override earlier sources. | Future adapter compiler should dedupe by Chromium flag key and emit internal override telemetry. | Integrated as contract metadata. |
+| 25-32 | Platform/headed-mode compatibility flags are inserted by the compiler, not by each caller. | Runtime/provider compatibility flags should be policy defaults, not workflow/tool request fields. | Accepted as future compiler behavior. |
+| 33-42 | Caller `options.args` can override defaults in CloakBrowser. | Reject for current primitive; raw caller launch args remain denied at request boundary. | Integrated as denial rule. |
+| 18, 38, 48 | Debug logs expose override decisions only under debug mode. | Keep override trace telemetry-only and never chat-visible. | Integrated as contract metadata. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `argument_compiler` metadata to browser materialization profile policy. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected the argument compiler contract through runtime profile-compilation metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same argument compiler contract to the Tool CD profile contract. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted the runtime profile projection exposes the compiler source pattern, dedupe key, and caller-arg denial. |
+
+### Pass 005 Outcome
+
+The future browser adapter now has an explicit profile-argument compiler contract before any live launch path exists:
+
+```text
+policy defaults
+-> admitted profile args
+-> admitted profile fields
+-> dedupe by flag key
+-> internal override telemetry only
+-> raw caller args still rejected
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.

@@ -309,6 +309,22 @@ fn browser_materialization_profile_compilation_contract(
             .get("humanized_interaction_allowed")
             .and_then(Value::as_bool)
             .unwrap_or(false),
+        "argument_compiler": profile_contract
+            .get("argument_compiler")
+            .cloned()
+            .unwrap_or_else(|| json!({
+                "version": "browser_argument_compiler_contract_v1",
+                "source_pattern": "cloakbrowser_build_args",
+                "dedupe_key": "chromium_flag_name_before_equals",
+                "priority_order": [
+                    "policy_default_args",
+                    "policy_profile_args",
+                    "admitted_profile_fields"
+                ],
+                "caller_supplied_args_allowed": false,
+                "dedicated_profile_fields_override_default_args": true,
+                "debug_override_logs_chat_visible": false
+            })),
         "proxy_capability_required": profile_contract
             .get("proxy_capability_required")
             .and_then(Value::as_bool)

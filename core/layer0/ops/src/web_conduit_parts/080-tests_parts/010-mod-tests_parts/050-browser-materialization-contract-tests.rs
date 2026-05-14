@@ -90,6 +90,21 @@
             Some("prepared_capability_disabled")
         );
         assert_eq!(
+            out.pointer("/profile_compilation/argument_compiler/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_build_args")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/argument_compiler/dedupe_key")
+                .and_then(Value::as_str),
+            Some("chromium_flag_name_before_equals")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/argument_compiler/caller_supplied_args_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.get("raw_payload_chat_visible").and_then(Value::as_bool),
             Some(false)
         );

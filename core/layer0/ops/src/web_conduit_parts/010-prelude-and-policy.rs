@@ -317,6 +317,19 @@ fn default_policy() -> Value {
                     "context_close_closes_browser": true,
                     "persistent_context_allowed": false,
                     "humanized_interaction_allowed": false,
+                    "argument_compiler": {
+                        "version": "browser_argument_compiler_contract_v1",
+                        "source_pattern": "cloakbrowser_build_args",
+                        "dedupe_key": "chromium_flag_name_before_equals",
+                        "priority_order": [
+                            "policy_default_args",
+                            "policy_profile_args",
+                            "admitted_profile_fields"
+                        ],
+                        "caller_supplied_args_allowed": false,
+                        "dedicated_profile_fields_override_default_args": true,
+                        "debug_override_logs_chat_visible": false
+                    },
                     "denied_launch_args": [
                         "--remote-debugging-port",
                         "--disable-web-security",
