@@ -313,14 +313,96 @@ fn browser_materialization_artifact_quarantine_projection() -> Value {
     })
 }
 
-fn browser_materialization_artifact_quarantine_projection_with_ref(artifact_ref: &str) -> Value {
+fn browser_materialization_artifact_manifest_projection(
+    artifact_ref: &str,
+    artifact_hash: &str,
+) -> Value {
+    let manifest_ref = format!("{artifact_ref}/manifest/{}", clean_text(artifact_hash, 64));
+    json!({
+        "version": "browser_materialization_artifact_manifest_v1",
+        "state": "ref_only_fixture",
+        "manifest_ref": clean_text(&manifest_ref, 340),
+        "base_artifact_ref": clean_text(artifact_ref, 260),
+        "projection_contains_raw_artifacts": false,
+        "evidence_receives_extracted_text_only": true,
+        "artifacts": [
+            {
+                "kind": "raw_html",
+                "artifact_ref": format!("{artifact_ref}/raw-html"),
+                "mime": "text/html",
+                "raw_bytes_chat_visible": false,
+                "workflow_trace_visible": false,
+                "role": "quarantined_reprocess_only"
+            },
+            {
+                "kind": "extracted_text",
+                "artifact_ref": format!("{artifact_ref}/extracted-text"),
+                "mime": "text/plain",
+                "raw_bytes_chat_visible": false,
+                "workflow_trace_visible": false,
+                "role": "evidence_candidate_text"
+            },
+            {
+                "kind": "browser_trace",
+                "artifact_ref": format!("{artifact_ref}/browser-trace"),
+                "mime": "application/json",
+                "raw_bytes_chat_visible": false,
+                "workflow_trace_visible": false,
+                "role": "telemetry_only"
+            }
+        ],
+        "screenshot": {
+            "captured": false,
+            "artifact_ref": Value::Null,
+            "raw_bytes_chat_visible": false,
+            "workflow_trace_visible": false
+        },
+        "console_log": {
+            "captured": false,
+            "artifact_ref": Value::Null,
+            "chat_visible": false,
+            "workflow_trace_visible": false
+        },
+        "network_log": {
+            "captured": false,
+            "artifact_ref": Value::Null,
+            "chat_visible": false,
+            "workflow_trace_visible": false
+        }
+    })
+}
+
+fn browser_materialization_artifact_quarantine_projection_with_ref(
+    artifact_ref: &str,
+    artifact_manifest: &Value,
+) -> Value {
     json!({
         "version": "browser_materialization_artifact_quarantine_v1",
         "state": "created_ref_only",
         "artifact_ref": clean_text(artifact_ref, 260),
+        "manifest_ref": artifact_manifest
+            .get("manifest_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "raw_html_ref": artifact_manifest
+            .pointer("/artifacts/0/artifact_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "screenshot_ref": artifact_manifest
+            .pointer("/screenshot/artifact_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "browser_trace_ref": artifact_manifest
+            .pointer("/artifacts/2/artifact_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "projection_contains_raw_artifacts": false,
+        "evidence_receives_extracted_text_only": true,
         "raw_payload_chat_visible": false,
         "browser_trace_chat_visible": false,
-        "raw_artifact_bytes_chat_visible": false
+        "raw_artifact_bytes_chat_visible": false,
+        "console_log_chat_visible": false,
+        "network_log_chat_visible": false
     })
 }
 
@@ -360,6 +442,8 @@ fn browser_materialization_fake_success(
         "artifact://web_conduit/browser_materialization/fake/{}",
         clean_text(&artifact_hash, 64)
     );
+    let artifact_manifest =
+        browser_materialization_artifact_manifest_projection(&artifact_ref, &artifact_hash);
     let cleanup_status = browser_materialization_fake_cleanup_status_projection();
     let readiness_strategy = browser_materialization_readiness_strategy_projection(config);
     let retry_diagnostics = browser_materialization_retry_diagnostics_projection("none");
@@ -388,6 +472,10 @@ fn browser_materialization_fake_success(
         },
         "extraction_confidence": "usable",
         "artifact_ref": artifact_ref,
+        "artifact_manifest_ref": artifact_manifest
+            .get("manifest_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
         "readiness_strategy": readiness_strategy.clone(),
         "cleanup_status": cleanup_status.clone(),
         "retry_diagnostics": retry_diagnostics.clone(),
@@ -411,6 +499,10 @@ fn browser_materialization_fake_success(
             .get("artifact_ref")
             .cloned()
             .unwrap_or(Value::Null),
+        "artifact_manifest_ref": materialized_page
+            .get("artifact_manifest_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
         "raw_payload_chat_visible": false,
         "promoted_to_evidence_pack": false
     });
@@ -428,6 +520,7 @@ fn browser_materialization_fake_success(
         "materialized_page": materialized_page,
         "evidence_candidate": evidence_candidate,
         "artifact_ref": format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),
+        "artifact_manifest": artifact_manifest.clone(),
         "materialized_page_contract": browser_materialization_output_contract_projection(config),
         "evidence_handoff_contract": browser_materialization_evidence_handoff_projection_with_state(
             config,
@@ -435,6 +528,7 @@ fn browser_materialization_fake_success(
         ),
         "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
             &format!("artifact://web_conduit/browser_materialization/fake/{artifact_hash}"),
+            &artifact_manifest,
         ),
         "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
         "final_url_safety": final_url_safety,
@@ -615,6 +709,21 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             "local_file",
             "localFile",
             "userDataDir",
+            "raw_html",
+            "rawHtml",
+            "html",
+            "raw_payload",
+            "rawPayload",
+            "screenshot",
+            "screenshot_bytes",
+            "screenshotBytes",
+            "browser_trace",
+            "browserTrace",
+            "console_logs",
+            "consoleLogs",
+            "network_logs",
+            "networkLogs",
+            "trace",
         ],
     );
     if let Some(field) = browser_materialization_first_denied_request_field(request, &denied_fields)

@@ -312,7 +312,22 @@ fn default_policy() -> Value {
                         "storageState",
                         "local_file",
                         "localFile",
-                        "userDataDir"
+                        "userDataDir",
+                        "raw_html",
+                        "rawHtml",
+                        "html",
+                        "raw_payload",
+                        "rawPayload",
+                        "screenshot",
+                        "screenshot_bytes",
+                        "screenshotBytes",
+                        "browser_trace",
+                        "browserTrace",
+                        "console_logs",
+                        "consoleLogs",
+                        "network_logs",
+                        "networkLogs",
+                        "trace"
                     ]
                 },
                 "profile_contract": {

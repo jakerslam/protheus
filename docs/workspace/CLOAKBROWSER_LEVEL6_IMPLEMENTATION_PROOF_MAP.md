@@ -78,7 +78,7 @@ Status values:
 | Order | Slice | Status | Primary Question | Likely Infring Target |
 | ---: | --- | --- | --- | --- |
 | 1 | Fake materialization provider | integrated: deterministic provider proof pass 001 | Can the existing API emit a valid materialized-page object without launching a browser? | `core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` and browser materialization tests. |
-| 2 | Fixture artifact quarantine | pending | Are raw HTML/screenshot-like payloads stored by ref and never chat-visible? | Web conduit artifact/quarantine helpers and tests. |
+| 2 | Fixture artifact quarantine | integrated: ref-only artifact proof pass 002 | Are raw HTML/screenshot-like payloads stored by ref and never chat-visible? | Web conduit artifact/quarantine helpers and tests. |
 | 3 | Evidence candidate conversion | pending | Can a materialized page become evidence-pack candidates with title, final URL, text, links, claim hints, score, quality flags, and refs? | Batch query/evidence pack pipeline plus Tool CD output contract. |
 | 4 | Local static page provider proof | pending | Can the adapter fetch a local fixture page through the materialization API with full cleanup? | Browser adapter helper, CLI proof, local fixture tests. |
 | 5 | Local JS-rendered page proof | pending | Does browser materialization recover content that direct fetch cannot see? | Local fixture server plus browser materialization integration test. |
@@ -144,6 +144,27 @@ Exit tests:
 - raw HTML is not present in response projection,
 - artifact ref is present when raw page material exists,
 - redaction/visibility guards reject direct raw payload projection.
+
+Status: integrated in pass 002.
+
+Implemented:
+
+- Added a ref-only artifact manifest to the fake materialization provider.
+- Represented raw HTML, extracted text, and browser trace material as artifact refs with raw bytes hidden from chat and workflow traces.
+- Kept screenshot, console log, and network log payloads absent unless a future adapter explicitly captures them by ref.
+- Added artifact quarantine fields that prove raw artifacts are not projected and evidence receives extracted text only.
+- Rejected caller-supplied raw HTML, screenshot bytes, browser traces, console logs, and network logs before any provider execution.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Impact:
+
+This still does not improve live retrieval, but it closes the next proof obligation: materialized page internals now have an explicit quarantine shape before evidence promotion work begins.
 
 ### L6-003 Evidence Candidate Conversion
 

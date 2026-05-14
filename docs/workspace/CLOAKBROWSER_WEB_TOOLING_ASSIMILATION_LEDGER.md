@@ -290,6 +290,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-062` | integrated | medium | Complete Level 5 pass 035 for Crawl4AI integration example. | Browser materialization extraction adapter handoff contract | `CLOAK-TASK-061` | Reviewed CDP-backed markdown extraction and declared that extraction adapter output must re-enter evidence packaging rather than final chat. |
 | `CLOAK-TASK-063` | integrated | medium | Complete Level 5 pass 036 for Scrapling integration example. | Browser materialization selector/fetch adapter handoff contract | `CLOAK-TASK-062` | Reviewed WebSocket debugger URL handoff and declared Gateway-owned CDP endpoint resolution, selector output evidence packaging, and raw CDP version response redaction. |
 | `CLOAK-L6-TASK-001` | integrated | high | Complete Level 6 pass 001 for fake materialization provider. | Browser materialization API and tests | Level 6 map | Added a CD-selected deterministic fake provider that returns a success-shaped materialized page, artifact ref, cleanup status, and evidence-candidate shell without launching a browser or exposing raw payloads. |
+| `CLOAK-L6-TASK-002` | integrated | high | Complete Level 6 pass 002 for fixture artifact quarantine. | Browser materialization artifact manifest and tests | `CLOAK-L6-TASK-001` | Added a ref-only artifact manifest for raw HTML, extracted text, and browser trace material, rejected caller raw payload fields, and proved evidence receives extracted text/metadata rather than raw browser payloads. |
 
 ## Open Questions
 
@@ -1272,3 +1273,26 @@ Validation:
 Important boundary:
 
 This wave does not improve live retrieval yet. It proves the success-shaped materialization path exists without enabling browser execution, proxy/session/human behavior, external adapters, or raw payload projection.
+
+## Assimilation Wave 45: Level 6 Fixture Artifact Quarantine
+
+Status: integrated into browser materialization artifact proof; live browser execution remains deferred.
+
+Implemented:
+
+- Advanced Level 6 pass 002 from the implementation proof map.
+- Added a ref-only artifact manifest to the fake materialization provider for raw HTML, extracted text, and browser trace material.
+- Kept screenshot, console log, and network log payloads absent unless a future adapter captures them by bounded artifact ref.
+- Added quarantine projection fields proving raw artifacts are not projected and evidence receives extracted text only.
+- Rejected caller-supplied raw artifact fields such as raw HTML, screenshots, browser traces, console logs, and network logs before provider execution.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json docs/workspace/CLOAKBROWSER_LEVEL6_IMPLEMENTATION_PROOF_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not claim live retrieval quality improvement. It proves materialized page internals have a quarantine contract before L6-003 evidence candidate conversion promotes anything toward synthesis.
