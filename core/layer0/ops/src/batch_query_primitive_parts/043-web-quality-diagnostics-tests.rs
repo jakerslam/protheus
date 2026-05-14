@@ -138,6 +138,26 @@ mod web_quality_diagnostics_tests {
                 .and_then(Value::as_bool),
             Some(false)
         );
+        assert_eq!(
+            out.pointer("/tool_result_quality/retrieval_decision/decision")
+                .and_then(Value::as_str),
+            Some("alternate_provider")
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/retry_stop_conditions/status")
+                .and_then(Value::as_str),
+            Some("continue_with_alternate_provider_if_admitted")
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/retry_stop_conditions/stop_conditions/capability_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/retrieval_decision/action_status")
+                .and_then(Value::as_str),
+            Some("requires_admitted_alternate_provider_or_browser_retrieval_capability")
+        );
     }
 
     #[test]
@@ -164,6 +184,18 @@ mod web_quality_diagnostics_tests {
         assert_eq!(
             report.pointer("/retry/reason").and_then(Value::as_str),
             Some("needs_js")
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/decision")
+                .and_then(Value::as_str),
+            Some("alternate_provider")
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/action_status")
+                .and_then(Value::as_str),
+            Some("requires_admitted_alternate_provider_or_browser_retrieval_capability")
         );
         let classes = report
             .pointer("/blocker_taxonomy/classes")
@@ -345,11 +377,30 @@ mod web_quality_diagnostics_tests {
                 .and_then(Value::as_str),
             Some("provider_degraded")
         );
+        assert_eq!(
+            out.pointer("/tool_result_quality/retrieval_decision/decision")
+                .and_then(Value::as_str),
+            Some("alternate_provider")
+        );
         assert!(
             out.pointer("/provider_results/0/summary")
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .contains("provider readiness mismatch")
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/provider_normalization/version")
+                .and_then(Value::as_str),
+            Some("provider_normalization_v1")
+        );
+        assert!(
+            out.pointer("/retrieval_broker/provider_normalization/failure_classes")
+                .and_then(Value::as_array)
+                .map(|rows| rows
+                    .iter()
+                    .any(|row| row.as_str() == Some("provider_degraded")))
+                .unwrap_or(false),
+            "{out:#?}"
         );
     }
 
@@ -380,6 +431,21 @@ mod web_quality_diagnostics_tests {
             .contains("LangGraph"));
         assert_eq!(
             out.pointer("/tool_result_quality/retry/recommended")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/tool_result_quality/retrieval_decision/decision")
+                .and_then(Value::as_str),
+            Some("synthesize_from_evidence")
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/retry_stop_conditions/status")
+                .and_then(Value::as_str),
+            Some("stop_ready_for_synthesis")
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/artifact_quarantine/raw_payload_chat_visible")
                 .and_then(Value::as_bool),
             Some(false)
         );
@@ -433,6 +499,30 @@ mod web_quality_diagnostics_tests {
             .unwrap_or(false));
         assert!(first.pointer("/score_components/relevance").is_some());
         assert_eq!(
+            first.pointer("/promotion/version").and_then(Value::as_str),
+            Some("evidence_promotion_v1")
+        );
+        assert_eq!(
+            first.pointer("/promotion/decision").and_then(Value::as_str),
+            Some("promoted")
+        );
+        assert_eq!(
+            first
+                .pointer("/promotion/safety/raw_payload_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/artifact_quarantine/version")
+                .and_then(Value::as_str),
+            Some("artifact_quarantine_v1")
+        );
+        assert_eq!(
+            out.pointer("/retrieval_broker/artifact_quarantine/evidence_promotions/0/promotion_decision")
+                .and_then(Value::as_str),
+            Some("promoted")
+        );
+        assert_eq!(
             out.pointer("/evidence_pack_quality/status").and_then(Value::as_str),
             Some("thin")
         );
@@ -465,6 +555,48 @@ mod web_quality_diagnostics_tests {
             .and_then(Value::as_str)
             .unwrap_or("")
             .contains("claim_hints"));
+    }
+
+    #[test]
+    fn evidence_promotion_marks_internal_or_credentialed_candidate_as_caveated() {
+        let candidate = candidate(
+            "http://user:pass@127.0.0.1/admin",
+            "The public science report describes research milestones, publication dates, method limitations, institutional context, and measured outcomes for the requested investigation.",
+        );
+        let pack = evidence_pack_from_ranked_candidates(
+            &default_policy(),
+            "public science report research milestones",
+            &[],
+            1,
+            &[(candidate, 0.91)],
+            1,
+        );
+        let first = pack
+            .as_array()
+            .and_then(|rows| rows.first())
+            .expect("evidence item");
+        assert_eq!(
+            first.pointer("/promotion/decision").and_then(Value::as_str),
+            Some("promoted_with_caveats")
+        );
+        assert_eq!(
+            first
+                .pointer("/promotion/safety/status")
+                .and_then(Value::as_str),
+            Some("unsafe_or_internal_hint")
+        );
+        assert_eq!(
+            first
+                .pointer("/promotion/safety/credentials_in_url")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            first
+                .pointer("/promotion/safety/internal_host_hint")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]
@@ -538,6 +670,49 @@ mod web_quality_diagnostics_tests {
         assert_eq!(
             report.pointer("/retry/reason").and_then(Value::as_str),
             Some("weak_single_source")
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/decision")
+                .and_then(Value::as_str),
+            Some("agent_refine_query_pack")
+        );
+        assert_eq!(
+            report
+                .pointer("/retry/query_refinement_signals/hidden_query_generation")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn candidate_without_promoted_evidence_recommends_direct_fetch() {
+        let report = web_tool_quality_report(
+            "public agency science breakthrough report",
+            "no_results",
+            2,
+            0,
+            &[],
+            &[],
+            &[(
+                candidate(
+                    "https://agency.example.gov/reports/science-breakthroughs",
+                    "Annual science breakthroughs report with program milestones and publication links.",
+                ),
+                0.71,
+            )],
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/decision")
+                .and_then(Value::as_str),
+            Some("direct_fetch_candidate")
+        );
+        assert_eq!(
+            report
+                .pointer("/retrieval_decision/inputs/candidate_url_state")
+                .and_then(Value::as_str),
+            Some("candidate_url_ref_available")
         );
     }
 

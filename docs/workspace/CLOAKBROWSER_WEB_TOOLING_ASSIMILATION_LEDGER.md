@@ -16,6 +16,8 @@ This ledger is intentionally about portable architecture and control-flow patter
 
 Level 2 behavioral contract map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL2_BEHAVIORAL_CONTRACT_MAP.md`
 
+Level 3 mechanics/algorithm map: `/Users/jay/.openclaw/workspace/docs/workspace/CLOAKBROWSER_LEVEL3_MECHANICS_ALGORITHM_MAP.md`
+
 ## Guardrails
 
 - Keep ordinary research retrieval provider-neutral and policy/CD-driven.
@@ -82,7 +84,7 @@ all web research always uses stealth browser by default
 | ID | Target | Why It Matters | Infring Destination | Status |
 | --- | --- | --- | --- | --- |
 | `CLOAK-PATTERN-001` | Browser retrieval as an admitted escalation lane | Current providers hit anti-bot/circuit-open states; we need a clean way to try browser materialization without making it default. | Tool CD + web-conduit provider registry | contract integrated |
-| `CLOAK-PATTERN-002` | Provider health and anti-bot state split | `anti_bot_challenge`, provider degradation, and low-signal SERP junk should not collapse into one "bad data" bucket. | Web tooling diagnostics and retrieval health gates | diagnostics integrated |
+| `CLOAK-PATTERN-002` | Provider health and anti-bot state split | `anti_bot_challenge`, provider degradation, and low-signal SERP junk should not collapse into one "bad data" bucket. | Web tooling diagnostics and retrieval health gates | decision lattice integrated |
 | `CLOAK-PATTERN-003` | Launch/profile contract compiler | Browser retrieval needs a deterministic profile object instead of ad hoc flags. | Tool CD browser profile schema | contract integrated |
 | `CLOAK-PATTERN-004` | Proxy parsing and secret separation | If proxy capability is admitted later, URL strings, credentials, SOCKS, bypass lists, and logs must be handled safely. | Gateway secret broker + Tool CD proxy capability | queued |
 | `CLOAK-PATTERN-005` | Geo/proxy consistency metadata | Some blocked pages depend on locale/timezone/IP/WebRTC consistency. | Browser retrieval capability metadata | deferred |
@@ -208,6 +210,12 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-008` | integrated | high | Define browser materialization URL-safety contract. | Gateway/web-conduit + Tool CD | `CLOAK-TASK-002` | Scheme allowlist, DNS/IP safety, redirect revalidation, timeout budget, unsafe arg rejection. |
 | `CLOAK-TASK-009` | queued | medium | Add cross-adapter provider contract tests. | Web tooling tests | Browser Tool CD stub | Same capability semantics across direct fetch, browser materialization, and future service adapters. |
 | `CLOAK-TASK-010` | deferred | medium | Evaluate CDP service/browser pool pattern. | Future browser provider service | Basic browser materialization adapter | Useful for performance once the single-run provider is proven. |
+| `CLOAK-TASK-011` | integrated | high | Add retrieval decision lattice diagnostics. | Web tooling diagnostics | Level 2 blocker taxonomy | Distinguishes synthesize, direct fetch, browser materialization, alternate provider, agent query refinement, and low-evidence terminal states. |
+| `CLOAK-TASK-012` | integrated | high | Add query refinement signal payload. | Batch-query retry diagnostics | Candidate ranking and blocker taxonomy | Gives the agent preserve terms, candidate term hints, missing coverage buckets, blocker class, and strategy signals without hidden query generation. |
+| `CLOAK-TASK-013` | integrated | high | Add evidence promotion metadata. | Evidence pack | Candidate scoring and safety hints | Evidence rows now show promotion decision, safety state, scoring components, caveats, and raw-payload chat boundary. |
+| `CLOAK-TASK-014` | integrated | medium | Add provider normalization report. | Retrieval broker | Provider attempts | Broker now separates provider normalization status from evidence quality and synthesis readiness. |
+| `CLOAK-TASK-015` | integrated | high | Add retry stop-condition diagnostics. | Retrieval broker | Retrieval decision lattice | Broker now reports stop/continue state, observed budgets, quality state, and capability requirements without executing hidden retries. |
+| `CLOAK-TASK-016` | integrated | high | Add artifact quarantine diagnostics. | Retrieval broker and evidence pack | Evidence promotion metadata | Broker now reports raw artifact refs as quarantined and confirms raw payloads are not chat-visible. |
 
 ## Open Questions
 
@@ -273,3 +281,69 @@ Validation:
 Important boundary:
 
 This wave still stops before mechanics/syntax-level browser execution. Browser materialization remains default-off and optional; proxy, persistent sessions, humanized interaction, and service pooling remain separately gated future capabilities.
+
+## Assimilation Wave 3: Level 3 Decision Mechanics
+
+Status: integrated and narrowly tested.
+
+Implemented:
+
+- Added `retrieval_decision_lattice_v1` to web quality diagnostics.
+- Added candidate URL state classification so browser materialization only targets concrete candidate URLs, while provider-level anti-bot/JavaScript blockers without a candidate route to alternate-provider or browser-capable retrieval admission.
+- Added `query_refinement_signals_v1` under retry diagnostics, preserving agent authority over actual query text.
+- Separated retrieval failure classes from answer-shape guidance: weak single-source and comparison coverage gaps now suggest agent query refinement, not browser escalation.
+- Bumped web quality diagnostics to `web_tool_quality_v4` so stale cached diagnostics do not hide the new lattice fields.
+- Added mock-fast tests for anti-bot blocker recovery, JavaScript/rate/access blocker splitting, direct fetch, weak single-source refinement, degraded provider fallback, and ready-for-synthesis paths.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/batch_query_primitive_parts/016-web-quality-diagnostics.rs core/layer0/ops/src/batch_query_primitive_parts/043-web-quality-diagnostics-tests.rs`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -p infring-ops-core web_quality_diagnostics_tests -- --nocapture`
+
+Important boundary:
+
+This wave still does not add live browser execution, proxy/session behavior, hidden query generation, or domain-specific research prompts. It makes the existing tooling less black-box by exposing what the tool thinks the next retrieval class is and why.
+
+## Assimilation Wave 4: Evidence Promotion And Provider Normalization
+
+Status: integrated and narrowly tested.
+
+Implemented:
+
+- Added `evidence_promotion_v1` metadata to evidence pack rows.
+- Added source-safety hints for HTTP/HTTPS, credentialed URLs, internal-host locators, and raw-payload chat visibility.
+- Added promotion decisions: `promoted`, `promoted_with_caveats`, and `retained_low_confidence`.
+- Added `provider_normalization_v1` to the retrieval broker so provider attempts expose normalized status/phase/failure-class counts.
+- Added tests proving clean evidence is promoted, unsafe/internal candidate locators are caveated, and provider degradation survives normalization as a provider failure class.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/batch_query_primitive_parts/016-web-quality-diagnostics.rs core/layer0/ops/src/batch_query_primitive_parts/043-web-quality-diagnostics-tests.rs`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -p infring-ops-core web_quality_diagnostics_tests -- --nocapture`
+
+Important boundary:
+
+This wave improves evidence and provider observability. It does not add a browser executor, proxy behavior, persistent session behavior, or source-specific research prompting.
+
+## Assimilation Wave 5: Retry Stop Conditions And Artifact Quarantine
+
+Status: integrated and narrowly tested.
+
+Implemented:
+
+- Added `retry_stop_conditions_v1` to the retrieval broker diagnostics.
+- Added explicit stop states for ready synthesis, structured low evidence, exhausted query-refinement budget, and observe-only cases.
+- Added explicit continue states for alternate provider, direct fetch, browser materialization, and agent query refinement when those moves are still useful.
+- Added `artifact_quarantine_v1` to the retrieval broker diagnostics.
+- Counted raw artifact-like refs across provider results, evidence packs, and tool-result-quality metadata while keeping `raw_payload_chat_visible` false.
+- Projected evidence-promotion decisions through the quarantine report so promoted evidence can be audited without exposing raw bodies.
+- Added mock-fast assertions for alternate-provider continuation, synthesis stop state, artifact quarantine, and promotion projection.
+
+Validation:
+
+- `git diff --check -- core/layer0/ops/src/batch_query_primitive_parts/016-web-quality-diagnostics.rs core/layer0/ops/src/batch_query_primitive_parts/043-web-quality-diagnostics-tests.rs docs/workspace/CLOAKBROWSER_LEVEL3_MECHANICS_ALGORITHM_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `env TMPDIR=/Users/jay/.openclaw/workspace/target/tmp CARGO_INCREMENTAL=0 cargo test -p infring-ops-core web_quality_diagnostics_tests -- --nocapture`
+
+Important boundary:
+
+This wave still does not add live browser execution, hidden retry generation, proxy behavior, or a research-domain prompt. It exposes whether the broker should stop or continue and whether raw artifacts stayed quarantined.
