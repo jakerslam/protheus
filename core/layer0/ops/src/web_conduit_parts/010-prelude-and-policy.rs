@@ -416,6 +416,21 @@ fn default_policy() -> Value {
                         "fingerprint_probe_results_telemetry_only": true,
                         "stealth_patch_requires_separate_capability": true
                     },
+                    "stealth_unit_test_contract": {
+                        "version": "browser_stealth_unit_test_contract_v1",
+                        "source_pattern": "cloakbrowser_mock_fast_stealth_unit_tests",
+                        "mock_fast_tests_required": true,
+                        "isolated_world_lifecycle_tests_required": true,
+                        "isolated_world_retry_and_invalidation_tests_required": true,
+                        "selector_expression_escaping_tests_required": true,
+                        "shift_symbol_keymap_completeness_tests_required": true,
+                        "trusted_key_dispatch_tests_required": true,
+                        "page_evaluate_leak_tests_required_for_interaction_capability": true,
+                        "live_browser_tests_quarantined": true,
+                        "slow_external_site_tests_not_release_gate_by_default": true,
+                        "anti_bot_claims_not_inferred_from_unit_tests": true,
+                        "raw_detection_hooks_chat_visible": false
+                    },
                     "proxy_contract": {
                         "version": "browser_proxy_capability_contract_v1",
                         "source_pattern": "cloakbrowser_proxy_url_resolution",

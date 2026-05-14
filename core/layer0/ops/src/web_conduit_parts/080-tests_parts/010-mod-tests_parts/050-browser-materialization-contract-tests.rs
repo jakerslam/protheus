@@ -340,6 +340,35 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/stealth_unit_test_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_mock_fast_stealth_unit_tests")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/stealth_unit_test_contract/mock_fast_tests_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/stealth_unit_test_contract/selector_expression_escaping_tests_required",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer(
+                "/profile_compilation/stealth_unit_test_contract/slow_external_site_tests_not_release_gate_by_default",
+            )
+            .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/stealth_unit_test_contract/raw_detection_hooks_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/wrapper_lifecycle_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_python_wrapper_lifecycle")

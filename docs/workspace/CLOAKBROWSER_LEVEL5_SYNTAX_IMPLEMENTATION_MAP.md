@@ -113,7 +113,7 @@ Status values:
 | 28 | `js/src/human/mouse.ts` | integrated: mouse contract pass 028, deferred capability | Which movement primitives are out of scope for research retrieval? | Human interaction capability, deferred. |
 | 29 | `js/src/human/keyboard.ts` | integrated: keyboard contract pass 029, deferred capability | Which trusted-input primitives are out of scope for research retrieval? | Human interaction capability, deferred. |
 | 30 | `js/src/human/scroll.ts` | integrated: scroll/readiness contract pass 030, deferred capability | Which scroll/readiness ideas can be reduced to read-only page settling? | Read-only readiness diagnostics plus deferred interaction. |
-| 31 | `tests/test_stealth_unit.py` | mapped seed, deferred | Which isolated-world tests can become read-only extraction tests? | Browser extraction tests, later. |
+| 31 | `tests/test_stealth_unit.py` | integrated: stealth unit test contract pass 031, deferred behavior | Which isolated-world tests can become read-only extraction tests? | Mock-fast provider contract tests; behavior remains gated. |
 | 32 | `tests/test_humanize_unit.py` | pending, deferred | Which interaction tests should remain out of the first adapter? | Human interaction capability, deferred. |
 | 33 | `tests/test_persistent_context.py` | pending, deferred | Which session-retention invariants are required before persistent profiles? | Session capability, deferred. |
 | 34 | `examples/integrations/browser_use_example.py` | pending, reference only | Does integration style reveal useful adapter ergonomics? | Usually reject for core primitive. |

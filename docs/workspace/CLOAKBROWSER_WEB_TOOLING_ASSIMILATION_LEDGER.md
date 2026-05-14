@@ -160,7 +160,7 @@ all web research always uses stealth browser by default
 | `tests/test_proxy.py` | level 5 pass 022 integrated, deferred capability | Proxy parsing, credential separation, SOCKS/SOCKS5H adapter lane, encoding idempotence/redaction, malformed/nonstandard URL rejection, IPv6 preservation, and proxy/GeoIP capability boundaries. |
 | `tests/test_geoip.py` | level 5 pass 023 integrated, deferred capability | Proxy IP extraction telemetry, BCP47 country-locale map, explicit profile precedence, timeout/nonfatal GeoIP behavior, and private IP evidence quarantine. |
 | `tests/test_update.py` | level 5 pass 024 integrated, deferred capability | Version tuple ordering, rate-limited and disabled update checks, platform-matched release admission, checksum parsing/verification, nonfatal update failures, and install readiness revalidation. |
-| `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
+| `tests/test_stealth_unit.py` | level 5 pass 031 integrated, deferred behavior | Mock-fast isolated-world lifecycle, retry/invalidation, selector escaping, CDP key dispatch, no-evaluate-leak checks, slow browser quarantine, and anti-bot claim separation. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
 | `examples/integrations/aws_lambda/lambda_handler.py` | level 5 pass 001 integrated | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening, final URL revalidation, cleanup, and telemetry-only retry history. |
@@ -276,6 +276,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-055` | integrated | medium | Complete Level 5 pass 028 for human mouse. | Browser materialization human interaction capability contract | `CLOAK-TASK-054` | Added metadata for raw mouse interface denial, policy-owned Bezier path generation, bounded movement randomization, element-box click targeting, input click bias ownership, idle drift capability gating, and hidden raw coordinates. |
 | `CLOAK-TASK-056` | integrated | medium | Complete Level 5 pass 029 for human keyboard. | Browser materialization human interaction capability contract | `CLOAK-TASK-055` | Added metadata for raw keyboard interface denial, policy-owned typing cadence, bounded mistype simulation, policy-owned nearby-key maps, CDP-gated trusted shift-symbol dispatch, capability-only insertText fallback, telemetry-only synthetic events, and hidden raw typed text. |
 | `CLOAK-TASK-057` | integrated | medium | Complete Level 5 pass 030 for human scroll. | Browser materialization read-only readiness diagnostics plus human interaction capability contract | `CLOAK-TASK-056` | Added metadata for raw scroll interface denial, policy-owned human scroll motion, bounded wheel randomization, selector-scroll capability gating, policy-owned scroll target zones, hidden raw scroll coordinates, and read-only scroll-readiness diagnostics. |
+| `CLOAK-TASK-058` | integrated | medium | Complete Level 5 pass 031 for stealth unit tests. | Browser materialization mock-fast verification contract | `CLOAK-TASK-057` | Added metadata for mock-fast unit tests, isolated-world lifecycle/retry/invalidation, selector expression escaping, shift-symbol keymap completeness, trusted key dispatch tests, no-evaluate-leak interaction checks, slow browser quarantine, and anti-bot claim separation. |
 
 ## Open Questions
 
@@ -1151,3 +1152,24 @@ Validation:
 Important boundary:
 
 This wave still does not enable scrolling, selector-driven page movement, wheel events, interaction bypasses, CAPTCHAs, bot-wall solving, or live browser execution during ordinary research.
+
+## Assimilation Wave 40: Level 5 Stealth Unit Test Contract
+
+Status: integrated into browser materialization verification metadata; behavior remains deferred and capability-gated.
+
+Implemented:
+
+- Parsed `tests/test_stealth_unit.py` as the syntax-level source of mock-fast isolated-world lifecycle tests, retry/invalidation tests, selector escaping checks, CDP key dispatch checks, no-page-evaluate-leak checks, and slow real-browser quarantine.
+- Preserved the useful primitive: browser-provider behavior needs fast contract tests that do not require live external sites, while slow anti-bot/browser-surface checks stay quarantined and cannot justify stealth as a default research mode.
+- Added `stealth_unit_test_contract` metadata for mock-fast tests, isolated-world lifecycle/retry/invalidation coverage, selector-expression escaping, shift-symbol keymap completeness, trusted-key dispatch checks, no-evaluate-leak checks for admitted interaction capability, slow browser test quarantine, anti-bot claim separation, and hidden raw detection hooks.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable stealth patching, browser-surface spoofing, interaction bypasses, CAPTCHAs, bot-wall solving, slow external-site release gates, or live browser execution during ordinary research.
