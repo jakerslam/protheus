@@ -151,6 +151,7 @@ all web research always uses stealth browser by default
 | `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
 | `js/src/human/index.ts` | parsed | Method patching, isolated-world DOM reads, cursor state, trusted key dispatch support. |
 | `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
+| `tests/test_launch_context.py` | level 5 pass 018 integrated | Context option lane separation, policy-owned viewport/profile fields, locale/timezone CDP-emulation denial, storage-state capability boundary, and cleanup expectations. |
 | `tests/test_proxy.py` | parsed | Proxy parsing and GeoIP behavior tests. |
 | `tests/test_stealth_unit.py` | parsed | Isolated-world lifecycle and stealth interaction unit tests without live browser dependency. |
 | `bin/cloakserve` | level 5 pass 015 integrated | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting, debugger URL rewrite, and service admission boundary. |
@@ -255,6 +256,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-042` | integrated | medium | Complete Level 5 pass 015 for CDP service pool boundary. | Browser materialization service/pool capability contract | `CLOAK-TASK-041` | Added metadata for Gateway-admitted service mode, raw CDP denial, per-seed process isolation, seed validation, local port allocation, connection refcounting, data-dir-confined cleanup, profile override denial, and telemetry-only debugger URL handling. |
 | `CLOAK-TASK-043` | integrated | medium | Complete Level 5 pass 016 for CDP service pool tests. | Browser materialization service/pool capability contract | `CLOAK-TASK-042` | Added metadata for workflow denial of generic fingerprint query params, explicit repeated-query policy, policy-owned service CLI/data-dir/headless/debug flags, remote-debugging passthrough stripping, and Gateway-owned WebSocket scheme resolution. |
 | `CLOAK-TASK-044` | integrated | medium | Complete Level 5 pass 017 for basic launch tests. | Browser materialization launch execution contract | `CLOAK-TASK-043` | Added metadata for admitted-adapter launch requirements, close-after-capture, sync/async parity, page navigation not becoming evidence before packaging, binary-info telemetry, handle quarantine, and fingerprint probe telemetry-only boundaries. |
+| `CLOAK-TASK-045` | integrated | medium | Complete Level 5 pass 018 for launch context tests. | Browser materialization context option contract | `CLOAK-TASK-044` | Added metadata for policy-owned viewport/user-agent/color-scheme lanes, locale/timezone CDP-emulation denial, proxy-gated GeoIP fills, generic context kwarg denial from workflows, and storage-state session capability requirements. |
 
 ## Open Questions
 
@@ -851,3 +853,25 @@ Validation:
 Important boundary:
 
 This wave still does not enable live browser execution, stealth patching, proxy/session behavior, arbitrary launch args, or treating browser-surface probes as user-facing evidence.
+
+## Assimilation Wave 27: Level 5 Context Option Lane Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `tests/test_launch_context.py` as the syntax-level source of context option forwarding, default viewport behavior, locale/timezone lane separation, GeoIP fill behavior, sync/async close cleanup, and async cancellation cleanup.
+- Preserved the useful primitive: context setup is a strict lane-separation problem, where ordinary workflows cannot pass raw context kwargs, storage state, viewport, user agent, color scheme, locale, timezone, proxy, or GeoIP knobs.
+- Added context contract metadata for policy-owned default viewport, denial of caller viewport/user-agent/color-scheme controls, locale/timezone CDP-emulation denial, binary profile field ownership, proxy-gated GeoIP profile fills, generic workflow context kwarg denial, and storage-state session capability requirements.
+- Kept cleanup invariants aligned with prior wrapper lifecycle work: context creation failure and async cancellation must close the browser before any future live adapter is admitted.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable raw Playwright context option passthrough, persistent storage state, GeoIP/proxy behavior, or locale/timezone spoofing from user/workflow request fields.

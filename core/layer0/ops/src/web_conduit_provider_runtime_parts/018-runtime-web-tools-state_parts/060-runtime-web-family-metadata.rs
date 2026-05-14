@@ -321,6 +321,42 @@ fn browser_materialization_profile_compilation_contract(
             .get("context_close_closes_browser")
             .and_then(Value::as_bool)
             .unwrap_or(true),
+        "default_viewport_policy_owned": profile_contract
+            .get("default_viewport_policy_owned")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "caller_viewport_allowed": profile_contract
+            .get("caller_viewport_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "caller_user_agent_allowed": profile_contract
+            .get("caller_user_agent_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "caller_color_scheme_allowed": profile_contract
+            .get("caller_color_scheme_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "locale_timezone_cdp_emulation_allowed": profile_contract
+            .get("locale_timezone_cdp_emulation_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "locale_timezone_binary_profile_fields_policy_owned": profile_contract
+            .get("locale_timezone_binary_profile_fields_policy_owned")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "geoip_filled_profile_fields_require_proxy_capability": profile_contract
+            .get("geoip_filled_profile_fields_require_proxy_capability")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "generic_context_kwargs_allowed_from_workflow": profile_contract
+            .get("generic_context_kwargs_allowed_from_workflow")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "storage_state_requires_session_capability": profile_contract
+            .get("storage_state_requires_session_capability")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
         "persistent_context_allowed": profile_contract
             .get("persistent_context_allowed")
             .and_then(Value::as_bool)

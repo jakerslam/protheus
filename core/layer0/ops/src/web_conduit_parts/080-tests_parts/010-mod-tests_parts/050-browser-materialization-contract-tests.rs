@@ -72,6 +72,26 @@
             Some(true)
         );
         assert_eq!(
+            out.pointer("/context_contract/default_viewport_policy_owned")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/context_contract/locale_timezone_cdp_emulation_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/context_contract/generic_context_kwargs_allowed_from_workflow")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/context_contract/storage_state_requires_session_capability")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/context_contract/persistent_context_allowed")
                 .and_then(Value::as_bool),
             Some(false)
