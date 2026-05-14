@@ -346,6 +346,22 @@ fn default_policy() -> Value {
                     "storage_state_requires_session_capability": true,
                     "persistent_context_allowed": false,
                     "humanized_interaction_allowed": false,
+                    "human_interaction_contract": {
+                        "version": "browser_human_interaction_contract_v1",
+                        "source_pattern": "cloakbrowser_human_config_presets",
+                        "default_admitted": false,
+                        "separate_capability_required": true,
+                        "direct_request_human_fields_allowed": false,
+                        "presets_policy_owned": true,
+                        "allowed_presets": ["default", "careful"],
+                        "numeric_action_budget_schema_required": true,
+                        "per_call_overrides_require_capability": true,
+                        "config_merge_must_not_mutate_base": true,
+                        "randomization_budget_policy_owned": true,
+                        "typing_mouse_scroll_controls_not_user_request_fields": true,
+                        "idle_between_actions_default_off": true,
+                        "raw_behavior_parameters_chat_visible": false
+                    },
                     "launch_execution_contract": {
                         "version": "browser_launch_execution_contract_v1",
                         "source_pattern": "cloakbrowser_basic_launch_contract_tests",

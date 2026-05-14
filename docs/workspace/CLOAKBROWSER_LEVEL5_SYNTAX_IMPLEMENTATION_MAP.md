@@ -108,7 +108,7 @@ Status values:
 | 23 | `tests/test_geoip.py` | integrated: geo test contract pass 023, deferred capability | Which geo tests belong behind proxy admission? | Future geo/proxy capability tests. |
 | 24 | `tests/test_update.py` | integrated: update test contract pass 024, deferred capability | Which update tests inform provider dependency lifecycle? | Optional readiness/install tests. |
 | 25 | `tests/test_extract.py` | integrated: extraction test contract pass 025, deferred capability | Which archive hardening rules matter if provider install/extract exists? | Dependency extraction guard, deferred. |
-| 26 | `js/src/human/config.ts` | mapped seed, deferred | What action-budget schema would be needed later? | Human interaction capability, deferred. |
+| 26 | `js/src/human/config.ts` | integrated: human config contract pass 026, deferred capability | What action-budget schema would be needed later? | Human interaction capability, deferred. |
 | 27 | `js/src/human/index.ts` | mapped seed, deferred | Which isolated-world DOM-read pattern is useful for extraction without interaction? | Possible read-only DOM extraction, later. |
 | 28 | `js/src/human/mouse.ts` | pending, deferred | Which movement primitives are out of scope for research retrieval? | Human interaction capability, deferred. |
 | 29 | `js/src/human/keyboard.ts` | pending, deferred | Which trusted-input primitives are out of scope for research retrieval? | Human interaction capability, deferred. |

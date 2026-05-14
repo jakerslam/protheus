@@ -147,7 +147,7 @@ all web research always uses stealth browser by default
 | `js/src/puppeteer.ts` | level 5 pass 010 integrated | Cross-adapter launch parity, shared compiler/geo/proxy hooks, adapter-specific proxy auth patching, and humanize gate parity. |
 | `cloakbrowser/config.py` | level 5 pass 012 integrated | Python provider defaults, per-platform browser version map, ignored default args, default viewport, cache/download paths, version markers, and local binary override boundaries. |
 | `tests/test_cloakserve.py` | level 5 pass 016 integrated | Service query/CLI parsing, debugger URL rewrite, refcounting, seed validation, and data-dir cleanup containment invariants. |
-| `js/src/human/config.ts` | parsed | Centralized human interaction presets and action timing knobs. |
+| `js/src/human/config.ts` | level 5 pass 026 integrated, deferred capability | Human interaction preset schema, bounded numeric timing/randomization parameters, non-mutating config merges, per-call override boundary, and default-off idle behavior. |
 | `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
 | `js/src/human/index.ts` | parsed | Method patching, isolated-world DOM reads, cursor state, trusted key dispatch support. |
 | `tests/test_launch.py` | level 5 pass 017 integrated | Launch/close/page navigation contract, sync/async parity, binary-info telemetry, and probe-result quarantine. |
@@ -269,6 +269,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-050` | integrated | medium | Complete Level 5 pass 023 for GeoIP tests. | Browser materialization geo/proxy capability contract | `CLOAK-TASK-049` | Added metadata for literal proxy IP extraction as telemetry, invalid proxy GeoIP nonfatal behavior, BCP47 country-locale map requirements, fill-only-missing profile fields, exit-IP consistency even when profile fields are complete, timeout preservation, and private IP evidence quarantine. |
 | `CLOAK-TASK-051` | integrated | medium | Complete Level 5 pass 024 for update tests. | Browser materialization operator update/install contract | `CLOAK-TASK-050` | Added metadata for variable-length version tuple comparison, auto-update env disablement, draft/non-Chromium release filtering, no-platform-asset nonfatal unavailability, checksum manifest parsing and mismatch blocking, cached binary reuse, missing local override fail-closed behavior, and install revalidation before ready. |
 | `CLOAK-TASK-052` | integrated | medium | Complete Level 5 pass 025 for extraction tests. | Browser materialization operator archive extraction contract | `CLOAK-TASK-051` | Added metadata for tar.gz and zip parity, archive path traversal rejection, absolute symlink target skipping, single-root flattening only, macOS app bundle preservation, multiple top-level entry preservation, executable permission checks, and operator-only quarantine handling. |
+| `CLOAK-TASK-053` | integrated | medium | Complete Level 5 pass 026 for human config. | Browser materialization human interaction capability contract | `CLOAK-TASK-052` | Added metadata for default-off humanized interaction, policy-owned presets, bounded numeric action-budget schema, per-call override capability requirements, non-mutating config merges, randomization budget ownership, and hidden raw behavior parameters. |
 
 ## Open Questions
 
@@ -1037,3 +1038,24 @@ Validation:
 Important boundary:
 
 This wave still does not enable dependency installation, archive extraction from chat/workflow requests, arbitrary archive handling, quarantine mutation during ordinary research, or live browser execution.
+
+## Assimilation Wave 35: Level 5 Human Config Contract
+
+Status: integrated into future human interaction capability contract; capability remains deferred.
+
+Implemented:
+
+- Parsed `js/src/human/config.ts` as the syntax-level source of human interaction preset shape, numeric timing/randomization parameters, per-call overrides, non-mutating merges, and default-off idle behavior.
+- Preserved the useful primitive: if humanized interaction is ever admitted, it needs a bounded action-budget schema owned by policy, not raw caller-provided timing knobs in ordinary research.
+- Added `human_interaction_contract` metadata with default admission disabled, separate capability required, policy-owned presets, numeric action-budget requirement, per-call override capability boundary, non-mutating merge requirement, and hidden raw behavior parameters.
+
+Validation:
+
+- `cargo fmt --check`
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not enable humanized interaction, mouse movement, typing, scrolling, idle movement, CAPTCHAs, stealth claims, or any user-requested behavior-control fields in ordinary research.

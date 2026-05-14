@@ -355,6 +355,31 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_human_config_presets")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/default_admitted")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/numeric_action_budget_schema_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/config_merge_must_not_mutate_base")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/human_interaction_contract/raw_behavior_parameters_chat_visible")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/profile_compilation/default_config_contract/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_python_config_defaults")
