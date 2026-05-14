@@ -57,6 +57,26 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/context_contract/caller_context_options_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/context_contract/close_browser_on_context_creation_failure")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/context_contract/context_close_closes_browser")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
+            out.pointer("/context_contract/persistent_context_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
             out.pointer("/cleanup_status/status").and_then(Value::as_str),
             Some("not_started")
         );
@@ -137,6 +157,176 @@
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .contains("browser_args")
+        );
+    }
+
+    #[test]
+    fn browser_materialization_rejects_strategy_and_extra_args_from_callers() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for field in ["extra_args", "_strategy_args"] {
+            let out = api_browser_materialize_page(
+                tmp.path(),
+                &json!({
+                    "url": "https://example.com/research",
+                    "admission_ref": "test-browser-capability",
+                    field: ["--ignore-certificate-errors"]
+                }),
+            );
+
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+            assert_eq!(
+                out.get("error").and_then(Value::as_str),
+                Some("unsafe_caller_control_rejected")
+            );
+            assert_eq!(
+                out.get("browser_launch_attempted").and_then(Value::as_bool),
+                Some(false)
+            );
+            assert!(
+                out.get("reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .contains(field)
+            );
+        }
+    }
+
+    #[test]
+    fn browser_materialization_rejects_direct_playwright_profile_overrides() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for (field, value) in [
+            ("launchOptions", json!({"slowMo": 100})),
+            ("contextOptions", json!({"locale": "en-US"})),
+            ("viewport", json!({"width": 1024, "height": 768})),
+            ("userAgent", json!("custom-agent")),
+            ("timezoneId", json!("America/New_York")),
+            ("locale", json!("en-US")),
+            ("humanize", json!(true)),
+            ("geoip", json!(true)),
+        ] {
+            let mut request = json!({
+                "url": "https://example.com/research",
+                "admission_ref": "test-browser-capability"
+            });
+            request[field] = value;
+            let out = api_browser_materialize_page(tmp.path(), &request);
+
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+            assert_eq!(
+                out.get("error").and_then(Value::as_str),
+                Some("unsafe_caller_control_rejected")
+            );
+            assert!(
+                out.get("reason")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .contains(field)
+            );
+            assert_eq!(
+                out.get("browser_launch_attempted").and_then(Value::as_bool),
+                Some(false)
+            );
+        }
+    }
+
+    #[test]
+    fn browser_materialization_rejects_non_http_schemes_before_execution() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for url in [
+            "file:///etc/passwd",
+            "data:text/html,<h1>nope</h1>",
+            "javascript:alert(1)",
+            "chrome://settings",
+            "about:blank",
+            "ftp://example.com/file",
+            "http://",
+        ] {
+            let out = api_browser_materialize_page(
+                tmp.path(),
+                &json!({
+                    "url": url,
+                    "admission_ref": "test-browser-capability"
+                }),
+            );
+
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+            assert_eq!(
+                out.get("error").and_then(Value::as_str),
+                Some("url_safety_blocked")
+            );
+            assert_eq!(
+                out.get("tool_execution_attempted").and_then(Value::as_bool),
+                Some(false)
+            );
+            assert_eq!(
+                out.pointer("/url_safety/status").and_then(Value::as_str),
+                Some("invalid_url")
+            );
+        }
+    }
+
+    #[test]
+    fn browser_materialization_blocks_private_and_internal_targets() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        for url in [
+            "http://169.254.169.254/latest/meta-data/",
+            "http://127.0.0.1",
+            "http://localhost",
+            "http://10.0.0.1",
+            "http://172.16.0.1",
+            "http://192.168.1.1",
+            "http://0.0.0.0",
+            "http://[::1]",
+            "http://[::ffff:127.0.0.1]",
+            "http://100.64.0.1",
+        ] {
+            let out = api_browser_materialize_page(
+                tmp.path(),
+                &json!({
+                    "url": url,
+                    "admission_ref": "test-browser-capability"
+                }),
+            );
+
+            assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+            assert_eq!(
+                out.get("error").and_then(Value::as_str),
+                Some("url_safety_blocked")
+            );
+            assert_eq!(
+                out.pointer("/url_safety/status").and_then(Value::as_str),
+                Some("private_network_blocked")
+            );
+            assert_eq!(
+                out.get("tool_execution_attempted").and_then(Value::as_bool),
+                Some(false)
+            );
+        }
+    }
+
+    #[test]
+    fn browser_materialization_accepts_case_insensitive_http_scheme() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "HTTP://93.184.216.34/research",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(false));
+        assert_eq!(
+            out.get("error").and_then(Value::as_str),
+            Some("capability_not_enabled")
+        );
+        assert_eq!(
+            out.pointer("/url_safety/status").and_then(Value::as_str),
+            Some("allowed")
+        );
+        assert_eq!(
+            out.pointer("/url_safety/host").and_then(Value::as_str),
+            Some("93.184.216.34")
         );
     }
 

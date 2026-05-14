@@ -84,8 +84,8 @@ Status values:
 | Order | Source File | Level 5 Status | Primary Question | Likely Infring Target |
 | ---: | --- | --- | --- | --- |
 | 1 | `examples/integrations/aws_lambda/lambda_handler.py` | integrated: boundary contract pass 001 | What is the smallest safe one-shot navigate/wait/capture/close loop? | `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` plus future adapter part. |
-| 2 | `tests/test_lambda_security.py` | mapped seed, needs line pass | Which security invariants must be locked before live browser execution? | Browser materialization contract tests. |
-| 3 | `js/src/playwright.ts` | mapped seed, needs line pass | What launch/context cleanup and option filtering shape should the adapter mimic? | Future local browser adapter helper. |
+| 2 | `tests/test_lambda_security.py` | integrated: safety test pass 002 | Which security invariants must be locked before live browser execution? | Browser materialization contract tests. |
+| 3 | `js/src/playwright.ts` | integrated: context boundary pass 003 | What launch/context cleanup and option filtering shape should the adapter mimic? | Future local browser adapter helper. |
 | 4 | `js/src/types.ts` | pending | Which request/profile fields are real API surface versus convenience wrappers? | Tool CD/policy schema audit. |
 | 5 | `js/src/args.ts` | mapped seed, needs line pass | How should profile args be deduped and overridden without caller authority? | Profile compiler tests and denied-field projection. |
 | 6 | `js/src/config.ts` | pending | Which defaults are portable, and which are CloakBrowser-specific stealth baggage? | Provider readiness/config projection. |
@@ -204,6 +204,101 @@ safe input URL
 Validation: `cargo test -p infring-ops-core browser_materialization --lib` passed 6/6 targeted tests.
 
 The immediate next source file is `tests/test_lambda_security.py`, because it should tell us which of these safety invariants CloakBrowser considered non-negotiable and which edge cases need Infring contract tests.
+
+## File Pass 002: `tests/test_lambda_security.py`
+
+Status: `integrated: safety tests`
+
+Source lines inspected: 1-171
+
+This file is useful because it turns the Lambda handler pattern into concrete security invariants. It is not about Python or Lambda; it is about proving that browser materialization never becomes a wider attack surface than fetch.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 18-47 | Reject non-HTTP(S) schemes, missing hostnames, and accept HTTP(S) case-insensitively. | Browser materialization now has tests for non-HTTP scheme rejection and uppercase HTTP parsing. A shared URL guard bug was fixed so authority parsing matches case-insensitive scheme detection. | Integrated. |
+| 49-80 | Block metadata, loopback, localhost, private ranges, unspecified IPs, CGNAT, IPv6 loopback, and IPv4-mapped IPv6. | Browser materialization tests now cover the same restricted target classes before adapter execution. | Integrated. |
+| 82-112 | Ignore caller `extra_args`, keep internal strategy args private, and preserve only runtime-owned hardening flags. | Browser materialization now denies `extra_args` and `_strategy_args` at the request boundary; strategy args remain internal telemetry/retry concepts only. | Integrated. |
+| 114-130 | Treat post-navigation redirected targets as safety-critical. | Boundary already projects final URL revalidation as mandatory and not observed until adapter execution; tests assert this contract. | Integrated from pass 001, confirmed here. |
+| 131-171 | Validate final URL before content/result construction. | Boundary contract says capture happens only after final URL safety; live adapter must enforce this before creating raw artifacts. | Integrated as contract; live adapter still pending. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/031-fetch-transport-and-ssrf.rs` | Fixed case-insensitive HTTP(S) authority parsing so uppercase schemes do not corrupt host extraction. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` | Added `extra_args` and `_strategy_args` to denied caller controls. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added the same denied fields to default policy. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Added the same denied fields to runtime profile-compilation metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same denied fields to the Tool CD request contract. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/020-fetch-policy-and-provider-contract-tests.rs` | Added a shared SSRF guard test for uppercase HTTP scheme authority parsing. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Added tests for non-HTTP scheme rejection, internal/private targets, uppercase HTTP, and denied `extra_args` / `_strategy_args`. |
+
+### Pass 002 Outcome
+
+The browser materialization boundary now locks the same security invariants CloakBrowser considered non-negotiable, while keeping execution default-off:
+
+```text
+reject non-web schemes
+-> reject missing/unsafe host targets
+-> reject credentials and internal network destinations
+-> reject caller-controlled launch/strategy args
+-> require final URL revalidation before capture
+-> keep retry/strategy details telemetry-only
+```
+
+Validation: `cargo test -p infring-ops-core browser_materialization --lib` passed 10/10 targeted tests.
+
+The immediate next source file is `js/src/playwright.ts`, which should tell us how much launch/context cleanup and option filtering needs to become an adapter-helper contract before we build any live browser provider.
+
+## File Pass 003: `js/src/playwright.ts`
+
+Status: `integrated: context boundary`
+
+Source lines inspected: 1-235
+
+This file is the best CloakBrowser source for launch/context ownership. The useful pattern is that callers get a simple high-level API, while the adapter owns binary selection, launch args, context creation, context conflict handling, cleanup, and optional capability hooks. For Infring, that maps to a stricter rule: browser profile and context options are policy-owned until a future capability explicitly admits more.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 14-22 | Accept `timezoneId` as an alias but normalize to one profile field. | Future profile compiler may normalize aliases internally; user requests cannot pass direct timezone fields in the current materialization request. | Accept as policy compiler pattern, deny at current caller boundary. |
+| 24-45 | Strip `locale` and `timezoneId` from raw Playwright context options because they use detectable CDP emulation. | Add context-conflict metadata and deny caller `contextOptions`; adapter may normalize conflicts internally later. | Integrated. |
+| 60-79 | Adapter owns binary path, geo/proxy resolution, WebRTC args, compiled launch args, and ignored defaults. | Keep binary/proxy/geo/launch args out of request authority; represent them as profile/readiness metadata only. | Integrated as denied controls and profile contract. |
+| 81-90, 149-158, 216-225 | Human-like patching is opt-in at launch/context level. | Defer; humanized interaction is a separate future capability, not part of read-only materialization. | Deferred and explicitly denied at current boundary. |
+| 111-147 | `launchContext` creates browser first, closes browser if context creation fails, and patches `context.close()` to close the browser. | Add context/cleanup contract fields: close browser on context-creation failure and context close closes browser. | Integrated as boundary contract. |
+| 184-228 | Persistent context is a separate launch path with user data dir and session retention. | Defer; persistent sessions require retention, identity, TTL, and cleanup authority. | Deferred and explicitly denied at current boundary. |
+| 234-235 | Test-only arg compiler export. | Infring should prove profile compilation through tests, not expose raw compiler controls to workflow callers. | Accept as testing pattern. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` | Added a context contract projection and denied direct Playwright/profile override fields such as `contextOptions`, `launchOptions`, `headless`, `viewport`, `locale`, `timezoneId`, `humanize`, and `geoip`. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added the same denied request fields and profile lifecycle fields to default policy. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected context-conflict fields, caller-context-option denial, cleanup obligations, and deferred human/session behavior through runtime metadata. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added Tool CD profile-contract fields for context option denial, context conflict fields, cleanup obligations, and deferred persistent/human behavior. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Added tests proving context contract projection and rejection of direct Playwright/profile overrides. |
+
+### Pass 003 Outcome
+
+The boundary now treats the browser context as an adapter-owned resource:
+
+```text
+workflow/tool request
+-> no raw Playwright context or launch options
+-> no caller profile overrides
+-> profile/context conflicts are policy metadata
+-> adapter must close browser if context creation fails
+-> context close must close browser
+-> persistent session and humanized interaction remain separate future capabilities
+```
+
+Validation: `cargo test -p infring-ops-core browser_materialization --lib` passed 11/11 targeted tests.
+
+The next source file is `js/src/types.ts`, which should be used to audit the public API surface and decide which fields remain denied, deferred, or promoted into Tool CD request/profile schema.
 
 ## Second Slice: Launch/Profile Compiler
 

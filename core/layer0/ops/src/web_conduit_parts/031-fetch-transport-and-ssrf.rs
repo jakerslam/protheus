@@ -29,10 +29,14 @@ fn fetch_url_scheme(raw_url: &str) -> String {
 
 fn fetch_url_authority(raw_url: &str) -> String {
     let cleaned = clean_text(raw_url, 2200);
-    let without_scheme = cleaned
-        .strip_prefix("https://")
-        .or_else(|| cleaned.strip_prefix("http://"))
-        .unwrap_or(cleaned.as_str());
+    let lowered = cleaned.to_ascii_lowercase();
+    let without_scheme = if lowered.starts_with("https://") {
+        &cleaned[8..]
+    } else if lowered.starts_with("http://") {
+        &cleaned[7..]
+    } else {
+        cleaned.as_str()
+    };
     clean_text(
         without_scheme
             .split(['/', '?', '#'])

@@ -135,7 +135,7 @@ all web research always uses stealth browser by default
 | --- | --- | --- |
 | `README.md` | parsed | Product positioning, capability taxonomy, stealth/browser/anti-bot claims, integration vocabulary. |
 | `cloakbrowser/browser.py` | parsed | Python launch/context wrapper, backend selection, proxy resolution, geoip, cleanup-on-close, humanize hook. |
-| `js/src/playwright.ts` | parsed | TypeScript launch/context wrapper, context option filtering, geoip/WebRTC consistency, humanize patch points. |
+| `js/src/playwright.ts` | level 5 pass 003 integrated | TypeScript launch/context wrapper, context option filtering, geoip/WebRTC consistency, humanize patch points, context cleanup, and persistent-session split. |
 | `js/src/args.ts` | parsed | Deduped argument compiler with explicit override order. |
 | `js/src/config.ts` | parsed | Platform detection, binary cache path, version map, ignored default args, default stealth args. |
 | `js/src/proxy.ts` | parsed | Robust proxy URL parsing, SOCKS handling, credential normalization, pass-through fallback. |
@@ -149,7 +149,7 @@ all web research always uses stealth browser by default
 | `bin/cloakserve` | parsed | CDP multiplexer, per-seed browser process pool, safe data-dir deletion, port allocation, connection refcounting. |
 | `tests/test_cloakserve.py` | parsed | Query/CLI parsing, URL rewriting, connection tracking, remote-debugging flag stripping. |
 | `examples/integrations/aws_lambda/lambda_handler.py` | level 5 pass 001 integrated | Browser materialization endpoint, URL validation, smart DOM settle wait, retry strategy classification, launch hardening, final URL revalidation, cleanup, and telemetry-only retry history. |
-| `tests/test_lambda_security.py` | parsed | Scheme allowlist, SSRF/private IP rejection, redirect revalidation, caller argument filtering, hardening flags. |
+| `tests/test_lambda_security.py` | level 5 pass 002 integrated | Scheme allowlist, SSRF/private IP rejection, redirect revalidation, caller argument filtering, hardening flags, uppercase scheme parsing, CGNAT, and IPv4-mapped IPv6 safety. |
 | `tests/test_extract.py` | parsed | Dependency extraction hardening: archive traversal checks, symlink handling, flattening, executable permissions. |
 
 ## Source Inventory Snapshot
@@ -232,6 +232,8 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-026` | integrated | medium | Project materialized-page output and evidence handoff contracts. | web-conduit API + tests | `CLOAK-TASK-025` | Browser materialization responses now expose the page-output schema, evidence promotion requirements, and artifact quarantine state without creating raw payloads. |
 | `CLOAK-TASK-027` | integrated | high | Create Level 5 syntax implementation map. | Assimilation docs | Level 4 closure | Adds the file-by-file burn-down and first live-adapter slice plan so syntax assimilation can proceed one source file at a time. |
 | `CLOAK-TASK-028` | integrated | high | Complete Level 5 pass 001 for Lambda one-shot materialization syntax. | Browser materialization contract and tests | `CLOAK-TASK-027` | Added boundary diagnostics for pre-navigation URL safety, final URL safety, navigation/readiness strategy, cleanup status, and retry recommendations without enabling live browser execution. Next step is security-test pass 002. |
+| `CLOAK-TASK-029` | integrated | high | Complete Level 5 pass 002 for Lambda security tests. | Browser materialization contract and shared SSRF guard | `CLOAK-TASK-028` | Added mock-fast coverage for non-HTTP scheme rejection, private/internal targets, caller `extra_args` / `_strategy_args` denial, and case-insensitive HTTP authority parsing. |
+| `CLOAK-TASK-030` | integrated | high | Complete Level 5 pass 003 for Playwright context boundary. | Browser materialization profile/context contract | `CLOAK-TASK-029` | Added context lifecycle contract metadata, denied direct Playwright/profile override fields, and kept persistent sessions, humanized interaction, proxy, and geo behavior behind future explicit capabilities. |
 
 ## Open Questions
 

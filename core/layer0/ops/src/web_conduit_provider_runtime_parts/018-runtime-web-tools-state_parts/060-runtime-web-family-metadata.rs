@@ -186,6 +186,23 @@ fn browser_materialization_profile_compilation_contract(
         &[
             "browser_args",
             "launch_args",
+            "extra_args",
+            "_strategy_args",
+            "launchOptions",
+            "contextOptions",
+            "context_options",
+            "headless",
+            "viewport",
+            "userAgent",
+            "user_agent",
+            "timezone",
+            "timezoneId",
+            "locale",
+            "colorScheme",
+            "humanize",
+            "humanPreset",
+            "humanConfig",
+            "geoip",
             "cdp_command",
             "user_script",
             "proxy",
@@ -252,6 +269,38 @@ fn browser_materialization_profile_compilation_contract(
             .get("normalize_or_reject_context_conflicts")
             .and_then(Value::as_bool)
             .unwrap_or(true),
+        "context_options_allowed_from_caller": profile_contract
+            .get("context_options_allowed_from_caller")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "context_conflict_fields": profile_contract
+            .get("context_conflict_fields")
+            .cloned()
+            .unwrap_or_else(|| json!([
+                "locale",
+                "timezone",
+                "timezoneId",
+                "viewport",
+                "userAgent",
+                "user_agent",
+                "colorScheme"
+            ])),
+        "close_browser_on_context_creation_failure": profile_contract
+            .get("close_browser_on_context_creation_failure")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "context_close_closes_browser": profile_contract
+            .get("context_close_closes_browser")
+            .and_then(Value::as_bool)
+            .unwrap_or(true),
+        "persistent_context_allowed": profile_contract
+            .get("persistent_context_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "humanized_interaction_allowed": profile_contract
+            .get("humanized_interaction_allowed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
         "proxy_capability_required": profile_contract
             .get("proxy_capability_required")
             .and_then(Value::as_bool)

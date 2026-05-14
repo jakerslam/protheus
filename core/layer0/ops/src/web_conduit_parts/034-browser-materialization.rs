@@ -135,6 +135,33 @@ fn browser_materialization_cleanup_status_projection() -> Value {
     })
 }
 
+fn browser_materialization_context_contract_projection() -> Value {
+    json!({
+        "version": "browser_materialization_context_contract_v1",
+        "source_pattern": "cloakbrowser_playwright_context_boundary",
+        "context_created_by_adapter_only": true,
+        "caller_context_options_allowed": false,
+        "caller_launch_options_allowed": false,
+        "policy_profile_overrides_only": true,
+        "normalize_or_reject_context_conflicts": true,
+        "context_conflict_fields": [
+            "locale",
+            "timezone",
+            "timezoneId",
+            "viewport",
+            "userAgent",
+            "user_agent",
+            "colorScheme"
+        ],
+        "close_browser_on_context_creation_failure": true,
+        "context_close_closes_browser": true,
+        "persistent_context_allowed": false,
+        "humanized_interaction_allowed": false,
+        "proxy_or_geo_profile_allowed_without_separate_admission": false,
+        "raw_context_options_chat_visible": false
+    })
+}
+
 fn browser_materialization_retry_diagnostics_projection(error: &str) -> Value {
     let recommendation = match error {
         "adapter_not_ready" => "satisfy_adapter_readiness_before_retry",
@@ -262,6 +289,7 @@ fn browser_materialization_fail_closed(
         "final_url_safety": browser_materialization_final_url_safety_projection(),
         "navigation_contract": browser_materialization_navigation_contract_projection(config),
         "readiness_strategy": browser_materialization_readiness_strategy_projection(config),
+        "context_contract": browser_materialization_context_contract_projection(),
         "cleanup_status": browser_materialization_cleanup_status_projection(),
         "retry_diagnostics": browser_materialization_retry_diagnostics_projection(error),
         "url_safety": url_safety,
@@ -334,6 +362,23 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
         &[
             "browser_args",
             "launch_args",
+            "extra_args",
+            "_strategy_args",
+            "launchOptions",
+            "contextOptions",
+            "context_options",
+            "headless",
+            "viewport",
+            "userAgent",
+            "user_agent",
+            "timezone",
+            "timezoneId",
+            "locale",
+            "colorScheme",
+            "humanize",
+            "humanPreset",
+            "humanConfig",
+            "geoip",
             "cdp_command",
             "user_script",
             "proxy",

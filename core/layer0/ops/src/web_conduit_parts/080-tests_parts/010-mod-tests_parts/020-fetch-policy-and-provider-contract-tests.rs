@@ -171,6 +171,21 @@
     }
 
     #[test]
+    fn ssrf_guard_parses_case_insensitive_http_scheme_authority() {
+        let out = evaluate_fetch_ssrf_guard(
+            "HTTP://93.184.216.34/some/path",
+            false,
+            Some(&["93.184.216.34".parse().expect("ip")]),
+        );
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.get("url_safety_status").and_then(Value::as_str),
+            Some("allowed")
+        );
+        assert_eq!(out.get("host").and_then(Value::as_str), Some("93.184.216.34"));
+    }
+
+    #[test]
     fn fetch_early_validation_blocks_meta_conversational_input() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = api_fetch(tmp.path(), &json!({"url": "that was just a test"}));
