@@ -265,6 +265,11 @@ fn default_policy() -> Value {
                         "stealthArgs",
                         "extra_args",
                         "_strategy_args",
+                        "backend",
+                        "browser_backend",
+                        "browserBackend",
+                        "adapter",
+                        "adapter_kind",
                         "launchOptions",
                         "contextOptions",
                         "context_options",
@@ -353,6 +358,21 @@ fn default_policy() -> Value {
                         "raw_exit_ip_chat_visible": false,
                         "raw_geo_db_path_chat_visible": false,
                         "geo_resolution_failure_nonfatal": true
+                    },
+                    "adapter_parity_contract": {
+                        "version": "browser_adapter_parity_contract_v1",
+                        "source_pattern": "cloakbrowser_puppeteer_playwright_parity",
+                        "policy_selects_adapter": true,
+                        "direct_backend_selection_allowed": false,
+                        "cross_adapter_semantics_required": true,
+                        "same_argument_compiler_required": true,
+                        "same_proxy_contract_required": true,
+                        "same_geo_consistency_contract_required": true,
+                        "same_humanized_interaction_gate_required": true,
+                        "adapter_specific_launch_options_allowed_from_caller": false,
+                        "adapter_specific_options_chat_visible": false,
+                        "proxy_auth_page_patch_requires_proxy_capability": true,
+                        "raw_page_patch_details_chat_visible": false
                     },
                     "argument_compiler": {
                         "version": "browser_argument_compiler_contract_v1",

@@ -144,6 +144,21 @@
             Some(false)
         );
         assert_eq!(
+            out.pointer("/profile_compilation/adapter_parity_contract/source_pattern")
+                .and_then(Value::as_str),
+            Some("cloakbrowser_puppeteer_playwright_parity")
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/adapter_parity_contract/direct_backend_selection_allowed")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/profile_compilation/adapter_parity_contract/same_proxy_contract_required")
+                .and_then(Value::as_bool),
+            Some(true)
+        );
+        assert_eq!(
             out.pointer("/readiness_lifecycle/dependency_lifecycle/source_pattern")
                 .and_then(Value::as_str),
             Some("cloakbrowser_platform_version_cache_contract")
@@ -283,6 +298,9 @@
             ("contextOptions", json!({"locale": "en-US"})),
             ("args", json!(["--disable-web-security"])),
             ("stealthArgs", json!(false)),
+            ("backend", json!("puppeteer")),
+            ("browserBackend", json!("playwright")),
+            ("adapter_kind", json!("puppeteer")),
             ("viewport", json!({"width": 1024, "height": 768})),
             ("userAgent", json!("custom-agent")),
             ("timezoneId", json!("America/New_York")),

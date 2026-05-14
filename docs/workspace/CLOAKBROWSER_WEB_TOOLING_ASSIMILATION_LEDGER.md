@@ -142,6 +142,7 @@ all web research always uses stealth browser by default
 | `js/src/download.ts` | level 5 pass 007 integrated | Atomic download, checksum verification, extraction hardening, cleanup on failure, and rate-limited update checks. |
 | `js/src/proxy.ts` | level 5 pass 008 integrated | Proxy URL parsing, credential separation, SOCKS adapter arg lane, credential encoding, bypass ownership, and redaction requirements. |
 | `js/src/geoip.ts` | level 5 pass 009 integrated | Proxy exit IP resolution, timezone/locale inference, bounded timeout, optional dependency behavior, WebRTC IP consistency. |
+| `js/src/puppeteer.ts` | level 5 pass 010 integrated | Cross-adapter launch parity, shared compiler/geo/proxy hooks, adapter-specific proxy auth patching, and humanize gate parity. |
 | `js/src/human/config.ts` | parsed | Centralized human interaction presets and action timing knobs. |
 | `js/src/human/mouse.ts` | parsed | Bezier mouse movement, wobble, overshoot, burst pauses, click targeting, idle drift. |
 | `js/src/human/index.ts` | parsed | Method patching, isolated-world DOM reads, cursor state, trusted key dispatch support. |
@@ -242,6 +243,7 @@ This is a high-level pass, not a full repo burn-down.
 | `CLOAK-TASK-034` | integrated | medium | Complete Level 5 pass 007 for TypeScript binary download lifecycle. | Browser materialization install/update readiness contract | `CLOAK-TASK-033` | Added install/update hardening metadata for temp downloads, partial cleanup, checksum verification, archive traversal rejection, atomic update markers, and no background updates during ordinary research. |
 | `CLOAK-TASK-035` | integrated | medium | Complete Level 5 pass 008 for TypeScript proxy resolution. | Browser materialization proxy capability contract | `CLOAK-TASK-034` | Added future proxy capability metadata for credential separation, Gateway secret ownership, SOCKS adapter arg lanes, internal credential encoding, bypass policy ownership, and raw proxy redaction. |
 | `CLOAK-TASK-036` | integrated | medium | Complete Level 5 pass 009 for TypeScript GeoIP consistency. | Browser materialization geo/proxy consistency contract | `CLOAK-TASK-035` | Added future geo consistency metadata for timeout-bounded exit-IP lookup, policy-owned GeoIP cache lifecycle, no surprise GeoIP downloads, explicit profile precedence, unresolved WebRTC auto-IP removal, and raw exit-IP redaction. |
+| `CLOAK-TASK-037` | integrated | medium | Complete Level 5 pass 010 for TypeScript Puppeteer adapter parity. | Browser materialization cross-adapter contract | `CLOAK-TASK-036` | Added adapter parity metadata, denied direct backend/adapter selection fields, and required shared compiler/proxy/geo/human gates across future adapter families. |
 
 ## Open Questions
 
@@ -657,3 +659,25 @@ Validation:
 Important boundary:
 
 This wave still does not admit geo spoofing, proxy behavior, WebRTC spoofing, or any live browser execution. It only records the contract a future explicit geo/proxy capability must satisfy.
+
+## Assimilation Wave 19: Level 5 Adapter Parity Contract
+
+Status: integrated and focused-tested.
+
+Implemented:
+
+- Parsed `js/src/puppeteer.ts` as the syntax-level source of CloakBrowser's Puppeteer launch path and cross-adapter behavior.
+- Preserved the useful primitive: multiple browser adapters must share one semantic contract for binary readiness, argument compilation, proxy handling, geo/WebRTC consistency, and humanized interaction gating.
+- Rejected direct backend/adapter selection fields before adapter launch so callers cannot choose a lower-integrity path.
+- Kept adapter-specific proxy authentication/page patch mechanics out of chat-visible output.
+- Added mock-fast assertions that browser materialization exposes adapter parity metadata and rejects direct backend/adapter fields.
+
+Validation:
+
+- `jq empty core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json`
+- `git diff --check -- core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs docs/workspace/CLOAKBROWSER_LEVEL5_SYNTAX_IMPLEMENTATION_MAP.md docs/workspace/CLOAKBROWSER_WEB_TOOLING_ASSIMILATION_LEDGER.md`
+- `cargo test -p infring-ops-core browser_materialization --lib`
+
+Important boundary:
+
+This wave still does not add Puppeteer, Playwright, or any live browser backend. It only records the parity contract that future explicit adapters must satisfy.

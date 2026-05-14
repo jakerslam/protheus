@@ -92,7 +92,7 @@ Status values:
 | 7 | `js/src/download.ts` | integrated: installer hardening pass 007 | What dependency lifecycle patterns are useful without surprise installs? | Optional readiness/install plan, deferred. |
 | 8 | `js/src/proxy.ts` | integrated: proxy capability pass 008 | Which parsing/redaction rules are worth keeping if proxy capability is admitted later? | Gateway secret/proxy capability, deferred. |
 | 9 | `js/src/geoip.ts` | integrated: geo consistency pass 009 | Which geo consistency fields belong in telemetry versus request authority? | Proxy/geo capability contract, deferred. |
-| 10 | `js/src/puppeteer.ts` | pending | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
+| 10 | `js/src/puppeteer.ts` | integrated: adapter parity pass 010 | What adapter parity constraints matter if multiple browser runtimes are admitted? | Cross-adapter contract tests. |
 | 11 | `cloakbrowser/browser.py` | mapped seed, needs line pass | What Python wrapper semantics confirm the JS adapter pattern? | Cross-runtime parity notes, not direct Rust code. |
 | 12 | `cloakbrowser/config.py` | pending | Which config defaults map to policy and which should be rejected? | Policy/default profile compiler. |
 | 13 | `cloakbrowser/download.py` | pending | What cache/version/checksum lifecycle is useful for optional providers? | Dependency readiness lifecycle, deferred. |
@@ -560,6 +560,48 @@ separate geo/proxy capability
 -> explicit profile fields override inferred fields
 -> unresolved WebRTC auto IP is removed before adapter
 -> raw exit IP and DB paths never become chat-visible
+```
+
+Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
+
+## File Pass 010: `js/src/puppeteer.ts`
+
+Status: `integrated: adapter parity contract`
+
+Source lines inspected: 1-102
+
+This file is useful because it shows that Playwright and Puppeteer paths should not become separate behavioral surfaces. CloakBrowser reuses the same binary readiness, argument compiler, proxy parser, GeoIP/WebRTC consistency, and humanized interaction hooks while adapting only the runtime-specific details. For Infring, the transferable pattern is cross-adapter semantic parity: adapter choice is policy-owned, direct backend selection is rejected, and adapter-specific patches cannot leak into chat-visible output.
+
+### Extracted Syntax Patterns
+
+| Source Lines | Pattern | Infring Mapping | Decision |
+| --- | --- | --- | --- |
+| 25-38 | Puppeteer path reuses binary readiness, GeoIP resolution, WebRTC arg resolution, and the shared argument compiler. | All admitted browser adapters must satisfy the same readiness/profile/compiler contracts. | Integrated as adapter parity contract. |
+| 40-65 | Puppeteer proxy behavior is adapter-specific: CLI args for proxy server, page authentication for HTTP credentials, direct SOCKS URL for SOCKS auth. | Proxy semantics must remain behind the same proxy capability even when adapter mechanics differ. | Integrated. |
+| 67-72 | Adapter launch receives compiled args and ignored defaults, plus raw `launchOptions` in CloakBrowser. | Infring keeps raw adapter launch options denied from callers; policy selects adapter config. | Integrated. |
+| 74-84 | `newPage` is monkey-patched for proxy authentication. | Any page patching requires admitted capability and must not surface raw patch details to chat. | Integrated. |
+| 86-99 | Humanized interaction patch is shared across adapter families. | Humanized interaction remains a separately admitted capability and must be gated consistently across adapters. | Integrated. |
+
+### Concrete Integration Completed
+
+| Target | Change |
+| --- | --- |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/010-prelude-and-policy.rs` | Added `adapter_parity_contract` metadata and denied direct adapter/backend request fields. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_provider_runtime_parts/018-runtime-web-tools-state_parts/060-runtime-web-family-metadata.rs` | Projected adapter parity metadata through runtime profile-compilation diagnostics. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/034-browser-materialization.rs` | Added backend/adapter aliases to the fail-closed caller-control rejection list. |
+| `/Users/jay/.openclaw/workspace/core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json` | Added the same adapter parity contract to the Tool CD. |
+| `/Users/jay/.openclaw/workspace/core/layer0/ops/src/web_conduit_parts/080-tests_parts/010-mod-tests_parts/050-browser-materialization-contract-tests.rs` | Asserted adapter parity metadata and direct backend/adapter field rejection. |
+
+### Pass 010 Outcome
+
+Adapter parity now has a precise contract without enabling a second browser backend:
+
+```text
+policy selects adapter
+-> direct backend/adapter fields rejected
+-> same compiler/proxy/geo/human gates required across adapters
+-> adapter-specific launch options denied from callers
+-> proxy/page patch details stay telemetry-only
 ```
 
 Validation target: `cargo test -p infring-ops-core browser_materialization --lib`.
