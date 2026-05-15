@@ -321,6 +321,8 @@ impl AgentContract {
         let mut all_receipts = Vec::<NativeToolReceipt>::new();
         let mut last_response = None;
         let mut provider_call_count = 0u64;
+        let empty_tool_retry_limit = native_tool_empty_retry_limit(&self.metadata);
+        let mut empty_tool_retry_count = 0u64;
 
         for turn_idx in 0..max_turns {
             provider_call_count += 1;
@@ -334,6 +336,16 @@ impl AgentContract {
             let response = provider.complete(&request)?;
             let calls = parse_native_tool_calls(&response.output);
             if calls.is_empty() {
+                if all_receipts.is_empty() && empty_tool_retry_count < empty_tool_retry_limit {
+                    empty_tool_retry_count += 1;
+                    prompt = native_tool_empty_retry_prompt(
+                        &self.initial_prompt,
+                        &response.output,
+                        empty_tool_retry_count,
+                    );
+                    last_response = Some(response);
+                    continue;
+                }
                 last_response = Some(response);
                 break;
             }
@@ -366,11 +378,42 @@ impl AgentContract {
                 "enabled": true,
                 "provider_call_count": provider_call_count,
                 "tool_call_count": all_receipts.len(),
+                "empty_tool_retry_count": empty_tool_retry_count,
                 "tool_receipts": all_receipts.clone(),
             }
         });
         Ok((response, all_receipts, provider_call_count))
     }
+}
+
+fn native_tool_empty_retry_limit(metadata: &Value) -> u64 {
+    let criteria = metadata
+        .get("native_success_criteria")
+        .or_else(|| metadata.pointer("/workflow/native_success_criteria"));
+    let default = criteria
+        .and_then(|value| value.get("requires_native_tool_use"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false) as u64;
+    criteria
+        .and_then(|value| value.get("empty_tool_retry_limit"))
+        .and_then(Value::as_u64)
+        .unwrap_or(default)
+        .clamp(0, 3)
+}
+
+fn native_tool_empty_retry_prompt(original_prompt: &str, previous_output: &str, retry: u64) -> String {
+    let previous = previous_output.trim();
+    let previous = if previous.is_empty() {
+        "The previous response was empty.".to_string()
+    } else {
+        format!(
+            "Previous response without native tool calls:\n{}",
+            previous.chars().take(1200).collect::<String>()
+        )
+    };
+    format!(
+        "{original_prompt}\n\nNative tool retry {retry}: this coding run requires native file-tool receipts before it can complete. {previous}\n\nReturn only JSON with a tool_calls array now. Start by reading the relevant local project files with file_read or file_read_many. Do not provide a final answer until native tool observations confirm the required file reads/writes/patches."
+    )
 }
 
 fn sanitize_token(raw: &str, max_len: usize) -> String {

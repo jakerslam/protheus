@@ -430,6 +430,33 @@ pub fn run_runtime_lane_with_registry(
             return Err(RuntimeLaneError::Provider(error));
         }
     };
+    if let Some((error_code, details)) =
+        native_success_contract_violation(&metadata, &run.receipt, &run.response.output)
+    {
+        if let Some(plan) = &contract.schedule {
+            let pack_id = contract
+                .capability_packs
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "runtime".to_string());
+            runtime_lane_state_mark_schedule_failure(
+                &mut durable_state,
+                contract.name.as_str(),
+                pack_id.as_str(),
+                plan,
+                error_code.as_str(),
+            );
+        }
+        return Ok(runtime_lane_fail_closed_with_state(
+            error_code.as_str(),
+            details,
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
     let persisted_previous_root = durable_state
         .merkle_roots
         .get(contract.name.as_str())
@@ -571,6 +598,134 @@ fn file_tool_permission(tool: &str) -> Option<&'static str> {
             Some("file.patch")
         }
         _ => None,
+    }
+}
+
+fn native_success_contract_violation(
+    metadata: &Value,
+    run_receipt: &Value,
+    output: &str,
+) -> Option<(String, Value)> {
+    let criteria = metadata.get("native_success_criteria")?;
+    if !criteria.is_object() {
+        return None;
+    }
+    let requires_native_tool_use = criteria
+        .get("requires_native_tool_use")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let requires_successful_mutation_receipt = criteria
+        .get("requires_successful_mutation_receipt")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let min_successful_tool_receipts = criteria
+        .get("min_successful_tool_receipts")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let successful_mutation_tools = criteria
+        .get("successful_mutation_tools")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(normalize_native_tool_name)
+                .collect::<Vec<_>>()
+        })
+        .filter(|items| !items.is_empty())
+        .unwrap_or_else(|| vec!["file_write".to_string(), "file_patch".to_string()]);
+
+    let receipts = run_receipt
+        .get("native_tool_receipts")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let receipt_count = run_receipt
+        .get("native_tool_call_count")
+        .and_then(Value::as_u64)
+        .unwrap_or(receipts.len() as u64);
+    let successful_tool_receipt_count = receipts
+        .iter()
+        .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
+        .count() as u64;
+    let successful_mutation_receipt_count = receipts
+        .iter()
+        .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
+        .filter(|receipt| {
+            receipt
+                .get("tool_name")
+                .and_then(Value::as_str)
+                .map(normalize_native_tool_name)
+                .map(|tool| successful_mutation_tools.iter().any(|allowed| allowed == &tool))
+                .unwrap_or(false)
+        })
+        .count() as u64;
+
+    let details = || {
+        json!({
+            "criteria": criteria,
+            "native_tool_call_count": receipt_count,
+            "successful_tool_receipt_count": successful_tool_receipt_count,
+            "successful_mutation_receipt_count": successful_mutation_receipt_count,
+            "native_tool_receipt_summary": native_tool_receipt_summary(&receipts),
+            "agent_output_preview": output.chars().take(1200).collect::<String>(),
+            "workflow": metadata.get("workflow").cloned().unwrap_or(Value::Null),
+            "enforcement_mode": "strict_fail_closed",
+        })
+    };
+
+    if requires_native_tool_use && receipt_count == 0 {
+        return Some((
+            "runtime_lane_required_native_tool_use_missing".to_string(),
+            details(),
+        ));
+    }
+    if min_successful_tool_receipts > 0 && successful_tool_receipt_count < min_successful_tool_receipts
+    {
+        return Some((
+            "runtime_lane_required_native_tool_receipt_missing".to_string(),
+            details(),
+        ));
+    }
+    if requires_successful_mutation_receipt && successful_mutation_receipt_count == 0 {
+        return Some((
+            "runtime_lane_required_native_mutation_receipt_missing".to_string(),
+            details(),
+        ));
+    }
+    None
+}
+
+fn native_tool_receipt_summary(receipts: &[Value]) -> Vec<Value> {
+    receipts
+        .iter()
+        .map(|receipt| {
+            json!({
+                "call_id": receipt.get("call_id").and_then(Value::as_str).unwrap_or(""),
+                "tool_name": receipt.get("tool_name").and_then(Value::as_str).unwrap_or(""),
+                "status": receipt.get("status").and_then(Value::as_str).unwrap_or(""),
+                "error": receipt.get("error").cloned().unwrap_or(Value::Null),
+                "path": receipt
+                    .get("result")
+                    .and_then(|result| result.get("path"))
+                    .cloned()
+                    .unwrap_or(Value::Null),
+            })
+        })
+        .collect()
+}
+
+fn normalize_native_tool_name(raw: &str) -> String {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "write_file" | "workspace.write" | "workspace_write" => "file_write".to_string(),
+        "patch_file" | "apply_patch" | "workspace.patch" | "workspace_patch" => {
+            "file_patch".to_string()
+        }
+        "read_file" | "workspace.read" | "workspace_read" => "file_read".to_string(),
+        "read_many_files" | "workspace.read_many" | "workspace_read_many" => {
+            "file_read_many".to_string()
+        }
+        other => other.to_string(),
     }
 }
 

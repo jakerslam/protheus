@@ -56,7 +56,7 @@ fn print_usage() {
         "  cargo run -p xtask -- infring-new --template=single-agent|swarm|rag|voice --name=<project-name> [--out=<dir>] [--force=1|0]"
     );
     println!(
-        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text|@file> [--workflow=<workflow_id>] [--preamble=<text|@file>] [--provider=local-echo|ollama] [--model=kimi-k2.6:cloud] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--permissions-template=parent|admin|user] [--parent-permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
+        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text|@file> [--workflow=<workflow_id>] [--preamble=<text|@file>] [--provider=local-echo|ollama] [--model=kimi-k2.6:cloud] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--permissions-template=parent|admin|user] [--parent-permissions=<json|@file>] [--success-criteria=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
     );
 }
 
@@ -386,6 +386,27 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         None
     };
     let previous_receipt_root = flags.get("prev-receipt-root").cloned();
+    let success_criteria_override = parse_json_flag(flags.get("success-criteria"))?;
+
+    let mut metadata = json!({
+        "source": "xtask.infring-agent-run",
+        "workflow": workflow_context
+            .as_ref()
+            .map(|row| row.1.clone())
+            .unwrap_or(Value::Null),
+        "parent_permissions_manifest": parent_permissions_manifest
+    });
+    let native_success_criteria = success_criteria_override.or_else(|| {
+        workflow_context
+            .as_ref()
+            .and_then(|row| row.1.get("native_success_criteria").cloned())
+            .filter(|value| !value.is_null())
+    });
+    if let Some(criteria) = native_success_criteria {
+        if let Some(object) = metadata.as_object_mut() {
+            object.insert("native_success_criteria".to_string(), criteria);
+        }
+    }
 
     let response = run_runtime_lane(RuntimeLaneRequest {
         name,
@@ -396,14 +417,7 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         tools,
         capability_packs: packs,
         lifespan_seconds: Some(lifespan_seconds),
-        metadata: json!({
-            "source": "xtask.infring-agent-run",
-            "workflow": workflow_context
-                .as_ref()
-                .map(|row| row.1.clone())
-                .unwrap_or(Value::Null),
-            "parent_permissions_manifest": parent_permissions_manifest
-        }),
+        metadata,
         permissions_manifest,
         wasm_sandbox,
         voice_session,
@@ -585,13 +599,20 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .unwrap_or("");
+    let native_success_criteria = workflow_spec
+        .get("native_execution_success_contract")
+        .and_then(|contract| contract.get("native_success_criteria"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    let success_summary = compact_success_criteria_summary(&native_success_criteria);
     let preamble = format!(
-        "Selected Infring workflow: {workflow_id}\nWorkflow source: {source_path}\nWorkflow description: {description}\nWorkflow stages: {stages}\nChild workflow calls: {}\nNative capability packs: {}\nNative permission template: {}\nUse this workflow contract for execution. Return a completed result when possible, or a structured blocker with the missing input, failed gate, and next safe action.",
+        "Native Infring execution brief v2\nWorkflow: {workflow_id}\nSource: {source_path}\nPurpose: {description}\nStages: {stages}\nChild workflow calls: {}\nNative capability packs: {}\nNative permission template: {}\nSuccess evidence contract: {success_summary}\nExecution rule: follow the workflow, but keep the run concrete. For local coding mutation tasks, use native file tools for reads and writes, and return a structured blocker instead of a completion if receipt-backed evidence cannot be produced.",
         children.join(", "),
         native_capability_packs.join(", "),
         native_permission_template
     );
     let metadata = json!({
+        "native_execution_brief_version": "native_execution_brief_v2",
         "workflow_id": workflow_id,
         "source_path": source_path,
         "runtime_selectable": workflow_entry
@@ -609,8 +630,41 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         "child_workflow_calls": children,
         "native_capability_packs": native_capability_packs,
         "native_permission_template": native_permission_template,
+        "native_success_criteria": native_success_criteria,
     });
     Ok(Some((preamble, metadata)))
+}
+
+fn compact_success_criteria_summary(criteria: &Value) -> String {
+    if !criteria.is_object() {
+        return "none declared".to_string();
+    }
+    let mut parts = Vec::<String>::new();
+    if criteria
+        .get("requires_native_tool_use")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("requires native tool use".to_string());
+    }
+    if criteria
+        .get("requires_successful_mutation_receipt")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("requires successful file_write/file_patch receipt".to_string());
+    }
+    if let Some(limit) = criteria
+        .get("empty_tool_retry_limit")
+        .and_then(Value::as_u64)
+    {
+        parts.push(format!("empty-tool retry limit {limit}"));
+    }
+    if parts.is_empty() {
+        "declared but non-restrictive".to_string()
+    } else {
+        parts.join("; ")
+    }
 }
 
 fn read_json_file(path: &Path) -> Result<Value> {

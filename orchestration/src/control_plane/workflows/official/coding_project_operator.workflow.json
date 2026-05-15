@@ -83,6 +83,30 @@
       "do_not_allow_unreceipted_file_mutation"
     ]
   },
+  "native_execution_success_contract": {
+    "version": "native_execution_success_contract_v1",
+    "purpose": "Prevent native coding runs from reporting empty or unreceipted success.",
+    "applies_to_request_classes": [
+      "mutation",
+      "task_proposal"
+    ],
+    "native_success_criteria": {
+      "requires_native_tool_use": true,
+      "requires_successful_mutation_receipt": true,
+      "successful_mutation_tools": [
+        "file_write",
+        "file_patch"
+      ],
+      "min_successful_tool_receipts": 1,
+      "empty_tool_retry_limit": 1,
+      "failure_mode": "structured_failure_with_receipt_summary"
+    },
+    "non_goals": [
+      "do_not_count_process_exit_zero_as_software_success",
+      "do_not_count_original_tests_passing_without_mutation_as_success",
+      "do_not_expose_raw_file_contents_in_failure_summaries"
+    ]
+  },
   "default": false,
   "description": "Official runtime-selectable coding category wrapper. It routes local software implementation, refactor, repair, and project-operator requests into the master local coding workflow while keeping the lab workflow itself non-runtime-selectable.",
   "stages": [
