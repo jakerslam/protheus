@@ -605,8 +605,18 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         .cloned()
         .unwrap_or(Value::Null);
     let success_summary = compact_success_criteria_summary(&native_success_criteria);
+    let public_reasoning_contract = workflow_spec
+        .get("public_reasoning_trace_contract")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let reasoning_summary = compact_public_reasoning_summary(&public_reasoning_contract);
+    let persistence_safety_contract = workflow_spec
+        .get("coding_persistence_safety_contract")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let persistence_summary = compact_persistence_safety_summary(&persistence_safety_contract);
     let preamble = format!(
-        "Native Infring execution brief v2\nWorkflow: {workflow_id}\nSource: {source_path}\nPurpose: {description}\nStages: {stages}\nChild workflow calls: {}\nNative capability packs: {}\nNative permission template: {}\nSuccess evidence contract: {success_summary}\nExecution rule: follow the workflow, but keep the run concrete. For local coding mutation tasks, use native file tools for reads and writes, and return a structured blocker instead of a completion if receipt-backed evidence cannot be produced.",
+        "Native Infring execution brief v2\nWorkflow: {workflow_id}\nSource: {source_path}\nPurpose: {description}\nStages: {stages}\nChild workflow calls: {}\nNative capability packs: {}\nNative permission template: {}\nSuccess evidence contract: {success_summary}\nPublic reasoning trace contract: {reasoning_summary}\nPersistence safety contract: {persistence_summary}\nExecution rule: follow the workflow, but keep the run concrete. For local coding mutation tasks, use native file tools for reads and writes, emit a public reasoning trace/rollup when requested, and return a structured blocker instead of a completion if receipt-backed evidence cannot be produced.",
         children.join(", "),
         native_capability_packs.join(", "),
         native_permission_template
@@ -631,6 +641,8 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         "native_capability_packs": native_capability_packs,
         "native_permission_template": native_permission_template,
         "native_success_criteria": native_success_criteria,
+        "public_reasoning_trace_contract": public_reasoning_contract,
+        "coding_persistence_safety_contract": persistence_safety_contract,
     });
     Ok(Some((preamble, metadata)))
 }
@@ -684,6 +696,61 @@ fn compact_success_criteria_summary(criteria: &Value) -> String {
     } else {
         parts.join("; ")
     }
+}
+
+fn compact_public_reasoning_summary(contract: &Value) -> String {
+    if !contract.is_object() {
+        return "none declared".to_string();
+    }
+    let role = contract
+        .get("workflow_role")
+        .and_then(Value::as_str)
+        .unwrap_or("unspecified_role");
+    let emits = contract
+        .get("emits")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(",")
+        })
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "public_reasoning_trace_v1".to_string());
+    let visibility = contract
+        .get("parent_visibility")
+        .or_else(|| contract.pointer("/presentation_policy/default_visible_mode"))
+        .and_then(Value::as_str)
+        .unwrap_or("rollup_plus_refs");
+    let redaction = contract
+        .get("redaction_policy")
+        .and_then(Value::as_str)
+        .unwrap_or("no_hidden_chain_of_thought");
+    format!("role={role}; emits={emits}; visibility={visibility}; redaction={redaction}")
+}
+
+fn compact_persistence_safety_summary(contract: &Value) -> String {
+    if !contract.is_object() {
+        return "none declared".to_string();
+    }
+    let requirements = contract
+        .get("requirements")
+        .or_else(|| contract.get("implementation_guidance"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .take(4)
+                .collect::<Vec<_>>()
+                .join("; ")
+        })
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| {
+            "load helpers must treat missing and empty persistence files as empty state".to_string()
+        });
+    format!("file-backed persistence safety: {requirements}")
 }
 
 fn read_json_file(path: &Path) -> Result<Value> {

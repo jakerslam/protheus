@@ -14,7 +14,15 @@
         "structured_failure",
         "delegated_workflow_result"
       ],
-      "parent_receives": "terminal_artifact_only_refs_for_internals"
+      "parent_receives": "terminal_artifact_only_refs_for_internals",
+      "sidecar_artifact_contract": {
+        "artifact_schema": "public_reasoning_trace_bundle_v1",
+        "allowed_schemas": [
+          "public_reasoning_trace_v1",
+          "public_reasoning_rollup_v1"
+        ],
+        "parent_receives": "public_reasoning_rollup_plus_refs_not_raw_private_notes"
+      }
     },
     "child_workflow_calls": [
       {
@@ -50,6 +58,40 @@
     "verification_closure"
   ],
   "final_response_policy": "control_plane_packaged_response",
+  "public_reasoning_trace_contract": {
+    "version": "public_reasoning_trace_contract_v1",
+    "protocol_ref": "orchestration/src/control_plane/workflows/public_reasoning_trace_protocol.json",
+    "workflow_role": "top_level_renderer",
+    "emits": [
+      "public_reasoning_trace_v1",
+      "public_reasoning_rollup_v1"
+    ],
+    "accepts_child_trace_refs": true,
+    "child_trace_policy": {
+      "preserve_direct_child_refs": true,
+      "summarize_direct_children_only": true,
+      "missing_child_trace_refs": "record_explicit_missing_trace_ref"
+    },
+    "presentation_policy": {
+      "chat_renderer_owner": "top_level_workflow",
+      "default_visible_mode": "brief_rollup",
+      "expanded_visible_mode": "trace_tree_from_refs",
+      "failure_visible_mode": "blocker_summary_with_evidence_refs"
+    },
+    "redaction_policy": "no_hidden_chain_of_thought"
+  },
+  "final_output_contract": {
+    "schema_version": "clarify_then_coordinate_final_output_contract_v1",
+    "source": "default_control_plane_wrapper",
+    "required_terminal_outcome": "final_answer_or_structured_blocker",
+    "required_fields": [
+      "workflow_id",
+      "terminal_artifact",
+      "reasoning_rollup"
+    ],
+    "reasoning_trace_handling": "render_public_reasoning_rollup_when_available",
+    "diagnostics_visibility": "public_reasoning_summary_refs_only"
+  },
   "gate_contract": "control_plane_lifecycle_v1",
   "observation_lifecycle_contract": {
     "version": "run_observation_lifecycle_v1",
@@ -99,6 +141,8 @@
       "agent_internal_notes",
       "tool_trace",
       "eval_trace",
+      "public_reasoning_trace",
+      "reasoning_rollup",
       "final_answer"
     ],
     "tool_family_contracts": [
@@ -109,7 +153,7 @@
       "shell",
       "browser"
     ],
-    "visible_chat_policy": "llm_final_only_no_system_injection",
+    "visible_chat_policy": "llm_final_plus_public_reasoning_rollup_no_system_injection",
     "run_budgets": {
       "max_stages": 12,
       "max_model_turns": 8,
@@ -134,7 +178,9 @@
       "tool_input_schemas",
       "confirmation_states",
       "loopbacks",
-      "final_output_contract"
+      "final_output_contract",
+      "public_reasoning_trace_contract",
+      "reasoning_rollup_policy"
     ],
     "rust_owns": [
       "json_loading",

@@ -457,6 +457,33 @@ pub fn run_runtime_lane_with_registry(
             &mut durable_state,
         ));
     }
+    if let Some((error_code, details)) =
+        public_reasoning_contract_violation(&metadata, &run.receipt, &run.response.output)
+    {
+        if let Some(plan) = &contract.schedule {
+            let pack_id = contract
+                .capability_packs
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "runtime".to_string());
+            runtime_lane_state_mark_schedule_failure(
+                &mut durable_state,
+                contract.name.as_str(),
+                pack_id.as_str(),
+                plan,
+                error_code.as_str(),
+            );
+        }
+        return Ok(runtime_lane_fail_closed_with_state(
+            error_code.as_str(),
+            details,
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
     let persisted_previous_root = durable_state
         .merkle_roots
         .get(contract.name.as_str())
@@ -740,6 +767,82 @@ fn normalize_native_tool_name(raw: &str) -> String {
         }
         other => other.to_string(),
     }
+}
+
+fn public_reasoning_contract_violation(
+    metadata: &Value,
+    run_receipt: &Value,
+    output: &str,
+) -> Option<(String, Value)> {
+    let contract = metadata.get("public_reasoning_trace_contract")?;
+    if !contract.is_object() {
+        return None;
+    }
+    let agent_status = run_receipt
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("ok");
+    if agent_status != "ok" {
+        return None;
+    }
+
+    let emitted = contract
+        .get("emits")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let requires_trace = emitted
+        .iter()
+        .any(|item| item == "public_reasoning_trace_v1")
+        || contract
+            .get("local_trace_required_fields")
+            .and_then(Value::as_array)
+            .is_some();
+    let requires_rollup = emitted
+        .iter()
+        .any(|item| item == "public_reasoning_rollup_v1");
+    let has_trace =
+        output.contains("public_reasoning_trace") && output.contains("public_reasoning_trace_v1");
+    let has_rollup =
+        output.contains("reasoning_rollup") && output.contains("public_reasoning_rollup_v1");
+    let redaction_policy = contract
+        .get("redaction_policy")
+        .and_then(Value::as_str)
+        .unwrap_or("no_hidden_chain_of_thought");
+    let mentions_redaction = output.contains(redaction_policy)
+        || output.contains("hidden chain-of-thought")
+        || output.contains("hidden chain of thought")
+        || output.contains("redaction");
+
+    if (requires_trace && !has_trace) || (requires_rollup && !has_rollup) || !mentions_redaction {
+        return Some((
+            "runtime_lane_public_reasoning_trace_missing".to_string(),
+            json!({
+                "criteria": {
+                    "requires_public_reasoning_trace": requires_trace,
+                    "requires_reasoning_rollup": requires_rollup,
+                    "requires_redaction_policy_ack": true,
+                    "redaction_policy": redaction_policy,
+                },
+                "observed": {
+                    "has_public_reasoning_trace": has_trace,
+                    "has_reasoning_rollup": has_rollup,
+                    "mentions_redaction_policy": mentions_redaction,
+                },
+                "agent_status": agent_status,
+                "agent_output_preview": output.chars().take(1200).collect::<String>(),
+                "workflow": metadata.get("workflow").cloned().unwrap_or(Value::Null),
+                "enforcement_mode": "strict_fail_closed",
+            }),
+        ));
+    }
+    None
 }
 
 fn runtime_requested_wasm_modules(tools: &[String], metadata: &Value) -> Vec<String> {

@@ -1,0 +1,88 @@
+{
+  "schema_version": "public_reasoning_trace_protocol_v1",
+  "purpose": "Standard sidecar artifact protocol for exposing a safe, public reasoning narrative across arbitrarily deep workflow composition without exposing hidden chain-of-thought, raw private notes, or raw tool payloads.",
+  "artifact_schemas": {
+    "public_reasoning_trace_v1": {
+      "span_kind": "primitive_or_composite_local_span",
+      "required_fields": [
+        "trace_id",
+        "workflow_id",
+        "workflow_level",
+        "span_kind",
+        "task_summary",
+        "plan_summary",
+        "decisions",
+        "actions",
+        "risks",
+        "blockers",
+        "confidence",
+        "evidence_refs",
+        "tool_receipt_refs",
+        "child_trace_refs",
+        "redaction_policy"
+      ],
+      "optional_fields": [
+        "changed_files",
+        "validation_summary",
+        "checkpoint_summary",
+        "memory_update_summary"
+      ]
+    },
+    "public_reasoning_rollup_v1": {
+      "span_kind": "composite_rollup",
+      "required_fields": [
+        "rollup_id",
+        "workflow_id",
+        "workflow_level",
+        "child_count",
+        "summary",
+        "key_decisions",
+        "major_actions",
+        "validation_status",
+        "blockers",
+        "confidence",
+        "trace_tree_ref",
+        "child_trace_refs",
+        "redaction_policy"
+      ],
+      "optional_fields": [
+        "changed_files_summary",
+        "risk_summary",
+        "next_step_summary"
+      ]
+    }
+  },
+  "composition_rules": [
+    "Every workflow may emit one local public_reasoning_trace_v1 sidecar artifact describing only its own work.",
+    "Composite workflows preserve direct child public trace refs and emit one public_reasoning_rollup_v1 summarizing local work plus direct child traces.",
+    "Parents summarize only their direct children; recursive trace trees are followed by refs, not inlined blobs.",
+    "Top-level workflows own chat presentation and may render a short rollup, an expanded trace tree, or a blocker-focused explanation.",
+    "Primitive workflows never decide final chat UX; they emit structured trace data for parents to render.",
+    "Missing child traces must be represented as explicit missing_trace_refs rather than silently dropped."
+  ],
+  "redaction_policy": {
+    "policy_id": "no_hidden_chain_of_thought",
+    "allowed": [
+      "plan summaries",
+      "implementation decisions",
+      "receipt-backed actions",
+      "validation summaries",
+      "risk summaries",
+      "blocker summaries",
+      "confidence calibration"
+    ],
+    "forbidden": [
+      "hidden chain-of-thought",
+      "raw agent_internal_notes",
+      "raw system prompts",
+      "raw private tool payloads",
+      "unredacted file contents unless already user-visible"
+    ]
+  },
+  "storage_policy": {
+    "trace_storage": "artifact_ref_retention",
+    "rollup_storage": "compact_ledger",
+    "raw_private_stream_storage": "not_part_of_public_reasoning_trace",
+    "parent_receives": "rollup_plus_refs"
+  }
+}

@@ -14,7 +14,15 @@
         "structured_failure",
         "delegated_workflow_result"
       ],
-      "parent_receives": "terminal_artifact_only_refs_for_internals"
+      "parent_receives": "terminal_artifact_only_refs_for_internals",
+      "sidecar_artifact_contract": {
+        "artifact_schema": "public_reasoning_trace_bundle_v1",
+        "allowed_schemas": [
+          "public_reasoning_trace_v1",
+          "public_reasoning_rollup_v1"
+        ],
+        "parent_receives": "public_reasoning_rollup_plus_refs_not_raw_private_notes"
+      }
     },
     "child_workflow_calls": [
       {
@@ -494,6 +502,62 @@
     }
   },
   "final_response_policy": "control_plane_packaged_response",
+  "public_reasoning_trace_contract": {
+    "version": "public_reasoning_trace_contract_v1",
+    "protocol_ref": "orchestration/src/control_plane/workflows/public_reasoning_trace_protocol.json",
+    "workflow_role": "composite_coding_executor",
+    "emits": [
+      "public_reasoning_trace_v1",
+      "public_reasoning_rollup_v1"
+    ],
+    "local_trace_required_fields": [
+      "task_summary",
+      "plan_summary",
+      "decisions",
+      "actions",
+      "changed_files",
+      "validation_summary",
+      "risks",
+      "blockers",
+      "confidence",
+      "evidence_refs",
+      "tool_receipt_refs",
+      "child_trace_refs",
+      "checkpoint_summary",
+      "memory_update_summary"
+    ],
+    "coding_trace_semantics": {
+      "plan_summary": "Public implementation plan summary, not hidden chain-of-thought.",
+      "decisions": "Architecture, stack, API, data, validation, and repair decisions with short rationales.",
+      "actions": "Receipt-backed reads, writes, patches, validations, and checkpoint handoffs.",
+      "changed_files": "Path, change kind, and user-safe reason for each touched file.",
+      "validation_summary": "Commands/checks run, skipped, failed, blocked, or timed out.",
+      "confidence": "Calibrated 0..1 confidence in the checkpoint result and validation coverage."
+    },
+    "child_trace_policy": {
+      "preserve_direct_child_refs": true,
+      "summarize_direct_children_only": true,
+      "missing_child_trace_refs": "record_explicit_missing_trace_ref"
+    },
+    "parent_visibility": "return_rollup_plus_refs_to_coding_project_operator",
+    "redaction_policy": "no_hidden_chain_of_thought"
+  },
+  "coding_persistence_safety_contract": {
+    "version": "coding_persistence_safety_contract_v1",
+    "purpose": "Primitive/local coding rule for persistence helpers emitted during implementation slices.",
+    "implementation_guidance": [
+      "When adding file-backed persistence, loaders must treat missing files and empty files as empty state.",
+      "Tests should include a newly created empty tempfile when the CLI accepts a database/data path.",
+      "Do not swallow malformed non-empty persistence content unless the task explicitly asks for repair/recovery semantics."
+    ],
+    "applies_to_storage_kinds": [
+      "json",
+      "jsonl",
+      "csv",
+      "sqlite",
+      "stdlib_file_backed_storage"
+    ]
+  },
   "final_output_contract": {
     "schema_version": "local_coding_program_builder_final_output_contract_v1",
     "source": "workflow_cd",
@@ -505,13 +569,18 @@
       "failure_result_envelope",
       "known_risks",
       "intentionally_excluded_scope",
-      "recommended_next_checkpoint"
+      "recommended_next_checkpoint",
+      "public_reasoning_trace",
+      "reasoning_rollup",
+      "child_reasoning_trace_refs"
     ],
     "internal_streams": [
       "workflow_state",
       "agent_internal_notes",
       "tool_trace",
-      "eval_trace"
+      "eval_trace",
+      "public_reasoning_trace",
+      "reasoning_rollup"
     ],
     "quality_contract": {
       "answer_user_goal": "final handoff states what was built or why the checkpoint stopped",
@@ -519,7 +588,7 @@
       "validation_calibration": "final handoff reports validation performed, skipped, failed, or blocked without overstating confidence",
       "architecture_calibration": "final handoff reports material architecture decisions and any drift risks",
       "failure_routing": "any non-completed terminal state must expose a coding_failure_result_envelope_v1 that the parent workflow can route without reading raw tool output",
-      "visibility": "do not expose raw workflow state, private reasoning, or raw tool payloads as visible chat"
+      "visibility": "do not expose raw workflow state, private reasoning, raw hidden chain-of-thought, or raw tool payloads as visible chat; emit public_reasoning_trace_v1 and public_reasoning_rollup_v1 as redacted sidecar artifacts"
     }
   },
   "failure_result_envelope_contract": {
@@ -1371,7 +1440,9 @@
       "tool_input_schemas",
       "confirmation_states",
       "loopbacks",
-      "final_output_contract"
+      "final_output_contract",
+      "public_reasoning_trace_contract",
+      "reasoning_rollup_policy"
     ],
     "rust_owns": [
       "json_loading",
