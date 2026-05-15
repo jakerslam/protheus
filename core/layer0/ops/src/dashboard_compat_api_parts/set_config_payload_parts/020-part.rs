@@ -234,6 +234,138 @@ fn rebuild_indexed_session_state(root: &Path, agent_id: &str) -> Value {
     })
 }
 
+fn legacy_session_agent_file_rows(root: &Path) -> Vec<(String, PathBuf, u64)> {
+    let mut rows = Vec::<(String, PathBuf, u64)>::new();
+    let Ok(entries) = fs::read_dir(session_dir(root)) else {
+        return rows;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let agent_id = path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .map(clean_agent_id)
+            .unwrap_or_default();
+        if agent_id.is_empty() {
+            continue;
+        }
+        let size = entry.metadata().map(|meta| meta.len()).unwrap_or(0);
+        rows.push((agent_id, path, size));
+    }
+    rows.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
+    rows
+}
+
+fn requested_session_index_agents(root: &Path, request: &Value) -> Vec<(String, PathBuf, u64)> {
+    let all_rows = legacy_session_agent_file_rows(root);
+    let requested = request
+        .get("agent_ids")
+        .or_else(|| request.get("agents"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(clean_agent_id)
+                .filter(|id| !id.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if requested.is_empty() {
+        return all_rows;
+    }
+    let requested_set = requested.into_iter().collect::<std::collections::BTreeSet<_>>();
+    all_rows
+        .into_iter()
+        .filter(|(agent_id, _, _)| requested_set.contains(agent_id))
+        .collect::<Vec<_>>()
+}
+
+fn rebuild_indexed_session_states(root: &Path, request: &Value) -> Value {
+    let force = request.get("force").and_then(Value::as_bool).unwrap_or(false);
+    let limit = request
+        .get("limit")
+        .and_then(Value::as_u64)
+        .map(|value| value as usize)
+        .unwrap_or(0);
+    let min_legacy_size_bytes = request
+        .get("min_legacy_size_bytes")
+        .or_else(|| request.get("minLegacySizeBytes"))
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let candidates = requested_session_index_agents(root, request);
+    let mut rows = Vec::<Value>::new();
+    let mut rebuilt = 0usize;
+    let mut skipped = 0usize;
+    let mut failed = 0usize;
+    let mut message_count = 0u64;
+    let mut legacy_size_bytes = 0u64;
+    for (agent_id, path, size) in candidates.iter() {
+        if min_legacy_size_bytes > 0 && *size < min_legacy_size_bytes {
+            skipped += 1;
+            rows.push(json!({
+                "ok": true,
+                "agent_id": agent_id,
+                "action": "skipped_below_min_legacy_size",
+                "legacy_path": path.to_string_lossy(),
+                "legacy_size_bytes": size
+            }));
+            continue;
+        }
+        if limit > 0 && rebuilt >= limit {
+            skipped += 1;
+            rows.push(json!({
+                "ok": true,
+                "agent_id": agent_id,
+                "action": "skipped_limit_reached",
+                "legacy_path": path.to_string_lossy(),
+                "legacy_size_bytes": size
+            }));
+            continue;
+        }
+        if !force && load_session_index_meta(root, agent_id).is_some() {
+            skipped += 1;
+            rows.push(json!({
+                "ok": true,
+                "agent_id": agent_id,
+                "action": "skipped_index_exists",
+                "legacy_path": path.to_string_lossy(),
+                "legacy_size_bytes": size,
+                "meta_path": session_index_meta_path(root, agent_id).to_string_lossy()
+            }));
+            continue;
+        }
+        let row = rebuild_indexed_session_state(root, agent_id);
+        let ok = row.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        if ok {
+            rebuilt += 1;
+            message_count = message_count
+                .saturating_add(row.get("message_count").and_then(Value::as_u64).unwrap_or(0));
+            legacy_size_bytes = legacy_size_bytes.saturating_add(*size);
+        } else {
+            failed += 1;
+        }
+        rows.push(row);
+    }
+    json!({
+        "ok": failed == 0,
+        "type": "dashboard_agent_session_index_batch_rebuild",
+        "force": force,
+        "candidate_count": candidates.len(),
+        "rebuilt_count": rebuilt,
+        "skipped_count": skipped,
+        "failed_count": failed,
+        "message_count": message_count,
+        "legacy_size_bytes": legacy_size_bytes,
+        "storage_source": "indexed_session_jsonl",
+        "rows": rows,
+        "receipt_ref": format!("agent_session_index_batch_rebuild:{}", crate::now_iso()),
+        "correlation_id": "agent_session_index_batch_rebuild"
+    })
+}
+
 fn load_session_index_meta(root: &Path, agent_id: &str) -> Option<Value> {
     read_json_loose(&session_index_meta_path(root, agent_id))
 }
@@ -774,6 +906,38 @@ mod session_output_boundary_tests {
             rows[1].get("id").and_then(Value::as_str),
             Some("legacy-msg-3")
         );
+    }
+
+    #[test]
+    fn session_index_batch_rebuild_scans_legacy_session_files() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        for agent_id in ["agent-batch-a", "agent-batch-b"] {
+            let legacy_path = session_path(root, agent_id);
+            fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
+                .expect("legacy parent mkdir");
+            write_json_pretty(
+                &legacy_path,
+                &json!({
+                    "agent_id": agent_id,
+                    "active_session_id": "default",
+                    "sessions": [{
+                        "session_id": "default",
+                        "label": "Batch",
+                        "created_at": "2026-05-15T00:00:00Z",
+                        "updated_at": "2026-05-15T00:00:01Z",
+                        "messages": [{"id": format!("{agent_id}-msg"), "role": "assistant", "text": "hello"}]
+                    }]
+                }),
+            );
+        }
+
+        let payload = rebuild_indexed_session_states(root, &json!({"force": true}));
+        assert_eq!(payload.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(payload.get("rebuilt_count").and_then(Value::as_u64), Some(2));
+        assert_eq!(payload.get("message_count").and_then(Value::as_u64), Some(2));
+        assert!(session_index_meta_path(root, "agent-batch-a").exists());
+        assert!(session_index_meta_path(root, "agent-batch-b").exists());
     }
 }
 

@@ -81,6 +81,26 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_ack_from_legacy("submit_issue", legacy));
     }
+    if method == "POST" && parts == ["session-index", "rebuild"] {
+        let payload = rebuild_indexed_session_states(
+            root,
+            &serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({})),
+        );
+        let accepted = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if accepted { 202 } else { 400 },
+            payload: shell_socket_ingress_ack(
+                "rebuild_session_indexes",
+                accepted,
+                if accepted {
+                    "accepted"
+                } else {
+                    "session_index_rebuild_failed"
+                },
+                &payload,
+            ),
+        });
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "approvals" && parts[2] == "decision" {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let decision = clean_text(
