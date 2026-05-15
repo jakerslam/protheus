@@ -104,6 +104,10 @@ const DOMAIN_SPECS: &[DomainSpec] = &[
     },
 ];
 
+fn spec_for_package(package: &str) -> Option<&'static DomainSpec> {
+    DOMAIN_SPECS.iter().find(|spec| spec.package == package)
+}
+
 pub fn seed_live_level10_batch(attempt_count: usize) -> LiveLevel10SeedBatchReport {
     let count = attempt_count.max(1);
     let batch_root = std::env::temp_dir().join(format!(
@@ -639,7 +643,7 @@ if __name__ == "__main__":
 
 fn worker_prompt(job: &LiveLevel10Job) -> String {
     format!(
-        "You are running a live Level 10 long-run coding workflow probe. You are not alone in the broader codebase: do not revert or modify anything outside the assigned temp run directory. Your write ownership is limited to {project_root} and {receipts_root}.\n\nGoal: use the local_coding_program_builder long-run project-operator mode to continue this existing local Python project beyond a single checkpoint. Current files are authoritative; stored memory is only resume context. Do not ask follow-up questions unless the project is genuinely blocked by a user-owned product or architecture decision.\n\nEnvironment:\n- Project root: {project_root}\n- Python package: {package}\n- Receipts root: {receipts_root}\n- Isolated memory DB: {memory_db_path}\n- Resume token: {resume_token}\n- Prior memory row id: {prior_memory_row_id}\n- Expected checkpoint 004 memory row id: {checkpoint4_memory_row_id}\n- Expected checkpoint 005 memory row id: {checkpoint5_memory_row_id}\n- Memory CLI command pattern: INFRING_MEMORY_DB_PATH={memory_db_path} cargo run --quiet --manifest-path /Users/jay/.openclaw/workspace/core/layer0/memory/Cargo.toml --bin memory-cli -- <command>\n- Validation command from project root: {validation_command}\n\nWorkflow requirements:\n1. Read the local project files first. Current files override memory.\n2. Retrieve checkpoint memory using the resume token and/or prior row id.\n3. Write {receipts_root}/project_operator_roadmap.json before implementation. It must include product_goal, architecture_intent, stack_and_runtime, milestones, checkpoint_queue, non_goals, risk_register, validation_strategy, and stop_conditions.\n4. Implement checkpoint_004_operator_audit_workbench as a coherent milestone. Add durable operator/audit/task workbench behavior in multiple files, with JSONL or other stdlib persistence, CLI surface, and regression tests. Preserve route, attempt-record, attempts-report, and migrate-attempts behavior.\n5. Run validation after checkpoint 004. Write {receipts_root}/checkpoint_004_handoff.json with completed_checkpoint, validation_summary, changed_files, architecture_decisions, risk_register_updates, memory_written, and next_checkpoint_decision.\n6. Write memory row {checkpoint4_memory_row_id} with tags coding,checkpoint,resume,project_context. Include changed files, validation result, known risks, and recommended next checkpoint.\n7. Continue to checkpoint_005 only if validation passed, risk is bounded, and the roadmap still applies. If you stop, the stop reason must be specific and valid.\n8. Implement checkpoint_005_slo_escalation_and_snapshot_export. Add SLO or policy evaluation for operator work, escalation/reporting behavior, snapshot export/import or equivalent resumable project state surface, CLI coverage, and regression tests.\n9. Run validation after checkpoint 005. Write {receipts_root}/checkpoint_005_handoff.json with the same fields as checkpoint 004 plus the continuation decision.\n10. Write memory row {checkpoint5_memory_row_id} with tags coding,checkpoint,resume,project_context.\n11. Final response should include pass/fail, changed file paths, validation command/result, memory row ids written, and caveats. Do not commit anything.\n",
+        "You are running a live Level 10 long-run coding workflow probe. You are not alone in the broader codebase: do not revert or modify anything outside the assigned temp run directory. Your write ownership is limited to {project_root} and {receipts_root}.\n\nGoal: use the local_coding_program_builder long-run project-operator mode to continue this existing local Python project beyond a single checkpoint. Current files are authoritative; stored memory is only resume context. Do not ask follow-up questions unless the project is genuinely blocked by a user-owned product or architecture decision.\n\nEnvironment:\n- Project root: {project_root}\n- Python package: {package}\n- Receipts root: {receipts_root}\n- Isolated memory DB: {memory_db_path}\n- Resume token: {resume_token}\n- Prior memory row id: {prior_memory_row_id}\n- Expected checkpoint 004 memory row id: {checkpoint4_memory_row_id}\n- Expected checkpoint 005 memory row id: {checkpoint5_memory_row_id}\n- Memory CLI command pattern: INFRING_MEMORY_DB_PATH={memory_db_path} cargo run --quiet --manifest-path /Users/jay/.openclaw/workspace/core/layer0/memory/Cargo.toml --bin memory-cli -- <command>\n- Validation command from project root: {validation_command}\n\nWorkflow requirements:\n1. Read the local project files first. Current files override memory.\n2. Retrieve checkpoint memory using the resume token and/or prior row id.\n3. Write {receipts_root}/project_operator_roadmap.json before implementation. It must include product_goal, architecture_intent, stack_and_runtime, milestones, checkpoint_queue, non_goals, risk_register, validation_strategy, and stop_conditions.\n4. Implement checkpoint_004_operator_audit_workbench as a coherent milestone. Add durable operator/audit/task workbench behavior in multiple files, with JSONL or other stdlib persistence, CLI surface, and regression tests. Preserve route, attempt-record, attempts-report, and migrate-attempts behavior.\n5. Implement this exact new CLI contract in addition to the existing commands:\n   - operator-open <workbench_store> <task_id> --title <title> --owner <owner> --source-attempt <attempt_id>\n   - operator-transition <workbench_store> <task_id> closed --note <note>\n   - operator-report <workbench_store>\n   - slo-report <workbench_store> <attempt_store> --max-open-tasks <n> --max-retryable-failures <n>\n   - snapshot-export <snapshot_path> --attempt-store <attempt_store> --workbench-store <workbench_store>\n   - snapshot-import <snapshot_path> --attempt-store <attempt_store> --workbench-store <workbench_store>\n   All new commands should return JSON to stdout and should work through python3 -m {package}.cli from the project root. The status closed must be accepted by operator-transition and represented as a terminal/non-open task status.\n6. Run validation after checkpoint 004. Write {receipts_root}/checkpoint_004_handoff.json with completed_checkpoint, validation_summary, changed_files, architecture_decisions, risk_register_updates, memory_written, and next_checkpoint_decision.\n7. Write memory row {checkpoint4_memory_row_id} with tags coding,checkpoint,resume,project_context. Include changed files, validation result, known risks, and recommended next checkpoint.\n8. Continue to checkpoint_005 only if validation passed, risk is bounded, and the roadmap still applies. If you stop, the stop reason must be specific and valid.\n9. Implement checkpoint_005_slo_escalation_and_snapshot_export. Add SLO or policy evaluation for operator work, escalation/reporting behavior, snapshot export/import or equivalent resumable project state surface, CLI coverage, and regression tests.\n10. Run validation after checkpoint 005. Write {receipts_root}/checkpoint_005_handoff.json with the same fields as checkpoint 004 plus the continuation decision.\n11. Write memory row {checkpoint5_memory_row_id} with tags coding,checkpoint,resume,project_context.\n12. Final response should include pass/fail, changed file paths, validation command/result, memory row ids written, and caveats. Do not commit anything.\n",
         project_root = job.project_root,
         package = job.package,
         receipts_root = job.receipts_root,
@@ -757,18 +761,20 @@ fn judge_live_attempt(job: &LiveLevel10Job) -> LiveLevel10AttemptJudge {
         &mut checks,
         &mut failures,
         "operator_audit_workbench_implemented",
-        lower.contains("operator")
-            && lower.contains("audit")
-            && (lower.contains("task") || lower.contains("workbench"))
-            && lower.contains("jsonl"),
-        "source contains operator/audit/task JSONL workbench signals".to_string(),
+        (lower.contains("operator") || lower.contains("workbench"))
+            && lower.contains("task")
+            && (lower.contains("jsonl") || lower.contains("store") || lower.contains("snapshot")),
+        "source contains operator/task durable workbench signals".to_string(),
     );
     push_check(
         &mut checks,
         &mut failures,
         "slo_escalation_implemented",
-        lower.contains("slo") && lower.contains("escalat") && lower.contains("policy"),
-        "source contains SLO policy escalation signals".to_string(),
+        (lower.contains("slo") || lower.contains("policy"))
+            && (lower.contains("escalat")
+                || lower.contains("violation")
+                || lower.contains("threshold")),
+        "source contains SLO/policy escalation or violation signals".to_string(),
     );
     push_check(
         &mut checks,
@@ -806,6 +812,14 @@ fn judge_live_attempt(job: &LiveLevel10Job) -> LiveLevel10AttemptJudge {
             && lower.contains("route")
             && lower.contains("schema_version"),
         "baseline route/report/migration schema behavior still present".to_string(),
+    );
+    let semantic_probe = run_level10_cli_semantic_probe(&project_root, &job.package);
+    push_check(
+        &mut checks,
+        &mut failures,
+        "strict_cli_semantic_probe_passes",
+        semantic_probe.ok,
+        semantic_probe.detail,
     );
 
     LiveLevel10AttemptJudge {
@@ -920,6 +934,344 @@ fn run_python_validation(project_root: &Path) -> CommandResult {
             detail: format!("spawn_failed:{error}"),
         },
     }
+}
+
+fn run_level10_cli_semantic_probe(project_root: &Path, package: &str) -> CommandResult {
+    let Some(spec) = spec_for_package(package) else {
+        return CommandResult {
+            ok: false,
+            detail: format!("unknown_package:{package}"),
+        };
+    };
+    let probe_root = PathBuf::from(project_root).join(".level10_strict_judge");
+    if probe_root.exists() {
+        if let Err(error) = fs::remove_dir_all(&probe_root) {
+            return CommandResult {
+                ok: false,
+                detail: format!("clear_probe_root_failed:{}:{error}", probe_root.display()),
+            };
+        }
+    }
+    if let Err(error) = fs::create_dir_all(&probe_root) {
+        return CommandResult {
+            ok: false,
+            detail: format!("create_probe_root_failed:{}:{error}", probe_root.display()),
+        };
+    }
+    let attempt_store = probe_root.join("attempts.jsonl");
+    let migrated_store = probe_root.join("migrated_attempts.jsonl");
+    let quarantine_path = probe_root.join("quarantine.json");
+    let workbench_store = probe_root.join("workbench.jsonl");
+    let snapshot_path = probe_root.join("snapshot.json");
+    let restored_attempt_store = probe_root.join("restored_attempts.jsonl");
+    let restored_workbench_store = probe_root.join("restored_workbench.jsonl");
+
+    let route = run_cli(project_root, package, &["route", "evt-judge", spec.primary_kind]);
+    if !route.ok || route.stdout.trim() != spec.primary_destination {
+        let route_stdout = route.stdout.trim().to_string();
+        return route.fail_with(format!(
+            "route_expected={};stdout={}",
+            spec.primary_destination,
+            route_stdout
+        ));
+    }
+
+    let record = run_cli(
+        project_root,
+        package,
+        &[
+            "attempt-record",
+            &attempt_store.display().to_string(),
+            "evt-judge",
+            spec.primary_kind,
+            "--status",
+            "timeout",
+            "--error-code",
+            "timeout",
+        ],
+    );
+    if !record.ok || parse_json(&record.stdout).is_none() {
+        return record.fail_with("attempt-record_failed_or_non_json".to_string());
+    }
+
+    let report = run_cli(
+        project_root,
+        package,
+        &["attempts-report", &attempt_store.display().to_string()],
+    );
+    let Some(report_json) = parse_json(&report.stdout) else {
+        return report.fail_with("attempts-report_non_json".to_string());
+    };
+    if !report.ok
+        || report_json
+            .get("total_attempts")
+            .and_then(Value::as_u64)
+            .unwrap_or_default()
+            < 1
+    {
+        return report.fail_with("attempts-report_missing_total_attempts".to_string());
+    }
+
+    let fixture = project_root.join("fixtures/delivery_attempts_v1.jsonl");
+    if let Err(error) = fs::copy(&fixture, &migrated_store) {
+        return CommandResult {
+            ok: false,
+            detail: format!(
+                "copy_migration_fixture_failed:{}->{}:{error}",
+                fixture.display(),
+                migrated_store.display()
+            ),
+        };
+    }
+    let migration = run_cli(
+        project_root,
+        package,
+        &[
+            "migrate-attempts",
+            &migrated_store.display().to_string(),
+            "--quarantine",
+            &quarantine_path.display().to_string(),
+        ],
+    );
+    if !migration.ok || !quarantine_path.exists() {
+        return migration.fail_with(format!("migration_or_quarantine_failed:{}", quarantine_path.display()));
+    }
+
+    let open = run_cli(
+        project_root,
+        package,
+        &[
+            "operator-open",
+            &workbench_store.display().to_string(),
+            "task-judge",
+            "--title",
+            "Investigate retry spike",
+            "--owner",
+            "judge",
+            "--source-attempt",
+            "evt-judge:1",
+        ],
+    );
+    if !open.ok || parse_json(&open.stdout).is_none() {
+        return open.fail_with("operator-open_failed_or_non_json".to_string());
+    }
+
+    let transition = run_cli(
+        project_root,
+        package,
+        &[
+            "operator-transition",
+            &workbench_store.display().to_string(),
+            "task-judge",
+            "closed",
+            "--note",
+            "validated by strict judge",
+        ],
+    );
+    if !transition.ok || parse_json(&transition.stdout).is_none() {
+        return transition.fail_with("operator-transition_failed_or_non_json".to_string());
+    }
+
+    let operator_report = run_cli(
+        project_root,
+        package,
+        &["operator-report", &workbench_store.display().to_string()],
+    );
+    let Some(operator_report_json) = parse_json(&operator_report.stdout) else {
+        return operator_report.fail_with("operator-report_non_json".to_string());
+    };
+    if !operator_report.ok
+        || !(json_contains_text(&operator_report_json, "task-judge")
+            || json_u64_field(&operator_report_json, "total_tasks") >= 1)
+    {
+        return operator_report.fail_with("operator-report_missing_task".to_string());
+    }
+
+    let slo = run_cli(
+        project_root,
+        package,
+        &[
+            "slo-report",
+            &workbench_store.display().to_string(),
+            &attempt_store.display().to_string(),
+            "--max-open-tasks",
+            "0",
+            "--max-retryable-failures",
+            "0",
+        ],
+    );
+    let Some(slo_json) = parse_json(&slo.stdout) else {
+        return slo.fail_with("slo-report_non_json".to_string());
+    };
+    if !slo.ok || !slo_report_has_escalation_signal(&slo_json) {
+        return slo.fail_with("slo-report_missing_slo_or_breach_signal".to_string());
+    }
+
+    let export = run_cli(
+        project_root,
+        package,
+        &[
+            "snapshot-export",
+            &snapshot_path.display().to_string(),
+            "--attempt-store",
+            &attempt_store.display().to_string(),
+            "--workbench-store",
+            &workbench_store.display().to_string(),
+        ],
+    );
+    if !export.ok || !snapshot_path.exists() {
+        return export.fail_with(format!("snapshot-export_failed:{}", snapshot_path.display()));
+    }
+
+    let import = run_cli(
+        project_root,
+        package,
+        &[
+            "snapshot-import",
+            &snapshot_path.display().to_string(),
+            "--attempt-store",
+            &restored_attempt_store.display().to_string(),
+            "--workbench-store",
+            &restored_workbench_store.display().to_string(),
+        ],
+    );
+    if !import.ok || !restored_attempt_store.exists() || !restored_workbench_store.exists() {
+        return import.fail_with("snapshot-import_failed_or_missing_restored_files".to_string());
+    }
+
+    let restored_report = run_cli(
+        project_root,
+        package,
+        &[
+            "operator-report",
+            &restored_workbench_store.display().to_string(),
+        ],
+    );
+    let Some(restored_json) = parse_json(&restored_report.stdout) else {
+        return restored_report.fail_with("restored_operator_report_non_json".to_string());
+    };
+    if !restored_report.ok
+        || !(json_contains_text(&restored_json, "task-judge")
+            || json_u64_field(&restored_json, "total_tasks") >= 1)
+    {
+        return restored_report.fail_with("snapshot_roundtrip_missing_task".to_string());
+    }
+
+    CommandResult {
+        ok: true,
+        detail: format!(
+            "strict CLI semantic probe passed for package={} probe_root={}",
+            package,
+            probe_root.display()
+        ),
+    }
+}
+
+#[derive(Debug)]
+struct CliResult {
+    ok: bool,
+    stdout: String,
+    stderr: String,
+    status: Option<i32>,
+    command: String,
+}
+
+impl CliResult {
+    fn fail_with(self, reason: String) -> CommandResult {
+        CommandResult {
+            ok: false,
+            detail: format!(
+                "{reason}; command={}; status={:?}; stdout={}; stderr={}",
+                self.command, self.status, self.stdout, self.stderr
+            ),
+        }
+    }
+}
+
+fn run_cli(project_root: &Path, package: &str, args: &[&str]) -> CliResult {
+    let output = Command::new("python3")
+        .arg("-m")
+        .arg(format!("{package}.cli"))
+        .args(args)
+        .env("PYTHONPATH", "src")
+        .current_dir(project_root)
+        .output();
+    let command = format!("python3 -m {package}.cli {}", args.join(" "));
+    match output {
+        Ok(output) => CliResult {
+            ok: output.status.success(),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            status: output.status.code(),
+            command,
+        },
+        Err(error) => CliResult {
+            ok: false,
+            stdout: String::new(),
+            stderr: format!("spawn_failed:{error}"),
+            status: None,
+            command,
+        },
+    }
+}
+
+fn parse_json(raw: &str) -> Option<Value> {
+    serde_json::from_str::<Value>(raw.trim()).ok()
+}
+
+fn json_contains_text(value: &Value, needle: &str) -> bool {
+    value.to_string().to_lowercase().contains(&needle.to_lowercase())
+}
+
+fn json_u64_field(value: &Value, field: &str) -> u64 {
+    value.get(field).and_then(Value::as_u64).unwrap_or_default()
+}
+
+fn json_bool_field(value: &Value, field: &str) -> bool {
+    value.get(field).and_then(Value::as_bool).unwrap_or_default()
+}
+
+fn json_array_len(value: &Value, field: &str) -> usize {
+    value
+        .get(field)
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or_default()
+}
+
+fn json_string_field(value: &Value, field: &str) -> String {
+    value
+        .get(field)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_lowercase()
+}
+
+fn nested_u64_field(value: &Value, object: &str, field: &str) -> u64 {
+    value
+        .get(object)
+        .and_then(|nested| nested.get(field))
+        .and_then(Value::as_u64)
+        .unwrap_or_default()
+}
+
+fn slo_report_has_escalation_signal(value: &Value) -> bool {
+    json_contains_text(value, "slo")
+        || json_contains_text(value, "breach")
+        || json_contains_text(value, "escalation")
+        || json_contains_text(value, "violation")
+        || json_contains_text(value, "policy")
+        || json_contains_text(value, "retryable")
+        || json_bool_field(value, "escalation_required")
+        || json_array_len(value, "violations") > 0
+        || json_array_len(value, "escalations") > 0
+        || matches!(
+            json_string_field(value, "status").as_str(),
+            "fail" | "violation" | "escalate"
+        )
+        || json_u64_field(value, "retryable_failure_count") > 0
+        || nested_u64_field(value, "metrics", "retryable_failures") > 0
+        || nested_u64_field(value, "observed", "retryable_failures") > 0
 }
 
 fn read_json_file(path: &Path) -> Option<Value> {
