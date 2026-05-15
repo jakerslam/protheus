@@ -444,6 +444,11 @@ pub fn run_runtime_lane_with_registry(
             "name": contract.name,
             "provider": contract.provider,
             "tool_count": contract.resolved_tools(Some(&catalog)).len(),
+            "native_tool_call_count": run
+                .receipt
+                .get("native_tool_call_count")
+                .and_then(Value::as_u64)
+                .unwrap_or(0),
             "tools": tools,
             "capability_packs": capability_packs,
             "capability_profiles": catalog.autonomy_profiles_for_packs(&contract.capability_packs),

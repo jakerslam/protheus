@@ -2,6 +2,7 @@ pub mod agent;
 pub mod capability_pack;
 pub mod mcp;
 pub mod merkle_receipt;
+pub mod native_tools;
 pub mod provider;
 pub mod rbac_memory;
 pub mod realtime_voice;
@@ -23,6 +24,10 @@ pub use infring_agent_derive::{infring_agent, infring_tool};
 pub use mcp::{mcp_handshake_receipt, McpBridge, McpServerConfig, McpTool};
 pub use merkle_receipt::{
     merkle_receipt_options_from_value, merkle_receipt_payload, MerkleReceiptOptions,
+};
+pub use native_tools::{
+    native_tool_observation_prompt, parse_native_tool_calls, NativeToolCall,
+    NativeToolDispatcher, NativeToolReceipt,
 };
 pub use provider::{
     LocalEchoProvider, ProviderClient, ProviderClientRegistry, ProviderError, ProviderErrorCode,

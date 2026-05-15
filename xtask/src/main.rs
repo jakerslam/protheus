@@ -343,7 +343,8 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         .and_then(|value| value.parse::<u64>().ok());
     let schedule_max_runs = parse_u32(flags.get("schedule-max-runs"));
     let packs = csv_tokens(flags.get("pack"));
-    let tools = csv_tokens(flags.get("tool"));
+    let mut tools = csv_tokens(flags.get("tool"));
+    add_workflow_default_tools(&mut tools, workflow_context.as_ref().map(|row| &row.1));
     let mut permissions_manifest = parse_json_flag(flags.get("permissions"))?;
     let permissions_template = flags
         .get("permissions-template")
@@ -469,6 +470,23 @@ fn combine_preamble(base: Option<String>, workflow: Option<String>) -> Option<St
     }
 }
 
+fn add_workflow_default_tools(tools: &mut Vec<String>, workflow: Option<&Value>) {
+    let Some(workflow) = workflow else {
+        return;
+    };
+    let Some(default_tools) = workflow.get("native_default_tools").and_then(Value::as_array) else {
+        return;
+    };
+    for tool in default_tools {
+        let Some(tool) = tool.as_str().map(str::trim).filter(|tool| !tool.is_empty()) else {
+            continue;
+        };
+        if !tools.iter().any(|existing| existing == tool) {
+            tools.push(tool.to_string());
+        }
+    }
+}
+
 fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(String, Value)>> {
     let Some(raw_workflow_id) = raw_workflow_id else {
         return Ok(None);
@@ -532,9 +550,16 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         .get("description")
         .and_then(Value::as_str)
         .unwrap_or("");
+    let native_default_tools = match workflow_id {
+        "coding_project_operator" | "local_coding_program_builder" => {
+            vec!["file_read", "file_read_many", "file_write", "file_patch"]
+        }
+        _ => Vec::new(),
+    };
     let preamble = format!(
-        "Selected Infring workflow: {workflow_id}\nWorkflow source: {source_path}\nWorkflow description: {description}\nWorkflow stages: {stages}\nChild workflow calls: {}\nUse this workflow contract for execution. Return a completed result when possible, or a structured blocker with the missing input, failed gate, and next safe action.",
-        children.join(", ")
+        "Selected Infring workflow: {workflow_id}\nWorkflow source: {source_path}\nWorkflow description: {description}\nWorkflow stages: {stages}\nChild workflow calls: {}\nNative default tools: {}\nUse this workflow contract for execution. Return a completed result when possible, or a structured blocker with the missing input, failed gate, and next safe action.",
+        children.join(", "),
+        native_default_tools.join(", ")
     );
     let metadata = json!({
         "workflow_id": workflow_id,
@@ -552,6 +577,7 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
             .and_then(Value::as_str)
             .unwrap_or(""),
         "child_workflow_calls": children,
+        "native_default_tools": native_default_tools,
     });
     Ok(Some((preamble, metadata)))
 }
