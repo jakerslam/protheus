@@ -29,7 +29,18 @@ fn shell_socket_fixture_root() -> tempfile::TempDir {
                 "updated_at": "2026-05-02T00:01:00Z",
                 "messages": [
                     {"id": "m1", "role": "user", "text": "hello socket", "ts": "2026-05-02T00:00:01Z"},
-                    {"id": "m2", "role": "assistant", "text": "hello projection", "ts": "2026-05-02T00:00:02Z"}
+                    {
+                        "id": "m2",
+                        "role": "assistant",
+                        "text": "hello projection",
+                        "ts": "2026-05-02T00:00:02Z",
+                        "tools": [{
+                            "name": "probe_tool",
+                            "summary": "bounded tool summary",
+                            "input": "SECRET_RAW_INPUT_TERM",
+                            "result": "SECRET_RAW_RESULT_TERM"
+                        }]
+                    }
                 ]
             }]
         }),
@@ -48,6 +59,70 @@ fn contains_forbidden_socket_field(value: &Value) -> bool {
         Value::Array(rows) => rows.iter().any(contains_forbidden_socket_field),
         _ => false,
     }
+}
+
+#[test]
+fn shell_socket_search_returns_bounded_message_projections_without_raw_tool_payload_search() {
+    let root = shell_socket_fixture_root();
+    let snapshot = json!({"ok": true});
+    let search = handle(
+        root.path(),
+        "GET",
+        "/api/shell-socket/search?agent_id=probe&q=projection&limit=10",
+        &[],
+        &snapshot,
+    )
+    .expect("message search");
+    assert_eq!(search.status, 200);
+    assert_eq!(
+        search.payload.get("type").and_then(Value::as_str),
+        Some("shell_socket_message_search_projection_v1")
+    );
+    assert_eq!(
+        search
+            .payload
+            .get("hits")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(1)
+    );
+    let hit = search.payload.pointer("/hits/0").expect("hit");
+    assert_eq!(hit.get("kind").and_then(Value::as_str), Some("message"));
+    assert_eq!(hit.get("message_id").and_then(Value::as_str), Some("m2"));
+    assert!(hit.get("detail_ref").and_then(Value::as_str).unwrap_or("").contains("/details/message/m2"));
+    assert!(!contains_forbidden_socket_field(&search.payload));
+
+    let raw_input_search = handle(
+        root.path(),
+        "GET",
+        "/api/shell-socket/search?agent_id=probe&q=SECRET_RAW_INPUT_TERM&limit=10",
+        &[],
+        &snapshot,
+    )
+    .expect("raw input search");
+    assert_eq!(
+        raw_input_search
+            .payload
+            .pointer("/counts/total_hits")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+
+    let raw_result_search = handle(
+        root.path(),
+        "GET",
+        "/api/shell-socket/search?agent_id=probe&q=SECRET_RAW_RESULT_TERM&limit=10",
+        &[],
+        &snapshot,
+    )
+    .expect("raw result search");
+    assert_eq!(
+        raw_result_search
+            .payload
+            .pointer("/counts/total_hits")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
 }
 
 #[test]

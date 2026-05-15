@@ -340,6 +340,242 @@ fn shell_socket_event_projection(root: &Path, session_ref: &str) -> Value {
     })
 }
 
+fn shell_socket_searchable_message_text(row: &Value) -> String {
+    let mut parts = Vec::<String>::new();
+    for key in [
+        "text",
+        "content_preview",
+        "search_text",
+        "notice_label",
+        "notice_type",
+        "role",
+        "status",
+        "meta",
+    ] {
+        if let Some(value) = row.get(key).and_then(Value::as_str) {
+            let cleaned = clean_text(value, 2_000);
+            if !cleaned.is_empty() {
+                parts.push(cleaned);
+            }
+        }
+    }
+    if let Some(tools) = row.get("tools").and_then(Value::as_array) {
+        for tool in tools.iter().take(24) {
+            for key in ["name", "tool", "status", "summary"] {
+                if let Some(value) = tool.get(key).and_then(Value::as_str) {
+                    let cleaned = clean_text(value, 240);
+                    if !cleaned.is_empty() {
+                        parts.push(cleaned);
+                    }
+                }
+            }
+        }
+    }
+    parts.join("\n")
+}
+
+fn shell_socket_search_matches(text: &str, query: &str, terms: &[String]) -> bool {
+    let haystack = text.to_ascii_lowercase();
+    let needle = query.to_ascii_lowercase();
+    if !needle.is_empty() && haystack.contains(&needle) {
+        return true;
+    }
+    !terms.is_empty() && terms.iter().all(|term| haystack.contains(term))
+}
+
+fn shell_socket_message_hit(agent_id: &str, session_id: &str, message: &Value, absolute_index: usize) -> Value {
+    let projected = project_session_message_row(agent_id, message, absolute_index);
+    let message_id = projected
+        .get("id")
+        .and_then(Value::as_str)
+        .map(|value| clean_text(value, 180))
+        .unwrap_or_else(|| format!("idx-{absolute_index}"));
+    let preview = clean_text(
+        projected
+            .get("text")
+            .or_else(|| projected.get("content_preview"))
+            .or_else(|| projected.get("notice_label"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        360,
+    );
+    let detail_ref = format!("/api/agents/{}/details/message/{}", clean_agent_id(agent_id), message_id);
+    json!({
+        "id": message_id,
+        "kind": "message",
+        "agent_id": clean_agent_id(agent_id),
+        "session_id": shell_socket_session_ref(agent_id, session_id),
+        "message_id": message_id,
+        "message_index": absolute_index,
+        "role": projected.get("role").cloned().unwrap_or_else(|| json!("")),
+        "label": projected.get("agent_name").or_else(|| projected.get("role")).cloned().unwrap_or_else(|| json!("message")),
+        "snippet": preview,
+        "preview": preview,
+        "ts": projected.get("ts").or_else(|| projected.get("timestamp")).cloned().unwrap_or(Value::Null),
+        "detail_ref": detail_ref
+    })
+}
+
+fn shell_socket_search_indexed_session_messages(
+    root: &Path,
+    agent_id: &str,
+    session_id: &str,
+    query: &str,
+    terms: &[String],
+    limit: usize,
+    offset: usize,
+) -> Option<(Vec<Value>, usize, usize)> {
+    use std::io::BufRead;
+
+    let path = session_index_messages_path(root, agent_id, session_id);
+    let file = fs::File::open(&path).ok()?;
+    let reader = std::io::BufReader::new(file);
+    let mut hits = Vec::<Value>::new();
+    let mut total_hits = 0usize;
+    let mut scanned = 0usize;
+    for (idx, line) in reader.lines().enumerate() {
+        let Ok(line) = line else {
+            continue;
+        };
+        let Ok(message) = serde_json::from_str::<Value>(&line) else {
+            continue;
+        };
+        scanned = scanned.saturating_add(1);
+        let searchable = shell_socket_searchable_message_text(&message);
+        if !shell_socket_search_matches(&searchable, query, terms) {
+            continue;
+        }
+        total_hits = total_hits.saturating_add(1);
+        if total_hits <= offset {
+            continue;
+        }
+        if hits.len() < limit {
+            hits.push(shell_socket_message_hit(agent_id, session_id, &message, idx));
+        }
+    }
+    Some((hits, total_hits, scanned))
+}
+
+fn shell_socket_search_legacy_session_messages(
+    root: &Path,
+    agent_id: &str,
+    session_id: &str,
+    query: &str,
+    terms: &[String],
+    limit: usize,
+    offset: usize,
+) -> (Vec<Value>, usize, usize) {
+    let state = load_session_state(root, agent_id);
+    let messages = shell_socket_session_messages(&state, session_id);
+    let mut hits = Vec::<Value>::new();
+    let mut total_hits = 0usize;
+    for (idx, message) in messages.iter().enumerate() {
+        let searchable = shell_socket_searchable_message_text(message);
+        if !shell_socket_search_matches(&searchable, query, terms) {
+            continue;
+        }
+        total_hits = total_hits.saturating_add(1);
+        if total_hits <= offset {
+            continue;
+        }
+        if hits.len() < limit {
+            hits.push(shell_socket_message_hit(agent_id, session_id, message, idx));
+        }
+    }
+    (hits, total_hits, messages.len())
+}
+
+fn shell_socket_session_search(root: &Path, path: &str, cleaned_query: &str, terms: &[String]) -> Value {
+    let agent_id = clean_agent_id(
+        query_value(path, "agent_id")
+            .or_else(|| query_value(path, "agent"))
+            .unwrap_or_default()
+            .as_str(),
+    );
+    let limit = shell_socket_limit(path, 20, 80);
+    let offset = shell_socket_cursor_offset(path);
+    if agent_id.is_empty() {
+        return json!({
+            "ok": false,
+            "error": "agent_id_required",
+            "query_id": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit, "agent_id": agent_id})),
+            "hits": [],
+            "hit_ids": [],
+            "counts": json!({"hits": 0, "total_hits": 0, "scanned": 0}),
+            "next_cursor": Value::Null,
+            "detail_refs": json!({}),
+            "receipt_ref": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit, "agent_id": agent_id, "error": "agent_id_required"})),
+            "correlation_id": "shell_socket.search"
+        });
+    }
+    let session_id = query_value(path, "session_id")
+        .or_else(|| query_value(path, "session"))
+        .map(|value| clean_session_id(&value))
+        .or_else(|| load_session_index_meta(root, &agent_id).map(|meta| indexed_active_session_id(&meta)))
+        .unwrap_or_else(|| {
+            clean_session_id(
+                load_session_state(root, &agent_id)
+                    .get("active_session_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("default"),
+            )
+        });
+    let (hits, total_hits, scanned, storage_source) =
+        if let Some((hits, total_hits, scanned)) = shell_socket_search_indexed_session_messages(
+            root,
+            &agent_id,
+            &session_id,
+            cleaned_query,
+            terms,
+            limit,
+            offset,
+        ) {
+            (hits, total_hits, scanned, "indexed_session_jsonl")
+        } else {
+            let (hits, total_hits, scanned) = shell_socket_search_legacy_session_messages(
+                root,
+                &agent_id,
+                &session_id,
+                cleaned_query,
+                terms,
+                limit,
+                offset,
+            );
+            (hits, total_hits, scanned, "legacy_session_json_fallback")
+        };
+    let mut hit_ids = Vec::<Value>::new();
+    let mut snippets = Map::<String, Value>::new();
+    let mut labels = Map::<String, Value>::new();
+    let mut detail_refs = Map::<String, Value>::new();
+    for hit in &hits {
+        let id = clean_text(hit.get("id").and_then(Value::as_str).unwrap_or(""), 180);
+        if id.is_empty() {
+            continue;
+        }
+        hit_ids.push(json!(id.clone()));
+        snippets.insert(id.clone(), hit.get("snippet").cloned().unwrap_or_else(|| json!("")));
+        labels.insert(id.clone(), hit.get("label").cloned().unwrap_or_else(|| json!("message")));
+        detail_refs.insert(id.clone(), hit.get("detail_ref").cloned().unwrap_or(Value::Null));
+    }
+    json!({
+        "ok": true,
+        "type": "shell_socket_message_search_projection_v1",
+        "agent_id": agent_id,
+        "session_id": shell_socket_session_ref(&agent_id, &session_id),
+        "query_id": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit, "agent_id": agent_id, "session_id": session_id})),
+        "hits": hits,
+        "hit_ids": hit_ids,
+        "snippets": snippets,
+        "labels": labels,
+        "counts": json!({"hits": hit_ids.len(), "total_hits": total_hits, "scanned": scanned}),
+        "next_cursor": if offset + limit < total_hits { json!(format!("offset={}", offset + limit)) } else { Value::Null },
+        "detail_refs": detail_refs,
+        "storage_source": storage_source,
+        "receipt_ref": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit, "agent_id": agent_id, "session_id": session_id, "hits": hit_ids.len(), "total_hits": total_hits})),
+        "correlation_id": "shell_socket.search"
+    })
+}
+
 fn shell_socket_search(root: &Path, path: &str) -> Value {
     let query = query_value(path, "q")
         .or_else(|| query_value(path, "query"))
@@ -370,6 +606,9 @@ fn shell_socket_search(root: &Path, path: &str) -> Value {
             "receipt_ref": shell_socket_receipt_ref("search", &json!({"q": cleaned_query, "limit": limit, "empty": true})),
             "correlation_id": "shell_socket.search"
         });
+    }
+    if query_value(path, "agent_id").is_some() || query_value(path, "agent").is_some() {
+        return shell_socket_session_search(root, path, &cleaned_query, &terms);
     }
     let rows = compact_sidebar_roster_rows(build_sidebar_agent_roster_fast(root, &json!({}), true));
     let mut scored = Vec::<(i64, String, Value)>::new();
