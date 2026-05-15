@@ -1,0 +1,50 @@
+{
+  "version": "coding_workflow_regression_gates_v1",
+  "owner": "orchestration",
+  "purpose": "Track live coding-workflow gates that must stay green before promoting higher-level coding workflow changes.",
+  "gates": [
+    {
+      "gate_id": "coding_memory_live_level10_strict_20",
+      "status": "required_for_coding_workflow_promotion",
+      "harness_bin": "coding_memory_live_level10_eval_execute",
+      "minimum_attempts": 20,
+      "required_pass_count": 20,
+      "seed_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level10_eval_execute seed --attempts=20",
+      "judge_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level10_eval_execute judge --batch-root=<batch_root>",
+      "live_worker_requirement": "Spawn one coding worker per generated prompt; workers must only edit their assigned temp project and receipts root.",
+      "latest_passing_evidence": {
+        "date": "2026-05-14",
+        "commit": "4f81b337b",
+        "batch_root": "/var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/coding-memory-live-level10-batch-98013-1778797455455",
+        "summary": {
+          "attempt_count": 20,
+          "pass_count": 20,
+          "fail_count": 0
+        }
+      },
+      "promotion_policy": [
+        "Do not promote coding workflow changes that regress this gate below 20/20 without an explicit waiver.",
+        "Do not count worker self-reports as pass evidence without strict judge confirmation.",
+        "Judge false negatives must be patched semantically and rerun on a fresh batch before promotion."
+      ]
+    },
+    {
+      "gate_id": "coding_memory_live_level11_strict_20",
+      "status": "scaffolded_not_yet_promoted",
+      "harness_bin": "coding_memory_live_level11_eval_execute",
+      "minimum_attempts": 20,
+      "required_pass_count": 20,
+      "seed_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level11_eval_execute seed --attempts=20",
+      "judge_command": "cargo run --quiet --manifest-path orchestration/Cargo.toml --bin coding_memory_live_level11_eval_execute judge --batch-root=<batch_root>",
+      "target_capabilities": [
+        "structured operator error contracts",
+        "operator reopen lifecycle",
+        "history-aware operator reports",
+        "time-windowed SLO policy",
+        "snapshot verification",
+        "snapshot diffing",
+        "backward-compatible recovery round trips"
+      ]
+    }
+  ]
+}
