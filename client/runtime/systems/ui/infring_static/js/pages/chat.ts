@@ -67,6 +67,13 @@ function chatPage() {
     sessionsOpen: false,
     searchOpen: false,
     searchQuery: '',
+    gatewaySearchQuery: '',
+    gatewaySearchAgentId: '',
+    gatewaySearchPending: false,
+    gatewaySearchResultMessages: [],
+    gatewaySearchThreshold: 250,
+    _gatewaySearchTimer: null,
+    _gatewaySearchSeq: 0,
     messageDisplayInitialLimit: 10,
     messageDisplayStep: 5,
     messageDisplayCount: 10,
@@ -5310,6 +5317,101 @@ function chatPage() {
       return parts.join('\n').toLowerCase().indexOf(normalizedQuery) >= 0;
     },
 
+    activeSessionIdForGatewaySearch: function() {
+      if (!Array.isArray(this.sessions)) return '';
+      for (var i = 0; i < this.sessions.length; i += 1) {
+        var row = this.sessions[i] || {};
+        if (row.active) {
+          var sessionId = String(row.session_id || row.id || '').trim();
+          if (sessionId.indexOf('::') >= 0) sessionId = sessionId.split('::').slice(1).join('::');
+          return sessionId;
+        }
+      }
+      return '';
+    },
+
+    shouldUseGatewaySearch: function(query) {
+      var q = String(query || this.searchQuery || '').trim();
+      if (!q) return false;
+      var agentId = String((this.currentAgent && this.currentAgent.id) || '').trim();
+      if (!agentId) return false;
+      var threshold = Number(this.gatewaySearchThreshold || 250);
+      if (!Number.isFinite(threshold) || threshold < 1) threshold = 250;
+      return Array.isArray(this.messages) && this.messages.length >= threshold;
+    },
+
+    scheduleGatewaySearch: function() {
+      var query = String(this.searchQuery || '').trim();
+      if (!this.shouldUseGatewaySearch(query)) {
+        this.gatewaySearchQuery = '';
+        this.gatewaySearchAgentId = '';
+        this.gatewaySearchPending = false;
+        this.gatewaySearchResultMessages = [];
+        if (this._gatewaySearchTimer) clearTimeout(this._gatewaySearchTimer);
+        this._gatewaySearchTimer = null;
+        return;
+      }
+      if (this._gatewaySearchTimer) clearTimeout(this._gatewaySearchTimer);
+      var self = this;
+      this._gatewaySearchTimer = setTimeout(function() {
+        self.runGatewaySearch(query);
+      }, 180);
+    },
+
+    runGatewaySearch: async function(query) {
+      var q = String(query || this.searchQuery || '').trim();
+      if (!this.shouldUseGatewaySearch(q)) return;
+      var agentId = String((this.currentAgent && this.currentAgent.id) || '').trim();
+      if (!agentId) return;
+      var seq = Number(this._gatewaySearchSeq || 0) + 1;
+      this._gatewaySearchSeq = seq;
+      this.gatewaySearchPending = true;
+      var sessionId = this.activeSessionIdForGatewaySearch();
+      var url = '/api/shell-socket/search?agent_id=' + encodeURIComponent(agentId) +
+        '&q=' + encodeURIComponent(q) +
+        '&limit=80';
+      if (sessionId) url += '&session_id=' + encodeURIComponent(sessionId);
+      try {
+        var response = await fetch(url, { headers: { Accept: 'application/json' } });
+        var payload = await response.json().catch(function() { return {}; });
+        if (seq !== Number(this._gatewaySearchSeq || 0)) return;
+        if (!response.ok || !payload || !Array.isArray(payload.hits)) {
+          this.gatewaySearchResultMessages = [];
+          this.gatewaySearchQuery = q;
+          this.gatewaySearchAgentId = agentId;
+          return;
+        }
+        this.gatewaySearchResultMessages = payload.hits.map(function(hit, idx) {
+          var role = String((hit && hit.role) || '').trim().toLowerCase();
+          if (role === 'assistant') role = 'agent';
+          if (!role) role = 'agent';
+          var messageId = String((hit && (hit.message_id || hit.id)) || ('hit-' + idx)).trim();
+          return {
+            id: 'gateway-search:' + messageId,
+            role: role,
+            text: String((hit && (hit.preview || hit.snippet)) || ''),
+            meta: 'Search result',
+            ts: hit ? hit.ts : null,
+            detail_ref: hit ? hit.detail_ref : null,
+            _gatewaySearchHit: true,
+            _source_message_id: messageId
+          };
+        });
+        this.gatewaySearchQuery = q;
+        this.gatewaySearchAgentId = agentId;
+        var chatStore = window.InfringChatStore;
+        if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(this.messages, this.allFilteredMessages);
+      } catch (err) {
+        if (seq === Number(this._gatewaySearchSeq || 0)) {
+          this.gatewaySearchResultMessages = [];
+          this.gatewaySearchQuery = q;
+          this.gatewaySearchAgentId = agentId;
+        }
+      } finally {
+        if (seq === Number(this._gatewaySearchSeq || 0)) this.gatewaySearchPending = false;
+      }
+    },
+
     normalizeSessionMessages(data) {
       var source = [];
       if (data && Array.isArray(data.messages)) {
@@ -5648,6 +5750,7 @@ function chatPage() {
       });
 
       this.$watch('searchQuery', function() {
+        if (typeof self.scheduleGatewaySearch === 'function') self.scheduleGatewaySearch();
         var chatStore = window.InfringChatStore;
         if (chatStore && typeof chatStore.syncMessages === 'function') chatStore.syncMessages(self.messages, self.allFilteredMessages);
       });

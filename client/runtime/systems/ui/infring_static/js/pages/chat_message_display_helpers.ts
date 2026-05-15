@@ -63,6 +63,14 @@ function chatExpandDisplayedMessages(page) {
 function chatAllFilteredMessages(page) {
   var query = String(page.searchQuery || '').trim();
   if (!query) return page.messages;
+  if (
+    typeof page.shouldUseGatewaySearch === 'function' &&
+    page.shouldUseGatewaySearch(query) &&
+    String(page.gatewaySearchQuery || '') === query &&
+    Array.isArray(page.gatewaySearchResultMessages)
+  ) {
+    return page.gatewaySearchResultMessages;
+  }
   var filtered = page.messages.filter(function(m) {
     if (typeof page.messageMatchesSearchQuery === 'function') return page.messageMatchesSearchQuery(m, query);
     var text = typeof (m && m.text) === 'string' ? m.text : String((m && m.text) || '');
