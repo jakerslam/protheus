@@ -263,6 +263,50 @@ fn is_retryable_curl_timeout(payload: &Value) -> bool {
             .unwrap_or(false)
 }
 
+pub(super) fn payload_is_transport_timeout_failure(payload: &Value) -> bool {
+    payload
+        .pointer("/response_finalization/structured_failure/kind")
+        .and_then(Value::as_str)
+        == Some("transport_timeout")
+        || payload
+            .pointer("/response_workflow/final_llm_response/status")
+            .and_then(Value::as_str)
+            == Some("transport_timeout")
+        || is_retryable_curl_timeout(payload)
+}
+
+pub(super) fn payload_is_transport_failure(payload: &Value) -> bool {
+    if payload_is_transport_timeout_failure(payload) {
+        return true;
+    }
+    if payload
+        .as_object()
+        .map(|map| map.is_empty())
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    let transport_error = str_at(payload, &["transport_error"], "");
+    if !transport_error.is_empty() {
+        return true;
+    }
+    let error = normalize_for_compare(&str_at(payload, &["error"], ""));
+    [
+        "socket hang up",
+        "connection reset",
+        "connection refused",
+        "failed to connect",
+        "couldn't connect",
+        "response_json_decode_failed",
+        "curl_failed",
+        "network error",
+        "econnreset",
+        "econnrefused",
+    ]
+    .iter()
+    .any(|needle| error.contains(*needle))
+}
+
 fn structured_timeout_failure_payload(response: Value, recovery_ready: bool) -> Value {
     let mut payload = if response.is_object() {
         response
@@ -848,6 +892,7 @@ mod eval_research_golden_utils_tests {
                 .and_then(Value::as_str),
             Some("transport_timeout")
         );
+        assert!(payload_is_transport_timeout_failure(&payload));
     }
 
     #[test]

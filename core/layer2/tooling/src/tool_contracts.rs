@@ -450,6 +450,13 @@ mod tests {
         assert_eq!(contract.operations, vec!["search".to_string()]);
         assert!(contract.optional_args.contains(&"aperture".to_string()));
         assert!(contract.optional_args.contains(&"source_scope".to_string()));
+        assert!(contract.optional_args.contains(&"keywords".to_string()));
+        assert!(contract
+            .optional_args
+            .contains(&"required_coverage".to_string()));
+        assert!(contract
+            .optional_args
+            .contains(&"query_metadata_policy".to_string()));
         assert_eq!(contract.resource_policy.blocked_domains_source, "none");
         assert!(contract
             .quality_classification

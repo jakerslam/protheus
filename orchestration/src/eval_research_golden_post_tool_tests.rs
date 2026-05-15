@@ -522,6 +522,97 @@ fn research_golden_grades_low_signal_evidence_as_low_evidence_synthesis() {
 }
 
 #[test]
+fn research_golden_blocks_excellent_for_low_signal_fallback() {
+    let root = temp_path("research_golden_low_signal_not_excellent");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Bounded conclusion: the retrieved evidence is low-signal, so this should be treated as a provisional comparison rather than a source-backed winner. Infring appears useful where editable workflow CDs, gate inspection, and rollback discipline matter. LangGraph has clearer public docs for durable graph orchestration and state-machine workflows. The evidence supports using LangGraph first when public documentation maturity matters, while treating Infring-specific production claims as requiring direct docs or repository inspection. The caveat is that this retrieval pass surfaced only partial source coverage, so the decision should not be framed as fully proven.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "web_search",
+                        "selected_tool_family": "Web Search / Fetch",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "low_signal",
+                        "raw_results": [{
+                            "title": "LangGraph durable graph docs",
+                            "snippet": "LangGraph documents graph orchestration, durable execution, and state-machine patterns for agent workflows."
+                        }],
+                        "result": "Low signal: one relevant LangGraph source surfaced, but comparable Infring source coverage did not.",
+                        "evidence_refs": [
+                            {"title": "LangGraph durable graph docs", "locator": "https://docs.langchain.com/langgraph", "score": 0.91}
+                        ]
+                    }],
+                    "response_workflow": {
+                        "evidence_refs": ["evidence:langgraph-docs"],
+                        "final_llm_response": {
+                            "status": "synthesized",
+                            "evidence_refs_used": ["evidence:langgraph-docs"]
+                        }
+                    },
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:low_signal+synthesized",
+                        "tool_completion": {
+                            "completion_state": "low_signal",
+                            "findings_available": true,
+                            "evidence_refs_used": ["evidence:langgraph-docs"]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(report.pointer("/cases/0/pass"), Some(&Value::Bool(true)));
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/status"),
+        Some(&Value::String("low_signal".to_string()))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/allows_excellent"),
+        Some(&Value::Bool(false))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/excellent"),
+        Some(&Value::Bool(false))
+    );
+    assert!(report
+        .pointer("/cases/0/excellent_blockers")
+        .and_then(Value::as_array)
+        .unwrap()
+        .iter()
+        .any(|row| row.as_str() == Some("retrieval_quality:low_signal")));
+    assert_eq!(
+        report
+            .pointer("/measurement_split/live_retrieval_health/retrieval_quality_counts/low_signal")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer(
+                "/measurement_split/live_retrieval_health/excellent_blocked_by_retrieval_quality"
+            )
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+}
+
+#[test]
 fn research_golden_accepts_no_results_retrieval_failure_as_low_evidence_synthesis() {
     let root = temp_path("research_golden_no_results_low_evidence");
     let cases = root.join("cases.json");
@@ -587,6 +678,771 @@ fn research_golden_accepts_no_results_retrieval_failure_as_low_evidence_synthesi
             .pointer("/cases/0/gate_transition_diagnostics/synthesis_failure_class")
             .and_then(Value::as_str),
         Some("low_signal_not_acknowledged")
+    );
+}
+
+#[test]
+fn research_golden_does_not_mark_provider_empty_from_final_answer_caveat_text() {
+    let root = temp_path("research_golden_no_results_phrase_not_provider_status");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Based on the retrieved source evidence, LangGraph has stronger public documentation for durable graph workflows while Infring should be treated as the local comparison target. There were no results for one narrow sub-question, but the run still returned usable source snippets and evidence refs for the main comparison. Bounded conclusion: use the available evidence for directional comparison and avoid over-claiming unsupported gaps.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "batch_query",
+                        "tool_key": "batch_query",
+                        "selected_tool_key": "batch_query",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "queries": [
+                                "Infring LangGraph comparison current docs",
+                                "LangGraph durable execution docs"
+                            ],
+                            "keywords": ["Infring", "LangGraph", "durable execution"],
+                            "required_coverage": ["official docs", "current source evidence"],
+                            "query_metadata_policy": {
+                                "classification": "expanded_query_pack"
+                            },
+                            "aperture": "medium",
+                            "source": "web"
+                        }
+                    },
+                    "tools": [{
+                        "name": "batch_query",
+                        "status": "done",
+                        "raw_results": [
+                            {
+                                "title": "LangGraph durable execution docs",
+                                "snippet": "LangGraph documents durable execution and graph-based agent orchestration."
+                            },
+                            {
+                                "title": "Infring workflow policy",
+                                "snippet": "Infring workflow CDs define gates, transitions, and final-output contracts."
+                            }
+                        ],
+                        "result": "Returned usable source snippets for the main comparison.",
+                        "evidence_refs": [
+                            {"title": "LangGraph durable execution docs", "locator": "https://docs.example/langgraph", "score": 0.92},
+                            {"title": "Infring workflow policy", "locator": "workspace:docs/workflow_json_format_policy.md", "score": 0.88}
+                        ]
+                    }],
+                    "response_workflow": {
+                        "evidence_refs": ["evidence:langgraph", "evidence:infring"],
+                        "final_llm_response": {
+                            "status": "synthesized",
+                            "evidence_refs_used": ["evidence:langgraph", "evidence:infring"]
+                        }
+                    },
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:synthesized",
+                        "tool_completion": {
+                            "completion_state": "synthesized",
+                            "findings_available": true,
+                            "evidence_refs_used": ["evidence:langgraph", "evidence:infring"],
+                            "tool_attempts": [{
+                                "tool_name": "batch_query",
+                                "status": "done",
+                                "raw_results": [
+                                    {
+                                        "title": "LangGraph durable execution docs",
+                                        "snippet": "LangGraph documents durable execution and graph-based agent orchestration."
+                                    }
+                                ],
+                                "evidence_refs": ["evidence:langgraph"]
+                            }]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/status"),
+        Some(&Value::String("usable".to_string()))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/usable_evidence"),
+        Some(&Value::Bool(true))
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/retrieval_quality/classification_inputs/status_marker_source")
+            .and_then(Value::as_str),
+        Some("structured_tool_status_fields_only")
+    );
+
+    let web_6 = report
+        .pointer("/cases/0/web_tool_gate_diagnostics/gates")
+        .and_then(Value::as_array)
+        .unwrap()
+        .iter()
+        .find(|row| {
+            row.get("gate").and_then(Value::as_str) == Some("web_6_provider_not_empty_or_degraded")
+        })
+        .unwrap()
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap()
+        .to_string();
+    assert_eq!(web_6, "pass");
+}
+
+#[test]
+fn research_golden_reports_conflicting_provider_state_when_no_results_status_has_artifacts() {
+    let root = temp_path("research_golden_conflicting_provider_state");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Bounded conclusion: the retrieval state is internally inconsistent. It reports no results while also carrying candidate and evidence artifacts for Infring and LangGraph, so this should be treated as a tooling diagnostic before making a comparison claim.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "batch_query",
+                        "tool_key": "batch_query",
+                        "selected_tool_key": "batch_query",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "queries": ["Infring LangGraph comparison current docs"],
+                            "keywords": ["Infring", "LangGraph"],
+                            "required_coverage": ["official docs"],
+                            "query_metadata_policy": {
+                                "classification": "expanded_query_pack"
+                            },
+                            "aperture": "medium",
+                            "source": "web"
+                        }
+                    },
+                    "tools": [{
+                        "name": "batch_query",
+                        "status": "no_results",
+                        "raw_results": [{
+                            "title": "LangGraph docs",
+                            "snippet": "A real candidate row survived packaging."
+                        }],
+                        "evidence_refs": [
+                            {"title": "LangGraph docs", "locator": "https://docs.example/langgraph", "score": 0.8}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:no_results+synthesized",
+                        "tool_completion": {
+                            "completion_state": "no_results",
+                            "findings_available": true,
+                            "evidence_refs_used": ["evidence:langgraph"],
+                            "tool_attempts": [{
+                                "tool_name": "batch_query",
+                                "status": "no_results",
+                                "raw_results": [{
+                                    "title": "LangGraph docs",
+                                    "snippet": "A real candidate row survived packaging."
+                                }],
+                                "evidence_refs": ["evidence:langgraph"]
+                            }]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/status"),
+        Some(&Value::String("conflicting_provider_state".to_string()))
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/retrieval_quality/classification_inputs/evidence_artifact_conflict"),
+        Some(&Value::Bool(true))
+    );
+    assert!(report
+        .pointer("/cases/0/retrieval_quality/quality_flags")
+        .and_then(Value::as_array)
+        .unwrap()
+        .iter()
+        .any(|row| row.as_str() == Some("evidence_artifact_conflict")));
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/first_failed_gate")
+            .and_then(Value::as_str),
+        Some("web_6_provider_not_empty_or_degraded")
+    );
+}
+
+#[test]
+fn research_golden_reports_web_tooling_gate_splits_separately() {
+    let root = temp_path("research_golden_web_tooling_gates");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Bounded conclusion: this retrieval attempt produced low-evidence source coverage, so treat the result as a diagnostic rather than a source-backed framework comparison. The provider returned no directly relevant results, which supports only the operational conclusion that the query should be expanded or retargeted. It does not prove anything about Infring or LangGraph. The useful takeaway is to retry with official docs, repository pages, and dated release sources before making a product decision.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "batch_query",
+                        "tool_key": "batch_query",
+                        "selected_tool_key": "batch_query",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "aperture": "medium",
+                            "source": "web"
+                        }
+                    },
+                    "tools": [{
+                        "name": "batch_query",
+                        "status": "no_results",
+                        "provider_results": [{
+                            "title": "No usable result",
+                            "snippet": "No directly relevant source snippets were returned."
+                        }],
+                        "search_results": [{
+                            "title": "No usable result",
+                            "snippet": "No directly relevant source snippets were returned."
+                        }],
+                        "result": "No results: provider returned no usable source snippets.",
+                        "evidence_refs": [
+                            {"title": "No usable result", "locator": "tool:no-results", "score": 0.0}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:no_results+synthesized",
+                        "tool_completion": {
+                            "completion_state": "no_results",
+                            "findings_available": false,
+                            "evidence_refs": ["tool:no-results"],
+                            "evidence_refs_used": ["tool:no-results"],
+                            "tool_attempts": [{
+                                "tool_name": "batch_query",
+                                "status": "no_results",
+                                "provider_results": [{
+                                    "title": "No usable result",
+                                    "snippet": "No directly relevant source snippets were returned."
+                                }],
+                                "search_results": [{
+                                    "title": "No usable result",
+                                    "snippet": "No directly relevant source snippets were returned."
+                                }],
+                                "evidence_refs": ["tool:no-results"]
+                            }]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/first_failed_gate")
+            .and_then(Value::as_str),
+        Some("web_2_query_metadata_present")
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/primary_bottleneck")
+            .and_then(Value::as_str),
+        Some("query_planning_metadata_missing")
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/candidate_supply/raw_candidate_count")
+            .and_then(Value::as_u64),
+        Some(4)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/packaging/evidence_count")
+            .and_then(Value::as_u64),
+        Some(3)
+    );
+    assert_eq!(
+        report
+            .pointer(
+                "/measurement_split/web_tooling/first_failure_counts/web_2_query_metadata_present"
+            )
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+
+    let gates = report
+        .get("web_tool_gate_pass_rates")
+        .and_then(Value::as_array)
+        .expect("web gate rates");
+    let gate_status = |name: &str| {
+        gates
+            .iter()
+            .find(|row| row.get("gate").and_then(Value::as_str) == Some(name))
+            .and_then(|row| row.get("pass_rate").and_then(Value::as_f64))
+            .unwrap_or(-1.0)
+    };
+    assert_eq!(gate_status("web_1_request_shape_present"), 1.0);
+    assert_eq!(gate_status("web_2_query_metadata_present"), 0.0);
+    assert_eq!(gate_status("web_4_raw_candidates_present"), 1.0);
+    assert_eq!(gate_status("web_5_packaged_evidence_present"), 1.0);
+    assert_eq!(gate_status("web_6_provider_not_empty_or_degraded"), 0.0);
+    assert_eq!(gate_status("web_7_usable_evidence_available"), 0.0);
+
+    let metrics = report
+        .pointer("/measurement_split/web_tooling/gate_metrics")
+        .and_then(Value::as_array)
+        .expect("web gate metrics");
+    let query_metric = metrics
+        .iter()
+        .find(|row| row.get("gate").and_then(Value::as_str) == Some("web_2_query_metadata_present"))
+        .expect("query metadata metric");
+    assert_eq!(query_metric.get("total").and_then(Value::as_u64), Some(1));
+    assert_eq!(query_metric.get("passed").and_then(Value::as_u64), Some(0));
+    assert_eq!(query_metric.get("failed").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        query_metric
+            .get("first_failure_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        query_metric.get("artifact_present").and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        query_metric.get("pass_rate").and_then(Value::as_f64),
+        Some(0.0)
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/web_tooling/operator_metrics/top_first_failure/name")
+            .and_then(Value::as_str),
+        Some("web_2_query_metadata_present")
+    );
+    assert_eq!(
+        report
+            .pointer(
+                "/measurement_split/web_tooling/operator_metrics/averages/raw_candidates_per_case"
+            )
+            .and_then(Value::as_f64),
+        Some(4.0)
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/web_tooling/operator_metrics/conversion_rates/usable_evidence_case_rate")
+            .and_then(Value::as_f64),
+        Some(0.0)
+    );
+}
+
+#[test]
+fn research_golden_web_search_metadata_moves_failure_to_provider_quality() {
+    let root = temp_path("research_golden_web_search_metadata_provider_quality");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Bounded conclusion: this narrow web lookup ran with explicit query metadata, but the returned candidates were too weak to support a source-backed answer.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "web_search",
+                        "tool_key": "web_search",
+                        "selected_tool_key": "web_search",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "query": "latest Rust 2026 release notes",
+                            "keywords": ["Rust", "2026", "release notes"],
+                            "required_coverage": {
+                                "entities": ["Rust"],
+                                "facets": ["release notes", "current version"]
+                            },
+                            "query_metadata_policy": {
+                                "classification": "narrow_lookup_or_initial_discovery"
+                            },
+                            "aperture": "medium"
+                        }
+                    },
+                    "tools": [{
+                        "name": "web_search",
+                        "status": "no_results",
+                        "provider_results": [{
+                            "title": "No usable result",
+                            "snippet": "No directly relevant source snippets were returned."
+                        }],
+                        "search_results": [{
+                            "title": "No usable result",
+                            "snippet": "No directly relevant source snippets were returned."
+                        }],
+                        "evidence_refs": [
+                            {"title": "No usable result", "locator": "tool:no-results", "score": 0.0}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:no_results+synthesized",
+                        "tool_completion": {
+                            "completion_state": "no_results",
+                            "findings_available": false,
+                            "evidence_refs": ["tool:no-results"],
+                            "evidence_refs_used": ["tool:no-results"],
+                            "tool_attempts": [{
+                                "tool_name": "web_search",
+                                "status": "no_results",
+                                "provider_results": [{
+                                    "title": "No usable result",
+                                    "snippet": "No directly relevant source snippets were returned."
+                                }],
+                                "search_results": [{
+                                    "title": "No usable result",
+                                    "snippet": "No directly relevant source snippets were returned."
+                                }],
+                                "evidence_refs": ["tool:no-results"]
+                            }]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report
+            .pointer("/cases/0/query_metadata_diagnostics/eligible_web_retrieval_request")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    let gates = report
+        .get("web_tool_gate_pass_rates")
+        .and_then(Value::as_array)
+        .expect("web gate rates");
+    let gate_status = |name: &str| {
+        gates
+            .iter()
+            .find(|row| row.get("gate").and_then(Value::as_str) == Some(name))
+            .and_then(|row| row.get("pass_rate").and_then(Value::as_f64))
+            .unwrap_or(-1.0)
+    };
+    assert_eq!(gate_status("web_2_query_metadata_present"), 1.0);
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/first_failed_gate")
+            .and_then(Value::as_str),
+        Some("web_6_provider_not_empty_or_degraded")
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/operator_metrics/primary_bottleneck")
+            .and_then(Value::as_str),
+        Some("provider_empty_or_degraded")
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/query_metadata_planning/eligible_web_retrieval_requests")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/query_metadata_planning/metadata_present_rate")
+            .and_then(Value::as_f64),
+        Some(1.0)
+    );
+}
+
+#[test]
+fn research_golden_web_tooling_gates_split_thin_rows_from_materialized_evidence() {
+    let root = temp_path("research_golden_web_tooling_thin_materialization");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "Bounded conclusion: the retrieval returned candidate rows for Infring and LangGraph, but the available snippets are too thin to support a useful comparison. Treat this as a tooling materialization miss, not evidence about the frameworks.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "batch_query",
+                        "tool_key": "batch_query",
+                        "selected_tool_key": "batch_query",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "queries": [
+                                "Infring LangGraph comparison current docs",
+                                "LangGraph official docs durable execution"
+                            ],
+                            "keywords": ["Infring", "LangGraph", "official docs"],
+                            "required_coverage": ["current docs", "workflow reliability"],
+                            "query_metadata_policy": {
+                                "classification": "expanded_query_pack"
+                            },
+                            "aperture": "medium",
+                            "source": "web"
+                        }
+                    },
+                    "tools": [{
+                        "name": "batch_query",
+                        "status": "done",
+                        "raw_results": [
+                            {
+                                "title": "LangGraph docs",
+                                "locator": "https://docs.example/langgraph",
+                                "snippet": "LangGraph docs."
+                            },
+                            {
+                                "title": "Infring notes",
+                                "locator": "https://docs.example/infring",
+                                "snippet": "Infring notes."
+                            }
+                        ],
+                        "evidence_refs": [
+                            {"title": "LangGraph docs", "locator": "https://docs.example/langgraph", "score": 0.82},
+                            {"title": "Infring notes", "locator": "https://docs.example/infring", "score": 0.8}
+                        ]
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:synthesized",
+                        "tool_completion": {
+                            "completion_state": "synthesized",
+                            "findings_available": true,
+                            "evidence_refs_used": ["evidence:langgraph", "evidence:infring"],
+                            "tool_attempts": [{
+                                "tool_name": "batch_query",
+                                "status": "done",
+                                "raw_results": [
+                                    {
+                                        "title": "LangGraph docs",
+                                        "locator": "https://docs.example/langgraph",
+                                        "snippet": "LangGraph docs."
+                                    }
+                                ],
+                                "evidence_refs": ["evidence:langgraph"]
+                            }]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/status"),
+        Some(&Value::String("usable".to_string()))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/content_rich_candidate_count"),
+        Some(&Value::Number(0.into()))
+    );
+    assert_eq!(
+        report.pointer("/cases/0/retrieval_quality/claim_hint_count"),
+        Some(&Value::Number(0.into()))
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/first_failed_gate")
+            .and_then(Value::as_str),
+        Some("web_5b_content_rich_candidates_present")
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/inferred_failure_boundary")
+            .and_then(Value::as_str),
+        Some("candidate_content_materialization_missing")
+    );
+}
+
+#[test]
+fn research_golden_reports_web_access_blockers_separately() {
+    let root = temp_path("research_golden_web_access_blocker_gate");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    write_json_file(&cases, &dataset());
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [{
+                "case_id": "research_gold_test",
+                "response_payload": {
+                    "response": "The web retrieval attempt was blocked before usable source evidence was available. The only grounded conclusion is that access was rate-limited, so this run should be treated as an access diagnostic rather than evidence about the requested comparison.",
+                    "pending_tool_request": {
+                        "status": "executed",
+                        "tool_name": "batch_query",
+                        "tool_key": "batch_query",
+                        "selected_tool_key": "batch_query",
+                        "selected_tool_family": "web_research",
+                        "input": {
+                            "query": "Infring LangGraph comparison current docs",
+                            "aperture": "medium",
+                            "queries": [
+                                "Infring LangGraph comparison current docs",
+                                "LangGraph official docs durable execution",
+                                "Infring workflow CD gates research"
+                            ],
+                            "keywords": ["Infring", "LangGraph", "workflow", "durable execution"],
+                            "required_coverage": ["official docs", "current source evidence"],
+                            "query_metadata_policy": {
+                                "classification": "expanded_query_pack"
+                            }
+                        }
+                    },
+                    "tools": [{
+                        "name": "batch_query",
+                        "status": "error",
+                        "status_code": 429,
+                        "error": "HTTP 429 Too Many Requests",
+                        "result": "Provider returned 429 Too Many Requests with Retry-After: 60. The page showed a Cloudflare CAPTCHA / verify you are human challenge, so no source snippets were available."
+                    }],
+                    "response_finalization": {
+                        "outcome": "workflow_authored+tool_completion:access_blocked+synthesized",
+                        "tool_completion": {
+                            "completion_state": "provider_error",
+                            "findings_available": false,
+                            "tool_attempts": [{
+                                "tool_name": "batch_query",
+                                "status": "error",
+                                "status_code": 429,
+                                "error": "HTTP 429 Too Many Requests",
+                                "result": "Cloudflare CAPTCHA challenge and Retry-After throttling blocked candidate retrieval."
+                            }]
+                        }
+                    }
+                }
+            }]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/first_failed_gate")
+            .and_then(Value::as_str),
+        Some("web_3b1_provider_quota_not_rate_limited")
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/inferred_failure_boundary")
+            .and_then(Value::as_str),
+        Some("provider_rate_limited_or_quota_exhausted")
+    );
+    assert_eq!(
+        report.pointer("/cases/0/web_tool_gate_diagnostics/access_blocker/detected"),
+        Some(&Value::Bool(true))
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/0/web_tool_gate_diagnostics/access_blocker/kind")
+            .and_then(Value::as_str),
+        Some("anti_bot_or_throttle")
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/web_tooling/access_blocker_counts/anti_bot_or_throttle")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer(
+                "/measurement_split/web_tooling/access_blocker_class_counts/rate_limit_or_quota"
+            )
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer(
+                "/measurement_split/web_tooling/access_blocker_class_counts/anti_bot_challenge"
+            )
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/web_tooling/access_blocker_signal_counts/http_status_429")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/web_tooling/measured_cases")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/web_tooling/transport_excluded_cases")
+            .and_then(Value::as_u64),
+        Some(0)
+    );
+
+    let gates = report
+        .get("web_tool_gate_pass_rates")
+        .and_then(Value::as_array)
+        .expect("web gate rates");
+    let access_gate_rate = gates
+        .iter()
+        .find(|row| {
+            row.get("gate").and_then(Value::as_str)
+                == Some("web_3b1_provider_quota_not_rate_limited")
+        })
+        .and_then(|row| row.get("pass_rate").and_then(Value::as_f64));
+    assert_eq!(access_gate_rate, Some(0.0));
+
+    let metrics = report
+        .get("web_tool_gate_metrics")
+        .and_then(Value::as_array)
+        .expect("top-level web gate metrics");
+    let access_metric = metrics
+        .iter()
+        .find(|row| {
+            row.get("gate").and_then(Value::as_str)
+                == Some("web_3b1_provider_quota_not_rate_limited")
+        })
+        .expect("access blocker metric");
+    assert_eq!(access_metric.get("failed").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        access_metric
+            .get("first_failure_count")
+            .and_then(Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        access_metric
+            .get("artifact_present_failures")
+            .and_then(Value::as_u64),
+        Some(1)
     );
 }
 

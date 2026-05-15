@@ -17,7 +17,8 @@ use crate::web_conduit_provider_runtime::{
     fetch_cache_key, fetch_provider_catalog_snapshot, fetch_provider_chain_from_request,
     fetch_provider_registration_contract, load_fetch_cache, load_search_cache,
     normalized_search_filters, provider_catalog_snapshot, provider_chain_from_request,
-    provider_circuit_open_until, provider_health_snapshot, recent_tool_attempt_replay_guard,
+    provider_circuit_open_until, provider_health_snapshot, provider_requires_credential,
+    recent_tool_attempt_replay_guard,
     record_provider_attempt, resolve_provider_credential_source_with_env,
     resolve_search_cache_ttl_seconds, resolve_search_count, resolve_search_provider_credential,
     resolve_search_timeout_ms, runtime_web_execution_gate, runtime_web_process_summary,
@@ -45,13 +46,16 @@ const DEFAULT_WEB_USER_AGENTS: &[&str] = &[
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
 ];
 const SERPER_SEARCH_URL: &str = "https://google.serper.dev/search";
+const TAVILY_SEARCH_URL: &str = "https://api.tavily.com/search";
+const EXA_SEARCH_URL: &str = "https://api.exa.ai/search";
+const BRAVE_SEARCH_URL: &str = "https://api.search.brave.com/res/v1/web/search";
 
 fn usage() {
     println!("web-conduit commands:");
     println!("  infring-ops web-conduit status");
     println!("  infring-ops web-conduit receipts [--limit=<n>]");
     println!(
-        "  infring-ops web-conduit setup [--provider=<serperdev|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
+        "  infring-ops web-conduit setup [--provider=<tavily|exa|brave|serperdev|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
     );
     println!(
         "  infring-ops web-conduit migrate-legacy-config [--source-path=<path>] [--apply=1] [--summary-only=1]"
@@ -237,7 +241,7 @@ fn default_policy() -> Value {
             "search_default_count": 8,
             "search_max_count": 12,
             "search_cache_ttl_minutes": 8,
-            "search_provider_order": ["serperdev", "bing_rss", "duckduckgo_lite", "duckduckgo"],
+            "search_provider_order": ["tavily", "exa", "brave", "serperdev", "bing_rss", "duckduckgo_lite", "duckduckgo"],
             "fetch_provider_order": ["direct_http"],
                 "browser_materialization": {
                     "enabled": false,

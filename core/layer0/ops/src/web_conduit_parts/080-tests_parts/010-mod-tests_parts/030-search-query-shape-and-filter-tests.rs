@@ -49,6 +49,9 @@
                 Some("duckduckgo")
                     | Some("duckduckgo_lite")
                     | Some("bing_rss")
+                    | Some("tavily")
+                    | Some("exa")
+                    | Some("brave")
                     | Some("serperdev")
                     | Some("none")
             ),

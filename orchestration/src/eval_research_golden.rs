@@ -9,6 +9,8 @@ mod eval_research_golden_report;
 mod eval_research_golden_scoring;
 #[path = "eval_research_golden_utils.rs"]
 mod eval_research_golden_utils;
+#[path = "eval_web_retrieval_gate_diagnostics.rs"]
+mod eval_web_retrieval_gate_diagnostics;
 
 use eval_research_gate_diagnostics::{
     failure_boundary, gate_transition_diagnostics, gate_transition_rate_rows,
@@ -18,6 +20,10 @@ use eval_research_golden_scoring::{
     dimension_average_rows, gate_rate_rows, grade_case, response_diagnostics,
 };
 use eval_research_golden_utils::*;
+use eval_web_retrieval_gate_diagnostics::{
+    record_web_retrieval_gate_counts, web_retrieval_gate_diagnostics,
+    web_retrieval_gate_metric_rows, web_retrieval_gate_rate_rows, web_retrieval_measurement_report,
+};
 use infring_orchestration_v1::observation_lifecycle::{
     load_policy_or_default, persist_lifecycle_observations, policy_path_string,
     research_golden_observation_events, stable_hash_hex, ObservationLifecyclePaths,
@@ -139,6 +145,8 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let mut gate_total_counts: BTreeMap<String, u64> = BTreeMap::new();
     let mut transition_pass_counts: BTreeMap<String, u64> = BTreeMap::new();
     let mut transition_total_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut web_gate_pass_counts: BTreeMap<String, u64> = BTreeMap::new();
+    let mut web_gate_total_counts: BTreeMap<String, u64> = BTreeMap::new();
     let mut dimension_totals: BTreeMap<String, u64> = BTreeMap::new();
     let mut passed_cases = 0_u64;
     let mut excellent_cases = 0_u64;
@@ -147,6 +155,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let mut raw_tool_leaks = 0_u64;
     let mut tool_choice_final_responses = 0_u64;
     let mut unsupported_claims = 0_u64;
+    let mut transport_failures = 0_u64;
 
     for case in cases.iter().take(limit) {
         let case_id = str_at(case, &["id"], "unknown_case");
@@ -228,10 +237,21 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             &payload,
             confirmation_payload_used,
         );
+        let transport_timeout_failure = payload_is_transport_failure(&payload);
         let lifecycle_gate_path_complete =
             transition_first_failed_checkpoint(&transition_diagnostics).is_none();
         let grade = grade_case(case, &payload, pass_score, excellent_score);
+        let query_metadata_diagnostics = query_metadata_diagnostics(&payload);
+        let web_tool_gate_diagnostics = web_retrieval_gate_diagnostics(
+            &payload,
+            &grade.retrieval_quality,
+            &query_metadata_diagnostics,
+            &transition_diagnostics,
+        );
         let mut case_failures = grade.failures.clone();
+        if transport_timeout_failure {
+            case_failures.push("transport_failure".to_string());
+        }
         if let Some(checkpoint) = transition_first_failed_checkpoint(&transition_diagnostics) {
             case_failures.push(format!("research_lifecycle_gate_failed:{checkpoint}"));
         }
@@ -251,12 +271,21 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             grade.tool_choice_final_response,
         );
         let initial_response_text = assistant_text(&initial_payload);
-        record_gate_counts(&grade.gates, &mut gate_total_counts, &mut gate_pass_counts);
-        record_checkpoint_counts(
-            &transition_diagnostics,
-            &mut transition_total_counts,
-            &mut transition_pass_counts,
-        );
+        if transport_timeout_failure {
+            transport_failures = transport_failures.saturating_add(1);
+        } else {
+            record_gate_counts(&grade.gates, &mut gate_total_counts, &mut gate_pass_counts);
+            record_checkpoint_counts(
+                &transition_diagnostics,
+                &mut transition_total_counts,
+                &mut transition_pass_counts,
+            );
+            record_web_retrieval_gate_counts(
+                &web_tool_gate_diagnostics,
+                &mut web_gate_total_counts,
+                &mut web_gate_pass_counts,
+            );
+        }
         for (dimension, score) in grade.dimension_scores.iter() {
             *dimension_totals.entry(dimension.clone()).or_insert(0) += *score;
         }
@@ -304,10 +333,14 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "dimension_scores": grade.dimension_scores,
             "failures": case_failures,
             "failure_classification": failure_classification,
+            "retrieval_quality": grade.retrieval_quality,
+            "excellent_blockers": grade.excellent_blockers,
+            "transport_failure": transport_timeout_failure,
             "setup_failures": case_setup_failures,
             "response_preview": clean_text(&grade.response_text, 500),
             "response_diagnostics": response_diagnostics(&payload, &grade.response_text),
-            "query_metadata_diagnostics": query_metadata_diagnostics(&payload),
+            "query_metadata_diagnostics": query_metadata_diagnostics,
+            "web_tool_gate_diagnostics": web_tool_gate_diagnostics,
             "gate_transition_diagnostics": transition_diagnostics,
             "turn_sequence": {
                 "confirm_pending_tool": confirm_pending_tool,
@@ -350,6 +383,9 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let tag_pass_rates = tag_pass_rate_rows(&rows);
     let gate_transition_rates =
         gate_transition_rate_rows(&transition_total_counts, &transition_pass_counts);
+    let web_tool_gate_rates =
+        web_retrieval_gate_rate_rows(&web_gate_total_counts, &web_gate_pass_counts);
+    let web_tool_gate_metrics = web_retrieval_gate_metric_rows(&rows, &web_tool_gate_rates);
     let gate_transition_path_ok = gate_transition_rates
         .iter()
         .all(|row| f64_at(row, &["pass_rate"], 0.0) >= workflow_gate_pass_min);
@@ -365,7 +401,9 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         && gate_transition_path_ok
         && research_success_rate >= research_success_min
         && safety_ok;
-    let measurement_split = measurement_split_report(
+    let web_tooling_diagnostics =
+        web_retrieval_measurement_report(&rows, &web_tool_gate_rates, &web_tool_gate_metrics);
+    let mut measurement_split = measurement_split_report(
         &rows,
         &gate_rates,
         &gate_transition_rates,
@@ -375,6 +413,9 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         research_success_min,
         safety_ok,
     );
+    if let Some(object) = measurement_split.as_object_mut() {
+        object.insert("web_tooling".to_string(), web_tooling_diagnostics.clone());
+    }
     let generated_at = now_iso_like();
     let run_id = parse_flag(args, "run-id").unwrap_or_else(|| {
         let seed = json!({
@@ -426,11 +467,15 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "raw_tool_leaks": raw_tool_leaks,
             "tool_choice_final_responses": tool_choice_final_responses,
             "unsupported_claims": unsupported_claims,
+            "transport_failures": transport_failures,
             "failure_count": failure_events.len()
         },
         "measurement_split": measurement_split,
         "workflow_gate_pass_rates": gate_rates,
         "gate_transition_pass_rates": gate_transition_rates,
+        "web_tool_gate_pass_rates": web_tool_gate_rates,
+        "web_tool_gate_metrics": web_tool_gate_metrics,
+        "web_tooling_diagnostics": web_tooling_diagnostics,
         "dimension_averages": dimension_averages,
         "category_pass_rates": category_pass_rates,
         "tag_pass_rates": tag_pass_rates,
@@ -618,7 +663,9 @@ fn query_metadata_diagnostics(payload: &Value) -> Value {
         tool = str_at(request, &["tool_name"], "");
     }
     let input = request.get("input").unwrap_or(&Value::Null);
-    let eligible = normalize_for_compare(&tool) == "batch_query";
+    let normalized_tool = normalize_for_compare(&tool);
+    let eligible_batch_query = normalized_tool == "batch_query";
+    let eligible_web_retrieval = matches!(normalized_tool.as_str(), "batch_query" | "web_search");
     let fields_present = input
         .as_object()
         .map(|map| {
@@ -660,10 +707,12 @@ fn query_metadata_diagnostics(payload: &Value) -> Value {
         })
         .unwrap_or(false);
     json!({
-        "eligible_batch_query_request": eligible,
-        "metadata_present": eligible && metadata_present,
-        "rich_query_pack_or_narrow_marker": eligible && (rich_query_pack || narrow_or_expanded_marker),
+        "eligible_batch_query_request": eligible_batch_query,
+        "eligible_web_retrieval_request": eligible_web_retrieval,
+        "metadata_present": eligible_web_retrieval && metadata_present,
+        "rich_query_pack_or_narrow_marker": eligible_web_retrieval && (rich_query_pack || narrow_or_expanded_marker),
         "fields_present": fields_present,
+        "tool": normalized_tool,
         "source": str_at(request, &["source"], "unknown"),
         "classification": input
             .pointer("/query_metadata_policy/classification")
@@ -734,6 +783,12 @@ fn case_failure_classification(
     if case_pass {
         return "none";
     }
+    if case_failures
+        .iter()
+        .any(|failure| failure == "transport_timeout" || failure == "transport_failure")
+    {
+        return "transport";
+    }
     if !setup_failures.is_empty()
         || empty_response
         || raw_tool_leak
@@ -785,6 +840,10 @@ fn measurement_split_report(
         .iter()
         .filter(|row| str_at(row, &["failure_classification"], "") == "soft")
         .count() as u64;
+    let transport_failure_cases = rows
+        .iter()
+        .filter(|row| str_at(row, &["failure_classification"], "") == "transport")
+        .count() as u64;
     let pass_cases = rows
         .iter()
         .filter(|row| bool_at(row, &["pass"], false))
@@ -816,7 +875,53 @@ fn measurement_split_report(
                 && case_has_retrieval_quality_signal(row)
         })
         .count() as u64;
+    let retrieval_quality_counts = retrieval_quality_status_counts(rows);
+    let usable_retrieval_quality_cases =
+        retrieval_quality_counts.get("usable").copied().unwrap_or(0);
+    let low_evidence_or_degraded_cases = rows
+        .iter()
+        .filter(|row| {
+            matches!(
+                str_at(row, &["retrieval_quality", "status"], "").as_str(),
+                "low_signal"
+                    | "no_results"
+                    | "provider_degraded"
+                    | "no_evidence"
+                    | "raw_provider_absent"
+            )
+        })
+        .count() as u64;
+    let excellent_blocked_by_retrieval_quality = rows
+        .iter()
+        .filter(|row| {
+            if str_at(row, &["failure_classification"], "") == "transport" {
+                return false;
+            }
+            row.get("excellent_blockers")
+                .and_then(Value::as_array)
+                .map(|blockers| {
+                    blockers
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .any(|blocker| blocker.starts_with("retrieval_quality:"))
+                })
+                .unwrap_or(false)
+        })
+        .count() as u64;
     let query_metadata_eligible_cases = rows
+        .iter()
+        .filter(|row| {
+            bool_at(
+                row,
+                &[
+                    "query_metadata_diagnostics",
+                    "eligible_web_retrieval_request",
+                ],
+                false,
+            )
+        })
+        .count() as u64;
+    let batch_query_metadata_eligible_cases = rows
         .iter()
         .filter(|row| {
             bool_at(
@@ -851,6 +956,8 @@ fn measurement_split_report(
         .count() as u64;
     let retrieval_status = if !live {
         "not_live"
+    } else if transport_failure_cases > 0 {
+        "transport_failures_present"
     } else if tool_execution_rate < workflow_gate_pass_min || hard_failure_cases > 0 {
         "blocked_by_upstream_path"
     } else if raw_provider_rate < workflow_gate_pass_min
@@ -873,9 +980,10 @@ fn measurement_split_report(
             "transition_path_ok": transition_path_ok,
             "safety_ok": safety_ok,
             "hard_failure_cases": hard_failure_cases,
+            "transport_failure_cases": transport_failure_cases,
             "min_rate": workflow_gate_pass_min,
             "note": if live {
-                "computed from deterministic gates over live payloads; compare with offline recorded replay for non-network stability"
+                "computed from deterministic gates over live payloads; transport failures are reported separately because they do not expose a workflow payload to grade"
             } else {
                 "computed from recorded responses; suitable for deterministic replay stability"
             }
@@ -888,16 +996,22 @@ fn measurement_split_report(
             "packaged_result_rate": packaged_result_rate,
             "evidence_extraction_rate": evidence_rate,
             "evidence_context_rate": evidence_context_rate,
+            "retrieval_quality_counts": retrieval_quality_counts,
+            "usable_retrieval_quality_cases": usable_retrieval_quality_cases,
+            "low_evidence_or_degraded_cases": low_evidence_or_degraded_cases,
+            "excellent_blocked_by_retrieval_quality": excellent_blocked_by_retrieval_quality,
             "soft_retrieval_or_coverage_cases": retrieval_soft_cases,
+            "transport_failure_cases": transport_failure_cases,
             "note": "this lane measures evidence availability and coverage; it should move with provider/data quality and cache state"
         },
         "query_metadata_planning": {
-            "eligible_batch_query_requests": query_metadata_eligible_cases,
+            "eligible_web_retrieval_requests": query_metadata_eligible_cases,
+            "eligible_batch_query_requests": batch_query_metadata_eligible_cases,
             "metadata_present_cases": query_metadata_present_cases,
             "rich_query_pack_or_narrow_marker_cases": rich_query_pack_or_marker_cases,
             "metadata_present_rate": ratio(query_metadata_present_cases, query_metadata_eligible_cases),
             "rich_query_pack_or_narrow_marker_rate": ratio(rich_query_pack_or_marker_cases, query_metadata_eligible_cases),
-            "note": "measures whether live batch_query requests exercised the CD-declared query metadata primitive instead of silently falling back to minimal query/source/aperture"
+            "note": "measures whether live web-retrieval requests exercised the CD-declared query metadata primitive instead of silently falling back to minimal query/source/aperture"
         },
         "end_to_end_golden": {
             "ok": research_success_rate >= research_success_min,
@@ -916,10 +1030,21 @@ fn measurement_split_report(
         "failure_classification": {
             "hard_failure_cases": hard_failure_cases,
             "soft_failure_cases": soft_failure_cases,
+            "transport_failure_cases": transport_failure_cases,
             "hard_failures": hard_rows,
-            "soft_failures": soft_rows
+            "soft_failures": soft_rows,
+            "transport_failures": failure_rows_for_classification(rows, "transport")
         }
     })
+}
+
+fn retrieval_quality_status_counts(rows: &[Value]) -> BTreeMap<String, u64> {
+    let mut counts = BTreeMap::new();
+    for row in rows {
+        let status = str_at(row, &["retrieval_quality", "status"], "unknown");
+        *counts.entry(status).or_insert(0) += 1;
+    }
+    counts
 }
 
 fn checkpoint_rate(rows: &[Value], checkpoint: &str) -> f64 {

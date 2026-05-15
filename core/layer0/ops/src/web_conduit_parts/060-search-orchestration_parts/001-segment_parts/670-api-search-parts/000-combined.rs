@@ -1056,6 +1056,17 @@
         }
         attempted.push(provider.clone());
         let candidate = match provider.as_str() {
+            "tavily" | "exa" | "brave" => api_search_structured_provider(
+                root,
+                provider,
+                &scoped_query,
+                summary_only,
+                human_approved,
+                &allowed_domains,
+                exclude_subdomains,
+                top_k,
+                timeout_ms,
+            ),
             "serperdev" => api_search_serper(
                 root,
                 &scoped_query,
@@ -1171,8 +1182,53 @@
                 row.get("query_mismatch")
                     .and_then(Value::as_bool)
                     .unwrap_or(false)
-            });
+        });
         if let Some(obj) = out.as_object_mut() {
+            let current_error = obj.get("error").and_then(Value::as_str).unwrap_or("");
+            let current_error_is_configuration_terminal = {
+                let lowered = current_error.to_ascii_lowercase();
+                lowered.contains("api_key_missing")
+                    || lowered.contains("api key missing")
+                    || lowered.contains("credential_missing")
+                    || lowered.contains("credential_unresolved")
+                    || lowered.contains("credential unresolved")
+                    || lowered.contains("key_unresolved")
+                    || lowered.contains("missing credential")
+                    || lowered.contains("missing api key")
+            };
+            let chain_has_quality_or_config_failures = provider_errors.iter().any(|row| {
+                let error = row
+                    .get("error")
+                    .and_then(Value::as_str)
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                row.get("low_signal").and_then(Value::as_bool).unwrap_or(false)
+                    || row
+                        .get("query_mismatch")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                    || error.contains("api_key_missing")
+                    || error.contains("api key missing")
+                    || error.contains("credential_missing")
+                    || error.contains("credential_unresolved")
+                    || error.contains("credential unresolved")
+                    || error.contains("key_unresolved")
+                    || error.contains("missing credential")
+                    || error.contains("missing api key")
+            });
+            if current_error_is_configuration_terminal && chain_has_quality_or_config_failures {
+                obj.insert(
+                    "error".to_string(),
+                    Value::String("search_providers_exhausted".to_string()),
+                );
+                obj.insert(
+                    "summary".to_string(),
+                    Value::String(
+                        "Search provider chain exhausted: free providers returned low-signal or off-topic results, and credentialed providers were not configured."
+                            .to_string(),
+                    ),
+                );
+            }
             let current_error = obj.get("error").and_then(Value::as_str).unwrap_or("");
             if current_error.is_empty() || current_error == "search_providers_exhausted" {
                 if query_mismatch_only_failure {

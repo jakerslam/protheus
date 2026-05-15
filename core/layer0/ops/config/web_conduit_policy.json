@@ -18,6 +18,9 @@
     "search_max_count": 40,
     "search_cache_ttl_minutes": 8,
     "search_provider_order": [
+      "tavily",
+      "exa",
+      "brave",
       "serperdev",
       "bing_rss",
       "duckduckgo_lite",

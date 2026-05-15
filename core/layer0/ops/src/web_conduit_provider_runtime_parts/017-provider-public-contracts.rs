@@ -193,13 +193,10 @@ fn provider_ids_for_family(family: WebProviderFamily) -> Vec<String> {
 fn unsupported_provider_examples(family: WebProviderFamily) -> &'static [&'static str] {
     match family {
         WebProviderFamily::Search => &[
-            "brave",
-            "exa",
             "firecrawl",
             "google",
             "moonshot",
             "perplexity",
-            "tavily",
             "xai",
         ],
         WebProviderFamily::Fetch => &["firecrawl"],

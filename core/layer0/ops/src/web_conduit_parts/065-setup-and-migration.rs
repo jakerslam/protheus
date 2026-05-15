@@ -2,6 +2,9 @@ const WEB_SETUP_DOCS_URL: &str = "https://docs.openclaw.ai/tools/web";
 
 fn provider_label(provider: &str) -> &'static str {
     match provider {
+        "tavily" => "Tavily",
+        "exa" => "Exa",
+        "brave" => "Brave Search",
         "duckduckgo" => "DuckDuckGo",
         "duckduckgo_lite" => "DuckDuckGo Lite",
         "bing_rss" => "Bing RSS",
@@ -13,6 +16,9 @@ fn provider_label(provider: &str) -> &'static str {
 
 fn provider_hint(provider: &str) -> &'static str {
     match provider {
+        "tavily" => "AI-optimized structured search API",
+        "exa" => "Neural search API with optional contents",
+        "brave" => "Independent web search API",
         "duckduckgo" => "HTML search with broad web coverage",
         "duckduckgo_lite" => "Low-friction fallback HTML search",
         "bing_rss" => "RSS-backed search fallback",
@@ -24,6 +30,9 @@ fn provider_hint(provider: &str) -> &'static str {
 
 fn provider_signup_url(provider: &str) -> Option<&'static str> {
     match provider {
+        "tavily" => Some("https://app.tavily.com"),
+        "exa" => Some("https://dashboard.exa.ai"),
+        "brave" => Some("https://api.search.brave.com"),
         "serperdev" => Some("https://serper.dev"),
         _ => None,
     }
@@ -31,6 +40,9 @@ fn provider_signup_url(provider: &str) -> Option<&'static str> {
 
 fn provider_placeholder(provider: &str) -> Option<&'static str> {
     match provider {
+        "tavily" => Some("tvly-..."),
+        "exa" => Some("exa-..."),
+        "brave" => Some("brave-..."),
         "serperdev" => Some("serper-..."),
         _ => None,
     }
@@ -255,6 +267,9 @@ fn web_setup_contract(root: &Path, policy: &Value) -> Value {
         "supports_api_key_env": true,
         "commands": [
             "infring-ops web-conduit setup",
+            "infring-ops web-conduit setup --provider=tavily --api-key-env=TAVILY_API_KEY --apply=1",
+            "infring-ops web-conduit setup --provider=exa --api-key-env=EXA_API_KEY --apply=1",
+            "infring-ops web-conduit setup --provider=brave --api-key-env=BRAVE_SEARCH_API_KEY --apply=1",
             "infring-ops web-conduit setup --provider=serperdev --api-key-env=SERPER_API_KEY --apply=1",
             "infring-ops web-conduit setup --provider=duckduckgo --apply=1"
         ],
@@ -306,7 +321,7 @@ fn apply_search_setup_policy(
             .unwrap_or(""),
         160,
     );
-    let requires_credential = provider == "serperdev";
+    let requires_credential = provider_requires_credential(provider, WebProviderFamily::Search);
     if requires_credential {
         if !api_key.is_empty() {
             let entry = ensure_search_provider_config_entry(policy, provider);
@@ -370,12 +385,10 @@ pub fn api_setup(root: &Path, request: &Value) -> Value {
     let apply = request.get("apply").and_then(Value::as_bool).unwrap_or(false);
     let mut next_policy = policy.clone();
     let changes = apply_search_setup_policy(root, &mut next_policy, &selected_provider, request);
-    let ready = !next_policy
-        .pointer("/web_conduit/search_provider_order/0")
-        .and_then(Value::as_str)
-        .map(|provider| provider == "serperdev")
-        .unwrap_or(false)
-        || resolve_search_provider_credential(&next_policy, "serperdev").is_some();
+    let selected_requires_credential =
+        provider_requires_credential(&selected_provider, WebProviderFamily::Search);
+    let ready = !selected_requires_credential
+        || resolve_search_provider_credential(&next_policy, &selected_provider).is_some();
     if apply {
         if let Err(err) = write_json_atomic(&policy_path_value, &next_policy) {
             return json!({

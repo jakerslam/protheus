@@ -75,6 +75,247 @@ fn render_serper_payload(
     })
 }
 
+fn push_json_search_row(
+    lines: &mut Vec<String>,
+    links: &mut Vec<String>,
+    domains: &mut Vec<String>,
+    title: &str,
+    snippet: &str,
+    link: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+) {
+    let link = normalize_search_result_link(link);
+    if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains) {
+        return;
+    }
+    let rendered = render_search_row(title, snippet, &link);
+    if rendered.is_empty() {
+        return;
+    }
+    lines.push(rendered);
+    links.push(link.clone());
+    push_unique_link_domain(domains, &link);
+}
+
+fn search_row_text(row: &Value, keys: &[&str], max_chars: usize) -> String {
+    for key in keys {
+        if let Some(text) = row.get(*key).and_then(Value::as_str) {
+            let cleaned = clean_text(text, max_chars);
+            if !cleaned.is_empty() {
+                return cleaned;
+            }
+        }
+    }
+    String::new()
+}
+
+fn search_row_array_text(row: &Value, key: &str, max_chars: usize) -> String {
+    row.get(key)
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter_map(Value::as_str)
+                .map(|text| clean_text(text, max_chars / 2))
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .map(|text| clean_text(&text, max_chars))
+        .unwrap_or_default()
+}
+
+fn render_tavily_payload(
+    body: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+    max_response_bytes: usize,
+) -> Value {
+    let parsed = match serde_json::from_str::<Value>(body) {
+        Ok(value) => value,
+        Err(_) => {
+            return json!({
+                "ok": false,
+                "error": "tavily_decode_failed",
+                "summary": "",
+                "content": "",
+                "links": [],
+                "content_domains": [],
+                "provider_raw_count": 0,
+                "provider_filtered_count": 0
+            });
+        }
+    };
+    let results = parsed
+        .get("results")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut lines = Vec::<String>::new();
+    let mut links = Vec::<String>::new();
+    let mut domains = Vec::<String>::new();
+    for row in &results {
+        let snippet = search_row_text(row, &["content", "raw_content"], 900);
+        push_json_search_row(
+            &mut lines,
+            &mut links,
+            &mut domains,
+            row.get("title").and_then(Value::as_str).unwrap_or(""),
+            &snippet,
+            row.get("url").and_then(Value::as_str).unwrap_or(""),
+            allowed_domains,
+            exclude_subdomains,
+        );
+        if lines.len() >= top_k.max(1) {
+            break;
+        }
+    }
+    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
+    let ok = !content.is_empty();
+    json!({
+        "ok": ok,
+        "summary": if ok { summarize_text(&content, 900) } else { crate::tool_output_match_filter::no_findings_user_copy().to_string() },
+        "content": content,
+        "links": links,
+        "content_domains": domains,
+        "provider_raw_count": results.len(),
+        "provider_filtered_count": lines.len(),
+        "provider_answer_present": parsed.get("answer").and_then(Value::as_str).map(|text| !clean_text(text, 200).is_empty()).unwrap_or(false),
+        "provider_request_id": parsed.get("request_id").cloned().unwrap_or(Value::Null),
+        "error": if ok { Value::Null } else { Value::String("no_relevant_results".to_string()) }
+    })
+}
+
+fn render_exa_payload(
+    body: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+    max_response_bytes: usize,
+) -> Value {
+    let parsed = match serde_json::from_str::<Value>(body) {
+        Ok(value) => value,
+        Err(_) => {
+            return json!({
+                "ok": false,
+                "error": "exa_decode_failed",
+                "summary": "",
+                "content": "",
+                "links": [],
+                "content_domains": [],
+                "provider_raw_count": 0,
+                "provider_filtered_count": 0
+            });
+        }
+    };
+    let results = parsed
+        .get("results")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut lines = Vec::<String>::new();
+    let mut links = Vec::<String>::new();
+    let mut domains = Vec::<String>::new();
+    for row in &results {
+        let mut snippet = search_row_text(row, &["summary", "text"], 900);
+        if snippet.is_empty() {
+            snippet = search_row_array_text(row, "highlights", 900);
+        }
+        push_json_search_row(
+            &mut lines,
+            &mut links,
+            &mut domains,
+            row.get("title").and_then(Value::as_str).unwrap_or(""),
+            &snippet,
+            row.get("url").and_then(Value::as_str).unwrap_or(""),
+            allowed_domains,
+            exclude_subdomains,
+        );
+        if lines.len() >= top_k.max(1) {
+            break;
+        }
+    }
+    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
+    let ok = !content.is_empty();
+    json!({
+        "ok": ok,
+        "summary": if ok { summarize_text(&content, 900) } else { crate::tool_output_match_filter::no_findings_user_copy().to_string() },
+        "content": content,
+        "links": links,
+        "content_domains": domains,
+        "provider_raw_count": results.len(),
+        "provider_filtered_count": lines.len(),
+        "provider_request_id": parsed.get("requestId").cloned().unwrap_or(Value::Null),
+        "error": if ok { Value::Null } else { Value::String("no_relevant_results".to_string()) }
+    })
+}
+
+fn render_brave_payload(
+    body: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+    max_response_bytes: usize,
+) -> Value {
+    let parsed = match serde_json::from_str::<Value>(body) {
+        Ok(value) => value,
+        Err(_) => {
+            return json!({
+                "ok": false,
+                "error": "brave_decode_failed",
+                "summary": "",
+                "content": "",
+                "links": [],
+                "content_domains": [],
+                "provider_raw_count": 0,
+                "provider_filtered_count": 0
+            });
+        }
+    };
+    let results = parsed
+        .pointer("/web/results")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut lines = Vec::<String>::new();
+    let mut links = Vec::<String>::new();
+    let mut domains = Vec::<String>::new();
+    for row in &results {
+        let mut snippet = search_row_text(row, &["description"], 900);
+        let extra = search_row_array_text(row, "extra_snippets", 900);
+        if !extra.is_empty() {
+            snippet = clean_text(format!("{snippet} {extra}").as_str(), 900);
+        }
+        push_json_search_row(
+            &mut lines,
+            &mut links,
+            &mut domains,
+            row.get("title").and_then(Value::as_str).unwrap_or(""),
+            &snippet,
+            row.get("url").and_then(Value::as_str).unwrap_or(""),
+            allowed_domains,
+            exclude_subdomains,
+        );
+        if lines.len() >= top_k.max(1) {
+            break;
+        }
+    }
+    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
+    let ok = !content.is_empty();
+    json!({
+        "ok": ok,
+        "summary": if ok { summarize_text(&content, 900) } else { crate::tool_output_match_filter::no_findings_user_copy().to_string() },
+        "content": content,
+        "links": links,
+        "content_domains": domains,
+        "provider_raw_count": results.len(),
+        "provider_filtered_count": lines.len(),
+        "more_results_available": parsed.pointer("/query/more_results_available").cloned().unwrap_or(Value::Null),
+        "error": if ok { Value::Null } else { Value::String("no_relevant_results".to_string()) }
+    })
+}
+
 fn decode_xml_entities(raw: &str) -> String {
     raw.replace("&amp;", "&")
         .replace("&lt;", "<")

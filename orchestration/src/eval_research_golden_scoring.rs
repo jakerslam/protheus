@@ -979,14 +979,20 @@ mod tests {
         });
 
         let quality = retrieval_provider_quality(&payload);
-        assert_eq!(quality.get("status").and_then(Value::as_str), Some("usable"));
+        assert_eq!(
+            quality.get("status").and_then(Value::as_str),
+            Some("usable")
+        );
         assert_eq!(
             quality
                 .get("materialized_evidence_available")
                 .and_then(Value::as_bool),
             Some(true)
         );
-        assert_eq!(quality.get("allows_excellent").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            quality.get("allows_excellent").and_then(Value::as_bool),
+            Some(true)
+        );
     }
 
     #[test]

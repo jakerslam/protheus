@@ -103,15 +103,15 @@ mod openclaw_runtime_provider_proof_tests {
         assert_eq!(
             out.pointer("/search_provider_registration_contract/supported_provider_ids/0")
                 .and_then(Value::as_str),
-            Some("serperdev")
+            Some("tavily")
         );
         assert_eq!(
             out.pointer("/search_provider_registration_contract/unsupported_provider_examples/0")
                 .and_then(Value::as_str),
-            Some("brave")
+            Some("firecrawl")
         );
         assert_eq!(
-            out.pointer("/search_provider_registration_contract/unsupported_provider_examples/7")
+            out.pointer("/search_provider_registration_contract/unsupported_provider_examples/4")
                 .and_then(Value::as_str),
             Some("xai")
         );
@@ -123,21 +123,16 @@ mod openclaw_runtime_provider_proof_tests {
     }
 
     #[test]
-    fn openclaw_runtime_contract_brave_search_contract_fails_closed_outside_allowlist() {
+    fn openclaw_runtime_contract_brave_search_contract_is_admitted_and_requires_key() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let providers = api_providers(tmp.path());
-        assert!(!providers
+        assert!(providers
             .pointer("/search_provider_registration_contract/supported_provider_ids")
             .and_then(Value::as_array)
             .map(|rows| rows.iter().any(|row| row.as_str() == Some("brave")))
             .unwrap_or(false));
-        assert!(providers
-            .pointer("/search_provider_registration_contract/unsupported_provider_examples")
-            .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|row| row.as_str() == Some("brave")))
-            .unwrap_or(false));
         let out = api_search(tmp.path(), &json!({"query": "agent reliability", "provider": "brave"}));
-        assert_eq!(out.get("error").and_then(Value::as_str), Some("unknown_search_provider"));
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("brave_api_key_missing"));
     }
 
     #[test]
@@ -167,12 +162,12 @@ mod openclaw_runtime_provider_proof_tests {
     }
 
     #[test]
-    fn openclaw_runtime_contract_exa_search_contract_fails_closed_outside_allowlist() {
+    fn openclaw_runtime_contract_exa_search_contract_is_admitted_and_requires_key() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = api_search(tmp.path(), &json!({"query": "agent reliability", "provider": "exa"}));
-        assert_eq!(out.get("error").and_then(Value::as_str), Some("unknown_search_provider"));
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("exa_api_key_missing"));
         assert_eq!(
-            out.get("requested_provider").and_then(Value::as_str),
+            out.get("provider").and_then(Value::as_str),
             Some("exa")
         );
     }
@@ -216,8 +211,14 @@ mod openclaw_runtime_provider_proof_tests {
     }
 
     #[test]
-    fn openclaw_runtime_contract_tavily_search_contract_fails_closed_outside_allowlist() {
-        assert_provider_fails_closed("tavily");
+    fn openclaw_runtime_contract_tavily_search_contract_is_admitted_and_requires_key() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out = api_search(tmp.path(), &json!({"query": "agent reliability", "provider": "tavily"}));
+        assert_eq!(out.get("error").and_then(Value::as_str), Some("tavily_api_key_missing"));
+        assert_eq!(
+            out.get("provider").and_then(Value::as_str),
+            Some("tavily")
+        );
     }
 
     #[test]

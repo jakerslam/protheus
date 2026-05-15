@@ -13,7 +13,15 @@ const SEARCH_CACHE_MAX_ENTRIES: usize = 256;
 const SEARCH_CACHE_TTL_SUCCESS_SECS: i64 = 8 * 60;
 const SEARCH_CACHE_TTL_NO_RESULTS_SECS: i64 = 90;
 
-const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &["serperdev", "bing_rss", "duckduckgo_lite", "duckduckgo"];
+const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &[
+    "tavily",
+    "exa",
+    "brave",
+    "serperdev",
+    "bing_rss",
+    "duckduckgo_lite",
+    "duckduckgo",
+];
 const DEFAULT_FETCH_PROVIDER_CHAIN: &[&str] = &["direct_http"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +61,9 @@ fn runtime_state_path(root: &Path, rel: &str) -> PathBuf {
 
 fn builtin_provider_descriptors(family: WebProviderFamily) -> &'static [WebProviderDescriptor] {
     const SEARCH: &[WebProviderDescriptor] = &[
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "tavily", aliases: &["tavily", "tavily_search", "tvly"], source_kind: "structured_api", env_keys: &["INFRING_TAVILY_API_KEY", "TAVILY_API_KEY"] },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "exa", aliases: &["exa", "exa_search", "exaai", "exa_ai"], source_kind: "structured_api", env_keys: &["INFRING_EXA_API_KEY", "EXA_API_KEY"] },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "brave", aliases: &["brave", "brave_search", "brave-search"], source_kind: "structured_api", env_keys: &["INFRING_BRAVE_SEARCH_API_KEY", "BRAVE_SEARCH_API_KEY", "BRAVE_API_KEY"] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "serperdev", aliases: &["serper", "serperdev"], source_kind: "structured_api", env_keys: &["INFRING_SERPERDEV_API_KEY", "SERPERDEV_API_KEY", "INFRING_SERPER_API_KEY", "SERPER_API_KEY"] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo", aliases: &["duckduckgo", "ddg"], source_kind: "html_search", env_keys: &[] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo_lite", aliases: &["duckduckgo_lite", "ddg_lite", "duckduckgo-lite", "ddg-lite", "lite"], source_kind: "html_search", env_keys: &[] },
@@ -138,6 +149,10 @@ fn provider_env_keys(provider: &str, family: WebProviderFamily) -> &'static [&'s
     provider_descriptor(provider, family)
         .map(|descriptor| descriptor.env_keys)
         .unwrap_or(&[])
+}
+
+pub(crate) fn provider_requires_credential(provider: &str, family: WebProviderFamily) -> bool {
+    !provider_env_keys(provider, family).is_empty()
 }
 
 fn provider_aliases(provider: &str, family: WebProviderFamily) -> &'static [&'static str] {
@@ -325,12 +340,17 @@ where
     match hint.as_str() {
         "bing" | "bing_rss" => return vec!["bing_rss".to_string()],
         "duckduckgo" | "ddg" => prefix.extend(["duckduckgo", "duckduckgo_lite", "bing_rss"].into_iter().map(str::to_string)),
+        "tavily" | "tavily_search" | "tvly" => prefix.push("tavily".to_string()),
+        "exa" | "exa_search" | "exaai" | "exa_ai" => prefix.push("exa".to_string()),
+        "brave" | "brave_search" | "brave-search" => prefix.push("brave".to_string()),
         "serper" | "serperdev" => prefix.push("serperdev".to_string()),
         _ => {}
     }
     let hint_explicit = matches!(
         hint.as_str(),
-        "bing" | "bing_rss" | "duckduckgo" | "ddg" | "serper" | "serperdev"
+        "bing" | "bing_rss" | "duckduckgo" | "ddg" | "tavily" | "tavily_search" | "tvly"
+            | "exa" | "exa_search" | "exaai" | "exa_ai" | "brave" | "brave_search"
+            | "brave-search" | "serper" | "serperdev"
     );
     let mut merged = prefix;
     if prefer_runtime_provider && !hint_explicit {
@@ -471,6 +491,43 @@ pub(crate) fn provider_circuit_open_until(
         .pointer(&format!("/providers/{provider_id}/circuit_open_until"))
         .and_then(Value::as_i64)
         .unwrap_or(0);
+    let last_error = state
+        .pointer(&format!("/providers/{provider_id}/last_error"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let last_failure_class = state
+        .pointer(&format!("/providers/{provider_id}/last_failure_class"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if open_until > 0
+        && (last_failure_class == "query_quality"
+            || last_failure_class == "configuration"
+            || provider_error_is_query_quality_failure(last_error)
+            || provider_error_is_configuration_failure(last_error))
+    {
+        let cleared_failure_class = if last_failure_class == "configuration"
+            || provider_error_is_configuration_failure(last_error)
+        {
+            "configuration"
+        } else {
+            "query_quality"
+        };
+        if let Some(obj) = state
+            .get_mut("providers")
+            .and_then(Value::as_object_mut)
+            .and_then(|providers| providers.get_mut(&provider_id))
+            .and_then(Value::as_object_mut)
+        {
+            obj.insert("consecutive_failures".to_string(), json!(0));
+            obj.insert("circuit_open_until".to_string(), json!(0));
+            obj.insert(
+                "last_failure_class".to_string(),
+                json!(cleared_failure_class),
+            );
+        }
+        write_provider_health(root, &state);
+        return None;
+    }
     if open_until > now_ts {
         return Some(open_until);
     }
@@ -530,6 +587,46 @@ pub(crate) fn record_provider_attempt(
         }
     } else {
         let failure_class = provider_failure_class(error);
+        if failure_class == "query_quality" || failure_class == "configuration" {
+            if provider_error_is_query_quality_failure(
+                row.get("last_error").and_then(Value::as_str).unwrap_or(""),
+            ) || provider_error_is_configuration_failure(
+                row.get("last_error").and_then(Value::as_str).unwrap_or(""),
+            ) || row
+                .get("last_failure_class")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                == failure_class
+            {
+                failures = 0;
+            }
+            if let Some(obj) = row.as_object_mut() {
+                obj.insert("consecutive_failures".to_string(), json!(failures));
+                if failures == 0 {
+                    obj.insert("circuit_open_until".to_string(), json!(0));
+                }
+                if failure_class == "query_quality" {
+                    obj.insert("last_query_quality_at".to_string(), json!(now));
+                    obj.insert(
+                        "last_query_quality_error".to_string(),
+                        json!(clean_text(error, 280)),
+                    );
+                } else {
+                    obj.insert("last_configuration_error_at".to_string(), json!(now));
+                    obj.insert(
+                        "last_configuration_error".to_string(),
+                        json!(clean_text(error, 280)),
+                    );
+                }
+                obj.insert("last_error".to_string(), json!(clean_text(error, 280)));
+                obj.insert("last_failure_class".to_string(), json!(failure_class));
+            }
+            providers.insert(provider_id, row);
+            state["version"] = json!(1);
+            state["providers"] = Value::Object(providers);
+            write_provider_health(root, &state);
+            return;
+        }
         failures = failures.saturating_add(1);
         let mut open_until = row
             .get("circuit_open_until")
@@ -552,8 +649,47 @@ pub(crate) fn record_provider_attempt(
     write_provider_health(root, &state);
 }
 
+fn provider_error_is_configuration_failure(error: &str) -> bool {
+    let lowered = clean_text(error, 320).to_ascii_lowercase();
+    [
+        "api_key_missing",
+        "api key missing",
+        "credential_missing",
+        "credential_unresolved",
+        "credential unresolved",
+        "key_unresolved",
+        "missing credential",
+        "missing api key",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn provider_error_is_query_quality_failure(error: &str) -> bool {
+    let lowered = clean_text(error, 320).to_ascii_lowercase();
+    [
+        "query_result_mismatch",
+        "low_signal_search_payload",
+        "low-signal search payload",
+        "no_usable_summary",
+        "no usable summary",
+        "search_providers_exhausted",
+        "no_results",
+        "no results",
+        "off-topic results",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
 fn provider_failure_class(error: &str) -> &'static str {
     let lowered = clean_text(error, 320).to_ascii_lowercase();
+    if provider_error_is_configuration_failure(&lowered) {
+        return "configuration";
+    }
+    if provider_error_is_query_quality_failure(&lowered) {
+        return "query_quality";
+    }
     if [
         "429",
         "rate limit",

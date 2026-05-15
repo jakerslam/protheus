@@ -223,6 +223,72 @@
       },
       "admitted_provider_adapter_manifests": [
         {
+          "provider_id": "tavily",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.provider_rows.v1",
+          "capabilities": [
+            "structured_search_results",
+            "agent_optimized_snippet_rows",
+            "source_url_rows",
+            "query_time_metadata"
+          ],
+          "cost_budget": "credentialed_network_search",
+          "failure_modes": [
+            "missing_credentials",
+            "provider_error",
+            "low_signal_payload",
+            "rate_limited"
+          ],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.tavily"
+        },
+        {
+          "provider_id": "exa",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.provider_rows.v1",
+          "capabilities": [
+            "structured_search_results",
+            "neural_search_results",
+            "source_url_rows",
+            "highlight_rows"
+          ],
+          "cost_budget": "credentialed_network_search",
+          "failure_modes": [
+            "missing_credentials",
+            "provider_error",
+            "low_signal_payload",
+            "rate_limited"
+          ],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.exa"
+        },
+        {
+          "provider_id": "brave",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.provider_rows.v1",
+          "capabilities": [
+            "structured_search_results",
+            "independent_index_results",
+            "extra_snippet_rows",
+            "source_url_rows"
+          ],
+          "cost_budget": "credentialed_network_search",
+          "failure_modes": [
+            "missing_credentials",
+            "provider_error",
+            "low_signal_payload",
+            "rate_limited"
+          ],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.brave"
+        },
+        {
           "provider_id": "serperdev",
           "lane_support": ["provider_retrieval"],
           "input_schema_ref": "web_research.search_query.v1",
@@ -2027,7 +2093,16 @@
       "capability_family": "web_retrieval",
       "required_args": ["query"],
       "aliases": ["web_lookup", "browse_web"],
-      "optional_args": ["aperture", "timeout_ms", "source_scope"],
+      "optional_args": [
+        "aperture",
+        "timeout_ms",
+        "source_scope",
+        "keywords",
+        "required_coverage",
+        "aliases",
+        "negative_terms",
+        "query_metadata_policy"
+      ],
       "operations": ["search"],
       "retrieval": {
         "mode": "search",

@@ -143,6 +143,9 @@ mod tests {
                 "serperdev".to_string(),
                 "duckduckgo".to_string(),
                 "bing_rss".to_string(),
+                "tavily".to_string(),
+                "exa".to_string(),
+                "brave".to_string(),
                 "duckduckgo_lite".to_string()
             ]
         );
@@ -163,7 +166,10 @@ mod tests {
                 "duckduckgo".to_string(),
                 "bing_rss".to_string(),
                 "duckduckgo_lite".to_string(),
-                "serperdev".to_string()
+                "serperdev".to_string(),
+                "tavily".to_string(),
+                "exa".to_string(),
+                "brave".to_string()
             ]
         );
     }
@@ -310,6 +316,94 @@ mod tests {
         });
         record_provider_attempt(tmp.path(), "duckduckgo", false, "http_429 rate_limited", &policy);
         assert!(provider_circuit_open_until(tmp.path(), "duckduckgo", &policy).is_some());
+    }
+
+    #[test]
+    fn circuit_breaker_ignores_query_quality_failures() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "provider_circuit_breaker": {
+                    "enabled": true,
+                    "failure_threshold": 2,
+                    "open_for_secs": 120
+                }
+            }
+        });
+        record_provider_attempt(tmp.path(), "duckduckgo", false, "low_signal_search_payload", &policy);
+        record_provider_attempt(tmp.path(), "duckduckgo", false, "query_result_mismatch", &policy);
+        record_provider_attempt(tmp.path(), "duckduckgo", false, "no_usable_summary", &policy);
+        assert!(provider_circuit_open_until(tmp.path(), "duckduckgo", &policy).is_none());
+        let rows = provider_health_snapshot(tmp.path(), &[String::from("duckduckgo")])
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let row = rows.first().cloned().unwrap_or_else(|| json!({}));
+        assert_eq!(row.get("circuit_open").and_then(Value::as_bool), Some(false));
+        assert_eq!(row.get("consecutive_failures").and_then(Value::as_u64), Some(0));
+    }
+
+    #[test]
+    fn circuit_breaker_ignores_missing_credential_failures() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "provider_circuit_breaker": {
+                    "enabled": true,
+                    "failure_threshold": 2,
+                    "open_for_secs": 120
+                }
+            }
+        });
+        record_provider_attempt(tmp.path(), "tavily", false, "tavily_api_key_missing", &policy);
+        record_provider_attempt(tmp.path(), "tavily", false, "missing api key", &policy);
+        record_provider_attempt(tmp.path(), "tavily", false, "credential_unresolved", &policy);
+        assert!(provider_circuit_open_until(tmp.path(), "tavily", &policy).is_none());
+        let rows = provider_health_snapshot(tmp.path(), &[String::from("tavily")])
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let row = rows.first().cloned().unwrap_or_else(|| json!({}));
+        assert_eq!(row.get("circuit_open").and_then(Value::as_bool), Some(false));
+        assert_eq!(row.get("consecutive_failures").and_then(Value::as_u64), Some(0));
+    }
+
+    #[test]
+    fn circuit_breaker_clears_legacy_query_quality_opens() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "provider_circuit_breaker": {
+                    "enabled": true,
+                    "failure_threshold": 2,
+                    "open_for_secs": 120
+                }
+            }
+        });
+        let path = provider_health_path(tmp.path());
+        write_json_atomic(
+            &path,
+            &json!({
+                "version": 1,
+                "providers": {
+                    "bing_rss": {
+                        "consecutive_failures": 8,
+                        "circuit_open_until": Utc::now().timestamp() + 120,
+                        "last_error": "query_result_mismatch",
+                        "last_failure_class": "provider_failure"
+                    }
+                }
+            }),
+        )
+        .expect("provider health fixture");
+        assert!(provider_circuit_open_until(tmp.path(), "bing_rss", &policy).is_none());
+        let rows = provider_health_snapshot(tmp.path(), &[String::from("bing_rss")])
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let row = rows.first().cloned().unwrap_or_else(|| json!({}));
+        assert_eq!(row.get("circuit_open").and_then(Value::as_bool), Some(false));
+        assert_eq!(row.get("consecutive_failures").and_then(Value::as_u64), Some(0));
     }
 
     #[test]

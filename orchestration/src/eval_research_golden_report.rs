@@ -124,6 +124,15 @@ pub(super) fn markdown_report(report: &Value) -> String {
             0.0
         )
     ));
+    let query_metadata_eligible = u64_at(
+        split,
+        &["query_metadata_planning", "eligible_web_retrieval_requests"],
+        u64_at(
+            split,
+            &["query_metadata_planning", "eligible_batch_query_requests"],
+            0,
+        ),
+    );
     out.push_str(&format!(
         "- query_metadata_planning: metadata={}/{} ({:.3}) rich_or_marked={}/{} ({:.3})\n",
         u64_at(
@@ -131,11 +140,7 @@ pub(super) fn markdown_report(report: &Value) -> String {
             &["query_metadata_planning", "metadata_present_cases"],
             0
         ),
-        u64_at(
-            split,
-            &["query_metadata_planning", "eligible_batch_query_requests"],
-            0
-        ),
+        query_metadata_eligible,
         f64_at(
             split,
             &["query_metadata_planning", "metadata_present_rate"],
@@ -149,11 +154,7 @@ pub(super) fn markdown_report(report: &Value) -> String {
             ],
             0
         ),
-        u64_at(
-            split,
-            &["query_metadata_planning", "eligible_batch_query_requests"],
-            0
-        ),
+        query_metadata_eligible,
         f64_at(
             split,
             &[

@@ -404,12 +404,12 @@ mod openclaw_search_tool_tests {
         assert_eq!(
             out.pointer("/setup_contract/default_provider")
                 .and_then(Value::as_str),
-            Some("serperdev")
+            Some("tavily")
         );
         assert!(out
             .pointer("/setup_contract/provider_options")
             .and_then(Value::as_array)
-            .map(|rows| rows.iter().any(|row| row.get("provider").and_then(Value::as_str) == Some("serperdev")))
+            .map(|rows| rows.iter().any(|row| row.get("provider").and_then(Value::as_str) == Some("tavily")))
             .unwrap_or(false));
     }
 

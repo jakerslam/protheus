@@ -598,3 +598,132 @@ fn research_golden_sanitizes_backend_key_errors() {
     assert!(error.contains("[redacted]"), "{error}");
     assert!(!error.contains("secret-value"), "{error}");
 }
+
+#[test]
+fn research_golden_reports_transport_timeout_outside_gate_denominators() {
+    let root = temp_path("research_golden_transport_timeout");
+    let cases = root.join("cases.json");
+    let responses = root.join("responses.json");
+    let mut dataset = dataset();
+    let first_case = dataset
+        .get("cases")
+        .and_then(Value::as_array)
+        .and_then(|cases| cases.first())
+        .cloned()
+        .expect("case");
+    let mut timeout_case = first_case.clone();
+    timeout_case["id"] = json!("research_gold_timeout");
+    let mut socket_case = first_case.clone();
+    socket_case["id"] = json!("research_gold_socket_hangup");
+    dataset["cases"] = json!([first_case, timeout_case, socket_case]);
+    write_json_file(&cases, &dataset);
+    write_json_file(
+        &responses,
+        &json!({
+            "responses": [
+                {
+                    "case_id": "research_gold_test",
+                    "response_payload": {
+                        "response": "Source-backed comparison: Infring and LangGraph both target agent workflows, but the evidence says LangGraph emphasizes durable graph orchestration while Infring emphasizes workflow CDs and explicit gates. Recommendation: use LangGraph for conventional Python graph agents, and use Infring when workflow inspection, evidence refs, and rollback discipline matter. Caveat: Infring evidence remains sparse, so verify Infring-specific production claims before committing.",
+                        "pending_tool_request": {
+                            "status": "pending_confirmation",
+                            "tool_name": "web_search",
+                            "selected_tool_family": "Web Search / Fetch",
+                            "input": {
+                                "query": "Infring LangGraph comparison current docs",
+                                "aperture": "medium"
+                            }
+                        },
+                        "tools": [{
+                            "name": "web_search",
+                            "status": "ok",
+                            "raw_results": [{"title": "LangGraph docs", "snippet": "LangGraph documents durable graph orchestration for agent workflows."}],
+                            "result": "LangGraph docs describe durable graph orchestration. Infring notes describe workflow CDs and gate inspection."
+                        }],
+                        "response_workflow": {
+                            "evidence_refs": ["evidence:langgraph-docs", "evidence:infring-notes"],
+                            "final_llm_response": {
+                                "status": "synthesized",
+                                "evidence_refs_used": ["evidence:langgraph-docs", "evidence:infring-notes"]
+                            },
+                            "stage_statuses": [
+                                {"stage": "gate_1_tool_need", "status": "answered_yes"},
+                                {"stage": "gate_2_tool_family", "status": "selected_web_research"},
+                                {"stage": "gate_3_tool_key", "status": "selected_web_search"},
+                                {"stage": "gate_4_request_template", "status": "completed"}
+                            ]
+                        }
+                    }
+                },
+                {
+                    "case_id": "research_gold_timeout",
+                    "response_payload": {
+                        "ok": false,
+                        "transport_error": "curl_failed",
+                        "stderr": "curl: (28) Operation timed out after 75005 milliseconds with 0 bytes received",
+                        "response": "The live dashboard request timed out before the workflow produced a final answer. This is a transport failure, not a research result.",
+                        "response_finalization": {
+                            "outcome": "structured_failure+transport_timeout+timeout_recovery_failed",
+                            "structured_failure": {
+                                "kind": "transport_timeout",
+                                "retryable": true
+                            }
+                        },
+                        "response_workflow": {
+                            "final_llm_response": {
+                                "status": "transport_timeout",
+                                "attempted": false,
+                                "used": false
+                            }
+                        }
+                    }
+                },
+                {
+                    "case_id": "research_gold_socket_hangup",
+                    "response_payload": {
+                        "ok": false,
+                        "error": "socket hang up",
+                        "response": ""
+                    }
+                }
+            ]
+        }),
+    );
+    let code = run_research_golden(&runner_args(&root, &cases, &responses, false));
+    assert_eq!(code, 0);
+    let report = read_json(root.join("out.json").to_str().unwrap());
+    let gate_3 = report
+        .get("workflow_gate_pass_rates")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter()
+                .find(|row| row.get("gate").and_then(Value::as_str) == Some("gate_3_tool_key"))
+        })
+        .expect("gate 3 row");
+    assert_eq!(gate_3.get("passed").and_then(Value::as_u64), Some(1));
+    assert_eq!(gate_3.get("total").and_then(Value::as_u64), Some(1));
+    assert_eq!(
+        report
+            .pointer("/summary/transport_failures")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/1/failure_classification")
+            .and_then(Value::as_str),
+        Some("transport")
+    );
+    assert_eq!(
+        report
+            .pointer("/cases/2/failure_classification")
+            .and_then(Value::as_str),
+        Some("transport")
+    );
+    assert_eq!(
+        report
+            .pointer("/measurement_split/failure_classification/transport_failure_cases")
+            .and_then(Value::as_u64),
+        Some(2)
+    );
+}

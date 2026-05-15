@@ -175,6 +175,17 @@
         }
         attempted.push(provider.clone());
         let candidate = match provider.as_str() {
+            "tavily" | "exa" | "brave" => api_search_structured_provider(
+                root,
+                provider,
+                &scoped_query,
+                summary_only,
+                human_approved,
+                &allowed_domains,
+                exclude_subdomains,
+                top_k,
+                timeout_ms,
+            ),
             "serperdev" => api_search_serper(
                 root,
                 &scoped_query,
