@@ -241,6 +241,8 @@ fn default_policy() -> Value {
             "fetch_provider_order": ["direct_http"],
                 "browser_materialization": {
                     "enabled": false,
+                    "adapter_ready": false,
+                    "live_execution_enabled": false,
                     "provider_order": ["local_browser"],
                     "requires_explicit_admission": true,
                     "permission_class": "public_web_dynamic_read",

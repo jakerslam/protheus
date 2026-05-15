@@ -102,6 +102,12 @@ fn default_policy() -> Value {
                 "min_snippet_words_before_skip": 22,
                 "min_query_overlap_terms_before_skip": 2,
                 "trigger": "low_thin_or_coverage_weak_candidates",
+                "browser_materialization": {
+                    "enabled": true,
+                    "timeout_ms": 8000,
+                    "max_response_bytes": 200000,
+                    "only_when_static_unusable": true
+                },
                 "candidate_locator_followup": {
                     "enabled": true,
                     "max_per_stage": 3,
@@ -423,6 +429,29 @@ fn page_extraction_extract_mode(policy: &Value) -> String {
     } else {
         "text".to_string()
     }
+}
+
+fn page_extraction_browser_materialization_enabled(policy: &Value) -> bool {
+    policy
+        .pointer("/batch_query/page_extraction/browser_materialization/enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+}
+
+fn page_extraction_browser_materialization_timeout_ms(policy: &Value) -> u64 {
+    policy
+        .pointer("/batch_query/page_extraction/browser_materialization/timeout_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(8_000)
+        .clamp(1_000, 45_000)
+}
+
+fn page_extraction_browser_materialization_max_response_bytes(policy: &Value) -> u64 {
+    policy
+        .pointer("/batch_query/page_extraction/browser_materialization/max_response_bytes")
+        .and_then(Value::as_u64)
+        .unwrap_or(200_000)
+        .clamp(2_048, 1_000_000)
 }
 
 fn page_extraction_min_link_score(policy: &Value) -> f64 {

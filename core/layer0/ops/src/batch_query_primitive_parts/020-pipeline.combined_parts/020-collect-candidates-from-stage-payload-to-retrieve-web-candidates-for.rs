@@ -144,10 +144,21 @@ fn collect_candidates_from_stage_payload(
                 .and_then(Value::as_bool)
                 .unwrap_or(false)
             {
-                issues.push(format!(
-                    "{stage}:fetch:{}",
-                    stage_error(&fetch_payload, "web_fetch_failed")
-                ));
+                let fetch_error = stage_error(&fetch_payload, "web_fetch_failed");
+                issues.push(format!("{stage}:fetch:{fetch_error}"));
+                if should_try_browser_materialization_for_fetch_error(&fetch_payload, &fetch_error)
+                {
+                    try_materialize_page_candidate(
+                        root,
+                        stage,
+                        query,
+                        policy,
+                        &link,
+                        benchmark_intent,
+                        &mut candidates,
+                        &mut issues,
+                    );
+                }
                 continue;
             }
             match candidate_from_search_payload(query, &fetch_payload) {
@@ -177,7 +188,22 @@ fn collect_candidates_from_stage_payload(
                         ));
                     }
                 }
-                Err(err) => issues.push(format!("{stage}:fetch_candidate:{err}")),
+                Err(err) => {
+                    issues.push(format!("{stage}:fetch_candidate:{err}"));
+                    if should_try_browser_materialization_for_candidate_error(&fetch_payload, &err)
+                    {
+                        try_materialize_page_candidate(
+                            root,
+                            stage,
+                            query,
+                            policy,
+                            &link,
+                            benchmark_intent,
+                            &mut candidates,
+                            &mut issues,
+                        );
+                    }
+                }
             }
         }
     }
@@ -206,6 +232,200 @@ fn mark_candidate_as_page_enriched(candidate: &mut Candidate) {
     } else {
         format!("{permissions};page_enriched")
     });
+}
+
+fn stage_browser_materialization_payload(
+    root: &Path,
+    stage: &str,
+    url: &str,
+    policy: &Value,
+    reason: &str,
+) -> Value {
+    crate::web_conduit::api_browser_materialize_page(
+        root,
+        &json!({
+            "url": url,
+            "admission_ref": "batch_query_page_extraction_browser_materialization",
+            "extract_mode": page_extraction_extract_mode(policy),
+            "timeout_ms": page_extraction_browser_materialization_timeout_ms(policy),
+            "max_response_bytes": page_extraction_browser_materialization_max_response_bytes(policy),
+            "summary_only": false,
+            "evidence_gap_reason": reason
+        }),
+    )
+    .as_object()
+    .map(|map| {
+        let mut map = map.clone();
+        map.insert("batch_query_stage".to_string(), json!(stage));
+        Value::Object(map)
+    })
+    .unwrap_or_else(|| {
+        json!({
+            "ok": false,
+            "error": "browser_materialization_non_object_payload",
+            "batch_query_stage": stage
+        })
+    })
+}
+
+fn should_try_browser_materialization_for_fetch_error(
+    fetch_payload: &Value,
+    fetch_error: &str,
+) -> bool {
+    payload_access_blocker_class(fetch_payload).is_some()
+        || issue_is_access_or_throttle_failure(fetch_error)
+        || fetch_error.contains("no_usable_summary")
+        || fetch_error.contains("low_signal")
+}
+
+fn should_try_browser_materialization_for_candidate_error(
+    fetch_payload: &Value,
+    err: &str,
+) -> bool {
+    let lowered = clean_text(err, 240).to_ascii_lowercase();
+    payload_access_blocker_class(fetch_payload).is_some()
+        || issue_is_access_or_throttle_failure(&lowered)
+        || lowered.contains("no_usable_summary")
+        || lowered.contains("low_signal")
+        || lowered.contains("content_too_thin")
+}
+
+fn candidate_from_browser_materialization_payload(payload: &Value) -> Result<Candidate, String> {
+    if !payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+        return Err(clean_text(
+            payload
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("browser_materialization_failed"),
+            220,
+        ));
+    }
+    let candidate = payload
+        .get("evidence_candidate")
+        .or_else(|| {
+            payload
+                .get("evidence_pack_candidates")
+                .and_then(Value::as_array)
+                .and_then(|rows| rows.first())
+        })
+        .ok_or_else(|| "browser_materialization_missing_evidence_candidate".to_string())?;
+    let decision = candidate
+        .pointer("/promotion/decision")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let confidence = candidate
+        .get("confidence")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if decision != "candidate_ready_for_packaging" || confidence != "usable" {
+        return Err(format!(
+            "browser_materialization_not_promotable:{decision}:{confidence}"
+        ));
+    }
+    let snippet = clean_text(
+        candidate.get("snippet").and_then(Value::as_str).unwrap_or(""),
+        6_000,
+    );
+    if snippet.is_empty() || looks_like_low_signal_search_summary(&snippet) {
+        return Err("browser_materialization_no_usable_summary".to_string());
+    }
+    let title = clean_text(
+        candidate.get("title").and_then(Value::as_str).unwrap_or(""),
+        220,
+    );
+    let locator = clean_text(
+        candidate.get("locator").and_then(Value::as_str).unwrap_or(""),
+        2_200,
+    );
+    if locator.is_empty() {
+        return Err("browser_materialization_missing_locator".to_string());
+    }
+    let excerpt_hash = candidate
+        .get("excerpt_hash")
+        .and_then(Value::as_str)
+        .map(|row| clean_text(row, 128))
+        .filter(|row| !row.is_empty())
+        .unwrap_or_else(|| sha256_hex(&snippet));
+    Ok(Candidate {
+        source_kind: clean_text(
+            candidate
+                .get("source_kind")
+                .and_then(Value::as_str)
+                .unwrap_or("browser_materialized_page"),
+            80,
+        ),
+        title: if title.is_empty() {
+            let domain = extract_domains_from_text(&locator, 1)
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| "source".to_string());
+            format!("Browser materialized page from {}", clean_text(&domain, 120))
+        } else {
+            title
+        },
+        locator,
+        snippet: snippet.clone(),
+        excerpt_hash,
+        timestamp: candidate
+            .get("timestamp")
+            .and_then(Value::as_str)
+            .map(|row| clean_text(row, 80))
+            .filter(|row| !row.is_empty())
+            .or_else(|| Some(crate::now_iso())),
+        permissions: candidate
+            .get("permissions")
+            .and_then(Value::as_str)
+            .map(|row| clean_text(row, 120))
+            .filter(|row| !row.is_empty())
+            .or_else(|| Some("public_web;browser_materialized".to_string())),
+        status_code: payload
+            .pointer("/materialized_page/status_code")
+            .and_then(Value::as_i64)
+            .unwrap_or(200),
+    })
+}
+
+fn try_materialize_page_candidate(
+    root: &Path,
+    stage: &str,
+    query: &str,
+    policy: &Value,
+    link: &str,
+    benchmark_intent: bool,
+    candidates: &mut Vec<Candidate>,
+    issues: &mut Vec<String>,
+) -> bool {
+    if !page_extraction_browser_materialization_enabled(policy) {
+        issues.push(format!("{stage}:browser_materialization_disabled_by_policy"));
+        return false;
+    }
+    issues.push(format!("{stage}:browser_materialization_attempted"));
+    let payload = stage_browser_materialization_payload(
+        root,
+        stage,
+        link,
+        policy,
+        "static_fetch_unusable",
+    );
+    match candidate_from_browser_materialization_payload(&payload) {
+        Ok(mut candidate) => {
+            mark_candidate_as_page_enriched(&mut candidate);
+            if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
+                merge_or_push_page_enriched_candidate(query, policy, candidates, candidate);
+                issues.push(format!("{stage}:browser_materialization_recovered"));
+                true
+            } else {
+                issues.push(format!(
+                    "{stage}:browser_materialization_candidate_low_relevance"
+                ));
+                false
+            }
+        }
+        Err(err) => {
+            issues.push(format!("{stage}:browser_materialization:{err}"));
+            false
+        }
+    }
 }
 
 fn page_enriched_candidate_value(query: &str, candidate: &Candidate) -> usize {

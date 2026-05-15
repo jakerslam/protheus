@@ -353,7 +353,53 @@ fn browser_materialization_main_text_substantive(main_text: &str) -> bool {
     main_text.split_whitespace().count() >= 12 && main_text.chars().count() >= 80
 }
 
+fn browser_materialization_text_blocker_class(main_text: &str) -> Option<&'static str> {
+    let lowered = clean_text(main_text, 6_000).to_ascii_lowercase();
+    if lowered.is_empty() {
+        return None;
+    }
+    if [
+        "checking your browser",
+        "verify you are human",
+        "please complete the following challenge",
+        "captcha",
+        "cloudflare",
+        "bot detection",
+        "bot protection",
+        "access denied",
+        "request blocked",
+        "unusual traffic",
+        "enable javascript and cookies",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+    {
+        return Some("anti_bot_or_access_challenge");
+    }
+    if [
+        "javascript is disabled",
+        "please enable javascript",
+        "requires javascript",
+        "enable javascript to continue",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+    {
+        return Some("needs_js_unresolved");
+    }
+    None
+}
+
 fn browser_materialization_content_blocker_classification(main_text: &str) -> Value {
+    if let Some(blocker_class) = browser_materialization_text_blocker_class(main_text) {
+        return browser_materialization_blocker_classification(
+            blocker_class,
+            true,
+            "rejected",
+            "alternate_provider_or_permission_boundary",
+            "Materialized page still looked like an access or browser challenge, so it was not promoted as evidence.",
+        );
+    }
     if browser_materialization_main_text_substantive(main_text) {
         browser_materialization_blocker_classification(
             "none",
@@ -781,14 +827,25 @@ fn browser_materialization_evidence_pack_candidate(
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let substantive_main_text = browser_materialization_main_text_substantive(main_text);
+    let blocker_class = browser_materialization_text_blocker_class(main_text);
+    let not_blocker_shell = blocker_class.is_none();
     let term_hints = browser_materialization_term_hints(title, main_text, &source_domain);
-    let quality_flags = if safe_final_url && substantive_main_text {
+    let quality_flags = if safe_final_url && substantive_main_text && not_blocker_shell {
         json!([
             "browser_enriched",
             "materialized_fixture",
             "raw_artifact_quarantined",
             "safe_final_url",
             "not_blocker_shell"
+        ])
+    } else if safe_final_url && !not_blocker_shell {
+        json!([
+            "browser_enriched",
+            "materialized_fixture",
+            "raw_artifact_quarantined",
+            "safe_final_url",
+            blocker_class.unwrap_or("blocker_shell"),
+            "not_promotable"
         ])
     } else if safe_final_url {
         json!([
@@ -831,9 +888,9 @@ fn browser_materialization_evidence_pack_candidate(
             "materialization_quality": 84.0,
             "artifact_quarantine": 100.0
         },
-        "confidence": if safe_final_url && substantive_main_text {
+        "confidence": if safe_final_url && substantive_main_text && not_blocker_shell {
             "usable"
-        } else if safe_final_url {
+        } else if safe_final_url && not_blocker_shell {
             "low_confidence_raw"
         } else {
             "rejected"
@@ -851,9 +908,17 @@ fn browser_materialization_evidence_pack_candidate(
         "promotion": {
             "version": "browser_materialization_evidence_promotion_v1",
             "decision": if safe_final_url && substantive_main_text {
-                "candidate_ready_for_packaging"
+                if not_blocker_shell {
+                    "candidate_ready_for_packaging"
+                } else {
+                    "rejected_blocker_shell"
+                }
             } else if safe_final_url {
-                "candidate_retained_low_confidence_content_too_thin"
+                if not_blocker_shell {
+                    "candidate_retained_low_confidence_content_too_thin"
+                } else {
+                    "rejected_blocker_shell"
+                }
             } else {
                 "rejected_by_final_url_safety"
             },
@@ -865,6 +930,7 @@ fn browser_materialization_evidence_pack_candidate(
             },
             "components": {
                 "substantive_main_text": substantive_main_text,
+                "not_blocker_shell": not_blocker_shell,
                 "claim_hint_count": 1,
                 "term_hint_count": browser_materialization_term_hints(title, main_text, final_url).len(),
                 "artifact_manifest_present": artifact_manifest.get("manifest_ref").is_some()
@@ -1619,6 +1685,479 @@ fn browser_materialization_local_fixture_success(
     })
 }
 
+fn browser_materialization_live_local_browser_enabled(config: &Value) -> bool {
+    config
+        .get("live_execution_enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+}
+
+fn browser_materialization_local_browser_binary() -> Result<String, String> {
+    let candidates = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/snap/bin/chromium",
+    ];
+    for candidate in candidates {
+        if Path::new(candidate).exists() {
+            return Ok(candidate.to_string());
+        }
+    }
+    Err("local_browser_binary_unavailable".to_string())
+}
+
+fn browser_materialization_temp_profile_dir(url: &str) -> PathBuf {
+    let hash = browser_materialization_ref_hash(&["local_browser_profile", url, &crate::now_iso()]);
+    std::env::temp_dir().join(format!(
+        "infring-browser-materialization-{}",
+        clean_text(&hash, 24)
+    ))
+}
+
+fn browser_materialization_wait_for_child(
+    mut child: std::process::Child,
+    timeout_ms: u64,
+) -> Result<(std::process::Output, bool), String> {
+    let started = std::time::Instant::now();
+    let timeout = std::time::Duration::from_millis(timeout_ms.max(1));
+    let mut timed_out = false;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) => {
+                if started.elapsed() >= timeout {
+                    timed_out = true;
+                    let _ = child.kill();
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            Err(err) => return Err(format!("local_browser_wait_failed:{err}")),
+        }
+    }
+    child
+        .wait_with_output()
+        .map(|output| (output, timed_out))
+        .map_err(|err| format!("local_browser_output_failed:{err}"))
+}
+
+fn browser_materialization_preflight_final_url(root: &Path, url: &str) -> String {
+    let preflight = api_fetch(
+        root,
+        &json!({
+            "url": url,
+            "extract_mode": "text",
+            "summary_only": false,
+            "max_response_bytes": 2048,
+            "cache_ttl_minutes": 1
+        }),
+    );
+    clean_text(
+        preflight
+            .get("final_url")
+            .or_else(|| preflight.get("resolved_url"))
+            .or_else(|| preflight.get("requested_url"))
+            .and_then(Value::as_str)
+            .unwrap_or(url),
+        2200,
+    )
+}
+
+fn browser_materialization_local_browser_failure(
+    error: &str,
+    reason: &str,
+    url: &str,
+    config: &Value,
+    runtime_metadata: &Value,
+    url_safety: Value,
+    launch_attempted: bool,
+) -> Value {
+    let mut out =
+        browser_materialization_fail_closed(error, reason, url, config, runtime_metadata, url_safety);
+    out["provider"] = json!("local_browser");
+    out["tool_execution_attempted"] = json!(launch_attempted);
+    out["browser_launch_attempted"] = json!(launch_attempted);
+    out["cleanup_status"] = json!({
+        "version": "browser_materialization_cleanup_status_v1",
+        "status": if launch_attempted { "completed_after_failure" } else { "not_started" },
+        "browser_launch_attempted": launch_attempted,
+        "browser_close_attempted": launch_attempted,
+        "temp_profile_cleanup_attempted": launch_attempted,
+        "raw_profile_path_chat_visible": false
+    });
+    out["local_browser"] = json!({
+        "version": "browser_materialization_local_browser_v1",
+        "live_execution_enabled": browser_materialization_live_local_browser_enabled(config),
+        "binary_path_chat_visible": false,
+        "raw_browser_trace_chat_visible": false
+    });
+    out
+}
+
+fn browser_materialization_local_browser_success(
+    root: &Path,
+    url: &str,
+    config: &Value,
+    runtime_metadata: &Value,
+    pre_navigation_url_safety: Value,
+    request: &Value,
+) -> Value {
+    if !browser_materialization_live_local_browser_enabled(config) {
+        return browser_materialization_local_browser_failure(
+            "browser_adapter_stub_only",
+            "Browser materialization local_browser provider is admitted only when policy enables live execution.",
+            url,
+            config,
+            runtime_metadata,
+            pre_navigation_url_safety,
+            false,
+        );
+    }
+    let binary = match browser_materialization_local_browser_binary() {
+        Ok(path) => path,
+        Err(err) => {
+            return browser_materialization_local_browser_failure(
+                &err,
+                "No local Chromium-compatible browser binary was available for policy-owned materialization.",
+                url,
+                config,
+                runtime_metadata,
+                pre_navigation_url_safety,
+                false,
+            )
+        }
+    };
+    let preflight_final_url = browser_materialization_preflight_final_url(root, url);
+    let final_ssrf_guard = evaluate_fetch_ssrf_guard(&preflight_final_url, false, None);
+    let final_url_safety = browser_materialization_observed_final_url_safety_projection(
+        &preflight_final_url,
+        &final_ssrf_guard,
+    );
+    if !final_ssrf_guard
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        let mut out = browser_materialization_local_browser_failure(
+            "url_safety_blocked",
+            "Preflight final URL failed revalidation before browser launch.",
+            url,
+            config,
+            runtime_metadata,
+            pre_navigation_url_safety,
+            false,
+        );
+        out["final_url_safety"] = final_url_safety;
+        return out;
+    }
+
+    let extract_mode = clean_text(
+        request
+            .get("extract_mode")
+            .and_then(Value::as_str)
+            .unwrap_or("text"),
+        40,
+    )
+    .to_ascii_lowercase();
+    let extract_mode = if extract_mode == "markdown" {
+        "markdown"
+    } else {
+        "text"
+    };
+    let max_chars = request
+        .get("max_response_bytes")
+        .and_then(Value::as_u64)
+        .or_else(|| config.get("max_response_bytes").and_then(Value::as_u64))
+        .unwrap_or(350000)
+        .clamp(256, 1_000_000) as usize;
+    let timeout_ms = request
+        .get("timeout_ms")
+        .and_then(Value::as_u64)
+        .or_else(|| config.get("default_timeout_ms").and_then(Value::as_u64))
+        .unwrap_or(30000)
+        .clamp(1_000, 45_000);
+    let settle_ms = config
+        .pointer("/smart_wait/max_settle_ms")
+        .and_then(Value::as_u64)
+        .unwrap_or(8_000)
+        .clamp(500, timeout_ms.saturating_sub(250).max(500));
+    let profile_dir = browser_materialization_temp_profile_dir(url);
+    if let Err(err) = fs::create_dir_all(&profile_dir) {
+        return browser_materialization_local_browser_failure(
+            "local_browser_profile_create_failed",
+            &format!("Could not create policy-owned browser profile directory: {err}."),
+            url,
+            config,
+            runtime_metadata,
+            pre_navigation_url_safety,
+            false,
+        );
+    }
+
+    let output_result = Command::new(&binary)
+        .arg("--headless=new")
+        .arg("--disable-gpu")
+        .arg("--no-first-run")
+        .arg("--no-default-browser-check")
+        .arg("--disable-background-networking")
+        .arg(format!("--user-data-dir={}", profile_dir.display()))
+        .arg(format!("--virtual-time-budget={settle_ms}"))
+        .arg("--dump-dom")
+        .arg(&preflight_final_url)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("local_browser_launch_failed:{err}"))
+        .and_then(|child| browser_materialization_wait_for_child(child, timeout_ms));
+    let cleanup_status = match fs::remove_dir_all(&profile_dir) {
+        Ok(_) => "completed",
+        Err(_) => "attempted_with_error",
+    };
+    let (output, timed_out) = match output_result {
+        Ok(row) => row,
+        Err(err) => {
+            return browser_materialization_local_browser_failure(
+                &err,
+                "Local browser materialization failed before DOM extraction.",
+                url,
+                config,
+                runtime_metadata,
+                pre_navigation_url_safety,
+                true,
+            )
+        }
+    };
+    let raw_html = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = clean_text(&String::from_utf8_lossy(&output.stderr), 1_200);
+    if raw_html.trim().is_empty() {
+        let reason = if timed_out {
+            "Local browser timed out before emitting DOM."
+        } else {
+            "Local browser emitted no DOM."
+        };
+        let mut out = browser_materialization_local_browser_failure(
+            "local_browser_empty_dom",
+            reason,
+            url,
+            config,
+            runtime_metadata,
+            pre_navigation_url_safety,
+            true,
+        );
+        out["local_browser_stderr_excerpt"] = json!(stderr);
+        return out;
+    }
+
+    let content_type = "text/html; charset=utf-8";
+    let (main_text, title_from_html, truncated, extractor) =
+        extract_fetch_content_with_extractor(&raw_html, content_type, extract_mode, max_chars);
+    let materialized_status_code = if output.status.success()
+        || (!main_text.trim().is_empty()
+            && final_url_safety
+                .get("ok")
+                .and_then(Value::as_bool)
+                .unwrap_or(false))
+    {
+        200
+    } else {
+        0
+    };
+    let title = title_from_html
+        .filter(|row| !row.is_empty())
+        .unwrap_or_else(|| format!("Browser materialized page from {}", extract_domain(&preflight_final_url)));
+    let blocker_classification = browser_materialization_content_blocker_classification(&main_text);
+    let extraction_confidence = blocker_classification
+        .get("confidence")
+        .and_then(Value::as_str)
+        .unwrap_or_else(|| {
+            if main_text.chars().count() >= 80 {
+                "usable"
+            } else {
+                "low_confidence_raw"
+            }
+        });
+    let links_summary = browser_materialization_links_summary_from_html(&raw_html, &preflight_final_url);
+    let body_hash = sha256_hex(&raw_html);
+    let artifact_hash =
+        browser_materialization_ref_hash(&["local_browser", url, &preflight_final_url, &body_hash]);
+    let artifact_ref = format!(
+        "artifact://web_conduit/browser_materialization/local-browser/{}",
+        clean_text(&artifact_hash, 64)
+    );
+    let artifact_manifest =
+        browser_materialization_artifact_manifest_projection(&artifact_ref, &artifact_hash);
+    let evidence_candidate = browser_materialization_evidence_pack_candidate(
+        &preflight_final_url,
+        &final_url_safety,
+        &title,
+        &main_text,
+        &artifact_ref,
+        &artifact_manifest,
+    );
+    let web_tooling_gates = browser_materialization_gate_snapshot(
+        true,
+        true,
+        Some(true),
+        true,
+        true,
+        Some(extraction_confidence),
+        evidence_candidate
+            .pointer("/promotion/decision")
+            .and_then(Value::as_str),
+        &blocker_classification,
+    );
+    let evidence_ref = json!({
+        "source_kind": evidence_candidate
+            .get("source_kind")
+            .cloned()
+            .unwrap_or_else(|| json!("browser_materialized_page")),
+        "title": evidence_candidate
+            .get("title")
+            .cloned()
+            .unwrap_or_else(|| json!(title.clone())),
+        "locator": evidence_candidate
+            .get("locator")
+            .cloned()
+            .unwrap_or_else(|| json!(preflight_final_url.clone())),
+        "excerpt_hash": evidence_candidate
+            .get("excerpt_hash")
+            .cloned()
+            .unwrap_or_else(|| json!(sha256_hex(&main_text))),
+        "score": evidence_candidate
+            .get("score")
+            .cloned()
+            .unwrap_or_else(|| json!(76.0)),
+        "timestamp": evidence_candidate
+            .get("timestamp")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "permissions": evidence_candidate
+            .get("permissions")
+            .cloned()
+            .unwrap_or_else(|| json!("public_web")),
+        "artifact_ref": artifact_ref.clone()
+    });
+    let materialized_page = json!({
+        "version": "browser_materialized_page_v1",
+        "provider": "local_browser",
+        "source_url": clean_text(url, 2200),
+        "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
+        "final_url": preflight_final_url.clone(),
+        "final_url_safety": final_url_safety.clone(),
+        "status_code": materialized_status_code,
+        "status_code_source": if output.status.success() {
+            "browser_process_exit"
+        } else if materialized_status_code == 200 {
+            "safe_final_url_with_extracted_dom"
+        } else {
+            "browser_process_failed_without_usable_dom"
+        },
+        "title": title,
+        "main_text_or_markdown": main_text,
+        "content_truncated": truncated,
+        "extractor": extractor,
+        "links_summary": links_summary,
+        "blocker_classification": blocker_classification.clone(),
+        "extraction_confidence": extraction_confidence,
+        "artifact_ref": artifact_ref,
+        "artifact_manifest_ref": artifact_manifest
+            .get("manifest_ref")
+            .cloned()
+            .unwrap_or(Value::Null),
+        "readiness_strategy": browser_materialization_readiness_strategy_projection(config),
+        "cleanup_status": {
+            "version": "browser_materialization_cleanup_status_v1",
+            "status": cleanup_status,
+            "browser_launch_attempted": true,
+            "browser_close_attempted": true,
+            "temp_profile_cleanup_attempted": true,
+            "timed_out_and_killed": timed_out,
+            "raw_profile_path_chat_visible": false
+        },
+        "retry_diagnostics": browser_materialization_retry_diagnostics_projection("none"),
+        "local_browser": {
+            "version": "browser_materialization_local_browser_v1",
+            "live_execution_enabled": true,
+            "binary_path_chat_visible": false,
+            "raw_stderr_chat_visible": false
+        },
+        "raw_payload_chat_visible": false,
+        "browser_trace_chat_visible": false,
+        "browser_handle_visible": false,
+        "cdp_url_visible": false
+    });
+    json!({
+        "ok": true,
+        "type": "web_conduit_browser_materialization",
+        "capability": "browser_materialize_page",
+        "provider": "local_browser",
+        "reason": "Policy-owned local browser provider materialized the public page DOM and returned extracted text for evidence packaging.",
+        "url": clean_text(url, 2200),
+        "tool_execution_attempted": true,
+        "browser_launch_attempted": true,
+        "raw_payload_chat_visible": false,
+        "chat_visible": false,
+        "materialized_page": materialized_page,
+        "evidence_candidate": evidence_candidate.clone(),
+        "evidence_pack_candidates": [evidence_candidate],
+        "evidence_refs": [evidence_ref],
+        "artifact_ref": format!("artifact://web_conduit/browser_materialization/local-browser/{artifact_hash}"),
+        "artifact_manifest": artifact_manifest.clone(),
+        "materialized_page_contract": browser_materialization_output_contract_projection(config),
+        "evidence_handoff_contract": browser_materialization_evidence_handoff_projection_with_state(
+            config,
+            "evidence_pack_candidate_created",
+        ),
+        "blocker_classification": blocker_classification,
+        "web_tooling_gates": web_tooling_gates,
+        "artifact_quarantine": browser_materialization_artifact_quarantine_projection_with_ref(
+            &format!("artifact://web_conduit/browser_materialization/local-browser/{artifact_hash}"),
+            &artifact_manifest,
+        ),
+        "pre_navigation_url_safety": pre_navigation_url_safety.clone(),
+        "final_url_safety": final_url_safety,
+        "navigation_contract": browser_materialization_navigation_contract_projection(config),
+        "readiness_strategy": browser_materialization_readiness_strategy_projection(config),
+        "context_contract": browser_materialization_context_contract_projection(),
+        "cleanup_status": {
+            "version": "browser_materialization_cleanup_status_v1",
+            "status": cleanup_status,
+            "browser_launch_attempted": true,
+            "browser_close_attempted": true,
+            "temp_profile_cleanup_attempted": true,
+            "timed_out_and_killed": timed_out,
+            "raw_profile_path_chat_visible": false
+        },
+        "retry_diagnostics": browser_materialization_retry_diagnostics_projection("none"),
+        "url_safety": pre_navigation_url_safety,
+        "profile_compilation": runtime_metadata
+            .pointer("/profile_compilation")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "readiness_lifecycle": runtime_metadata
+            .pointer("/capability_contract/readiness_lifecycle")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "execution_gate": runtime_metadata
+            .get("execution_gate")
+            .cloned()
+            .unwrap_or_else(|| json!({})),
+        "local_browser": {
+            "version": "browser_materialization_local_browser_v1",
+            "live_execution_enabled": true,
+            "binary_path_chat_visible": false,
+            "raw_stderr_chat_visible": false,
+            "stderr_excerpt_telemetry": stderr
+        },
+        "capability_contract_ref": "core/layer2/tooling/tool_cds/web_retrieval_v0.tool.json#browser_materialization_capability_contract",
+        "decision_authority": "web_conduit_policy_and_tool_cd"
+    })
+}
+
 fn browser_materialization_fail_closed(
     error: &str,
     reason: &str,
@@ -1891,6 +2430,16 @@ pub fn api_browser_materialize_page(root: &Path, request: &Value) -> Value {
             url_safety,
             request,
             &selected_provider,
+        );
+    }
+    if selected_provider == "local_browser" {
+        return browser_materialization_local_browser_success(
+            root,
+            &url,
+            &config,
+            &runtime_metadata,
+            url_safety,
+            request,
         );
     }
 

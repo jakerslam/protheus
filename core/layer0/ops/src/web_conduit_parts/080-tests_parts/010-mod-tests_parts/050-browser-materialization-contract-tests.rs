@@ -1669,6 +1669,84 @@
     }
 
     #[test]
+    fn browser_materialization_local_static_fixture_rejects_blocker_shell_as_evidence() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let fixture_dir = tmp.path().join("fixtures");
+        std::fs::create_dir_all(&fixture_dir).expect("fixture dir");
+        std::fs::write(
+            fixture_dir.join("challenge.html"),
+            r#"<!doctype html>
+            <html>
+              <head><title>Checking your browser</title></head>
+              <body>
+                <main>
+                  <h1>Checking your browser before accessing the site</h1>
+                  <p>Please complete the following challenge to verify you are human. Cloudflare bot protection detected unusual traffic and access denied until the browser challenge completes.</p>
+                  <p>This page contains plenty of words but it is an anti bot or access challenge, not usable source evidence for the user's research task.</p>
+                </main>
+              </body>
+            </html>"#,
+        )
+        .expect("fixture write");
+
+        let mut policy = default_policy();
+        let browser_config = policy
+            .pointer_mut("/web_conduit/browser_materialization")
+            .expect("browser materialization policy");
+        browser_config["enabled"] = json!(true);
+        browser_config["adapter_ready"] = json!(true);
+        browser_config["provider_order"] = json!(["local_static_fixture"]);
+        browser_config["local_static_fixture"] = json!({
+            "fixture_url": "https://example.com/challenge",
+            "fixture_rel_path": "fixtures/challenge.html",
+            "content_type": "text/html; charset=utf-8"
+        });
+        write_json_atomic(&policy_path(tmp.path()), &policy).expect("write policy");
+
+        let out = api_browser_materialize_page(
+            tmp.path(),
+            &json!({
+                "url": "https://example.com/challenge",
+                "admission_ref": "test-browser-capability"
+            }),
+        );
+
+        assert_eq!(out.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(
+            out.pointer("/materialized_page/blocker_classification/blocker_class")
+                .and_then(Value::as_str),
+            Some("anti_bot_or_access_challenge")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/confidence")
+                .and_then(Value::as_str),
+            Some("rejected")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/promotion/decision")
+                .and_then(Value::as_str),
+            Some("rejected_blocker_shell")
+        );
+        assert_eq!(
+            out.pointer("/evidence_candidate/promotion/components/not_blocker_shell")
+                .and_then(Value::as_bool),
+            Some(false)
+        );
+        assert_eq!(
+            out.pointer("/web_tooling_gates/summary/soft_failed")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert!(out
+            .pointer("/evidence_candidate/quality_flags")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.as_str() == Some("not_promotable")))
+            .unwrap_or(false));
+    }
+
+    #[test]
     fn browser_materialization_local_static_fixture_cleans_up_on_failure() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let mut policy = default_policy();
