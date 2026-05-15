@@ -200,5 +200,87 @@
         ]
       }
     ]
+  },
+  "tool_selection_contract": {
+    "version": "default_workflow_tool_selection_v1",
+    "purpose": "Expose selectable tool slots to the default workflow without hardcoding execution in the router.",
+    "selection_stages": {
+      "tool_family_menu": "gate_2_tool_family_menu",
+      "tool_menu": "gate_3_tool_menu",
+      "tool_payload": "gate_4_request_payload_input"
+    },
+    "tool_families": [
+      {
+        "family": "workspace",
+        "label": "Workspace files",
+        "tools": [
+          {
+            "tool_id": "file_read",
+            "aliases": [
+              "read_file",
+              "workspace.read"
+            ],
+            "required_permission": "file.read",
+            "input_schema": "file_read_request_v1",
+            "routes_to_capability": "workspace_file_read"
+          },
+          {
+            "tool_id": "file_read_many",
+            "aliases": [
+              "read_many_files",
+              "workspace.read_many"
+            ],
+            "required_permission": "file.read",
+            "input_schema": "file_read_many_request_v1",
+            "routes_to_capability": "workspace_file_read_many"
+          }
+        ]
+      },
+      {
+        "family": "coding",
+        "label": "Local coding files",
+        "routes_to_workflow_id": "coding_project_operator",
+        "capability_pack": "local-coding-files",
+        "tools": [
+          {
+            "tool_id": "file_read",
+            "required_permission": "file.read",
+            "input_schema": "file_read_request_v1",
+            "routes_to_capability": "safe_file_read"
+          },
+          {
+            "tool_id": "file_write",
+            "aliases": [
+              "write_file",
+              "workspace.write"
+            ],
+            "required_permission": "file.write",
+            "input_schema": "file_write_request_v1",
+            "routes_to_capability": "safe_file_write"
+          },
+          {
+            "tool_id": "file_patch",
+            "aliases": [
+              "apply_patch",
+              "patch_file",
+              "workspace.patch"
+            ],
+            "required_permission": "file.patch",
+            "input_schema": "file_patch_request_v1",
+            "routes_to_capability": "safe_file_patch"
+          }
+        ]
+      }
+    ],
+    "routing_rules": [
+      "read_only_workspace_requests_may_select_workspace_file_read_tools",
+      "local_code_mutation_requests_route_to_coding_project_operator",
+      "file_write_and_file_patch_require_coding_family_or_explicit_file_permission",
+      "selected_tools_must_be_bound_to_runtime_receipts_before_claiming_success"
+    ],
+    "non_goals": [
+      "do_not_execute_file_tools_from_default_router_without_runtime_permission_gate",
+      "do_not_expose_raw_tool_payloads_in_visible_chat"
+    ]
   }
 }

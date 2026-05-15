@@ -55,6 +55,34 @@
       "do_not_execute_file_tools_without_permission_receipts"
     ]
   },
+  "coding_tool_binding_contract": {
+    "version": "coding_tool_binding_contract_v1",
+    "purpose": "Bind the coding workflow to native file tools and the safe-file workflow capabilities it delegates to.",
+    "capability_pack": "local-coding-files",
+    "required_native_tools": [
+      "file_read",
+      "file_read_many",
+      "file_write",
+      "file_patch"
+    ],
+    "tool_to_workflow_capability": {
+      "file_read": "safe_file_read",
+      "file_read_many": "safe_file_read",
+      "file_write": "safe_file_write",
+      "file_patch": "safe_file_patch"
+    },
+    "runtime_requirements": [
+      "native_tool_loop_enabled",
+      "file_tool_permissions_granted_or_fail_closed",
+      "tool_receipts_attached_to_agent_receipt",
+      "final_answer_must_not_claim_unreceipted_file_changes"
+    ],
+    "delegated_workflow_id": "local_coding_program_builder",
+    "non_goals": [
+      "do_not_reimplement_safe_file_logic_in_this_wrapper",
+      "do_not_allow_unreceipted_file_mutation"
+    ]
+  },
   "default": false,
   "description": "Official runtime-selectable coding category wrapper. It routes local software implementation, refactor, repair, and project-operator requests into the master local coding workflow while keeping the lab workflow itself non-runtime-selectable.",
   "stages": [
