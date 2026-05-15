@@ -1,5 +1,5 @@
-        this.conversationCache = Object.assign({}, persistedCache, runtimeCache);
-        window.__infringChatCache = this.conversationCache;
+        this.conversationCache = this.sanitizeConversationCacheForPersistence(Object.assign({}, persistedCache, runtimeCache));
+        try { delete window.__infringChatCache; } catch (_) { window.__infringChatCache = {}; }
       }
       // Load session + session list when agent changes
       this.$watch('currentAgent', function(agent) {

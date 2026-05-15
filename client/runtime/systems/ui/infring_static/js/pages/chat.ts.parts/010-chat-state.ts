@@ -168,7 +168,7 @@ function chatPage() {
     conversationCache: {},
     conversationCacheKey: 'of-chat-conversation-cache-v1',
     conversationCacheVersionKey: 'of-chat-conversation-cache-version',
-    conversationCacheVersion: 'v2-source-runs-20260325',
+    conversationCacheVersion: 'v3-preview-projection-20260515',
     messageLineExpandState: {},
     messageLineExpandStep: 20,
     _persistTimer: null,

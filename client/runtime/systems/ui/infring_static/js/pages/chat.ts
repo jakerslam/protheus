@@ -170,7 +170,7 @@ function chatPage() {
     conversationCache: {},
     conversationCacheKey: 'of-chat-conversation-cache-v1',
     conversationCacheVersionKey: 'of-chat-conversation-cache-version',
-    conversationCacheVersion: 'v2-source-runs-20260325',
+    conversationCacheVersion: 'v3-preview-projection-20260515',
     messageLineExpandState: {},
     messageLineExpandStep: 20,
     _persistTimer: null,
@@ -2704,64 +2704,146 @@ function chatPage() {
     sanitizeConversationForCache(messages) {
       var source = Array.isArray(messages) ? messages : [];
       var out = [];
+      var compactText = function(value, limit) {
+        var max = Number(limit || 0);
+        if (!Number.isFinite(max) || max < 1) max = 240;
+        var text = '';
+        if (value == null) {
+          text = '';
+        } else if (typeof value === 'string') {
+          text = value;
+        } else {
+          try {
+            text = JSON.stringify(value);
+          } catch(_) {
+            text = String(value || '');
+          }
+        }
+        text = text.replace(/\s+/g, ' ').trim();
+        if (text.length > max) text = text.slice(0, max - 1) + '…';
+        return text;
+      };
+      var cleanRef = function(value) {
+        var text = String(value || '').trim();
+        return text.length > 300 ? text.slice(0, 300) : text;
+      };
+      var sanitizeTools = function(tools) {
+        if (!Array.isArray(tools) || !tools.length) return [];
+        var rows = [];
+        for (var ti = 0; ti < tools.length && ti < 12; ti++) {
+          var tool = tools[ti];
+          if (!tool || typeof tool !== 'object') continue;
+          rows.push({
+            id: cleanRef(tool.id || tool.tool_id || tool.detail_ref || ''),
+            name: compactText(tool.name || tool.tool || 'tool', 80),
+            status: compactText(tool.status || (tool.running ? 'running' : (tool.is_error ? 'error' : 'done')), 48),
+            running: false,
+            blocked: tool.blocked === true,
+            is_error: tool.is_error === true,
+            summary: compactText(tool.summary || tool.label || tool.status || '', 160),
+            detail_ref: cleanRef(tool.detail_ref || tool.result_ref || tool.input_ref || ''),
+            input_ref: cleanRef(tool.input_ref || tool.detail_ref || ''),
+            result_ref: cleanRef(tool.result_ref || tool.detail_ref || '')
+          });
+        }
+        return rows;
+      };
+      var sanitizeArtifactRef = function(value) {
+        if (!value || typeof value !== 'object') return null;
+        return {
+          path: compactText(value.path || value.file_name || value.name || '', 160),
+          truncated: value.truncated === true,
+          bytes: Number(value.bytes || value.archive_bytes || 0) || 0,
+          entries: Number(value.entries || 0) || 0,
+          detail_ref: cleanRef(value.detail_ref || value.download_url || '')
+        };
+      };
       for (var i = 0; i < source.length; i++) {
         var msg = source[i];
         if (!msg || typeof msg !== 'object') continue;
         if (msg.thinking || msg.streaming || (msg.terminal && msg.thinking)) continue;
-        var cloned = null;
-        try {
-          cloned = JSON.parse(JSON.stringify(msg));
-        } catch(_) {
-          cloned = null;
-        }
-        if (!cloned || typeof cloned !== 'object') continue;
-        var roleRaw = String(cloned.role || cloned.type || '').trim().toLowerCase();
+        var roleRaw = String(msg.role || msg.type || '').trim().toLowerCase();
         if (roleRaw.indexOf('assistant') >= 0) roleRaw = 'agent';
         else if (roleRaw.indexOf('user') >= 0) roleRaw = 'user';
         else if (roleRaw.indexOf('system') >= 0) roleRaw = 'system';
-        else if (cloned.terminal) roleRaw = 'terminal';
+        else if (msg.terminal) roleRaw = 'terminal';
         else roleRaw = roleRaw || 'agent';
-        cloned.role = roleRaw;
-        var rawText = cloned.text;
-        if (rawText == null && cloned.content != null) rawText = cloned.content;
-        if (rawText == null && cloned.message != null) rawText = cloned.message;
-        if (rawText == null && cloned.assistant != null) rawText = cloned.assistant;
-        if (rawText == null && cloned.user != null && roleRaw === 'user') rawText = cloned.user;
-        if (rawText == null) rawText = '';
-        if (typeof rawText !== 'string') {
-          try {
-            rawText = JSON.stringify(rawText);
-          } catch(_) {
-            rawText = String(rawText || '');
-          }
-        }
-        cloned.text = rawText;
-        delete cloned.content;
-        delete cloned.thinking;
-        delete cloned.streaming;
-        delete cloned.thoughtStreaming;
-        delete cloned._streamRawText;
-        delete cloned._cleanText;
-        delete cloned._thoughtText;
-        delete cloned._toolTextDetected;
-        delete cloned._reasoning;
-        if (Array.isArray(cloned.tools)) {
-          for (var ti = 0; ti < cloned.tools.length; ti++) {
-            if (cloned.tools[ti] && typeof cloned.tools[ti] === 'object') {
-              cloned.tools[ti].running = false;
+        var rawText = msg.text;
+        if (rawText == null && msg.content != null) rawText = msg.content;
+        if (rawText == null && msg.message != null) rawText = msg.message;
+        if (rawText == null && msg.assistant != null) rawText = msg.assistant;
+        if (rawText == null && msg.user != null && roleRaw === 'user') rawText = msg.user;
+        var tools = sanitizeTools(msg.tools);
+        var fileOutput = sanitizeArtifactRef(msg.file_output);
+        var folderOutput = sanitizeArtifactRef(msg.folder_output);
+        var progress = msg.progress && typeof msg.progress === 'object'
+          ? {
+              label: compactText(msg.progress.label || msg.progress.status || '', 120),
+              value: Number(msg.progress.value || msg.progress.percent || 0) || 0,
+              total: Number(msg.progress.total || 0) || 0
             }
-          }
+          : null;
+        var preview = {
+          id: compactText(msg.id || ('cached-message-' + i), 120),
+          role: roleRaw,
+          text: compactText(rawText, 1200),
+          content_preview: compactText(rawText, 320),
+          search_text: compactText(rawText, 500),
+          meta: compactText(msg.meta || '', 160),
+          ts: Number(msg.ts || msg.timestamp || Date.now()) || Date.now(),
+          tools: tools,
+          tool_summary_count: Array.isArray(msg.tools) ? msg.tools.length : tools.length,
+          artifact_summary_count: (fileOutput ? 1 : 0) + (folderOutput ? 1 : 0),
+          detail_ref: cleanRef(msg.detail_ref || '')
+        };
+        if (msg.terminal) preview.terminal = true;
+        if (msg.is_notice || msg.notice_label || msg.notice_type || msg.notice_action) {
+          preview.is_notice = true;
+          preview.notice_label = compactText(msg.notice_label || '', 160);
+          preview.notice_type = compactText(msg.notice_type || '', 40);
+          preview.notice_icon = compactText(msg.notice_icon || '', 24);
+          preview.notice_action = msg.notice_action && typeof msg.notice_action === 'object'
+            ? {
+                type: compactText(msg.notice_action.type || '', 60),
+                label: compactText(msg.notice_action.label || '', 80),
+                value: compactText(msg.notice_action.value || '', 160)
+              }
+            : null;
         }
-        var hasNotice = !!(cloned.is_notice || cloned.notice_label || cloned.notice_type || cloned.notice_action);
-        var hasText = typeof cloned.text === 'string' && cloned.text.trim().length > 0;
-        var hasTools = Array.isArray(cloned.tools) && cloned.tools.length > 0;
-        var hasArtifacts = !!(cloned.file_output || cloned.folder_output);
-        var hasProgress = !!(cloned.progress && typeof cloned.progress === 'object');
-        var hasTerminal = !!cloned.terminal;
+        if (fileOutput) preview.file_output = fileOutput;
+        if (folderOutput) preview.folder_output = folderOutput;
+        if (progress) preview.progress = progress;
+        var hasNotice = !!preview.is_notice;
+        var hasText = typeof preview.text === 'string' && preview.text.trim().length > 0;
+        var hasTools = Array.isArray(preview.tools) && preview.tools.length > 0;
+        var hasArtifacts = !!(preview.file_output || preview.folder_output);
+        var hasProgress = !!preview.progress;
+        var hasTerminal = !!preview.terminal;
         if (!hasNotice && !hasText && !hasTools && !hasArtifacts && !hasProgress && !hasTerminal) {
           continue;
         }
-        out.push(cloned);
+        out.push(preview);
+      }
+      return out;
+    },
+    sanitizeConversationCacheForPersistence(cache) {
+      var source = cache && typeof cache === 'object' ? cache : {};
+      var out = {};
+      var keys = Object.keys(source);
+      for (var i = 0; i < keys.length; i += 1) {
+        var key = String(keys[i] || '').trim();
+        if (!key) continue;
+        var row = source[key] && typeof source[key] === 'object' ? source[key] : {};
+        out[key] = {
+          saved_at: Number(row.saved_at || Date.now()) || Date.now(),
+          session_scope_key: String(row.session_scope_key || '').slice(0, 160),
+          session_label: String(row.session_label || '').slice(0, 120),
+          token_count: Number(row.token_count || 0) || 0,
+          default_terminal: row.default_terminal === true,
+          draft_terminal: chatSanitizeConversationDraftText(row.draft_terminal || ''),
+          draft_chat: chatSanitizeConversationDraftText(row.draft_chat || ''),
+          messages: this.sanitizeConversationForCache(row.messages || [])
+        };
       }
       return out;
     },
@@ -2829,7 +2911,11 @@ function chatPage() {
     persistConversationCache() {
       try {
         localStorage.setItem(this.conversationCacheVersionKey, this.conversationCacheVersion);
-        localStorage.setItem(this.conversationCacheKey, JSON.stringify(this.conversationCache || {}));
+        var sanitized = this.sanitizeConversationCacheForPersistence
+          ? this.sanitizeConversationCacheForPersistence(this.conversationCache || {})
+          : (this.conversationCache || {});
+        this.conversationCache = sanitized;
+        localStorage.setItem(this.conversationCacheKey, JSON.stringify(sanitized));
       } catch {}
     },
 
@@ -5278,8 +5364,11 @@ function chatPage() {
                 name: t.name || 'unknown',
                 running: false,
                 expanded: false,
-                input: t.input || '',
-                result: t.result || '',
+                status: t.status || (t.is_error ? 'error' : 'done'),
+                summary: t.summary || t.label || t.status || '',
+                input_ref: t.input_ref || t.detail_ref || '',
+                result_ref: t.result_ref || t.detail_ref || '',
+                detail_ref: t.detail_ref || t.result_ref || t.input_ref || '',
                 is_error: !!t.is_error
               };
             }));
@@ -5417,9 +5506,10 @@ function chatPage() {
       var self = this;
 
       if (typeof window !== 'undefined') {
-        window.__infringChatCache = window.__infringChatCache || {};
         var persistedCache = this.loadConversationCache();
-        var runtimeCache = window.__infringChatCache || {};
+        var runtimeCache = window.__infringChatCache && typeof window.__infringChatCache === 'object'
+          ? this.sanitizeConversationCacheForPersistence(window.__infringChatCache)
+          : {};
 
       this.loadModelNoticeCache();
       this.loadModelUsageCache();
@@ -5523,8 +5613,8 @@ function chatPage() {
         }
       });
 
-        this.conversationCache = Object.assign({}, persistedCache, runtimeCache);
-        window.__infringChatCache = this.conversationCache;
+        this.conversationCache = this.sanitizeConversationCacheForPersistence(Object.assign({}, persistedCache, runtimeCache));
+        try { delete window.__infringChatCache; } catch (_) { window.__infringChatCache = {}; }
       }
       // Load session + session list when agent changes
       this.$watch('currentAgent', function(agent) {
@@ -7500,10 +7590,11 @@ function chatPage() {
             continue;
           }
           if (!this.conversationCache) this.conversationCache = {};
+          var normalizedPreview = this.sanitizeConversationForCache(normalized || []);
           this.conversationCache[String(agentId)] = {
             saved_at: Date.now(),
             token_count: Number(this.contextApproxTokens || 0),
-            messages: JSON.parse(JSON.stringify(normalized || [])),
+            messages: normalizedPreview,
           };
           try {
             var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
@@ -7512,7 +7603,7 @@ function chatPage() {
             var saveAgentChatPreview = bridge && typeof bridge.method === 'function'
               ? bridge.method('saveAgentChatPreview')
               : null;
-            if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
+            if (typeof saveAgentChatPreview === 'function') saveAgentChatPreview(agentId, normalizedPreview);
           } catch(_) {}
           var isActive = !!(this.currentAgent && String(this.currentAgent.id || '') === agentId);
           if (isActive) {

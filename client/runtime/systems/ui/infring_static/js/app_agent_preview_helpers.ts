@@ -15,16 +15,16 @@ function infringClassifyPreviewTool(tool) {
   if (!tool) return '';
   if (tool.running) return 'warning';
   var status = String(tool.status || '').toLowerCase();
-  var result = String(tool.result || '').toLowerCase();
+  var summary = String(tool.summary || tool.tool_label || '').toLowerCase();
   var blocked = tool.blocked === true || status === 'blocked' ||
-    result.indexOf('blocked') >= 0 ||
-    result.indexOf('policy') >= 0 ||
-    result.indexOf('denied') >= 0 ||
-    result.indexOf('not allowed') >= 0 ||
-    result.indexOf('forbidden') >= 0 ||
-    result.indexOf('approval') >= 0 ||
-    result.indexOf('permission') >= 0 ||
-    result.indexOf('fail-closed') >= 0;
+    summary.indexOf('blocked') >= 0 ||
+    summary.indexOf('policy') >= 0 ||
+    summary.indexOf('denied') >= 0 ||
+    summary.indexOf('not allowed') >= 0 ||
+    summary.indexOf('forbidden') >= 0 ||
+    summary.indexOf('approval') >= 0 ||
+    summary.indexOf('permission') >= 0 ||
+    summary.indexOf('fail-closed') >= 0;
   if (blocked) return 'warning';
   if (tool.is_error) return 'error';
   return 'success';

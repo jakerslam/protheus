@@ -805,15 +805,16 @@
             continue;
           }
           if (!this.conversationCache) this.conversationCache = {};
+          var normalizedPreview = this.sanitizeConversationForCache(normalized || []);
           this.conversationCache[String(agentId)] = {
             saved_at: Date.now(),
             token_count: Number(this.contextApproxTokens || 0),
-            messages: JSON.parse(JSON.stringify(normalized || [])),
+            messages: normalizedPreview,
           };
           try {
             var appStore = Alpine.store('app');
             if (appStore && typeof appStore.saveAgentChatPreview === 'function') {
-              appStore.saveAgentChatPreview(agentId, this.conversationCache[String(agentId)].messages);
+              appStore.saveAgentChatPreview(agentId, normalizedPreview);
             }
           } catch(_) {}
           var isActive = !!(this.currentAgent && String(this.currentAgent.id || '') === agentId);

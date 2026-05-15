@@ -320,8 +320,11 @@
                 name: t.name || 'unknown',
                 running: false,
                 expanded: false,
-                input: t.input || '',
-                result: t.result || '',
+                status: t.status || (t.is_error ? 'error' : 'done'),
+                summary: t.summary || t.label || t.status || '',
+                input_ref: t.input_ref || t.detail_ref || '',
+                result_ref: t.result_ref || t.detail_ref || '',
+                detail_ref: t.detail_ref || t.result_ref || t.input_ref || '',
                 is_error: !!t.is_error
               };
             }));
@@ -476,6 +479,7 @@
       var self = this;
 
       if (typeof window !== 'undefined') {
-        window.__infringChatCache = window.__infringChatCache || {};
         var persistedCache = this.loadConversationCache();
-        var runtimeCache = window.__infringChatCache || {};
+        var runtimeCache = window.__infringChatCache && typeof window.__infringChatCache === 'object'
+          ? this.sanitizeConversationCacheForPersistence(window.__infringChatCache)
+          : {};

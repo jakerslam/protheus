@@ -24,7 +24,11 @@
     persistConversationCache() {
       try {
         localStorage.setItem(this.conversationCacheVersionKey, this.conversationCacheVersion);
-        localStorage.setItem(this.conversationCacheKey, JSON.stringify(this.conversationCache || {}));
+        var sanitized = this.sanitizeConversationCacheForPersistence
+          ? this.sanitizeConversationCacheForPersistence(this.conversationCache || {})
+          : (this.conversationCache || {});
+        this.conversationCache = sanitized;
+        localStorage.setItem(this.conversationCacheKey, JSON.stringify(sanitized));
       } catch {}
     },
 
