@@ -52,12 +52,17 @@ fn save_session_state(root: &Path, agent_id: &str, state: &Value) {
     }
     let bounded_state = bound_session_state_for_persistence(root, agent_id, state);
     write_json_pretty(&path, &bounded_state);
+    write_indexed_session_state(root, agent_id, &bounded_state);
 }
+
+use std::io::{Read, Seek, SeekFrom, Write};
 
 const SESSION_MESSAGE_TEXT_MAX_CHARS: usize = 64_000;
 const SESSION_MESSAGE_PREVIEW_MAX_CHARS: usize = 4_000;
 const SESSION_TOOL_PREVIEW_MAX_CHARS: usize = 1_200;
 const SESSION_TERMINAL_PREVIEW_MAX_CHARS: usize = 1_000;
+const SESSION_INDEX_DIR_REL: &str =
+    "client/runtime/local/state/ui/infring_dashboard/agent_sessions_indexed";
 const SESSION_FORBIDDEN_PROJECTION_KEYS: [&str; 9] = [
     "raw",
     "root",
@@ -73,6 +78,216 @@ const SESSION_FORBIDDEN_PROJECTION_KEYS: [&str; 9] = [
 fn session_artifact_dir(root: &Path, agent_id: &str) -> PathBuf {
     state_path(root, "client/runtime/local/state/ui/infring_dashboard/session_artifacts")
         .join(clean_agent_id(agent_id))
+}
+
+fn clean_session_id(raw: &str) -> String {
+    let cleaned = clean_text(raw, 120);
+    let safe = cleaned
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    if safe.is_empty() {
+        "default".to_string()
+    } else {
+        safe
+    }
+}
+
+fn session_index_agent_dir(root: &Path, agent_id: &str) -> PathBuf {
+    state_path(root, SESSION_INDEX_DIR_REL).join(clean_agent_id(agent_id))
+}
+
+fn session_index_meta_path(root: &Path, agent_id: &str) -> PathBuf {
+    session_index_agent_dir(root, agent_id).join("meta.json")
+}
+
+fn session_index_session_dir(root: &Path, agent_id: &str, session_id: &str) -> PathBuf {
+    session_index_agent_dir(root, agent_id).join(clean_session_id(session_id))
+}
+
+fn session_index_messages_path(root: &Path, agent_id: &str, session_id: &str) -> PathBuf {
+    session_index_session_dir(root, agent_id, session_id).join("messages.jsonl")
+}
+
+fn session_index_offsets_path(root: &Path, agent_id: &str, session_id: &str) -> PathBuf {
+    session_index_session_dir(root, agent_id, session_id).join("offsets.json")
+}
+
+fn write_indexed_session_messages(path: &Path, offsets_path: &Path, messages: &[Value]) {
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let Ok(mut file) = fs::File::create(path) else {
+        return;
+    };
+    let mut offsets = Vec::<u64>::new();
+    let mut cursor = 0u64;
+    for message in messages {
+        let Ok(mut line) = serde_json::to_string(message) else {
+            continue;
+        };
+        line.push('\n');
+        offsets.push(cursor);
+        let bytes = line.as_bytes();
+        if file.write_all(bytes).is_err() {
+            return;
+        }
+        cursor = cursor.saturating_add(bytes.len() as u64);
+    }
+    write_json_pretty(offsets_path, &json!(offsets));
+}
+
+fn write_indexed_session_state(root: &Path, agent_id: &str, state: &Value) {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return;
+    }
+    let sessions = state
+        .get("sessions")
+        .and_then(Value::as_array)
+        .map(|rows| rows.as_slice())
+        .unwrap_or(&[]);
+    let mut session_meta = Vec::<Value>::new();
+    for session in sessions {
+        let sid = clean_session_id(
+            session
+                .get("session_id")
+                .and_then(Value::as_str)
+                .unwrap_or("default"),
+        );
+        let messages = session
+            .get("messages")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        write_indexed_session_messages(
+            &session_index_messages_path(root, &id, &sid),
+            &session_index_offsets_path(root, &id, &sid),
+            &messages,
+        );
+        session_meta.push(json!({
+            "session_id": sid,
+            "label": clean_text(session.get("label").and_then(Value::as_str).unwrap_or("Session"), 80),
+            "created_at": session.get("created_at").cloned().unwrap_or(Value::Null),
+            "updated_at": session.get("updated_at").cloned().unwrap_or(Value::Null),
+            "message_count": messages.len()
+        }));
+    }
+    let meta = json!({
+        "type": "infring_dashboard_agent_session_index_v1",
+        "agent_id": id,
+        "active_session_id": clean_session_id(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default")),
+        "sessions": session_meta,
+        "source": "bounded_session_projection"
+    });
+    let path = session_index_meta_path(root, &id);
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    write_json_pretty(&path, &meta);
+}
+
+fn load_session_index_meta(root: &Path, agent_id: &str) -> Option<Value> {
+    read_json_loose(&session_index_meta_path(root, agent_id))
+}
+
+fn indexed_active_session_id(meta: &Value) -> String {
+    let active = clean_session_id(
+        meta.get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+    );
+    let sessions = meta
+        .get("sessions")
+        .and_then(Value::as_array)
+        .map(|rows| rows.as_slice())
+        .unwrap_or(&[]);
+    if sessions.iter().any(|row| {
+        row.get("session_id")
+            .and_then(Value::as_str)
+            .map(|sid| clean_session_id(sid) == active)
+            .unwrap_or(false)
+    }) {
+        active
+    } else {
+        sessions
+            .first()
+            .and_then(|row| row.get("session_id"))
+            .and_then(Value::as_str)
+            .map(clean_session_id)
+            .unwrap_or_else(|| "default".to_string())
+    }
+}
+
+fn indexed_session_rows_payload(meta: &Value) -> Vec<Value> {
+    let active = indexed_active_session_id(meta);
+    meta.get("sessions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|row| {
+            let sid = clean_session_id(row.get("session_id").and_then(Value::as_str).unwrap_or(""));
+            json!({
+                "session_id": sid,
+                "label": clean_text(row.get("label").and_then(Value::as_str).unwrap_or("Session"), 80),
+                "created_at": row.get("created_at").cloned().unwrap_or(Value::Null),
+                "updated_at": row.get("updated_at").cloned().unwrap_or(Value::Null),
+                "message_count": row.get("message_count").and_then(Value::as_u64).unwrap_or(0),
+                "active": sid == active
+            })
+        })
+        .collect::<Vec<_>>()
+}
+
+fn read_indexed_session_window(
+    root: &Path,
+    agent_id: &str,
+    session_id: &str,
+    limit: usize,
+    offset: usize,
+) -> Option<(Vec<Value>, usize)> {
+    let offsets = read_json_loose(&session_index_offsets_path(root, agent_id, session_id))?
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|value| value.as_u64())
+        .collect::<Vec<_>>();
+    let total = offsets.len();
+    if total == 0 {
+        return Some((Vec::new(), 0));
+    }
+    let bounded_limit = if limit == 0 { total } else { limit.min(500) };
+    let end = total.saturating_sub(offset);
+    let start = end.saturating_sub(bounded_limit);
+    let start_byte = *offsets.get(start)?;
+    let path = session_index_messages_path(root, agent_id, session_id);
+    let mut file = fs::File::open(&path).ok()?;
+    let end_byte = if end < total {
+        *offsets.get(end)?
+    } else {
+        file.metadata().ok()?.len()
+    };
+    if end_byte < start_byte {
+        return None;
+    }
+    let byte_len = (end_byte - start_byte) as usize;
+    let mut raw = vec![0u8; byte_len];
+    file.seek(SeekFrom::Start(start_byte)).ok()?;
+    file.read_exact(&mut raw).ok()?;
+    let text = String::from_utf8_lossy(&raw);
+    let messages = text
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .collect::<Vec<_>>();
+    Some((messages, total))
 }
 
 fn persist_session_artifact_ref(root: &Path, agent_id: &str, kind: &str, value: &Value) -> Value {
@@ -421,6 +636,51 @@ mod session_output_boundary_tests {
         assert!(projected.pointer("/response_finalization").is_none());
         assert!(projected.pointer("/process_summary").is_none());
         assert!(projected.pointer("/detail_refs/response_workflow/ref").and_then(Value::as_str).unwrap_or("").starts_with("session_artifact:agent-meta:response_workflow:"));
+    }
+
+    #[test]
+    fn session_payload_prefers_indexed_window_without_reading_legacy_monolith() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let agent_id = "agent-indexed";
+        let messages = (0..6)
+            .map(|idx| {
+                json!({
+                    "id": format!("msg-{idx}"),
+                    "role": if idx % 2 == 0 { "user" } else { "assistant" },
+                    "text": format!("message {idx}")
+                })
+            })
+            .collect::<Vec<_>>();
+        let state = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "label": "Default",
+                "created_at": "2026-05-15T00:00:00Z",
+                "updated_at": "2026-05-15T00:00:01Z",
+                "messages": messages
+            }]
+        });
+
+        save_session_state(root, agent_id, &state);
+        fs::write(session_path(root, agent_id), b"{ legacy monolith intentionally unreadable")
+            .expect("poison legacy monolith");
+
+        let payload = session_payload_paged(root, agent_id, 2, 0);
+        assert_eq!(
+            payload.get("storage_source").and_then(Value::as_str),
+            Some("indexed_session_jsonl")
+        );
+        assert_eq!(payload.get("message_count").and_then(Value::as_u64), Some(6));
+        let rows = payload
+            .pointer("/message_window/rows")
+            .and_then(Value::as_array)
+            .expect("indexed message rows");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].get("id").and_then(Value::as_str), Some("msg-4"));
+        assert_eq!(rows[1].get("id").and_then(Value::as_str), Some("msg-5"));
     }
 }
 

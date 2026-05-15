@@ -282,8 +282,45 @@ fn session_payload_paged(root: &Path, agent_id: &str, limit: usize, offset: usiz
     if id.is_empty() {
         return json!({"ok": false, "error": "agent_id_required"});
     }
-    let state = load_session_state(root, &id);
     let bounded_limit = if limit == 0 { 80 } else { limit.min(80) };
+    if let Some(meta) = load_session_index_meta(root, &id) {
+        let active_session_id = indexed_active_session_id(&meta);
+        if let Some((messages, total_messages)) =
+            read_indexed_session_window(root, &id, &active_session_id, bounded_limit, offset)
+        {
+            let message_window = session_message_window(&id, &messages, total_messages, offset);
+            let has_more = message_window
+                .get("has_more")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let sessions = indexed_session_rows_payload(&meta);
+            let state_slim = json!({
+                "type": "infring_dashboard_agent_session_index_v1",
+                "agent_id": id,
+                "active_session_id": active_session_id,
+                "sessions": sessions,
+                "memory_kv": json!({})
+            });
+            return json!({
+                "ok": true,
+                "agent_id": id,
+                "active_session_id": active_session_id,
+                "message_window": message_window,
+                "message_count": total_messages,
+                "total_count": total_messages,
+                "has_more": has_more,
+                "sessions": sessions,
+                "session": state_slim,
+                "detail_refs": json!({ "message_window": format!("agent_session_indexed:{id}:window:{offset}") }),
+                "storage_source": "indexed_session_jsonl",
+                "receipt_ref": format!("agent_session_indexed_window:{id}:{offset}"),
+                "correlation_id": format!("agent_session_indexed_window:{id}:{offset}")
+            });
+        }
+    }
+    let legacy_state = load_session_state(root, &id);
+    let state = bound_session_state_for_persistence(root, &id, &legacy_state);
+    write_indexed_session_state(root, &id, &state);
     let (messages, total_messages) = session_messages_paged(&state, bounded_limit, offset);
     let message_window = session_message_window(&id, &messages, total_messages, offset);
     let has_more = message_window
@@ -309,6 +346,7 @@ fn session_payload_paged(root: &Path, agent_id: &str, limit: usize, offset: usiz
         "sessions": sessions,
         "session": state_slim,
         "detail_refs": json!({ "message_window": format!("agent_session:{id}:window:{offset}") }),
+        "storage_source": "legacy_session_json_fallback",
         "receipt_ref": format!("agent_session_window:{id}:{offset}"),
         "correlation_id": format!("agent_session_window:{id}:{offset}")
     })
