@@ -60,6 +60,7 @@ fn template_id_for_enum(template: &WorkflowTemplate) -> &'static str {
     match template {
         WorkflowTemplate::ClarifyThenCoordinate => "clarify_then_coordinate",
         WorkflowTemplate::ResearchSynthesizeVerify => "research_synthesize_verify",
+        WorkflowTemplate::CodingProjectOperator => "coding_project_operator",
         WorkflowTemplate::PlanExecuteReview => "plan_execute_review",
         WorkflowTemplate::DiagnoseRetryEscalate => "diagnose_retry_escalate",
         WorkflowTemplate::CodexToolingSynthesis => "codex_tooling_synthesis",

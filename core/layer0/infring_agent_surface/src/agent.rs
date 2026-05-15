@@ -88,7 +88,7 @@ impl AgentBuilder {
     }
 
     pub fn initial_prompt(mut self, prompt: impl Into<String>) -> Self {
-        self.contract.initial_prompt = sanitize_token(&prompt.into(), 4000);
+        self.contract.initial_prompt = sanitize_token(&prompt.into(), 64_000);
         self
     }
 
@@ -258,6 +258,11 @@ impl AgentContract {
             "lifespan_seconds": self.lifespan_seconds,
             "duration_ms": duration_ms,
             "trace_id": trace.trace_id,
+            "workflow": self
+                .metadata
+                .get("workflow")
+                .cloned()
+                .unwrap_or(Value::Null),
         });
         Ok(AgentRunResult {
             response,

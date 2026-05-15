@@ -454,6 +454,10 @@ pub fn run_runtime_lane_with_registry(
             "wasm_sandbox": wasm_policy_snapshot(&wasm_policy),
             "voice_session": voice,
             "receipt_merkle": merkle,
+            "workflow": metadata
+                .get("workflow")
+                .cloned()
+                .unwrap_or(Value::Null),
         }),
         receipt: run.receipt,
         trace_summary: json!({

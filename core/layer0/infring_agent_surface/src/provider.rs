@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
+use std::io::Write;
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -103,6 +105,91 @@ impl ProviderClient for LocalEchoProvider {
 }
 
 #[derive(Default)]
+pub struct OllamaCliProvider;
+
+impl ProviderClient for OllamaCliProvider {
+    fn provider_id(&self) -> &'static str {
+        "ollama"
+    }
+
+    fn complete(&self, request: &ProviderRequest) -> Result<ProviderResponse, ProviderError> {
+        if request.prompt.trim().is_empty() {
+            return Err(ProviderError::new(
+                ProviderErrorCode::InvalidRequest,
+                "prompt_required",
+            ));
+        }
+        let model = request
+            .model
+            .clone()
+            .or_else(|| std::env::var("INFRING_OLLAMA_MODEL").ok())
+            .unwrap_or_else(|| "kimi-k2.6:cloud".to_string());
+        let binary = std::env::var("INFRING_OLLAMA_BIN")
+            .or_else(|_| std::env::var("OLLAMA_BIN"))
+            .unwrap_or_else(|_| "ollama".to_string());
+        let system = request.system.clone().unwrap_or_default();
+        let full_prompt = if system.trim().is_empty() {
+            request.prompt.clone()
+        } else {
+            format!("{system}\n\n{}", request.prompt)
+        };
+        let mut child = Command::new(&binary)
+            .arg("run")
+            .arg(&model)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|error| {
+                let code = if error.kind() == std::io::ErrorKind::NotFound {
+                    ProviderErrorCode::Unavailable
+                } else {
+                    ProviderErrorCode::InvalidRequest
+                };
+                ProviderError::new(code, format!("ollama_spawn_failed:{error}"))
+            })?;
+        if let Some(stdin) = child.stdin.as_mut() {
+            stdin.write_all(full_prompt.as_bytes()).map_err(|error| {
+                ProviderError::new(
+                    ProviderErrorCode::Unavailable,
+                    format!("ollama_stdin_write_failed:{error}"),
+                )
+            })?;
+        }
+        let output = child.wait_with_output().map_err(|error| {
+            ProviderError::new(
+                ProviderErrorCode::Unavailable,
+                format!("ollama_wait_failed:{error}"),
+            )
+        })?;
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        if !output.status.success() {
+            return Err(ProviderError::new(
+                ProviderErrorCode::Unavailable,
+                format!(
+                    "ollama_run_failed:status={}:stderr={}",
+                    output.status.code().unwrap_or(-1),
+                    stderr
+                ),
+            ));
+        }
+        Ok(ProviderResponse {
+            provider: self.provider_id().to_string(),
+            model,
+            output: stdout.clone(),
+            usage_tokens: stdout.split_whitespace().count() as u64,
+            raw: json!({
+                "ok": true,
+                "provider": self.provider_id(),
+                "stderr": stderr,
+                "tools": request.tools,
+            }),
+        })
+    }
+}
+
+#[derive(Default)]
 pub struct ProviderClientRegistry {
     default_provider: String,
     clients: BTreeMap<String, Arc<dyn ProviderClient>>,
@@ -119,6 +206,7 @@ impl ProviderClientRegistry {
     pub fn with_builtin() -> Self {
         let mut registry = Self::new("local-echo");
         registry.register(LocalEchoProvider);
+        registry.register(OllamaCliProvider);
         registry
     }
 

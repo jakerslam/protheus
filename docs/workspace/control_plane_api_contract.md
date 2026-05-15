@@ -60,12 +60,14 @@ Control-plane default templates are explicit, versioned behavior contracts (not 
 
 1. `clarify_then_coordinate`
 2. `research_synthesize_verify`
-3. `plan_execute_review`
-4. `diagnose_retry_escalate`
-5. `codex_tooling_synthesis`
+3. `coding_project_operator`
+4. `plan_execute_review`
+5. `diagnose_retry_escalate`
+6. `codex_tooling_synthesis`
 
 Template selection is computed in Rust by `control_plane::lifecycle::select_workflow_template(...)` using typed request class/kind, live plan status, and recovery state.
 Template definitions are cataloged by `control_plane::templates::workflow_template_definition(...)` so workflow profiles remain orchestration-owned.
+The coding category gate uses `coding_project_operator` as the official runtime-selectable wrapper and delegates local software implementation to `local_coding_program_builder`, keeping the lab master coding workflow measurable and non-runtime-selectable.
 
 Codex template sub-workflows are also orchestration-owned and currently include:
 

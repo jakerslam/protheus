@@ -1,3 +1,4 @@
+use super::lifecycle::select_workflow_template;
 use super::workflow_contracts::{
     registered_workflow_graphs, registered_workflow_validations, tool_family_contracts,
     workflow_registry_contract_ok, REQUIRED_JSON_OWNS, REQUIRED_RUST_OWNS,
@@ -7,6 +8,11 @@ use super::workflow_lab_replay::{
     local_coding_program_builder_lab_replay_report,
 };
 use super::workflow_runtime::select_runtime_workflow;
+use crate::contracts::{
+    Mutability, OperationKind, PlanStatus, PolicyScope, RequestClass, RequestClassification,
+    RequestKind, RequestSurface, ResourceKind, TypedOrchestrationRequest, WorkflowTemplate,
+};
+use serde_json::json;
 use serde_json::Value;
 use std::path::Path;
 
@@ -89,9 +95,45 @@ fn workflow_registry_separates_official_and_lab_profiles() {
 #[test]
 fn lab_framework_workflows_are_not_runtime_selectable() {
     assert!(select_runtime_workflow("clarify_then_coordinate").is_some());
+    assert!(select_runtime_workflow("coding_project_operator").is_some());
     assert!(select_runtime_workflow("openhands_control_plane_assimilation").is_none());
     assert!(select_runtime_workflow("codex_tooling_synthesis").is_none());
     assert!(select_runtime_workflow("local_coding_program_builder").is_none());
+}
+
+#[test]
+fn coding_mutation_requests_route_to_coding_project_operator() {
+    let request = TypedOrchestrationRequest {
+        session_id: "routing-smoke".to_string(),
+        surface: RequestSurface::Cli,
+        legacy_intent: "Implement a Python CLI in this local repo and update tests.".to_string(),
+        adapted: true,
+        payload: json!({"goal": "local coding task"}),
+        request_kind: RequestKind::Direct,
+        operation_kind: OperationKind::Mutate,
+        resource_kind: ResourceKind::Workspace,
+        mutability: Mutability::Mutation,
+        target_descriptors: Vec::new(),
+        target_refs: vec!["src/main.py".to_string()],
+        tool_hints: vec!["workspace".to_string(), "shell".to_string()],
+        policy_scope: PolicyScope::WorkspaceOnly,
+        user_constraints: Vec::new(),
+        core_probe_envelope: None,
+    };
+    let classification = RequestClassification {
+        request_class: RequestClass::Mutation,
+        confidence: 0.95,
+        reasons: vec!["local coding marker".to_string()],
+        required_capabilities: Vec::new(),
+        clarification_reasons: Vec::new(),
+        needs_clarification: false,
+        surface_adapter_used: false,
+        surface_adapter_fallback: false,
+    };
+    assert_eq!(
+        select_workflow_template(&request, &classification, PlanStatus::Ready, false, None),
+        WorkflowTemplate::CodingProjectOperator
+    );
 }
 
 #[test]
@@ -111,6 +153,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
         "project_context_capture",
         "resume_context_retrieval",
         "memory_freshness_guard",
+        "local_context_pack_builder",
         "local_coding_ingress_guard",
         "cli_intent_argument_ingress",
         "interactive_input_session_state",
@@ -209,7 +252,7 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .get("child_workflow_calls")
             .and_then(Value::as_array)
             .map(Vec::len),
-        Some(20)
+        Some(21)
     );
     assert!(
         source
@@ -311,6 +354,41 @@ fn local_coding_program_builder_declares_master_coding_loop_contract() {
             .iter()
             .any(|item| item.as_str() == Some("recommended_next_checkpoint")))
         .unwrap_or(false));
+}
+
+#[test]
+fn local_context_pack_builder_is_registered_as_level_zero_primitive() {
+    let graphs = registered_workflow_graphs();
+    let graph = graphs
+        .iter()
+        .find(|graph| graph.workflow_id == "local_context_pack_builder")
+        .expect("local context pack builder graph");
+    assert_eq!(graph.workflow_tier, "lab");
+    assert_eq!(graph.promotion_status, "lab");
+    assert_eq!(graph.primitive_level, 0);
+    assert!(graph.composed_of_workflow_ids.is_empty());
+    assert!(!graph.runtime_selectable);
+
+    let source = workflow_source_json(
+        "src/control_plane/workflows/lab/primitives/coding_context/local_context_pack_builder.workflow.json",
+    );
+    assert_eq!(
+        source
+            .pointer("/workflow_composition_contract/cd_kind")
+            .and_then(Value::as_str),
+        Some("primitive")
+    );
+    assert!(string_array_contains(
+        &source,
+        "/local_context_pack_contract/required_behaviors",
+        "read_current_files_before_trusting_memory_hints"
+    ));
+    assert_eq!(
+        source
+            .pointer("/local_context_pack_contract/confidence_contract/execute_ready_min_score")
+            .and_then(Value::as_f64),
+        Some(0.8)
+    );
 }
 
 #[test]

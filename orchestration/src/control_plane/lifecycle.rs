@@ -1,10 +1,11 @@
 // Layer ownership: orchestration (non-canonical orchestration coordination only).
 use crate::contracts::{
     Capability, ClosureState, ControlPlaneClosureState, ControlPlaneHandoff,
-    ControlPlaneLifecycleState, CoreContractCall, OrchestrationFallbackAction, OrchestrationPlan,
-    PlanStatus, RecoveryDecision, RecoveryReason, RecoveryState, RequestClass,
-    RequestClassification, RequestKind, ResourceKind, TypedOrchestrationRequest, WorkflowStage,
-    WorkflowStageState, WorkflowStageStatus, WorkflowTemplate,
+    ControlPlaneLifecycleState, CoreContractCall, Mutability, OperationKind,
+    OrchestrationFallbackAction, OrchestrationPlan, PlanStatus, RecoveryDecision, RecoveryReason,
+    RecoveryState, RequestClass, RequestClassification, RequestKind, ResourceKind,
+    TypedOrchestrationRequest, WorkflowStage, WorkflowStageState, WorkflowStageStatus,
+    WorkflowTemplate,
 };
 use crate::control_plane::templates::{workflow_template_definition, WorkflowSubtemplate};
 
@@ -46,6 +47,13 @@ pub fn select_workflow_template(
     if matches!(classification.request_class, RequestClass::Assimilation) {
         return WorkflowTemplate::CodexToolingSynthesis;
     }
+    if matches!(
+        classification.request_class,
+        RequestClass::Mutation | RequestClass::TaskProposal
+    ) && is_local_coding_request(request)
+    {
+        return WorkflowTemplate::CodingProjectOperator;
+    }
     if classification.request_class == RequestClass::ToolCall
         && (matches!(
             request.request_kind,
@@ -64,6 +72,72 @@ pub fn select_workflow_template(
         return WorkflowTemplate::PlanExecuteReview;
     }
     WorkflowTemplate::ResearchSynthesizeVerify
+}
+
+fn is_local_coding_request(request: &TypedOrchestrationRequest) -> bool {
+    let mut haystack = String::new();
+    haystack.push_str(&request.legacy_intent);
+    haystack.push(' ');
+    haystack.push_str(&request.payload.to_string());
+    for target in &request.target_refs {
+        haystack.push(' ');
+        haystack.push_str(target);
+    }
+    for hint in &request.tool_hints {
+        haystack.push(' ');
+        haystack.push_str(hint);
+    }
+    let lower = haystack.to_ascii_lowercase();
+    let code_marker = [
+        "code",
+        "coding",
+        "implement",
+        "implementation",
+        "refactor",
+        "bug",
+        "test",
+        "tests",
+        "compile",
+        "lint",
+        "patch",
+        "repo",
+        "repository",
+        "source",
+        "program",
+        "software",
+        "app",
+        "api",
+        "cli",
+        "cargo.toml",
+        "package.json",
+        ".rs",
+        ".py",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".go",
+        ".java",
+        ".rb",
+        "rust",
+        "python",
+        "typescript",
+        "javascript",
+    ]
+    .iter()
+    .any(|marker| lower.contains(marker));
+    let workspace_mutation = matches!(
+        request.resource_kind,
+        ResourceKind::Workspace | ResourceKind::Mixed | ResourceKind::Tooling
+    ) && matches!(
+        request.mutability,
+        Mutability::Mutation | Mutability::Proposal
+    );
+    let mutation_or_plan = matches!(
+        request.operation_kind,
+        OperationKind::Mutate | OperationKind::Plan | OperationKind::Unknown
+    );
+    code_marker && workspace_mutation && mutation_or_plan
 }
 
 fn is_openhands_assimilation_request(request: &TypedOrchestrationRequest) -> bool {

@@ -8,6 +8,7 @@
         "Default Workflow Templates (Control-Plane Authority)",
         "clarify_then_coordinate",
         "research_synthesize_verify",
+        "coding_project_operator",
         "plan_execute_review",
         "diagnose_retry_escalate",
         "codex_tooling_synthesis",
@@ -51,6 +52,7 @@
         "pub fn select_workflow_template(",
         "pub fn build_lifecycle_state(",
         "surface_orchestration_control_plane",
+        "WorkflowTemplate::CodingProjectOperator",
         "WorkflowTemplate::DiagnoseRetryEscalate",
         "WorkflowTemplate::CodexToolingSynthesis",
         "handoff_user_request_to_decomposition",
@@ -85,6 +87,7 @@
         "pub struct WorkflowSubtemplate",
         "pub struct WorkflowTemplateDefinition",
         "pub fn workflow_template_definition(",
+        "WorkflowTemplate::CodingProjectOperator",
         "WorkflowTemplate::CodexToolingSynthesis",
         "source_refs"
       ]

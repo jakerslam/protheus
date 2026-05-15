@@ -684,6 +684,7 @@ pub enum WorkflowQualitySignals {
 pub enum WorkflowTemplate {
     ClarifyThenCoordinate,
     ResearchSynthesizeVerify,
+    CodingProjectOperator,
     PlanExecuteReview,
     DiagnoseRetryEscalate,
     CodexToolingSynthesis,

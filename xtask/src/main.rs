@@ -56,7 +56,7 @@ fn print_usage() {
         "  cargo run -p xtask -- infring-new --template=single-agent|swarm|rag|voice --name=<project-name> [--out=<dir>] [--force=1|0]"
     );
     println!(
-        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text> [--provider=local-echo] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--permissions-template=parent|admin|user] [--parent-permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
+        "  cargo run -p xtask -- infring-agent-run --name=<agent> --prompt=<text|@file> [--workflow=<workflow_id>] [--preamble=<text|@file>] [--provider=local-echo|ollama] [--model=kimi-k2.6:cloud] [--pack=research,web-ops,lead-gen,social-signal,issue-ops] [--tool=web.search,web.fetch] [--lifespan=3600] [--schedule-interval=<seconds>] [--schedule-max-runs=<n>] [--permissions=<json|@file>] [--permissions-template=parent|admin|user] [--parent-permissions=<json|@file>] [--wasm-policy=<json|@file>] [--voice=<json|@file>] [--receipt-merkle=1|0] [--receipt-merkle-seed=<seed>] [--prev-receipt-root=<hash>]"
     );
 }
 
@@ -330,11 +330,11 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         .get("name")
         .cloned()
         .unwrap_or_else(|| "infring-agent".to_string());
-    let prompt = flags
-        .get("prompt")
-        .cloned()
+    let prompt = parse_text_flag(flags.get("prompt"), "prompt")?
         .ok_or_else(|| anyhow!("xtask_missing_prompt"))?;
-    let preamble = flags.get("preamble").cloned();
+    let preamble = parse_text_flag(flags.get("preamble"), "preamble")?;
+    let workflow_context = load_workflow_context(flags.get("workflow"))?;
+    let preamble = combine_preamble(preamble, workflow_context.as_ref().map(|row| row.0.clone()));
     let provider = flags.get("provider").cloned();
     let model = flags.get("model").cloned();
     let lifespan_seconds = parse_u64(flags.get("lifespan"), 3600);
@@ -388,6 +388,10 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         lifespan_seconds: Some(lifespan_seconds),
         metadata: json!({
             "source": "xtask.infring-agent-run",
+            "workflow": workflow_context
+                .as_ref()
+                .map(|row| row.1.clone())
+                .unwrap_or(Value::Null),
             "parent_permissions_manifest": parent_permissions_manifest
         }),
         permissions_manifest,
@@ -436,6 +440,120 @@ fn parse_json_flag(raw: Option<&String>) -> Result<Option<Value>> {
     let parsed = serde_json::from_str::<Value>(trimmed)
         .with_context(|| format!("xtask_json_flag_parse_failed:inline:{trimmed}"))?;
     Ok(Some(parsed))
+}
+
+fn parse_text_flag(raw: Option<&String>, name: &str) -> Result<Option<String>> {
+    let Some(value) = raw else {
+        return Ok(None);
+    };
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    if let Some(path) = trimmed.strip_prefix('@') {
+        let text =
+            fs::read_to_string(path).with_context(|| format!("xtask_text_flag_read_failed:{name}:{path}"))?;
+        return Ok(Some(text));
+    }
+    Ok(Some(value.clone()))
+}
+
+fn combine_preamble(base: Option<String>, workflow: Option<String>) -> Option<String> {
+    match (base, workflow) {
+        (Some(base), Some(workflow)) if !base.trim().is_empty() => {
+            Some(format!("{}\n\n{}", base.trim(), workflow.trim()))
+        }
+        (None, Some(workflow)) => Some(workflow),
+        (Some(base), None) => Some(base),
+        _ => None,
+    }
+}
+
+fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(String, Value)>> {
+    let Some(raw_workflow_id) = raw_workflow_id else {
+        return Ok(None);
+    };
+    let workflow_id = raw_workflow_id.trim();
+    if workflow_id.is_empty() {
+        return Ok(None);
+    }
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .ok_or_else(|| anyhow!("xtask_workspace_root_unavailable"))?;
+    let registry_path =
+        workspace_root.join("orchestration/src/control_plane/workflows/workflow_registry.json");
+    let registry = read_json_file(&registry_path)?;
+    let workflow_entry = registry
+        .get("workflows")
+        .and_then(Value::as_array)
+        .and_then(|items| {
+            items.iter().find(|entry| {
+                entry
+                    .get("workflow_id")
+                    .and_then(Value::as_str)
+                    .map(|value| value == workflow_id)
+                    .unwrap_or(false)
+            })
+        })
+        .cloned()
+        .ok_or_else(|| anyhow!("xtask_workflow_not_found:{workflow_id}"))?;
+    let source_path = workflow_entry
+        .get("source_path")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow!("xtask_workflow_source_path_missing:{workflow_id}"))?;
+    let workflow_path = workspace_root.join(source_path);
+    let workflow_spec = read_json_file(&workflow_path)?;
+    let stages = workflow_spec
+        .get("stages")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default();
+    let children = workflow_spec
+        .pointer("/workflow_composition_contract/child_workflow_calls")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| {
+                    let capability = item.get("capability").and_then(Value::as_str)?;
+                    let child_id = item.get("workflow_id").and_then(Value::as_str)?;
+                    Some(format!("{capability}->{child_id}"))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let description = workflow_spec
+        .get("description")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let preamble = format!(
+        "Selected Infring workflow: {workflow_id}\nWorkflow source: {source_path}\nWorkflow description: {description}\nWorkflow stages: {stages}\nChild workflow calls: {}\nUse this workflow contract for execution. Return a completed result when possible, or a structured blocker with the missing input, failed gate, and next safe action.",
+        children.join(", ")
+    );
+    let metadata = json!({
+        "workflow_id": workflow_id,
+        "source_path": source_path,
+        "runtime_selectable": workflow_entry
+            .get("runtime_selectable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        "promotion_status": workflow_entry
+            .get("promotion_status")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "tier": workflow_entry
+            .get("tier")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        "child_workflow_calls": children,
+    });
+    Ok(Some((preamble, metadata)))
 }
 
 fn read_json_file(path: &Path) -> Result<Value> {

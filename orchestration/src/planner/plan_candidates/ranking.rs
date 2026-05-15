@@ -30,6 +30,12 @@ pub(super) fn template_variant_bias(
             PlanVariant::ClarificationFirst => 0.00,
             PlanVariant::DegradedFallback => -0.04,
         },
+        WorkflowTemplate::CodingProjectOperator => match variant {
+            PlanVariant::Safest => 0.08,
+            PlanVariant::Fastest => 0.05,
+            PlanVariant::ClarificationFirst => 0.02,
+            PlanVariant::DegradedFallback => -0.03,
+        },
         WorkflowTemplate::PlanExecuteReview => match variant {
             PlanVariant::Fastest => 0.06,
             PlanVariant::Safest => 0.02,
