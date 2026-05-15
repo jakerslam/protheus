@@ -31,6 +31,7 @@ use infring_orchestration_v1::observation_lifecycle::{
     DEFAULT_SUMMARY_PATH,
 };
 use std::env;
+use std::time::Instant;
 
 const DEFAULT_CASES_PATH: &str = "validation/evals/fixtures/research_golden_dataset_v1.json";
 const DEFAULT_OUT_PATH: &str = "core/local/artifacts/research_golden_current.json";
@@ -105,7 +106,17 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let base_url =
         parse_flag(args, "base-url").unwrap_or_else(|| "http://127.0.0.1:4173".to_string());
     let timeout_seconds = parse_u64_flag(args, "timeout-seconds", 45).clamp(1, 600);
+    let timeout_recovery_seconds = parse_u64_flag(
+        args,
+        "timeout-recovery-seconds",
+        timeout_seconds.saturating_add(15).clamp(15, 90),
+    )
+    .min(300);
     let limit = parse_u64_flag(args, "limit", u64::MAX) as usize;
+    let partial_out_path =
+        parse_flag(args, "partial-out").unwrap_or_else(|| default_partial_path(&out_path));
+    let progress_path =
+        parse_flag(args, "progress-out").unwrap_or_else(|| default_progress_path(&out_path));
 
     let input = read_json(&cases_path);
     let cases = input
@@ -156,10 +167,50 @@ pub fn run_research_golden(args: &[String]) -> i32 {
     let mut tool_choice_final_responses = 0_u64;
     let mut unsupported_claims = 0_u64;
     let mut transport_failures = 0_u64;
+    let total_planned_cases = cases.iter().take(limit).count() as u64;
+    let run_started_at = now_iso_like();
+    write_research_golden_progress(
+        &progress_path,
+        json!({
+            "event": "run_start",
+            "generated_at": run_started_at,
+            "mode": if live { "live_dashboard" } else { "offline_responses" },
+            "cases_planned": total_planned_cases,
+            "timeout_seconds": timeout_seconds,
+            "timeout_recovery_seconds": timeout_recovery_seconds,
+            "fresh_agent_per_case": fresh_agent_per_case
+        }),
+    );
+    write_partial_research_golden_report(
+        &partial_out_path,
+        "running",
+        live,
+        total_planned_cases,
+        &rows,
+        &setup_failures,
+        None,
+    );
 
-    for case in cases.iter().take(limit) {
+    for (case_index, case) in cases.iter().take(limit).enumerate() {
+        let case_started = Instant::now();
         let case_id = str_at(case, &["id"], "unknown_case");
         let prompt = str_at(case, &["prompt"], "");
+        eprintln!(
+            "research_golden: case {}/{} start {}",
+            case_index + 1,
+            total_planned_cases,
+            case_id
+        );
+        write_research_golden_progress(
+            &progress_path,
+            json!({
+                "event": "case_start",
+                "case_index": case_index + 1,
+                "cases_planned": total_planned_cases,
+                "case_id": case_id,
+                "generated_at": now_iso_like()
+            }),
+        );
         let mut case_agent_id = agent_id.clone();
         let mut case_setup_failures = setup_failures.clone();
         let mut cache_isolation = json!({
@@ -199,6 +250,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 &case_agent_id,
                 &json!({ "message": prompt }),
                 timeout_seconds,
+                timeout_recovery_seconds,
             )
         } else {
             response_sequence_payload(&source_payload, 0).unwrap_or(source_payload.clone())
@@ -220,6 +272,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                     &case_agent_id,
                     &json!({ "message": "confirm" }),
                     timeout_seconds,
+                    timeout_recovery_seconds,
                 );
                 confirmation_payload_used = true;
             } else if let Some(confirmed_payload) = response_sequence_payload(&source_payload, 1) {
@@ -318,7 +371,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             &case_failures,
             &case_setup_failures,
         );
-        rows.push(json!({
+        let case_row = json!({
             "case_id": case_id,
             "category": str_at(case, &["category"], "unknown"),
             "tags": string_array_at(case, &["tags"]),
@@ -363,7 +416,44 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                     &initial_payload
                 )
             },
-        }));
+        });
+        rows.push(case_row.clone());
+        let case_elapsed_ms = case_started.elapsed().as_millis() as u64;
+        eprintln!(
+            "research_golden: case {}/{} done {} pass={} excellent={} score={} elapsed_ms={}",
+            case_index + 1,
+            total_planned_cases,
+            case_id,
+            case_pass,
+            case_excellent,
+            grade.score,
+            case_elapsed_ms
+        );
+        write_research_golden_progress(
+            &progress_path,
+            json!({
+                "event": "case_done",
+                "case_index": case_index + 1,
+                "cases_planned": total_planned_cases,
+                "case_id": case_id,
+                "generated_at": now_iso_like(),
+                "elapsed_ms": case_elapsed_ms,
+                "pass": case_pass,
+                "excellent": case_excellent,
+                "score": grade.score,
+                "transport_failure": transport_timeout_failure,
+                "failure_classification": failure_classification
+            }),
+        );
+        write_partial_research_golden_report(
+            &partial_out_path,
+            "running",
+            live,
+            total_planned_cases,
+            &rows,
+            &setup_failures,
+            Some(&case_row),
+        );
     }
 
     let total_cases = rows.len() as u64;
@@ -439,6 +529,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
             "cleanup_fresh_agents": cleanup_fresh_agents,
             "fresh_agent_model_set": fresh_agent_model.is_some(),
             "timeout_seconds": timeout_seconds,
+            "timeout_recovery_seconds": timeout_recovery_seconds,
             "confirm_pending_tool": confirm_pending_tool,
             "isolate_tool_cache": isolate_tool_cache
         },
@@ -509,7 +600,9 @@ pub fn run_research_golden(args: &[String]) -> i32 {
                 out_path.clone(),
                 out_latest_path.clone(),
                 markdown_path.clone(),
-                failures_path.clone()
+                failures_path.clone(),
+                partial_out_path.clone(),
+                progress_path.clone()
             ]
         });
         let observations = research_golden_observation_events(&report, &observation_meta);
@@ -554,6 +647,7 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         .unwrap_or_default();
     let writes_ok = write_json(&out_path, &report).is_ok()
         && write_json(&out_latest_path, &report).is_ok()
+        && write_json(&partial_out_path, &report).is_ok()
         && write_text(&markdown_path, &markdown).is_ok()
         && append_jsonl(&failures_path, &failure_rows).is_ok()
         && observation_lifecycle_summary
@@ -564,6 +658,18 @@ pub fn run_research_golden(args: &[String]) -> i32 {
         eprintln!("eval_runtime: failed to write one or more research golden outputs");
         return 2;
     }
+    write_research_golden_progress(
+        &progress_path,
+        json!({
+            "event": "run_done",
+            "generated_at": now_iso_like(),
+            "ok": ok,
+            "cases": total_cases,
+            "passed_cases": passed_cases,
+            "excellent_cases": excellent_cases,
+            "transport_failures": transport_failures
+        }),
+    );
     print_json_line(&report);
     if strict && !ok {
         1
@@ -587,6 +693,79 @@ fn tag_pass_rate_rows(rows: &[Value]) -> Vec<Value> {
             tags
         }
     })
+}
+
+fn default_partial_path(out_path: &str) -> String {
+    if let Some(prefix) = out_path.strip_suffix(".json") {
+        format!("{prefix}.partial.json")
+    } else {
+        format!("{out_path}.partial.json")
+    }
+}
+
+fn default_progress_path(out_path: &str) -> String {
+    if let Some(prefix) = out_path.strip_suffix(".json") {
+        format!("{prefix}.progress.jsonl")
+    } else {
+        format!("{out_path}.progress.jsonl")
+    }
+}
+
+fn write_research_golden_progress(path: &str, event: Value) {
+    if let Err(err) = append_jsonl(path, &[event]) {
+        eprintln!("eval_runtime: failed to write research golden progress event: {err}");
+    }
+}
+
+fn write_partial_research_golden_report(
+    path: &str,
+    status: &str,
+    live: bool,
+    total_planned_cases: u64,
+    rows: &[Value],
+    setup_failures: &[String],
+    latest_case: Option<&Value>,
+) {
+    let completed_cases = rows.len() as u64;
+    let passed_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["pass"], false))
+        .count() as u64;
+    let excellent_cases = rows
+        .iter()
+        .filter(|row| bool_at(row, &["excellent"], false))
+        .count() as u64;
+    let transport_failures = rows
+        .iter()
+        .filter(|row| bool_at(row, &["transport_failure"], false))
+        .count() as u64;
+    let total_score = rows
+        .iter()
+        .map(|row| u64_at(row, &["score"], 0))
+        .fold(0_u64, u64::saturating_add);
+    let report = json!({
+        "type": "research_golden_partial_eval",
+        "schema_version": 1,
+        "generated_at": now_iso_like(),
+        "status": status,
+        "mode": if live { "live_dashboard" } else { "offline_responses" },
+        "summary": {
+            "cases_planned": total_planned_cases,
+            "cases_completed": completed_cases,
+            "passed_cases": passed_cases,
+            "excellent_cases": excellent_cases,
+            "average_score_so_far": ratio(total_score, completed_cases),
+            "research_success_rate_so_far": ratio(passed_cases, completed_cases),
+            "excellent_rate_so_far": ratio(excellent_cases, completed_cases),
+            "transport_failures": transport_failures
+        },
+        "setup_failures": setup_failures,
+        "latest_case": latest_case.cloned(),
+        "cases": rows
+    });
+    if let Err(err) = write_json(path, &report) {
+        eprintln!("eval_runtime: failed to write research golden partial report: {err}");
+    }
 }
 
 fn grouped_pass_rate_rows<F>(rows: &[Value], key_name: &str, mut keys_for_row: F) -> Vec<Value>

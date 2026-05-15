@@ -225,6 +225,7 @@ pub(super) fn post_agent_message(
     agent_id: &str,
     request: &Value,
     timeout_seconds: u64,
+    timeout_recovery_seconds: u64,
 ) -> Value {
     let path = format!("/api/agents/{agent_id}/message");
     let timeout_recovery = dashboard_state_root().map(|root| {
@@ -240,7 +241,7 @@ pub(super) fn post_agent_message(
                 dashboard_state_root,
                 agent_id,
                 baseline_snapshot,
-                timeout_seconds,
+                timeout_recovery_seconds,
             ) {
                 return recovered;
             }
@@ -446,14 +447,11 @@ fn recover_timed_out_response_from_state(
     dashboard_state_root: &Path,
     agent_id: &str,
     baseline_snapshot: &SessionSnapshot,
-    timeout_seconds: u64,
+    recovery_budget_seconds: u64,
 ) -> Option<Value> {
-    // Live research turns can keep running after the HTTP client gives up, so
-    // give the persisted session state a wider window than the request budget.
-    let recovery_budget_seconds = timeout_seconds
-        .saturating_mul(2)
-        .saturating_add(60)
-        .clamp(30, 300);
+    if recovery_budget_seconds == 0 {
+        return None;
+    }
     let deadline = Instant::now() + Duration::from_secs(recovery_budget_seconds);
     loop {
         if let Some(recovered) =
