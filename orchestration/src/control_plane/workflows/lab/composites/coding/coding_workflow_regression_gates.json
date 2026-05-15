@@ -30,7 +30,7 @@
     },
     {
       "gate_id": "coding_memory_live_level11_strict_20",
-      "status": "scaffolded_not_yet_promoted",
+      "status": "batch5_passed_not_yet_promoted",
       "harness_bin": "coding_memory_live_level11_eval_execute",
       "minimum_attempts": 20,
       "required_pass_count": 20,
@@ -44,7 +44,17 @@
         "snapshot verification",
         "snapshot diffing",
         "backward-compatible recovery round trips"
-      ]
+      ],
+      "latest_passing_evidence": {
+        "date": "2026-05-14",
+        "batch_root": "/var/folders/f9/mhsd3dwj78l8418t9vnclbn80000gn/T/coding-memory-live-level11-batch-19873-1778805644559",
+        "summary": {
+          "attempt_count": 5,
+          "pass_count": 5,
+          "fail_count": 0
+        },
+        "judge_output": "/tmp/level11_batch5_judge_rerun.json"
+      }
     }
   ]
 }

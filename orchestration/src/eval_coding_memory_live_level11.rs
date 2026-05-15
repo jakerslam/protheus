@@ -773,11 +773,15 @@ fn judge_live_attempt(job: &LiveLevel11Job) -> LiveLevel11AttemptJudge {
         &mut checks,
         &mut failures,
         "slo_escalation_implemented",
-        (lower.contains("slo") || lower.contains("policy"))
+        (lower.contains("slo") || lower.contains("policy") || lower.contains("window"))
             && (lower.contains("escalat")
                 || lower.contains("violation")
-                || lower.contains("threshold")),
-        "source contains SLO/policy escalation or violation signals".to_string(),
+                || lower.contains("threshold")
+                || lower.contains("breach")
+                || lower.contains("retryable")
+                || lower.contains("max_open")
+                || lower.contains("max_retryable")),
+        "source contains SLO/policy window, threshold, breach, or retryable signals".to_string(),
     );
     push_check(
         &mut checks,
