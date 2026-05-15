@@ -37,6 +37,9 @@ fn candidate_from_duckduckgo_instant_payload(
             220,
         ));
     }
+    if let Some(blocker_class) = payload_access_blocker_class(payload) {
+        return Err(blocker_class.to_string());
+    }
     let content = clean_text(
         payload.get("content").and_then(Value::as_str).unwrap_or(""),
         64_000,
@@ -132,6 +135,9 @@ fn candidate_from_search_payload(query: &str, payload: &Value) -> Result<Candida
                 .unwrap_or("adapter_failed"),
             200,
         ));
+    }
+    if let Some(blocker_class) = payload_access_blocker_class(payload) {
+        return Err(blocker_class.to_string());
     }
     let raw_summary = clean_text(
         payload.get("summary").and_then(Value::as_str).unwrap_or(""),

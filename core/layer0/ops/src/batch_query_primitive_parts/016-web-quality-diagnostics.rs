@@ -2245,7 +2245,11 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
     let mut flags = Vec::<String>::new();
     for failure in partial_failures {
         let lowered = clean_text(failure, 320).to_ascii_lowercase();
-        if lowered.contains("anti_bot_challenge") {
+        if lowered.contains("anti_bot_challenge")
+            || lowered.contains("captcha")
+            || lowered.contains("cloudflare")
+            || lowered.contains("verify you are human")
+        {
             flags.push("anti_bot_filtered".to_string());
         }
         if lowered.contains("needs_js") || lowered.contains("javascript required") {
@@ -2258,7 +2262,8 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
         {
             flags.push("rate_limited".to_string());
         }
-        if lowered.contains("access denied")
+        if lowered.contains("access_denied")
+            || lowered.contains("access denied")
             || lowered.contains("403")
             || lowered.contains("login required")
             || lowered.contains("subscription")
@@ -2876,7 +2881,12 @@ fn web_tool_quality_report(
     hard_partial_failures: &[String],
     actionable_ranked: &[(Candidate, f64)],
 ) -> Value {
-    let mut flags = issue_quality_flags(partial_failures);
+    let quality_failures = if evidence_count > 0 {
+        hard_partial_failures
+    } else {
+        partial_failures
+    };
+    let mut flags = issue_quality_flags(quality_failures);
     if status == "no_results" || evidence_count == 0 {
         flags.push("insufficient_evidence".to_string());
     } else if status == "low_signal" {
@@ -3031,10 +3041,10 @@ fn web_tool_quality_report(
     } else {
         "none"
     };
-    let blocker_taxonomy = browser_materialization_blocker_taxonomy(&flags, partial_failures);
+    let blocker_taxonomy = browser_materialization_blocker_taxonomy(&flags, quality_failures);
     let browser_materialization = browser_materialization_recovery_report(
         &flags,
-        partial_failures,
+        quality_failures,
         retry_reason,
         &blocker_taxonomy,
         actionable_ranked,

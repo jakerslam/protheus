@@ -167,7 +167,11 @@ fn document_lane_fetch_payload_from_pdf_extract(
         .get("status_code")
         .and_then(Value::as_i64)
         .unwrap_or(200);
-    if !pdf_payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+    if !pdf_payload
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         let mut out = fetch_payload.clone();
         if let Some(obj) = out.as_object_mut() {
             obj.insert("document_lane_attempted".to_string(), json!(true));
@@ -183,7 +187,10 @@ fn document_lane_fetch_payload_from_pdf_extract(
         return Some(out);
     }
     let text = clean_text(
-        pdf_payload.get("text").and_then(Value::as_str).unwrap_or(""),
+        pdf_payload
+            .get("text")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
         6_000,
     );
     if text.is_empty() {
@@ -303,7 +310,8 @@ fn candidate_locator_links_for_page_extraction(
                 return None;
             }
             let link = normalize_page_extraction_link(policy, &candidate.locator)?;
-            let mut score = fallback_link_score(query, &link) + rerank_score(query, candidate) * 0.35;
+            let mut score =
+                fallback_link_score(query, &link) + rerank_score(query, candidate) * 0.35;
             if needs_fetch {
                 score += 0.24;
             }
@@ -343,13 +351,28 @@ fn links_for_page_extraction(
     include_substantive_candidates: bool,
 ) -> Vec<String> {
     let limit = max_links.max(1);
-    let mut selected = payload_links_for_page_extraction(query, policy, payload, limit);
-    let mut selected_by_key = selected
-        .iter()
-        .map(|link| page_extraction_link_dedupe_key(policy, link))
-        .filter(|key| !key.is_empty())
-        .collect::<HashSet<_>>();
+    let mut selected = Vec::<String>::new();
+    let mut selected_by_key = HashSet::<String>::new();
     let candidate_limit = page_extraction_candidate_locator_max_per_stage(policy).min(limit);
+
+    for link in candidate_locator_links_for_page_extraction(
+        query,
+        policy,
+        candidates,
+        candidate_limit,
+        false,
+    ) {
+        push_page_extraction_link(policy, &mut selected, &mut selected_by_key, link, limit);
+    }
+
+    for link in payload_links_for_page_extraction(query, policy, payload, limit) {
+        push_page_extraction_link(policy, &mut selected, &mut selected_by_key, link, limit);
+    }
+
+    if !include_substantive_candidates {
+        return selected;
+    }
+
     for link in candidate_locator_links_for_page_extraction(
         query,
         policy,
@@ -357,16 +380,27 @@ fn links_for_page_extraction(
         candidate_limit,
         include_substantive_candidates,
     ) {
-        if selected.len() >= limit {
-            break;
-        }
-        let dedupe_key = page_extraction_link_dedupe_key(policy, &link);
-        if dedupe_key.is_empty() || !selected_by_key.insert(dedupe_key) {
-            continue;
-        }
-        selected.push(link);
+        push_page_extraction_link(policy, &mut selected, &mut selected_by_key, link, limit);
     }
     selected
+}
+
+fn push_page_extraction_link(
+    policy: &Value,
+    selected: &mut Vec<String>,
+    selected_by_key: &mut HashSet<String>,
+    link: String,
+    limit: usize,
+) -> bool {
+    if selected.len() >= limit {
+        return false;
+    }
+    let dedupe_key = page_extraction_link_dedupe_key(policy, &link);
+    if dedupe_key.is_empty() || !selected_by_key.insert(dedupe_key) {
+        return false;
+    }
+    selected.push(link);
+    true
 }
 
 fn normalize_page_extraction_link(policy: &Value, link: &str) -> Option<String> {
@@ -431,10 +465,14 @@ fn page_extraction_link_dedupe_key(policy: &Value, link: &str) -> String {
 }
 
 fn should_prefer_page_extraction_link(candidate: &str, current: &str) -> bool {
-    let (Some((candidate_scheme, candidate_host, _, _)), Some((current_scheme, current_host, _, _))) = (
+    let (
+        Some((candidate_scheme, candidate_host, _, _)),
+        Some((current_scheme, current_host, _, _)),
+    ) = (
         parse_page_extraction_http_url(candidate),
         parse_page_extraction_http_url(current),
-    ) else {
+    )
+    else {
         return false;
     };
     if candidate_scheme == "https" && current_scheme == "http" {
@@ -456,9 +494,7 @@ fn parse_page_extraction_http_url(link: &str) -> Option<(&str, &str, &str, Optio
     } else {
         return None;
     };
-    let host_end = after_scheme
-        .find(['/', '?'])
-        .unwrap_or(after_scheme.len());
+    let host_end = after_scheme.find(['/', '?']).unwrap_or(after_scheme.len());
     let host_with_port = &after_scheme[..host_end];
     let host = host_with_port
         .rsplit_once('@')
@@ -579,7 +615,10 @@ fn candidate_is_synthesis_eligible(
     }
     if framework_catalog_intent
         && !looks_like_framework_catalog_text(&format!("{} {}", candidate.title, candidate.snippet))
-        && !looks_like_framework_overview_text(&format!("{} {}", candidate.title, candidate.snippet))
+        && !looks_like_framework_overview_text(&format!(
+            "{} {}",
+            candidate.title, candidate.snippet
+        ))
         && query_overlap_terms(query, candidate) < 2
     {
         return false;
@@ -596,4 +635,101 @@ fn stage_error(payload: &Value, fallback: &str) -> String {
             .unwrap_or(fallback),
         220,
     )
+}
+
+fn issue_is_access_or_throttle_failure(detail: &str) -> bool {
+    let lowered = clean_text(detail, 360).to_ascii_lowercase();
+    [
+        "rate_limited",
+        "rate limit",
+        "too many requests",
+        "http_429",
+        "429",
+        "anti_bot_challenge",
+        "captcha",
+        "cloudflare",
+        "verify you are human",
+        "checking your browser",
+        "needs_js",
+        "javascript required",
+        "access_denied",
+        "access denied",
+        "403",
+        "login required",
+        "request blocked",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
+
+fn payload_access_blocker_class(payload: &Value) -> Option<&'static str> {
+    let status = payload
+        .get("status_code")
+        .or_else(|| payload.get("statusCode"))
+        .or_else(|| payload.pointer("/receipt/status_code"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    if status == 429 {
+        return Some("rate_limited");
+    }
+    if status == 403 {
+        return Some("access_denied");
+    }
+    if status == 401 {
+        return Some("auth_required");
+    }
+    let top_level_error = clean_text(
+        payload
+            .get("error")
+            .or_else(|| payload.get("stderr"))
+            .or_else(|| payload.pointer("/result/error"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        800,
+    );
+    let summary = clean_text(
+        payload.get("summary").and_then(Value::as_str).unwrap_or(""),
+        2_000,
+    );
+    let content = clean_text(
+        payload.get("content").and_then(Value::as_str).unwrap_or(""),
+        2_000,
+    );
+    let combined = format!("{top_level_error} {summary} {content}").to_ascii_lowercase();
+    if combined.trim().is_empty() {
+        return None;
+    }
+    if [
+        "too many requests",
+        "rate limit",
+        "rate_limited",
+        "retry-after",
+        "quota exceeded",
+        "http 429",
+    ]
+    .iter()
+    .any(|marker| combined.contains(marker))
+    {
+        return Some("rate_limited");
+    }
+    if contains_antibot_marker(&combined) {
+        return Some("anti_bot_challenge");
+    }
+    if combined.contains("please enable javascript") || combined.contains("javascript required") {
+        return Some("needs_js");
+    }
+    if [
+        "access denied",
+        "403 forbidden",
+        "login required",
+        "subscribe to continue",
+        "request blocked",
+        "blocked by",
+    ]
+    .iter()
+    .any(|marker| combined.contains(marker))
+    {
+        return Some("access_denied");
+    }
+    None
 }

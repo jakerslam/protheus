@@ -19,9 +19,9 @@
     "search_cache_ttl_minutes": 8,
     "search_provider_order": [
       "serperdev",
-      "duckduckgo",
+      "bing_rss",
       "duckduckgo_lite",
-      "bing_rss"
+      "duckduckgo"
     ],
     "fetch_provider_order": [
       "direct_http"

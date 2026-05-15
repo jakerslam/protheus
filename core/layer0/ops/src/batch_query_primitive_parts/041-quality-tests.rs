@@ -161,7 +161,10 @@ mod quality_tests {
             "{:#?}",
             plan.queries
         );
-        assert_eq!(plan.query_metadata.entities, vec!["Alpha Runtime", "Beta Search"]);
+        assert_eq!(
+            plan.query_metadata.entities,
+            vec!["Alpha Runtime", "Beta Search"]
+        );
     }
 
     #[test]
@@ -400,8 +403,7 @@ mod quality_tests {
                 .and_then(Value::as_array)
                 .map(|rows| {
                     rows.iter().any(|row| {
-                        row.get("requested_text").and_then(Value::as_str)
-                            == Some("Alpha Runtime")
+                        row.get("requested_text").and_then(Value::as_str) == Some("Alpha Runtime")
                             && row.get("facet_kind").and_then(Value::as_str) == Some("entity")
                             && row.get("status").and_then(Value::as_str) == Some("covered")
                     })
@@ -466,7 +468,10 @@ mod quality_tests {
             "compare infring vs openclaw",
             "medium",
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         let lowered = summary_lowered(&out);
         assert!(lowered.contains("retrieval-quality miss"));
         assert!(lowered.contains("not proof the systems are equivalent"));
@@ -488,7 +493,10 @@ mod quality_tests {
             query,
             "medium",
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         let lowered = summary_lowered(&out);
         assert!(lowered.contains("retrieval-quality miss"), "{lowered}");
         let evidence_refs = out
@@ -498,7 +506,8 @@ mod quality_tests {
             .unwrap_or_default();
         assert_eq!(evidence_refs.len(), 0, "{evidence_refs:#?}");
         assert_eq!(
-            out.pointer("/search_results/0/locator").and_then(Value::as_str),
+            out.pointer("/search_results/0/locator")
+                .and_then(Value::as_str),
             Some("https://docs.alpha.example.com/deployment-readiness")
         );
         let partial_failures = out
@@ -633,7 +642,10 @@ mod quality_tests {
                 "aperture":"medium"
             }),
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         let lowered = summary_lowered(&out);
         assert!(lowered.contains("catalog-style framework evidence"));
         assert!(!lowered.contains("\"abstract\":\"\""));
@@ -708,7 +720,10 @@ mod quality_tests {
                 )
             },
         );
-        assert_eq!(out.get("cache_status").and_then(Value::as_str), Some("miss"));
+        assert_eq!(
+            out.get("cache_status").and_then(Value::as_str),
+            Some("miss")
+        );
         let lowered = summary_lowered(&out);
         assert!(lowered.contains("openai agents sdk"), "{lowered}");
         assert!(!lowered.contains("zhihu.com"), "{lowered}");
@@ -773,7 +788,10 @@ mod quality_tests {
             query,
             "medium",
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         assert_eq!(
             out.get("query_plan_source").and_then(Value::as_str),
             Some("agent_submitted_single_query")
@@ -1177,7 +1195,10 @@ mod quality_tests {
         );
         assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
         let lowered = summary_lowered(&out);
-        assert!(lowered.contains("quantum") || lowered.contains("materials"), "{lowered}");
+        assert!(
+            lowered.contains("quantum") || lowered.contains("materials"),
+            "{lowered}"
+        );
         assert!(!lowered.contains("breakthroughs roundup"), "{lowered}");
     }
 
@@ -1273,6 +1294,66 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_prioritizes_thin_candidate_locator_over_payload_links_when_budget_is_tight()
+    {
+        let query = "scientific breakthroughs april 2026";
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut policy = default_policy();
+        policy["batch_query"]["page_extraction"]["max_links_per_stage"] = json!(1);
+        policy["batch_query"]["page_extraction"]["max_total_fetches"] = json!(1);
+        policy["batch_query"]["page_extraction"]["candidate_locator_followup"]["max_per_stage"] =
+            json!(1);
+        write_json_atomic(&tmp.path().join(POLICY_REL), &policy).expect("write policy");
+        let out = with_fixture(
+            json!({
+                query: {
+                    "ok": true,
+                    "summary": "Search results mention April 2026 science breakthroughs, but the search snippets are thin.",
+                    "results": [
+                        {
+                            "title": "April 2026 science breakthroughs",
+                            "url": "https://science.example.org/april-2026-brief",
+                            "snippet": "April 2026 breakthrough list."
+                        }
+                    ],
+                    "links": [
+                        "https://garden.example.org/seasonal-watering-guide"
+                    ],
+                    "requested_url": "https://search.example.com/science",
+                    "status_code": 200
+                },
+                "fetch::https://garden.example.org/seasonal-watering-guide": {
+                    "ok": true,
+                    "summary": "Garden watering guide with seasonal irrigation reminders and soil moisture tips for home plants.",
+                    "requested_url": "https://garden.example.org/seasonal-watering-guide",
+                    "status_code": 200
+                },
+                "fetch::https://science.example.org/april-2026-brief": {
+                    "ok": true,
+                    "summary": "Scientific breakthroughs April 2026 evidence includes a quantum error correction record, cancer vaccine trial data, and materials replication notes from research institutions.",
+                    "requested_url": "https://science.example.org/april-2026-brief",
+                    "status_code": 200
+                }
+            }),
+            || run_query(tmp.path(), query, "small"),
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
+        let lowered = summary_lowered(&out);
+        assert!(lowered.contains("quantum error correction"), "{lowered}");
+        assert!(!lowered.contains("garden watering"), "{lowered}");
+        assert!(out
+            .get("evidence_refs")
+            .and_then(Value::as_array)
+            .map(|refs| refs.iter().any(|row| {
+                row.get("locator")
+                    .and_then(Value::as_str)
+                    .map(|value| value == "https://science.example.org/april-2026-brief")
+                    .unwrap_or(false)
+            }))
+            .unwrap_or(false));
+    }
+
+    #[test]
     fn page_extraction_dedupes_canonical_url_variants_before_fetch_budget() {
         let query = "scientific breakthroughs april 2026";
         let policy = default_policy();
@@ -1325,7 +1406,10 @@ mod quality_tests {
             out.get("source_kind").and_then(Value::as_str),
             Some("document_page_artifact")
         );
-        assert_eq!(out.get("document_type").and_then(Value::as_str), Some("pdf"));
+        assert_eq!(
+            out.get("document_type").and_then(Value::as_str),
+            Some("pdf")
+        );
         let candidate = candidate_from_search_payload("scientific breakthroughs april 2026", &out)
             .expect("candidate from pdf document lane");
         assert_eq!(candidate.source_kind, "document_page_artifact");
@@ -1457,13 +1541,17 @@ mod quality_tests {
         let lowered = candidate.snippet.to_ascii_lowercase();
         assert!(lowered.contains("smolagents"), "{lowered}");
         assert!(lowered.contains("agents"), "{lowered}");
-        assert!(!lowered.contains("github.com/huggingface/smolagents/blob/main/license"), "{lowered}");
+        assert!(
+            !lowered.contains("github.com/huggingface/smolagents/blob/main/license"),
+            "{lowered}"
+        );
         assert!(!lowered.contains("code_of_conduct"), "{lowered}");
         assert!(!lowered.contains("mit license"), "{lowered}");
     }
 
     #[test]
-    fn framework_catalog_fallback_recovers_framework_identity_from_locator_when_snippet_is_generic() {
+    fn framework_catalog_fallback_recovers_framework_identity_from_locator_when_snippet_is_generic()
+    {
         let insights = framework_catalog_fallback_insights(
             &[
                 (
@@ -1531,7 +1619,10 @@ mod quality_tests {
         assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"));
         let lowered = summary_lowered(&out);
         assert!(lowered.contains("smolagents"), "{lowered}");
-        assert!(!lowered.contains("github.com/huggingface/smolagents/blob/main/license"), "{lowered}");
+        assert!(
+            !lowered.contains("github.com/huggingface/smolagents/blob/main/license"),
+            "{lowered}"
+        );
         assert_eq!(
             out.get("query_plan_source").and_then(Value::as_str),
             Some("explicit_request_pack")
@@ -1545,7 +1636,8 @@ mod quality_tests {
             source_kind: "web".to_string(),
             title: "Web result from langchain.com".to_string(),
             locator: "https://www.langchain.com/langgraph".to_string(),
-            snippet: "LangGraph is an agent orchestration framework for reliable AI agents.".to_string(),
+            snippet: "LangGraph is an agent orchestration framework for reliable AI agents."
+                .to_string(),
             excerpt_hash: "official".to_string(),
             timestamp: None,
             permissions: None,
@@ -1592,7 +1684,10 @@ mod quality_tests {
             query,
             "medium",
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         let lowered = summary_lowered(&out);
         assert!(lowered.contains("catalog-style framework evidence"));
         assert!(!lowered.contains("\"abstract\":\"\""));
@@ -1610,7 +1705,10 @@ mod quality_tests {
                 "aperture":"medium"
             }),
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         assert_eq!(
             out.get("error").and_then(Value::as_str),
             Some("local_subject_requires_workspace_analysis")
@@ -1637,7 +1735,10 @@ mod quality_tests {
             query,
             "medium",
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         assert_eq!(
             out.get("error").and_then(Value::as_str),
             Some("query_result_mismatch")
@@ -1732,6 +1833,88 @@ mod quality_tests {
     }
 
     #[test]
+    fn access_blocked_provider_payload_is_quarantined_and_recovered_by_clean_provider() {
+        let query = "web retrieval access recovery evidence";
+        let out = run_query_with_fixture(
+            json!({
+                query: {
+                    "ok": false,
+                    "provider": "duckduckgo",
+                    "summary": "Too many requests. Retry-After: 30",
+                    "content": "",
+                    "requested_url": "https://duckduckgo.com/html/?q=web+retrieval+access+recovery+evidence",
+                    "status_code": 429,
+                    "error": "http_429 rate_limited"
+                },
+                "bing_rss::web retrieval access recovery evidence": {
+                    "ok": true,
+                    "provider": "bing_rss",
+                    "summary": "Web retrieval access recovery evidence documents provider fallback, source-backed snippets, and clean candidate promotion after throttled lanes.",
+                    "content": "A public engineering note explains web retrieval access recovery, provider fallback, source-backed snippets, and synthesis-safe clean candidate promotion. https://example.org/web-retrieval-access-recovery-evidence",
+                    "requested_url": "https://example.org/web-retrieval-access-recovery-evidence",
+                    "status_code": 200
+                }
+            }),
+            query,
+            "medium",
+        );
+        assert_eq!(out.get("status").and_then(Value::as_str), Some("ok"), "{out:#?}");
+        assert!(
+            out.get("evidence_refs")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("locator")
+                        .and_then(Value::as_str)
+                        .map(|locator| locator.contains("web-retrieval-access-recovery-evidence"))
+                        .unwrap_or(false)
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        let primary_blocker = out
+            .pointer("/tool_result_quality/blocker_taxonomy/primary_class")
+            .and_then(Value::as_str);
+        assert!(
+            !matches!(
+                primary_blocker,
+                Some("rate_limited" | "anti_bot_challenge" | "access_denied")
+            ),
+            "{out:#?}"
+        );
+        assert!(
+            out.pointer("/tool_result_quality/blocker_taxonomy/classes")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().all(|row| {
+                    row.get("class").and_then(Value::as_str) != Some("rate_limited")
+                        || row.get("present").and_then(Value::as_bool) == Some(false)
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("partial_failure_details")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().all(|row| {
+                    !row.as_str()
+                        .map(issue_is_access_or_throttle_failure)
+                        .unwrap_or(false)
+                }))
+                .unwrap_or(true),
+            "{out:#?}"
+        );
+        assert!(
+            out.get("provider_results")
+                .and_then(Value::as_array)
+                .map(|rows| rows.iter().any(|row| {
+                    row.get("result_quality").and_then(Value::as_str)
+                        == Some("blocked_or_throttled")
+                }))
+                .unwrap_or(false),
+            "{out:#?}"
+        );
+    }
+
+    #[test]
     fn second_pass_recovery_records_queries_and_promotes_usable_evidence() {
         let tmp = tempfile::tempdir().expect("tempdir");
         write_test_batch_policy(tmp.path(), true);
@@ -1761,9 +1944,13 @@ mod quality_tests {
             }),
             || run_query(tmp.path(), query, "medium"),
         );
-        assert_ne!(out.get("status").and_then(Value::as_str), Some("no_results"));
+        assert_ne!(
+            out.get("status").and_then(Value::as_str),
+            Some("no_results")
+        );
         assert_eq!(
-            out.pointer("/second_pass_recovery/used").and_then(Value::as_bool),
+            out.pointer("/second_pass_recovery/used")
+                .and_then(Value::as_bool),
             Some(true),
             "{out:#?}"
         );
@@ -1779,8 +1966,7 @@ mod quality_tests {
                 .and_then(Value::as_array)
                 .map(|rows| {
                     rows.iter().any(|row| {
-                        row.get("phase").and_then(Value::as_str)
-                            == Some("second_pass_recovery")
+                        row.get("phase").and_then(Value::as_str) == Some("second_pass_recovery")
                     })
                 })
                 .unwrap_or(false),
@@ -1790,15 +1976,15 @@ mod quality_tests {
             out.get("evidence_refs")
                 .and_then(Value::as_array)
                 .map(|rows| {
-                    rows.iter().any(|row| {
-                        row.get("confidence").and_then(Value::as_str) == Some("usable")
-                    })
+                    rows.iter()
+                        .any(|row| row.get("confidence").and_then(Value::as_str) == Some("usable"))
                 })
                 .unwrap_or(false),
             "{out:#?}"
         );
         assert_eq!(
-            out.pointer("/retrieval_broker/primitive").and_then(Value::as_str),
+            out.pointer("/retrieval_broker/primitive")
+                .and_then(Value::as_str),
             Some("web_research"),
             "{out:#?}"
         );
@@ -1812,8 +1998,7 @@ mod quality_tests {
             out.pointer("/retrieval_broker/provider_attempts")
                 .and_then(Value::as_array)
                 .map(|rows| rows.iter().any(|row| {
-                    row.get("phase").and_then(Value::as_str)
-                        == Some("second_pass_recovery")
+                    row.get("phase").and_then(Value::as_str) == Some("second_pass_recovery")
                         && row.get("status").and_then(Value::as_str) == Some("usable")
                 }))
                 .unwrap_or(false),
@@ -1843,14 +2028,16 @@ mod quality_tests {
             }),
             || run_query(tmp.path(), query, "medium"),
         );
-        assert_eq!(out.get("status").and_then(Value::as_str), Some("low_signal"));
+        assert_eq!(
+            out.get("status").and_then(Value::as_str),
+            Some("low_signal")
+        );
         assert!(
             out.get("evidence_refs")
                 .and_then(Value::as_array)
                 .map(|rows| {
                     rows.iter().any(|row| {
-                        row.get("confidence").and_then(Value::as_str)
-                            == Some("low_confidence_raw")
+                        row.get("confidence").and_then(Value::as_str) == Some("low_confidence_raw")
                     })
                 })
                 .unwrap_or(false),
@@ -1859,12 +2046,15 @@ mod quality_tests {
         assert!(
             out.pointer("/tool_result_quality/flags")
                 .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| row.as_str() == Some("low_confidence_raw_evidence")))
+                .map(|rows| rows
+                    .iter()
+                    .any(|row| row.as_str() == Some("low_confidence_raw_evidence")))
                 .unwrap_or(false),
             "{out:#?}"
         );
         assert_eq!(
-            out.pointer("/source_class_coverage/status").and_then(Value::as_str),
+            out.pointer("/source_class_coverage/status")
+                .and_then(Value::as_str),
             Some("coverage_gaps"),
             "{out:#?}"
         );
@@ -1875,7 +2065,8 @@ mod quality_tests {
             "{out:#?}"
         );
         assert_eq!(
-            out.pointer("/evidence_pack_quality/status").and_then(Value::as_str),
+            out.pointer("/evidence_pack_quality/status")
+                .and_then(Value::as_str),
             Some("low_confidence_only"),
             "{out:#?}"
         );
@@ -1971,7 +2162,8 @@ mod quality_tests {
             "Research a public policy question and cover cost evidence and safety risks evidence.";
         let cost_query = "public policy question cost evidence";
         let safety_query = "public policy question safety risks evidence";
-        let safety_recovery_query = "public policy question safety risks evidence source-backed evidence";
+        let safety_recovery_query =
+            "public policy question safety risks evidence source-backed evidence";
         let out = with_fixture(
             json!({
                 query: {
@@ -2016,19 +2208,23 @@ mod quality_tests {
             },
         );
         assert_eq!(
-            out.pointer("/second_pass_recovery/used").and_then(Value::as_bool),
+            out.pointer("/second_pass_recovery/used")
+                .and_then(Value::as_bool),
             Some(true),
             "{out:#?}"
         );
         assert_eq!(
-            out.pointer("/second_pass_recovery/reason").and_then(Value::as_str),
+            out.pointer("/second_pass_recovery/reason")
+                .and_then(Value::as_str),
             Some("coverage_gap"),
             "{out:#?}"
         );
         assert!(
             out.pointer("/second_pass_recovery/queries")
                 .and_then(Value::as_array)
-                .map(|rows| rows.iter().any(|row| row.as_str() == Some(safety_recovery_query)))
+                .map(|rows| rows
+                    .iter()
+                    .any(|row| row.as_str() == Some(safety_recovery_query)))
                 .unwrap_or(false),
             "{out:#?}"
         );
@@ -2089,8 +2285,7 @@ mod quality_tests {
         );
         assert!(
             evidence_refs.iter().all(|row| {
-                !row
-                    .get("locator")
+                !row.get("locator")
                     .and_then(Value::as_str)
                     .unwrap_or("")
                     .contains("dictionary")

@@ -21,6 +21,11 @@ fn collect_candidates_from_stage_payload(
             format!("{stage}:{suffix}")
         }
     };
+    if let Some(blocker_class) = payload_access_blocker_class(payload) {
+        issues.push(format!("{stage}:{blocker_class}"));
+        let provider_result = hidden_provider_result_artifact(stage, query, payload, 0, &issues);
+        return (candidates, issues, provider_result);
+    }
     if structured_results_enabled(policy) {
         for candidate in candidates_from_structured_search_payload(
             query,
@@ -328,6 +333,9 @@ fn hidden_provider_result_quality(
     if candidate_count > 0 {
         return "usable";
     }
+    if issues.iter().any(|issue| issue_is_access_or_throttle_failure(issue)) {
+        return "blocked_or_throttled";
+    }
     if !payload_ok {
         return "provider_error";
     }
@@ -379,13 +387,13 @@ fn hidden_provider_result_artifact(
         payload.get("requested_url").and_then(Value::as_str).unwrap_or(""),
         2_200,
     );
-    let error = hidden_provider_error(payload);
-    let links = payload_links_for_fallback(query, payload, 3);
     let payload_ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false)
         || payload
             .get("provider_payload_rejected")
             .and_then(Value::as_bool)
             .unwrap_or(false);
+    let error = hidden_provider_error(payload, !(payload_ok && candidate_count > 0));
+    let links = payload_links_for_fallback(query, payload, 3);
     let result_quality = hidden_provider_result_quality(payload_ok, candidate_count, issues);
     let ok = result_quality == "usable";
     let status = clean_text(
@@ -467,16 +475,18 @@ fn hidden_provider_result_artifact(
     Some(Value::Object(out))
 }
 
-fn hidden_provider_error(payload: &Value) -> String {
-    for pointer in [
+fn hidden_provider_error(payload: &Value, include_recovered_provider_errors: bool) -> String {
+    let mut pointers = vec![
         "/error",
         "/retry/reason",
         "/policy_decision/reason",
         "/tool_execution_gate/reason",
         "/result/error",
-        "/provider_errors/0/error",
-        "/provider_errors/0/reason",
-    ] {
+    ];
+    if include_recovered_provider_errors {
+        pointers.extend(["/provider_errors/0/error", "/provider_errors/0/reason"]);
+    }
+    for pointer in pointers {
         let value = clean_text(payload.pointer(pointer).and_then(Value::as_str).unwrap_or(""), 240);
         if !value.is_empty() {
             return value;

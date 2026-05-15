@@ -297,6 +297,22 @@ mod tests {
     }
 
     #[test]
+    fn circuit_breaker_fast_opens_for_access_or_throttle_failures() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "provider_circuit_breaker": {
+                    "enabled": true,
+                    "failure_threshold": 6,
+                    "open_for_secs": 120
+                }
+            }
+        });
+        record_provider_attempt(tmp.path(), "duckduckgo", false, "http_429 rate_limited", &policy);
+        assert!(provider_circuit_open_until(tmp.path(), "duckduckgo", &policy).is_some());
+    }
+
+    #[test]
     fn provider_health_snapshot_exposes_timestamps_and_circuit_state() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({

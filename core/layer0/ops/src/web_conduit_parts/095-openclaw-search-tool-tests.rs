@@ -167,7 +167,7 @@ mod openclaw_search_tool_tests {
             status
                 .pointer("/runtime_web_tools_metadata/search/selected_provider")
                 .and_then(Value::as_str),
-            Some("duckduckgo")
+            Some("bing_rss")
         );
         assert_eq!(
             providers

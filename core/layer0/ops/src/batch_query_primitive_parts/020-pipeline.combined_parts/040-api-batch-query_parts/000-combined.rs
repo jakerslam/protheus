@@ -789,11 +789,14 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let evidence_coverage =
         evidence_coverage_from_ranked_candidates(&research_facets, &evidence_ranked, facet_min_terms);
 
-    let hard_partial_failures = partial_failures
+    let mut hard_partial_failures = partial_failures
         .iter()
         .filter(|row| !is_benign_partial_failure(row))
         .cloned()
         .collect::<Vec<_>>();
+    if !evidence_refs.is_empty() {
+        hard_partial_failures.retain(|row| !issue_is_access_or_throttle_failure(row));
+    }
     let status = if evidence_refs.is_empty() {
         "no_results"
     } else if low_confidence_evidence_used {

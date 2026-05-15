@@ -237,7 +237,7 @@ fn default_policy() -> Value {
             "search_default_count": 8,
             "search_max_count": 12,
             "search_cache_ttl_minutes": 8,
-            "search_provider_order": ["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"],
+            "search_provider_order": ["serperdev", "bing_rss", "duckduckgo_lite", "duckduckgo"],
             "fetch_provider_order": ["direct_http"],
                 "browser_materialization": {
                     "enabled": false,

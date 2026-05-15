@@ -13,7 +13,7 @@ const SEARCH_CACHE_MAX_ENTRIES: usize = 256;
 const SEARCH_CACHE_TTL_SUCCESS_SECS: i64 = 8 * 60;
 const SEARCH_CACHE_TTL_NO_RESULTS_SECS: i64 = 90;
 
-const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &["serperdev", "duckduckgo", "duckduckgo_lite", "bing_rss"];
+const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &["serperdev", "bing_rss", "duckduckgo_lite", "duckduckgo"];
 const DEFAULT_FETCH_PROVIDER_CHAIN: &[&str] = &["direct_http"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -526,14 +526,16 @@ pub(crate) fn record_provider_attempt(
             obj.insert("circuit_open_until".to_string(), json!(0));
             obj.insert("last_success_at".to_string(), json!(now));
             obj.insert("last_error".to_string(), Value::String(String::new()));
+            obj.insert("last_failure_class".to_string(), Value::String(String::new()));
         }
     } else {
+        let failure_class = provider_failure_class(error);
         failures = failures.saturating_add(1);
         let mut open_until = row
             .get("circuit_open_until")
             .and_then(Value::as_i64)
             .unwrap_or(0);
-        if breaker.enabled && failures >= breaker.failure_threshold {
+        if breaker.enabled && (failures >= breaker.failure_threshold || failure_class == "access_or_throttle") {
             open_until = now_ts + breaker.open_for_secs;
         }
         if let Some(obj) = row.as_object_mut() {
@@ -541,10 +543,38 @@ pub(crate) fn record_provider_attempt(
             obj.insert("circuit_open_until".to_string(), json!(open_until.max(0)));
             obj.insert("last_failure_at".to_string(), json!(now));
             obj.insert("last_error".to_string(), json!(clean_text(error, 280)));
+            obj.insert("last_failure_class".to_string(), json!(failure_class));
         }
     }
     providers.insert(provider_id, row);
     state["version"] = json!(1);
     state["providers"] = Value::Object(providers);
     write_provider_health(root, &state);
+}
+
+fn provider_failure_class(error: &str) -> &'static str {
+    let lowered = clean_text(error, 320).to_ascii_lowercase();
+    if [
+        "429",
+        "rate limit",
+        "rate_limited",
+        "too many requests",
+        "retry-after",
+        "captcha",
+        "cloudflare",
+        "verify you are human",
+        "checking your browser",
+        "bot wall",
+        "anti_bot",
+        "anti-bot",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+    {
+        "access_or_throttle"
+    } else if lowered.contains("timeout") || lowered.contains("timed out") {
+        "timeout"
+    } else {
+        "provider_failure"
+    }
 }
