@@ -52,7 +52,7 @@ fn save_session_state(root: &Path, agent_id: &str, state: &Value) {
     }
     let bounded_state = bound_session_state_for_persistence(root, agent_id, state);
     write_json_pretty(&path, &bounded_state);
-    write_indexed_session_state(root, agent_id, &bounded_state);
+    write_indexed_session_state_incremental(root, agent_id, &bounded_state);
 }
 
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -143,6 +143,97 @@ fn write_indexed_session_messages(path: &Path, offsets_path: &Path, messages: &[
     write_json_pretty(offsets_path, &json!(offsets));
 }
 
+fn indexed_session_message_count(meta: &Value, session_id: &str) -> Option<usize> {
+    let sid = clean_session_id(session_id);
+    meta.get("sessions")
+        .and_then(Value::as_array)
+        .and_then(|rows| {
+            rows.iter().find_map(|row| {
+                let row_id = clean_session_id(row.get("session_id").and_then(Value::as_str).unwrap_or(""));
+                if row_id == sid {
+                    row.get("message_count")
+                        .and_then(Value::as_u64)
+                        .map(|count| count as usize)
+                } else {
+                    None
+                }
+            })
+        })
+}
+
+fn indexed_session_meta_row(session: &Value, session_id: &str, message_count: usize) -> Value {
+    json!({
+        "session_id": clean_session_id(session_id),
+        "label": clean_text(session.get("label").and_then(Value::as_str).unwrap_or("Session"), 80),
+        "created_at": session.get("created_at").cloned().unwrap_or(Value::Null),
+        "updated_at": session.get("updated_at").cloned().unwrap_or(Value::Null),
+        "message_count": message_count
+    })
+}
+
+fn append_indexed_session_messages(
+    root: &Path,
+    agent_id: &str,
+    session_id: &str,
+    messages: &[Value],
+    previous_count: usize,
+) -> bool {
+    if previous_count >= messages.len() {
+        return false;
+    }
+    let path = session_index_messages_path(root, agent_id, session_id);
+    let offsets_path = session_index_offsets_path(root, agent_id, session_id);
+    let Some(mut offsets) = read_json_loose(&offsets_path).and_then(|value| {
+        value
+            .as_array()
+            .map(|rows| rows.iter().filter_map(Value::as_u64).collect::<Vec<_>>())
+    }) else {
+        return false;
+    };
+    if offsets.len() != previous_count || !path.exists() {
+        return false;
+    }
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&path) else {
+        return false;
+    };
+    let mut cursor = fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
+    for message in messages.iter().skip(previous_count) {
+        let Ok(mut line) = serde_json::to_string(message) else {
+            return false;
+        };
+        line.push('\n');
+        offsets.push(cursor);
+        let bytes = line.as_bytes();
+        if file.write_all(bytes).is_err() {
+            return false;
+        }
+        cursor = cursor.saturating_add(bytes.len() as u64);
+    }
+    write_json_pretty(&offsets_path, &json!(offsets));
+    true
+}
+
+fn indexed_session_meta_payload(agent_id: &str, state: &Value, session_meta: Vec<Value>) -> Value {
+    json!({
+        "type": "infring_dashboard_agent_session_index_v1",
+        "agent_id": clean_agent_id(agent_id),
+        "active_session_id": clean_session_id(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default")),
+        "sessions": session_meta,
+        "source": "bounded_session_projection"
+    })
+}
+
+fn write_indexed_session_meta(root: &Path, agent_id: &str, meta: &Value) {
+    let path = session_index_meta_path(root, agent_id);
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    write_json_pretty(&path, meta);
+}
+
 fn write_indexed_session_state(root: &Path, agent_id: &str, state: &Value) {
     let id = clean_agent_id(agent_id);
     if id.is_empty() {
@@ -171,26 +262,68 @@ fn write_indexed_session_state(root: &Path, agent_id: &str, state: &Value) {
             &session_index_offsets_path(root, &id, &sid),
             &messages,
         );
-        session_meta.push(json!({
-            "session_id": sid,
-            "label": clean_text(session.get("label").and_then(Value::as_str).unwrap_or("Session"), 80),
-            "created_at": session.get("created_at").cloned().unwrap_or(Value::Null),
-            "updated_at": session.get("updated_at").cloned().unwrap_or(Value::Null),
-            "message_count": messages.len()
-        }));
+        session_meta.push(indexed_session_meta_row(session, &sid, messages.len()));
     }
-    let meta = json!({
-        "type": "infring_dashboard_agent_session_index_v1",
-        "agent_id": id,
-        "active_session_id": clean_session_id(state.get("active_session_id").and_then(Value::as_str).unwrap_or("default")),
-        "sessions": session_meta,
-        "source": "bounded_session_projection"
-    });
-    let path = session_index_meta_path(root, &id);
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
+    let meta = indexed_session_meta_payload(&id, state, session_meta);
+    write_indexed_session_meta(root, &id, &meta);
+}
+
+fn write_indexed_session_state_incremental(root: &Path, agent_id: &str, state: &Value) {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return;
     }
-    write_json_pretty(&path, &meta);
+    let Some(existing_meta) = load_session_index_meta(root, &id) else {
+        write_indexed_session_state(root, &id, state);
+        return;
+    };
+    let active_session_id = clean_session_id(
+        state
+            .get("active_session_id")
+            .and_then(Value::as_str)
+            .unwrap_or("default"),
+    );
+    let sessions = state
+        .get("sessions")
+        .and_then(Value::as_array)
+        .map(|rows| rows.as_slice())
+        .unwrap_or(&[]);
+    let mut session_meta = Vec::<Value>::new();
+    for session in sessions {
+        let sid = clean_session_id(
+            session
+                .get("session_id")
+                .and_then(Value::as_str)
+                .unwrap_or("default"),
+        );
+        let messages = session
+            .get("messages")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let previous_count = indexed_session_message_count(&existing_meta, &sid);
+        let should_full_rewrite = match previous_count {
+            Some(count) if count < messages.len() => {
+                !append_indexed_session_messages(root, &id, &sid, &messages, count)
+            }
+            Some(count) if count == messages.len() => {
+                let messages_path = session_index_messages_path(root, &id, &sid);
+                sid == active_session_id || !messages_path.exists()
+            }
+            Some(_) => true,
+            None => true,
+        };
+        if should_full_rewrite {
+            write_indexed_session_messages(
+                &session_index_messages_path(root, &id, &sid),
+                &session_index_offsets_path(root, &id, &sid),
+                &messages,
+            );
+        }
+        session_meta.push(indexed_session_meta_row(session, &sid, messages.len()));
+    }
+    let meta = indexed_session_meta_payload(&id, state, session_meta);
+    write_indexed_session_meta(root, &id, &meta);
 }
 
 fn rebuild_indexed_session_state(root: &Path, agent_id: &str) -> Value {
@@ -938,6 +1071,63 @@ mod session_output_boundary_tests {
         assert_eq!(payload.get("message_count").and_then(Value::as_u64), Some(2));
         assert!(session_index_meta_path(root, "agent-batch-a").exists());
         assert!(session_index_meta_path(root, "agent-batch-b").exists());
+    }
+
+    #[test]
+    fn session_save_appends_new_indexed_messages_without_rewriting_prefix() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let agent_id = "agent-append-index";
+        let base_state = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "label": "Append",
+                "created_at": "2026-05-15T00:00:00Z",
+                "updated_at": "2026-05-15T00:00:01Z",
+                "messages": [
+                    {"id": "append-msg-1", "role": "user", "text": "one"},
+                    {"id": "append-msg-2", "role": "assistant", "text": "two"}
+                ]
+            }]
+        });
+        save_session_state(root, agent_id, &base_state);
+        let messages_path = session_index_messages_path(root, agent_id, "default");
+        let offsets_path = session_index_offsets_path(root, agent_id, "default");
+        let before_text = fs::read_to_string(&messages_path).expect("indexed messages");
+        let before_offsets = read_json_loose(&offsets_path)
+            .and_then(|value| value.as_array().cloned())
+            .expect("indexed offsets");
+
+        let appended_state = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "label": "Append",
+                "created_at": "2026-05-15T00:00:00Z",
+                "updated_at": "2026-05-15T00:00:02Z",
+                "messages": [
+                    {"id": "append-msg-1", "role": "user", "text": "one"},
+                    {"id": "append-msg-2", "role": "assistant", "text": "two"},
+                    {"id": "append-msg-3", "role": "user", "text": "three"}
+                ]
+            }]
+        });
+        save_session_state(root, agent_id, &appended_state);
+
+        let after_text = fs::read_to_string(&messages_path).expect("indexed messages after append");
+        let after_offsets = read_json_loose(&offsets_path)
+            .and_then(|value| value.as_array().cloned())
+            .expect("indexed offsets after append");
+        assert!(after_text.starts_with(&before_text));
+        assert_eq!(after_text.lines().count(), 3);
+        assert_eq!(before_offsets.len(), 2);
+        assert_eq!(after_offsets.len(), 3);
+        assert_eq!(after_offsets[0], before_offsets[0]);
+        assert_eq!(after_offsets[1], before_offsets[1]);
+        assert!(after_text.contains("append-msg-3"));
     }
 }
 
