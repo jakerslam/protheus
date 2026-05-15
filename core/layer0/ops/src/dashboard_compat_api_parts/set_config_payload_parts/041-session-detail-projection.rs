@@ -1,5 +1,6 @@
 const SESSION_DETAIL_TEXT_BOUND_CHARS: usize = 12_000;
 const SESSION_DETAIL_ARRAY_BOUND: usize = 20;
+const SESSION_DETAIL_OBJECT_FIELD_BOUND: usize = 80;
 
 fn session_message_projection_id(message: &Value, absolute_index: usize) -> String {
     for key in ["id", "message_id", "turn_id", "receipt_ref", "detail_ref"] {
@@ -344,6 +345,76 @@ fn bounded_detail_envelope(
         "audit_receipt": true,
         "nexus_checkpoint": true
     })
+}
+
+fn bound_session_detail_value(value: &Value, depth: usize) -> Value {
+    if depth >= 8 {
+        return json!({
+            "truncated": true,
+            "reason": "detail_depth_bound"
+        });
+    }
+    match value {
+        Value::String(text) => Value::String(clean_chat_text(text, SESSION_DETAIL_TEXT_BOUND_CHARS)),
+        Value::Array(rows) => Value::Array(
+            rows.iter()
+                .take(SESSION_DETAIL_ARRAY_BOUND)
+                .map(|row| bound_session_detail_value(row, depth + 1))
+                .collect::<Vec<_>>(),
+        ),
+        Value::Object(obj) => {
+            let mut out = Map::<String, Value>::new();
+            for (key, nested) in obj.iter().take(SESSION_DETAIL_OBJECT_FIELD_BOUND) {
+                out.insert(clean_text(key, 160), bound_session_detail_value(nested, depth + 1));
+            }
+            Value::Object(out)
+        }
+        _ => value.clone(),
+    }
+}
+
+fn parse_session_artifact_ref(detail_ref: &str) -> Option<(String, String, String)> {
+    let mut parts = detail_ref.split(':');
+    if parts.next()? != "session_artifact" {
+        return None;
+    }
+    let agent_id = clean_agent_id(parts.next().unwrap_or(""));
+    let kind = clean_text(parts.next().unwrap_or(""), 80)
+        .replace('/', "_")
+        .replace('\\', "_");
+    let hash = clean_text(parts.next().unwrap_or(""), 180);
+    if agent_id.is_empty()
+        || kind.is_empty()
+        || hash.is_empty()
+        || hash.contains('/')
+        || hash.contains('\\')
+        || hash.contains("..")
+        || parts.next().is_some()
+    {
+        return None;
+    }
+    Some((agent_id, kind, hash))
+}
+
+fn session_artifact_detail_payload(root: &Path, detail_ref: &str) -> Option<Value> {
+    let (agent_id, kind, hash) = parse_session_artifact_ref(detail_ref)?;
+    let path = session_artifact_dir(root, &agent_id).join(format!("{kind}-{hash}.json"));
+    let value = read_json_loose(&path)?;
+    let projection = json!({
+        "ref": clean_text(detail_ref, 320),
+        "artifact_kind": kind,
+        "sha256": hash,
+        "value": bound_session_detail_value(&value, 0),
+        "value_preview": clean_text(&value.to_string(), SESSION_DETAIL_TEXT_BOUND_CHARS),
+    });
+    Some(bounded_detail_envelope(
+        &agent_id,
+        "session_artifact_detail",
+        &hash,
+        "shell.session_artifact.detail.read",
+        projection,
+        true,
+    ))
 }
 
 fn session_detail_message_payload(agent_id: &str, messages: &[Value], detail_id: &str) -> Value {

@@ -58,6 +58,17 @@ const SESSION_MESSAGE_TEXT_MAX_CHARS: usize = 64_000;
 const SESSION_MESSAGE_PREVIEW_MAX_CHARS: usize = 4_000;
 const SESSION_TOOL_PREVIEW_MAX_CHARS: usize = 1_200;
 const SESSION_TERMINAL_PREVIEW_MAX_CHARS: usize = 1_000;
+const SESSION_FORBIDDEN_PROJECTION_KEYS: [&str; 9] = [
+    "raw",
+    "root",
+    "trace_body",
+    "decision_trace",
+    "workflow_graph",
+    "execution_observation",
+    "response_workflow",
+    "response_finalization",
+    "process_summary",
+];
 
 fn session_artifact_dir(root: &Path, agent_id: &str) -> PathBuf {
     state_path(root, "client/runtime/local/state/ui/infring_dashboard/session_artifacts")
@@ -200,22 +211,38 @@ fn session_safe_turn_metadata(root: &Path, agent_id: &str, metadata: &Value) -> 
     Value::Object(out)
 }
 
+fn strip_forbidden_session_projection_keys(value: &mut Value) {
+    match value {
+        Value::Array(rows) => {
+            for row in rows {
+                strip_forbidden_session_projection_keys(row);
+            }
+        }
+        Value::Object(obj) => {
+            let keys = obj.keys().cloned().collect::<Vec<_>>();
+            for key in keys {
+                if SESSION_FORBIDDEN_PROJECTION_KEYS.contains(&key.as_str()) {
+                    obj.remove(&key);
+                    continue;
+                }
+                if key == "detail_refs" {
+                    continue;
+                }
+                if let Some(nested) = obj.get_mut(&key) {
+                    strip_forbidden_session_projection_keys(nested);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 fn bound_session_message_for_persistence(root: &Path, agent_id: &str, message: &Value) -> Value {
     let Some(obj) = message.as_object() else {
         return json!({});
     };
     let mut out = obj.clone();
-    for key in [
-        "raw",
-        "root",
-        "trace_body",
-        "decision_trace",
-        "workflow_graph",
-        "execution_observation",
-        "response_workflow",
-        "response_finalization",
-        "process_summary",
-    ] {
+    for key in SESSION_FORBIDDEN_PROJECTION_KEYS {
         if let Some(value) = out.remove(key) {
             let detail = persist_session_artifact_ref(root, agent_id, key, &value);
             out.entry("detail_refs".to_string())
@@ -236,7 +263,9 @@ fn bound_session_message_for_persistence(root: &Path, agent_id: &str, message: &
     if let Some(transcript) = out.get("terminal_transcript").cloned() {
         out.insert("terminal_transcript".to_string(), compact_terminal_transcript(root, agent_id, &transcript));
     }
-    Value::Object(out)
+    let mut projected = Value::Object(out);
+    strip_forbidden_session_projection_keys(&mut projected);
+    projected
 }
 
 fn bound_session_state_for_persistence(root: &Path, agent_id: &str, state: &Value) -> Value {
@@ -262,6 +291,137 @@ fn bound_session_state_for_persistence(root: &Path, agent_id: &str, state: &Valu
         }
     }
     bounded
+}
+
+#[cfg(test)]
+mod session_output_boundary_tests {
+    use super::*;
+
+    fn collect_forbidden_projection_hits(value: &Value, path: &str, hits: &mut Vec<String>) {
+        match value {
+            Value::Array(rows) => {
+                for (idx, row) in rows.iter().enumerate() {
+                    collect_forbidden_projection_hits(row, &format!("{path}.{idx}"), hits);
+                }
+            }
+            Value::Object(obj) => {
+                for (key, nested) in obj {
+                    let next_path = format!("{path}.{key}");
+                    if key != "detail_refs" && SESSION_FORBIDDEN_PROJECTION_KEYS.contains(&key.as_str()) {
+                        hits.push(next_path.clone());
+                    }
+                    if key != "detail_refs" {
+                        collect_forbidden_projection_hits(nested, &next_path, hits);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn session_persistence_projects_messages_and_routes_raw_details_to_refs() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let agent_id = "agent-boundary";
+        let state = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "messages": [{
+                    "id": "msg-1",
+                    "role": "assistant",
+                    "text": "visible text",
+                    "raw": {"secret": "raw-runtime-state"},
+                    "root": {"store": "full-root-state"},
+                    "trace_body": {"trace": ["too", "large"]},
+                    "metadata": {
+                        "raw": {"nested": "raw-runtime-state"},
+                        "workflow_graph": {"nodes": [1, 2, 3]}
+                    },
+                    "tools": [{
+                        "name": "search",
+                        "status": "done",
+                        "input": {"query": "full input payload"},
+                        "result": {"very": "large result payload"},
+                        "raw": {"tool": "raw detail"}
+                    }],
+                    "workflow_visibility": {
+                        "current_stage": "Searching",
+                        "workflow_graph": {"nodes": ["not for shell"]}
+                    }
+                }]
+            }]
+        });
+
+        let bounded = bound_session_state_for_persistence(root, agent_id, &state);
+        let message = bounded
+            .pointer("/sessions/0/messages/0")
+            .expect("projected message");
+        let mut hits = Vec::<String>::new();
+        collect_forbidden_projection_hits(message, "message", &mut hits);
+        assert!(hits.is_empty(), "forbidden projection keys leaked: {hits:?}");
+
+        assert_eq!(message.pointer("/tools/0/name").and_then(Value::as_str), Some("search"));
+        assert!(message.pointer("/tools/0/input").is_none());
+        assert!(message.pointer("/tools/0/result").is_none());
+        assert!(message.pointer("/tools/0/raw").is_none());
+        assert!(message.pointer("/tools/0/input_preview").and_then(Value::as_str).unwrap_or("").contains("query"));
+        assert!(message.pointer("/tools/0/result_preview").and_then(Value::as_str).unwrap_or("").contains("large result"));
+        assert!(message.pointer("/tools/0/detail_ref").and_then(Value::as_str).unwrap_or("").starts_with("session_artifact:agent-boundary:tool_0:"));
+        let raw_ref = message.pointer("/detail_refs/raw/ref").and_then(Value::as_str).unwrap_or("");
+        assert!(raw_ref.starts_with("session_artifact:agent-boundary:raw:"));
+
+        let artifact_dir = session_artifact_dir(root, agent_id);
+        let artifact_count = fs::read_dir(&artifact_dir).expect("artifact dir").count();
+        assert!(artifact_count >= 2, "expected raw/tool detail artifacts in {artifact_dir:?}");
+
+        let lazy_detail = shell_socket_detail_projection(root, raw_ref, "/api/shell/details/session_artifact?view=full")
+            .expect("session artifact detail projection");
+        assert_eq!(
+            lazy_detail.pointer("/detail_projection/value/secret").and_then(Value::as_str),
+            Some("raw-runtime-state")
+        );
+        assert_eq!(
+            lazy_detail.pointer("/detail_kind").and_then(Value::as_str),
+            Some("session_artifact_detail")
+        );
+    }
+
+    #[test]
+    fn turn_metadata_projection_keeps_workflow_status_but_not_raw_workflow_payloads() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let metadata = json!({
+            "response_workflow": {"plan_graph": {"nodes": [1, 2, 3]}},
+            "response_finalization": {"execution_observation": {"raw": true}},
+            "process_summary": {"trace_body": "hidden"},
+            "workflow_visibility": {
+                "current_stage": "Searching the web",
+                "current_stage_status": "running",
+                "ui_status": "Searching the web..."
+            },
+            "tools": [{
+                "name": "web",
+                "input": {"q": "payload"},
+                "result": {"items": ["payload"]}
+            }]
+        });
+
+        let projected = session_safe_turn_metadata(root, "agent-meta", &metadata);
+        let mut hits = Vec::<String>::new();
+        collect_forbidden_projection_hits(&projected, "metadata", &mut hits);
+        assert!(hits.is_empty(), "forbidden metadata projection keys leaked: {hits:?}");
+        assert_eq!(
+            projected.pointer("/workflow_visibility/current_stage").and_then(Value::as_str),
+            Some("Searching the web")
+        );
+        assert!(projected.pointer("/response_workflow").is_none());
+        assert!(projected.pointer("/response_finalization").is_none());
+        assert!(projected.pointer("/process_summary").is_none());
+        assert!(projected.pointer("/detail_refs/response_workflow/ref").and_then(Value::as_str).unwrap_or("").starts_with("session_artifact:agent-meta:response_workflow:"));
+    }
 }
 
 fn estimate_tokens(text: &str) -> i64 {

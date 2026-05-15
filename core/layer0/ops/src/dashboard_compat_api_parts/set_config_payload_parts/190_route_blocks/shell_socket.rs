@@ -274,6 +274,19 @@ fn shell_socket_message_window(root: &Path, session_ref: &str, path: &str) -> Va
 
 fn shell_socket_detail_projection(root: &Path, detail_ref: &str, path: &str) -> Option<Value> {
     let requested_view = query_value(path, "view").unwrap_or_else(|| "summary".to_string());
+    if detail_ref.starts_with("session_artifact:") {
+        let legacy = session_artifact_detail_payload(root, detail_ref)?;
+        return Some(json!({
+            "detail_id": clean_text(legacy.get("detail_id").and_then(Value::as_str).unwrap_or(detail_ref), 180),
+            "detail_kind": clean_text(legacy.get("detail_kind").and_then(Value::as_str).unwrap_or("session_artifact"), 80),
+            "requested_view": requested_view,
+            "detail_projection": legacy.get("detail_projection").cloned().unwrap_or_else(|| json!({})),
+            "size_bound": legacy.get("size_bound").cloned().unwrap_or_else(|| json!({"max_response_bytes": 65536})),
+            "next_cursor": Value::Null,
+            "receipt_ref": legacy.get("receipt_ref").cloned().unwrap_or_else(|| json!(shell_socket_receipt_ref("get_message_detail", &legacy))),
+            "correlation_id": legacy.get("correlation_id").cloned().unwrap_or_else(|| json!("shell_socket.message_detail"))
+        }));
+    }
     if detail_ref.starts_with("agent:") || detail_ref.starts_with("session:") {
         let id = clean_text(detail_ref.split_once(':').map(|(_, value)| value).unwrap_or(""), 180);
         return Some(json!({
