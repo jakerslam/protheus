@@ -660,6 +660,25 @@ fn compact_success_criteria_summary(criteria: &Value) -> String {
     {
         parts.push(format!("empty-tool retry limit {limit}"));
     }
+    if let Some(limit) = criteria
+        .get("provider_timeout_seconds")
+        .and_then(Value::as_u64)
+    {
+        parts.push(format!("provider timeout {limit}s"));
+    }
+    if let Some(limit) = criteria
+        .get("native_wall_timeout_seconds")
+        .and_then(Value::as_u64)
+    {
+        parts.push(format!("native loop wall timeout {limit}s"));
+    }
+    if criteria
+        .get("partial_progress_on_timeout")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("returns partial progress on timeout".to_string());
+    }
     if parts.is_empty() {
         "declared but non-restrictive".to_string()
     } else {

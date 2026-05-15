@@ -501,11 +501,24 @@ pub fn run_runtime_lane_with_registry(
             )
         })
         .unwrap_or(Value::Null);
+    let agent_status = run
+        .receipt
+        .get("status")
+        .and_then(Value::as_str)
+        .unwrap_or("ok")
+        .to_string();
+    let response_ok = agent_status == "ok";
+    let response_error = if response_ok {
+        None
+    } else {
+        Some(format!("runtime_lane_agent_status:{agent_status}"))
+    };
     Ok(RuntimeLaneResponse {
-        ok: true,
+        ok: response_ok,
         contract: json!({
             "name": contract.name,
             "provider": contract.provider,
+            "agent_status": agent_status.clone(),
             "tool_count": contract.resolved_tools(Some(&catalog)).len(),
             "native_tool_call_count": run
                 .receipt
@@ -539,7 +552,7 @@ pub fn run_runtime_lane_with_registry(
             "state_persist_error": state_persist_error,
         }),
         output: run.response.output,
-        error: None,
+        error: response_error,
     })
 }
 

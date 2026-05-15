@@ -3,7 +3,9 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
+use std::thread;
+use std::time::Duration;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProviderRequest {
@@ -29,6 +31,7 @@ pub enum ProviderErrorCode {
     AuthMissing,
     InvalidRequest,
     NotRegistered,
+    Timeout,
 }
 
 impl ProviderErrorCode {
@@ -38,6 +41,7 @@ impl ProviderErrorCode {
             Self::AuthMissing => "provider_auth_missing",
             Self::InvalidRequest => "provider_invalid_request",
             Self::NotRegistered => "provider_not_registered",
+            Self::Timeout => "provider_timeout",
         }
     }
 }
@@ -152,7 +156,7 @@ impl ProviderClient for OllamaCliProvider {
                 };
                 ProviderError::new(code, format!("ollama_spawn_failed:{error}"))
             })?;
-        if let Some(stdin) = child.stdin.as_mut() {
+        if let Some(mut stdin) = child.stdin.take() {
             stdin.write_all(full_prompt.as_bytes()).map_err(|error| {
                 ProviderError::new(
                     ProviderErrorCode::Unavailable,
@@ -160,12 +164,7 @@ impl ProviderClient for OllamaCliProvider {
                 )
             })?;
         }
-        let output = child.wait_with_output().map_err(|error| {
-            ProviderError::new(
-                ProviderErrorCode::Unavailable,
-                format!("ollama_wait_failed:{error}"),
-            )
-        })?;
+        let output = wait_for_ollama_output(child, provider_timeout_from_request(request))?;
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         if !output.status.success() {
@@ -191,6 +190,82 @@ impl ProviderClient for OllamaCliProvider {
             }),
         })
     }
+}
+
+fn provider_timeout_from_request(request: &ProviderRequest) -> Option<Duration> {
+    let seconds = request
+        .metadata
+        .get("provider_timeout_seconds")
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            request
+                .metadata
+                .pointer("/native_success_criteria/provider_timeout_seconds")
+                .and_then(Value::as_u64)
+        })
+        .or_else(|| {
+            request
+                .metadata
+                .pointer("/workflow/native_success_criteria/provider_timeout_seconds")
+                .and_then(Value::as_u64)
+        })
+        .or_else(|| {
+            std::env::var("INFRING_PROVIDER_TIMEOUT_SECONDS")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok())
+        })?;
+    if seconds == 0 {
+        None
+    } else {
+        Some(Duration::from_secs(seconds.clamp(1, 3600)))
+    }
+}
+
+fn wait_for_ollama_output(
+    child: std::process::Child,
+    timeout: Option<Duration>,
+) -> Result<std::process::Output, ProviderError> {
+    let Some(timeout) = timeout else {
+        return child.wait_with_output().map_err(|error| {
+            ProviderError::new(
+                ProviderErrorCode::Unavailable,
+                format!("ollama_wait_failed:{error}"),
+            )
+        });
+    };
+    let pid = child.id();
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(child.wait_with_output());
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(result) => result.map_err(|error| {
+            ProviderError::new(
+                ProviderErrorCode::Unavailable,
+                format!("ollama_wait_failed:{error}"),
+            )
+        }),
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            terminate_process(pid, false);
+            if rx.recv_timeout(Duration::from_secs(5)).is_err() {
+                terminate_process(pid, true);
+                let _ = rx.recv_timeout(Duration::from_secs(2));
+            }
+            Err(ProviderError::new(
+                ProviderErrorCode::Timeout,
+                format!("ollama_run_timeout:timeout_seconds={}", timeout.as_secs()),
+            ))
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => Err(ProviderError::new(
+            ProviderErrorCode::Unavailable,
+            "ollama_wait_channel_disconnected",
+        )),
+    }
+}
+
+fn terminate_process(pid: u32, force: bool) {
+    let signal = if force { "-KILL" } else { "-TERM" };
+    let _ = Command::new("kill").arg(signal).arg(pid.to_string()).status();
 }
 
 #[derive(Default)]

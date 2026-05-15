@@ -3,7 +3,9 @@ use crate::native_tools::{
     native_tool_observation_prompt, parse_native_tool_calls, NativeToolDispatcher,
     NativeToolReceipt,
 };
-use crate::provider::{ProviderClientRegistry, ProviderError, ProviderRequest, ProviderResponse};
+use crate::provider::{
+    ProviderClientRegistry, ProviderError, ProviderErrorCode, ProviderRequest, ProviderResponse,
+};
 use crate::scheduler::SchedulePlan;
 use crate::telemetry::{ReceiptEvent, ReceiptSpan};
 use chrono::Utc;
@@ -11,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AgentContract {
@@ -225,13 +228,13 @@ impl AgentContract {
             .from_provider_id(self.provider.as_str())?;
         let tools = self.resolved_tools(context.capability_catalog);
         let started_ms = Utc::now().timestamp_millis();
-        let (response, tool_receipts, provider_call_count) =
+        let (response, tool_receipts, provider_call_count, terminal_status) =
             self.run_with_optional_native_tools(provider, &tools)?;
         let finished_ms = Utc::now().timestamp_millis();
         let duration_ms = (finished_ms - started_ms).max(0) as u64;
         let mut events = vec![ReceiptEvent {
             event_id: "provider.complete".to_string(),
-            status: "ok".to_string(),
+            status: terminal_status.clone(),
             duration_ms,
             error_code: None,
             timestamp_ms: finished_ms,
@@ -269,7 +272,7 @@ impl AgentContract {
             "agent": self.name,
             "provider": response.provider,
             "model": response.model,
-            "status": "ok",
+            "status": terminal_status,
             "tool_count": tools.len(),
             "native_tool_call_count": tool_receipts.len(),
             "lifespan_seconds": self.lifespan_seconds,
@@ -293,7 +296,7 @@ impl AgentContract {
         &self,
         provider: Arc<dyn crate::provider::ProviderClient>,
         tools: &[String],
-    ) -> Result<(ProviderResponse, Vec<NativeToolReceipt>, u64), ProviderError> {
+    ) -> Result<(ProviderResponse, Vec<NativeToolReceipt>, u64, String), ProviderError> {
         let dispatcher = NativeToolDispatcher::new(tools);
         if !dispatcher.has_native_tools() {
             let request = ProviderRequest {
@@ -303,7 +306,9 @@ impl AgentContract {
                 model: self.model.clone(),
                 metadata: self.metadata.clone(),
             };
-            return provider.complete(&request).map(|response| (response, Vec::new(), 1));
+            return provider
+                .complete(&request)
+                .map(|response| (response, Vec::new(), 1, "ok".to_string()));
         }
 
         let max_turns = self
@@ -323,8 +328,37 @@ impl AgentContract {
         let mut provider_call_count = 0u64;
         let empty_tool_retry_limit = native_tool_empty_retry_limit(&self.metadata);
         let mut empty_tool_retry_count = 0u64;
+        let loop_started = Instant::now();
+        let wall_timeout = native_tool_wall_timeout(&self.metadata);
 
         for turn_idx in 0..max_turns {
+            if let Some(timeout) = wall_timeout {
+                if loop_started.elapsed() >= timeout {
+                    if !all_receipts.is_empty()
+                        && native_tool_partial_progress_on_timeout(&self.metadata)
+                    {
+                        return Ok((
+                            native_tool_partial_progress_response(
+                                provider.provider_id(),
+                                self.model.as_deref(),
+                                "native_tool_loop_wall_timeout",
+                                provider_call_count,
+                                &all_receipts,
+                            ),
+                            all_receipts,
+                            provider_call_count,
+                            "partial_timeout".to_string(),
+                        ));
+                    }
+                    return Err(ProviderError::new(
+                        ProviderErrorCode::Timeout,
+                        format!(
+                            "native_tool_loop_wall_timeout:timeout_seconds={}",
+                            timeout.as_secs()
+                        ),
+                    ));
+                }
+            }
             provider_call_count += 1;
             let request = ProviderRequest {
                 prompt: prompt.clone(),
@@ -333,7 +367,28 @@ impl AgentContract {
                 model: self.model.clone(),
                 metadata: self.metadata.clone(),
             };
-            let response = provider.complete(&request)?;
+            let response = match provider.complete(&request) {
+                Ok(response) => response,
+                Err(error)
+                    if error.code == ProviderErrorCode::Timeout
+                        && !all_receipts.is_empty()
+                        && native_tool_partial_progress_on_timeout(&self.metadata) =>
+                {
+                    return Ok((
+                        native_tool_partial_progress_response(
+                            provider.provider_id(),
+                            self.model.as_deref(),
+                            error.message.as_str(),
+                            provider_call_count,
+                            &all_receipts,
+                        ),
+                        all_receipts,
+                        provider_call_count,
+                        "partial_timeout".to_string(),
+                    ));
+                }
+                Err(error) => return Err(error),
+            };
             let calls = parse_native_tool_calls(&response.output);
             if calls.is_empty() {
                 if all_receipts.is_empty() && empty_tool_retry_count < empty_tool_retry_limit {
@@ -380,9 +435,10 @@ impl AgentContract {
                 "tool_call_count": all_receipts.len(),
                 "empty_tool_retry_count": empty_tool_retry_count,
                 "tool_receipts": all_receipts.clone(),
+                "terminal_status": "ok",
             }
         });
-        Ok((response, all_receipts, provider_call_count))
+        Ok((response, all_receipts, provider_call_count, "ok".to_string()))
     }
 }
 
@@ -399,6 +455,85 @@ fn native_tool_empty_retry_limit(metadata: &Value) -> u64 {
         .and_then(Value::as_u64)
         .unwrap_or(default)
         .clamp(0, 3)
+}
+
+fn native_tool_wall_timeout(metadata: &Value) -> Option<Duration> {
+    let seconds = metadata
+        .get("native_tool_wall_timeout_seconds")
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            metadata
+                .pointer("/native_success_criteria/native_wall_timeout_seconds")
+                .and_then(Value::as_u64)
+        })
+        .or_else(|| {
+            metadata
+                .pointer("/workflow/native_success_criteria/native_wall_timeout_seconds")
+                .and_then(Value::as_u64)
+        })?;
+    if seconds == 0 {
+        None
+    } else {
+        Some(Duration::from_secs(seconds.clamp(1, 7200)))
+    }
+}
+
+fn native_tool_partial_progress_on_timeout(metadata: &Value) -> bool {
+    metadata
+        .get("partial_progress_on_timeout")
+        .and_then(Value::as_bool)
+        .or_else(|| {
+            metadata
+                .pointer("/native_success_criteria/partial_progress_on_timeout")
+                .and_then(Value::as_bool)
+        })
+        .or_else(|| {
+            metadata
+                .pointer("/workflow/native_success_criteria/partial_progress_on_timeout")
+                .and_then(Value::as_bool)
+        })
+        .unwrap_or(false)
+}
+
+fn native_tool_partial_progress_response(
+    provider_id: &str,
+    model: Option<&str>,
+    reason: &str,
+    provider_call_count: u64,
+    receipts: &[NativeToolReceipt],
+) -> ProviderResponse {
+    let successful_mutations = receipts
+        .iter()
+        .filter(|receipt| receipt.status == "ok")
+        .filter(|receipt| receipt.tool_name == "file_write" || receipt.tool_name == "file_patch")
+        .count();
+    let output = format!(
+        "Native coding run stopped with partial progress: {reason}. Successful native mutation receipts: {successful_mutations}. Returning a structured partial-progress terminal result so the parent workflow can report the timeout instead of hanging."
+    );
+    ProviderResponse {
+        provider: provider_id.to_string(),
+        model: model.unwrap_or("unknown").to_string(),
+        usage_tokens: output.split_whitespace().count() as u64,
+        output,
+        raw: json!({
+            "ok": false,
+            "provider": provider_id,
+            "terminal_status": "partial_timeout",
+            "reason": reason,
+            "provider_call_count": provider_call_count,
+            "native_tool_call_count": receipts.len(),
+            "successful_mutation_receipt_count": successful_mutations,
+            "native_tool_receipt_summary": receipts.iter().map(|receipt| {
+                json!({
+                    "call_id": receipt.call_id.clone(),
+                    "tool_name": receipt.tool_name.clone(),
+                    "status": receipt.status.clone(),
+                    "error": receipt.error.clone(),
+                    "path": receipt.result.get("path").cloned().unwrap_or(Value::Null),
+                })
+            }).collect::<Vec<_>>(),
+        }),
+    }
 }
 
 fn native_tool_empty_retry_prompt(original_prompt: &str, previous_output: &str, retry: u64) -> String {

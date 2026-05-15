@@ -99,6 +99,9 @@
       ],
       "min_successful_tool_receipts": 1,
       "empty_tool_retry_limit": 1,
+      "provider_timeout_seconds": 300,
+      "native_wall_timeout_seconds": 900,
+      "partial_progress_on_timeout": true,
       "failure_mode": "structured_failure_with_receipt_summary"
     },
     "non_goals": [
