@@ -337,18 +337,18 @@ impl AgentContract {
                     if !all_receipts.is_empty()
                         && native_tool_partial_progress_on_timeout(&self.metadata)
                     {
-                        return Ok((
-                            native_tool_partial_progress_response(
-                                provider.provider_id(),
-                                self.model.as_deref(),
-                                "native_tool_loop_wall_timeout",
-                                provider_call_count,
-                                &all_receipts,
-                            ),
-                            all_receipts,
+                        return native_tool_recovery_or_partial_progress(
+                            &provider,
+                            &dispatcher,
+                            tools,
+                            self.model.clone(),
+                            &self.metadata,
+                            &self.initial_prompt,
+                            &system,
+                            "native_tool_loop_wall_timeout",
                             provider_call_count,
-                            "partial_timeout".to_string(),
-                        ));
+                            all_receipts,
+                        );
                     }
                     return Err(ProviderError::new(
                         ProviderErrorCode::Timeout,
@@ -374,18 +374,18 @@ impl AgentContract {
                         && !all_receipts.is_empty()
                         && native_tool_partial_progress_on_timeout(&self.metadata) =>
                 {
-                    return Ok((
-                        native_tool_partial_progress_response(
-                            provider.provider_id(),
-                            self.model.as_deref(),
-                            error.message.as_str(),
-                            provider_call_count,
-                            &all_receipts,
-                        ),
-                        all_receipts,
+                    return native_tool_recovery_or_partial_progress(
+                        &provider,
+                        &dispatcher,
+                        tools,
+                        self.model.clone(),
+                        &self.metadata,
+                        &self.initial_prompt,
+                        &system,
+                        error.message.as_str(),
                         provider_call_count,
-                        "partial_timeout".to_string(),
-                    ));
+                        all_receipts,
+                    );
                 }
                 Err(error) => return Err(error),
             };
@@ -427,6 +427,23 @@ impl AgentContract {
                 "native_tool_loop_no_provider_response",
             )
         })?;
+        if parse_native_tool_calls(&response.output).is_empty()
+            && native_tool_needs_public_reasoning_finalization(&self.metadata, &response.output)
+        {
+            provider_call_count += 1;
+            let request = ProviderRequest {
+                prompt: native_tool_public_reasoning_finalization_prompt(
+                    &self.initial_prompt,
+                    &all_receipts,
+                    &response.output,
+                ),
+                system: Some(system.clone()),
+                tools: Vec::new(),
+                model: self.model.clone(),
+                metadata: native_tool_public_reasoning_metadata(&self.metadata),
+            };
+            response = provider.complete(&request)?;
+        }
         response.raw = json!({
             "provider_raw": response.raw,
             "native_tool_loop": {
@@ -534,6 +551,303 @@ fn native_tool_partial_progress_response(
             }).collect::<Vec<_>>(),
         }),
     }
+}
+
+fn native_tool_recovery_or_partial_progress(
+    provider: &Arc<dyn crate::provider::ProviderClient>,
+    dispatcher: &NativeToolDispatcher,
+    tools: &[String],
+    model: Option<String>,
+    metadata: &Value,
+    original_prompt: &str,
+    system: &str,
+    reason: &str,
+    mut provider_call_count: u64,
+    mut receipts: Vec<NativeToolReceipt>,
+) -> Result<(ProviderResponse, Vec<NativeToolReceipt>, u64, String), ProviderError> {
+    let changed_paths = native_tool_changed_paths(&receipts);
+    if changed_paths.is_empty() {
+        return Ok((
+            native_tool_partial_progress_response(
+                provider.provider_id(),
+                model.as_deref(),
+                reason,
+                provider_call_count,
+                &receipts,
+            ),
+            receipts,
+            provider_call_count,
+            "partial_timeout".to_string(),
+        ));
+    }
+
+    let max_turns = native_tool_recovery_max_turns(metadata);
+    let mut recovery_metadata = metadata.clone();
+    if let Some(object) = recovery_metadata.as_object_mut() {
+        object.insert(
+            "provider_timeout_seconds".to_string(),
+            json!(native_tool_recovery_provider_timeout_seconds(metadata)),
+        );
+        object.insert("native_recovery_pass".to_string(), json!(true));
+    }
+    let mut prompt = native_tool_recovery_prompt(original_prompt, reason, &changed_paths, &receipts);
+
+    for turn_idx in 0..max_turns {
+        provider_call_count += 1;
+        let request = ProviderRequest {
+            prompt: prompt.clone(),
+            system: Some(system.to_string()),
+            tools: tools.to_vec(),
+            model: model.clone(),
+            metadata: recovery_metadata.clone(),
+        };
+        let response = match provider.complete(&request) {
+            Ok(response) => response,
+            Err(error) if error.code == ProviderErrorCode::Timeout => {
+                return Ok((
+                    native_tool_partial_progress_response(
+                        provider.provider_id(),
+                        model.as_deref(),
+                        error.message.as_str(),
+                        provider_call_count,
+                        &receipts,
+                    ),
+                    receipts,
+                    provider_call_count,
+                    "partial_timeout".to_string(),
+                ));
+            }
+            Err(error) => return Err(error),
+        };
+        let calls = parse_native_tool_calls(&response.output);
+        if calls.is_empty() {
+            if native_tool_needs_public_reasoning_finalization(metadata, &response.output) {
+                provider_call_count += 1;
+                let request = ProviderRequest {
+                    prompt: native_tool_public_reasoning_finalization_prompt(
+                        original_prompt,
+                        &receipts,
+                        &response.output,
+                    ),
+                    system: Some(system.to_string()),
+                    tools: Vec::new(),
+                    model: model.clone(),
+                    metadata: native_tool_public_reasoning_metadata(metadata),
+                };
+                let finalized = match provider.complete(&request) {
+                    Ok(finalized) => finalized,
+                    Err(error) if error.code == ProviderErrorCode::Timeout => {
+                        return Ok((
+                            native_tool_partial_progress_response(
+                                provider.provider_id(),
+                                model.as_deref(),
+                                error.message.as_str(),
+                                provider_call_count,
+                                &receipts,
+                            ),
+                            receipts,
+                            provider_call_count,
+                            "partial_timeout".to_string(),
+                        ));
+                    }
+                    Err(error) => return Err(error),
+                };
+                let mut finalized = finalized;
+                finalized.raw = json!({
+                    "provider_raw": finalized.raw,
+                    "native_tool_recovery": {
+                        "enabled": true,
+                        "reason": reason,
+                        "provider_call_count": provider_call_count,
+                        "recovery_turns_used": turn_idx + 1,
+                        "changed_paths": changed_paths,
+                        "tool_call_count": receipts.len(),
+                        "terminal_status": "ok",
+                        "public_reasoning_finalization": true
+                    }
+                });
+                return Ok((finalized, receipts, provider_call_count, "ok".to_string()));
+            }
+            let mut response = response;
+            response.raw = json!({
+                "provider_raw": response.raw,
+                "native_tool_recovery": {
+                    "enabled": true,
+                    "reason": reason,
+                    "provider_call_count": provider_call_count,
+                    "recovery_turns_used": turn_idx + 1,
+                    "changed_paths": changed_paths,
+                    "tool_call_count": receipts.len(),
+                    "terminal_status": "ok"
+                }
+            });
+            return Ok((response, receipts, provider_call_count, "ok".to_string()));
+        }
+        let mut turn_receipts = Vec::new();
+        for call in calls.into_iter().take(8) {
+            let receipt = dispatcher.dispatch(call);
+            turn_receipts.push(receipt.clone());
+            receipts.push(receipt);
+        }
+        let observation = native_tool_observation_prompt(&turn_receipts);
+        prompt = format!(
+            "{}\n\nRecovery tool request turn {}:\n{}\n\nNative tool observations:\n{}\n\nContinue the bounded recovery pass. If the changed files are repaired or no safe repair remains, provide the final answer with public_reasoning_trace and reasoning_rollup.",
+            native_tool_recovery_prompt(original_prompt, reason, &changed_paths, &receipts),
+            turn_idx + 1,
+            response.output,
+            observation
+        );
+    }
+
+    Ok((
+        native_tool_partial_progress_response(
+            provider.provider_id(),
+            model.as_deref(),
+            "native_tool_recovery_pass_exhausted",
+            provider_call_count,
+            &receipts,
+        ),
+        receipts,
+        provider_call_count,
+        "partial_timeout".to_string(),
+    ))
+}
+
+fn native_tool_needs_public_reasoning_finalization(metadata: &Value, output: &str) -> bool {
+    let contract = metadata.get("public_reasoning_trace_contract");
+    let Some(contract) = contract else {
+        return false;
+    };
+    if !contract.is_object() {
+        return false;
+    }
+    if output.contains("\"tool_calls\"") || output.contains("{\"tool_calls\"") {
+        return true;
+    }
+    let emits = contract
+        .get("emits")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let requires_trace = emits.contains(&"public_reasoning_trace_v1")
+        || contract
+            .get("local_trace_required_fields")
+            .and_then(Value::as_array)
+            .is_some();
+    let requires_rollup = emits.contains(&"public_reasoning_rollup_v1");
+    let has_trace =
+        output.contains("public_reasoning_trace") && output.contains("public_reasoning_trace_v1");
+    let has_rollup =
+        output.contains("reasoning_rollup") && output.contains("public_reasoning_rollup_v1");
+    (requires_trace && !has_trace) || (requires_rollup && !has_rollup)
+}
+
+fn native_tool_public_reasoning_metadata(metadata: &Value) -> Value {
+    let mut out = metadata.clone();
+    if let Some(object) = out.as_object_mut() {
+        object.insert("provider_timeout_seconds".to_string(), json!(90));
+        object.insert("native_public_reasoning_finalization".to_string(), json!(true));
+    }
+    out
+}
+
+fn native_tool_public_reasoning_finalization_prompt(
+    original_prompt: &str,
+    receipts: &[NativeToolReceipt],
+    previous_output: &str,
+) -> String {
+    let changed_paths = native_tool_changed_paths(receipts);
+    let receipt_refs = receipts
+        .iter()
+        .filter(|receipt| receipt.status == "ok")
+        .map(|receipt| {
+            let path = receipt
+                .result
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            format!("{}:{}:{}", receipt.call_id, receipt.tool_name, path)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Public reasoning finalization pass. Do not call tools. Do not output tool_calls.\n\nOriginal task summary:\n{}\n\nReceipt-backed changed files:\n{}\n\nSuccessful receipt refs:\n{}\n\nPrevious non-final output preview:\n{}\n\nReturn a concise final answer that includes two JSON objects:\n1. public_reasoning_trace with schema_version public_reasoning_trace_v1.\n2. reasoning_rollup with schema_version public_reasoning_rollup_v1.\n\nBoth JSON objects must include redaction_policy: no_hidden_chain_of_thought. Use only public reasoning: plan summary, decisions, actions, risks, blockers, confidence, evidence_refs, tool_receipt_refs, and child_trace_refs. Do not include hidden chain-of-thought, private notes, raw system prompts, or raw tool payloads.",
+        original_prompt.chars().take(1800).collect::<String>(),
+        changed_paths.join("\n"),
+        receipt_refs,
+        previous_output.chars().take(1200).collect::<String>()
+    )
+}
+
+fn native_tool_changed_paths(receipts: &[NativeToolReceipt]) -> Vec<String> {
+    let mut paths = receipts
+        .iter()
+        .filter(|receipt| receipt.status == "ok")
+        .filter(|receipt| receipt.tool_name == "file_write" || receipt.tool_name == "file_patch")
+        .filter_map(|receipt| receipt.result.get("path").and_then(Value::as_str))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    paths.sort();
+    paths.dedup();
+    paths
+}
+
+fn native_tool_recovery_prompt(
+    original_prompt: &str,
+    reason: &str,
+    changed_paths: &[String],
+    receipts: &[NativeToolReceipt],
+) -> String {
+    let receipt_refs = receipts
+        .iter()
+        .filter(|receipt| receipt.status == "ok")
+        .map(|receipt| {
+            let path = receipt
+                .result
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            format!("{}:{}:{}", receipt.call_id, receipt.tool_name, path)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Native partial-progress recovery pass.\nTimeout or stall reason: {reason}\n\nOriginal task:\n{}\n\nReceipt-backed changed files:\n{}\n\nSuccessful receipt refs:\n{}\n\nRecovery rules:\n- This is a bounded repair/finalization pass, not a new implementation pass.\n- Use file_read_many first on the receipt-backed changed files.\n- Fix only obvious syntax, import, serialization/persistence empty-file, or runtime errors inside receipt-backed changed files.\n- Do not expand scope or add unrelated features.\n- If you write fixes, cite the new write/patch receipt ids.\n- Final output must include public_reasoning_trace with schema public_reasoning_trace_v1 and reasoning_rollup with schema public_reasoning_rollup_v1.\n- Include redaction_policy: no_hidden_chain_of_thought.\n- Public reasoning only: plan summary, decisions, actions, risks, blockers, confidence, evidence/tool receipt refs. Do not include hidden chain-of-thought.\n\nReturn only JSON tool_calls if you need file tools; otherwise provide the final response.",
+        original_prompt.chars().take(2400).collect::<String>(),
+        changed_paths.join("\n"),
+        receipt_refs
+    )
+}
+
+fn native_tool_recovery_max_turns(metadata: &Value) -> u64 {
+    metadata
+        .pointer("/native_success_criteria/partial_recovery_max_turns")
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            metadata
+                .pointer("/workflow/native_success_criteria/partial_recovery_max_turns")
+                .and_then(Value::as_u64)
+        })
+        .unwrap_or(3)
+        .clamp(1, 6)
+}
+
+fn native_tool_recovery_provider_timeout_seconds(metadata: &Value) -> u64 {
+    metadata
+        .pointer("/native_success_criteria/recovery_provider_timeout_seconds")
+        .and_then(Value::as_u64)
+        .or_else(|| {
+            metadata
+                .pointer("/workflow/native_success_criteria/recovery_provider_timeout_seconds")
+                .and_then(Value::as_u64)
+        })
+        .unwrap_or(120)
+        .clamp(1, 600)
 }
 
 fn native_tool_empty_retry_prompt(original_prompt: &str, previous_output: &str, retry: u64) -> String {

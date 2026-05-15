@@ -110,6 +110,8 @@
       "provider_timeout_seconds": 300,
       "native_wall_timeout_seconds": 900,
       "partial_progress_on_timeout": true,
+      "partial_recovery_max_turns": 3,
+      "recovery_provider_timeout_seconds": 120,
       "failure_mode": "structured_failure_with_receipt_summary"
     },
     "non_goals": [

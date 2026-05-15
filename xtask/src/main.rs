@@ -691,6 +691,18 @@ fn compact_success_criteria_summary(criteria: &Value) -> String {
     {
         parts.push("returns partial progress on timeout".to_string());
     }
+    if let Some(limit) = criteria
+        .get("partial_recovery_max_turns")
+        .and_then(Value::as_u64)
+    {
+        parts.push(format!("partial recovery max turns {limit}"));
+    }
+    if let Some(limit) = criteria
+        .get("recovery_provider_timeout_seconds")
+        .and_then(Value::as_u64)
+    {
+        parts.push(format!("recovery provider timeout {limit}s"));
+    }
     if parts.is_empty() {
         "declared but non-restrictive".to_string()
     } else {

@@ -811,6 +811,7 @@ fn public_reasoning_contract_violation(
         output.contains("public_reasoning_trace") && output.contains("public_reasoning_trace_v1");
     let has_rollup =
         output.contains("reasoning_rollup") && output.contains("public_reasoning_rollup_v1");
+    let still_requests_tools = output.contains("\"tool_calls\"") || output.contains("{\"tool_calls\"");
     let redaction_policy = contract
         .get("redaction_policy")
         .and_then(Value::as_str)
@@ -820,7 +821,11 @@ fn public_reasoning_contract_violation(
         || output.contains("hidden chain of thought")
         || output.contains("redaction");
 
-    if (requires_trace && !has_trace) || (requires_rollup && !has_rollup) || !mentions_redaction {
+    if still_requests_tools
+        || (requires_trace && !has_trace)
+        || (requires_rollup && !has_rollup)
+        || !mentions_redaction
+    {
         return Some((
             "runtime_lane_public_reasoning_trace_missing".to_string(),
             json!({
@@ -834,6 +839,7 @@ fn public_reasoning_contract_violation(
                     "has_public_reasoning_trace": has_trace,
                     "has_reasoning_rollup": has_rollup,
                     "mentions_redaction_policy": mentions_redaction,
+                    "still_requests_tools": still_requests_tools,
                 },
                 "agent_status": agent_status,
                 "agent_output_preview": output.chars().take(1200).collect::<String>(),
