@@ -810,7 +810,8 @@ fn persist_last_assistant_turn_metadata(
                 if !assistant.is_empty() {
                     target["text"] = Value::String(assistant.clone());
                 }
-                if let Some(object) = metadata.as_object() {
+                let safe_metadata = session_safe_turn_metadata(root, &id, metadata);
+                if let Some(object) = safe_metadata.as_object() {
                     for (key, value) in object {
                         target[key] = value.clone();
                     }

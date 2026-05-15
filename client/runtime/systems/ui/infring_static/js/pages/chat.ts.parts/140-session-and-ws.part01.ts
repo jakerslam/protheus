@@ -1,6 +1,23 @@
         }
       } catch(e) {
         if (!loadStillCurrent()) return;
+        var loadErrorText = String(e && e.message ? e.message : 'session_load_failed').trim();
+        var lowerLoadError = loadErrorText.toLowerCase();
+        if (
+          lowerLoadError.indexOf('agent_not_found') >= 0 ||
+          lowerLoadError.indexOf('agent not found') >= 0
+        ) {
+          try {
+            var reboundAgent = typeof self.rebindCurrentAgentAuthoritative === 'function'
+              ? await self.rebindCurrentAgentAuthoritative({ preferred_id: agentId, clear_when_missing: true })
+              : null;
+            var reboundId = reboundAgent && reboundAgent.id ? String(reboundAgent.id || '').trim() : '';
+            if (reboundId && reboundId !== String(agentId || '').trim() && self._sessionLoadSeq === loadSeq) {
+              await self.loadSession(reboundId, keepCurrent);
+              return;
+            }
+          } catch(_) {}
+        }
         var restoredFromCache = false;
         try {
           restoredFromCache = self.restoreAgentConversation(agentId);
@@ -8,7 +25,7 @@
           restoredFromCache = false;
         }
         if (!restoredFromCache && !keepCurrent && (!Array.isArray(self.messages) || !self.messages.length)) {
-          var errText = String(e && e.message ? e.message : 'session_load_failed').trim();
+          var errText = loadErrorText;
           self.messages = [{
             id: ++msgId,
             role: 'system',

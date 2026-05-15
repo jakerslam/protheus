@@ -50,7 +50,218 @@ fn save_session_state(root: &Path, agent_id: &str, state: &Value) {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    write_json_pretty(&path, state);
+    let bounded_state = bound_session_state_for_persistence(root, agent_id, state);
+    write_json_pretty(&path, &bounded_state);
+}
+
+const SESSION_MESSAGE_TEXT_MAX_CHARS: usize = 64_000;
+const SESSION_MESSAGE_PREVIEW_MAX_CHARS: usize = 4_000;
+const SESSION_TOOL_PREVIEW_MAX_CHARS: usize = 1_200;
+const SESSION_TERMINAL_PREVIEW_MAX_CHARS: usize = 1_000;
+
+fn session_artifact_dir(root: &Path, agent_id: &str) -> PathBuf {
+    state_path(root, "client/runtime/local/state/ui/infring_dashboard/session_artifacts")
+        .join(clean_agent_id(agent_id))
+}
+
+fn persist_session_artifact_ref(root: &Path, agent_id: &str, kind: &str, value: &Value) -> Value {
+    if value.is_null() {
+        return Value::Null;
+    }
+    let id = clean_agent_id(agent_id);
+    let artifact_kind = clean_text(kind, 80)
+        .replace('/', "_")
+        .replace('\\', "_");
+    if id.is_empty() || artifact_kind.is_empty() {
+        return Value::Null;
+    }
+    let hash = crate::deterministic_receipt_hash(value);
+    let dir = session_artifact_dir(root, &id);
+    let _ = fs::create_dir_all(&dir);
+    let path = dir.join(format!("{artifact_kind}-{hash}.json"));
+    if !path.exists() {
+        write_json_pretty(&path, value);
+    }
+    json!({
+        "kind": artifact_kind,
+        "ref": format!("session_artifact:{id}:{artifact_kind}:{hash}"),
+        "sha256": hash,
+        "bytes": value.to_string().len()
+    })
+}
+
+fn compact_session_tool_rows(root: &Path, agent_id: &str, tools: &Value) -> Value {
+    let rows = tools.as_array().cloned().unwrap_or_default();
+    Value::Array(rows.into_iter().take(24).enumerate().map(|(idx, tool)| {
+        let existing_ref = tool.get("detail_ref").and_then(Value::as_str).unwrap_or("");
+        let detail_ref = if existing_ref.is_empty() {
+            persist_session_artifact_ref(root, agent_id, &format!("tool_{idx}"), &tool)
+        } else {
+            json!({"ref": existing_ref})
+        };
+        let name = clean_text(tool.get("name").or_else(|| tool.get("tool")).and_then(Value::as_str).unwrap_or("tool"), 120);
+        let status = clean_text(tool.get("status").and_then(Value::as_str).unwrap_or(""), 80);
+        let is_error = tool.get("is_error").and_then(Value::as_bool).unwrap_or(false);
+        let blocked = tool.get("blocked").and_then(Value::as_bool).unwrap_or(false);
+        let result_preview = clean_text(
+            tool.get("summary")
+                .or_else(|| tool.get("result"))
+                .or_else(|| tool.get("output"))
+                .map(Value::to_string)
+                .as_deref()
+                .unwrap_or(""),
+            SESSION_TOOL_PREVIEW_MAX_CHARS,
+        );
+        let input_preview = clean_text(
+            tool.get("input")
+                .or_else(|| tool.get("arguments"))
+                .or_else(|| tool.get("payload"))
+                .map(Value::to_string)
+                .as_deref()
+                .unwrap_or(""),
+            SESSION_TOOL_PREVIEW_MAX_CHARS,
+        );
+        json!({
+            "name": name,
+            "tool": name,
+            "status": status,
+            "is_error": is_error,
+            "blocked": blocked,
+            "result_preview": result_preview,
+            "input_preview": input_preview,
+            "detail_ref": detail_ref.get("ref").cloned().unwrap_or(Value::Null)
+        })
+    }).collect::<Vec<_>>())
+}
+
+fn compact_workflow_visibility(value: &Value) -> Value {
+    json!({
+        "contract": value.get("contract").cloned().unwrap_or_else(|| json!("workflow_visibility_payload_v1")),
+        "current_stage": clean_text(value.get("current_stage").and_then(Value::as_str).unwrap_or(""), 120),
+        "current_stage_status": clean_text(value.get("current_stage_status").and_then(Value::as_str).unwrap_or(""), 120),
+        "ui_status": clean_text(value.get("ui_status").and_then(Value::as_str).unwrap_or(""), 240),
+        "agent_process_status": clean_text(value.get("agent_process_status").and_then(Value::as_str).unwrap_or(""), 240),
+        "debug_status": clean_text(value.get("debug_status").and_then(Value::as_str).unwrap_or(""), 240),
+        "selected_workflow_id": clean_text(value.get("selected_workflow_id").and_then(Value::as_str).unwrap_or(""), 160),
+        "visible_response_source": clean_text(value.get("visible_response_source").and_then(Value::as_str).unwrap_or(""), 120),
+        "visible_chat_text_authority": clean_text(value.get("visible_chat_text_authority").and_then(Value::as_str).unwrap_or(""), 120),
+        "system_chat_injection_used": value.get("system_chat_injection_used").and_then(Value::as_bool).unwrap_or(false)
+    })
+}
+
+fn compact_terminal_transcript(root: &Path, agent_id: &str, transcript: &Value) -> Value {
+    let rows = transcript.as_array().cloned().unwrap_or_default();
+    Value::Array(rows.into_iter().take(12).enumerate().map(|(idx, row)| {
+        let detail_ref = persist_session_artifact_ref(root, agent_id, &format!("terminal_{idx}"), &row);
+        json!({
+            "tool": clean_text(row.get("tool").and_then(Value::as_str).unwrap_or("terminal"), 120),
+            "command": clean_text(row.get("command").and_then(Value::as_str).unwrap_or(""), 500),
+            "cwd": clean_text(row.get("cwd").and_then(Value::as_str).unwrap_or(""), 500),
+            "output_preview": clean_text(row.get("output").and_then(Value::as_str).unwrap_or(""), SESSION_TERMINAL_PREVIEW_MAX_CHARS),
+            "is_error": row.get("is_error").and_then(Value::as_bool).unwrap_or(false),
+            "detail_ref": detail_ref.get("ref").cloned().unwrap_or(Value::Null)
+        })
+    }).collect::<Vec<_>>())
+}
+
+fn session_safe_turn_metadata(root: &Path, agent_id: &str, metadata: &Value) -> Value {
+    let mut out = Map::<String, Value>::new();
+    let mut refs = Map::<String, Value>::new();
+    if let Some(tools) = metadata.get("tools") {
+        refs.insert("tools".to_string(), persist_session_artifact_ref(root, agent_id, "tools", tools));
+        out.insert("tools".to_string(), compact_session_tool_rows(root, agent_id, tools));
+    }
+    for key in ["response_workflow", "response_finalization", "process_summary"] {
+        if let Some(value) = metadata.get(key) {
+            refs.insert(key.to_string(), persist_session_artifact_ref(root, agent_id, key, value));
+        }
+    }
+    if let Some(value) = metadata.get("workflow_visibility") {
+        refs.insert("workflow_visibility".to_string(), persist_session_artifact_ref(root, agent_id, "workflow_visibility", value));
+        out.insert("workflow_visibility".to_string(), compact_workflow_visibility(value));
+    }
+    if let Some(value) = metadata.get("turn_transaction") {
+        refs.insert("turn_transaction".to_string(), persist_session_artifact_ref(root, agent_id, "turn_transaction", value));
+        out.insert("turn_transaction".to_string(), json!({
+            "contract_version": value.get("contract_version").cloned().unwrap_or(Value::Null),
+            "complete": value.get("complete").cloned().unwrap_or(Value::Null),
+            "first_incomplete_stage": clean_text(value.get("first_incomplete_stage").and_then(Value::as_str).unwrap_or(""), 120),
+            "receipt_id": clean_text(value.get("receipt_id").and_then(Value::as_str).unwrap_or(""), 160)
+        }));
+    }
+    if let Some(value) = metadata.get("terminal_transcript") {
+        refs.insert("terminal_transcript".to_string(), persist_session_artifact_ref(root, agent_id, "terminal_transcript", value));
+        out.insert("terminal_transcript".to_string(), compact_terminal_transcript(root, agent_id, value));
+    }
+    if !refs.is_empty() {
+        out.insert("detail_refs".to_string(), Value::Object(refs));
+        out.insert("session_projection_contract".to_string(), json!("session_message_projection_v1"));
+    }
+    Value::Object(out)
+}
+
+fn bound_session_message_for_persistence(root: &Path, agent_id: &str, message: &Value) -> Value {
+    let Some(obj) = message.as_object() else {
+        return json!({});
+    };
+    let mut out = obj.clone();
+    for key in [
+        "raw",
+        "root",
+        "trace_body",
+        "decision_trace",
+        "workflow_graph",
+        "execution_observation",
+        "response_workflow",
+        "response_finalization",
+        "process_summary",
+    ] {
+        if let Some(value) = out.remove(key) {
+            let detail = persist_session_artifact_ref(root, agent_id, key, &value);
+            out.entry("detail_refs".to_string())
+                .or_insert_with(|| json!({}))
+                .as_object_mut()
+                .map(|refs| { refs.insert(key.to_string(), detail); });
+        }
+    }
+    if let Some(text) = out.get("text").and_then(Value::as_str) {
+        out.insert("text".to_string(), Value::String(clean_text(text, SESSION_MESSAGE_TEXT_MAX_CHARS)));
+    }
+    if let Some(tools) = out.get("tools").cloned() {
+        out.insert("tools".to_string(), compact_session_tool_rows(root, agent_id, &tools));
+    }
+    if let Some(visibility) = out.get("workflow_visibility").cloned() {
+        out.insert("workflow_visibility".to_string(), compact_workflow_visibility(&visibility));
+    }
+    if let Some(transcript) = out.get("terminal_transcript").cloned() {
+        out.insert("terminal_transcript".to_string(), compact_terminal_transcript(root, agent_id, &transcript));
+    }
+    Value::Object(out)
+}
+
+fn bound_session_state_for_persistence(root: &Path, agent_id: &str, state: &Value) -> Value {
+    let mut bounded = state.clone();
+    if let Some(sessions) = bounded.get_mut("sessions").and_then(Value::as_array_mut) {
+        for session in sessions.iter_mut() {
+            if let Some(messages) = session.get_mut("messages").and_then(Value::as_array_mut) {
+                *messages = messages
+                    .iter()
+                    .map(|message| bound_session_message_for_persistence(root, agent_id, message))
+                    .collect::<Vec<_>>();
+            }
+            if let Some(keyframes) = session.get_mut("context_keyframes").and_then(Value::as_array_mut) {
+                keyframes.truncate(24);
+                for keyframe in keyframes.iter_mut() {
+                    if let Some(obj) = keyframe.as_object_mut() {
+                        if let Some(summary) = obj.get("summary").and_then(Value::as_str) {
+                            obj.insert("summary".to_string(), Value::String(clean_text(summary, SESSION_MESSAGE_PREVIEW_MAX_CHARS)));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    bounded
 }
 
 fn estimate_tokens(text: &str) -> i64 {
@@ -58,6 +269,12 @@ fn estimate_tokens(text: &str) -> i64 {
 }
 
 fn active_session_row(state: &Value) -> Value {
+    active_session_row_ref(state)
+        .cloned()
+        .unwrap_or_else(|| json!({"messages": []}))
+}
+
+fn active_session_row_ref(state: &Value) -> Option<&Value> {
     let active_id = clean_text(
         state
             .get("active_session_id")
@@ -68,19 +285,17 @@ fn active_session_row(state: &Value) -> Value {
     let rows = state
         .get("sessions")
         .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+        .map(|rows| rows.as_slice())
+        .unwrap_or(&[]);
     if let Some(found) = rows.iter().find(|row| {
         row.get("session_id")
             .and_then(Value::as_str)
             .map(|v| clean_text(v, 120) == active_id)
             .unwrap_or(false)
     }) {
-        return found.clone();
+        return Some(found);
     }
     rows.first()
-        .cloned()
-        .unwrap_or_else(|| json!({"messages": []}))
 }
 
 fn session_messages(state: &Value) -> Vec<Value> {
@@ -92,10 +307,15 @@ fn session_messages(state: &Value) -> Vec<Value> {
 }
 
 fn session_messages_paged(state: &Value, limit: usize, offset: usize) -> (Vec<Value>, usize) {
-    let all = session_messages(state);
+    let messages = active_session_row_ref(state)
+        .and_then(|row| row.get("messages"))
+        .and_then(Value::as_array);
+    let Some(all) = messages else {
+        return (Vec::new(), 0);
+    };
     let total = all.len();
     if limit == 0 {
-        return (all, total);
+        return (all.clone(), total);
     }
     let end = total.saturating_sub(offset);
     let start = end.saturating_sub(limit);
@@ -384,9 +604,9 @@ fn session_rows_payload(state: &Value) -> Vec<Value> {
     state
         .get("sessions")
         .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
+        .map(|rows| rows.as_slice())
+        .unwrap_or(&[])
+        .iter()
         .map(|row| {
             let sid = clean_text(
                 row.get("session_id").and_then(Value::as_str).unwrap_or(""),

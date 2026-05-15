@@ -290,14 +290,13 @@ fn session_payload_paged(root: &Path, agent_id: &str, limit: usize, offset: usiz
         .and_then(Value::as_bool)
         .unwrap_or(false);
     let sessions = session_rows_payload(&state);
-    let mut state_slim = state.clone();
-    if let Some(arr) = state_slim.get_mut("sessions").and_then(Value::as_array_mut) {
-        for s in arr.iter_mut() {
-            if let Some(obj) = s.as_object_mut() {
-                obj.remove("messages");
-            }
-        }
-    }
+    let state_slim = json!({
+        "type": state.get("type").cloned().unwrap_or_else(|| json!("infring_dashboard_agent_session")),
+        "agent_id": id,
+        "active_session_id": state.get("active_session_id").cloned().unwrap_or_else(|| json!("default")),
+        "sessions": sessions,
+        "memory_kv": json!({})
+    });
     json!({
         "ok": true,
         "agent_id": id,

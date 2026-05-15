@@ -3,8 +3,20 @@ fn build_sidebar_agent_roster_fast(root: &Path, snapshot: &Value, include_termin
     let profiles = Map::<String, Value>::new();
     let contracts = Map::<String, Value>::new();
     let collab = collab_agents_map(snapshot);
+    let serviceable_ids = build_agent_roster(root, snapshot, include_terminated)
+        .into_iter()
+        .filter_map(|row| {
+            let id = clean_agent_id(row.get("id").and_then(Value::as_str).unwrap_or(""));
+            if id.is_empty() { None } else { Some(id) }
+        })
+        .collect::<std::collections::HashSet<_>>();
     let (default_provider, default_model) = extract_app_settings(root, snapshot);
     let mut all_ids = std::collections::HashSet::<String>::new();
+    for id in &serviceable_ids {
+        if !id.is_empty() {
+            all_ids.insert(id.clone());
+        }
+    }
     for key in profiles.keys() {
         let id = clean_agent_id(key);
         if !id.is_empty() {
@@ -32,6 +44,9 @@ fn build_sidebar_agent_roster_fast(root: &Path, snapshot: &Value, include_termin
 
     let mut rows = Vec::<Value>::new();
     for agent_id in all_ids {
+        if !serviceable_ids.contains(&agent_id) {
+            continue;
+        }
         if archived.contains(&agent_id) {
             continue;
         }
