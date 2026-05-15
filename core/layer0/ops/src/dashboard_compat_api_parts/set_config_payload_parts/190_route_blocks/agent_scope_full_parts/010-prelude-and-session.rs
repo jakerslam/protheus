@@ -224,6 +224,23 @@ fn handle_agent_scope_full(
             });
         }
 
+        if method == "POST"
+            && segments.len() == 3
+            && segments[0] == "session"
+            && segments[1] == "index"
+            && segments[2] == "rebuild"
+        {
+            let payload = rebuild_indexed_session_state(root, &agent_id);
+            return Some(CompatApiResponse {
+                status: if payload.get("ok").and_then(Value::as_bool).unwrap_or(false) {
+                    200
+                } else {
+                    400
+                },
+                payload,
+            });
+        }
+
         if method == "GET" && segments.len() == 3 && segments[0] == "details" {
             let detail_kind = decode_path_segment(&segments[1]);
             let detail_id = decode_path_segment(&segments[2]);

@@ -193,6 +193,47 @@ fn write_indexed_session_state(root: &Path, agent_id: &str, state: &Value) {
     write_json_pretty(&path, &meta);
 }
 
+fn rebuild_indexed_session_state(root: &Path, agent_id: &str) -> Value {
+    let id = clean_agent_id(agent_id);
+    if id.is_empty() {
+        return json!({"ok": false, "error": "agent_id_required"});
+    }
+    let legacy_path = session_path(root, &id);
+    let legacy_size_bytes = fs::metadata(&legacy_path).map(|meta| meta.len()).unwrap_or(0);
+    let Some(legacy_state) = read_json_loose(&legacy_path) else {
+        return json!({
+            "ok": false,
+            "error": "legacy_session_unreadable",
+            "agent_id": id,
+            "legacy_path": legacy_path.to_string_lossy(),
+            "legacy_size_bytes": legacy_size_bytes
+        });
+    };
+    let bounded_state = bound_session_state_for_persistence(root, &id, &legacy_state);
+    write_indexed_session_state(root, &id, &bounded_state);
+    let meta = load_session_index_meta(root, &id).unwrap_or_else(|| json!({}));
+    let sessions = indexed_session_rows_payload(&meta);
+    let message_count = sessions
+        .iter()
+        .filter_map(|row| row.get("message_count").and_then(Value::as_u64))
+        .sum::<u64>();
+    json!({
+        "ok": true,
+        "type": "dashboard_agent_session_index_rebuild",
+        "agent_id": id,
+        "active_session_id": indexed_active_session_id(&meta),
+        "session_count": sessions.len(),
+        "message_count": message_count,
+        "storage_source": "indexed_session_jsonl",
+        "legacy_path": legacy_path.to_string_lossy(),
+        "legacy_size_bytes": legacy_size_bytes,
+        "index_dir": session_index_agent_dir(root, &id).to_string_lossy(),
+        "meta_path": session_index_meta_path(root, &id).to_string_lossy(),
+        "receipt_ref": format!("agent_session_index_rebuild:{id}:{}", crate::now_iso()),
+        "correlation_id": format!("agent_session_index_rebuild:{id}")
+    })
+}
+
 fn load_session_index_meta(root: &Path, agent_id: &str) -> Option<Value> {
     read_json_loose(&session_index_meta_path(root, agent_id))
 }
@@ -681,6 +722,58 @@ mod session_output_boundary_tests {
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].get("id").and_then(Value::as_str), Some("msg-4"));
         assert_eq!(rows[1].get("id").and_then(Value::as_str), Some("msg-5"));
+    }
+
+    #[test]
+    fn session_index_rebuild_converts_existing_legacy_monolith() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        let agent_id = "agent-rebuild";
+        let messages = (0..4)
+            .map(|idx| {
+                json!({
+                    "id": format!("legacy-msg-{idx}"),
+                    "role": "assistant",
+                    "text": format!("legacy message {idx}")
+                })
+            })
+            .collect::<Vec<_>>();
+        let legacy_state = json!({
+            "agent_id": agent_id,
+            "active_session_id": "default",
+            "sessions": [{
+                "session_id": "default",
+                "label": "Existing",
+                "created_at": "2026-05-15T00:00:00Z",
+                "updated_at": "2026-05-15T00:00:01Z",
+                "messages": messages
+            }]
+        });
+        let legacy_path = session_path(root, agent_id);
+        fs::create_dir_all(legacy_path.parent().expect("legacy parent"))
+            .expect("legacy parent mkdir");
+        write_json_pretty(&legacy_path, &legacy_state);
+
+        let rebuilt = rebuild_indexed_session_state(root, agent_id);
+        assert_eq!(rebuilt.get("ok").and_then(Value::as_bool), Some(true));
+        assert_eq!(rebuilt.get("message_count").and_then(Value::as_u64), Some(4));
+        fs::write(&legacy_path, b"{ legacy monolith intentionally unreadable")
+            .expect("poison legacy monolith");
+
+        let payload = session_payload_paged(root, agent_id, 2, 0);
+        assert_eq!(
+            payload.get("storage_source").and_then(Value::as_str),
+            Some("indexed_session_jsonl")
+        );
+        let rows = payload
+            .pointer("/message_window/rows")
+            .and_then(Value::as_array)
+            .expect("indexed message rows");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(
+            rows[1].get("id").and_then(Value::as_str),
+            Some("legacy-msg-3")
+        );
     }
 }
 
