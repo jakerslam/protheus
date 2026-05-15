@@ -229,6 +229,42 @@ pub fn run_runtime_lane_with_registry(
             &mut durable_state,
         ));
     }
+    if let Some((tool, permission)) = tools
+        .iter()
+        .filter_map(|tool| file_tool_permission(tool).map(|permission| (tool, permission)))
+        .find(|(_, permission)| permission_for(&permissions, permission) != PermissionTrit::Allow)
+    {
+        let effective_state = permission_trit_code(permission_for(&permissions, permission));
+        let parent_state =
+            permission_trit_code(permission_for(&parent_permissions_manifest, permission));
+        return Ok(runtime_lane_fail_closed_with_state(
+            "runtime_lane_file_tool_permission_denied",
+            json!({
+                "tool": tool,
+                "permission": permission,
+                "permission_state": effective_state,
+                "enforcement_mode": "strict_fail_closed",
+                "blocked_permission_key_lineage": {
+                    "permission": permission,
+                    "effective_state": effective_state,
+                    "parent_state": parent_state,
+                    "lineage_chain": [
+                        {"source": "effective_manifest", "state": effective_state},
+                        {"source": "parent_manifest", "state": parent_state}
+                    ]
+                },
+                "parent_permissions_manifest_present": parent_permissions_manifest_present,
+                "parent_permissions_patch_clamped": parent_permissions_patch_clamped,
+                "permissions_effective_snapshot": effective_permissions_snapshot.clone(),
+                "permissions_parent_snapshot": parent_permissions_snapshot.clone(),
+            }),
+            &permissions,
+            wasm_sandbox.as_ref(),
+            voice_session.as_ref(),
+            &state_path,
+            &mut durable_state,
+        ));
+    }
 
     let wasm_policy = wasm_policy_from_value(wasm_sandbox.as_ref());
     let requested_modules = runtime_requested_wasm_modules(&tools, &metadata);
@@ -521,6 +557,20 @@ fn permission_trit_code(value: PermissionTrit) -> i8 {
         PermissionTrit::Deny => -1,
         PermissionTrit::Ask => 0,
         PermissionTrit::Allow => 1,
+    }
+}
+
+fn file_tool_permission(tool: &str) -> Option<&'static str> {
+    match tool.trim().to_ascii_lowercase().as_str() {
+        "file_read" | "file_read_many" | "read_file" | "read_many_files" | "workspace.read"
+        | "workspace.read_many" | "workspace_read" | "workspace_read_many" => Some("file.read"),
+        "file_write" | "write_file" | "workspace.write" | "workspace_write" => {
+            Some("file.write")
+        }
+        "file_patch" | "patch_file" | "apply_patch" | "workspace.patch" | "workspace_patch" => {
+            Some("file.patch")
+        }
+        _ => None,
     }
 }
 

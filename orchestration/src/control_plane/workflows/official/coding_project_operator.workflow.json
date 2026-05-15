@@ -38,6 +38,23 @@
       "local_coding_program_builder"
     ]
   },
+  "native_runtime_tooling": {
+    "version": "native_runtime_tooling_v1",
+    "capability_packs": [
+      "local-coding-files"
+    ],
+    "permission_template": "local-coding-files",
+    "permission_keys": [
+      "file.read",
+      "file.write",
+      "file.patch"
+    ],
+    "tools_bound_by": "capability_pack_registry",
+    "non_goals": [
+      "do_not_hardcode_tool_names_in_workflow_runner",
+      "do_not_execute_file_tools_without_permission_receipts"
+    ]
+  },
   "default": false,
   "description": "Official runtime-selectable coding category wrapper. It routes local software implementation, refactor, repair, and project-operator requests into the master local coding workflow while keeping the lab workflow itself non-runtime-selectable.",
   "stages": [

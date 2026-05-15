@@ -21,6 +21,7 @@ pub struct WebOpsCapabilityPack;
 pub struct LeadGenCapabilityPack;
 pub struct SocialSignalCapabilityPack;
 pub struct IssueOpsCapabilityPack;
+pub struct LocalCodingFilesCapabilityPack;
 
 impl StaticCapabilityPack for ResearchCapabilityPack {
     fn spec() -> CapabilityPackSpec {
@@ -133,6 +134,29 @@ impl StaticCapabilityPack for IssueOpsCapabilityPack {
     }
 }
 
+impl StaticCapabilityPack for LocalCodingFilesCapabilityPack {
+    fn spec() -> CapabilityPackSpec {
+        CapabilityPackSpec {
+            id: "local-coding-files".to_string(),
+            description: "Native local coding file read, write, and patch tools".to_string(),
+            tools: vec![
+                "file_read".to_string(),
+                "file_read_many".to_string(),
+                "file_write".to_string(),
+                "file_patch".to_string(),
+            ],
+            default_interval_seconds: 3600,
+            default_max_runs: None,
+            required_permissions: vec![
+                "file.read".to_string(),
+                "file.write".to_string(),
+                "file.patch".to_string(),
+            ],
+            autonomy_profile: "local_coding".to_string(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CapabilityPackCatalog {
     packs: BTreeMap<String, CapabilityPackSpec>,
@@ -146,6 +170,7 @@ impl CapabilityPackCatalog {
         catalog.register(LeadGenCapabilityPack::spec());
         catalog.register(SocialSignalCapabilityPack::spec());
         catalog.register(IssueOpsCapabilityPack::spec());
+        catalog.register(LocalCodingFilesCapabilityPack::spec());
         catalog
     }
 
@@ -237,6 +262,7 @@ mod tests {
         assert!(catalog.get("lead-gen").is_some());
         assert!(catalog.get("social-signal").is_some());
         assert!(catalog.get("issue-ops").is_some());
+        assert!(catalog.get("local-coding-files").is_some());
     }
 
     #[test]

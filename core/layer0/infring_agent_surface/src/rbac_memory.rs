@@ -72,6 +72,14 @@ pub fn permission_template_manifest(
                 ("voice.realtime".to_string(), PermissionTrit::Ask),
             ]),
         },
+        "local-coding-files" | "coding" => PermissionManifest {
+            project_scope: None,
+            grants: BTreeMap::from([
+                ("file.read".to_string(), PermissionTrit::Allow),
+                ("file.write".to_string(), PermissionTrit::Allow),
+                ("file.patch".to_string(), PermissionTrit::Allow),
+            ]),
+        },
         "parent" => parent.cloned().unwrap_or_default(),
         _ => PermissionManifest::default(),
     }

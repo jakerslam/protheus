@@ -18,7 +18,8 @@ pub use agent::{
 };
 pub use capability_pack::{
     CapabilityPackCatalog, CapabilityPackSpec, IssueOpsCapabilityPack, LeadGenCapabilityPack,
-    ResearchCapabilityPack, SocialSignalCapabilityPack, WebOpsCapabilityPack,
+    LocalCodingFilesCapabilityPack, ResearchCapabilityPack, SocialSignalCapabilityPack,
+    WebOpsCapabilityPack,
 };
 pub use infring_agent_derive::{infring_agent, infring_tool};
 pub use mcp::{mcp_handshake_receipt, McpBridge, McpServerConfig, McpTool};

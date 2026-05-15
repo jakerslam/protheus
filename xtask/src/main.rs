@@ -342,14 +342,23 @@ fn run_infring_agent_run(args: &[String]) -> Result<()> {
         .get("schedule-interval")
         .and_then(|value| value.parse::<u64>().ok());
     let schedule_max_runs = parse_u32(flags.get("schedule-max-runs"));
-    let packs = csv_tokens(flags.get("pack"));
-    let mut tools = csv_tokens(flags.get("tool"));
-    add_workflow_default_tools(&mut tools, workflow_context.as_ref().map(|row| &row.1));
+    let mut packs = csv_tokens(flags.get("pack"));
+    add_workflow_default_packs(&mut packs, workflow_context.as_ref().map(|row| &row.1));
+    let tools = csv_tokens(flags.get("tool"));
     let mut permissions_manifest = parse_json_flag(flags.get("permissions"))?;
-    let permissions_template = flags
+    let mut permissions_template = flags
         .get("permissions-template")
         .map(|value| value.trim().to_ascii_lowercase())
         .filter(|value| !value.is_empty());
+    if permissions_template.is_none() && permissions_manifest.is_none() {
+        permissions_template = workflow_context
+            .as_ref()
+            .and_then(|row| row.1.get("native_permission_template"))
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_ascii_lowercase);
+    }
     let parent_permissions_manifest = parse_json_flag(flags.get("parent-permissions"))?;
     if permissions_template.is_some() || parent_permissions_manifest.is_some() {
         let mut merged = permissions_manifest.unwrap_or_else(|| json!({}));
@@ -470,19 +479,22 @@ fn combine_preamble(base: Option<String>, workflow: Option<String>) -> Option<St
     }
 }
 
-fn add_workflow_default_tools(tools: &mut Vec<String>, workflow: Option<&Value>) {
+fn add_workflow_default_packs(packs: &mut Vec<String>, workflow: Option<&Value>) {
     let Some(workflow) = workflow else {
         return;
     };
-    let Some(default_tools) = workflow.get("native_default_tools").and_then(Value::as_array) else {
+    let Some(default_packs) = workflow
+        .get("native_capability_packs")
+        .and_then(Value::as_array)
+    else {
         return;
     };
-    for tool in default_tools {
-        let Some(tool) = tool.as_str().map(str::trim).filter(|tool| !tool.is_empty()) else {
+    for pack in default_packs {
+        let Some(pack) = pack.as_str().map(str::trim).filter(|pack| !pack.is_empty()) else {
             continue;
         };
-        if !tools.iter().any(|existing| existing == tool) {
-            tools.push(tool.to_string());
+        if !packs.iter().any(|existing| existing == pack) {
+            packs.push(pack.to_string());
         }
     }
 }
@@ -550,16 +562,34 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         .get("description")
         .and_then(Value::as_str)
         .unwrap_or("");
-    let native_default_tools = match workflow_id {
-        "coding_project_operator" | "local_coding_program_builder" => {
-            vec!["file_read", "file_read_many", "file_write", "file_patch"]
-        }
-        _ => Vec::new(),
-    };
+    let native_tooling = workflow_spec
+        .get("native_runtime_tooling")
+        .cloned()
+        .unwrap_or(Value::Null);
+    let native_capability_packs = native_tooling
+        .get("capability_packs")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let native_permission_template = native_tooling
+        .get("permission_template")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("");
     let preamble = format!(
-        "Selected Infring workflow: {workflow_id}\nWorkflow source: {source_path}\nWorkflow description: {description}\nWorkflow stages: {stages}\nChild workflow calls: {}\nNative default tools: {}\nUse this workflow contract for execution. Return a completed result when possible, or a structured blocker with the missing input, failed gate, and next safe action.",
+        "Selected Infring workflow: {workflow_id}\nWorkflow source: {source_path}\nWorkflow description: {description}\nWorkflow stages: {stages}\nChild workflow calls: {}\nNative capability packs: {}\nNative permission template: {}\nUse this workflow contract for execution. Return a completed result when possible, or a structured blocker with the missing input, failed gate, and next safe action.",
         children.join(", "),
-        native_default_tools.join(", ")
+        native_capability_packs.join(", "),
+        native_permission_template
     );
     let metadata = json!({
         "workflow_id": workflow_id,
@@ -577,7 +607,8 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
             .and_then(Value::as_str)
             .unwrap_or(""),
         "child_workflow_calls": children,
-        "native_default_tools": native_default_tools,
+        "native_capability_packs": native_capability_packs,
+        "native_permission_template": native_permission_template,
     });
     Ok(Some((preamble, metadata)))
 }
