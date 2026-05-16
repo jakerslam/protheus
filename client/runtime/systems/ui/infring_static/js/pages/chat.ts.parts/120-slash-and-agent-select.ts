@@ -22,8 +22,14 @@
           }
           break;
         case '/status':
-          InfringAPI.get('/api/status').then(function(s) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**System Status**\n- Agents: ' + (s.agent_count || 0) + '\n- Uptime: ' + (s.uptime_seconds || 0) + 's\n- Version: ' + (s.version || '?'), meta: '', tools: [], system_origin: 'slash:status' });
+          InfringAPI.get('/api/shell-socket/runtime-status').then(function(s) {
+            var statusLabel = String((s && (s.label || s.state)) || 'unknown').trim();
+            var degradedReason = String((s && s.degraded_reason) || '').trim();
+            var ageSeconds = s && s.age_seconds != null ? Number(s.age_seconds) : NaN;
+            var lines = ['**Runtime Status**', '- State: ' + (statusLabel || 'unknown')];
+            if (degradedReason) lines.push('- Degraded: ' + degradedReason);
+            if (Number.isFinite(ageSeconds)) lines.push('- Age: ' + Math.max(0, Math.round(ageSeconds)) + 's');
+            self.pushSystemMessage({ id: ++msgId, role: 'system', text: lines.join('\n'), meta: '', tools: [], system_origin: 'slash:status' });
           }).catch(function() {});
           break;
         case '/alerts':
@@ -189,31 +195,13 @@
           window.dispatchEvent(new Event('close-chat'));
           break;
         case '/budget':
-          InfringAPI.get('/api/budget').then(function(b) {
-            var fmt = function(v) { return v > 0 ? '$' + v.toFixed(2) : 'unlimited'; };
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**Budget Status**\n' +
-              '- Hourly: $' + (b.hourly_spend||0).toFixed(4) + ' / ' + fmt(b.hourly_limit) + '\n' +
-              '- Daily: $' + (b.daily_spend||0).toFixed(4) + ' / ' + fmt(b.daily_limit) + '\n' +
-              '- Monthly: $' + (b.monthly_spend||0).toFixed(4) + ' / ' + fmt(b.monthly_limit), meta: '', tools: [], system_origin: 'slash:budget' });
-          }).catch(function() {});
+          self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Budget status is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:budget' });
           break;
         case '/peers':
-          InfringAPI.get('/api/network/status').then(function(ns) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**OFP Network**\n' +
-              '- Status: ' + (ns.enabled ? 'Enabled' : 'Disabled') + '\n' +
-              '- Connected peers: ' + (ns.connected_peers||0) + ' / ' + (ns.total_peers||0), meta: '', tools: [], system_origin: 'slash:peers' });
-          }).catch(function() {});
+          self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Peer status is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:peers' });
           break;
         case '/a2a':
-          InfringAPI.get('/api/a2a/agents').then(function(res) {
-            var agents = res.agents || [];
-            if (!agents.length) {
-              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No external A2A agents discovered.', meta: '', tools: [], system_origin: 'slash:a2a' });
-            } else {
-              var lines = agents.map(function(a) { return '- **' + a.name + '** — ' + a.url; });
-              self.pushSystemMessage({ id: ++msgId, role: 'system', text: '**A2A Agents (' + agents.length + ')**\n' + lines.join('\n'), meta: '', tools: [], system_origin: 'slash:a2a' });
-            }
-          }).catch(function() {});
+          self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'A2A agent discovery is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:a2a' });
           break;
         case '/memprobe':
           // Heap diagnostic: snapshots the chat page's memory footprint and
