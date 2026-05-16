@@ -168,6 +168,13 @@ fn web_search_bing_rss_url(query: &str) -> String {
     )
 }
 
+fn web_search_google_news_rss_url(query: &str) -> String {
+    format!(
+        "https://news.google.com/rss/search?q={}&hl=en-US&gl=US&ceid=US:en",
+        encode_query_component(&clean_text(query, 600))
+    )
+}
+
 fn normalize_allowed_domains(raw: &Value) -> Vec<String> {
     let rows = if let Some(array) = raw.as_array() {
         array
@@ -288,4 +295,3 @@ fn push_unique_link_domain(domains: &mut Vec<String>, link: &str) {
         domains.push(domain);
     }
 }
-

@@ -122,14 +122,20 @@ fn collect_candidates_from_stage_payload(
         let include_substantive_candidates =
             usable_candidate_count < page_extraction_min_usable_items_before_skip(policy)
                 || looks_like_low_signal_search_summary(&summary);
-        for link in links_for_page_extraction(
+        let (links, prefetch_rejections) = links_for_page_extraction_with_rejections(
             query,
             policy,
             payload,
             &candidates,
             page_extraction_max_links_per_stage(policy),
             include_substantive_candidates,
-        ) {
+        );
+        for rejection in prefetch_rejections {
+            issues.push(format!(
+                "{stage}:page_extraction_candidate_prefetch_rejected:{rejection}"
+            ));
+        }
+        for link in links {
             if fetched_links.len() >= page_extraction_max_total_fetches(policy) {
                 issues.push(format!("{stage}:page_extraction_budget_exhausted"));
                 break;

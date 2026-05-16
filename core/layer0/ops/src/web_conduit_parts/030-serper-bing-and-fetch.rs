@@ -340,6 +340,111 @@ fn extract_xml_tag_value(block: &str, tag: &str) -> String {
     clean_html_content(&decode_xml_entities(trimmed), 2_400)
 }
 
+fn extract_xml_tag_attr_value(block: &str, tag: &str, attr: &str) -> String {
+    let pattern = format!(r#"(?is)<{tag}\b[^>]*\b{attr}\s*=\s*["']([^"']+)["'][^>]*>"#);
+    let Ok(re) = Regex::new(&pattern) else {
+        return String::new();
+    };
+    let Some(captures) = re.captures(block) else {
+        return String::new();
+    };
+    clean_text(
+        &decode_xml_entities(captures.get(1).map(|m| m.as_str()).unwrap_or("")),
+        2_200,
+    )
+}
+
+fn render_google_news_rss_payload(
+    body: &str,
+    allowed_domains: &[String],
+    exclude_subdomains: bool,
+    top_k: usize,
+    max_response_bytes: usize,
+) -> Value {
+    static ITEM_RE: OnceLock<Regex> = OnceLock::new();
+    let item_re =
+        ITEM_RE.get_or_init(|| Regex::new(r"(?is)<item\b[^>]*>(.*?)</item>").expect("item regex"));
+    let mut lines = Vec::<String>::new();
+    let mut links = Vec::<String>::new();
+    let mut domains = Vec::<String>::new();
+    let mut results = Vec::<Value>::new();
+    let mut raw_count = 0usize;
+    for captures in item_re.captures_iter(body) {
+        raw_count += 1;
+        let item = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+        let link = normalize_search_result_link(&extract_xml_tag_value(item, "link"));
+        let title = extract_xml_tag_value(item, "title");
+        let source = extract_xml_tag_value(item, "source");
+        let source_url = extract_xml_tag_attr_value(item, "source", "url");
+        let source_domain = extract_domain(&source_url);
+        if link.is_empty() || !domain_allowed_for_scope(&link, allowed_domains, exclude_subdomains)
+        {
+            continue;
+        }
+        let mut snippet = extract_xml_tag_value(item, "description");
+        let pub_date = extract_xml_tag_value(item, "pubDate");
+        let source_hint = if source.is_empty() && source_domain.is_empty() {
+            String::new()
+        } else if source_domain.is_empty() {
+            format!("Source: {source}.")
+        } else if source.is_empty() {
+            format!("Source domain: {source_domain}.")
+        } else {
+            format!("Source: {source} ({source_domain}).")
+        };
+        if !pub_date.is_empty() {
+            snippet = clean_text(format!("{snippet} Published: {pub_date}.").as_str(), 900);
+        }
+        if !source_hint.is_empty() {
+            snippet = clean_text(format!("{snippet} {source_hint}").as_str(), 900);
+        }
+        let rendered = render_search_row(&title, &snippet, &link);
+        if rendered.is_empty() {
+            continue;
+        }
+        lines.push(rendered);
+        links.push(link.clone());
+        results.push(json!({
+            "title": title,
+            "url": link,
+            "snippet": snippet,
+            "source_name": source,
+            "source_url": source_url,
+            "source_domain": source_domain,
+            "published": pub_date
+        }));
+        if source_domain.is_empty() {
+            push_unique_link_domain(&mut domains, &link);
+        } else if !domains.iter().any(|existing| existing == &source_domain) {
+            domains.push(source_domain);
+        }
+        if lines.len() >= top_k.max(1) {
+            break;
+        }
+    }
+    let content = clean_text(&lines.join("\n"), max_response_bytes.min(120_000));
+    let ok = !content.is_empty();
+    json!({
+        "ok": ok,
+        "summary": if ok {
+            summarize_text(&content, 900)
+        } else {
+            crate::tool_output_match_filter::no_findings_user_copy().to_string()
+        },
+        "content": content,
+        "links": links,
+        "results": results,
+        "content_domains": domains,
+        "provider_raw_count": raw_count,
+        "provider_filtered_count": lines.len(),
+        "error": if ok {
+            Value::Null
+        } else {
+            Value::String("no_relevant_results".to_string())
+        }
+    })
+}
+
 fn render_bing_rss_payload(
     body: &str,
     allowed_domains: &[String],

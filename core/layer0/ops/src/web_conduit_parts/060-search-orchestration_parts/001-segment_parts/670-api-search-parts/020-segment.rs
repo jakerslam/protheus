@@ -222,7 +222,8 @@
         summary_only,
         &provider_chain,
     );
-    if let Some(mut cached) = load_search_cache(root, &cache_key) {
+    if cache_ttl_seconds > 0 {
+        if let Some(mut cached) = load_search_cache(root, &cache_key) {
         if let Some(obj) = cached.as_object_mut() {
             obj.insert(
                 "type".to_string(),
@@ -307,6 +308,7 @@
             obj.insert("cache_status".to_string(), json!("hit"));
         }
         return cached;
+        }
     }
     let primary_url = web_search_url(&scoped_query);
     let lite_url = web_search_lite_url(&scoped_query);

@@ -54,6 +54,13 @@ fn stage_search_request(
         "query": query,
         "summary_only": false
     });
+    if std::env::var(CACHE_MODE_ENV)
+        .ok()
+        .map(|raw| normalize_cache_mode(&raw) == "disabled")
+        .unwrap_or(false)
+    {
+        request["cache"] = json!(false);
+    }
     if let Some(provider_name) = provider {
         request["provider"] = Value::String(provider_name.to_string());
     }
@@ -261,18 +268,36 @@ fn payload_links_for_page_extraction(
     payload: &Value,
     max_links: usize,
 ) -> Vec<String> {
+    payload_links_for_page_extraction_with_rejections(query, policy, payload, max_links).0
+}
+
+fn payload_links_for_page_extraction_with_rejections(
+    query: &str,
+    policy: &Value,
+    payload: &Value,
+    max_links: usize,
+) -> (Vec<String>, Vec<String>) {
     let limit = max_links.max(1);
     let mut selected = Vec::<String>::new();
     let mut selected_by_key = HashMap::<String, usize>::new();
-    for link in ranked_payload_links_for_fallback_with_min_score(
+    let mut rejections = Vec::<String>::new();
+    for (link, context) in ranked_payload_links_for_fallback_with_context_and_min_score(
         query,
         payload,
         max_links.saturating_mul(4).max(max_links),
         page_extraction_min_link_score(policy),
     )
     .into_iter()
-    .filter_map(|link| normalize_page_extraction_link(policy, &link))
     {
+        let Some(link) = normalize_page_extraction_link(policy, &link) else {
+            continue;
+        };
+        if let Some(reason) =
+            page_extraction_link_preflight_rejection_reason_with_context(query, &link, &context)
+        {
+            rejections.push(reason.to_string());
+            continue;
+        }
         let dedupe_key = page_extraction_link_dedupe_key(policy, &link);
         if dedupe_key.is_empty() {
             continue;
@@ -289,7 +314,7 @@ fn payload_links_for_page_extraction(
         selected_by_key.insert(dedupe_key, selected.len());
         selected.push(link);
     }
-    selected
+    (selected, rejections)
 }
 
 fn candidate_locator_links_for_page_extraction(
@@ -299,9 +324,27 @@ fn candidate_locator_links_for_page_extraction(
     max_links: usize,
     include_substantive_candidates: bool,
 ) -> Vec<String> {
+    candidate_locator_links_for_page_extraction_with_rejections(
+        query,
+        policy,
+        candidates,
+        max_links,
+        include_substantive_candidates,
+    )
+    .0
+}
+
+fn candidate_locator_links_for_page_extraction_with_rejections(
+    query: &str,
+    policy: &Value,
+    candidates: &[Candidate],
+    max_links: usize,
+    include_substantive_candidates: bool,
+) -> (Vec<String>, Vec<String>) {
     if !page_extraction_candidate_locator_followup_enabled(policy) || max_links == 0 {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
+    let mut rejections = Vec::<String>::new();
     let mut ranked = candidates
         .iter()
         .filter_map(|candidate| {
@@ -310,8 +353,19 @@ fn candidate_locator_links_for_page_extraction(
                 return None;
             }
             let link = normalize_page_extraction_link(policy, &candidate.locator)?;
+            let context = clean_text(
+                &format!("{} {}", candidate.title, candidate.snippet),
+                1_800,
+            );
+            if let Some(reason) =
+                page_extraction_link_preflight_rejection_reason_with_context(query, &link, &context)
+            {
+                rejections.push(reason.to_string());
+                return None;
+            }
             let mut score =
-                fallback_link_score(query, &link) + rerank_score(query, candidate) * 0.35;
+                fallback_link_score_with_context(query, &link, &context)
+                    + rerank_score(query, candidate) * 0.35;
             if needs_fetch {
                 score += 0.24;
             }
@@ -339,7 +393,7 @@ fn candidate_locator_links_for_page_extraction(
             break;
         }
     }
-    selected
+    (selected, rejections)
 }
 
 fn links_for_page_extraction(
@@ -350,39 +404,70 @@ fn links_for_page_extraction(
     max_links: usize,
     include_substantive_candidates: bool,
 ) -> Vec<String> {
+    links_for_page_extraction_with_rejections(
+        query,
+        policy,
+        payload,
+        candidates,
+        max_links,
+        include_substantive_candidates,
+    )
+    .0
+}
+
+fn links_for_page_extraction_with_rejections(
+    query: &str,
+    policy: &Value,
+    payload: &Value,
+    candidates: &[Candidate],
+    max_links: usize,
+    include_substantive_candidates: bool,
+) -> (Vec<String>, Vec<String>) {
     let limit = max_links.max(1);
     let mut selected = Vec::<String>::new();
     let mut selected_by_key = HashSet::<String>::new();
+    let mut rejections = Vec::<String>::new();
     let candidate_limit = page_extraction_candidate_locator_max_per_stage(policy).min(limit);
 
-    for link in candidate_locator_links_for_page_extraction(
+    let (links, rejected) = candidate_locator_links_for_page_extraction_with_rejections(
         query,
         policy,
         candidates,
         candidate_limit,
         false,
-    ) {
+    );
+    rejections.extend(rejected);
+    for link in links {
         push_page_extraction_link(policy, &mut selected, &mut selected_by_key, link, limit);
     }
 
-    for link in payload_links_for_page_extraction(query, policy, payload, limit) {
+    let (links, rejected) = payload_links_for_page_extraction_with_rejections(
+        query,
+        policy,
+        payload,
+        limit,
+    );
+    rejections.extend(rejected);
+    for link in links {
         push_page_extraction_link(policy, &mut selected, &mut selected_by_key, link, limit);
     }
 
     if !include_substantive_candidates {
-        return selected;
+        return (selected, rejections);
     }
 
-    for link in candidate_locator_links_for_page_extraction(
+    let (links, rejected) = candidate_locator_links_for_page_extraction_with_rejections(
         query,
         policy,
         candidates,
         candidate_limit,
         include_substantive_candidates,
-    ) {
+    );
+    rejections.extend(rejected);
+    for link in links {
         push_page_extraction_link(policy, &mut selected, &mut selected_by_key, link, limit);
     }
-    selected
+    (selected, rejections)
 }
 
 fn push_page_extraction_link(
@@ -441,6 +526,83 @@ fn normalize_page_extraction_link(policy: &Value, link: &str) -> Option<String> 
         return None;
     }
     Some(cleaned)
+}
+
+fn page_extraction_link_candidate(link: &str) -> Candidate {
+    let cleaned = clean_text(link, 2_200);
+    let domain = extract_domains_from_text(&cleaned, 1)
+        .into_iter()
+        .next()
+        .unwrap_or_default();
+    Candidate {
+        source_kind: "web".to_string(),
+        title: format!("Web result from {domain}"),
+        locator: cleaned.clone(),
+        snippet: cleaned.clone(),
+        excerpt_hash: sha256_hex(&cleaned),
+        timestamp: None,
+        permissions: Some("public_web".to_string()),
+        status_code: 200,
+    }
+}
+
+fn page_extraction_link_preflight_rejection_reason(query: &str, link: &str) -> Option<&'static str> {
+    page_extraction_link_preflight_rejection_reason_with_context(query, link, "")
+}
+
+fn page_extraction_link_preflight_rejection_reason_with_context(
+    query: &str,
+    link: &str,
+    context: &str,
+) -> Option<&'static str> {
+    let candidate = page_extraction_link_candidate_with_context(link, context);
+    if link_contains_collapsed_query_phrase(query, link) {
+        return None;
+    }
+    let combined = clean_text(
+        &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
+        2_400,
+    );
+    if contains_web_junk_marker(&combined) {
+        return Some("junk_link");
+    }
+    if looks_like_off_intent_noise_candidate(query, &candidate) {
+        return Some("off_intent_link");
+    }
+    if has_only_weak_query_overlap(query, &candidate) {
+        return Some("weak_overlap_link");
+    }
+    if query_overlap_terms(query, &candidate) == 0 && source_trust_adjustment(&candidate) <= 0.0 {
+        return Some("no_distinctive_overlap_link");
+    }
+    None
+}
+
+fn link_contains_collapsed_query_phrase(query: &str, link: &str) -> bool {
+    let tokens = clean_text(query, 800)
+        .to_ascii_lowercase()
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .map(str::trim)
+        .filter(|token| token.len() >= 3)
+        .filter(|token| !is_relevance_stop_token(token))
+        .filter(|token| !is_weak_relevance_token(token))
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    if tokens.len() < 2 {
+        return false;
+    }
+    let collapsed_link = clean_text(link, 2_200)
+        .to_ascii_lowercase()
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .collect::<String>();
+    if collapsed_link.is_empty() {
+        return false;
+    }
+    tokens.windows(2).any(|pair| {
+        let phrase = format!("{}{}", pair[0], pair[1]);
+        phrase.len() >= 8 && collapsed_link.contains(&phrase)
+    })
 }
 
 fn page_extraction_link_dedupe_key(policy: &Value, link: &str) -> String {
@@ -521,18 +683,7 @@ fn parse_page_extraction_http_url(link: &str) -> Option<(&str, &str, &str, Optio
 }
 
 fn query_overlap_terms(query: &str, candidate: &Candidate) -> usize {
-    let query_tokens = tokenize_relevance(query, 40);
-    if query_tokens.is_empty() {
-        return 0;
-    }
-    let candidate_tokens = tokenize_relevance(&candidate_relevance_text(candidate), 120);
-    if candidate_tokens.is_empty() {
-        return 0;
-    }
-    query_tokens
-        .iter()
-        .filter(|token| candidate_tokens.contains(token.as_str()))
-        .count()
+    query_overlap_profile(query, candidate).0
 }
 
 fn candidate_is_substantive(query: &str, candidate: &Candidate, benchmark_intent: bool) -> bool {
@@ -554,6 +705,9 @@ fn candidate_is_substantive(query: &str, candidate: &Candidate, benchmark_intent
     }
     let word_count = snippet.split_whitespace().count();
     let overlap = query_overlap_terms(query, candidate);
+    if has_only_weak_query_overlap(query, candidate) {
+        return false;
+    }
     if benchmark_intent {
         if word_count < 8 && overlap < 2 {
             return false;

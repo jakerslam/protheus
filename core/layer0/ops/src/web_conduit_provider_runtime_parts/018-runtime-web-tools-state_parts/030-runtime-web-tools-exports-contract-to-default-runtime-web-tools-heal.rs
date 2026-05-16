@@ -218,17 +218,7 @@ fn configured_provider_input_from_policy(
     policy: &Value,
     family: WebProviderFamily,
 ) -> Option<String> {
-    let explicit = match family {
-        WebProviderFamily::Search => policy
-            .pointer("/web_conduit/search_provider")
-            .or_else(|| policy.get("search_provider")),
-        WebProviderFamily::Fetch => policy
-            .pointer("/web_conduit/fetch_provider")
-            .or_else(|| policy.get("fetch_provider")),
-    }
-    .and_then(Value::as_str)
-    .map(|raw| clean_text(raw, 60).to_ascii_lowercase())
-    .filter(|value| !value.is_empty());
+    let explicit = explicit_provider_input_from_policy(policy, family);
     explicit.or_else(|| match family {
         WebProviderFamily::Search => policy
             .pointer("/web_conduit/search_provider_order")
@@ -239,6 +229,23 @@ fn configured_provider_input_from_policy(
             .or_else(|| policy.get("fetch_provider_order"))
             .and_then(first_raw_provider_token_from_value),
     })
+}
+
+fn explicit_provider_input_from_policy(
+    policy: &Value,
+    family: WebProviderFamily,
+) -> Option<String> {
+    match family {
+        WebProviderFamily::Search => policy
+            .pointer("/web_conduit/search_provider")
+            .or_else(|| policy.get("search_provider")),
+        WebProviderFamily::Fetch => policy
+            .pointer("/web_conduit/fetch_provider")
+            .or_else(|| policy.get("fetch_provider")),
+    }
+    .and_then(Value::as_str)
+    .map(|raw| clean_text(raw, 60).to_ascii_lowercase())
+    .filter(|value| !value.is_empty())
 }
 
 fn runtime_diagnostic(code: &str, message: String, path: &str) -> Value {

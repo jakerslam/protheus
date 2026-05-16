@@ -185,6 +185,72 @@
     }
 
     #[test]
+    fn requests_last_minute_counts_network_attempts_not_internal_denials() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let recent = crate::now_iso();
+        let old = (Utc::now() - chrono::Duration::seconds(90)).to_rfc3339();
+        let rows = vec![
+            json!({
+                "type": "web_conduit_receipt",
+                "timestamp": recent,
+                "requested_url": "https://www.bing.com/search?q=research&format=rss",
+                "policy_decision": "allow",
+                "policy_reason": "search_provider_chain",
+                "status_code": 200,
+                "response_hash": "abc123",
+                "error": ""
+            }),
+            json!({
+                "type": "web_conduit_receipt",
+                "timestamp": crate::now_iso(),
+                "requested_url": "https://example.com/high-value-page",
+                "policy_decision": "deny",
+                "policy_reason": "rate_limit_exceeded",
+                "status_code": 0,
+                "response_hash": "",
+                "error": "policy_denied"
+            }),
+            json!({
+                "type": "web_conduit_receipt",
+                "timestamp": crate::now_iso(),
+                "requested_url": "https://duckduckgo.com/html/?q=research",
+                "policy_decision": "deny",
+                "policy_reason": "search_provider_chain",
+                "status_code": 0,
+                "response_hash": "",
+                "error": "search_providers_exhausted"
+            }),
+            json!({
+                "type": "web_conduit_receipt",
+                "timestamp": crate::now_iso(),
+                "requested_url": "https://news.google.com/rss/search?q=research",
+                "policy_decision": "deny",
+                "policy_reason": "search_provider_chain",
+                "status_code": 200,
+                "response_hash": "",
+                "error": "no_relevant_results"
+            }),
+            json!({
+                "type": "web_conduit_receipt",
+                "timestamp": old,
+                "requested_url": "https://example.com/old",
+                "policy_decision": "allow",
+                "policy_reason": "fetch",
+                "status_code": 200,
+                "response_hash": "old123",
+                "error": ""
+            }),
+        ];
+        for row in rows {
+            append_jsonl(&receipts_path(tmp.path()), &row).expect("append receipt");
+        }
+
+        assert_eq!(requests_last_minute(tmp.path()), 2);
+        assert_eq!(requests_last_minute_for_lane(tmp.path(), "search"), 2);
+        assert_eq!(requests_last_minute_for_lane(tmp.path(), "fetch"), 0);
+    }
+
+    #[test]
     fn sensitive_domain_requires_explicit_human_approval() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let out = api_fetch(

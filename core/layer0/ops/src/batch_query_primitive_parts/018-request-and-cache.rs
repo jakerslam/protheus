@@ -24,6 +24,7 @@ struct BatchQueryKeywordPack {
     facets: Vec<String>,
     aliases: Vec<String>,
     negative_terms: Vec<String>,
+    metadata_authority: String,
 }
 
 impl BatchQueryKeywordPack {
@@ -43,6 +44,11 @@ impl BatchQueryKeywordPack {
     }
 
     fn to_value(&self) -> Value {
+        let authority = if self.metadata_authority.is_empty() {
+            "agent_submitted_request_metadata"
+        } else {
+            self.metadata_authority.as_str()
+        };
         json!({
             "keywords": self.keywords.clone(),
             "required_coverage": {
@@ -52,7 +58,7 @@ impl BatchQueryKeywordPack {
             "aliases": self.aliases.clone(),
             "negative_terms": self.negative_terms.clone(),
             "compilation": {
-                "authority": "agent_submitted_request_metadata",
+                "authority": authority,
                 "hidden_query_expansion": false,
                 "quote_policy": "quote_exact_entity_or_alias_phrases_only",
                 "negative_term_policy": "append_safe_negative_filters_to_compiled_lanes"
@@ -916,6 +922,732 @@ fn batch_query_keyword_pack(request: &Value, budget: ApertureBudget) -> BatchQue
     pack
 }
 
+fn comparison_marker_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "vs" | "v" | "versus" | "against"
+    )
+}
+
+fn leading_comparison_separator_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "vs" | "v" | "versus" | "against" | "with" | "to"
+    )
+}
+
+fn comparison_lead_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "compare" | "compared" | "comparing" | "research" | "evaluate" | "assess"
+    )
+}
+
+fn comparison_tail_boundary_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "as" | "for"
+            | "focus"
+            | "focused"
+            | "focusing"
+            | "give"
+            | "include"
+            | "including"
+            | "against"
+            | "about"
+            | "when"
+            | "where"
+            | "while"
+            | "because"
+    )
+}
+
+fn comparison_entity_stop_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "a" | "an"
+            | "and"
+            | "agent"
+            | "agents"
+            | "are"
+            | "as"
+            | "best"
+            | "between"
+            | "compare"
+            | "compared"
+            | "comparison"
+            | "current"
+            | "docs"
+            | "documentation"
+            | "evidence"
+            | "for"
+            | "framework"
+            | "frameworks"
+            | "guide"
+            | "in"
+            | "is"
+            | "library"
+            | "libraries"
+            | "latest"
+            | "of"
+            | "official"
+            | "on"
+            | "or"
+            | "pricing"
+            | "research"
+            | "review"
+            | "reviews"
+            | "security"
+            | "software"
+            | "the"
+            | "to"
+            | "tool"
+            | "tools"
+            | "workflow"
+            | "workflows"
+            | "with"
+    )
+}
+
+fn query_metadata_token(raw: &str) -> String {
+    clean_text(
+        raw.trim_matches(|ch: char| {
+            ch.is_ascii_punctuation()
+                && ch != '-'
+                && ch != '_'
+                && ch != '+'
+                && ch != '#'
+        }),
+        80,
+    )
+}
+
+fn query_metadata_tokens(raw: &str) -> Vec<String> {
+    raw.split_whitespace()
+        .map(query_metadata_token)
+        .filter(|token| !token.is_empty())
+        .collect()
+}
+
+fn query_metadata_token_has_entity_boundary(raw: &str) -> bool {
+    raw.chars()
+        .any(|ch| matches!(ch, ',' | ';' | ':' | '|' | '(' | ')' | '[' | ']' | '.' | '?' | '!'))
+}
+
+fn query_metadata_keyword_tokens(raw: &str) -> Vec<String> {
+    raw.split_whitespace()
+        .flat_map(|token| token.split('/'))
+        .map(query_metadata_token)
+        .filter(|token| !token.is_empty())
+        .collect()
+}
+
+fn token_has_letter_or_number(raw: &str) -> bool {
+    raw.chars().any(|ch| ch.is_ascii_alphanumeric())
+}
+
+fn collect_entity_tokens_backward(tokens: &[String], marker_index: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for token in tokens[..marker_index].iter().rev() {
+        if token.is_empty()
+            || comparison_marker_token(token)
+            || comparison_entity_stop_token(token)
+            || !token_has_letter_or_number(token)
+        {
+            if !out.is_empty() {
+                break;
+            }
+            continue;
+        }
+        out.push(token.clone());
+        if out.len() >= 4 {
+            break;
+        }
+    }
+    out.reverse();
+    out
+}
+
+fn collect_entity_tokens_forward(tokens: &[String], marker_index: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    for token in tokens.iter().skip(marker_index + 1) {
+        if token.is_empty()
+            || comparison_marker_token(token)
+            || comparison_entity_stop_token(token)
+            || !token_has_letter_or_number(token)
+        {
+            if !out.is_empty() {
+                break;
+            }
+            continue;
+        }
+        out.push(token.clone());
+        if out.len() >= 4 {
+            break;
+        }
+    }
+    out
+}
+
+fn push_unique_clean(out: &mut Vec<String>, seen: &mut HashSet<String>, value: String, max: usize) {
+    if out.len() >= max {
+        return;
+    }
+    let cleaned = clean_text(&value, 120);
+    let key = cleaned.to_ascii_lowercase();
+    if !cleaned.is_empty() && seen.insert(key) {
+        out.push(cleaned);
+    }
+}
+
+fn entity_phrase_stop_edge(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "a" | "an"
+            | "and"
+            | "are"
+            | "as"
+            | "current"
+            | "latest"
+            | "new"
+            | "recent"
+            | "the"
+            | "this"
+            | "that"
+            | "these"
+            | "those"
+            | "for"
+            | "of"
+            | "on"
+            | "in"
+            | "with"
+            | "to"
+            | "from"
+            | "versus"
+            | "vs"
+            | "compare"
+            | "find"
+            | "focus"
+            | "look"
+            | "research"
+            | "search"
+            | "summarize"
+            | "use"
+            | "evaluate"
+            | "assess"
+    )
+}
+
+fn query_entity_noise_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "after" | "april"
+            | "august"
+            | "before"
+            | "clearly"
+            | "december"
+            | "explain"
+            | "february"
+            | "find"
+            | "first"
+            | "focus"
+            | "focused"
+            | "give"
+            | "if"
+            | "january"
+            | "july"
+            | "june"
+            | "look"
+            | "looking"
+            | "march"
+            | "may"
+            | "need"
+            | "november"
+            | "october"
+            | "research"
+            | "right"
+            | "say"
+            | "search"
+            | "september"
+            | "summarize"
+            | "tell"
+            | "use"
+            | "using"
+            | "where"
+            | "whether"
+            | "which"
+    )
+}
+
+fn normalized_entity_phrase_from_tokens(tokens: &[String]) -> Option<String> {
+    let mut start = 0usize;
+    let mut end = tokens.len();
+    while start < end && entity_phrase_stop_edge(&tokens[start]) {
+        start += 1;
+    }
+    while end > start && entity_phrase_stop_edge(&tokens[end - 1]) {
+        end -= 1;
+    }
+    if start >= end {
+        return None;
+    }
+    let phrase = tokens[start..end]
+        .iter()
+        .filter(|token| token_has_letter_or_number(token))
+        .take(5)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(" ");
+    let phrase = clean_text(&phrase, 160);
+    if phrase.is_empty() {
+        None
+    } else {
+        Some(phrase)
+    }
+}
+
+fn token_looks_like_named_entity_piece(raw: &str) -> bool {
+    let cleaned = query_metadata_token(raw);
+    if cleaned.is_empty() || entity_phrase_stop_edge(&cleaned) || query_entity_noise_token(&cleaned) {
+        return false;
+    }
+    let letters = cleaned
+        .chars()
+        .filter(|ch| ch.is_ascii_alphabetic())
+        .collect::<Vec<_>>();
+    if letters.is_empty() {
+        return false;
+    }
+    let uppercase_count = letters.iter().filter(|ch| ch.is_ascii_uppercase()).count();
+    uppercase_count >= 2
+        || cleaned.chars().next().map(|ch| ch.is_ascii_uppercase()).unwrap_or(false)
+            && !raw_query_metadata_stop_token(&cleaned.to_ascii_lowercase())
+}
+
+fn split_entity_phrase_variants(raw: &str) -> Vec<String> {
+    let cleaned = clean_text(raw, 240);
+    if cleaned.is_empty() {
+        return Vec::new();
+    }
+    let pieces = cleaned
+        .split([',', ';', '|'])
+        .flat_map(|piece| piece.split(" and "))
+        .flat_map(|piece| piece.split('/'))
+        .map(|piece| {
+            piece
+                .split_whitespace()
+                .map(query_metadata_token)
+                .filter(|token| !token.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .filter_map(|tokens| normalized_entity_phrase_from_tokens(&tokens))
+        .collect::<Vec<_>>();
+    if pieces.is_empty() {
+        normalized_entity_phrase_from_tokens(&query_metadata_tokens(&cleaned))
+            .into_iter()
+            .collect()
+    } else {
+        pieces
+    }
+}
+
+fn push_entity_phrase_variants(
+    entities: &mut Vec<String>,
+    seen: &mut HashSet<String>,
+    tokens: &[String],
+    max_terms: usize,
+) {
+    let Some(entity) = normalized_entity_phrase_from_tokens(tokens) else {
+        return;
+    };
+    for piece in split_entity_phrase_variants(&entity) {
+        if entities.len() >= max_terms {
+            break;
+        }
+        push_unique_clean(entities, seen, piece, max_terms);
+    }
+}
+
+fn infer_leading_comparison_entities(tokens: &[String]) -> Vec<String> {
+    if tokens.len() < 4 || !comparison_lead_token(&tokens[0]) {
+        return Vec::new();
+    }
+    let Some(separator_index) = tokens
+        .iter()
+        .enumerate()
+        .skip(1)
+        .take(10)
+        .find_map(|(index, token)| leading_comparison_separator_token(token).then_some(index))
+    else {
+        return Vec::new();
+    };
+    if separator_index <= 1 {
+        return Vec::new();
+    }
+    let left_tokens = tokens[1..separator_index].to_vec();
+    let mut right_tokens = Vec::<String>::new();
+    for token in tokens.iter().skip(separator_index + 1) {
+        if comparison_tail_boundary_token(token) {
+            break;
+        }
+        right_tokens.push(token.clone());
+        if right_tokens.len() >= 6 {
+            break;
+        }
+    }
+    let mut out = Vec::<String>::new();
+    if let Some(left) = normalized_entity_phrase_from_tokens(&left_tokens) {
+        out.push(left);
+    }
+    if let Some(right) = normalized_entity_phrase_from_tokens(&right_tokens) {
+        for piece in split_entity_phrase_variants(&right) {
+            out.push(piece);
+        }
+    }
+    out
+}
+
+fn infer_named_entity_terms_from_query(query: &str, max_terms: usize) -> Vec<String> {
+    let mut entities = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    let mut current = Vec::<String>::new();
+    for raw in query.split_whitespace() {
+        let token = query_metadata_token(raw);
+        let boundary = query_metadata_token_has_entity_boundary(raw);
+        if token_looks_like_named_entity_piece(&token) {
+            current.push(token);
+            if current.len() >= 5 {
+                push_entity_phrase_variants(&mut entities, &mut seen, &current, max_terms);
+                current.clear();
+            } else if boundary {
+                push_entity_phrase_variants(&mut entities, &mut seen, &current, max_terms);
+                current.clear();
+            }
+            continue;
+        }
+        push_entity_phrase_variants(&mut entities, &mut seen, &current, max_terms);
+        current.clear();
+        if entities.len() >= max_terms {
+            break;
+        }
+    }
+    push_entity_phrase_variants(&mut entities, &mut seen, &current, max_terms);
+    entities
+}
+
+fn token_matches_entity_terms(token: &str, entity_terms: &HashSet<String>) -> bool {
+    let lowered = token.to_ascii_lowercase();
+    entity_terms.contains(&lowered)
+        || lowered
+            .split('/')
+            .filter(|piece| !piece.is_empty())
+            .any(|piece| entity_terms.contains(piece))
+}
+
+fn raw_query_metadata_stop_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "a" | "about"
+            | "an"
+            | "and"
+            | "any"
+            | "are"
+            | "as"
+            | "at"
+            | "best"
+            | "can"
+            | "could"
+            | "current"
+            | "do"
+            | "does"
+            | "focused"
+            | "focusing"
+            | "focus"
+            | "for"
+            | "from"
+            | "give"
+            | "how"
+            | "i"
+            | "in"
+            | "is"
+            | "it"
+            | "latest"
+            | "list"
+            | "me"
+            | "need"
+            | "new"
+            | "now"
+            | "of"
+            | "on"
+            | "or"
+            | "our"
+            | "please"
+            | "recent"
+            | "right"
+            | "should"
+            | "some"
+            | "tell"
+            | "the"
+            | "to"
+            | "top"
+            | "up"
+            | "us"
+            | "use"
+            | "using"
+            | "want"
+            | "we"
+            | "what"
+            | "whats"
+            | "which"
+            | "with"
+            | "you"
+            | "your"
+    )
+}
+
+fn query_metadata_keyword_noise_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "assess"
+            | "compare"
+            | "compared"
+            | "comparing"
+            | "evaluate"
+            | "find"
+            | "look"
+            | "looking"
+            | "research"
+            | "summarize"
+    ) || raw_query_metadata_stop_token(raw)
+}
+
+fn standalone_entity_noise_token(raw: &str) -> bool {
+    matches!(
+        raw.to_ascii_lowercase().as_str(),
+        "ai" | "api" | "apis" | "llm" | "llms" | "ml" | "sdk" | "sdks"
+    )
+}
+
+fn entity_phrase_is_too_generic(raw: &str) -> bool {
+    let tokens = query_metadata_tokens(raw);
+    tokens.len() == 1
+        && tokens
+            .first()
+            .map(|token| standalone_entity_noise_token(token))
+            .unwrap_or(false)
+}
+
+fn query_clause_after_marker(query: &str, marker: &str) -> Option<String> {
+    let lowered = query.to_ascii_lowercase();
+    let start = lowered.find(marker)? + marker.len();
+    let tail = query.get(start..).unwrap_or("").trim();
+    let end = tail
+        .find(['.', '?', '!', ';'])
+        .unwrap_or_else(|| tail.len());
+    let clause = clean_text(tail.get(..end).unwrap_or(""), 260);
+    if clause.is_empty() {
+        None
+    } else {
+        Some(clause)
+    }
+}
+
+fn query_metadata_facet_piece(raw: &str) -> Option<String> {
+    let tokens = query_metadata_keyword_tokens(raw)
+        .into_iter()
+        .map(|token| token.to_ascii_lowercase())
+        .filter(|token| {
+            !query_metadata_keyword_noise_token(token)
+                && !comparison_marker_token(token)
+                && token_has_letter_or_number(token)
+        })
+        .take(4)
+        .collect::<Vec<_>>();
+    let facet = clean_text(&tokens.join(" "), 120);
+    if facet.is_empty() {
+        None
+    } else {
+        Some(facet)
+    }
+}
+
+fn inferred_query_facets(query: &str, max_terms: usize) -> Vec<String> {
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for marker in [
+        "focus on",
+        "focused on",
+        "focusing on",
+        "use for",
+        "used for",
+        "choose for",
+        "select for",
+    ] {
+        let Some(clause) = query_clause_after_marker(query, marker) else {
+            continue;
+        };
+        for piece in clause
+            .replace(" and ", ",")
+            .split(',')
+            .flat_map(|piece| piece.split('/'))
+        {
+            let Some(facet) = query_metadata_facet_piece(piece) else {
+                continue;
+            };
+            push_unique_clean(&mut out, &mut seen, facet, max_terms);
+            if out.len() >= max_terms {
+                return out;
+            }
+        }
+    }
+    out
+}
+
+fn inferred_raw_query_term_pack(query: &str, budget: ApertureBudget) -> Option<BatchQueryKeywordPack> {
+    let cleaned = clean_text(query, 600);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let max_terms = budget.max_candidates.clamp(4, 12);
+    let mut pack = BatchQueryKeywordPack {
+        metadata_authority: "tool_structured_from_user_query_terms".to_string(),
+        ..BatchQueryKeywordPack::default()
+    };
+    let mut seen = HashSet::<String>::new();
+    for token in query_metadata_keyword_tokens(&cleaned) {
+        let lowered = token.to_ascii_lowercase();
+        if query_metadata_keyword_noise_token(&lowered) || !token_has_letter_or_number(&lowered) {
+            continue;
+        }
+        push_unique_clean(&mut pack.keywords, &mut seen, lowered, max_terms);
+    }
+    if pack.has_positive_terms() {
+        Some(pack)
+    } else {
+        None
+    }
+}
+
+fn inferred_comparison_query_pack(query: &str, budget: ApertureBudget) -> Option<BatchQueryKeywordPack> {
+    let cleaned = clean_text(query, 600);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let tokens = query_metadata_tokens(&cleaned);
+    if tokens.len() < 3 {
+        return None;
+    }
+    let max_terms = budget.max_candidates.clamp(4, 12);
+    let mut pack = BatchQueryKeywordPack {
+        metadata_authority: "tool_inferred_from_user_query_shape".to_string(),
+        ..BatchQueryKeywordPack::default()
+    };
+    let mut seen = HashSet::<String>::new();
+    let leading_entities = infer_leading_comparison_entities(&tokens);
+    if leading_entities.len() >= 2 {
+        for entity in leading_entities {
+            push_unique_clean(&mut pack.entities, &mut seen, entity, max_terms);
+        }
+    } else if let Some(marker_index) = tokens.iter().position(|token| comparison_marker_token(token))
+    {
+        let left = collect_entity_tokens_backward(&tokens, marker_index);
+        let right = collect_entity_tokens_forward(&tokens, marker_index);
+        if left.is_empty() || right.is_empty() {
+            return None;
+        }
+        push_unique_clean(&mut pack.entities, &mut seen, left.join(" "), max_terms);
+        push_unique_clean(&mut pack.entities, &mut seen, right.join(" "), max_terms);
+    } else {
+        return None;
+    }
+    if pack.entities.len() < 2 {
+        return None;
+    }
+
+    let entity_terms = pack
+        .entities
+        .iter()
+        .flat_map(|entity| {
+            entity
+                .split_whitespace()
+                .map(|token| token.to_ascii_lowercase())
+                .collect::<Vec<_>>()
+        })
+        .collect::<HashSet<_>>();
+    let mut keyword_seen = HashSet::<String>::new();
+    for token in tokens {
+        let lowered = token.to_ascii_lowercase();
+        if token_matches_entity_terms(&lowered, &entity_terms)
+            || comparison_marker_token(&lowered)
+            || query_metadata_keyword_noise_token(&lowered)
+        {
+            continue;
+        }
+        push_unique_clean(&mut pack.keywords, &mut keyword_seen, lowered, 4);
+    }
+    let mut facet_seen = HashSet::<String>::new();
+    for facet in inferred_query_facets(&cleaned, 6) {
+        push_unique_clean(&mut pack.facets, &mut facet_seen, facet, 6);
+    }
+
+    Some(pack)
+}
+
+fn inferred_named_entity_query_pack(
+    query: &str,
+    budget: ApertureBudget,
+) -> Option<BatchQueryKeywordPack> {
+    let cleaned = clean_text(query, 600);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let max_terms = budget.max_candidates.clamp(4, 12);
+    let entities = infer_named_entity_terms_from_query(&cleaned, max_terms);
+    if entities.is_empty() {
+        return None;
+    }
+    let mut pack = BatchQueryKeywordPack {
+        metadata_authority: "tool_inferred_from_user_query_shape".to_string(),
+        ..BatchQueryKeywordPack::default()
+    };
+    let mut seen = HashSet::<String>::new();
+    for entity in entities {
+        if entity_phrase_is_too_generic(&entity) {
+            continue;
+        }
+        push_unique_clean(&mut pack.entities, &mut seen, entity, max_terms);
+    }
+    if pack.entities.is_empty() {
+        return None;
+    }
+    let entity_terms = pack
+        .entities
+        .iter()
+        .flat_map(|entity| {
+            entity
+                .split_whitespace()
+                .map(|token| token.to_ascii_lowercase())
+                .collect::<Vec<_>>()
+        })
+        .collect::<HashSet<_>>();
+    let mut keyword_seen = HashSet::<String>::new();
+    for token in query_metadata_tokens(&cleaned) {
+        let lowered = token.to_ascii_lowercase();
+        if token_matches_entity_terms(&lowered, &entity_terms)
+            || query_metadata_keyword_noise_token(&lowered)
+            || comparison_entity_stop_token(&lowered)
+        {
+            continue;
+        }
+        push_unique_clean(&mut pack.keywords, &mut keyword_seen, lowered, 4);
+    }
+    let mut facet_seen = HashSet::<String>::new();
+    for facet in inferred_query_facets(&cleaned, 6) {
+        push_unique_clean(&mut pack.facets, &mut facet_seen, facet, 6);
+    }
+    Some(pack)
+}
+
 fn quote_exact_query_term(raw: &str) -> Option<String> {
     let cleaned = clean_text(raw, 160);
     if cleaned.is_empty() {
@@ -1010,13 +1742,9 @@ fn compile_keyword_pack_queries(
         .filter_map(|term| plain_query_term(term))
         .collect::<Vec<_>>();
 
-    for subject in &exact_subjects {
-        if facets.is_empty() {
-            let tail = keywords.iter().take(3).cloned().collect::<Vec<_>>().join(" ");
-            let candidate = clean_text(&format!("{subject} {tail}"), 600);
-            push_compiled_metadata_query(candidate, pack, &mut dedup, &mut queries, max_queries);
-        } else {
-            for facet in &facets {
+    if !exact_subjects.is_empty() && !facets.is_empty() {
+        for facet in &facets {
+            for subject in &exact_subjects {
                 let candidate = clean_text(&format!("{subject} {facet}"), 600);
                 push_compiled_metadata_query(
                     candidate,
@@ -1030,8 +1758,14 @@ fn compile_keyword_pack_queries(
                 }
             }
         }
-        if queries.len() >= max_queries {
-            return queries;
+    } else {
+        for subject in &exact_subjects {
+            let tail = keywords.iter().take(3).cloned().collect::<Vec<_>>().join(" ");
+            let candidate = clean_text(&format!("{subject} {tail}"), 600);
+            push_compiled_metadata_query(candidate, pack, &mut dedup, &mut queries, max_queries);
+            if queries.len() >= max_queries {
+                return queries;
+            }
         }
     }
 
@@ -1644,7 +2378,14 @@ fn resolve_query_plan(
     query: &str,
     budget: ApertureBudget,
 ) -> QueryPlanSelection {
-    let query_metadata = batch_query_keyword_pack(request, budget);
+    let mut query_metadata = batch_query_keyword_pack(request, budget);
+    if query_metadata.is_empty() {
+        if let Some(inferred) = inferred_comparison_query_pack(query, budget) {
+            query_metadata = inferred;
+        } else if let Some(inferred) = inferred_named_entity_query_pack(query, budget) {
+            query_metadata = inferred;
+        }
+    }
     let explicit_queries = normalize_requested_queries(request, query, budget, &query_metadata);
     let explicit_query_pack_used = !explicit_queries.is_empty()
         && (query.is_empty()
@@ -1669,7 +2410,9 @@ fn resolve_query_plan(
             queries: explicit_queries,
             rewrite_set,
             rerank_query,
-            query_plan_source: if query_metadata.is_empty() {
+            query_plan_source: if query_metadata.metadata_authority == "tool_inferred_from_user_query_shape" {
+                "tool_inferred_query_pack_from_user_query"
+            } else if query_metadata.is_empty() {
                 "explicit_request_pack"
             } else {
                 "explicit_request_pack_with_metadata"
@@ -1679,6 +2422,13 @@ fn resolve_query_plan(
     }
     let recovery_queries = general_research_recovery_queries(policy, query, budget);
     if !recovery_queries.is_empty() {
+        if query_metadata.is_empty() {
+            if let Some(inferred) = inferred_raw_query_term_pack(query, budget) {
+                query_metadata = inferred;
+            } else if let Some(inferred) = inferred_named_entity_query_pack(query, budget) {
+                query_metadata = inferred;
+            }
+        }
         let rerank_query = recovery_queries
             .first()
             .cloned()
@@ -1695,6 +2445,13 @@ fn resolve_query_plan(
     }
     let recovery_queries = broad_current_research_recovery_queries(policy, query, budget);
     if !recovery_queries.is_empty() {
+        if query_metadata.is_empty() {
+            if let Some(inferred) = inferred_raw_query_term_pack(query, budget) {
+                query_metadata = inferred;
+            } else if let Some(inferred) = inferred_named_entity_query_pack(query, budget) {
+                query_metadata = inferred;
+            }
+        }
         let rerank_query = recovery_queries
             .first()
             .cloned()
@@ -1710,6 +2467,13 @@ fn resolve_query_plan(
         };
     }
     let queries = cache_identity_query_plan(query, &explicit_queries);
+    if query_metadata.is_empty() {
+        if let Some(inferred) = inferred_raw_query_term_pack(query, budget) {
+            query_metadata = inferred;
+        } else if let Some(inferred) = inferred_named_entity_query_pack(query, budget) {
+            query_metadata = inferred;
+        }
+    }
     let rerank_query = queries
         .first()
         .cloned()

@@ -168,6 +168,298 @@ mod quality_tests {
     }
 
     #[test]
+    fn comparison_query_infers_visible_query_pack_lanes_without_agent_metadata() {
+        let query = "LangGraph vs CrewAI agent framework comparison";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "tool_inferred_query_pack_from_user_query"
+        );
+        assert_eq!(plan.queries.first().map(String::as_str), Some(query));
+        assert_eq!(plan.query_metadata.entities, vec!["LangGraph", "CrewAI"]);
+        assert_eq!(
+            plan.query_metadata.metadata_authority,
+            "tool_inferred_from_user_query_shape"
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("LangGraph agent framework comparison")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("CrewAI agent framework comparison")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("LangGraph CrewAI comparison")),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
+    fn leading_compare_query_infers_entities_without_domain_hardcoding() {
+        let query = "Compare the current OpenAI Agents SDK with LangChain/LangGraph for production customer-support agents.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "tool_inferred_query_pack_from_user_query"
+        );
+        assert!(
+            plan.query_metadata
+                .entities
+                .iter()
+                .any(|row| row == "OpenAI Agents SDK"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.query_metadata
+                .entities
+                .iter()
+                .any(|row| row == "LangChain"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.query_metadata
+                .entities
+                .iter()
+                .any(|row| row == "LangGraph"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("\"OpenAI Agents SDK\"") && row.contains("production")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("LangChain") && row.contains("production")),
+            "{:#?}",
+            plan.queries
+        );
+        assert!(
+            !plan.query_metadata.keywords.iter().any(|row| row == "current" || row == "focus"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.query_metadata.keywords.iter().any(|row| row == "production"),
+            "{:#?}",
+            plan.query_metadata
+        );
+    }
+
+    #[test]
+    fn named_entity_query_infers_visible_entity_lanes_without_agent_metadata() {
+        let query =
+            "Research Model Context Protocol ecosystem maturity and risk for product teams.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "tool_inferred_query_pack_from_user_query"
+        );
+        assert!(
+            plan.query_metadata
+                .entities
+                .iter()
+                .any(|row| row == "Model Context Protocol"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("\"Model Context Protocol\" ecosystem maturity")),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
+    fn named_entity_query_splits_punctuated_series_and_ignores_command_words() {
+        let query = "Use web research to compare Infring with LangGraph, CrewAI, AutoGen, and OpenHands as of May 2026.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "tool_inferred_query_pack_from_user_query"
+        );
+        for expected in ["Infring", "LangGraph", "CrewAI", "AutoGen", "OpenHands"] {
+            assert!(
+                plan.query_metadata.entities.iter().any(|row| row == expected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+        for unexpected in ["Use", "May"] {
+            assert!(
+                !plan.query_metadata.entities.iter().any(|row| row == unexpected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+    }
+
+    #[test]
+    fn search_style_query_keeps_subject_entity_without_control_words() {
+        let query = "Search the web for public evidence about Infring. If evidence is sparse, say that clearly.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "tool_inferred_query_pack_from_user_query"
+        );
+        assert_eq!(plan.query_metadata.entities, vec!["Infring"]);
+    }
+
+    #[test]
+    fn inferred_query_pack_drops_conversational_keywords_before_recovery_terms() {
+        let query = "Research Firecrawl, Tavily, and Exa as data tools for AI research agents. Which should we use for search, crawling, and evidence gathering?";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "tool_inferred_query_pack_from_user_query"
+        );
+        for unexpected in ["should", "we", "use"] {
+            assert!(
+                !plan.query_metadata.keywords.iter().any(|row| row == unexpected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+        for expected in ["data", "ai", "search", "crawling"] {
+            assert!(
+                plan.query_metadata.keywords.iter().any(|row| row == expected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+        for expected in ["search", "crawling", "evidence gathering"] {
+            assert!(
+                plan.query_metadata.facets.iter().any(|row| row == expected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+        assert!(
+            !plan.query_metadata.entities.iter().any(|row| row == "AI"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.queries
+                .iter()
+                .any(|row| row.contains("Exa search")),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
+    fn broad_raw_query_gets_visible_metadata_without_hidden_query_rewrite() {
+        let query = "what are some scientific breakthroughs 2026";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_plan_source,
+            "policy_broad_current_research_recovery"
+        );
+        assert_eq!(plan.queries.first().map(String::as_str), Some(query));
+        assert_eq!(
+            plan.query_metadata.metadata_authority,
+            "tool_structured_from_user_query_terms"
+        );
+        assert!(
+            plan.query_metadata
+                .keywords
+                .iter()
+                .any(|term| term == "scientific"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.query_metadata
+                .keywords
+                .iter()
+                .any(|term| term == "breakthroughs"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.query_metadata.keywords.iter().any(|term| term == "2026"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            !plan
+                .queries
+                .iter()
+                .any(|row| row.contains("what are some scientific breakthroughs 2026 scientific")),
+            "{:#?}",
+            plan.queries
+        );
+    }
+
+    #[test]
     fn batch_query_output_retains_query_metadata_for_synthesis() {
         let query = "Research Alpha Runtime deployment readiness.";
         let request = json!({
@@ -1375,6 +1667,102 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_rejects_weak_overlap_links_before_fetch_budget() {
+        let query = "Research Firecrawl, Tavily, and Exa as data tools for AI research agents. Which should we use for search, crawling, and evidence gathering?";
+        let policy = default_policy();
+        let links = payload_links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "links": [
+                    "https://ideascale.com/blog/what-is-research/",
+                    "https://en.wikipedia.org/wiki/Research",
+                    "https://docs.firecrawl.dev/features/search",
+                    "https://docs.tavily.com/documentation/api-reference/endpoint/search",
+                    "https://docs.exa.ai/reference/search"
+                ]
+            }),
+            3,
+        );
+        assert!(
+            links.iter().any(|link| link.contains("firecrawl"))
+                || links.iter().any(|link| link.contains("tavily"))
+                || links.iter().any(|link| link.contains("exa")),
+            "{links:?}"
+        );
+        assert!(
+            !links.iter().any(|link| link.contains("what-is-research")
+                || link.contains("wikipedia.org/wiki/Research")),
+            "{links:?}"
+        );
+    }
+
+    #[test]
+    fn page_extraction_rejects_generic_model_pages_before_fetch_budget() {
+        let query = "Model Context Protocol ecosystem maturity risks";
+        let policy = default_policy();
+        let links = payload_links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "links": [
+                    "https://www.caranddriver.com/features/a70435541/make-model-car-the-difference/",
+                    "https://en.wikipedia.org/wiki/Model",
+                    "https://modelcontextprotocol.io/introduction"
+                ]
+            }),
+            2,
+        );
+        assert!(
+            links
+                .iter()
+                .any(|link| link.contains("modelcontextprotocol.io")),
+            "{links:?}"
+        );
+        assert!(
+            !links.iter().any(|link| link.contains("caranddriver")
+                || link.contains("wikipedia.org/wiki/Model")),
+            "{links:?}"
+        );
+    }
+
+    #[test]
+    fn page_extraction_uses_result_context_for_opaque_links() {
+        let query = "Firecrawl crawling evidence gathering";
+        let policy = default_policy();
+        let opaque_link = "https://news.google.com/rss/articles/CBMiZGF0YS1yZWZfMjAyNl9h?oc=5";
+        let links = payload_links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "summary": format!(
+                    "Firecrawl crawling guide for evidence gathering and AI data extraction — {opaque_link}"
+                ),
+                "links": [opaque_link]
+            }),
+            1,
+        );
+        assert_eq!(links, vec![opaque_link]);
+    }
+
+    #[test]
+    fn page_extraction_rejects_opaque_links_without_context_signal() {
+        let query = "Firecrawl crawling evidence gathering";
+        let policy = default_policy();
+        let opaque_link = "https://news.google.com/rss/articles/CBMiZGF0YS1yZWZfMjAyNl9h?oc=5";
+        let links = payload_links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "summary": "Generic market roundup with no useful retrieval context.",
+                "links": [opaque_link]
+            }),
+            1,
+        );
+        assert!(links.is_empty(), "{links:?}");
+    }
+
+    #[test]
     fn pdf_fetch_document_lane_returns_processible_document_evidence() {
         let fetch_payload = json!({
             "ok": false,
@@ -1775,6 +2163,87 @@ mod quality_tests {
     }
 
     #[test]
+    fn provider_source_hint_domain_overrides_redirect_container_domain() {
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "Science result via news feed".to_string(),
+            locator: "https://news.google.com/rss/articles/example".to_string(),
+            snippet: "Science result summary. Source: Example Science (science.example.org).".to_string(),
+            excerpt_hash: "source-hint".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        assert_eq!(candidate_domain_hint(&candidate), "science.example.org");
+    }
+
+    #[test]
+    fn weak_question_overlap_does_not_make_candidate_relevant() {
+        let query = "what are some scientific breakthroughs 2026";
+        let dictionary = Candidate {
+            source_kind: "web".to_string(),
+            title: "Some Definition & Meaning - Merriam-Webster".to_string(),
+            locator: "https://www.merriam-webster.com/dictionary/some".to_string(),
+            snippet: "When some is used without a number, it may mean an unspecified amount.".to_string(),
+            excerpt_hash: "dictionary-some".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        assert!(
+            !candidate_passes_relevance_gate(query, &dictionary, false),
+            "question filler overlap must not make a dictionary entry relevant"
+        );
+        assert!(
+            !candidate_is_synthesis_eligible(query, &dictionary, false),
+            "question filler overlap must not become synthesis evidence"
+        );
+
+        let year_page = Candidate {
+            source_kind: "web".to_string(),
+            title: "2026 - Wikipedia".to_string(),
+            locator: "https://en.wikipedia.org/wiki/2026".to_string(),
+            snippet: "2026 is the current year, and this page lists general events.".to_string(),
+            excerpt_hash: "year-page".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let broad_query = "2026 science breakthrough discovery announcement research";
+        assert!(
+            !candidate_passes_relevance_gate(broad_query, &year_page, false),
+            "year/current/science-only overlap must not make a broad events page relevant"
+        );
+        assert!(
+            !candidate_is_synthesis_eligible(broad_query, &year_page, false),
+            "year/current/science-only overlap must not become synthesis evidence"
+        );
+    }
+
+    #[test]
+    fn comparison_action_words_do_not_make_generic_compare_site_relevant() {
+        let query = "compare AlphaTool BetaTool GammaTool for web research";
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "Compare text and find differences online".to_string(),
+            locator: "https://example.com/compare-text".to_string(),
+            snippet: "Compare text online with a free diff checker for documents and files.".to_string(),
+            excerpt_hash: "generic-compare-site".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        assert!(
+            !candidate_passes_relevance_gate(query, &candidate, true),
+            "comparison action words alone must not satisfy relevance"
+        );
+        assert!(
+            !candidate_is_synthesis_eligible(query, &candidate, true),
+            "comparison action words alone must not become synthesis evidence"
+        );
+    }
+
+    #[test]
     fn policy_provider_recovery_promotes_usable_source_after_low_signal_chain() {
         let query = "web retrieval quality evidence promotion";
         let out = run_query_with_fixture(
@@ -2070,6 +2539,15 @@ mod quality_tests {
             Some("low_confidence_only"),
             "{out:#?}"
         );
+        let lowered = summary_lowered(&out);
+        assert!(
+            lowered.contains("only low-confidence raw snippets"),
+            "{lowered}"
+        );
+        assert!(
+            !lowered.contains("garden irrigation"),
+            "low-confidence retained rows must not be promoted as final summary copy: {lowered}"
+        );
     }
 
     #[test]
@@ -2162,8 +2640,7 @@ mod quality_tests {
             "Research a public policy question and cover cost evidence and safety risks evidence.";
         let cost_query = "public policy question cost evidence";
         let safety_query = "public policy question safety risks evidence";
-        let safety_recovery_query =
-            "public policy question safety risks evidence source-backed evidence";
+        let safety_recovery_query = "safety risks evidence. source-backed evidence";
         let out = with_fixture(
             json!({
                 query: {

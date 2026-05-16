@@ -5,6 +5,8 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
         WebProviderFamily::Fetch => "/web_conduit/fetch_provider_order",
     };
     let configured_provider_input = configured_provider_input_from_policy(policy, family);
+    let explicit_provider_input = explicit_provider_input_from_policy(policy, family);
+    let configured_provider_is_explicit = explicit_provider_input.is_some();
     let configured_provider = configured_provider_input
         .as_ref()
         .and_then(|raw| normalize_provider_token_for_family(raw, family));
@@ -43,15 +45,20 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
     }
     let provider_source = if let Some(configured) = configured_provider.as_ref() {
         if selected_provider.as_ref() == Some(configured) {
-            "configured"
+            if configured_provider_is_explicit {
+                "configured"
+            } else {
+                "policy_order"
+            }
         } else if selected_provider.is_some() {
-            let missing_credential =
-                !provider_has_runtime_credential_with(configured, family, |key| {
-                    std::env::var(key).ok()
-                }) && provider_descriptor(configured, family)
-                    .map(|descriptor| !descriptor.env_keys.is_empty())
-                    .unwrap_or(false);
-            if missing_credential {
+            let missing_explicit_credential =
+                configured_provider_is_explicit
+                    && !provider_has_runtime_credential_with(configured, family, |key| {
+                        std::env::var(key).ok()
+                    }) && provider_descriptor(configured, family)
+                        .map(|descriptor| !descriptor.env_keys.is_empty())
+                        .unwrap_or(false);
+            if missing_explicit_credential {
                 if let Some(selected) = selected_provider.as_ref() {
                     diagnostics.push(runtime_diagnostic(
                         fallback_used_code(family),
@@ -87,12 +94,13 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
     } else {
         "none"
     };
-    let selection_fallback_reason = if configured_provider_input.is_some()
+    let selection_fallback_reason = if explicit_provider_input.is_some()
         && configured_provider.is_none()
         && selected_provider.is_some()
     {
         Some("invalid_configured_provider")
-    } else if configured_provider.is_some()
+    } else if configured_provider_is_explicit
+        && configured_provider.is_some()
         && selected_provider.is_some()
         && selected_provider != configured_provider
     {
@@ -129,6 +137,7 @@ fn runtime_web_family_metadata(root: &Path, policy: &Value, family: WebProviderF
     );
     json!({
         "configured_provider_input": configured_provider_input,
+        "explicit_provider_input": explicit_provider_input,
         "provider_configured": configured_provider,
         "provider_source": provider_source,
         "selected_provider": selected_provider,

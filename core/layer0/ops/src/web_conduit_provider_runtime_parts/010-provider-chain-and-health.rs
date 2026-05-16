@@ -18,6 +18,7 @@ const DEFAULT_SEARCH_PROVIDER_CHAIN: &[&str] = &[
     "exa",
     "brave",
     "serperdev",
+    "google_news_rss",
     "bing_rss",
     "duckduckgo_lite",
     "duckduckgo",
@@ -67,6 +68,7 @@ fn builtin_provider_descriptors(family: WebProviderFamily) -> &'static [WebProvi
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "serperdev", aliases: &["serper", "serperdev"], source_kind: "structured_api", env_keys: &["INFRING_SERPERDEV_API_KEY", "SERPERDEV_API_KEY", "INFRING_SERPER_API_KEY", "SERPER_API_KEY"] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo", aliases: &["duckduckgo", "ddg"], source_kind: "html_search", env_keys: &[] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "duckduckgo_lite", aliases: &["duckduckgo_lite", "ddg_lite", "duckduckgo-lite", "ddg-lite", "lite"], source_kind: "html_search", env_keys: &[] },
+        WebProviderDescriptor { family: WebProviderFamily::Search, provider: "google_news_rss", aliases: &["google_news", "google-news", "google_news_rss", "google-news-rss", "news_rss", "news-rss", "gnews"], source_kind: "news_rss_feed", env_keys: &[] },
         WebProviderDescriptor { family: WebProviderFamily::Search, provider: "bing_rss", aliases: &["bing", "bing_rss"], source_kind: "rss_feed", env_keys: &[] },
     ];
     const FETCH: &[WebProviderDescriptor] = &[WebProviderDescriptor { family: WebProviderFamily::Fetch, provider: "direct_http", aliases: &["direct_http", "direct-http", "curl", "http", "fetch"], source_kind: "http_get", env_keys: &[] }];
@@ -339,6 +341,7 @@ where
     let mut prefix = Vec::<String>::new();
     match hint.as_str() {
         "bing" | "bing_rss" => return vec!["bing_rss".to_string()],
+        "google_news" | "google-news" | "google_news_rss" | "google-news-rss" | "news_rss" | "news-rss" | "gnews" => return vec!["google_news_rss".to_string()],
         "duckduckgo" | "ddg" => prefix.extend(["duckduckgo", "duckduckgo_lite", "bing_rss"].into_iter().map(str::to_string)),
         "tavily" | "tavily_search" | "tvly" => prefix.push("tavily".to_string()),
         "exa" | "exa_search" | "exaai" | "exa_ai" => prefix.push("exa".to_string()),
@@ -348,7 +351,9 @@ where
     }
     let hint_explicit = matches!(
         hint.as_str(),
-        "bing" | "bing_rss" | "duckduckgo" | "ddg" | "tavily" | "tavily_search" | "tvly"
+        "bing" | "bing_rss" | "google_news" | "google-news" | "google_news_rss"
+            | "google-news-rss" | "news_rss" | "news-rss" | "gnews"
+            | "duckduckgo" | "ddg" | "tavily" | "tavily_search" | "tvly"
             | "exa" | "exa_search" | "exaai" | "exa_ai" | "brave" | "brave_search"
             | "brave-search" | "serper" | "serperdev"
     );
@@ -674,6 +679,10 @@ fn provider_error_is_query_quality_failure(error: &str) -> bool {
         "no_usable_summary",
         "no usable summary",
         "search_providers_exhausted",
+        "no_relevant_results",
+        "no relevant results",
+        "low_relevance",
+        "low relevance",
         "no_results",
         "no results",
         "off-topic results",

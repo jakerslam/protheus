@@ -192,6 +192,21 @@ fn is_relevance_stop_token(token: &str) -> bool {
             | "was"
             | "we"
             | "were"
+            | "what"
+            | "which"
+            | "who"
+            | "when"
+            | "where"
+            | "why"
+            | "some"
+            | "give"
+            | "tell"
+            | "show"
+            | "find"
+            | "about"
+            | "compare"
+            | "comparison"
+            | "versus"
             | "with"
             | "you"
             | "your"
@@ -222,6 +237,62 @@ fn tokenize_relevance(raw: &str, cap: usize) -> HashSet<String> {
         }
     }
     out
+}
+
+fn is_weak_relevance_token(token: &str) -> bool {
+    if token.chars().all(|ch| ch.is_ascii_digit()) {
+        return true;
+    }
+    matches!(
+        token,
+        "current"
+            | "latest"
+            | "recent"
+            | "model"
+            | "official"
+            | "primary"
+            | "source"
+            | "sources"
+            | "evidence"
+            | "overview"
+            | "guide"
+            | "general"
+            | "information"
+            | "online"
+            | "web"
+            | "news"
+            | "research"
+            | "report"
+            | "reports"
+            | "science"
+            | "scientific"
+    )
+}
+
+fn query_overlap_profile(query: &str, candidate: &Candidate) -> (usize, usize, usize) {
+    let query_tokens = tokenize_relevance(query, 40);
+    if query_tokens.is_empty() {
+        return (0, 0, 0);
+    }
+    let candidate_tokens = tokenize_relevance(&candidate_relevance_text(candidate), 120);
+    if candidate_tokens.is_empty() {
+        return (0, 0, query_tokens.len());
+    }
+    let overlap = query_tokens
+        .iter()
+        .filter(|token| candidate_tokens.contains(token.as_str()))
+        .count();
+    let distinctive_overlap = query_tokens
+        .iter()
+        .filter(|token| !is_weak_relevance_token(token))
+        .filter(|token| candidate_tokens.contains(token.as_str()))
+        .count();
+    (overlap, distinctive_overlap, query_tokens.len())
+}
+
+fn has_only_weak_query_overlap(query: &str, candidate: &Candidate) -> bool {
+    let (overlap, distinctive_overlap, query_len) = query_overlap_profile(query, candidate);
+    query_len >= 2 && overlap > 0 && distinctive_overlap == 0
 }
 
 fn looks_like_portal_noise_candidate(candidate: &Candidate) -> bool {
@@ -262,7 +333,7 @@ fn candidate_passes_relevance_gate(
     if candidate_tokens.is_empty() {
         return false;
     }
-    let overlap = query_tokens.intersection(&candidate_tokens).count();
+    let (overlap, distinctive_overlap, query_len) = query_overlap_profile(query, candidate);
     if is_framework_catalog_intent(query) && overlap == 0 {
         let combined = candidate_relevance.clone();
         let domain = candidate_domain_hint(candidate);
@@ -276,15 +347,24 @@ fn candidate_passes_relevance_gate(
     if overlap == 0 {
         return false;
     }
-    let overlap_ratio = overlap as f64 / query_tokens.len() as f64;
+    if query_len >= 3 && distinctive_overlap == 0 {
+        return false;
+    }
+    let overlap_ratio = overlap as f64 / query_len as f64;
     if benchmark_intent {
         if overlap < 2 && overlap_ratio < 0.22 && !looks_like_metric_rich_text(&candidate.snippet) {
+            return false;
+        }
+        if query_len >= 3 && overlap < 2 && distinctive_overlap < 1 {
             return false;
         }
         if looks_like_portal_noise_candidate(candidate) && overlap < 3 {
             return false;
         }
         return true;
+    }
+    if query_len >= 3 && overlap < 2 {
+        return false;
     }
     if looks_like_portal_noise_candidate(candidate) && overlap < 2 && overlap_ratio < 0.25 {
         return false;

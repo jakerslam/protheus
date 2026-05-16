@@ -335,6 +335,18 @@
           "adapter_ref": "core/layer0/ops:web_conduit.search.duckduckgo_lite"
         },
         {
+          "provider_id": "google_news_rss",
+          "lane_support": ["provider_retrieval"],
+          "input_schema_ref": "web_research.search_query.v1",
+          "output_schema_ref": "web_research.rss_rows.v1",
+          "capabilities": ["news_rss_search_results", "current_source_discovery", "source_url_rows", "published_date_rows", "source_domain_hints"],
+          "cost_budget": "public_network_search",
+          "failure_modes": ["provider_error", "empty_feed", "low_signal_payload"],
+          "side_effects": "network_read_only",
+          "profile_support": ["default", "worktree"],
+          "adapter_ref": "core/layer0/ops:web_conduit.search.google_news_rss"
+        },
+        {
           "provider_id": "bing_rss",
           "lane_support": ["provider_retrieval"],
           "input_schema_ref": "web_research.search_query.v1",

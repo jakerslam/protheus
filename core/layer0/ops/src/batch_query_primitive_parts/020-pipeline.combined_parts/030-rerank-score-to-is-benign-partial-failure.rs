@@ -64,6 +64,11 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
     } else {
         0.0
     };
+    let weak_overlap_penalty = if has_only_weak_query_overlap(query, candidate) {
+        0.55
+    } else {
+        0.0
+    };
     let mut score = 0.6 * overlap_norm
         + locator_bonus
         + status_bonus
@@ -75,7 +80,8 @@ fn rerank_score(query: &str, candidate: &Candidate) -> f64 {
         - definition_penalty
         - comparison_noise_penalty
         - low_signal_penalty
-        - off_intent_noise_penalty;
+        - off_intent_noise_penalty
+        - weak_overlap_penalty;
     if benchmark_intent && !looks_like_metric_rich_text(&candidate.snippet) {
         score -= 0.12;
     }

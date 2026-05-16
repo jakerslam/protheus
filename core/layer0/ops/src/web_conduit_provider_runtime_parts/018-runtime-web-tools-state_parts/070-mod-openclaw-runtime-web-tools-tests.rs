@@ -217,6 +217,7 @@ mod openclaw_runtime_web_tools_tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({
             "web_conduit": {
+                "search_provider": "serperdev",
                 "search_provider_order": ["serperdev", "duckduckgo"],
                 "fetch_provider_order": ["direct_http"]
             }
@@ -265,6 +266,50 @@ mod openclaw_runtime_web_tools_tests {
                 .pointer("/tool_surface_health/search_status")
                 .and_then(Value::as_str),
             Some("degraded")
+        );
+    }
+
+    #[test]
+    fn runtime_web_tools_snapshot_treats_order_as_chain_not_hard_provider() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "search_provider_order": ["serperdev", "duckduckgo"],
+                "fetch_provider_order": ["direct_http"]
+            }
+        });
+        let metadata = runtime_web_tools_snapshot(tmp.path(), &policy);
+        assert_eq!(
+            metadata
+                .pointer("/search/selected_provider")
+                .and_then(Value::as_str),
+            Some("duckduckgo")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/search/provider_source")
+                .and_then(Value::as_str),
+            Some("auto-detect")
+        );
+        assert!(!metadata
+            .pointer("/search/diagnostics")
+            .and_then(Value::as_array)
+            .map(|rows| rows
+                .iter()
+                .any(|row| row.get("code").and_then(Value::as_str)
+                    == Some("WEB_SEARCH_KEY_UNRESOLVED_FALLBACK_USED")))
+            .unwrap_or(false));
+        assert_eq!(
+            metadata
+                .pointer("/search/tool_surface_health/status")
+                .and_then(Value::as_str),
+            Some("ready")
+        );
+        assert_eq!(
+            metadata
+                .pointer("/search/tool_surface_health/blocking_reason")
+                .and_then(Value::as_str),
+            Some("none")
         );
     }
 }

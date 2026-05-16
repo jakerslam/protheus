@@ -55,7 +55,7 @@ fn usage() {
     println!("  infring-ops web-conduit status");
     println!("  infring-ops web-conduit receipts [--limit=<n>]");
     println!(
-        "  infring-ops web-conduit setup [--provider=<tavily|exa|brave|serperdev|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
+        "  infring-ops web-conduit setup [--provider=<tavily|exa|brave|serperdev|google-news|duckduckgo|duckduckgo-lite|bing>] [--api-key=<key>] [--api-key-env=<ENV>] [--apply=1] [--summary-only=1]"
     );
     println!(
         "  infring-ops web-conduit migrate-legacy-config [--source-path=<path>] [--apply=1] [--summary-only=1]"
@@ -108,7 +108,7 @@ fn usage() {
     );
     println!("  infring-ops web-conduit file-context --content='<text>' [--content-base64=<base64>] [--file-name=<name>] [--mime-type=<type>] [--fallback-name=<name>] [--compact=1]");
     println!(
-        "  infring-ops web-conduit search --query=<terms> [--provider=auto|serper|duckduckgo|duckduckgo-lite|bing] [--top-k=8|--count=8] [--timeout-ms=<n>] [--cache-ttl-minutes=<n>] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--country=<code>] [--language=<code>] [--freshness=<token>] [--date-after=<YYYY-MM-DD>] [--date-before=<YYYY-MM-DD>] [--human-approved=1] [--summary-only=1]"
+        "  infring-ops web-conduit search --query=<terms> [--provider=auto|serper|google-news|duckduckgo|duckduckgo-lite|bing] [--top-k=8|--count=8] [--timeout-ms=<n>] [--cache-ttl-minutes=<n>] [--allowed-domains=docs.rs,github.com] [--exact-domain-only=1] [--country=<code>] [--language=<code>] [--freshness=<token>] [--date-after=<YYYY-MM-DD>] [--date-before=<YYYY-MM-DD>] [--human-approved=1] [--summary-only=1]"
     );
     println!("  infring-ops web-conduit providers");
     println!("  infring-ops browse fetch --url=<https://...>");
@@ -241,7 +241,7 @@ fn default_policy() -> Value {
             "search_default_count": 8,
             "search_max_count": 12,
             "search_cache_ttl_minutes": 8,
-            "search_provider_order": ["tavily", "exa", "brave", "serperdev", "bing_rss", "duckduckgo_lite", "duckduckgo"],
+            "search_provider_order": ["tavily", "exa", "brave", "serperdev", "google_news_rss", "bing_rss", "duckduckgo_lite", "duckduckgo"],
             "fetch_provider_order": ["direct_http"],
                 "browser_materialization": {
                     "enabled": false,
@@ -1037,10 +1037,88 @@ fn receipt_count(root: &Path) -> usize {
         .unwrap_or(0)
 }
 
+fn receipt_counts_against_rate_limit(row: &Value) -> bool {
+    let policy_decision = clean_text(
+        row.get("policy_decision")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        40,
+    )
+    .to_ascii_lowercase();
+    let error = clean_text(
+        row.get("error").and_then(Value::as_str).unwrap_or(""),
+        80,
+    )
+    .to_ascii_lowercase();
+    let status_code = row
+        .get("status_code")
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let response_hash = clean_text(
+        row.get("response_hash")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        96,
+    );
+
+    if error == "policy_denied" {
+        return false;
+    }
+    if status_code > 0 || !response_hash.is_empty() {
+        return true;
+    }
+    policy_decision == "allow"
+}
+
+fn receipt_rate_limit_lane(row: &Value) -> &'static str {
+    let policy_reason = clean_text(
+        row.get("policy_reason")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        120,
+    )
+    .to_ascii_lowercase();
+    if policy_reason == "search_provider_chain" {
+        return "search";
+    }
+
+    let requested_url = clean_text(
+        row.get("requested_url")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        2200,
+    )
+    .to_ascii_lowercase();
+    let domain = extract_domain(&requested_url);
+    let is_search_provider_url = matches!(
+        domain.as_str(),
+        "google.serper.dev" | "api.tavily.com" | "api.exa.ai" | "api.search.brave.com"
+    ) || domain.ends_with("duckduckgo.com")
+        || ((domain == "www.bing.com" || domain == "bing.com")
+            && requested_url.contains("/search"))
+        || (domain == "news.google.com" && requested_url.contains("/rss/search"));
+
+    if is_search_provider_url {
+        "search"
+    } else {
+        "fetch"
+    }
+}
+
 fn requests_last_minute(root: &Path) -> u64 {
+    requests_last_minute_for_lane(root, "all")
+}
+
+fn requests_last_minute_for_lane(root: &Path, lane: &str) -> u64 {
     let now = Utc::now();
     let mut count = 0u64;
     for row in read_recent_receipts(root, 400) {
+        if !receipt_counts_against_rate_limit(&row) {
+            continue;
+        }
+        if lane != "all" && receipt_rate_limit_lane(&row) != lane {
+            continue;
+        }
         let ts = row
             .get("timestamp")
             .and_then(Value::as_str)

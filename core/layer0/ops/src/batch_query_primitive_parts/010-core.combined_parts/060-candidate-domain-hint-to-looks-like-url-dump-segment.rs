@@ -1,5 +1,8 @@
 
 fn candidate_domain_hint(candidate: &Candidate) -> String {
+    if let Some(domain) = provider_source_hint_domain(candidate) {
+        return domain;
+    }
     if let Some(domain) = extract_domains_from_text(&candidate.locator, 1)
         .into_iter()
         .next()
@@ -13,6 +16,32 @@ fn candidate_domain_hint(candidate: &Candidate) -> String {
         return domain;
     }
     "source".to_string()
+}
+
+fn provider_source_hint_domain(candidate: &Candidate) -> Option<String> {
+    static SOURCE_PAREN_RE: OnceLock<Regex> = OnceLock::new();
+    static SOURCE_DOMAIN_RE: OnceLock<Regex> = OnceLock::new();
+    let source_paren_re = SOURCE_PAREN_RE.get_or_init(|| {
+        Regex::new(r"(?i)\bsource\s*:\s*[^\n]{0,180}?\(([a-z0-9][a-z0-9.-]+\.[a-z]{2,})\)")
+            .expect("source paren domain regex")
+    });
+    let source_domain_re = SOURCE_DOMAIN_RE.get_or_init(|| {
+        Regex::new(r"(?i)\bsource\s+domain\s*:\s*([a-z0-9][a-z0-9.-]+\.[a-z]{2,})")
+            .expect("source domain regex")
+    });
+    for haystack in [&candidate.snippet, &candidate.title] {
+        for re in [source_paren_re, source_domain_re] {
+            let Some(captures) = re.captures(haystack) else {
+                continue;
+            };
+            let domain = clean_text(captures.get(1).map(|m| m.as_str()).unwrap_or(""), 120)
+                .to_ascii_lowercase();
+            if !domain.is_empty() && !is_search_engine_domain(&domain) {
+                return Some(domain);
+            }
+        }
+    }
+    None
 }
 
 fn skip_duckduckgo_fallback_for_error(primary_err: &str) -> bool {

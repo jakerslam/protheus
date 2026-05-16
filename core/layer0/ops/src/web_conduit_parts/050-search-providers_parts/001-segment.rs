@@ -44,7 +44,7 @@ fn api_search_structured_provider(
             "requested_url": requested_url,
             "domain": extract_domain(&requested_url),
             "human_approved": human_approved,
-            "requests_last_minute": requests_last_minute(root)
+            "requests_last_minute": requests_last_minute_for_lane(root, "search")
         }),
         &policy,
     );
@@ -313,7 +313,7 @@ fn api_search_serper(
             "requested_url": requested_url,
             "domain": extract_domain(&requested_url),
             "human_approved": human_approved,
-            "requests_last_minute": requests_last_minute(root)
+            "requests_last_minute": requests_last_minute_for_lane(root, "search")
         }),
         &policy,
     );

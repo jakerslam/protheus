@@ -83,6 +83,103 @@ mod web_quality_diagnostics_tests {
     }
 
     #[test]
+    fn source_class_path_rules_do_not_match_url_host_text() {
+        let policy = json!({
+            "batch_query": {
+                "evidence_pack": {
+                    "source_class_rules": [
+                        {"class": "announcement_or_news", "path_contains": ["/news"]}
+                    ]
+                }
+            }
+        });
+        let rss_wrapper = candidate(
+            "https://news.google.com/rss/articles/example",
+            "A search result surfaced through a news aggregator wrapper.",
+        );
+        let news_article = candidate(
+            "https://example.org/news/article",
+            "A direct article URL whose path really contains news.",
+        );
+
+        assert_eq!(
+            evidence_pack_source_class(&policy, &rss_wrapper),
+            "general_web"
+        );
+        assert_eq!(
+            evidence_pack_source_class(&policy, &news_article),
+            "announcement_or_news"
+        );
+    }
+
+    #[test]
+    fn source_class_rules_match_title_and_snippet_hints() {
+        let policy = json!({
+            "batch_query": {
+                "evidence_pack": {
+                    "source_class_rules": [
+                        {"class": "documentation_or_reference", "title_contains": ["how to", "tutorial"]},
+                        {"class": "independent_analysis", "title_contains": ["best ", " vs "]},
+                        {"class": "news_or_current", "snippet_contains": ["announced", "release"]}
+                    ]
+                }
+            }
+        });
+        let guide = Candidate {
+            source_kind: "web".to_string(),
+            title: "How to build a retrieval agent".to_string(),
+            locator: "https://news.google.com/rss/articles/example".to_string(),
+            snippet: "Search result surfaced through an aggregator wrapper.".to_string(),
+            excerpt_hash: "guide".to_string(),
+            timestamp: None,
+            permissions: Some("public_web".to_string()),
+            status_code: 200,
+        };
+        let analysis = Candidate {
+            source_kind: "web".to_string(),
+            title: "Best retrieval tools for AI agents".to_string(),
+            locator: "https://example.org/articles/result".to_string(),
+            snippet: "A comparison-style article.".to_string(),
+            excerpt_hash: "analysis".to_string(),
+            timestamp: None,
+            permissions: Some("public_web".to_string()),
+            status_code: 200,
+        };
+        let announcement = Candidate {
+            source_kind: "web".to_string(),
+            title: "Provider update".to_string(),
+            locator: "https://example.org/articles/result".to_string(),
+            snippet: "The provider announced a new release today.".to_string(),
+            excerpt_hash: "announcement".to_string(),
+            timestamp: None,
+            permissions: Some("public_web".to_string()),
+            status_code: 200,
+        };
+
+        assert_eq!(
+            evidence_pack_source_class(&policy, &guide),
+            "documentation_or_reference"
+        );
+        assert_eq!(
+            evidence_pack_source_class(&policy, &analysis),
+            "independent_analysis"
+        );
+        assert_eq!(
+            evidence_pack_source_class(&policy, &announcement),
+            "news_or_current"
+        );
+    }
+
+    #[test]
+    fn provider_source_hint_domain_allows_source_name_parentheses() {
+        let row = candidate(
+            "https://news.google.com/rss/articles/example",
+            "Result text. Source: Amazon Web Services (AWS) (aws.amazon.com).",
+        );
+        assert_eq!(candidate_domain_hint(&row), "aws.amazon.com");
+    }
+
+    #[test]
     fn anti_bot_failures_emit_structured_quality_retry() {
         let query = "latest technology news today";
         let out = run_query_with_fixture(
@@ -675,6 +772,376 @@ mod web_quality_diagnostics_tests {
             report.pointer("/coverage/bucket_status").and_then(Value::as_str),
             Some("covered")
         );
+    }
+
+    #[test]
+    fn usable_evidence_does_not_misclassify_missing_premium_provider_as_starvation() {
+        let ranked = vec![
+            (
+                candidate(
+                    "https://news.google.com/rss/articles/example-a",
+                    "Published: Mon, 20 Apr 2026 07:00:00 GMT. Source: Nature (www.nature.com). New tools drive scientific discovery with evidence from major breakthroughs, publication metadata, institution context, and direct research findings suitable for bounded synthesis.",
+                ),
+                0.88,
+            ),
+            (
+                candidate(
+                    "https://news.google.com/rss/articles/example-b",
+                    "Published: Wed, 01 Apr 2026 07:00:00 GMT. Source: Phys.org (phys.org). A large-scale analysis identifies disruptive innovations in research history, describes the method used to detect breakthroughs, and gives enough context for evidence-backed synthesis.",
+                ),
+                0.82,
+            ),
+        ];
+        let report = web_tool_quality_report(
+            "scientific breakthroughs 2026",
+            "partial",
+            8,
+            2,
+            &["serperdev:search_providers_exhausted".to_string()],
+            &["serperdev:search_providers_exhausted".to_string()],
+            &ranked,
+        );
+        let flags = report
+            .get("flags")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            !flags.iter().any(|flag| flag == "provider_starved"),
+            "{flags:?}"
+        );
+        assert!(
+            flags
+                .iter()
+                .any(|flag| flag == "credentialed_provider_unavailable_nonblocking"),
+            "{flags:?}"
+        );
+        assert_eq!(
+            report.pointer("/retry/reason").and_then(Value::as_str),
+            Some("none")
+        );
+    }
+
+    #[test]
+    fn tool_recovery_queries_do_not_become_required_coverage_facets() {
+        let budget = aperture_budget("medium").expect("medium budget");
+        let facets = infer_research_facets(
+            "scientific breakthroughs 2026",
+            &[
+                "scientific breakthroughs 2026".to_string(),
+                "scientific breakthroughs 2026 primary evidence".to_string(),
+                "scientific breakthroughs 2026 official sources".to_string(),
+                "scientific breakthroughs 2026 technical reports".to_string(),
+            ],
+            &BatchQueryKeywordPack {
+                keywords: vec![
+                    "scientific".to_string(),
+                    "breakthroughs".to_string(),
+                    "2026".to_string(),
+                ],
+                metadata_authority: "tool_structured_from_user_query_terms".to_string(),
+                ..BatchQueryKeywordPack::default()
+            },
+            &json!({"batch_query":{"coverage_aware_evidence":{"enabled":true}}}),
+            budget,
+        );
+        assert_eq!(facets.len(), 1);
+        assert_eq!(facets[0].requested_text, "scientific breakthroughs 2026");
+    }
+
+    #[test]
+    fn generated_query_lanes_do_not_expand_declared_coverage_obligations() {
+        let budget = aperture_budget("medium").expect("medium budget");
+        let facets = infer_research_facets(
+            "Compare the current OpenAI Agents SDK with LangChain/LangGraph for production customer-support agents. Focus on tool orchestration, tracing, safety controls, and vendor lock-in.",
+            &[
+                "OpenAI Agents SDK tool orchestration".to_string(),
+                "LangChain tool orchestration".to_string(),
+                "LangGraph tool orchestration".to_string(),
+                "OpenAI Agents SDK tracing".to_string(),
+                "LangChain tracing".to_string(),
+                "LangGraph tracing".to_string(),
+                "OpenAI Agents SDK safety controls".to_string(),
+                "LangChain safety controls".to_string(),
+                "LangGraph safety controls".to_string(),
+                "OpenAI Agents SDK vendor lock-in".to_string(),
+                "LangChain vendor lock-in".to_string(),
+            ],
+            &BatchQueryKeywordPack {
+                keywords: vec![
+                    "production".to_string(),
+                    "customer-support".to_string(),
+                    "agents".to_string(),
+                ],
+                entities: vec![
+                    "OpenAI Agents SDK".to_string(),
+                    "LangChain".to_string(),
+                    "LangGraph".to_string(),
+                ],
+                facets: vec![
+                    "tool orchestration".to_string(),
+                    "tracing".to_string(),
+                    "safety controls".to_string(),
+                    "vendor lock-in".to_string(),
+                ],
+                metadata_authority: "tool_structured_from_user_query_terms".to_string(),
+                ..BatchQueryKeywordPack::default()
+            },
+            &json!({"batch_query":{"coverage_aware_evidence":{"enabled":true,"max_facets":8}}}),
+            budget,
+        );
+        let requested = facets
+            .iter()
+            .map(|facet| facet.requested_text.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(facets.len(), 7, "{requested:?}");
+        assert_eq!(
+            facets.iter().filter(|facet| facet.kind == "entity").count(),
+            3
+        );
+        assert_eq!(
+            facets.iter().filter(|facet| facet.kind == "facet").count(),
+            4
+        );
+        for expected in [
+            "OpenAI Agents SDK",
+            "LangChain",
+            "LangGraph",
+            "tool orchestration",
+            "tracing",
+            "safety controls",
+            "vendor lock-in",
+        ] {
+            assert!(requested.contains(&expected), "{requested:?}");
+        }
+        assert!(
+            !requested
+                .iter()
+                .any(|text| text.contains("OpenAI Agents SDK tool orchestration")),
+            "{requested:?}"
+        );
+    }
+
+    #[test]
+    fn coverage_gap_recovery_spreads_budget_across_missing_facets() {
+        let budget = aperture_budget("medium").expect("medium budget");
+        let policy = json!({
+            "batch_query": {
+                "coverage_aware_evidence": {
+                    "enabled": true,
+                    "max_facets": 8
+                },
+                "coverage_gap_recovery": {
+                    "enabled": true,
+                    "max_queries": 4,
+                    "min_usable_evidence": 3,
+                    "min_covered_facets": 3,
+                    "min_covered_facet_ratio": 0.75,
+                    "templates": [
+                        "{facet} source-backed evidence",
+                        "{facet} primary or official source",
+                        "{facet} independent analysis evidence",
+                        "{facet} examples reports data"
+                    ]
+                }
+            }
+        });
+        let metadata = BatchQueryKeywordPack {
+            facets: vec![
+                "LangChain".to_string(),
+                "tool orchestration".to_string(),
+                "tracing".to_string(),
+                "safety controls".to_string(),
+            ],
+            metadata_authority: "tool_structured_from_user_query_terms".to_string(),
+            ..BatchQueryKeywordPack::default()
+        };
+        let facets = infer_research_facets(
+            "Compare frameworks for production agents.",
+            &[],
+            &metadata,
+            &policy,
+            budget,
+        );
+        let queries = coverage_gap_recovery_queries(
+            &policy,
+            "Compare frameworks for production agents.",
+            &[],
+            &facets,
+            &[candidate(
+                "https://example.org/noise",
+                "Garden irrigation tips and unrelated seasonal watering advice.",
+            )],
+            budget,
+        );
+        assert_eq!(
+            queries,
+            vec![
+                "LangChain source-backed evidence",
+                "tool orchestration source-backed evidence",
+                "tracing source-backed evidence",
+                "safety controls source-backed evidence",
+            ]
+        );
+    }
+
+    #[test]
+    fn coverage_gap_recovery_uses_compact_entity_context_when_declared() {
+        let budget = aperture_budget("medium").expect("medium budget");
+        let policy = json!({
+            "batch_query": {
+                "coverage_aware_evidence": {
+                    "enabled": true,
+                    "max_facets": 8
+                },
+                "coverage_gap_recovery": {
+                    "enabled": true,
+                    "max_queries": 4,
+                    "min_usable_evidence": 3,
+                    "min_covered_facets": 3,
+                    "min_covered_facet_ratio": 1.0,
+                    "templates": [
+                        "{entities} {facet} official documentation",
+                        "{query} {facet} source-backed evidence"
+                    ]
+                }
+            }
+        });
+        let metadata = BatchQueryKeywordPack {
+            entities: vec![
+                "OpenAI Agents SDK".to_string(),
+                "LangChain".to_string(),
+                "LangGraph".to_string(),
+            ],
+            facets: vec![
+                "tool orchestration".to_string(),
+                "safety controls".to_string(),
+            ],
+            metadata_authority: "tool_structured_from_user_query_terms".to_string(),
+            ..BatchQueryKeywordPack::default()
+        };
+        let facets = infer_research_facets(
+            "Compare frameworks for production customer support agents.",
+            &[],
+            &metadata,
+            &policy,
+            budget,
+        );
+        let queries = coverage_gap_recovery_queries(
+            &policy,
+            "Compare frameworks for production customer support agents.",
+            &[],
+            &facets,
+            &[
+                candidate(
+                    "https://example.org/openai-agents",
+                    "OpenAI Agents SDK release notes for production agents.",
+                ),
+                candidate(
+                    "https://example.org/langchain",
+                    "LangChain platform documentation for production agents.",
+                ),
+                candidate(
+                    "https://example.org/langgraph",
+                    "LangGraph runtime documentation for production agents.",
+                ),
+            ],
+            budget,
+        );
+
+        assert_eq!(
+            queries.first().map(String::as_str),
+            Some("\"OpenAI Agents SDK\" LangChain LangGraph tool orchestration official documentation"),
+            "{queries:?}"
+        );
+        assert!(
+            queries
+                .iter()
+                .any(|query| query.contains("safety controls official documentation")),
+            "{queries:?}"
+        );
+        assert!(
+            queries
+                .iter()
+                .take(2)
+                .all(|query| !query.contains("Compare frameworks for production customer support agents")),
+            "{queries:?}"
+        );
+    }
+
+    #[test]
+    fn two_word_non_entity_facets_require_more_than_one_generic_term() {
+        let mut facets = vec![
+            research_facet_from_metadata_text("Exa", 0, "entity").expect("entity facet"),
+            research_facet_from_metadata_text("evidence gathering", 1, "facet")
+                .expect("coverage facet"),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let evidence_candidate = candidate(
+            "https://example.org/evidence",
+            "This article mentions evidence but does not discuss collection workflows.",
+        );
+        let exa_candidate = candidate("https://exa.ai/docs", "Exa search documentation.");
+
+        assert!(candidate_matches_facet(&facets[0], &exa_candidate, 2));
+        assert!(
+            !candidate_matches_facet(&facets[1], &evidence_candidate, 2),
+            "coverage facets should not be satisfied by one generic token"
+        );
+    }
+
+    #[test]
+    fn candidate_truncation_preserves_late_coverage_rows() {
+        let mut facets = vec![
+            research_facet_from_metadata_text("Firecrawl", 0, "entity").expect("firecrawl"),
+            research_facet_from_metadata_text("Tavily", 1, "entity").expect("tavily"),
+            research_facet_from_metadata_text("Exa", 2, "entity").expect("exa"),
+            research_facet_from_metadata_text("evidence gathering", 3, "facet")
+                .expect("coverage facet"),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let mut candidates = (0..10)
+            .map(|index| {
+                candidate(
+                    &format!("https://example.org/noise-{index}"),
+                    "Generic search article with no requested product coverage.",
+                )
+            })
+            .collect::<Vec<_>>();
+        candidates.push(candidate(
+            "https://docs.firecrawl.dev",
+            "Firecrawl crawler documentation for web extraction.",
+        ));
+        candidates.push(candidate(
+            "https://docs.tavily.com",
+            "Tavily search API documentation for agent retrieval.",
+        ));
+        candidates.push(candidate(
+            "https://docs.exa.ai",
+            "Exa neural search documentation for agent retrieval.",
+        ));
+        candidates.push(candidate(
+            "https://example.org/evidence-gathering",
+            "Evidence gathering workflows for research agents.",
+        ));
+
+        truncate_candidates_preserving_facet_coverage(
+            "Firecrawl Tavily Exa evidence gathering",
+            &facets,
+            &mut candidates,
+            6,
+            2,
+        );
+        let joined = candidates
+            .iter()
+            .map(|row| format!("{} {}", row.locator, row.snippet))
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_ascii_lowercase();
+
+        for expected in ["firecrawl", "tavily", "exa", "evidence gathering"] {
+            assert!(joined.contains(expected), "{joined}");
+        }
     }
 
     #[test]

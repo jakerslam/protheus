@@ -160,15 +160,23 @@ fn default_policy() -> Value {
                         "class": "scholarly_or_research",
                         "host_suffixes": [".edu"],
                         "host_contains": ["arxiv.", "doi."],
-                        "path_contains": ["/paper", "/publication", "/research", "/journal"]
+                        "path_contains": ["/paper", "/publication", "/journal"],
+                        "title_contains": ["paper", "study", "journal", "arxiv"],
+                        "snippet_contains": ["peer-reviewed", "preprint", "published in"]
                     },
                     {
                         "class": "documentation_or_reference",
-                        "path_contains": ["/docs", "/documentation", "/reference", "/manual", "/guide"]
+                        "path_contains": ["/docs", "/documentation", "/reference", "/manual", "/guide"],
+                        "title_contains": ["documentation", "reference", "manual", "guide", "tutorial", "how to", "build ", "building "]
                     },
                     {
-                        "class": "announcement_or_news",
-                        "path_contains": ["/news", "/press", "/release", "/releases", "/blog", "/announcements"]
+                        "class": "news_or_current",
+                        "path_contains": ["/news", "/press", "/release", "/releases", "/blog", "/announcements"],
+                        "title_contains": ["announces", "announced", "introducing", "launches", "launched", "raises", "released", "release"]
+                    },
+                    {
+                        "class": "independent_analysis",
+                        "title_contains": ["analysis", "review", "comparison", " vs ", "best ", "ranked", "benchmark", "benchmarks", "risk", "risks", "tradeoff", "tradeoffs"]
                     },
                     {
                         "class": "repository_or_dataset",
@@ -193,12 +201,13 @@ fn default_policy() -> Value {
                 "max_queries": 4,
                 "min_usable_evidence": 3,
                 "min_covered_facets": 3,
-                "min_covered_facet_ratio": 0.75,
+                "min_covered_facet_ratio": 1.0,
                 "templates": [
-                    "{facet} source-backed evidence",
-                    "{facet} primary or official source",
-                    "{facet} independent analysis evidence",
-                    "{facet} examples reports data"
+                    "{entities} {facet} official documentation",
+                    "{entities} {facet} primary source evidence",
+                    "{entities} {facet} independent analysis evidence",
+                    "{entities} {facet} examples reports data",
+                    "{query} {facet} source-backed evidence"
                 ]
             },
             "quality_gate": {

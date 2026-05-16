@@ -425,7 +425,7 @@
             "requested_url": resolved_url,
             "domain": extract_domain(&resolved_url),
             "human_approved": effective_human_approved,
-            "requests_last_minute": requests_last_minute(root)
+            "requests_last_minute": requests_last_minute_for_lane(root, "fetch")
         }),
         &policy,
     );

@@ -344,6 +344,38 @@ mod tests {
     }
 
     #[test]
+    fn circuit_breaker_ignores_no_relevant_results_failures() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let policy = json!({
+            "web_conduit": {
+                "provider_circuit_breaker": {
+                    "enabled": true,
+                    "failure_threshold": 2,
+                    "open_for_secs": 120
+                }
+            }
+        });
+        record_provider_attempt(tmp.path(), "google_news_rss", false, "no_relevant_results", &policy);
+        record_provider_attempt(tmp.path(), "google_news_rss", false, "low_relevance", &policy);
+        record_provider_attempt(tmp.path(), "google_news_rss", false, "no relevant results", &policy);
+        assert!(provider_circuit_open_until(tmp.path(), "google_news_rss", &policy).is_none());
+        let rows = provider_health_snapshot(tmp.path(), &[String::from("google_news_rss")])
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let row = rows.first().cloned().unwrap_or_else(|| json!({}));
+        assert_eq!(row.get("circuit_open").and_then(Value::as_bool), Some(false));
+        assert_eq!(row.get("consecutive_failures").and_then(Value::as_u64), Some(0));
+        let state = load_provider_health(tmp.path());
+        assert_eq!(
+            state
+                .pointer("/providers/google_news_rss/last_failure_class")
+                .and_then(Value::as_str),
+            Some("query_quality")
+        );
+    }
+
+    #[test]
     fn circuit_breaker_ignores_missing_credential_failures() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let policy = json!({

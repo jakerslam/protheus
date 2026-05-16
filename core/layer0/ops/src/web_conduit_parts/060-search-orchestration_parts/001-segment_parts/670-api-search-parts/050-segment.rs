@@ -1,11 +1,41 @@
 // Layer ownership: core/layer0/ops::web-search-orchestration (authoritative)
+    let provider_error_is_configuration_terminal = |row: &Value| {
+        let error = row
+            .get("error")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        error.contains("api_key_missing")
+            || error.contains("api key missing")
+            || error.contains("credential_missing")
+            || error.contains("credential_unresolved")
+            || error.contains("credential unresolved")
+            || error.contains("key_unresolved")
+            || error.contains("missing credential")
+            || error.contains("missing api key")
+    };
+    let provider_error_is_pure_query_mismatch = |row: &Value| {
+        row.get("query_mismatch")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            && !provider_error_is_configuration_terminal(row)
+            && !row
+                .get("challenge")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            && !row
+                .get("low_signal")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+    };
+    let provider_errors_have_configuration_terminal = provider_errors
+        .iter()
+        .any(|row| provider_error_is_configuration_terminal(row));
     if !out.get("ok").and_then(Value::as_bool).unwrap_or(false) {
         let query_mismatch_only_failure = !provider_errors.is_empty()
-            && provider_errors.iter().all(|row| {
-                row.get("query_mismatch")
-                    .and_then(Value::as_bool)
-                    .unwrap_or(false)
-        });
+            && provider_errors
+                .iter()
+                .all(|row| provider_error_is_pure_query_mismatch(row));
         if let Some(obj) = out.as_object_mut() {
             let current_error = obj.get("error").and_then(Value::as_str).unwrap_or("");
             let current_error_is_configuration_terminal = {
@@ -54,7 +84,19 @@
             }
             let current_error = obj.get("error").and_then(Value::as_str).unwrap_or("");
             if current_error.is_empty() || current_error == "search_providers_exhausted" {
-                if query_mismatch_only_failure {
+                if provider_errors_have_configuration_terminal {
+                    obj.insert(
+                        "error".to_string(),
+                        Value::String("search_providers_exhausted".to_string()),
+                    );
+                    obj.insert(
+                        "summary".to_string(),
+                        Value::String(
+                            "Search provider chain exhausted: credentialed providers were not configured, and available fallback providers did not return usable evidence."
+                                .to_string(),
+                        ),
+                    );
+                } else if query_mismatch_only_failure {
                     obj.insert(
                         "error".to_string(),
                         Value::String("query_result_mismatch".to_string()),
@@ -148,11 +190,9 @@
         .map(|ok| !ok)
         .unwrap_or(true)
         && !provider_errors.is_empty()
-        && provider_errors.iter().all(|row| {
-            row.get("query_mismatch")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-        });
+        && provider_errors
+            .iter()
+            .all(|row| provider_error_is_pure_query_mismatch(row));
     let challenge_like_failure = search_failure_is_challenge_like(&out, provider_errors.as_slice());
     if let Some(obj) = out.as_object_mut() {
         obj.insert(

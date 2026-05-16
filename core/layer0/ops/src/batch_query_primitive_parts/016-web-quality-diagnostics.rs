@@ -117,6 +117,9 @@ fn candidate_quality_flags(query: &str, candidate: &Candidate, score: f64) -> Ve
     if query_overlap_terms(query, candidate) < 2 {
         flags.push("thin_query_overlap".to_string());
     }
+    if has_only_weak_query_overlap(query, candidate) {
+        flags.push("weak_query_overlap_only".to_string());
+    }
     if contains_web_junk_marker(&snippet) || contains_web_junk_marker(&candidate.title) {
         flags.push("junk_marker".to_string());
     }
@@ -290,7 +293,7 @@ fn metadata_coverage_facet_texts(query_metadata: &BatchQueryKeywordPack) -> Vec<
 
 fn infer_research_facets(
     query: &str,
-    query_plan: &[String],
+    _query_plan: &[String],
     query_metadata: &BatchQueryKeywordPack,
     policy: &Value,
     budget: ApertureBudget,
@@ -317,16 +320,16 @@ fn infer_research_facets(
         }
     }
 
+    let metadata_declares_coverage =
+        !query_metadata.entities.is_empty() || !query_metadata.facets.is_empty();
+    if metadata_declares_coverage && !facets.is_empty() {
+        assign_distinctive_facet_terms(&mut facets);
+        return facets;
+    }
     let mut texts = Vec::<String>::new();
     let base = clean_text(query, 600);
     if !base.is_empty() {
         texts.push(base.clone());
-    }
-    for item in query_plan {
-        let item = clean_text(item, 600);
-        if !item.is_empty() {
-            texts.push(item);
-        }
     }
     if texts.len() <= 1 {
         texts.extend(inferred_facet_texts_from_query(&base));
@@ -386,7 +389,7 @@ fn candidate_matches_facet(facet: &ResearchFacet, candidate: &Candidate, min_ter
         }
     }
     let required = min_terms.min(facet.terms.len()).max(1);
-    overlap >= required || (facet.terms.len() <= 2 && overlap >= 1)
+    overlap >= required || (facet.kind == "entity" && facet.terms.len() <= 2 && overlap >= 1)
 }
 
 fn coverage_aware_score(
@@ -458,6 +461,41 @@ fn select_facet_covered_ranked_candidates(
         }
     }
     selected
+}
+
+fn truncate_candidates_preserving_facet_coverage(
+    query: &str,
+    facets: &[ResearchFacet],
+    candidates: &mut Vec<Candidate>,
+    max_candidates: usize,
+    min_terms: usize,
+) {
+    if candidates.len() <= max_candidates {
+        return;
+    }
+    if facets.is_empty() {
+        candidates.truncate(max_candidates);
+        return;
+    }
+    let ranked = candidates
+        .iter()
+        .map(|candidate| {
+            (
+                candidate.clone(),
+                coverage_aware_score(query, facets, candidate, min_terms),
+            )
+        })
+        .collect::<Vec<_>>();
+    let selected =
+        select_facet_covered_ranked_candidates(ranked, facets, max_candidates, min_terms);
+    if selected.is_empty() {
+        candidates.truncate(max_candidates);
+    } else {
+        *candidates = selected
+            .into_iter()
+            .map(|(candidate, _)| candidate)
+            .collect::<Vec<_>>();
+    }
 }
 
 fn candidate_coverage_facets(
@@ -602,14 +640,46 @@ fn expand_coverage_gap_recovery_template(
     template: &str,
     query: &str,
     facet: &str,
+    entities: &str,
 ) -> Option<String> {
-    let expanded = template.replace("{query}", query).replace("{facet}", facet);
+    let expanded = template
+        .replace("{query}", query)
+        .replace("{facet}", facet)
+        .replace("{entities}", entities)
+        .replace("{subjects}", entities);
     let cleaned = clean_text(&expanded, 600);
     if cleaned.is_empty() {
         None
     } else {
         Some(cleaned)
     }
+}
+
+fn quote_recovery_subject(raw: &str) -> Option<String> {
+    let cleaned = clean_text(raw, 160).replace('"', "");
+    if cleaned.is_empty() {
+        return None;
+    }
+    if cleaned.split_whitespace().count() > 1 {
+        Some(format!("\"{cleaned}\""))
+    } else {
+        Some(cleaned)
+    }
+}
+
+fn compact_recovery_entities(facets: &[ResearchFacet], missing_facet: &ResearchFacet) -> String {
+    if missing_facet.kind == "entity" {
+        return quote_recovery_subject(&missing_facet.requested_text).unwrap_or_default();
+    }
+    let mut seen = HashSet::<String>::new();
+    let entities = facets
+        .iter()
+        .filter(|facet| facet.kind == "entity")
+        .filter_map(|facet| quote_recovery_subject(&facet.requested_text))
+        .filter(|entity| seen.insert(entity.to_ascii_lowercase()))
+        .take(3)
+        .collect::<Vec<_>>();
+    clean_text(&entities.join(" "), 360)
 }
 
 fn coverage_gap_recovery_queries(
@@ -634,15 +704,20 @@ fn coverage_gap_recovery_queries(
         .map(|row| clean_text(row, 600).to_ascii_lowercase())
         .collect::<HashSet<_>>();
     let mut out = Vec::<String>::new();
-    for facet in missing {
-        for template in coverage_gap_recovery_templates(policy) {
+    let templates = coverage_gap_recovery_templates(policy);
+    for template in templates {
+        for facet in &missing {
             let template = if template.contains("{facet}") {
-                template
+                template.clone()
             } else {
                 template.replace("{query}", "{facet}")
             };
+            let entities = compact_recovery_entities(facets, facet);
+            if template.contains("{entities}") && entities.is_empty() {
+                continue;
+            }
             if let Some(candidate) =
-                expand_coverage_gap_recovery_template(&template, query, &facet.requested_text)
+                expand_coverage_gap_recovery_template(&template, query, &facet.requested_text, &entities)
             {
                 if seen.insert(candidate.to_ascii_lowercase()) {
                     out.push(candidate);
@@ -698,10 +773,26 @@ fn policy_string_list(policy: &Value, pointer: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+fn locator_path_hint(raw: &str) -> String {
+    let locator = clean_text(raw, 2_200).to_ascii_lowercase();
+    let after_host = locator
+        .split_once("://")
+        .and_then(|(_, rest)| rest.find('/').map(|index| &rest[index..]))
+        .unwrap_or(locator.as_str());
+    let path = after_host
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(after_host);
+    clean_text(path, 1_200)
+}
+
 fn evidence_pack_source_class(policy: &Value, candidate: &Candidate) -> String {
     let source_kind = clean_text(&candidate.source_kind, 80).to_ascii_lowercase();
-    let locator = clean_text(&candidate.locator, 2_200).to_ascii_lowercase();
+    let locator_path = locator_path_hint(&candidate.locator);
     let domain = candidate_domain_hint(candidate).to_ascii_lowercase();
+    let title = clean_text(&candidate.title, 600).to_ascii_lowercase();
+    let snippet = clean_text(&candidate.snippet, 1_800).to_ascii_lowercase();
+    let text = clean_text(&format!("{title} {snippet}"), 2_400).to_ascii_lowercase();
     if let Some(rules) = policy
         .pointer("/batch_query/evidence_pack/source_class_rules")
         .and_then(Value::as_array)
@@ -722,17 +813,29 @@ fn evidence_pack_source_class(policy: &Value, candidate: &Candidate) -> String {
                 .any(|needle| domain.contains(needle));
             let path_contains_matches = policy_string_list(rule, "/path_contains")
                 .iter()
-                .any(|needle| locator.contains(needle));
+                .any(|needle| locator_path.contains(needle));
+            let title_contains_matches = policy_string_list(rule, "/title_contains")
+                .iter()
+                .any(|needle| title.contains(needle));
+            let snippet_contains_matches = policy_string_list(rule, "/snippet_contains")
+                .iter()
+                .any(|needle| snippet.contains(needle));
+            let text_contains_matches = policy_string_list(rule, "/text_contains")
+                .iter()
+                .any(|needle| text.contains(needle));
             if source_kind_matches
                 || host_suffix_matches
                 || host_contains_matches
                 || path_contains_matches
+                || title_contains_matches
+                || snippet_contains_matches
+                || text_contains_matches
             {
                 return class;
             }
         }
     }
-    if source_kind.is_empty() {
+    if source_kind.is_empty() || source_kind == "web" {
         "general_web".to_string()
     } else {
         source_kind
@@ -1034,6 +1137,12 @@ fn evidence_promotion_assessment(
     if query_overlap_count < 2 {
         caveats.push("thin_query_overlap");
     }
+    if quality_flags
+        .iter()
+        .any(|flag| flag == "weak_query_overlap_only")
+    {
+        caveats.push("weak_query_overlap_only");
+    }
     if credentials_in_url {
         caveats.push("url_credentials_present");
     }
@@ -1061,6 +1170,11 @@ fn evidence_promotion_assessment(
     };
     let decision = if candidate_is_low_confidence_retained(candidate) {
         "retained_low_confidence"
+    } else if quality_flags
+        .iter()
+        .any(|flag| flag == "weak_query_overlap_only")
+    {
+        "rejected_weak_query_overlap"
     } else if safety_status != "public_http_https_candidate"
         || !content_rich
         || claim_hints.is_empty()
@@ -2192,11 +2306,20 @@ fn fallback_link_score(query: &str, link: &str) -> f64 {
     if current_web_intent(query) {
         score += recency_adjustment(query, &candidate);
     }
+    if link_contains_collapsed_query_phrase(query, &cleaned) {
+        score += 0.35;
+    }
     let query_tokens = tokenize_relevance(query, 40);
     let link_tokens = tokenize_relevance(&cleaned, 80);
     if !query_tokens.is_empty() {
         let overlap = query_tokens.intersection(&link_tokens).count() as f64;
         score += 0.4 * (overlap / query_tokens.len() as f64);
+        if has_only_weak_query_overlap(query, &candidate) {
+            score -= 0.45;
+        }
+        if overlap == 0.0 && source_trust_adjustment(&candidate) <= 0.0 {
+            score -= 0.25;
+        }
     }
     if lowered.contains("/docs") || lowered.contains("/blog") || lowered.contains("/news") {
         score += 0.04;
@@ -2207,28 +2330,102 @@ fn fallback_link_score(query: &str, link: &str) -> f64 {
     score
 }
 
-fn ranked_payload_links_for_fallback_with_min_score(
+fn link_context_window(text: &str, link: &str, radius: usize) -> String {
+    let cleaned_text = clean_text(text, 8_000);
+    let cleaned_link = clean_text(link, 2_200);
+    if cleaned_text.is_empty() || cleaned_link.is_empty() {
+        return String::new();
+    }
+    let lowered_text = cleaned_text.to_ascii_lowercase();
+    let lowered_link = cleaned_link.to_ascii_lowercase();
+    let Some(pos) = lowered_text.find(&lowered_link) else {
+        return trim_words(&cleaned_text, 96);
+    };
+    let mut start = pos.saturating_sub(radius);
+    while start > 0 && !cleaned_text.is_char_boundary(start) {
+        start -= 1;
+    }
+    let mut end = (pos + cleaned_link.len() + radius).min(cleaned_text.len());
+    while end < cleaned_text.len() && !cleaned_text.is_char_boundary(end) {
+        end += 1;
+    }
+    trim_words(&cleaned_text[start..end], 120)
+}
+
+fn payload_context_for_link(payload: &Value, link: &str) -> String {
+    let summary = payload.get("summary").and_then(Value::as_str).unwrap_or("");
+    let content = payload.get("content").and_then(Value::as_str).unwrap_or("");
+    link_context_window(&format!("{summary} {content}"), link, 720)
+}
+
+fn page_extraction_link_candidate_with_context(link: &str, context: &str) -> Candidate {
+    let mut candidate = page_extraction_link_candidate(link);
+    let cleaned_context = clean_text(context, 1_800);
+    if !cleaned_context.is_empty() {
+        candidate.snippet = clean_text(
+            &format!("{} {}", cleaned_context, candidate.locator),
+            2_200,
+        );
+    }
+    candidate
+}
+
+fn fallback_link_score_with_context(query: &str, link: &str, context: &str) -> f64 {
+    let base_score = fallback_link_score(query, link);
+    let cleaned_context = clean_text(context, 1_800);
+    if cleaned_context.is_empty() {
+        return base_score;
+    }
+    let candidate = page_extraction_link_candidate_with_context(link, &cleaned_context);
+    let context_score = rerank_score(query, &candidate);
+    let query_tokens = tokenize_relevance(query, 40);
+    let context_tokens = tokenize_relevance(&cleaned_context, 120);
+    let overlap_bonus = if query_tokens.is_empty() {
+        0.0
+    } else {
+        0.34 * (query_tokens.intersection(&context_tokens).count() as f64
+            / query_tokens.len() as f64)
+    };
+    base_score.max(context_score + overlap_bonus).clamp(-1.0, 1.0)
+}
+
+fn ranked_payload_links_for_fallback_with_context_and_min_score(
     query: &str,
     payload: &Value,
     max_links: usize,
     min_score: f64,
-) -> Vec<String> {
+) -> Vec<(String, String)> {
     let mut ranked = non_search_engine_links(payload, max_links.saturating_mul(4).max(max_links))
         .into_iter()
         .map(|link| {
-            let score = fallback_link_score(query, &link);
-            (link, score)
+            let context = payload_context_for_link(payload, &link);
+            let score = fallback_link_score_with_context(query, &link, &context);
+            (link, context, score)
         })
-        .filter(|(_, score)| *score > -1.0 && *score >= min_score)
+        .filter(|(_, _, score)| *score > -1.0 && *score >= min_score)
         .collect::<Vec<_>>();
     ranked.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
+        b.2.partial_cmp(&a.2)
             .unwrap_or(std::cmp::Ordering::Equal)
             .then_with(|| a.0.cmp(&b.0))
     });
     ranked
         .into_iter()
         .take(max_links.max(1))
+        .map(|(link, context, _)| (link, context))
+        .collect::<Vec<_>>()
+}
+
+fn ranked_payload_links_for_fallback_with_min_score(
+    query: &str,
+    payload: &Value,
+    max_links: usize,
+    min_score: f64,
+) -> Vec<String> {
+    ranked_payload_links_for_fallback_with_context_and_min_score(
+        query, payload, max_links, min_score,
+    )
+    .into_iter()
         .map(|(link, _)| link)
         .collect::<Vec<_>>()
 }
@@ -2286,6 +2483,19 @@ fn issue_quality_flags(partial_failures: &[String]) -> Vec<String> {
             || lowered.contains("provider readiness mismatch")
         {
             flags.push("provider_degraded".to_string());
+        }
+        if lowered.contains("provider_circuit_open")
+            || lowered.contains("serper_api_key_missing")
+            || lowered.contains("_api_key_missing")
+            || lowered.contains("api key missing")
+            || lowered.contains("credential_missing")
+            || lowered.contains("configured_provider_credential_unresolved")
+            || lowered.contains("credential_unresolved")
+            || lowered.contains("search_providers_exhausted")
+            || lowered.contains("web_search_tool_surface_degraded")
+            || lowered.contains("provider readiness mismatch")
+        {
+            flags.push("provider_starved".to_string());
         }
         if lowered.contains("no_usable_summary") || lowered.contains("fixture_missing") {
             flags.push("low_signal".to_string());
@@ -2366,6 +2576,7 @@ fn browser_materialization_blocker_taxonomy(
             ],
         );
     let provider_degraded = has_flag("provider_degraded") || has_flag("provider_timeout");
+    let provider_starved = has_flag("provider_starved");
     let content_materialization_missing =
         has_flag("content_rich_evidence_missing") || has_flag("claim_hints_missing");
     let off_intent_noise = has_flag("low_relevance_filtered")
@@ -2400,6 +2611,13 @@ fn browser_materialization_blocker_taxonomy(
             false,
             "alternate_source_or_permission_boundary",
             "denied page is not evidence",
+        ),
+        blocker_taxonomy_row(
+            "provider_starved",
+            provider_starved,
+            true,
+            "configure_or_admit_stronger_search_provider",
+            "candidate supply is unavailable or limited to degraded fallback providers",
         ),
         blocker_taxonomy_row(
             "provider_degraded",
@@ -2722,7 +2940,10 @@ fn retrieval_decision_lattice(
             "medium",
             vec!["render_or_access_blocker_detected_without_candidate_url"],
         )
-    } else if matches!(primary_blocker, "rate_limited" | "provider_degraded") {
+    } else if matches!(
+        primary_blocker,
+        "rate_limited" | "provider_starved" | "provider_degraded"
+    ) {
         (
             "alternate_provider",
             "requires_admitted_alternate_provider",
@@ -2916,6 +3137,25 @@ fn web_tool_quality_report(
     if evidence_count > 0 && claim_hint_count == 0 {
         flags.push("claim_hints_missing".to_string());
     }
+    if evidence_count >= 2 && content_rich_candidate_count > 0 && claim_hint_count > 0 {
+        let hard_access_or_transport_blocker = flags.iter().any(|flag| {
+            matches!(
+                flag.as_str(),
+                "anti_bot_filtered"
+                    | "needs_js"
+                    | "rate_limited"
+                    | "access_denied"
+                    | "provider_degraded"
+                    | "provider_timeout"
+                    | "insufficient_evidence"
+            )
+        });
+        if !hard_access_or_transport_blocker && flags.iter().any(|flag| flag == "provider_starved")
+        {
+            flags.retain(|flag| flag != "provider_starved");
+            flags.push("credentialed_provider_unavailable_nonblocking".to_string());
+        }
+    }
     if status == "ok"
         && evidence_count > 0
         && claim_hint_count > 0
@@ -3015,6 +3255,9 @@ fn web_tool_quality_report(
     if flags.iter().any(|flag| flag == "freshness_unproven") {
         missing_buckets.push("freshness_signal".to_string());
     }
+    if flags.iter().any(|flag| flag == "provider_starved") {
+        missing_buckets.push("strong_search_provider".to_string());
+    }
     missing_buckets.sort();
     missing_buckets.dedup();
     let retry_reason = if flags.iter().any(|flag| flag == "anti_bot_filtered") {
@@ -3025,6 +3268,8 @@ fn web_tool_quality_report(
         "rate_limited"
     } else if flags.iter().any(|flag| flag == "access_denied") {
         "access_denied"
+    } else if flags.iter().any(|flag| flag == "provider_starved") {
+        "provider_starved"
     } else if flags.iter().any(|flag| flag == "provider_degraded") {
         "provider_degraded"
     } else if flags.iter().any(|flag| flag == "insufficient_evidence") {

@@ -639,11 +639,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             true
         }
     });
-    candidates.truncate(budget.max_candidates);
-    let (provider_results, provider_result_dedup_count) = dedup_provider_results(provider_results);
-
     let rerank_query = query_plan.rerank_query.clone();
-    let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
     let research_facets = infer_research_facets(
         &query,
         &executed_queries,
@@ -652,6 +648,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
         budget,
     );
     let facet_min_terms = facet_aware_min_terms(&policy);
+    truncate_candidates_preserving_facet_coverage(
+        &rerank_query,
+        &research_facets,
+        &mut candidates,
+        budget.max_candidates,
+        facet_min_terms,
+    );
+    let (provider_results, provider_result_dedup_count) = dedup_provider_results(provider_results);
+
+    let benchmark_intent = is_benchmark_or_comparison_intent(&rerank_query);
     let ranked_pool = candidates
         .iter()
         .map(|row| {
@@ -820,6 +826,13 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             &partial_failure_value,
             comparison_guard_summary,
         )
+    } else if low_confidence_evidence_used {
+        if source == "web" {
+            "Web retrieval ran, but only low-confidence raw snippets were available in this turn. Treat retained rows as diagnostic leads, not source-backed findings."
+                .to_string()
+        } else {
+            crate::tool_output_match_filter::no_findings_user_copy().to_string()
+        }
     } else {
         let mut synthesized_insights = Vec::<String>::new();
         let mut seen_domains = HashSet::<String>::new();
