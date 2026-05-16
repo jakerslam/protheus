@@ -2766,7 +2766,7 @@ mod quality_tests {
             "Research a public policy question and cover cost evidence and safety risks evidence.";
         let cost_query = "public policy question cost evidence";
         let safety_query = "public policy question safety risks evidence";
-        let safety_recovery_query = "safety risks evidence. source-backed evidence";
+        let safety_recovery_query = "public policy question safety risks evidence source-backed evidence";
         let out = with_fixture(
             json!({
                 query: {

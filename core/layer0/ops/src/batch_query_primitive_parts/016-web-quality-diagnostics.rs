@@ -272,7 +272,7 @@ fn metadata_coverage_facet_texts(query_metadata: &BatchQueryKeywordPack) -> Vec<
 
 fn infer_research_facets(
     query: &str,
-    _query_plan: &[String],
+    query_plan: &[String],
     query_metadata: &BatchQueryKeywordPack,
     policy: &Value,
     budget: ApertureBudget,
@@ -304,6 +304,31 @@ fn infer_research_facets(
     if metadata_declares_coverage && !facets.is_empty() {
         assign_distinctive_facet_terms(&mut facets);
         return facets;
+    }
+    if query_metadata.is_empty() && query_plan.len() > 1 {
+        let base_key = clean_text(query, 600).to_ascii_lowercase();
+        for text in query_plan {
+            let cleaned = clean_text(text, 600);
+            if cleaned.is_empty() || cleaned.to_ascii_lowercase() == base_key {
+                continue;
+            }
+            if let Some(mut facet) = research_facet_from_text(&cleaned, facets.len(), min_terms) {
+                let signature = research_facet_signature(&facet.terms);
+                if !seen.insert(signature) {
+                    continue;
+                }
+                facet.id = format!("facet_{:02}", facets.len() + 1);
+                facets.push(facet);
+            }
+            if facets.len() >= max_facets {
+                assign_distinctive_facet_terms(&mut facets);
+                return facets;
+            }
+        }
+        if !facets.is_empty() {
+            assign_distinctive_facet_terms(&mut facets);
+            return facets;
+        }
     }
     let mut texts = Vec::<String>::new();
     let base = clean_text(query, 600);

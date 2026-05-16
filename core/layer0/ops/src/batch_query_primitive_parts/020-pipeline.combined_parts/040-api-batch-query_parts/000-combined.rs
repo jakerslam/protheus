@@ -559,13 +559,16 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             };
         }
     }
+    let query_pack_declares_coverage =
+        !query_plan.query_metadata.entities.is_empty() || !query_plan.query_metadata.facets.is_empty();
+    let policy_recovery_already_spent_coverage_budget = matches!(
+        query_plan.query_plan_source,
+        "policy_general_research_recovery" | "policy_broad_current_research_recovery"
+    ) && !query_pack_declares_coverage;
     if source == "web"
         && planned_second_pass_queries.is_empty()
         && coverage_gap_recovery_enabled(&policy)
-        && !matches!(
-            query_plan.query_plan_source,
-            "policy_general_research_recovery" | "policy_broad_current_research_recovery"
-        )
+        && !policy_recovery_already_spent_coverage_budget
     {
         planned_second_pass_queries = coverage_gap_recovery_queries(
             &policy,
