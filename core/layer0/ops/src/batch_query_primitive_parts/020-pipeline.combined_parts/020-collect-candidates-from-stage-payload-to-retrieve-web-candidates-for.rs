@@ -1,4 +1,59 @@
 
+#[derive(Clone)]
+struct PageExtractionFetchBudget {
+    max_total_fetches: usize,
+    fetched_link_keys: std::sync::Arc<std::sync::Mutex<HashSet<String>>>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum PageExtractionFetchReservation {
+    Reserved,
+    Duplicate,
+    Exhausted,
+}
+
+impl PageExtractionFetchBudget {
+    fn new(policy: &Value) -> Self {
+        Self {
+            max_total_fetches: page_extraction_max_total_fetches(policy),
+            fetched_link_keys: std::sync::Arc::new(std::sync::Mutex::new(HashSet::new())),
+        }
+    }
+
+    fn has_remaining(&self) -> bool {
+        self.max_total_fetches > self.reserved_count()
+    }
+
+    fn reserved_count(&self) -> usize {
+        self.fetched_link_keys
+            .lock()
+            .map(|links| links.len())
+            .unwrap_or_else(|poisoned| poisoned.into_inner().len())
+    }
+
+    fn reserve(&self, policy: &Value, link: &str) -> PageExtractionFetchReservation {
+        let Some(normalized_link) = normalize_page_extraction_link(policy, link) else {
+            return PageExtractionFetchReservation::Duplicate;
+        };
+        let dedupe_key = page_extraction_link_dedupe_key(policy, &normalized_link);
+        if dedupe_key.is_empty() {
+            return PageExtractionFetchReservation::Duplicate;
+        }
+        let mut links = self
+            .fetched_link_keys
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if links.contains(&dedupe_key) {
+            return PageExtractionFetchReservation::Duplicate;
+        }
+        if links.len() >= self.max_total_fetches {
+            return PageExtractionFetchReservation::Exhausted;
+        }
+        links.insert(dedupe_key);
+        PageExtractionFetchReservation::Reserved
+    }
+}
+
 fn collect_candidates_from_stage_payload(
     root: &Path,
     stage: &str,
@@ -6,7 +61,7 @@ fn collect_candidates_from_stage_payload(
     policy: &Value,
     payload: &Value,
     benchmark_intent: bool,
-    fetched_links: &mut HashSet<String>,
+    fetch_budget: &PageExtractionFetchBudget,
 ) -> (Vec<Candidate>, Vec<String>, Option<Value>) {
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
@@ -112,7 +167,7 @@ fn collect_candidates_from_stage_payload(
         .count();
     let should_fetch_links = page_extraction_enabled(policy)
         && page_extraction_max_links_per_stage(policy) > 0
-        && page_extraction_max_total_fetches(policy) > fetched_links.len()
+        && fetch_budget.has_remaining()
         && (usable_candidate_count < page_extraction_min_usable_items_before_skip(policy)
             || looks_like_low_signal_search_summary(&summary)
             || candidates
@@ -136,12 +191,13 @@ fn collect_candidates_from_stage_payload(
             ));
         }
         for link in links {
-            if fetched_links.len() >= page_extraction_max_total_fetches(policy) {
-                issues.push(format!("{stage}:page_extraction_budget_exhausted"));
-                break;
-            }
-            if !fetched_links.insert(link.clone()) {
-                continue;
+            match fetch_budget.reserve(policy, &link) {
+                PageExtractionFetchReservation::Reserved => {}
+                PageExtractionFetchReservation::Duplicate => continue,
+                PageExtractionFetchReservation::Exhausted => {
+                    issues.push(format!("{stage}:page_extraction_global_budget_exhausted"));
+                    break;
+                }
             }
             let fetch_payload =
                 stage_fetch_payload(root, stage, &link, &page_extraction_extract_mode(policy));
@@ -775,12 +831,12 @@ fn retrieve_web_candidates_for_query(
     query: &str,
     policy: &Value,
     search_scope: &BatchQuerySearchScope,
+    fetch_budget: PageExtractionFetchBudget,
 ) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
     let benchmark_intent = is_benchmark_or_comparison_intent(query);
     let mut candidates = Vec::<Candidate>::new();
     let mut issues = Vec::<String>::new();
     let mut provider_results = Vec::<Value>::new();
-    let mut fetched_links = HashSet::<String>::new();
 
     let primary_payload = stage_search_payload(root, None, query, None, search_scope);
     let (primary_candidates, primary_issues, primary_provider_result) =
@@ -791,7 +847,7 @@ fn retrieve_web_candidates_for_query(
         policy,
         &primary_payload,
         benchmark_intent,
-        &mut fetched_links,
+        &fetch_budget,
     );
     if let Some(value) = primary_provider_result {
         provider_results.push(value);
@@ -818,7 +874,7 @@ fn retrieve_web_candidates_for_query(
             policy,
             &bing_payload,
             benchmark_intent,
-            &mut fetched_links,
+            &fetch_budget,
         );
         if let Some(value) = bing_provider_result {
             provider_results.push(value);
@@ -886,7 +942,7 @@ fn retrieve_web_candidates_for_query(
                     policy,
                     &provider_payload,
                     benchmark_intent,
-                    &mut fetched_links,
+                    &fetch_budget,
                 );
             if let Some(value) = provider_result {
                 provider_results.push(value);

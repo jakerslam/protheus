@@ -96,7 +96,7 @@ fn default_policy() -> Value {
                 "enabled": true,
                 "extract_mode": "text",
                 "max_links_per_stage": 3,
-                "max_total_fetches": 8,
+                "max_total_fetches": 16,
                 "min_link_score": 0.0,
                 "min_usable_items_before_skip": 2,
                 "min_snippet_words_before_skip": 22,

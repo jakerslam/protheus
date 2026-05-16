@@ -384,6 +384,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
     let mut candidates = Vec::<Candidate>::new();
     let mut partial_failures = Vec::<String>::new();
     let mut provider_results = Vec::<Value>::new();
+    let page_fetch_budget = PageExtractionFetchBudget::new(&policy);
     if parallel_allowed {
         let limit = parallel_window;
         let mut offset = 0usize;
@@ -405,6 +406,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 let root_buf = root.to_path_buf();
                 let policy_buf = policy.clone();
                 let search_scope_buf = search_scope.clone();
+                let fetch_budget_buf = page_fetch_budget.clone();
                 let spawned = thread::Builder::new()
                     .name(format!("batch-query-{local_idx}"))
                     .spawn(move || {
@@ -413,6 +415,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                             &query_item,
                             &policy_buf,
                             &search_scope_buf,
+                            fetch_budget_buf,
                         );
                         let _ = tx_clone.send((local_idx, query_item, out));
                     });
@@ -496,6 +499,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 q,
                 &policy,
                 &search_scope,
+                page_fetch_budget.clone(),
                 query_timeout,
             );
             if retrieval_telemetry_enabled(&policy) {
@@ -582,6 +586,7 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
                 &recovery_query,
                 &policy,
                 &search_scope,
+                page_fetch_budget.clone(),
                 query_timeout,
             );
             if retrieval_telemetry_enabled(&policy) {

@@ -1667,6 +1667,31 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_fetch_budget_is_shared_and_canonicalized() {
+        let mut policy = default_policy();
+        policy["batch_query"]["page_extraction"]["max_total_fetches"] = json!(1);
+        let budget = PageExtractionFetchBudget::new(&policy);
+        assert_eq!(
+            budget.reserve(
+                &policy,
+                "http://www.science.example.org/april-2026-breakthroughs#summary"
+            ),
+            PageExtractionFetchReservation::Reserved
+        );
+        assert_eq!(
+            budget.reserve(
+                &policy,
+                "https://science.example.org/april-2026-breakthroughs"
+            ),
+            PageExtractionFetchReservation::Duplicate
+        );
+        assert_eq!(
+            budget.reserve(&policy, "https://science.example.org/second-source"),
+            PageExtractionFetchReservation::Exhausted
+        );
+    }
+
+    #[test]
     fn page_extraction_rejects_weak_overlap_links_before_fetch_budget() {
         let query = "Research Firecrawl, Tavily, and Exa as data tools for AI research agents. Which should we use for search, crawling, and evidence gathering?";
         let policy = default_policy();

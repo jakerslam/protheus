@@ -101,6 +101,7 @@ fn retrieve_web_candidates_for_query_with_timeout(
     query: &str,
     policy: &Value,
     search_scope: &BatchQuerySearchScope,
+    fetch_budget: PageExtractionFetchBudget,
     timeout: Duration,
 ) -> (Vec<Candidate>, Vec<String>, Vec<Value>) {
     let (tx, rx) = std::sync::mpsc::channel::<(Vec<Candidate>, Vec<String>, Vec<Value>)>();
@@ -108,6 +109,7 @@ fn retrieve_web_candidates_for_query_with_timeout(
     let query_buf = query.to_string();
     let policy_buf = policy.clone();
     let search_scope_buf = search_scope.clone();
+    let fetch_budget_buf = fetch_budget.clone();
     let spawned = thread::Builder::new()
         .name("batch-query-retrieve".to_string())
         .spawn(move || {
@@ -116,6 +118,7 @@ fn retrieve_web_candidates_for_query_with_timeout(
                 &query_buf,
                 &policy_buf,
                 &search_scope_buf,
+                fetch_budget_buf,
             );
             let _ = tx.send(out);
         });
