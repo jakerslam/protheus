@@ -242,9 +242,9 @@
           self.showSlashMenu = false;
           self.modelPickerFilter = modelMatch[1].toLowerCase();
           if (!self.modelPickerList.length) {
-            InfringAPI.post('/api/models/discover', { input: '__auto__' })
+            InfringAPI.post('/api/shell-socket/models/discover', { input: '__auto__' })
               .catch(function() { return null; })
-              .then(function() { return InfringAPI.get('/api/models'); })
+              .then(function() { return InfringAPI.get('/api/shell-socket/models'); })
               .then(function(data) {
               self.modelPickerList = self.sanitizeModelCatalogRows((data && data.models) || []);
               if (self.availableModelRowsCount(self.modelPickerList) === 0) {

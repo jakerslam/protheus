@@ -229,7 +229,7 @@
         return Promise.resolve(this._modelCache);
       }
       var self = this;
-      return InfringAPI.get('/api/models')
+      return InfringAPI.get('/api/shell-socket/models')
         .then(function(data) {
           var models = self.sanitizeModelCatalogRows(Array.isArray(data && data.models) ? data.models : []);
           var available = models.filter(function(m) { return !!(m && m.available); });

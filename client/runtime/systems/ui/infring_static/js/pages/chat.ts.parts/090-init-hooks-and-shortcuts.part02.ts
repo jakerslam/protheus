@@ -77,7 +77,7 @@
       var preferCached = opts.prefer_cached !== false;
       var suppressErrors = opts.suppress_errors === true;
       var self = this;
-      return InfringAPI.get('/api/models').then(function(data) {
+      return InfringAPI.get('/api/shell-socket/models').then(function(data) {
         var models = self.sanitizeModelCatalogRows((data && data.models) || []);
         self._modelCache = models;
         self._modelCacheTime = Date.now();
@@ -189,7 +189,7 @@
       }
       this.modelApiKeySaving = true;
       this.modelApiKeyStatus = 'Detecting...';
-      InfringAPI.post('/api/models/discover', {
+      InfringAPI.post('/api/shell-socket/models/discover', {
         input: entry,
         api_key: entry
       }).then(function(resp) {

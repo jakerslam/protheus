@@ -5,7 +5,7 @@
         return Promise.resolve();
       }
       var self = this;
-      return InfringAPI.get('/api/models').then(function(data) {
+      return InfringAPI.get('/api/shell-socket/models').then(function(data) {
         self.refreshContextWindowMap(data && data.models ? data.models : []);
         self._contextModelsFetchedAt = Date.now();
         self.setContextWindowFromCurrentAgent();

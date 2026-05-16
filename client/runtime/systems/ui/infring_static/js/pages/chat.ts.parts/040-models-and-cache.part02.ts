@@ -436,9 +436,9 @@
       var includeGuidance = opts.guidance !== false;
       try {
         if (discoverFirst) {
-          await InfringAPI.post('/api/models/discover', { input: '__auto__' }).catch(function() { return null; });
+          await InfringAPI.post('/api/shell-socket/models/discover', { input: '__auto__' }).catch(function() { return null; });
         }
-        var data = await InfringAPI.get('/api/models');
+        var data = await InfringAPI.get('/api/shell-socket/models');
         var models = this.sanitizeModelCatalogRows((data && data.models) || []);
         var available = this.countAvailableModelRows(models);
         // Recover from partial catalog responses by rebuilding rows from provider model_profiles.

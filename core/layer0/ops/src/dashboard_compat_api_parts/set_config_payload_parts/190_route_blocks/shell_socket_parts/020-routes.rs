@@ -50,6 +50,44 @@ fn handle_shell_socket_routes(
     if method == "GET" && parts == ["search"] {
         return Some(CompatApiResponse { status: 200, payload: shell_socket_search(root, path) });
     }
+    if method == "GET" && parts == ["models"] {
+        let mut payload = crate::dashboard_model_catalog::catalog_payload(root, snapshot);
+        if let Some(obj) = payload.as_object_mut() {
+            obj.insert("next_cursor".to_string(), Value::Null);
+            obj.insert("detail_refs".to_string(), json!({"models": "model_catalog:default"}));
+            obj.insert(
+                "receipt_ref".to_string(),
+                json!(shell_socket_receipt_ref("list_models", &json!({"path": path}))),
+            );
+            obj.insert("correlation_id".to_string(), json!("shell_socket.model_catalog"));
+        }
+        return Some(CompatApiResponse { status: 200, payload });
+    }
+    if method == "POST" && parts == ["models", "discover"] {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let input = clean_text(
+            request
+                .get("input")
+                .and_then(Value::as_str)
+                .or_else(|| request.get("api_key").and_then(Value::as_str))
+                .unwrap_or(""),
+            4096,
+        );
+        let mut payload = crate::dashboard_provider_runtime::discover_models(root, &input);
+        let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        if let Some(obj) = payload.as_object_mut() {
+            let input_kind = obj.get("input_kind").cloned().unwrap_or(Value::Null);
+            obj.insert(
+                "receipt_ref".to_string(),
+                json!(shell_socket_receipt_ref("discover_models", &json!({"input_kind": input_kind}))),
+            );
+            obj.insert("correlation_id".to_string(), json!("shell_socket.model_discovery"));
+        }
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload,
+        });
+    }
     if method == "POST" && parts == ["input"] {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let agent_id = clean_agent_id(request.get("agent_id").or_else(|| request.get("target_agent_id")).and_then(Value::as_str).unwrap_or(""));

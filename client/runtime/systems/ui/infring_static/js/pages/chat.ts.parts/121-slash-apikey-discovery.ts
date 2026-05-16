@@ -16,7 +16,7 @@
       }
       try {
         var discoveryInput = String(cmdArgs || '').trim();
-        var discovery = await InfringAPI.post('/api/models/discover', {
+        var discovery = await InfringAPI.post('/api/shell-socket/models/discover', {
           input: discoveryInput,
           api_key: discoveryInput
         });

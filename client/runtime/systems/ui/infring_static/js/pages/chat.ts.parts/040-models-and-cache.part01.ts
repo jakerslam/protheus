@@ -111,7 +111,7 @@
         }
         self._modelCache = null;
         self._modelCacheTime = 0;
-        return InfringAPI.get('/api/models');
+        return InfringAPI.get('/api/shell-socket/models');
       }).then(function(data) {
         var models = self.sanitizeModelCatalogRows((data && data.models) || []);
         self._modelCache = models;

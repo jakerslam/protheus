@@ -225,6 +225,46 @@
       "requires_detail_refs": true
     },
     {
+      "name": "ModelCatalogProjection",
+      "description": "Bounded model catalog rows for shell display and selection; provider secrets and routing truth remain authority-owned.",
+      "allowed_top_level_fields": [
+        "ok",
+        "models",
+        "model_ids",
+        "providers",
+        "counts",
+        "next_cursor",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "max_array_items": 100,
+      "requires_cursor": true,
+      "requires_detail_refs": true
+    },
+    {
+      "name": "ModelDiscoveryProjection",
+      "description": "Bounded model discovery summary for shell display; secrets and raw provider responses are never returned.",
+      "allowed_top_level_fields": [
+        "ok",
+        "provider",
+        "input_kind",
+        "provider_count",
+        "probed",
+        "model_count",
+        "available_model_count",
+        "models",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 32768,
+      "max_array_items": 100,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -514,6 +554,63 @@
         "authorization_truth",
         "mutation_approval_policy",
         "approval_queue_truth"
+      ]
+    },
+    {
+      "id": "list_models",
+      "purpose": "Display a bounded model catalog for shell model selection without exposing provider secrets or routing authority.",
+      "route_class": "bounded_search_query",
+      "request_shape": "ModelCatalogWindowRequest",
+      "response_shape": "ModelCatalogProjection",
+      "default_projection": "ModelCatalogProjection",
+      "cursor_required": true,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "kernel_model_config_authority",
+      "shell_may_hold": [
+        "models",
+        "model_ids",
+        "providers",
+        "counts",
+        "next_cursor",
+        "detail_refs"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "model_policy_truth",
+        "fallback_decision_truth",
+        "raw_provider_response"
+      ]
+    },
+    {
+      "id": "discover_models",
+      "purpose": "Request provider/local model discovery through Gateway controls and return only a bounded discovery summary.",
+      "route_class": "request_ingress",
+      "request_shape": "ModelDiscoveryRequest",
+      "response_shape": "ModelDiscoveryProjection",
+      "default_projection": "ModelDiscoveryProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_model_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "input_kind",
+        "model_count",
+        "available_model_count",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "raw_provider_response",
+        "model_policy_truth",
+        "fallback_decision_truth"
       ]
     },
     {

@@ -2090,7 +2090,7 @@ function chatPage() {
         }
         self._modelCache = null;
         self._modelCacheTime = 0;
-        return InfringAPI.get('/api/models');
+        return InfringAPI.get('/api/shell-socket/models');
       }).then(function(data) {
         var models = self.sanitizeModelCatalogRows((data && data.models) || []);
         self._modelCache = models;
@@ -2681,9 +2681,9 @@ function chatPage() {
       var includeGuidance = opts.guidance !== false;
       try {
         if (discoverFirst) {
-          await InfringAPI.post('/api/models/discover', { input: '__auto__' }).catch(function() { return null; });
+          await InfringAPI.post('/api/shell-socket/models/discover', { input: '__auto__' }).catch(function() { return null; });
         }
-        var data = await InfringAPI.get('/api/models');
+        var data = await InfringAPI.get('/api/shell-socket/models');
         var models = this.sanitizeModelCatalogRows((data && data.models) || []);
         var available = this.countAvailableModelRows(models);
         // Recover from partial catalog responses by rebuilding rows from provider model_profiles.
@@ -5081,7 +5081,7 @@ function chatPage() {
         return Promise.resolve();
       }
       var self = this;
-      return InfringAPI.get('/api/models').then(function(data) {
+      return InfringAPI.get('/api/shell-socket/models').then(function(data) {
         self.refreshContextWindowMap(data && data.models ? data.models : []);
         self._contextModelsFetchedAt = Date.now();
         self.setContextWindowFromCurrentAgent();
@@ -6064,9 +6064,9 @@ function chatPage() {
           self.showSlashMenu = false;
           self.modelPickerFilter = modelMatch[1].toLowerCase();
           if (!self.modelPickerList.length) {
-            InfringAPI.post('/api/models/discover', { input: '__auto__' })
+            InfringAPI.post('/api/shell-socket/models/discover', { input: '__auto__' })
               .catch(function() { return null; })
-              .then(function() { return InfringAPI.get('/api/models'); })
+              .then(function() { return InfringAPI.get('/api/shell-socket/models'); })
               .then(function(data) {
               self.modelPickerList = self.sanitizeModelCatalogRows((data && data.models) || []);
               if (self.availableModelRowsCount(self.modelPickerList) === 0) {
@@ -6447,7 +6447,7 @@ function chatPage() {
       var preferCached = opts.prefer_cached !== false;
       var suppressErrors = opts.suppress_errors === true;
       var self = this;
-      return InfringAPI.get('/api/models').then(function(data) {
+      return InfringAPI.get('/api/shell-socket/models').then(function(data) {
         var models = self.sanitizeModelCatalogRows((data && data.models) || []);
         self._modelCache = models;
         self._modelCacheTime = Date.now();
@@ -6559,7 +6559,7 @@ function chatPage() {
       }
       this.modelApiKeySaving = true;
       this.modelApiKeyStatus = 'Detecting...';
-      InfringAPI.post('/api/models/discover', {
+      InfringAPI.post('/api/shell-socket/models/discover', {
         input: entry,
         api_key: entry
       }).then(function(resp) {
@@ -6831,7 +6831,7 @@ function chatPage() {
         return Promise.resolve(this._modelCache);
       }
       var self = this;
-      return InfringAPI.get('/api/models')
+      return InfringAPI.get('/api/shell-socket/models')
         .then(function(data) {
           var models = self.sanitizeModelCatalogRows(Array.isArray(data && data.models) ? data.models : []);
           var available = models.filter(function(m) { return !!(m && m.available); });
@@ -8826,7 +8826,7 @@ function chatPage() {
       }
       try {
         var discoveryInput = String(cmdArgs || '').trim();
-        var discovery = await InfringAPI.post('/api/models/discover', {
+        var discovery = await InfringAPI.post('/api/shell-socket/models/discover', {
           input: discoveryInput,
           api_key: discoveryInput
         });

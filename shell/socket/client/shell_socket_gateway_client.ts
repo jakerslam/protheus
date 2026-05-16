@@ -12,6 +12,8 @@ export type ShellSocketCapabilityId =
   | 'search'
   | 'submit_issue'
   | 'submit_approval_decision'
+  | 'list_models'
+  | 'discover_models'
   | 'set_model'
   | 'set_git_tree'
   | 'fresh_session'
@@ -49,6 +51,8 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'search', method: 'GET', path: '/api/shell-socket/search', queryParams: ['q', 'scope', 'cursor', 'limit'] },
   { capabilityId: 'submit_issue', method: 'POST', path: '/api/shell-socket/issues' },
   { capabilityId: 'submit_approval_decision', method: 'POST', path: '/api/shell-socket/approvals/{approval_id}/decision', pathParams: ['approval_id'] },
+  { capabilityId: 'list_models', method: 'GET', path: '/api/shell-socket/models', queryParams: ['cursor', 'limit'] },
+  { capabilityId: 'discover_models', method: 'POST', path: '/api/shell-socket/models/discover' },
   { capabilityId: 'set_model', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/model', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
@@ -183,6 +187,14 @@ export class ShellSocketGatewayClient {
     return this.request<T>('submit_approval_decision', { query: { approval_id: approvalId }, body: decision });
   }
 
+  listModels<T = unknown>(query: { cursor?: string; limit?: number } = {}): Promise<T> {
+    return this.request<T>('list_models', { query });
+  }
+
+  discoverModels<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('discover_models', { body: request });
+  }
+
   setModel<T = unknown>(agentId: string, modelSelection: unknown): Promise<T> {
     return this.request<T>('set_model', { query: { agent_id: agentId }, body: modelSelection });
   }
@@ -215,7 +227,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 15,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 17,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

@@ -207,6 +207,33 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
     } else if (method === 'POST' && /^\/api\/shell-socket\/approvals\/[^/]+\/decision$/.test(pathName)) {
       capabilityId = 'submit_approval_decision';
       payload = makeIngressAck('approval');
+    } else if (route === 'GET /api/shell-socket/models') {
+      capabilityId = 'list_models';
+      payload = {
+        ok: true,
+        models: [{ id: 'probe/auto', provider: 'probe', model: 'auto', display_name: 'Probe Auto', available: true }],
+        model_ids: ['probe/auto'],
+        providers: ['probe'],
+        counts: { total: 1, available: 1 },
+        next_cursor: null,
+        detail_refs: ['detail:model:probe-auto'],
+        receipt_ref: 'receipt:models:probe',
+        correlation_id: 'probe-models',
+      };
+    } else if (route === 'POST /api/shell-socket/models/discover') {
+      capabilityId = 'discover_models';
+      payload = {
+        ok: true,
+        provider: 'probe',
+        input_kind: String(body.input || '') === '__auto__' ? 'auto_discovery' : 'api_key',
+        provider_count: 1,
+        probed: [{ provider: 'probe', ok: true, status: 'ready' }],
+        model_count: 1,
+        available_model_count: 1,
+        models: ['auto'],
+        receipt_ref: 'receipt:model-discovery:probe',
+        correlation_id: 'probe-model-discovery',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/model$/.test(pathName)) {
       capabilityId = 'set_model';
       payload = makeIngressAck('model');
@@ -340,6 +367,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const search = await client.search<any>({ q: 'probe', scope: sessionId, limit: 10 });
   const issueAck = await client.submitIssue<any>({ kind: 'internal-eval', detail_refs: [detailRef] });
   const approvalAck = await client.submitApprovalDecision<any>('approval-probe', { decision: 'approve' });
+  const models = await client.listModels<any>({ limit: 10 });
+  const discovery = await client.discoverModels<any>({ input: '__auto__' });
   const modelAck = await client.setModel<any>(agentId, { model_ref: 'model:auto' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
@@ -367,6 +396,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       search_query_id: search.query_id,
       issue_receipt: issueAck.receipt_ref,
       approval_receipt: approvalAck.receipt_ref,
+      model_catalog_receipt: models.receipt_ref,
+      model_discovery_receipt: discovery.receipt_ref,
       model_receipt: modelAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
