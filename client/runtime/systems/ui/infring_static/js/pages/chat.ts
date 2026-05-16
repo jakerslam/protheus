@@ -3506,6 +3506,9 @@ function chatPage() {
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'Steer injected into active workflow.',
         text: 'Steer injected into active workflow.',
         meta: '',
         tools: [],
@@ -3564,6 +3567,9 @@ function chatPage() {
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'error',
+        notice_label: 'Steer injection failed; prompt returned to queue.',
         text: 'Steer injection failed; prompt returned to queue.',
         meta: '',
         tools: [],
@@ -4035,6 +4041,9 @@ function chatPage() {
       this.messages = [{
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'This session is empty. Send a message to begin.',
         text: 'This session is empty. Send a message to begin.',
         meta: '',
         tools: [],
@@ -8801,6 +8810,9 @@ function chatPage() {
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Usage: /apikey <api-key-or-local-model-path>',
           text: 'Usage: `/apikey <api-key-or-local-model-path>`',
           meta: '',
           tools: [],
@@ -8837,6 +8849,9 @@ function chatPage() {
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: statusLine,
           text: statusLine + '\n' + guidanceLine,
           meta: '',
           tools: [],
@@ -8848,6 +8863,9 @@ function chatPage() {
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'error',
+          notice_label: 'API key/model path discovery failed',
           text: 'API key/model path discovery failed: ' + (eApikey && eApikey.message ? eApikey.message : eApikey),
           meta: '',
           tools: [],
@@ -10294,7 +10312,7 @@ function chatPage() {
             // Context warning: show prominently as a separate system message
             if (phaseKey === 'context_warning') {
               var cwDetail = data.detail || 'Context limit reached.';
-              this.messages.push({ id: ++msgId, role: 'system', text: cwDetail, meta: '', tools: [], system_origin: 'context:warning' });
+              this.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'warning', notice_label: String(cwDetail || 'Context window warning'), text: cwDetail, meta: '', tools: [], system_origin: 'context:warning' });
               if (phaseMsg.thinking_status !== 'Context window warning') phaseMsg.thinking_status = 'Context window warning';
             } else if (
               phaseKey === 'thinking' ||
@@ -10867,7 +10885,7 @@ function chatPage() {
             Object.prototype.hasOwnProperty.call(data || {}, 'context_ratio') ||
             Object.prototype.hasOwnProperty.call(data || {}, 'context_pressure');
           if (!data.silent && !isContextTelemetryResult) {
-            this.messages.push({ id: ++msgId, role: 'system', text: data.message || 'Command executed.', meta: '', tools: [], system_origin: 'command:result' });
+            this.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: data.message || 'Command executed.', text: data.message || 'Command executed.', meta: '', tools: [], system_origin: 'command:result' });
             this.scrollToBottom();
           }
           break;
@@ -14490,6 +14508,9 @@ function chatPage() {
           this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
+            is_notice: true,
+            notice_type: 'info',
+            notice_label: 'No proactive telemetry alerts right now.',
             text: 'No proactive telemetry alerts right now.',
             meta: '',
             tools: [],
@@ -14506,6 +14527,9 @@ function chatPage() {
           this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
+            is_notice: true,
+            notice_type: 'info',
+            notice_label: 'Telemetry Alerts',
             text: '**Telemetry Alerts**\n' + alertText,
             meta: '',
             tools: [],
@@ -14528,6 +14552,9 @@ function chatPage() {
           this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
+            is_notice: true,
+            notice_type: 'info',
+            notice_label: 'No predicted next actions right now.',
             text: 'No predicted next actions right now.',
             meta: '',
             tools: [],
@@ -14545,6 +14572,9 @@ function chatPage() {
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Predicted Next Actions',
           text: '**Predicted Next Actions**\n' + rendered,
           meta: '',
           tools: [],
@@ -14573,6 +14603,9 @@ function chatPage() {
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Memory Hygiene',
           text:
             '**Memory Hygiene**\n' +
             '- Stale contexts (48h+): ' + stale48 + '\n' +
@@ -14644,6 +14677,9 @@ function chatPage() {
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Cross-Channel Continuity',
           text: continuityRows.join('\n'),
           meta: '',
           tools: [],
@@ -14660,6 +14696,9 @@ function chatPage() {
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'Slash Aliases',
         text: '**Slash Aliases**\n' + (this.formatSlashAliasRows() || '_No aliases configured_'),
         meta: '',
         tools: [],
@@ -14680,6 +14719,9 @@ function chatPage() {
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Usage: /alias /shortcut /target [extra args]',
           text: 'Usage: `/alias /shortcut /target [extra args]`',
           meta: '',
           tools: [],
@@ -14695,6 +14737,9 @@ function chatPage() {
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'error',
+          notice_label: 'Alias and target must both start with /.',
           text: 'Alias and target must both start with `/`.',
           meta: '',
           tools: [],
@@ -14710,6 +14755,9 @@ function chatPage() {
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'Saved alias ' + aliasKey,
         text: 'Saved alias `' + aliasKey + '` → `' + aliasTarget + '`',
         meta: '',
         tools: [],
@@ -14735,6 +14783,9 @@ function chatPage() {
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Worker Optimization',
           text: '**Worker Optimization**\n- Pending tasks: ' + pending + '\n- Active workers: ' + activeWorkers + '\n\n' + recommendation,
           meta: '',
           tools: [],
@@ -15101,6 +15152,9 @@ function chatPage() {
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'error',
+        notice_label: 'Command ' + cmd + ' failed',
         text:
           'Command `' + cmd + '` failed: ' + message +
           (fallbackText ? ('\nTry recovery: ' + fallbackText) : ''),
@@ -17790,7 +17844,7 @@ function chatPage() {
       if (blob.size < 100) return; // too small
 
       // Show a temporary "Transcribing..." message
-      this.messages.push({ id: ++msgId, role: 'system', text: 'Transcribing audio...', thinking: true, ts: Date.now(), tools: [], system_origin: 'voice:transcribe' });
+      this.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Transcribing audio...', text: 'Transcribing audio...', thinking: true, ts: Date.now(), tools: [], system_origin: 'voice:transcribe' });
       this.scrollToBottom();
 
       try {

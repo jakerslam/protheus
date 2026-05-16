@@ -6,6 +6,9 @@
           this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
+            is_notice: true,
+            notice_type: 'info',
+            notice_label: 'No proactive telemetry alerts right now.',
             text: 'No proactive telemetry alerts right now.',
             meta: '',
             tools: [],
@@ -22,6 +25,9 @@
           this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
+            is_notice: true,
+            notice_type: 'info',
+            notice_label: 'Telemetry Alerts',
             text: '**Telemetry Alerts**\n' + alertText,
             meta: '',
             tools: [],
@@ -44,6 +50,9 @@
           this.pushSystemMessage({
             id: ++msgId,
             role: 'system',
+            is_notice: true,
+            notice_type: 'info',
+            notice_label: 'No predicted next actions right now.',
             text: 'No predicted next actions right now.',
             meta: '',
             tools: [],
@@ -61,6 +70,9 @@
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Predicted Next Actions',
           text: '**Predicted Next Actions**\n' + rendered,
           meta: '',
           tools: [],
@@ -89,6 +101,9 @@
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Memory Hygiene',
           text:
             '**Memory Hygiene**\n' +
             '- Stale contexts (48h+): ' + stale48 + '\n' +
@@ -160,6 +175,9 @@
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Cross-Channel Continuity',
           text: continuityRows.join('\n'),
           meta: '',
           tools: [],
@@ -176,6 +194,9 @@
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'Slash Aliases',
         text: '**Slash Aliases**\n' + (this.formatSlashAliasRows() || '_No aliases configured_'),
         meta: '',
         tools: [],
@@ -196,6 +217,9 @@
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Usage: /alias /shortcut /target [extra args]',
           text: 'Usage: `/alias /shortcut /target [extra args]`',
           meta: '',
           tools: [],
@@ -211,6 +235,9 @@
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'error',
+          notice_label: 'Alias and target must both start with /.',
           text: 'Alias and target must both start with `/`.',
           meta: '',
           tools: [],
@@ -226,6 +253,9 @@
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'Saved alias ' + aliasKey,
         text: 'Saved alias `' + aliasKey + '` → `' + aliasTarget + '`',
         meta: '',
         tools: [],
@@ -251,6 +281,9 @@
         this.pushSystemMessage({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Worker Optimization',
           text: '**Worker Optimization**\n- Pending tasks: ' + pending + '\n- Active workers: ' + activeWorkers + '\n\n' + recommendation,
           meta: '',
           tools: [],

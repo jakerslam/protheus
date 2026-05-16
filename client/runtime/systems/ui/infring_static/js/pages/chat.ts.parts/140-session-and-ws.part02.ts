@@ -46,7 +46,7 @@
             // Context warning: show prominently as a separate system message
             if (phaseKey === 'context_warning') {
               var cwDetail = data.detail || 'Context limit reached.';
-              this.messages.push({ id: ++msgId, role: 'system', text: cwDetail, meta: '', tools: [], system_origin: 'context:warning' });
+              this.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'warning', notice_label: String(cwDetail || 'Context window warning'), text: cwDetail, meta: '', tools: [], system_origin: 'context:warning' });
               if (phaseMsg.thinking_status !== 'Context window warning') phaseMsg.thinking_status = 'Context window warning';
             } else if (
               phaseKey === 'thinking' ||

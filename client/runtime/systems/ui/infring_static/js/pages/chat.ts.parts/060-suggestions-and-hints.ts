@@ -267,6 +267,9 @@
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'Steer injected into active workflow.',
         text: 'Steer injected into active workflow.',
         meta: '',
         tools: [],
@@ -325,6 +328,9 @@
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'error',
+        notice_label: 'Steer injection failed; prompt returned to queue.',
         text: 'Steer injection failed; prompt returned to queue.',
         meta: '',
         tools: [],

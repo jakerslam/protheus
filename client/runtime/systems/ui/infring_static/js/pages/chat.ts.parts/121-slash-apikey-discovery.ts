@@ -3,6 +3,9 @@
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: 'Usage: /apikey <api-key-or-local-model-path>',
           text: 'Usage: `/apikey <api-key-or-local-model-path>`',
           meta: '',
           tools: [],
@@ -39,6 +42,9 @@
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'info',
+          notice_label: statusLine,
           text: statusLine + '\n' + guidanceLine,
           meta: '',
           tools: [],
@@ -50,6 +56,9 @@
         this.messages.push({
           id: ++msgId,
           role: 'system',
+          is_notice: true,
+          notice_type: 'error',
+          notice_label: 'API key/model path discovery failed',
           text: 'API key/model path discovery failed: ' + (eApikey && eApikey.message ? eApikey.message : eApikey),
           meta: '',
           tools: [],

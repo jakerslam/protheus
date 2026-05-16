@@ -48,7 +48,7 @@
             Object.prototype.hasOwnProperty.call(data || {}, 'context_ratio') ||
             Object.prototype.hasOwnProperty.call(data || {}, 'context_pressure');
           if (!data.silent && !isContextTelemetryResult) {
-            this.messages.push({ id: ++msgId, role: 'system', text: data.message || 'Command executed.', meta: '', tools: [], system_origin: 'command:result' });
+            this.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: data.message || 'Command executed.', text: data.message || 'Command executed.', meta: '', tools: [], system_origin: 'command:result' });
             this.scrollToBottom();
           }
           break;

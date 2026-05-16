@@ -350,6 +350,9 @@
       this.messages.push({
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'error',
+        notice_label: 'Command ' + cmd + ' failed',
         text:
           'Command `' + cmd + '` failed: ' + message +
           (fallbackText ? ('\nTry recovery: ' + fallbackText) : ''),

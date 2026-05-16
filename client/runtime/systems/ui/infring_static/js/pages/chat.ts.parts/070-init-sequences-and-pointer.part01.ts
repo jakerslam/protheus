@@ -395,6 +395,9 @@
       this.messages = [{
         id: ++msgId,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'This session is empty. Send a message to begin.',
         text: 'This session is empty. Send a message to begin.',
         meta: '',
         tools: [],
