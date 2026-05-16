@@ -8320,6 +8320,18 @@ function chatPage() {
           return JSON.stringify(value).length;
         } catch (_) { return -1; }
       };
+      var storageByteSize = function(storage) {
+        var total = 0;
+        try {
+          if (!storage) return 0;
+          for (var si = 0; si < storage.length; si += 1) {
+            var key = storage.key(si);
+            if (!key) continue;
+            total += String(key).length + String(storage.getItem(key) || '').length;
+          }
+        } catch (_) { return -1; }
+        return total;
+      };
       var messages = Array.isArray(this.messages) ? this.messages : [];
       var totalMessageTextBytes = 0;
       var totalMessageStreamBufferBytes = 0;
@@ -8360,6 +8372,13 @@ function chatPage() {
           ? Object.keys(this._sessionsLastLoadedAtByAgent).length
           : 0,
       };
+      var localStorageBytes = storageByteSize(typeof localStorage !== 'undefined' ? localStorage : null);
+      var sessionStorageBytes = storageByteSize(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+      var storageBytes = {
+        local_storage_bytes: localStorageBytes,
+        session_storage_bytes: sessionStorageBytes,
+        total_storage_bytes: Math.max(0, localStorageBytes) + Math.max(0, sessionStorageBytes),
+      };
       var captureIndex = Number((this._memprobeCaptureCount || 0) + 1) || 1;
       this._memprobeCaptureCount = captureIndex;
       var report = {
@@ -8371,6 +8390,7 @@ function chatPage() {
         heap: heap,
         dom_counts: domCounts,
         custom_element_counts: customElementCounts,
+        storage_bytes: storageBytes,
         suspected_accumulators: suspectedAccumulators,
         page_visible: typeof document !== 'undefined' && document && document.visibilityState ? document.visibilityState : 'unknown',
       };
@@ -8381,11 +8401,14 @@ function chatPage() {
         var nextNodes = Number(domCounts.total_nodes || 0);
         var prevBubbles = Number((prev.custom_element_counts && prev.custom_element_counts['infring-chat-bubble-render']) || 0);
         var nextBubbles = Number(customElementCounts['infring-chat-bubble-render'] || 0);
+        var prevStorage = Number((prev.storage_bytes && prev.storage_bytes.total_storage_bytes) || 0);
+        var nextStorage = Number(storageBytes.total_storage_bytes || 0);
         report.delta = {
           elapsed_ms: now - Number(prev.captured_at_ms),
           used_js_heap_mb: Math.round((nextHeapMb - prevHeapMb) * 100) / 100,
           total_nodes: nextNodes - prevNodes,
           bubble_count: nextBubbles - prevBubbles,
+          total_storage_bytes: nextStorage - prevStorage,
           message_count: messages.length - Number(prev.suspected_accumulators && prev.suspected_accumulators.message_count || 0),
         };
       }

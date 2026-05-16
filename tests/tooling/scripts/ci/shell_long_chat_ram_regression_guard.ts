@@ -137,12 +137,14 @@ async function runProjectionSmoke(args: Args): Promise<ProjectionSmoke> {
   const beforeMapRows = readStoreLength(store.mapRows);
 
   const messages = syntheticMessages(args.messageCount);
+  windowStub.InfringChatPage = { filteredMessages: messages };
   store.syncMessages(messages, messages);
   await flushStore();
   const afterOpenProjected = readStoreLength(store.filteredMessages);
   const afterOpenMapRows = readStoreLength(store.mapRows);
 
   store.setThreadProjectionCenter(Math.floor(args.messageCount / 2));
+  windowStub.InfringChatPage = { filteredMessages: messages };
   store.syncMessages(messages, messages);
   await flushStore();
   const scrollProjected = readStoreLength(store.filteredMessages);
@@ -192,8 +194,8 @@ async function runProjectionSmoke(args: Args): Promise<ProjectionSmoke> {
     after_open_map_rows: afterOpenMapRows,
     scroll_projected_messages: scrollProjected,
     scroll_map_rows: scrollMapRows,
-    scroll_window_start_index: Number(scrollMeta.windowStartIndex ?? -1),
-    scroll_window_end_index: Number(scrollMeta.windowEndIndex ?? -1),
+    scroll_window_start_index: Number(scrollMeta.windowStartIndex ?? scrollMeta.start_index ?? -1),
+    scroll_window_end_index: Number(scrollMeta.windowEndIndex ?? scrollMeta.end_index ?? -1),
     search_projected_messages: searchProjected,
     search_map_rows: searchMapRows,
     search_total_matches: searchRows.length,
