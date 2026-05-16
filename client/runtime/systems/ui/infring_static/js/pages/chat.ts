@@ -12326,7 +12326,7 @@ function chatPage() {
           var id = String(tool.id || '').trim();
           if (id) return 'id:' + id;
           var name = String(tool.name || '').trim().toLowerCase();
-          var input = String(tool.input || '').trim();
+          var input = String(tool.input_preview || '').trim();
           return 'sig:' + name + '::' + input;
         };
         var index = Object.create(null);
@@ -12352,8 +12352,8 @@ function chatPage() {
             base[pos] = next;
             continue;
           }
-          if (!String(prior.result || '').trim() && String(next.result || '').trim()) prior.result = next.result;
-          if (!String(prior.input || '').trim() && String(next.input || '').trim()) prior.input = next.input;
+          if (!String(prior.result_preview || '').trim() && String(next.result_preview || '').trim()) prior.result_preview = next.result_preview;
+          if (!String(prior.input_preview || '').trim() && String(next.input_preview || '').trim()) prior.input_preview = next.input_preview;
           if (!String(prior.id || '').trim() && String(next.id || '').trim()) prior.id = next.id;
           if (next.is_error) prior.is_error = true;
           if (prior.running && next.running === false) prior.running = false;
@@ -13958,7 +13958,7 @@ function chatPage() {
 
     toolInputPayload: function(tool) {
       if (!tool || typeof tool !== 'object') return null;
-      var raw = String(tool.input || tool.args || tool.arguments || '').trim();
+      var raw = String(tool._detail_loaded ? (tool.input || tool.input_preview || '') : (tool.input_preview || '')).trim();
       if (!raw) return null;
       if (raw.indexOf('<function=') >= 0 && raw.indexOf('{') >= 0) {
         raw = raw.slice(raw.indexOf('{')).trim();
@@ -14146,13 +14146,13 @@ function chatPage() {
         var matchesIdentity = String(card.identity_key || '').trim() && String(card.identity_key || '').trim() === String(identity.identity_key || '').trim();
         if (!matchesIdentity && String(card.name || '') !== name) continue;
         if (markRunning && card.running) {
-          if (typeof toolInput === 'string') card.input = toolInput;
+          if (typeof toolInput === 'string') card.input_preview = toolInput;
           if (identity.id) card.id = identity.id;
           if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           return card;
         }
         if (!markRunning && card.running) {
-          if (typeof toolInput === 'string') card.input = toolInput;
+          if (typeof toolInput === 'string') card.input_preview = toolInput;
           if (identity.id) card.id = identity.id;
           if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           card.running = false;
@@ -14160,7 +14160,7 @@ function chatPage() {
         }
       }
       if (!allowCreate) return null;
-      var created = { id: identity.id, name: name, running: markRunning, expanded: false, input: typeof toolInput === 'string' ? toolInput : '', result: '', is_error: false, attempt_id: identity.attempt_id, attempt_sequence: identity.attempt_sequence, identity_key: identity.identity_key };
+      var created = { id: identity.id, name: name, running: markRunning, expanded: false, input_preview: typeof toolInput === 'string' ? toolInput : '', result_preview: '', is_error: false, attempt_id: identity.attempt_id, attempt_sequence: identity.attempt_sequence, identity_key: identity.identity_key };
       msg.tools.push(created);
       return created;
     },
@@ -15351,8 +15351,8 @@ function chatPage() {
         name: row.name || row.tool || 'tool',
         running: false,
         expanded: false,
-        input: this.stringifyStructuredToolValue(row.input || row.arguments || row.args || '', 16000),
-        result: this.stringifyStructuredToolValue(row.result || row.output || row.summary || '', 24000),
+        input_preview: this.stringifyStructuredToolValue(row.input_preview || row.arguments_preview || row.args_preview || row.input || row.arguments || row.args || '', 2000),
+        result_preview: this.stringifyStructuredToolValue(row.result_preview || row.output_preview || row.summary || row.result || row.output || '', 2000),
         is_error: !!(row.is_error || row.error || row.blocked),
         blocked: row.blocked === true || String(row.status || '').toLowerCase() === 'blocked',
         status: String(row.status || '').trim().toLowerCase(),
@@ -15393,8 +15393,8 @@ function chatPage() {
         name: toolName,
         running: false,
         expanded: false,
-        input: input,
-        result: result,
+        input_preview: input,
+        result_preview: result,
         is_error: isError,
         blocked: blocked,
         status: blocked ? 'blocked' : (rawStatus || (isError ? 'error' : 'ok')),
@@ -15421,8 +15421,8 @@ function chatPage() {
             name: String(seed.name || seed.tool || 'tool').trim() || 'tool',
             running: false,
             expanded: false,
-            input: '',
-            result: '',
+            input_preview: '',
+            result_preview: '',
             is_error: false,
             blocked: false,
             status: '',
@@ -15446,7 +15446,7 @@ function chatPage() {
             attempt_id: this.resolveToolUseId(block),
             attempt_sequence: rows.length + 1
           }, rows.length);
-          if (!callRow.input) callRow.input = this.stringifyStructuredToolValue(this.resolveToolBlockArgs(block), 16000);
+          if (!callRow.input_preview) callRow.input_preview = this.stringifyStructuredToolValue(this.resolveToolBlockArgs(block), 2000);
           continue;
         }
         if (!this.isToolResultContentType(block.type)) continue;
@@ -15468,7 +15468,7 @@ function chatPage() {
           ),
           24000
         );
-        if (!resultRow.result && resultText) resultRow.result = resultText;
+        if (!resultRow.result_preview && resultText) resultRow.result_preview = resultText;
         var rawStatus = String(block.status || '').trim().toLowerCase();
         var blocked = block.blocked === true || rawStatus === 'blocked' || rawStatus === 'policy_denied';
         var isError = block.is_error === true || this.normalizeToolContentType(block.type) === 'tool_result_error' || (!!rawStatus && rawStatus !== 'ok' && !blocked);
@@ -15493,8 +15493,8 @@ function chatPage() {
           var sameUnnamedTool = !candidate.attempt_id && String(current.name || '').toLowerCase() === String(candidate.name || '').toLowerCase();
           var adoptUnnamedBase = !sameAttempt && !current.attempt_id && !claimedBaseIndexes[j] && String(current.name || '').toLowerCase() === String(candidate.name || '').toLowerCase();
           if (!sameAttempt && !sameUnnamedTool && !adoptUnnamedBase) continue;
-          if (!current.input && candidate.input) current.input = candidate.input;
-          if ((!current.result || !String(current.result).trim()) && candidate.result) current.result = candidate.result;
+          if (!current.input_preview && candidate.input_preview) current.input_preview = candidate.input_preview;
+          if ((!current.result_preview || !String(current.result_preview).trim()) && candidate.result_preview) current.result_preview = candidate.result_preview;
           if (candidate.blocked) current.blocked = true;
           if (candidate.status) current.status = candidate.status;
           if (candidate.is_error) current.is_error = true;
@@ -15513,7 +15513,7 @@ function chatPage() {
     },
     parseStructuredToolInput: function(tool) {
       var row = tool && typeof tool === 'object' ? tool : {};
-      var input = row.input;
+      var input = row._detail_loaded ? row.input : row.input_preview;
       if (input && typeof input === 'object' && !Array.isArray(input)) return input;
       var raw = typeof input === 'string' ? String(input).trim() : '';
       if (!raw || raw.charAt(0) !== '{') return {};
@@ -15576,7 +15576,7 @@ function chatPage() {
           merged.push(this.normalizeResponseToolCard({
             id: 'completion-step-' + (si + 1) + '-' + stepName,
             name: stepName,
-            result: stepStatus ? ('Missing tool_result block; last known status: ' + stepStatus) : '',
+            result_preview: stepStatus ? ('Missing tool_result block; last known status: ' + stepStatus) : '',
             is_error: !!stepSeed.is_error,
             status: stepStatus ? stepStatus.toLowerCase() : ''
           }, si, 'completion'));
@@ -15603,8 +15603,8 @@ function chatPage() {
         if (!step) continue;
         var statusText = String(step.status || '').trim();
         if (!row.status && statusText) row.status = statusText.toLowerCase();
-        if ((!row.result || !String(row.result).trim()) && statusText) {
-          row.result = 'Missing tool_result block; last known status: ' + statusText;
+        if ((!row.result_preview || !String(row.result_preview).trim()) && statusText) {
+          row.result_preview = 'Missing tool_result block; last known status: ' + statusText;
         }
         if (step.is_error === true && !row.blocked) row.is_error = true;
       }

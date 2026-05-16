@@ -75,6 +75,7 @@
       "id": "shell_tool_expanded_raw_payload_render",
       "description": "Collapsed default tool cards must move raw input/result rendering behind lazy detail fetches.",
       "regex": "\\b(?:tool|t|row|card|candidate|prior|next)\\.(?:input|result)\\b|\\b(?:input|result):\\s*(?:t|tool|row)\\.(?:input|result)\\b",
+      "allowed_context_regex": "(?:_detail_loaded|toolRawResultTextIfLoaded|toolProjectionPreviewText|input_preview|result_preview|output_preview|detail_ref|result_ref|input_ref)",
       "scan_roots": [
         "client/runtime/systems/ui/infring_static/js/pages/chat_message_normalization_helpers.ts",
         "client/runtime/systems/ui/infring_static/js/pages/chat_message_preview_map_helpers.ts",
@@ -264,7 +265,7 @@
     {
       "id": "shell_tool_completion_raw_result_authority",
       "description": "Shell must not infer authoritative tool completion or status from raw tool result text.",
-      "regex": "(?:responseHasAuthoritativeToolCompletion[\\s\\S]*?rows\\.some\\(function\\(tool\\)|txt\\.indexOf\\(|tool\\.result\\.length\\s*>)",
+      "regex": "(?:String\\(tool\\.result|tool\\.result\\.length\\s*>|tool\\s*&&\\s*tool\\.result|tool\\.result\\s*\\|\\|\\s*tool\\.status)",
       "scan_roots": [
         "client/runtime/systems/ui/infring_static/js/pages/chat_assistant_text_signal_helpers.ts",
         "client/runtime/systems/ui/infring_static/js/pages/chat_tool_label_helpers.ts",

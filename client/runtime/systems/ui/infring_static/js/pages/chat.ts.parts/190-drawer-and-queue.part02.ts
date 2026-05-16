@@ -38,7 +38,7 @@
 
     toolInputPayload: function(tool) {
       if (!tool || typeof tool !== 'object') return null;
-      var raw = String(tool.input || tool.args || tool.arguments || '').trim();
+      var raw = String(tool._detail_loaded ? (tool.input || tool.input_preview || '') : (tool.input_preview || '')).trim();
       if (!raw) return null;
       if (raw.indexOf('<function=') >= 0 && raw.indexOf('{') >= 0) {
         raw = raw.slice(raw.indexOf('{')).trim();
@@ -226,13 +226,13 @@
         var matchesIdentity = String(card.identity_key || '').trim() && String(card.identity_key || '').trim() === String(identity.identity_key || '').trim();
         if (!matchesIdentity && String(card.name || '') !== name) continue;
         if (markRunning && card.running) {
-          if (typeof toolInput === 'string') card.input = toolInput;
+          if (typeof toolInput === 'string') card.input_preview = toolInput;
           if (identity.id) card.id = identity.id;
           if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           return card;
         }
         if (!markRunning && card.running) {
-          if (typeof toolInput === 'string') card.input = toolInput;
+          if (typeof toolInput === 'string') card.input_preview = toolInput;
           if (identity.id) card.id = identity.id;
           if (identity.attempt_id) card.attempt_id = identity.attempt_id; if (identity.attempt_sequence) card.attempt_sequence = identity.attempt_sequence; if (identity.identity_key) card.identity_key = identity.identity_key;
           card.running = false;
@@ -240,7 +240,7 @@
         }
       }
       if (!allowCreate) return null;
-      var created = { id: identity.id, name: name, running: markRunning, expanded: false, input: typeof toolInput === 'string' ? toolInput : '', result: '', is_error: false, attempt_id: identity.attempt_id, attempt_sequence: identity.attempt_sequence, identity_key: identity.identity_key };
+      var created = { id: identity.id, name: name, running: markRunning, expanded: false, input_preview: typeof toolInput === 'string' ? toolInput : '', result_preview: '', is_error: false, attempt_id: identity.attempt_id, attempt_sequence: identity.attempt_sequence, identity_key: identity.identity_key };
       msg.tools.push(created);
       return created;
     },

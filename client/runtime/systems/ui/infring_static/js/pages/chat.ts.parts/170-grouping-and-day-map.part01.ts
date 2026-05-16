@@ -418,7 +418,7 @@
           var id = String(tool.id || '').trim();
           if (id) return 'id:' + id;
           var name = String(tool.name || '').trim().toLowerCase();
-          var input = String(tool.input || '').trim();
+          var input = String(tool.input_preview || '').trim();
           return 'sig:' + name + '::' + input;
         };
         var index = Object.create(null);
@@ -444,8 +444,8 @@
             base[pos] = next;
             continue;
           }
-          if (!String(prior.result || '').trim() && String(next.result || '').trim()) prior.result = next.result;
-          if (!String(prior.input || '').trim() && String(next.input || '').trim()) prior.input = next.input;
+          if (!String(prior.result_preview || '').trim() && String(next.result_preview || '').trim()) prior.result_preview = next.result_preview;
+          if (!String(prior.input_preview || '').trim() && String(next.input_preview || '').trim()) prior.input_preview = next.input_preview;
           if (!String(prior.id || '').trim() && String(next.id || '').trim()) prior.id = next.id;
           if (next.is_error) prior.is_error = true;
           if (prior.running && next.running === false) prior.running = false;

@@ -15,6 +15,7 @@ type Pattern = {
   id: string;
   description: string;
   regex: string;
+  allowed_context_regex?: string;
   scan_roots?: string[];
 };
 
@@ -137,10 +138,21 @@ function compile(pattern: Pattern, violations: Violation[]): RegExp | null {
   }
 }
 
-function countMatches(source: string, regex: RegExp): number {
+function countMatches(source: string, regex: RegExp, allowedContextRegex?: RegExp | null): number {
   let count = 0;
   regex.lastIndex = 0;
-  while (regex.exec(source)) {
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(source))) {
+    if (allowedContextRegex) {
+      var start = Math.max(0, match.index - 180);
+      var end = Math.min(source.length, match.index + String(match[0] || '').length + 180);
+      if (allowedContextRegex.test(source.slice(start, end))) {
+        allowedContextRegex.lastIndex = 0;
+        if (regex.lastIndex === match.index) regex.lastIndex += 1;
+        continue;
+      }
+      allowedContextRegex.lastIndex = 0;
+    }
     count += 1;
     if (regex.lastIndex === 0) break;
   }
@@ -332,12 +344,15 @@ async function run(argv = process.argv.slice(2)) {
   for (const pattern of policy.forbidden_patterns || []) {
     const regex = compile(pattern, violations);
     if (!regex) continue;
+    const allowedContextRegex = pattern.allowed_context_regex
+      ? compile({ id: `${pattern.id}:allowed_context`, description: `${pattern.description} allowed context`, regex: pattern.allowed_context_regex }, violations)
+      : null;
     const patternFiles = pattern.scan_roots && pattern.scan_roots.length
       ? expandScanFiles({ ...policy, scan_roots: pattern.scan_roots }, [])
       : files;
     for (const file of [...patternFiles, ...Object.keys(virtualSources)]) {
       const source = virtualSources[file] == null ? readText(file) : virtualSources[file];
-      const matches = countMatches(source, regex);
+      const matches = countMatches(source, regex, allowedContextRegex);
       if (!matches) continue;
       const allowance = findAllowance(policy, pattern.id, file);
       const allowed = validateAllowance(pattern, allowance, matches, violations);
