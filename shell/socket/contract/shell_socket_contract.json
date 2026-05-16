@@ -265,6 +265,23 @@
       "requires_detail_refs": true
     },
     {
+      "name": "ModelDownloadProjection",
+      "description": "Bounded model download acknowledgement for shell display; download authority and raw provider output remain outside the shell.",
+      "allowed_top_level_fields": [
+        "ok",
+        "method",
+        "download_path",
+        "provider",
+        "model",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -611,6 +628,34 @@
         "raw_provider_response",
         "model_policy_truth",
         "fallback_decision_truth"
+      ]
+    },
+    {
+      "id": "download_model",
+      "purpose": "Request a local/provider model download through Gateway controls without exposing download authority to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ModelDownloadRequest",
+      "response_shape": "ModelDownloadProjection",
+      "default_projection": "ModelDownloadProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_model_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "model",
+        "method",
+        "download_path",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "download_authority",
+        "raw_provider_response",
+        "model_policy_truth"
       ]
     },
     {

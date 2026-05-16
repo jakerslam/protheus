@@ -88,6 +88,36 @@ fn handle_shell_socket_routes(
             payload,
         });
     }
+    if method == "POST" && parts == ["models", "download"] {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let provider = clean_text(
+            request
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            80,
+        );
+        let model = clean_text(
+            request.get("model").and_then(Value::as_str).unwrap_or(""),
+            240,
+        );
+        let mut payload = crate::dashboard_provider_runtime::download_model(root, &provider, &model);
+        let ok = payload.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        if let Some(obj) = payload.as_object_mut() {
+            let receipt_seed = json!({"provider": provider.clone(), "model": model.clone()});
+            obj.insert("provider".to_string(), json!(provider));
+            obj.insert("model".to_string(), json!(model));
+            obj.insert(
+                "receipt_ref".to_string(),
+                json!(shell_socket_receipt_ref("download_model", &receipt_seed)),
+            );
+            obj.insert("correlation_id".to_string(), json!("shell_socket.model_download"));
+        }
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload,
+        });
+    }
     if method == "POST" && parts == ["input"] {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let agent_id = clean_agent_id(request.get("agent_id").or_else(|| request.get("target_agent_id")).and_then(Value::as_str).unwrap_or(""));

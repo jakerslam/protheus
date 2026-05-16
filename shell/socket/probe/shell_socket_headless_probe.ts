@@ -234,6 +234,17 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:model-discovery:probe',
         correlation_id: 'probe-model-discovery',
       };
+    } else if (route === 'POST /api/shell-socket/models/download') {
+      capabilityId = 'download_model';
+      payload = {
+        ok: true,
+        method: 'fixture_download',
+        download_path: '/tmp/infring-probe-model',
+        provider: String(body.provider || 'probe'),
+        model: String(body.model || 'probe/auto'),
+        receipt_ref: 'receipt:model-download:probe',
+        correlation_id: 'probe-model-download',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/model$/.test(pathName)) {
       capabilityId = 'set_model';
       payload = makeIngressAck('model');
@@ -369,6 +380,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const approvalAck = await client.submitApprovalDecision<any>('approval-probe', { decision: 'approve' });
   const models = await client.listModels<any>({ limit: 10 });
   const discovery = await client.discoverModels<any>({ input: '__auto__' });
+  const download = await client.downloadModel<any>({ provider: 'probe', model: 'probe/auto' });
   const modelAck = await client.setModel<any>(agentId, { model_ref: 'model:auto' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
@@ -398,6 +410,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       approval_receipt: approvalAck.receipt_ref,
       model_catalog_receipt: models.receipt_ref,
       model_discovery_receipt: discovery.receipt_ref,
+      model_download_receipt: download.receipt_ref,
       model_receipt: modelAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,

@@ -2064,7 +2064,7 @@ function chatPage() {
       self.startModelDownloadProgressTimer(key);
       var modelRef = String(row.id || row.display_name || '').trim();
       var provider = String(row.provider || '').trim();
-      InfringAPI.post('/api/models/download', {
+      InfringAPI.post('/api/shell-socket/models/download', {
         model: modelRef,
         provider: provider
       }).then(function(resp) {
@@ -12438,7 +12438,7 @@ function chatPage() {
             var starterProvider = String(action.starter_provider || 'ollama').trim();
             var starterModel = String(action.starter_model || '').trim();
             if (starterProvider && starterModel) {
-              await InfringAPI.post('/api/models/download', {
+              await InfringAPI.post('/api/shell-socket/models/download', {
                 provider: starterProvider,
                 model: starterProvider + '/' + starterModel
               }).catch(function() { return null; });

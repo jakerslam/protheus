@@ -294,6 +294,24 @@
       "implementation_status": "live_gateway_bound"
     },
     {
+      "capability_id": "download_model",
+      "gateway_route_id": "shell_socket.download_model",
+      "canonical_route_pattern": "POST /api/shell-socket/models/download",
+      "route_class": "request_ingress",
+      "source_domain": "shell_plug",
+      "target_domain": "gateway.model_download_ingress",
+      "owner_of_truth": "kernel_model_config_authority",
+      "backend_owner_path": "core/** provider/model download authority through Gateway",
+      "payload_budget_ref": "shell/socket/contract/shell_socket_contract.json#/projection_types/ModelDownloadProjection",
+      "default_response_projection": "ModelDownloadProjection",
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "detail_ref_behavior": "download returns bounded display status only; raw provider output and secrets are prohibited",
+      "implementation_status": "live_gateway_bound"
+    },
+    {
       "capability_id": "set_git_tree",
       "gateway_route_id": "shell_socket.set_git_tree",
       "canonical_route_pattern": "POST /api/shell-socket/agents/{agent_id}/git-tree",

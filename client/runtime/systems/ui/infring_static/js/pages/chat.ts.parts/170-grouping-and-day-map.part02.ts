@@ -127,7 +127,7 @@
             var starterProvider = String(action.starter_provider || 'ollama').trim();
             var starterModel = String(action.starter_model || '').trim();
             if (starterProvider && starterModel) {
-              await InfringAPI.post('/api/models/download', {
+              await InfringAPI.post('/api/shell-socket/models/download', {
                 provider: starterProvider,
                 model: starterProvider + '/' + starterModel
               }).catch(function() { return null; });

@@ -85,7 +85,7 @@
       self.startModelDownloadProgressTimer(key);
       var modelRef = String(row.id || row.display_name || '').trim();
       var provider = String(row.provider || '').trim();
-      InfringAPI.post('/api/models/download', {
+      InfringAPI.post('/api/shell-socket/models/download', {
         model: modelRef,
         provider: provider
       }).then(function(resp) {

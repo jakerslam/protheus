@@ -14,6 +14,7 @@ export type ShellSocketCapabilityId =
   | 'submit_approval_decision'
   | 'list_models'
   | 'discover_models'
+  | 'download_model'
   | 'set_model'
   | 'set_git_tree'
   | 'fresh_session'
@@ -53,6 +54,7 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'submit_approval_decision', method: 'POST', path: '/api/shell-socket/approvals/{approval_id}/decision', pathParams: ['approval_id'] },
   { capabilityId: 'list_models', method: 'GET', path: '/api/shell-socket/models', queryParams: ['cursor', 'limit'] },
   { capabilityId: 'discover_models', method: 'POST', path: '/api/shell-socket/models/discover' },
+  { capabilityId: 'download_model', method: 'POST', path: '/api/shell-socket/models/download' },
   { capabilityId: 'set_model', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/model', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
@@ -195,6 +197,10 @@ export class ShellSocketGatewayClient {
     return this.request<T>('discover_models', { body: request });
   }
 
+  downloadModel<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('download_model', { body: request });
+  }
+
   setModel<T = unknown>(agentId: string, modelSelection: unknown): Promise<T> {
     return this.request<T>('set_model', { query: { agent_id: agentId }, body: modelSelection });
   }
@@ -227,7 +233,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 17,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 18,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,
