@@ -7483,7 +7483,7 @@ function chatPage() {
         : null;
       var pendingStatusText = pending && String(pending.status_text || '').trim()
         ? String(pending.status_text || '').trim()
-        : 'Waiting for workflow completion...';
+        : '';
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var hasVisiblePending = false;
       var now = Date.now();
@@ -7621,8 +7621,7 @@ function chatPage() {
       var opts = options && typeof options === 'object' ? options : {};
       var startedAt = Number(opts.started_at || 0);
       if (!Number.isFinite(startedAt) || startedAt <= 0) startedAt = Date.now();
-      var statusText = String(opts.status_text || 'Waiting for workflow completion...').trim();
-      if (!statusText) statusText = 'Waiting for workflow completion...';
+      var statusText = String(opts.status_text || '').trim();
       this._pendingWsRequest = {
         agent_id: id,
         message_text: String(messageText || '').trim(),
@@ -10311,7 +10310,7 @@ function chatPage() {
           // Show tool/phase progress so the user sees the agent is working
           var phaseMsg = this.ensureLiveThinkingRow(data);
           if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
-            var phaseDetailText = String(data && data.detail ? data.detail : '').trim();
+            var phaseThoughtText = String(data && data.detail ? data.detail : '').trim();
             var phasePercent = Number(
               data && data.progress_percent != null
 
@@ -10328,7 +10327,7 @@ function chatPage() {
 	            if (!Number.isFinite(Number(phaseMsg._stream_started_at))) {
 	              phaseMsg._stream_started_at = Date.now();
 	            }
-	            var phaseStatusCandidate = String((data && (data.thinking_status || data.status_text || data.workflow_stage || data.stage)) || phaseDetailText || '').trim();
+		            var phaseStatusCandidate = String((data && (data.thinking_status || data.status_text || data.workflow_stage || data.stage)) || '').trim();
             var phaseKey = String(data && data.phase ? data.phase : '').trim().toLowerCase();
             if (!phaseStatusCandidate && phaseKey) {
               phaseStatusCandidate = phaseKey.replace(/[_-]+/g, ' ').trim();
@@ -10344,7 +10343,7 @@ function chatPage() {
               !phaseCurrentStatus ||
               (typeof this.isThinkingPlaceholderText === 'function' && this.isThinkingPlaceholderText(phaseCurrentStatus))
             );
-            var phaseFingerprint = phaseKey + '|' + phaseDetailText + '|' + phaseStatusCandidate + '|' + (Number.isFinite(phasePercent) ? String(Math.round(phasePercent)) : '');
+            var phaseFingerprint = phaseKey + '|' + phaseThoughtText + '|' + phaseStatusCandidate + '|' + (Number.isFinite(phasePercent) ? String(Math.round(phasePercent)) : '');
             if (phaseMsg._phase_update_fingerprint === phaseFingerprint) {
               phaseMsg._stream_updated_at = Date.now();
               this._resetTypingTimeout();
@@ -10372,7 +10371,7 @@ function chatPage() {
               phaseKey === 'planning' ||
               phaseKey === 'plan'
             ) {
-              var thoughtChunk = String(data.detail || '').trim();
+              var thoughtChunk = phaseThoughtText;
               if (thoughtChunk && typeof this.normalizeThinkingStatusCandidate === 'function') {
                 thoughtChunk = this.normalizeThinkingStatusCandidate(thoughtChunk);
               }

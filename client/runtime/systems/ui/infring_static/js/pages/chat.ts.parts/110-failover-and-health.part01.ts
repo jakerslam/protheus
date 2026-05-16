@@ -512,7 +512,7 @@
         : null;
       var pendingStatusText = pending && String(pending.status_text || '').trim()
         ? String(pending.status_text || '').trim()
-        : 'Waiting for workflow completion...';
+        : '';
       var rows = Array.isArray(this.messages) ? this.messages : [];
       var hasVisiblePending = false;
       var now = Date.now();
@@ -650,8 +650,7 @@
       var opts = options && typeof options === 'object' ? options : {};
       var startedAt = Number(opts.started_at || 0);
       if (!Number.isFinite(startedAt) || startedAt <= 0) startedAt = Date.now();
-      var statusText = String(opts.status_text || 'Waiting for workflow completion...').trim();
-      if (!statusText) statusText = 'Waiting for workflow completion...';
+      var statusText = String(opts.status_text || '').trim();
       this._pendingWsRequest = {
         agent_id: id,
         message_text: String(messageText || '').trim(),

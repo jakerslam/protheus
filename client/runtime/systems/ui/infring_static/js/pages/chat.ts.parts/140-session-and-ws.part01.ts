@@ -649,6 +649,6 @@
           // Show tool/phase progress so the user sees the agent is working
           var phaseMsg = this.ensureLiveThinkingRow(data);
           if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
-            var phaseDetailText = String(data && data.detail ? data.detail : '').trim();
+            var phaseThoughtText = String(data && data.detail ? data.detail : '').trim();
             var phasePercent = Number(
               data && data.progress_percent != null
