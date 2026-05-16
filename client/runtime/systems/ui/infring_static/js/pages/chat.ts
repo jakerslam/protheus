@@ -7855,7 +7855,7 @@ function chatPage() {
           break;
         case '/new':
           if (self.currentAgent) {
-            InfringAPI.post('/api/agents/' + self.currentAgent.id + '/session/reset', {}).then(function() {
+            InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(self.currentAgent.id) + '/fresh-session', {}).then(function() {
               self.messages = [];
               InfringToast.success('Session reset');
             }).catch(function(e) { InfringToast.error('Reset failed: ' + e.message); });
@@ -8439,7 +8439,7 @@ function chatPage() {
             delete this.conversationCache[String(resolved.id)];
             this.persistConversationCache();
           }
-          InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
+          InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(resolved.id) + '/fresh-session', {}).catch(function() {});
           this.connectWs(resolved.id);
           this.loadSessions(resolved.id);
           this.requestContextTelemetry(true);
@@ -8480,7 +8480,7 @@ function chatPage() {
       if (forceFreshSession && this.conversationCache) {
         delete this.conversationCache[String(resolved.id)];
         this.persistConversationCache();
-        InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
+        InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(resolved.id) + '/fresh-session', {}).catch(function() {});
       }
       var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
       if (!restored) {

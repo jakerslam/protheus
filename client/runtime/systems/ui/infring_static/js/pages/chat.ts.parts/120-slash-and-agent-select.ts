@@ -502,7 +502,7 @@
             delete this.conversationCache[String(resolved.id)];
             this.persistConversationCache();
           }
-          InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
+          InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(resolved.id) + '/fresh-session', {}).catch(function() {});
           this.connectWs(resolved.id);
           this.loadSessions(resolved.id);
           this.requestContextTelemetry(true);
@@ -543,7 +543,7 @@
       if (forceFreshSession && this.conversationCache) {
         delete this.conversationCache[String(resolved.id)];
         this.persistConversationCache();
-        InfringAPI.post('/api/agents/' + resolved.id + '/session/reset', {}).catch(function() {});
+        InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(resolved.id) + '/fresh-session', {}).catch(function() {});
       }
       var restored = forceFreshSession ? false : this.restoreAgentConversation(resolved.id);
       if (!restored) {

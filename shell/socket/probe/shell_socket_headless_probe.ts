@@ -213,6 +213,9 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/fresh-session$/.test(pathName)) {
+      capabilityId = 'fresh_session';
+      payload = makeIngressAck('fresh-session');
     } else if (route === 'POST /api/shell-socket/terminal/commands') {
       capabilityId = 'submit_terminal_command';
       payload = makeIngressAck('terminal-command');
@@ -336,6 +339,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const approvalAck = await client.submitApprovalDecision<any>('approval-probe', { decision: 'approve' });
   const modelAck = await client.setModel<any>(agentId, { model_ref: 'model:auto' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
+  const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const terminalAck = await client.submitTerminalCommand<any>({ command_ref: 'terminal:probe-command' });
 
   const violations = validateCalls(calls, socketContract, routeContract);
@@ -361,6 +365,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       approval_receipt: approvalAck.receipt_ref,
       model_receipt: modelAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
+      fresh_session_receipt: freshSessionAck.receipt_ref,
       terminal_receipt: terminalAck.receipt_ref,
     },
     violations,

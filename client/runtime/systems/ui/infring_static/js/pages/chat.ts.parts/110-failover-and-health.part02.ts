@@ -41,7 +41,7 @@
           break;
         case '/new':
           if (self.currentAgent) {
-            InfringAPI.post('/api/agents/' + self.currentAgent.id + '/session/reset', {}).then(function() {
+            InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(self.currentAgent.id) + '/fresh-session', {}).then(function() {
               self.messages = [];
               InfringToast.success('Session reset');
             }).catch(function(e) { InfringToast.error('Reset failed: ' + e.message); });
