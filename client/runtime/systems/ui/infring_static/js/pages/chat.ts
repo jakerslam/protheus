@@ -821,7 +821,7 @@ function chatPage() {
       this.gitTreeMenuError = '';
       try {
         var result = await InfringAPI.post(
-          '/api/agents/' + encodeURIComponent(this.currentAgent.id) + '/git-tree/switch',
+          '/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/git-tree',
           {
             branch: branch,
             require_new: requireNew
