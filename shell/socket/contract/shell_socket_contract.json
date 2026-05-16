@@ -417,6 +417,42 @@
       "requires_detail_refs": true
     },
     {
+      "name": "SessionLifecycleProjection",
+      "description": "Bounded acknowledgement for session lifecycle ingress; shell plugs receive ids/receipts, not full session stores.",
+      "allowed_top_level_fields": [
+        "ok",
+        "agent_id",
+        "session_id",
+        "active_session_id",
+        "label",
+        "title",
+        "type",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
+      "name": "SuggestionProjection",
+      "description": "Bounded prompt suggestion projection for display; shell plugs receive short labels and optional detail refs only.",
+      "allowed_top_level_fields": [
+        "ok",
+        "agent_id",
+        "suggestions",
+        "next_cursor",
+        "detail_refs",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 16384,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -1302,6 +1338,109 @@
         "conversation_tree",
         "raw_messages",
         "session_store_truth"
+      ]
+    },
+    {
+      "id": "stop_agent",
+      "purpose": "Request active agent stop through Gateway without shell-owned runtime cancellation authority.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentStopRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_runtime_control_plane",
+      "shell_may_hold": [
+        "agent_id",
+        "state",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "runtime_cancellation_authority",
+        "queue_truth",
+        "execution_lane_truth"
+      ]
+    },
+    {
+      "id": "create_session",
+      "purpose": "Request session creation through Gateway without shell-owned session-store mutation authority.",
+      "route_class": "request_ingress",
+      "request_shape": "SessionCreateRequest",
+      "response_shape": "SessionLifecycleProjection",
+      "default_projection": "SessionLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_session_store",
+      "shell_may_hold": [
+        "agent_id",
+        "session_id",
+        "label",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "session_store_truth",
+        "conversation_tree",
+        "all_messages"
+      ]
+    },
+    {
+      "id": "switch_session",
+      "purpose": "Request active session selection through Gateway without shell-owned session routing authority.",
+      "route_class": "request_ingress",
+      "request_shape": "SessionSwitchRequest",
+      "response_shape": "SessionLifecycleProjection",
+      "default_projection": "SessionLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_session_store",
+      "shell_may_hold": [
+        "agent_id",
+        "session_id",
+        "active_session_id",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "session_routing_authority",
+        "session_store_truth",
+        "conversation_tree"
+      ]
+    },
+    {
+      "id": "request_agent_suggestions",
+      "purpose": "Request bounded prompt suggestions through Gateway without shell-owned suggestion generation authority.",
+      "route_class": "bounded_search_query",
+      "request_shape": "AgentSuggestionRequest",
+      "response_shape": "SuggestionProjection",
+      "default_projection": "SuggestionProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "standard_scrambler",
+      "owner_of_truth": "orchestration_suggestion_service",
+      "shell_may_hold": [
+        "agent_id",
+        "suggestion_labels",
+        "detail_refs",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "suggestion_generation_policy",
+        "raw_context_pack",
+        "full_conversation_tree"
       ]
     },
     {

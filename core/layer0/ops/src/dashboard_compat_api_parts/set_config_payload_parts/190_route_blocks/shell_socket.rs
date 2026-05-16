@@ -896,4 +896,87 @@ fn shell_socket_agent_lifecycle_projection(capability: &str, legacy: CompatApiRe
     }
 }
 
+fn shell_socket_session_lifecycle_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    for key in ["agent_id", "session_id", "active_session_id", "label", "title", "type"] {
+        if let Some(value) = payload.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    if let Some(error) = payload.get("error").and_then(Value::as_str) {
+        out.insert("error".to_string(), json!(clean_text(error, 240)));
+    }
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref(capability, &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!(format!("shell_socket.{capability}")),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
+fn shell_socket_suggestion_projection(capability: &str, legacy: CompatApiResponse) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    if let Some(agent_id) = payload.get("agent_id") {
+        out.insert("agent_id".to_string(), agent_id.clone());
+    }
+    let suggestions = payload
+        .get("suggestions")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .take(12)
+                .enumerate()
+                .map(|(idx, row)| {
+                    if let Some(text) = row.as_str() {
+                        return json!({
+                            "id": format!("suggestion-{idx}"),
+                            "label": clean_text(text, 220)
+                        });
+                    }
+                    json!({
+                        "id": clean_text(row.get("id").and_then(Value::as_str).unwrap_or(""), 80),
+                        "label": clean_text(
+                            row.get("label")
+                                .and_then(Value::as_str)
+                                .or_else(|| row.get("title").and_then(Value::as_str))
+                                .or_else(|| row.get("text").and_then(Value::as_str))
+                                .unwrap_or(""),
+                            220
+                        ),
+                        "detail_ref": row.get("detail_ref").cloned().unwrap_or(Value::Null)
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    out.insert("suggestions".to_string(), Value::Array(suggestions));
+    if let Some(error) = payload.get("error").and_then(Value::as_str) {
+        out.insert("error".to_string(), json!(clean_text(error, 240)));
+    }
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref(capability, &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!(format!("shell_socket.{capability}")),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
 include!("shell_socket_parts/020-routes.rs");

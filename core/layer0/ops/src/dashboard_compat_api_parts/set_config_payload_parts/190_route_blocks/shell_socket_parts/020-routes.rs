@@ -542,6 +542,30 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "DELETE", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_agent_lifecycle_projection("clear_agent_history", legacy));
     }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "stop" {
+        let legacy_path = format!("/api/agents/{}/stop", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_agent_lifecycle_projection("stop_agent", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "sessions" {
+        let legacy_path = format!("/api/agents/{}/sessions", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_session_lifecycle_projection("create_session", legacy));
+    }
+    if method == "POST" && parts.len() == 5 && parts[0] == "agents" && parts[2] == "sessions" && parts[4] == "switch" {
+        let legacy_path = format!(
+            "/api/agents/{}/sessions/{}/switch",
+            clean_agent_id(&parts[1]),
+            clean_text(&parts[3], 120)
+        );
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_session_lifecycle_projection("switch_session", legacy));
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "suggestions" {
+        let legacy_path = format!("/api/agents/{}/suggestions", clean_agent_id(&parts[1]));
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_suggestion_projection("request_agent_suggestions", legacy));
+    }
     if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "git-tree" {
         let legacy_path = format!("/api/agents/{}/git-tree/switch", clean_agent_id(&parts[1]));
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;

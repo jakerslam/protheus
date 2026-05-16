@@ -218,7 +218,7 @@
     // Multi-session: load session list for current agent
     async loadSessions(agentId) {
       try {
-        var data = await InfringAPI.get('/api/agents/' + agentId + '/sessions');
+        var data = await InfringAPI.get('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/sessions');
         var normalizedAgentId = typeof this.normalizeSessionAgentId === 'function'
           ? this.normalizeSessionAgentId(agentId)
           : String(agentId || '').trim().toLowerCase();
@@ -241,7 +241,7 @@
       var label = prompt('Session name (optional):');
       if (label === null) return; // cancelled
       try {
-        await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/sessions', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/sessions', {
           label: label.trim() || undefined
         });
         await this.loadSessions(this.currentAgent.id);
@@ -257,7 +257,7 @@
       if (!this.currentAgent) return;
       this.cacheCurrentConversation();
       try {
-        await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/sessions/' + sessionId + '/switch', {});
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/sessions/' + encodeURIComponent(sessionId) + '/switch', {});
         await this.loadSession(this.currentAgent.id);
         await this.loadSessions(this.currentAgent.id);
         // Reconnect WebSocket for new session

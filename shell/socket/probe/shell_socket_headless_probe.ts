@@ -435,6 +435,45 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:agent-history-clear:probe',
         correlation_id: 'probe-agent-history-clear',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/stop$/.test(pathName)) {
+      capabilityId = 'stop_agent';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        state: 'stopping',
+        receipt_ref: 'receipt:agent-stop:probe',
+        correlation_id: 'probe-agent-stop',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/sessions$/.test(pathName)) {
+      capabilityId = 'create_session';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        session_id: 'session-created-probe',
+        active_session_id: 'session-created-probe',
+        label: 'Probe Session',
+        receipt_ref: 'receipt:create-session:probe',
+        correlation_id: 'probe-create-session',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/sessions\/[^/]+\/switch$/.test(pathName)) {
+      capabilityId = 'switch_session';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        session_id: decodeURIComponent(pathName.split('/')[6] || 'session-probe'),
+        active_session_id: decodeURIComponent(pathName.split('/')[6] || 'session-probe'),
+        receipt_ref: 'receipt:switch-session:probe',
+        correlation_id: 'probe-switch-session',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/suggestions$/.test(pathName)) {
+      capabilityId = 'request_agent_suggestions';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        suggestions: [{ id: 'suggestion-probe', label: 'Probe suggestion' }],
+        receipt_ref: 'receipt:suggestions:probe',
+        correlation_id: 'probe-suggestions',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -587,6 +626,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const agentReviveAck = await client.reviveAgent<any>(agentId, { role: 'analyst' });
   const agentCloneAck = await client.cloneAgent<any>(agentId, { new_name: 'Clone Probe Agent' });
   const agentHistoryClearAck = await client.clearAgentHistory<any>(agentId);
+  const agentStopAck = await client.stopAgent<any>(agentId, { reason: 'headless_probe' });
+  const createSessionAck = await client.createSession<any>(agentId, { label: 'Probe Session' });
+  const switchSessionAck = await client.switchSession<any>(agentId, sessionId);
+  const suggestionsAck = await client.requestAgentSuggestions<any>(agentId, { user_hint: 'probe' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -635,6 +678,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       agent_revive_receipt: agentReviveAck.receipt_ref,
       agent_clone_receipt: agentCloneAck.receipt_ref,
       agent_history_clear_receipt: agentHistoryClearAck.receipt_ref,
+      agent_stop_receipt: agentStopAck.receipt_ref,
+      create_session_receipt: createSessionAck.receipt_ref,
+      switch_session_receipt: switchSessionAck.receipt_ref,
+      suggestions_receipt: suggestionsAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

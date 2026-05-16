@@ -3839,7 +3839,7 @@ function chatPage() {
 	      try {
 	        var payload = {};
           if (suggestionScopeKey) payload.session_scope_key = suggestionScopeKey;
-	        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
+	        var result = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
 	        if (this._suggestionFetchSeq !== seq) return;
 	        var baseSuggestions = result && result.suggestions ? result.suggestions : [];
 	        var suggestions = this.normalizePromptSuggestions(
@@ -9799,7 +9799,7 @@ function chatPage() {
     // Multi-session: load session list for current agent
     async loadSessions(agentId) {
       try {
-        var data = await InfringAPI.get('/api/agents/' + agentId + '/sessions');
+        var data = await InfringAPI.get('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/sessions');
         var normalizedAgentId = typeof this.normalizeSessionAgentId === 'function'
           ? this.normalizeSessionAgentId(agentId)
           : String(agentId || '').trim().toLowerCase();
@@ -9822,7 +9822,7 @@ function chatPage() {
       var label = prompt('Session name (optional):');
       if (label === null) return; // cancelled
       try {
-        await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/sessions', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/sessions', {
           label: label.trim() || undefined
         });
         await this.loadSessions(this.currentAgent.id);
@@ -9838,7 +9838,7 @@ function chatPage() {
       if (!this.currentAgent) return;
       this.cacheCurrentConversation();
       try {
-        await InfringAPI.post('/api/agents/' + this.currentAgent.id + '/sessions/' + sessionId + '/switch', {});
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/sessions/' + encodeURIComponent(sessionId) + '/switch', {});
         await this.loadSession(this.currentAgent.id);
         await this.loadSessions(this.currentAgent.id);
         // Reconnect WebSocket for new session
@@ -16201,7 +16201,7 @@ function chatPage() {
     stopAgent: function() {
       if (!this.currentAgent) return;
       var self = this;
-      InfringAPI.post('/api/agents/' + this.currentAgent.id + '/stop', {}).then(function(res) {
+      InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/stop', {}).then(function(res) {
         self.handleStopResponse(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', res || {});
       }).catch(function(e) {
         var raw = String(e && e.message ? e.message : 'stop_failed');

@@ -14,7 +14,7 @@
     stopAgent: function() {
       if (!this.currentAgent) return;
       var self = this;
-      InfringAPI.post('/api/agents/' + this.currentAgent.id + '/stop', {}).then(function(res) {
+      InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(this.currentAgent.id) + '/stop', {}).then(function(res) {
         self.handleStopResponse(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', res || {});
       }).catch(function(e) {
         var raw = String(e && e.message ? e.message : 'stop_failed');

@@ -34,6 +34,10 @@ export type ShellSocketCapabilityId =
   | 'revive_agent'
   | 'clone_agent'
   | 'clear_agent_history'
+  | 'stop_agent'
+  | 'create_session'
+  | 'switch_session'
+  | 'request_agent_suggestions'
   | 'set_git_tree'
   | 'fresh_session'
   | 'compact_session'
@@ -92,6 +96,10 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'revive_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/revive', pathParams: ['agent_id'] },
   { capabilityId: 'clone_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/clone', pathParams: ['agent_id'] },
   { capabilityId: 'clear_agent_history', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/history/clear', pathParams: ['agent_id'] },
+  { capabilityId: 'stop_agent', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/stop', pathParams: ['agent_id'] },
+  { capabilityId: 'create_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions', pathParams: ['agent_id'] },
+  { capabilityId: 'switch_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/sessions/{session_id}/switch', pathParams: ['agent_id', 'session_id'] },
+  { capabilityId: 'request_agent_suggestions', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/suggestions', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
   { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
@@ -313,6 +321,22 @@ export class ShellSocketGatewayClient {
     return this.request<T>('clear_agent_history', { query: { agent_id: agentId }, body: request });
   }
 
+  stopAgent<T = unknown>(agentId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('stop_agent', { query: { agent_id: agentId }, body: request });
+  }
+
+  createSession<T = unknown>(agentId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('create_session', { query: { agent_id: agentId }, body: request });
+  }
+
+  switchSession<T = unknown>(agentId: string, sessionId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('switch_session', { query: { agent_id: agentId, session_id: sessionId }, body: request });
+  }
+
+  requestAgentSuggestions<T = unknown>(agentId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('request_agent_suggestions', { query: { agent_id: agentId }, body: request });
+  }
+
   setGitTree<T = unknown>(agentId: string, treeSelection: unknown): Promise<T> {
     return this.request<T>('set_git_tree', { query: { agent_id: agentId }, body: treeSelection });
   }
@@ -341,7 +365,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 36,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 40,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

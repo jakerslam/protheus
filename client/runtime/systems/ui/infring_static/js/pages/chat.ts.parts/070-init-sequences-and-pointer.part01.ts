@@ -176,7 +176,7 @@
 	        var context = this.collectPromptSuggestionContext();
 	        if (context.signature) payload.recent_context = String(context.signature).trim();
           if (suggestionScopeKey) payload.session_scope_key = suggestionScopeKey;
-	        var result = await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
+	        var result = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/suggestions', payload);
 	        if (this._suggestionFetchSeq !== seq) return;
 	        var freshContext = this.collectPromptSuggestionContext();
 	        var freshHistoryCount = Array.isArray(freshContext.history) ? freshContext.history.length : 0;
