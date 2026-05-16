@@ -169,11 +169,13 @@ function infringAgentStatusLabel(agent) {
   return 'offline';
 }
 
-function infringSetAgentLiveActivity(page, agentId, state) {
+function infringSetAgentLiveActivity(page, agentId, state, options) {
   var target = page && typeof page === 'object' ? page : {};
   var id = String(agentId || '').trim();
   if (!id) return;
   var normalized = String(state || '').trim().toLowerCase();
+  var opts = options && typeof options === 'object' ? options : {};
+  var ts = Date.now();
   if (!normalized || normalized === 'idle' || normalized === 'done' || normalized === 'stop' || normalized === 'stopped') {
     if (target.agentLiveActivity && Object.prototype.hasOwnProperty.call(target.agentLiveActivity, id)) {
       delete target.agentLiveActivity[id];
@@ -181,11 +183,19 @@ function infringSetAgentLiveActivity(page, agentId, state) {
     }
     return;
   }
-  target.agentLiveActivity = Object.assign({}, target.agentLiveActivity || {}, { [id]: { state: normalized, ts: Date.now() } });
+  target.agentLiveActivity = Object.assign({}, target.agentLiveActivity || {}, {
+    [id]: {
+      state: normalized,
+      ts: ts,
+      source: String(opts.source || 'shell_display_hint'),
+      optimistic: opts.optimistic !== false,
+      projection_source: String(opts.projection_source || 'shell_socket_projection_hint')
+    }
+  });
 }
 
 function infringClearAgentLiveActivity(page, agentId) {
-  infringSetAgentLiveActivity(page, agentId, 'idle');
+  infringSetAgentLiveActivity(page, agentId, 'idle', { optimistic: true, source: 'shell_display_hint' });
 }
 
 function infringIsAgentLiveBusy(page, agent) {

@@ -42,7 +42,7 @@
         self.tokenCount = 0;
         self._inflightPayload = null;
         self._clearPendingWsRequest();
-        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle');
+        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle', { optimistic: true, source: 'shell_display_hint' });
         self.scheduleConversationPersist();
       }, 120000);
     },
@@ -634,14 +634,14 @@
         var keepBusyAgentId = '';
         if (pending && pending.agent_id) keepBusyAgentId = String(pending.agent_id || '').trim();
         if (!keepBusyAgentId) keepBusyAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
-        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, 'working');
+        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, 'working', { optimistic: true, source: 'shell_display_hint' });
       }
       if (hasVisiblePending || hasPendingWs) return false;
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
       this._clearTypingTimeout();
-      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle');
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle', { optimistic: true, source: 'shell_display_hint' });
       return true;
     },
     _setPendingWsRequest: function(agentId, messageText, options) {
@@ -862,7 +862,7 @@
         this._pendingWsRecovering = false;
         return;
       }
-      this.setAgentLiveActivity(agentId, 'idle');
+      this.setAgentLiveActivity(agentId, 'idle', { optimistic: true, source: 'shell_display_hint' });
       if (stillActiveAgent) {
         this.sending = false;
         this._responseStartedAt = 0;

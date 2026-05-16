@@ -7013,7 +7013,7 @@ function chatPage() {
         self.tokenCount = 0;
         self._inflightPayload = null;
         self._clearPendingWsRequest();
-        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle');
+        self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id ? self.currentAgent.id : '', 'idle', { optimistic: true, source: 'shell_display_hint' });
         self.scheduleConversationPersist();
       }, 120000);
     },
@@ -7605,14 +7605,14 @@ function chatPage() {
         var keepBusyAgentId = '';
         if (pending && pending.agent_id) keepBusyAgentId = String(pending.agent_id || '').trim();
         if (!keepBusyAgentId) keepBusyAgentId = String(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '').trim();
-        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, 'working');
+        if (keepBusyAgentId) this.setAgentLiveActivity(keepBusyAgentId, 'working', { optimistic: true, source: 'shell_display_hint' });
       }
       if (hasVisiblePending || hasPendingWs) return false;
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
       this._clearTypingTimeout();
-      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle');
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '', 'idle', { optimistic: true, source: 'shell_display_hint' });
       return true;
     },
     _setPendingWsRequest: function(agentId, messageText, options) {
@@ -7842,7 +7842,7 @@ function chatPage() {
         this._pendingWsRecovering = false;
         return;
       }
-      this.setAgentLiveActivity(agentId, 'idle');
+      this.setAgentLiveActivity(agentId, 'idle', { optimistic: true, source: 'shell_display_hint' });
       if (stillActiveAgent) {
         this.sending = false;
         this._responseStartedAt = 0;
@@ -8473,7 +8473,7 @@ function chatPage() {
           this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; });
           this.sending = false;
           this._responseStartedAt = 0;
-          this.setAgentLiveActivity(switchingFrom, 'working');
+          this.setAgentLiveActivity(switchingFrom, 'working', { optimistic: true, source: 'shell_display_hint' });
           this._recoverPendingWsRequest('agent_switch');
         }
         if (typeof this.captureConversationDraft === 'function') {
@@ -9959,7 +9959,7 @@ function chatPage() {
         if (!pending || String(pending.agent_id || '').trim() !== targetAgentId) return;
         reconnectSyncInFlight = true;
         ensurePendingThinkingRow('Reconnected. Syncing response...');
-        self.setAgentLiveActivity(targetAgentId, 'working');
+        self.setAgentLiveActivity(targetAgentId, 'working', { optimistic: true, source: 'shell_display_hint' });
         Promise.resolve()
           .then(function() {
             return self.loadSessions(targetAgentId);
@@ -10018,7 +10018,7 @@ function chatPage() {
           var pending = self._pendingWsRequest;
           if (pending && pending.agent_id) {
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
-            self.setAgentLiveActivity(pending.agent_id, 'working');
+            self.setAgentLiveActivity(pending.agent_id, 'working', { optimistic: true, source: 'shell_display_hint' });
           }
         },
         onClose: function() {
@@ -10030,7 +10030,7 @@ function chatPage() {
             reconnectPending = true;
             self._clearTypingTimeout();
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
-            self.setAgentLiveActivity(pending.agent_id, 'working');
+            self.setAgentLiveActivity(pending.agent_id, 'working', { optimistic: true, source: 'shell_display_hint' });
             self._recoverPendingWsRequest('ws_close');
             self.scrollToBottom();
           }
@@ -10052,7 +10052,7 @@ function chatPage() {
             reconnectPending = true;
             self._clearTypingTimeout();
             ensurePendingThinkingRow('Connection interrupted. Reconnecting...');
-            self.setAgentLiveActivity(pending.agent_id, 'working');
+            self.setAgentLiveActivity(pending.agent_id, 'working', { optimistic: true, source: 'shell_display_hint' });
             self._recoverPendingWsRequest('ws_error');
             self.scrollToBottom();
           }
@@ -10103,7 +10103,7 @@ function chatPage() {
       this._responseStartedAt = 0;
       this.tokenCount = 0;
       this._inflightPayload = null;
-      this.setAgentLiveActivity(targetId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
+      this.setAgentLiveActivity(targetId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle', { optimistic: true, source: 'shell_display_hint' });
 
       if (!opts.silentNotice && noticeKey !== this._lastInactiveNoticeKey) {
         var noticeText = opts.noticeText || '';
@@ -10141,9 +10141,10 @@ function chatPage() {
       } catch(_) {}
     },
 
-    setAgentLiveActivity(agentId, state) {
+    setAgentLiveActivity(agentId, state, options) {
       var id = String(agentId || '').trim();
       if (!id) return;
+      var opts = options && typeof options === 'object' ? options : { optimistic: true, source: 'shell_display_hint' };
       try {
         var bridge = typeof InfringSharedShellServices !== 'undefined' && InfringSharedShellServices.appStore
           ? InfringSharedShellServices.appStore
@@ -10151,7 +10152,7 @@ function chatPage() {
         var setLiveActivity = bridge && typeof bridge.method === 'function'
           ? bridge.method('setAgentLiveActivity')
           : null;
-        if (typeof setLiveActivity === 'function') setLiveActivity(id, state);
+        if (typeof setLiveActivity === 'function') setLiveActivity(id, state, opts);
       } catch(_) {}
     },
 
@@ -10180,7 +10181,7 @@ function chatPage() {
         return;
       }
 
-      this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle');
+      this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle', { optimistic: true, source: 'shell_display_hint' });
       this._clearTypingTimeout();
       typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
       this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], system_origin: 'agent:stop', ts: Date.now() });
@@ -10269,14 +10270,14 @@ function chatPage() {
             }
           }
           if (data.state === 'start') {
-            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
+            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing', { optimistic: true, source: 'shell_display_hint' });
             if (!this.messages.length || !this.messages[this.messages.length - 1].thinking) {
               this.ensureLiveThinkingRow(data);
               this.scrollToBottom();
             }
             this._resetTypingTimeout();
           } else if (data.state === 'tool') {
-            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
+            this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working', { optimistic: true, source: 'shell_display_hint' });
             var typingMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
             if (typingMsg && (typingMsg.thinking || typingMsg.streaming)) {
               typingMsg.text = '';
@@ -10306,7 +10307,7 @@ function chatPage() {
           break;
 
         case 'phase':
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'working', { optimistic: true, source: 'shell_display_hint' });
           // Show tool/phase progress so the user sees the agent is working
           var phaseMsg = this.ensureLiveThinkingRow(data);
           if (phaseMsg && (phaseMsg.thinking || phaseMsg.streaming)) {
@@ -10405,7 +10406,7 @@ function chatPage() {
 	          break;
 
         case 'text_delta':
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'typing', { optimistic: true, source: 'shell_display_hint' });
           var last = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (last && last.streaming) {
             if (!Number.isFinite(Number(last._stream_started_at))) last._stream_started_at = Date.now();
@@ -10488,7 +10489,7 @@ function chatPage() {
           this.scrollToBottom();
           break;
         case 'tool_start':
-          var toolStartAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolStartAgentId) this.setAgentLiveActivity(toolStartAgentId, 'working');
+          var toolStartAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolStartAgentId) this.setAgentLiveActivity(toolStartAgentId, 'working', { optimistic: true, source: 'shell_display_hint' });
           var lastMsg = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (!lastMsg || !(lastMsg.thinking || lastMsg.streaming)) {
             lastMsg = {
@@ -10511,7 +10512,7 @@ function chatPage() {
           this.scrollToBottom();
           break;
         case 'tool_end':
-          var toolEndAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolEndAgentId) this.setAgentLiveActivity(toolEndAgentId, 'working');
+          var toolEndAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolEndAgentId) this.setAgentLiveActivity(toolEndAgentId, 'working', { optimistic: true, source: 'shell_display_hint' });
           var lastMsg2 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg2) {
             var endedTool = this.ensureStreamingToolCard(lastMsg2, data.tool, data.input || '', { running: false, no_create: true, attempt_id: data.attempt_id, attempt_sequence: data.attempt_sequence });
@@ -10532,7 +10533,7 @@ function chatPage() {
           this.scrollToBottom();
           break;
         case 'tool_result':
-          var toolResultAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolResultAgentId) this.setAgentLiveActivity(toolResultAgentId, 'working');
+          var toolResultAgentId = String(data && data.agent_id ? data.agent_id : (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '')).trim(); if (toolResultAgentId) this.setAgentLiveActivity(toolResultAgentId, 'working', { optimistic: true, source: 'shell_display_hint' });
           var lastMsg3 = this.messages.length ? this.messages[this.messages.length - 1] : null;
           if (lastMsg3) {
             var resultTool = this.ensureStreamingToolCard(lastMsg3, data.tool, data.input || '', { running: true, attempt_id: data.attempt_id, attempt_sequence: data.attempt_sequence });
@@ -10674,7 +10675,7 @@ function chatPage() {
           var wsFailure = responseHasToolCompletion ? null : this.extractRecoverableBackendFailure(finalText);
           if (responseAgentId) this._clearPendingWsRequest(responseAgentId);
           else this._clearPendingWsRequest();
-          this.setAgentLiveActivity(responseAgentId || (this.currentAgent && this.currentAgent.id), 'idle');
+          this.setAgentLiveActivity(responseAgentId || (this.currentAgent && this.currentAgent.id), 'idle', { optimistic: true, source: 'shell_display_hint' });
           this.sending = false;
           this._responseStartedAt = 0;
           this.tokenCount = 0;
@@ -10709,7 +10710,7 @@ function chatPage() {
           break;
         case 'silent_complete':
           // Agent intentionally chose not to reply (NO_REPLY)
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
           this._clearStreamingTypewriters();
@@ -10756,7 +10757,7 @@ function chatPage() {
           this.refreshPromptSuggestions(true, 'post-silent-no-reply');
           break;
         case 'error':
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
           this._clearPendingWsRequest(this.currentAgent && this.currentAgent.id ? this.currentAgent.id : '');
           this._clearTypingTimeout();
           this._clearStreamingTypewriters();
@@ -10941,7 +10942,7 @@ function chatPage() {
           break;
 
         case 'terminal_output':
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
           this._clearTypingTimeout();
           this.messages = this.messages.filter(function(m) { return !(m && m.terminal && m.thinking); });
           var stdout = typeof data.stdout === 'string' ? data.stdout : '';
@@ -11030,7 +11031,7 @@ function chatPage() {
           break;
 
         case 'terminal_error':
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
           this._clearTypingTimeout();
           this.messages = this.messages.filter(function(m) { return !(m && m.terminal && m.thinking); });
           var terminalErrorSource = data && data.terminal_source ? String(data.terminal_source).trim().toLowerCase() : '';
@@ -15719,7 +15720,7 @@ function chatPage() {
       var cmd = String(command || '').trim();
       if (!cmd) return;
       this.sending = true;
-      this.setAgentLiveActivity(this.systemThreadId || 'system', 'working');
+      this.setAgentLiveActivity(this.systemThreadId || 'system', 'working', { optimistic: true, source: 'shell_display_hint' });
       this._responseStartedAt = Date.now();
       this._appendTerminalMessage({
         role: 'terminal',
@@ -15949,7 +15950,7 @@ function chatPage() {
         return;
       }
       this.sending = true;
-      this.setAgentLiveActivity(targetAgentId, 'working');
+      this.setAgentLiveActivity(targetAgentId, 'working', { optimistic: true, source: 'shell_display_hint' });
       this._responseStartedAt = Date.now();
       this._appendTerminalMessage({
         role: 'terminal',
@@ -16025,7 +16026,7 @@ function chatPage() {
         this._responseStartedAt = 0;
         return;
       }
-      this.setAgentLiveActivity(targetAgentId, 'typing');
+      this.setAgentLiveActivity(targetAgentId, 'typing', { optimistic: true, source: 'shell_display_hint' });
       var safeFiles = Array.isArray(uploadedFiles) ? uploadedFiles.slice() : [];
       var safeImages = Array.isArray(msgImages) ? msgImages.slice() : [];
       if (
@@ -16145,7 +16146,7 @@ function chatPage() {
           this._responseStartedAt = 0;
           this.tokenCount = 0;
           this._clearTypingTimeout();
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
           this.scheduleConversationPersist();
           return;
         }
@@ -16157,7 +16158,7 @@ function chatPage() {
           this._responseStartedAt = 0;
           this.tokenCount = 0;
           this._clearTypingTimeout();
-          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+          this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
           handedOffToRecovery = await this.attemptAutomaticFailoverRecovery('http_response', httpText, {
             remove_last_agent_failure: false
           });
@@ -16197,7 +16198,7 @@ function chatPage() {
         this._responseStartedAt = 0;
         this.tokenCount = 0;
         this._clearTypingTimeout();
-        this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+        this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
         var rawHttpError = String(e && e.message ? e.message : e || '');
         var lowerHttpError = rawHttpError.toLowerCase();
         var isAbortError =
@@ -16304,7 +16305,7 @@ function chatPage() {
         }
       }
       if (handedOffToRecovery) return;
-      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle');
+      this.setAgentLiveActivity(this.currentAgent && this.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
       this._responseStartedAt = 0;
       this.sending = false;
       this.scrollToBottom();
@@ -16347,7 +16348,7 @@ function chatPage() {
       var name = this.currentAgent.name;
       InfringToast.confirm('Stop Agent', 'Stop agent "' + name + '"? The agent will be shut down.', async function() {
         try {
-          self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id, 'idle');
+          self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
           await InfringAPI.del('/api/agents/' + self.currentAgent.id);
           InfringAPI.wsDisconnect();
           self._wsAgent = null;

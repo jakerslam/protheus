@@ -163,10 +163,12 @@
       return 'offline';
     },
 
-    setAgentLiveActivity(agentId, state) {
+    setAgentLiveActivity(agentId, state, options) {
       var id = String(agentId || '').trim();
       if (!id) return;
       var normalized = String(state || '').trim().toLowerCase();
+      var opts = options && typeof options === 'object' ? options : {};
+      var ts = Date.now();
       if (!normalized || normalized === 'idle' || normalized === 'done' || normalized === 'stop' || normalized === 'stopped') {
         if (this.agentLiveActivity && Object.prototype.hasOwnProperty.call(this.agentLiveActivity, id)) {
           delete this.agentLiveActivity[id];
@@ -175,12 +177,18 @@
         return;
       }
       this.agentLiveActivity = Object.assign({}, this.agentLiveActivity || {}, {
-        [id]: { state: normalized, ts: Date.now() }
+        [id]: {
+          state: normalized,
+          ts: ts,
+          source: String(opts.source || 'shell_display_hint'),
+          optimistic: opts.optimistic !== false,
+          projection_source: String(opts.projection_source || 'shell_socket_projection_hint')
+        }
       });
     },
 
     clearAgentLiveActivity(agentId) {
-      this.setAgentLiveActivity(agentId, 'idle');
+      this.setAgentLiveActivity(agentId, 'idle', { optimistic: true, source: 'shell_display_hint' });
     },
 
     isAgentLiveBusy(agent) {

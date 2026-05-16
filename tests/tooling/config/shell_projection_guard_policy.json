@@ -109,7 +109,7 @@
     {
       "id": "shell_agent_activity_literal_transition",
       "description": "Shell must not author agent activity truth from literal working/typing/idle transitions; it should render backend/core activity projections or explicitly optimistic state.",
-      "regex": "setAgentLiveActivity\\([^\\n]*(?:'working'|'typing'|'idle')\\)"
+      "regex": "setAgentLiveActivity\\([^\\n]*(?:'working'|'typing'|'idle')\\s*\\)"
     },
     {
       "id": "shell_live_activity_missing_projection_metadata",

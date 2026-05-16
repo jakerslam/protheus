@@ -241,8 +241,8 @@ document.addEventListener('alpine:init', function() {
       return infringAgentStatusLabel(agent);
     },
 
-    setAgentLiveActivity(agentId, state) {
-      infringSetAgentLiveActivity(this, agentId, state);
+    setAgentLiveActivity(agentId, state, options) {
+      infringSetAgentLiveActivity(this, agentId, state, options);
     },
 
     clearAgentLiveActivity(agentId) {
