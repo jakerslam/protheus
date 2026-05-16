@@ -191,47 +191,21 @@
       this.scrollToBottom();
       this.scheduleConversationPersist();
 
-      if ((!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) && targetAgentId) {
-        this.connectWs(targetAgentId);
-        var wsWaitStarted = Date.now();
-        while ((!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) && (Date.now() - wsWaitStarted) < 1500) {
-          await new Promise(function(resolve) { setTimeout(resolve, 75); });
-        }
-      }
-
-      if (InfringAPI.wsSend({ type: 'terminal', command: command, cwd: this.terminalPromptPath })) {
-        return;
-      }
-
       try {
-        var res = await InfringAPI.post('/api/agents/' + targetAgentId + '/terminal', {
+        var ack = await InfringAPI.post('/api/shell-socket/terminal/commands', {
+          agent_id: targetAgentId,
           command: command,
           cwd: this.terminalPromptPath,
         });
-        this.handleWsMessage({
-          type: 'terminal_output',
-          stdout: res && res.stdout ? String(res.stdout) : '',
-          stderr: res && res.stderr ? String(res.stderr) : '',
-          exit_code: Number(res && res.exit_code != null ? res.exit_code : 1),
-          duration_ms: Number(res && res.duration_ms ? res.duration_ms : 0),
-          cwd: res && res.cwd ? String(res.cwd) : this.terminalPromptPath,
-          requested_command: res && res.requested_command ? String(res.requested_command) : String(command || ''),
-          executed_command: res && res.executed_command ? String(res.executed_command) : String(command || ''),
-          command_translated: !!(res && res.command_translated),
-          translation_reason: res && res.translation_reason ? String(res.translation_reason) : '',
-          suggestions: res && Array.isArray(res.suggestions) ? res.suggestions : [],
-          permission_gate: res && res.permission_gate ? res.permission_gate : null,
-          filter_events: res && Array.isArray(res.filter_events) ? res.filter_events : [],
-          low_signal_output: !!(res && res.low_signal_output),
-          recovery_hints: res && Array.isArray(res.recovery_hints) ? res.recovery_hints : [],
-          tool_summary: res && res.tool_summary ? res.tool_summary : null,
-          tracking: res && res.tracking ? res.tracking : null,
-        });
+        if (!ack || ack.rejected) throw new Error(String((ack && ack.reason_code) || 'terminal_command_rejected'));
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this.setAgentLiveActivity(targetAgentId, 'idle', { optimistic: true, source: 'shell_socket_terminal_ack' });
       } catch (e) {
-        this.handleWsMessage({
-          type: 'terminal_error',
-          message: e && e.message ? e.message : 'command failed',
-        });
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this._clearPendingWsRequest(targetAgentId);
+        InfringToast.error(e && e.message ? e.message : 'command failed');
       }
     },
 

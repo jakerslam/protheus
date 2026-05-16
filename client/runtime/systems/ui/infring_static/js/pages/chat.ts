@@ -10900,28 +10900,6 @@ function chatPage() {
               agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
             });
           }
-          var toolSummary = data && data.tool_summary && typeof data.tool_summary === 'object' ? data.tool_summary : null;
-          if (toolSummary) {
-            var summaryStatus = String(toolSummary.status || (Number(data && data.exit_code) === 0 ? 'ok' : 'error')).trim() || 'ok';
-            var summaryFound = String(toolSummary.found || (termText.trim() ? 'output' : 'none')).trim() || 'none';
-            var summaryLines = ['Tool summary', 'Status: ' + summaryStatus, 'Found: ' + summaryFound];
-            var summaryRan = String(toolSummary.executed_command || invokedCommand || '').trim();
-            var summaryPolicy = String(toolSummary.permission_verdict || '').trim();
-            if (summaryRan) summaryLines.push('Ran: ' + summaryRan);
-            var summaryModel = this.toolSummaryModelLabel(toolSummary);
-            if (summaryModel) summaryLines.push('Model: ' + summaryModel);
-            if (summaryPolicy && summaryPolicy !== 'allow') summaryLines.push('Policy: ' + summaryPolicy);
-            if (toolSummary.blocked) summaryLines.push('Blocked: ' + String(toolSummary.blocked_reason || 'policy'));
-            var summaryRouter = String(toolSummary.translation_reason || (data && data.translation_reason) || '').trim();
-            if ((toolSummary.command_translated || (data && data.command_translated)) && summaryRouter) summaryLines.push('Router: ' + summaryRouter);
-            var summaryFallbacks = this.toolSummaryFallbackLines(toolSummary);
-            for (var summaryFallbackIdx = 0; summaryFallbackIdx < summaryFallbacks.length; summaryFallbackIdx += 1) {
-              summaryLines.push(summaryFallbacks[summaryFallbackIdx]);
-            }
-            var summaryPreview = this.toolSummaryOutputPreview(toolSummary, termText);
-            if (summaryPreview) summaryLines.push('Preview: ' + summaryPreview);
-            this._appendTerminalMessage({ role: 'terminal', text: summaryLines.join('\n'), meta: 'tool summary', tools: [], ts: Date.now(), terminal_source: 'system', cwd: termCwd });
-          }
           this._appendTerminalMessage({
             role: 'terminal',
             text: termText,
@@ -10933,15 +10911,6 @@ function chatPage() {
             agent_id: data && data.agent_id ? String(data.agent_id) : '',
             agent_name: data && data.agent_name ? String(data.agent_name) : ''
           });
-          var terminalRecoveryHints = data && Array.isArray(data.recovery_hints) ? data.recovery_hints : [];
-          if ((data && data.low_signal_output) || terminalRecoveryHints.length) {
-            var hintRows = [];
-            for (var hintIdx = 0; hintIdx < terminalRecoveryHints.length && hintRows.length < 3; hintIdx += 1) {
-              var hintText = String(terminalRecoveryHints[hintIdx] || '').trim();
-              if (hintText && hintRows.indexOf(hintText) < 0) hintRows.push(hintText);
-            }
-            if (hintRows.length) this._appendTerminalMessage({ role: 'terminal', text: 'Recovery hints\n- ' + hintRows.join('\n- '), meta: 'deterministic hints', tools: [], ts: Date.now(), terminal_source: 'system', cwd: termCwd });
-          }
           this.sending = false;
           this._responseStartedAt = 0;
           this.scrollToBottom();
@@ -10982,15 +10951,6 @@ function chatPage() {
             terminal_source: 'system',
             cwd: terminalErrorCwd
           });
-          var errorHints = data && Array.isArray(data.recovery_hints) ? data.recovery_hints : [];
-          if (errorHints.length) {
-            var errorHintRows = [];
-            for (var eIdx = 0; eIdx < errorHints.length && errorHintRows.length < 3; eIdx += 1) {
-              var eHint = String(errorHints[eIdx] || '').trim();
-              if (eHint && errorHintRows.indexOf(eHint) < 0) errorHintRows.push(eHint);
-            }
-            if (errorHintRows.length) this._appendTerminalMessage({ role: 'terminal', text: 'Recovery hints\n- ' + errorHintRows.join('\n- '), meta: 'deterministic hints', tools: [], ts: Date.now(), terminal_source: 'system', cwd: terminalErrorCwd });
-          }
           this.sending = false;
           this._responseStartedAt = 0;
           this.scrollToBottom();
@@ -15621,18 +15581,8 @@ function chatPage() {
       var existing = String(this.systemTerminalSessionId || '').trim();
       if (existing) return existing;
       var preferredId = String(this.systemThreadId || 'system').trim() || 'system';
-      try {
-        var created = await InfringAPI.post('/api/terminal/sessions', {
-          id: preferredId,
-          cwd: this.terminalPromptPath
-        });
-        var sid = String(created && created.session && created.session.id ? created.session.id : preferredId).trim() || preferredId;
-        this.systemTerminalSessionId = sid;
-        return sid;
-      } catch (_) {
-        this.systemTerminalSessionId = preferredId;
-        return preferredId;
-      }
+      this.systemTerminalSessionId = preferredId;
+      return preferredId;
     },
 
     async _sendSystemTerminalPayload(command) {
@@ -15653,49 +15603,20 @@ function chatPage() {
       this.scrollToBottom();
       this.scheduleConversationPersist();
       try {
-        var response = null;
-        for (var attempt = 0; attempt < 2; attempt += 1) {
-          var sessionId = await this.ensureSystemTerminalSession();
-          response = await InfringAPI.post('/api/terminal/queue', {
-            session_id: sessionId,
-            command: cmd,
-            cwd: this.terminalPromptPath
-          });
-          if (response && String(response.error || '').trim() === 'session_not_found') {
-            this.systemTerminalSessionId = '';
-            continue;
-          }
-          break;
-        }
-        if (!response || response.ok === false) {
-          throw new Error(String((response && response.error) || 'terminal_exec_failed'));
-        }
-        this.handleWsMessage({
-          type: 'terminal_output',
-          stdout: response && response.stdout ? String(response.stdout) : '',
-          stderr: response && response.stderr ? String(response.stderr) : '',
-          exit_code: Number(response && response.exit_code != null ? response.exit_code : 1),
-          duration_ms: 0,
-          cwd: this.terminalPromptPath,
-          terminal_source: 'system',
-          requested_command: response && response.requested_command ? String(response.requested_command) : '',
-          executed_command: response && response.executed_command ? String(response.executed_command) : '',
-          command_translated: !!(response && response.command_translated),
-          translation_reason: response && response.translation_reason ? String(response.translation_reason) : '',
-          suggestions: response && Array.isArray(response.suggestions) ? response.suggestions : [],
-          permission_gate: response && response.permission_gate ? response.permission_gate : null,
-          filter_events: response && Array.isArray(response.filter_events) ? response.filter_events : [],
-          low_signal_output: !!(response && response.low_signal_output),
-          recovery_hints: response && Array.isArray(response.recovery_hints) ? response.recovery_hints : [],
-          tool_summary: response && response.tool_summary ? response.tool_summary : null,
-          tracking: response && response.tracking ? response.tracking : null
+        var sessionId = await this.ensureSystemTerminalSession();
+        var ack = await InfringAPI.post('/api/shell-socket/terminal/commands', {
+          agent_id: sessionId,
+          command: cmd,
+          cwd: this.terminalPromptPath
         });
+        if (!ack || ack.rejected) throw new Error(String((ack && ack.reason_code) || 'terminal_command_rejected'));
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this.setAgentLiveActivity(this.systemThreadId || 'system', 'idle', { optimistic: true, source: 'shell_socket_terminal_ack' });
       } catch (error) {
-        this.handleWsMessage({
-          type: 'terminal_error',
-          message: error && error.message ? error.message : 'command failed',
-          terminal_source: 'system'
-        });
+        this.sending = false;
+        this._responseStartedAt = 0;
+        InfringToast.error(error && error.message ? error.message : 'command failed');
       }
     },
 
@@ -15884,47 +15805,21 @@ function chatPage() {
       this.scrollToBottom();
       this.scheduleConversationPersist();
 
-      if ((!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) && targetAgentId) {
-        this.connectWs(targetAgentId);
-        var wsWaitStarted = Date.now();
-        while ((!InfringAPI.isWsConnected() || String(this._wsAgent || '') !== targetAgentId) && (Date.now() - wsWaitStarted) < 1500) {
-          await new Promise(function(resolve) { setTimeout(resolve, 75); });
-        }
-      }
-
-      if (InfringAPI.wsSend({ type: 'terminal', command: command, cwd: this.terminalPromptPath })) {
-        return;
-      }
-
       try {
-        var res = await InfringAPI.post('/api/agents/' + targetAgentId + '/terminal', {
+        var ack = await InfringAPI.post('/api/shell-socket/terminal/commands', {
+          agent_id: targetAgentId,
           command: command,
           cwd: this.terminalPromptPath,
         });
-        this.handleWsMessage({
-          type: 'terminal_output',
-          stdout: res && res.stdout ? String(res.stdout) : '',
-          stderr: res && res.stderr ? String(res.stderr) : '',
-          exit_code: Number(res && res.exit_code != null ? res.exit_code : 1),
-          duration_ms: Number(res && res.duration_ms ? res.duration_ms : 0),
-          cwd: res && res.cwd ? String(res.cwd) : this.terminalPromptPath,
-          requested_command: res && res.requested_command ? String(res.requested_command) : String(command || ''),
-          executed_command: res && res.executed_command ? String(res.executed_command) : String(command || ''),
-          command_translated: !!(res && res.command_translated),
-          translation_reason: res && res.translation_reason ? String(res.translation_reason) : '',
-          suggestions: res && Array.isArray(res.suggestions) ? res.suggestions : [],
-          permission_gate: res && res.permission_gate ? res.permission_gate : null,
-          filter_events: res && Array.isArray(res.filter_events) ? res.filter_events : [],
-          low_signal_output: !!(res && res.low_signal_output),
-          recovery_hints: res && Array.isArray(res.recovery_hints) ? res.recovery_hints : [],
-          tool_summary: res && res.tool_summary ? res.tool_summary : null,
-          tracking: res && res.tracking ? res.tracking : null,
-        });
+        if (!ack || ack.rejected) throw new Error(String((ack && ack.reason_code) || 'terminal_command_rejected'));
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this.setAgentLiveActivity(targetAgentId, 'idle', { optimistic: true, source: 'shell_socket_terminal_ack' });
       } catch (e) {
-        this.handleWsMessage({
-          type: 'terminal_error',
-          message: e && e.message ? e.message : 'command failed',
-        });
+        this.sending = false;
+        this._responseStartedAt = 0;
+        this._clearPendingWsRequest(targetAgentId);
+        InfringToast.error(e && e.message ? e.message : 'command failed');
       }
     },
 

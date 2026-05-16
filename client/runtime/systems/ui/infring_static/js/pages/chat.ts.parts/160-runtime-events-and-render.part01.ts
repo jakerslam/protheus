@@ -93,28 +93,6 @@
               agent_name: data && data.agent_name ? String(data.agent_name) : (this.currentAgent && this.currentAgent.name ? String(this.currentAgent.name) : '')
             });
           }
-          var toolSummary = data && data.tool_summary && typeof data.tool_summary === 'object' ? data.tool_summary : null;
-          if (toolSummary) {
-            var summaryStatus = String(toolSummary.status || (Number(data && data.exit_code) === 0 ? 'ok' : 'error')).trim() || 'ok';
-            var summaryFound = String(toolSummary.found || (termText.trim() ? 'output' : 'none')).trim() || 'none';
-            var summaryLines = ['Tool summary', 'Status: ' + summaryStatus, 'Found: ' + summaryFound];
-            var summaryRan = String(toolSummary.executed_command || invokedCommand || '').trim();
-            var summaryPolicy = String(toolSummary.permission_verdict || '').trim();
-            if (summaryRan) summaryLines.push('Ran: ' + summaryRan);
-            var summaryModel = this.toolSummaryModelLabel(toolSummary);
-            if (summaryModel) summaryLines.push('Model: ' + summaryModel);
-            if (summaryPolicy && summaryPolicy !== 'allow') summaryLines.push('Policy: ' + summaryPolicy);
-            if (toolSummary.blocked) summaryLines.push('Blocked: ' + String(toolSummary.blocked_reason || 'policy'));
-            var summaryRouter = String(toolSummary.translation_reason || (data && data.translation_reason) || '').trim();
-            if ((toolSummary.command_translated || (data && data.command_translated)) && summaryRouter) summaryLines.push('Router: ' + summaryRouter);
-            var summaryFallbacks = this.toolSummaryFallbackLines(toolSummary);
-            for (var summaryFallbackIdx = 0; summaryFallbackIdx < summaryFallbacks.length; summaryFallbackIdx += 1) {
-              summaryLines.push(summaryFallbacks[summaryFallbackIdx]);
-            }
-            var summaryPreview = this.toolSummaryOutputPreview(toolSummary, termText);
-            if (summaryPreview) summaryLines.push('Preview: ' + summaryPreview);
-            this._appendTerminalMessage({ role: 'terminal', text: summaryLines.join('\n'), meta: 'tool summary', tools: [], ts: Date.now(), terminal_source: 'system', cwd: termCwd });
-          }
           this._appendTerminalMessage({
             role: 'terminal',
             text: termText,
@@ -126,15 +104,6 @@
             agent_id: data && data.agent_id ? String(data.agent_id) : '',
             agent_name: data && data.agent_name ? String(data.agent_name) : ''
           });
-          var terminalRecoveryHints = data && Array.isArray(data.recovery_hints) ? data.recovery_hints : [];
-          if ((data && data.low_signal_output) || terminalRecoveryHints.length) {
-            var hintRows = [];
-            for (var hintIdx = 0; hintIdx < terminalRecoveryHints.length && hintRows.length < 3; hintIdx += 1) {
-              var hintText = String(terminalRecoveryHints[hintIdx] || '').trim();
-              if (hintText && hintRows.indexOf(hintText) < 0) hintRows.push(hintText);
-            }
-            if (hintRows.length) this._appendTerminalMessage({ role: 'terminal', text: 'Recovery hints\n- ' + hintRows.join('\n- '), meta: 'deterministic hints', tools: [], ts: Date.now(), terminal_source: 'system', cwd: termCwd });
-          }
           this.sending = false;
           this._responseStartedAt = 0;
           this.scrollToBottom();
@@ -175,15 +144,6 @@
             terminal_source: 'system',
             cwd: terminalErrorCwd
           });
-          var errorHints = data && Array.isArray(data.recovery_hints) ? data.recovery_hints : [];
-          if (errorHints.length) {
-            var errorHintRows = [];
-            for (var eIdx = 0; eIdx < errorHints.length && errorHintRows.length < 3; eIdx += 1) {
-              var eHint = String(errorHints[eIdx] || '').trim();
-              if (eHint && errorHintRows.indexOf(eHint) < 0) errorHintRows.push(eHint);
-            }
-            if (errorHintRows.length) this._appendTerminalMessage({ role: 'terminal', text: 'Recovery hints\n- ' + errorHintRows.join('\n- '), meta: 'deterministic hints', tools: [], ts: Date.now(), terminal_source: 'system', cwd: terminalErrorCwd });
-          }
           this.sending = false;
           this._responseStartedAt = 0;
           this.scrollToBottom();
