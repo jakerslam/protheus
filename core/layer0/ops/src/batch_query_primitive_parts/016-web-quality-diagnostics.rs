@@ -249,27 +249,6 @@ fn assign_distinctive_facet_terms(facets: &mut [ResearchFacet]) {
     }
 }
 
-fn inferred_facet_texts_from_query(query: &str) -> Vec<String> {
-    let cleaned = clean_text(query, 900);
-    if cleaned.is_empty() {
-        return Vec::new();
-    }
-    let mut out = Vec::<String>::new();
-    for piece in cleaned.split(|ch| matches!(ch, ',' | ';' | ':' | '?' | '.')) {
-        let piece = clean_text(piece, 240);
-        if piece.split_whitespace().count() >= 3 {
-            out.push(piece);
-        }
-    }
-    for piece in cleaned.split(" and ") {
-        let piece = clean_text(piece, 240);
-        if piece.split_whitespace().count() >= 3 {
-            out.push(piece);
-        }
-    }
-    out
-}
-
 fn metadata_coverage_facet_texts(query_metadata: &BatchQueryKeywordPack) -> Vec<(String, String)> {
     let mut seen = HashSet::<String>::new();
     let mut out = Vec::<(String, String)>::new();
@@ -330,9 +309,6 @@ fn infer_research_facets(
     let base = clean_text(query, 600);
     if !base.is_empty() {
         texts.push(base.clone());
-    }
-    if texts.len() <= 1 {
-        texts.extend(inferred_facet_texts_from_query(&base));
     }
 
     for text in texts {

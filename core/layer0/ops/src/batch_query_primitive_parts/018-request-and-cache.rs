@@ -1521,6 +1521,10 @@ fn inferred_raw_query_term_pack(query: &str, budget: ApertureBudget) -> Option<B
         }
         push_unique_clean(&mut pack.keywords, &mut seen, lowered, max_terms);
     }
+    let mut facet_seen = HashSet::<String>::new();
+    for facet in inferred_query_facets(&cleaned, 6) {
+        push_unique_clean(&mut pack.facets, &mut facet_seen, facet, 6);
+    }
     if pack.has_positive_terms() {
         Some(pack)
     } else {
@@ -1856,6 +1860,58 @@ fn normalize_requested_queries(
             break;
         }
         push_query_dedup(value, &mut dedup, &mut queries);
+    }
+    queries
+}
+
+fn query_pack_has_coverage_terms(pack: &BatchQueryKeywordPack) -> bool {
+    !pack.entities.is_empty() || !pack.aliases.is_empty() || !pack.facets.is_empty()
+}
+
+fn query_pack_has_facet_terms(pack: &BatchQueryKeywordPack) -> bool {
+    !pack.facets.is_empty()
+}
+
+fn merge_recovery_queries_with_metadata(
+    primary_query: &str,
+    recovery_queries: &[String],
+    keyword_pack: &BatchQueryKeywordPack,
+    budget: ApertureBudget,
+) -> Vec<String> {
+    if recovery_queries.is_empty() || !query_pack_has_coverage_terms(keyword_pack) {
+        return recovery_queries.to_vec();
+    }
+    let max_queries = max_explicit_queries_for_budget(primary_query, budget);
+    let mut dedup = HashSet::<String>::new();
+    let mut queries = Vec::<String>::new();
+    if let Some(primary) = recovery_queries.first() {
+        push_query_dedup(primary.clone(), &mut dedup, &mut queries);
+    }
+
+    let compiled_metadata = compile_keyword_pack_queries(primary_query, keyword_pack, budget);
+    if query_pack_has_facet_terms(keyword_pack) {
+        for value in &compiled_metadata {
+            if queries.len() >= max_queries {
+                return queries;
+            }
+            push_query_dedup(value.clone(), &mut dedup, &mut queries);
+        }
+    }
+
+    for value in recovery_queries.iter().skip(1) {
+        if queries.len() >= max_queries {
+            break;
+        }
+        push_query_dedup(value.clone(), &mut dedup, &mut queries);
+    }
+
+    if !query_pack_has_facet_terms(keyword_pack) {
+        for value in compiled_metadata {
+            if queries.len() >= max_queries {
+                break;
+            }
+            push_query_dedup(value, &mut dedup, &mut queries);
+        }
     }
     queries
 }
@@ -2379,6 +2435,15 @@ fn resolve_query_plan(
     budget: ApertureBudget,
 ) -> QueryPlanSelection {
     let mut query_metadata = batch_query_keyword_pack(request, budget);
+    let explicit_metadata_supplied = !query_metadata.is_empty();
+    let explicit_queries_supplied = request
+        .get("queries")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .any(|row| extract_request_query_row(row, 600).is_some())
+        })
+        .unwrap_or(false);
     if query_metadata.is_empty() {
         if let Some(inferred) = inferred_comparison_query_pack(query, budget) {
             query_metadata = inferred;
@@ -2388,6 +2453,7 @@ fn resolve_query_plan(
     }
     let explicit_queries = normalize_requested_queries(request, query, budget, &query_metadata);
     let explicit_query_pack_used = !explicit_queries.is_empty()
+        && (explicit_queries_supplied || explicit_metadata_supplied)
         && (query.is_empty()
             || explicit_queries.len() > 1
             || explicit_queries
@@ -2429,6 +2495,8 @@ fn resolve_query_plan(
                 query_metadata = inferred;
             }
         }
+        let recovery_queries =
+            merge_recovery_queries_with_metadata(query, &recovery_queries, &query_metadata, budget);
         let rerank_query = recovery_queries
             .first()
             .cloned()
@@ -2452,6 +2520,8 @@ fn resolve_query_plan(
                 query_metadata = inferred;
             }
         }
+        let recovery_queries =
+            merge_recovery_queries_with_metadata(query, &recovery_queries, &query_metadata, budget);
         let rerank_query = recovery_queries
             .first()
             .cloned()

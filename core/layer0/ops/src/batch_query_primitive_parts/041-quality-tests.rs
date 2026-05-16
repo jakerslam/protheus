@@ -460,6 +460,46 @@ mod quality_tests {
     }
 
     #[test]
+    fn raw_focus_query_promotes_focus_terms_to_coverage_facets() {
+        let query = "Research current security concerns around AI browser agents. Focus on prompt injection, credential handling, and approval boundaries.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert_eq!(
+            plan.query_metadata.metadata_authority,
+            "tool_structured_from_user_query_terms"
+        );
+        for expected in ["prompt injection", "credential handling", "approval boundaries"] {
+            assert!(
+                plan.query_metadata.facets.iter().any(|row| row == expected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+        for unexpected in ["focus on prompt injection", "and approval boundaries"] {
+            assert!(
+                !plan.query_metadata.facets.iter().any(|row| row == unexpected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+        for expected in ["prompt injection", "credential handling", "approval boundaries"] {
+            assert!(
+                plan.queries
+                    .iter()
+                    .any(|row| row.to_ascii_lowercase().contains(expected)),
+                "{:#?}",
+                plan.queries
+            );
+        }
+    }
+
+    #[test]
     fn batch_query_output_retains_query_metadata_for_synthesis() {
         let query = "Research Alpha Runtime deployment readiness.";
         let request = json!({
