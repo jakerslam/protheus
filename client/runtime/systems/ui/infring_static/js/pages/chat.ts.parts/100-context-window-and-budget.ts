@@ -316,54 +316,6 @@
       return { raw: raw, summary: summary };
     },
 
-    collectFailoverModelCandidates: async function() {
-      var self = this;
-      var activeSet = this.collectModelIdVariants(this.activeModelCandidateIds());
-      var out = [];
-      var seen = {};
-      var push = function(id) {
-        var modelId = String(id || '').trim();
-        if (!modelId || modelId.toLowerCase() === 'auto') return;
-        var variants = self.collectModelIdVariants(modelId);
-        var keys = Object.keys(variants);
-        for (var i = 0; i < keys.length; i++) {
-          if (activeSet[keys[i]]) return;
-        }
-        var normalized = modelId.toLowerCase();
-        if (seen[normalized]) return;
-        seen[normalized] = true;
-        out.push(modelId);
-      };
-
-      var agent = this.currentAgent || {};
-      var fallbacks = Array.isArray(agent.fallback_models)
-        ? agent.fallback_models
-        : (this.agentDrawer && Array.isArray(this.agentDrawer._fallbacks) ? this.agentDrawer._fallbacks : []);
-      for (var f = 0; f < fallbacks.length; f++) {
-        push(this.normalizeFailoverCandidateId(fallbacks[f]));
-      }
-
-      var models = await this.ensureFailoverModelCache();
-      var sorted = (Array.isArray(models) ? models.slice() : []).filter(function(row) {
-        return !!(row && row.id);
-      });
-      sorted.sort(function(a, b) {
-        var aId = String((a && a.id) || '').trim();
-        var bId = String((b && b.id) || '').trim();
-        var aUsage = self.modelUsageTimestamp(aId);
-        var bUsage = self.modelUsageTimestamp(bId);
-        if (bUsage !== aUsage) return bUsage - aUsage;
-        var aProvider = String((a && a.provider) || '').toLowerCase();
-        var bProvider = String((b && b.provider) || '').toLowerCase();
-        if (aProvider !== bProvider) return aProvider.localeCompare(bProvider);
-        return aId.toLowerCase().localeCompare(bId.toLowerCase());
-      });
-      for (var m = 0; m < sorted.length; m++) {
-        push(this.normalizeFailoverCandidateId(sorted[m]));
-      }
-      return out;
-    },
-
     attemptAutomaticFailoverRecovery: async function(source, rawFailure, options) {
       var payload = this._inflightPayload;
       if (payload && typeof payload === 'object') {
