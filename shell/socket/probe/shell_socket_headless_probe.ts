@@ -245,6 +245,12 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:model-download:probe',
         correlation_id: 'probe-model-download',
       };
+    } else if (route === 'POST /api/shell-socket/models/custom') {
+      capabilityId = 'upsert_custom_model';
+      payload = makeIngressAck('custom-model');
+    } else if (route === 'POST /api/shell-socket/models/custom/delete') {
+      capabilityId = 'delete_custom_model';
+      payload = makeIngressAck('custom-model-delete');
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/model$/.test(pathName)) {
       capabilityId = 'set_model';
       payload = makeIngressAck('model');
@@ -381,6 +387,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const models = await client.listModels<any>({ limit: 10 });
   const discovery = await client.discoverModels<any>({ input: '__auto__' });
   const download = await client.downloadModel<any>({ provider: 'probe', model: 'probe/auto' });
+  const customModelAck = await client.upsertCustomModel<any>({ provider: 'probe', model: 'probe/custom' });
+  const customModelDeleteAck = await client.deleteCustomModel<any>({ model_ref: 'probe/custom' });
   const modelAck = await client.setModel<any>(agentId, { model_ref: 'model:auto' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
@@ -411,6 +419,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       model_catalog_receipt: models.receipt_ref,
       model_discovery_receipt: discovery.receipt_ref,
       model_download_receipt: download.receipt_ref,
+      custom_model_receipt: customModelAck.receipt_ref,
+      custom_model_delete_receipt: customModelDeleteAck.receipt_ref,
       model_receipt: modelAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,

@@ -15,6 +15,8 @@ export type ShellSocketCapabilityId =
   | 'list_models'
   | 'discover_models'
   | 'download_model'
+  | 'upsert_custom_model'
+  | 'delete_custom_model'
   | 'set_model'
   | 'set_git_tree'
   | 'fresh_session'
@@ -55,6 +57,8 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'list_models', method: 'GET', path: '/api/shell-socket/models', queryParams: ['cursor', 'limit'] },
   { capabilityId: 'discover_models', method: 'POST', path: '/api/shell-socket/models/discover' },
   { capabilityId: 'download_model', method: 'POST', path: '/api/shell-socket/models/download' },
+  { capabilityId: 'upsert_custom_model', method: 'POST', path: '/api/shell-socket/models/custom' },
+  { capabilityId: 'delete_custom_model', method: 'POST', path: '/api/shell-socket/models/custom/delete' },
   { capabilityId: 'set_model', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/model', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
@@ -201,6 +205,14 @@ export class ShellSocketGatewayClient {
     return this.request<T>('download_model', { body: request });
   }
 
+  upsertCustomModel<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('upsert_custom_model', { body: request });
+  }
+
+  deleteCustomModel<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('delete_custom_model', { body: request });
+  }
+
   setModel<T = unknown>(agentId: string, modelSelection: unknown): Promise<T> {
     return this.request<T>('set_model', { query: { agent_id: agentId }, body: modelSelection });
   }
@@ -233,7 +245,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 18,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 20,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

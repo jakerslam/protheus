@@ -95,7 +95,7 @@
       if (!id) return;
       this.customModelStatus = 'Adding...';
       try {
-        await InfringAPI.post('/api/models/custom', {
+        await InfringAPI.post('/api/shell-socket/models/custom', {
           id: id,
           provider: this.customModelProvider || 'openrouter',
           context_window: this.customModelContext || 128000,
@@ -113,7 +113,7 @@
     async deleteCustomModel(modelId) {
       if (!confirm('Delete custom model "' + modelId + '"?')) return;
       try {
-        await InfringAPI.del('/api/models/custom/' + encodeURIComponent(modelId));
+        await InfringAPI.post('/api/shell-socket/models/custom/delete', { model_ref: modelId });
         InfringToast.success('Model deleted');
         await this.loadModels();
       } catch(e) {
@@ -155,4 +155,3 @@
       }
       this.configSaving[key] = false;
     },
-

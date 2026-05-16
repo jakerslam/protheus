@@ -118,6 +118,89 @@ fn handle_shell_socket_routes(
             payload,
         });
     }
+    if method == "POST" && parts == ["models", "custom"] {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let provider = clean_text(
+            request
+                .get("provider")
+                .and_then(Value::as_str)
+                .unwrap_or("openrouter"),
+            80,
+        );
+        let model = clean_text(
+            request
+                .get("id")
+                .or_else(|| request.get("model"))
+                .or_else(|| request.get("model_ref"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        );
+        let context_window = request
+            .get("context_window")
+            .and_then(Value::as_i64)
+            .unwrap_or(128_000);
+        let max_output_tokens = request
+            .get("max_output_tokens")
+            .and_then(Value::as_i64)
+            .unwrap_or(8192);
+        let authority = crate::dashboard_provider_runtime::add_custom_model(
+            root,
+            &provider,
+            &model,
+            context_window,
+            max_output_tokens,
+        );
+        let accepted = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        let reason_code = if accepted {
+            "accepted"
+        } else {
+            authority
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("custom_model_rejected")
+        };
+        return Some(CompatApiResponse {
+            status: if accepted { 202 } else { 400 },
+            payload: shell_socket_ingress_ack(
+                "upsert_custom_model",
+                accepted,
+                reason_code,
+                &json!({"provider": provider, "model_ref": model, "authority": authority}),
+            ),
+        });
+    }
+    if method == "POST" && parts == ["models", "custom", "delete"] {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let model_ref = clean_text(
+            request
+                .get("model_ref")
+                .or_else(|| request.get("id"))
+                .or_else(|| request.get("model"))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            240,
+        );
+        let authority = crate::dashboard_provider_runtime::delete_custom_model(root, &model_ref);
+        let accepted = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        let reason_code = if accepted {
+            "accepted"
+        } else {
+            authority
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("custom_model_delete_rejected")
+        };
+        return Some(CompatApiResponse {
+            status: if accepted { 202 } else { 400 },
+            payload: shell_socket_ingress_ack(
+                "delete_custom_model",
+                accepted,
+                reason_code,
+                &json!({"model_ref": model_ref, "authority": authority}),
+            ),
+        });
+    }
     if method == "POST" && parts == ["input"] {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let agent_id = clean_agent_id(request.get("agent_id").or_else(|| request.get("target_agent_id")).and_then(Value::as_str).unwrap_or(""));

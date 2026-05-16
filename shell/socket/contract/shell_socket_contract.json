@@ -659,6 +659,59 @@
       ]
     },
     {
+      "id": "upsert_custom_model",
+      "purpose": "Request a custom model catalog mutation through Gateway controls without letting shell plugs own model catalog authority.",
+      "route_class": "request_ingress",
+      "request_shape": "CustomModelMutationRequest",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_model_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "model_ref",
+        "display_label",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "model_catalog_truth",
+        "model_policy_truth",
+        "raw_provider_response"
+      ]
+    },
+    {
+      "id": "delete_custom_model",
+      "purpose": "Request custom model removal through Gateway controls while catalog mutation authority remains outside shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "CustomModelDeleteRequest",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_model_config_authority",
+      "shell_may_hold": [
+        "model_ref",
+        "display_label",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "model_catalog_truth",
+        "model_policy_truth",
+        "raw_provider_response"
+      ]
+    },
+    {
       "id": "set_model",
       "purpose": "Request a model/provider selection change through Gateway admission.",
       "route_class": "request_ingress",
