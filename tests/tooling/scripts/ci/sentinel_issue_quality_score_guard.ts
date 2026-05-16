@@ -84,6 +84,9 @@ for (const candidate of candidates) {
     if (!candidate.next_action) violations.push(`candidate_${id}_promotion_missing_next_action`);
     if (Number(candidate.recurrence_count || 0) < 2) violations.push(`candidate_${id}_promotion_not_recurrent`);
   }
+  if (state === "human_review" && traceIds.length === 0) {
+    violations.push(`candidate_${id}_review_missing_trace`);
+  }
   if (state === "human_review" && score < reviewThreshold) {
     violations.push(`candidate_${id}_review_below_threshold`);
   }

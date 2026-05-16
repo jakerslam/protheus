@@ -24,8 +24,20 @@ function main(): void {
   const artifacts = [
     'core/local/artifacts/kernel_sentinel_auto_run_current.json',
     'local/state/kernel_sentinel/kernel_sentinel_final_report_current.json',
+    'core/local/artifacts/kernel_sentinel_collector_current.json',
+    'core/local/artifacts/kernel_sentinel_collector_refresh_current.json',
   ];
   const violations: Violation[] = [];
+  const refreshArtifact = exists('core/local/artifacts/kernel_sentinel_collector_refresh_current.json')
+    ? json('core/local/artifacts/kernel_sentinel_collector_refresh_current.json')
+    : null;
+  const refreshAge = refreshArtifact ? ageMs(refreshArtifact.generated_at) : null;
+  const freshCollectorRefreshAttempt = refreshAge !== null && refreshAge <= maxAgeMs;
+  const stagedArtifact = exists('observability/reports/sentinel_full_run_stage_runner_current.json')
+    ? json('observability/reports/sentinel_full_run_stage_runner_current.json')
+    : null;
+  const stagedAge = stagedArtifact ? ageMs(stagedArtifact.generated_at) : null;
+  const freshStagedCanonicalRun = stagedAge !== null && stagedAge <= maxAgeMs && stagedArtifact.ok === true;
   if (!exists(policyPath)) violations.push({ kind: 'freshness_policy_missing', path: policyPath, detail: 'Refresh policy missing.' });
   if (!exists(sourcePath)) violations.push({ kind: 'sentinel_evidence_source_missing', path: sourcePath, detail: 'Sentinel evidence source missing.' });
   const policy = exists(policyPath) ? read(policyPath) : '';
@@ -51,7 +63,11 @@ function main(): void {
     const stale = generatedAge === null || generatedAge > maxAgeMs;
     const ok = payload.ok === true || payload.status === 'ok' || payload.verdict === 'pass';
     artifactSummaries.push({ path: artifact, exists: true, generated_at: payload.generated_at || null, age_ms: generatedAge, stale, ok, verdict: payload.verdict || payload.status || null });
+    if (artifact.endsWith('kernel_sentinel_auto_run_current.json') && stale && ok && freshStagedCanonicalRun) continue;
     if (stale && ok) violations.push({ kind: 'stale_sentinel_artifact_marked_ok', path: artifact, detail: `age_ms=${generatedAge}` });
+    if (artifact.endsWith('kernel_sentinel_collector_current.json') && stale && payload.ok === false && !freshCollectorRefreshAttempt) {
+      violations.push({ kind: 'stale_collector_warning_requires_refresh', path: artifact, detail: `age_ms=${generatedAge}` });
+    }
     if (generatedAge === null) violations.push({ kind: 'sentinel_artifact_missing_generated_at', path: artifact, detail: 'Artifact cannot be freshness-ranked.' });
   }
   const traceId = `observability:${new Date().toISOString()}:${process.pid}`;

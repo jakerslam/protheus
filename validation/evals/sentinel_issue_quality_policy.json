@@ -9,9 +9,7 @@
     "stage_runner_report": "observability/reports/sentinel_full_run_stage_runner_current.json",
     "compact_report_glob": "observability/reports/sentinel_staged_compact_report_*.json",
     "max_compact_report_count": 5,
-    "compact_reports": [
-      "observability/reports/sentinel_staged_compact_report_2026-05-10.json"
-    ],
+    "compact_reports": [],
     "issue_streams": [
       "local/state/kernel_sentinel/issues.jsonl",
       "local/state/kernel_sentinel/feedback_inbox.jsonl",
@@ -38,6 +36,7 @@
     "recurrence": 5
   },
   "freshness_budget_ms": 604800000,
+  "monolithic_timeout_current_max_age_ms": 86400000,
   "promotion_threshold": 80,
   "review_threshold": 60,
   "minimum_promotion_ready_score": 80,
@@ -71,5 +70,7 @@
     "quality_report_must_append_history": true,
     "promotion_ready_findings_require_root_cause_and_owner": true,
     "promotion_ready_findings_require_current_trace": true
+    ,"stale_compact_reports_are_historical_not_todo_inputs": true
+    ,"human_review_candidates_require_trace_identity": true
   }
 }
