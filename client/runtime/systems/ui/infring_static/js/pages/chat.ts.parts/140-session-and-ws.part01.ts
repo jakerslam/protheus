@@ -33,6 +33,9 @@
             meta: '',
             tools: [],
             system_origin: 'session:load_error',
+            is_notice: true,
+            notice_label: 'Unable to load this agent session right now (' + errText + ').',
+            notice_type: 'error',
             ts: Date.now()
           }];
         }
@@ -470,7 +473,7 @@
             ? ('Agent ' + targetId + ' is now inactive (' + reasonLabel + ').')
             : ('Agent is now inactive (' + reasonLabel + ').');
         }
-        this.messages.push({ id: ++msgId, role: 'system', text: noticeText, meta: '', tools: [], system_origin: 'agent:inactive', ts: Date.now() });
+        this.messages.push({ id: ++msgId, role: 'system', text: noticeText, meta: '', tools: [], system_origin: 'agent:inactive', is_notice: true, notice_label: noticeText, notice_type: 'info', ts: Date.now() });
         this._lastInactiveNoticeKey = noticeKey;
       }
 
@@ -531,7 +534,7 @@
       this.setAgentLiveActivity(agentId || (this.currentAgent && this.currentAgent.id ? this.currentAgent.id : ''), 'idle', { optimistic: true, source: 'shell_display_hint' });
       this._clearTypingTimeout();
       typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking && !m.streaming; }));
-      this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], system_origin: 'agent:stop', ts: Date.now() });
+      this.messages.push({ id: ++msgId, role: 'system', text: result.message || 'Run cancelled', meta: '', tools: [], system_origin: 'agent:stop', is_notice: true, notice_label: result.message || 'Run cancelled', notice_type: 'info', ts: Date.now() });
       this.sending = false;
       this._responseStartedAt = 0;
       this.tokenCount = 0;
