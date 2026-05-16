@@ -1811,6 +1811,25 @@ mod quality_tests {
     }
 
     #[test]
+    fn page_extraction_allows_contextual_citation_wrappers_for_materialization() {
+        let query = "Research current security concerns around AI browser agents. Focus on prompt injection, credential handling, and approval boundaries.";
+        let policy = default_policy();
+        let opaque_link = "https://news.google.com/rss/articles/CBMiYWdlbnRfc2VjdXJpdHlfcmVzdWx0?oc=5";
+        let links = payload_links_for_page_extraction(
+            query,
+            &policy,
+            &json!({
+                "summary": format!(
+                    "The glaring security risks with AI browser agents - TechCrunch — {opaque_link} — Source: TechCrunch."
+                ),
+                "links": [opaque_link]
+            }),
+            1,
+        );
+        assert_eq!(links, vec![opaque_link]);
+    }
+
+    #[test]
     fn page_extraction_rejects_opaque_links_without_context_signal() {
         let query = "Firecrawl crawling evidence gathering";
         let policy = default_policy();

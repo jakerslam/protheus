@@ -559,6 +559,9 @@ fn page_extraction_link_preflight_rejection_reason_with_context(
     if link_contains_collapsed_query_phrase(query, link) {
         return None;
     }
+    if citation_wrapper_link(link) && citation_wrapper_context_has_signal(query, context) {
+        return None;
+    }
     let combined = clean_text(
         &format!("{} {} {}", candidate.title, candidate.snippet, candidate.locator),
         2_400,
@@ -576,6 +579,33 @@ fn page_extraction_link_preflight_rejection_reason_with_context(
         return Some("no_distinctive_overlap_link");
     }
     None
+}
+
+fn citation_wrapper_link(link: &str) -> bool {
+    let Some((_, host, path, query)) = parse_page_extraction_http_url(link) else {
+        return false;
+    };
+    let host = host.trim_start_matches("www.").to_ascii_lowercase();
+    let path = path.to_ascii_lowercase();
+    let query = query.unwrap_or("").to_ascii_lowercase();
+    (host == "news.google.com"
+        && (path.contains("/rss/articles/") || path.contains("/articles/") || path.contains("/read/")))
+        || (host == "duckduckgo.com" && (path.contains("/l/") || query.contains("uddg=")))
+        || ((host == "google.com" || host == "www.google.com")
+            && (path.contains("/url") || query.contains("url=") || query.contains("q=http")))
+}
+
+fn citation_wrapper_context_has_signal(query: &str, context: &str) -> bool {
+    let cleaned_context = clean_text(context, 1_800);
+    if cleaned_context.is_empty()
+        || contains_web_junk_marker(&cleaned_context)
+        || looks_like_low_signal_search_summary(&cleaned_context)
+    {
+        return false;
+    }
+    let candidate = page_extraction_link_candidate_with_context("https://example.com/wrapper", &cleaned_context);
+    let (overlap, distinctive_overlap, _) = query_overlap_profile(query, &candidate);
+    distinctive_overlap > 0 || overlap >= 2
 }
 
 fn link_contains_collapsed_query_phrase(query: &str, link: &str) -> bool {

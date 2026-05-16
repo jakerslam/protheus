@@ -233,6 +233,19 @@ fn collect_candidates_from_stage_payload(
                     mark_candidate_as_page_enriched(&mut candidate);
                     if candidate_is_synthesis_eligible(query, &candidate, benchmark_intent) {
                         merge_or_push_page_enriched_candidate(query, policy, &mut candidates, candidate);
+                    } else if citation_wrapper_link(&link)
+                        && try_materialize_page_candidate(
+                            root,
+                            stage,
+                            query,
+                            policy,
+                            &link,
+                            benchmark_intent,
+                            &mut candidates,
+                            &mut issues,
+                        )
+                    {
+                        continue;
                     } else if let Some(candidate) = retain_low_confidence_candidate(
                         policy,
                         &candidate,
@@ -252,7 +265,10 @@ fn collect_candidates_from_stage_payload(
                 }
                 Err(err) => {
                     issues.push(format!("{stage}:fetch_candidate:{err}"));
-                    if should_try_browser_materialization_for_candidate_error(&fetch_payload, &err)
+                    if should_try_browser_materialization_for_candidate_error(
+                        &fetch_payload,
+                        &err,
+                    ) || (citation_wrapper_link(&link) && err.contains("low_relevance"))
                     {
                         try_materialize_page_candidate(
                             root,
