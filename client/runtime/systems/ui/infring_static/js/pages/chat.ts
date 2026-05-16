@@ -11888,8 +11888,8 @@ function chatPage() {
         var name = self.toolDisplayName(tool);
         var status = self.toolStatusText(tool);
         var summary = status ? (name + ' [' + status + ']') : name;
-        var inputPreview = compactToolText(tool.input, 96);
-        var resultPreview = compactToolText(tool.result, 120);
+        var inputPreview = compactToolText(tool.input_preview || '', 96);
+        var resultPreview = compactToolText(self.toolProjectionPreviewText(tool), 120);
         var detail = '';
         if (inputPreview && resultPreview) {
           detail = inputPreview + ' -> ' + resultPreview;
@@ -12229,7 +12229,7 @@ function chatPage() {
       for (var i = 0; i < tools.length && i < 8; i += 1) {
         var tool = tools[i] || {};
         var name = String(tool.name || '').trim().toLowerCase();
-        var result = String(tool.result || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        var result = String(this.toolProjectionPreviewText(tool) || '').replace(/\s+/g, ' ').trim().toLowerCase();
         if (result.length > 180) result = result.slice(0, 180);
         var state = tool && tool.is_error ? 'error' : (tool && tool.running ? 'running' : 'ok');
         if (name || result) toolParts.push(name + ':' + state + ':' + result);
@@ -13898,7 +13898,7 @@ function chatPage() {
     isBlockedTool: function(tool) {
       if (!tool) return false;
       if (tool.blocked === true) return true;
-      var txt = String(tool.result || '').toLowerCase();
+      var txt = String(this.toolRawResultTextIfLoaded(tool) || this.toolProjectionPreviewText(tool) || '').toLowerCase();
       if (String(tool.status || '').toLowerCase() === 'blocked') return true;
       if (!tool.is_error) return false;
       return (
@@ -14203,14 +14203,34 @@ function chatPage() {
       return 'Thought for ' + this.thoughtToolDurationSeconds(tool) + ' seconds';
     },
 
+    toolRawResultTextIfLoaded: function(tool) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      if (!row._detail_loaded || row.result == null) return '';
+      if (typeof row.result === 'string') return row.result;
+      try {
+        return JSON.stringify(row.result);
+      } catch (_) {
+        return '';
+      }
+    },
+
+    toolProjectionPreviewText: function(tool) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      var raw = this.toolRawResultTextIfLoaded(row);
+      if (raw) return raw;
+      return String(row.summary || row.result_preview || row.output_preview || row.display_text || row.status || '').trim();
+    },
+
     toolStatusText: function(tool) {
       if (!tool) return '';
       if (tool.running) return 'running...';
+      if (tool._detail_loading) return 'loading detail...';
       if (this.isThoughtTool(tool)) return 'thought';
       if (this.isBlockedTool(tool)) return 'blocked';
       if (tool.is_error) return 'error';
-      if (tool.result) {
-        return tool.result.length > 500 ? Math.round(tool.result.length / 1024) + 'KB' : 'done';
+      var loadedResult = this.toolRawResultTextIfLoaded(tool);
+      if (loadedResult) {
+        return loadedResult.length > 500 ? Math.round(loadedResult.length / 1024) + 'KB' : 'done';
       }
       return 'done';
     },
@@ -14281,9 +14301,9 @@ function chatPage() {
       }
       var summary = String(row.summary || row.display_text || '').trim();
       if (summary) sections.push({ id: 'summary', label: 'Summary', text: summary });
-      var input = String(row.input || row.input_preview || '').trim();
+      var input = String(row._detail_loaded ? (row.input || row.input_preview || '') : (row.input_preview || '')).trim();
       if (input) sections.push({ id: 'input', label: 'Input', text: this.formatToolOutputForClipboard(input) || input });
-      var result = String(row.result || row.result_preview || '').trim();
+      var result = String(this.toolProjectionPreviewText(row) || '').trim();
       if (result) sections.push({ id: 'result', label: 'Result', text: this.formatToolOutputForClipboard(result) || result });
       if (!sections.length && this.shellDetailRefForTool(row)) {
         sections.push({ id: 'detail-ref', label: 'Detail', text: 'Open the tool to load detail from the gateway.' });
@@ -14322,7 +14342,7 @@ function chatPage() {
         var tool = tools[i] || {};
         var toolName = this.toolDisplayName(tool);
         var status = String(tool.status || '').trim();
-        var rendered = this.formatToolOutputForClipboard(tool.result || '');
+        var rendered = this.formatToolOutputForClipboard(this.toolProjectionPreviewText(tool) || '');
         var preview = rendered ? this.truncateToolOutputPreview(rendered) : '';
         var line = '- ' + toolName;
         if (status) line += ' (' + status + ')';
@@ -15622,9 +15642,9 @@ function chatPage() {
       var actionableWeb = rows.find(function(tool) {
         if (!tool || tool.running || !this.isWebLikeToolName(tool.name || '')) return false;
         return (
-          this.textMentionsContextGuard(tool.result || '') ||
-          this.textLooksNoFindingsPlaceholder(tool.result || '') ||
-          this.textLooksToolAckWithoutFindings(tool.result || '')
+          this.textMentionsContextGuard(this.toolProjectionPreviewText(tool) || '') ||
+          this.textLooksNoFindingsPlaceholder(this.toolProjectionPreviewText(tool) || '') ||
+          this.textLooksToolAckWithoutFindings(this.toolProjectionPreviewText(tool) || '')
         );
       }, this);
       if (actionableWeb) {
@@ -17047,7 +17067,7 @@ function chatPage() {
         .trim();
     },
     toolResultSummarySnippet: function(tool) {
-      var text = this.stripContextGuardMarkers(String(tool && tool.result ? tool.result : ''));
+      var text = this.stripContextGuardMarkers(String(this.toolProjectionPreviewText(tool) || ''));
       if (!text) return '';
       if (this.textLooksNoFindingsPlaceholder(text) || this.textLooksToolAckWithoutFindings(text)) return '';
       var sentence = this.latestCompleteSentence(text) || text;
@@ -17061,7 +17081,7 @@ function chatPage() {
         ? String(this.formatToolAggregateMeta(tool || {}) || '').trim()
         : toolName;
       var suffix = aggregate && aggregate !== toolName ? ' (' + aggregate.replace(/^.*?:\s*/, '') + ')' : '';
-      if (this.textMentionsContextGuard(tool && tool.result)) {
+      if (this.textMentionsContextGuard(this.toolProjectionPreviewText(tool) || '')) {
         return 'The ' + (toolName || 'web tool') + ' step' + suffix + ' returned more output than fit safely in context. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.';
       }
       return 'The ' + (toolName || 'web tool') + ' step' + suffix + ' ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or ask me to continue from the recorded tool result.';
@@ -17080,8 +17100,8 @@ function chatPage() {
       return rows.some(function(tool) {
         if (!tool || tool.running) return false;
         if (tool.blocked || tool.is_error) return true;
-        return !!String(tool.result || tool.status || '').trim();
-      });
+        return !!String(this.toolProjectionPreviewText(tool) || tool.status || '').trim();
+      }, this);
     },
     completedToolOnlySummary: function(tools) {
       var _ = tools;
@@ -17230,12 +17250,13 @@ function chatPage() {
         for (var i = 0; i < row.tools.length && candidates.length < 24; i += 1) {
           var tool = row.tools[i] || {};
           var parsedResult = null;
-          if (tool.result && typeof tool.result === 'string') {
-            var trimmed = String(tool.result || '').trim();
+          var loadedResult = this.toolRawResultTextIfLoaded(tool);
+          if (loadedResult && typeof loadedResult === 'string') {
+            var trimmed = String(loadedResult || '').trim();
             if (trimmed && (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[')) {
               try { parsedResult = JSON.parse(trimmed); } catch (_) {}
             }
-          } else if (tool.result && typeof tool.result === 'object') {
+          } else if (tool && tool._detail_loaded && tool.result && typeof tool.result === 'object') {
             parsedResult = tool.result;
           }
           this._collectSourceCandidatesFromValue(parsedResult, candidates, seenUrls, 0);

@@ -1,7 +1,7 @@
     isBlockedTool: function(tool) {
       if (!tool) return false;
       if (tool.blocked === true) return true;
-      var txt = String(tool.result || '').toLowerCase();
+      var txt = String(this.toolRawResultTextIfLoaded(tool) || this.toolProjectionPreviewText(tool) || '').toLowerCase();
       if (String(tool.status || '').toLowerCase() === 'blocked') return true;
       if (!tool.is_error) return false;
       return (

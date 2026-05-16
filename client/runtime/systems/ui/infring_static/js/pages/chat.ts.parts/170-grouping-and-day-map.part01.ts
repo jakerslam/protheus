@@ -3,8 +3,8 @@
         var name = self.toolDisplayName(tool);
         var status = self.toolStatusText(tool);
         var summary = status ? (name + ' [' + status + ']') : name;
-        var inputPreview = compactToolText(tool.input, 96);
-        var resultPreview = compactToolText(tool.result, 120);
+        var inputPreview = compactToolText(tool.input_preview || '', 96);
+        var resultPreview = compactToolText(self.toolProjectionPreviewText(tool), 120);
         var detail = '';
         if (inputPreview && resultPreview) {
           detail = inputPreview + ' -> ' + resultPreview;
@@ -344,7 +344,7 @@
       for (var i = 0; i < tools.length && i < 8; i += 1) {
         var tool = tools[i] || {};
         var name = String(tool.name || '').trim().toLowerCase();
-        var result = String(tool.result || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        var result = String(this.toolProjectionPreviewText(tool) || '').replace(/\s+/g, ' ').trim().toLowerCase();
         if (result.length > 180) result = result.slice(0, 180);
         var state = tool && tool.is_error ? 'error' : (tool && tool.running ? 'running' : 'ok');
         if (name || result) toolParts.push(name + ':' + state + ':' + result);

@@ -209,7 +209,7 @@
         .trim();
     },
     toolResultSummarySnippet: function(tool) {
-      var text = this.stripContextGuardMarkers(String(tool && tool.result ? tool.result : ''));
+      var text = this.stripContextGuardMarkers(String(this.toolProjectionPreviewText(tool) || ''));
       if (!text) return '';
       if (this.textLooksNoFindingsPlaceholder(text) || this.textLooksToolAckWithoutFindings(text)) return '';
       var sentence = this.latestCompleteSentence(text) || text;
@@ -223,7 +223,7 @@
         ? String(this.formatToolAggregateMeta(tool || {}) || '').trim()
         : toolName;
       var suffix = aggregate && aggregate !== toolName ? ' (' + aggregate.replace(/^.*?:\s*/, '') + ')' : '';
-      if (this.textMentionsContextGuard(tool && tool.result)) {
+      if (this.textMentionsContextGuard(this.toolProjectionPreviewText(tool) || '')) {
         return 'The ' + (toolName || 'web tool') + ' step' + suffix + ' returned more output than fit safely in context. Retry with a narrower query, one specific source URL, or ask me to continue from the partial result.';
       }
       return 'The ' + (toolName || 'web tool') + ' step' + suffix + ' ran, but only low-signal web output came back. Retry with a narrower query, one specific source URL, or ask me to continue from the recorded tool result.';
@@ -242,8 +242,8 @@
       return rows.some(function(tool) {
         if (!tool || tool.running) return false;
         if (tool.blocked || tool.is_error) return true;
-        return !!String(tool.result || tool.status || '').trim();
-      });
+        return !!String(this.toolProjectionPreviewText(tool) || tool.status || '').trim();
+      }, this);
     },
     completedToolOnlySummary: function(tools) {
       var _ = tools;

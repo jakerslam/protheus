@@ -135,12 +135,13 @@
         for (var i = 0; i < row.tools.length && candidates.length < 24; i += 1) {
           var tool = row.tools[i] || {};
           var parsedResult = null;
-          if (tool.result && typeof tool.result === 'string') {
-            var trimmed = String(tool.result || '').trim();
+          var loadedResult = this.toolRawResultTextIfLoaded(tool);
+          if (loadedResult && typeof loadedResult === 'string') {
+            var trimmed = String(loadedResult || '').trim();
             if (trimmed && (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[')) {
               try { parsedResult = JSON.parse(trimmed); } catch (_) {}
             }
-          } else if (tool.result && typeof tool.result === 'object') {
+          } else if (tool && tool._detail_loaded && tool.result && typeof tool.result === 'object') {
             parsedResult = tool.result;
           }
           this._collectSourceCandidatesFromValue(parsedResult, candidates, seenUrls, 0);

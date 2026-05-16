@@ -44,14 +44,34 @@
       return 'Thought for ' + this.thoughtToolDurationSeconds(tool) + ' seconds';
     },
 
+    toolRawResultTextIfLoaded: function(tool) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      if (!row._detail_loaded || row.result == null) return '';
+      if (typeof row.result === 'string') return row.result;
+      try {
+        return JSON.stringify(row.result);
+      } catch (_) {
+        return '';
+      }
+    },
+
+    toolProjectionPreviewText: function(tool) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      var raw = this.toolRawResultTextIfLoaded(row);
+      if (raw) return raw;
+      return String(row.summary || row.result_preview || row.output_preview || row.display_text || row.status || '').trim();
+    },
+
     toolStatusText: function(tool) {
       if (!tool) return '';
       if (tool.running) return 'running...';
+      if (tool._detail_loading) return 'loading detail...';
       if (this.isThoughtTool(tool)) return 'thought';
       if (this.isBlockedTool(tool)) return 'blocked';
       if (tool.is_error) return 'error';
-      if (tool.result) {
-        return tool.result.length > 500 ? Math.round(tool.result.length / 1024) + 'KB' : 'done';
+      var loadedResult = this.toolRawResultTextIfLoaded(tool);
+      if (loadedResult) {
+        return loadedResult.length > 500 ? Math.round(loadedResult.length / 1024) + 'KB' : 'done';
       }
       return 'done';
     },
@@ -140,7 +160,7 @@
         var tool = tools[i] || {};
         var toolName = this.toolDisplayName(tool);
         var status = String(tool.status || '').trim();
-        var rendered = this.formatToolOutputForClipboard(tool.result || '');
+        var rendered = this.formatToolOutputForClipboard(this.toolProjectionPreviewText(tool) || '');
         var preview = rendered ? this.truncateToolOutputPreview(rendered) : '';
         var line = '- ' + toolName;
         if (status) line += ' (' + status + ')';

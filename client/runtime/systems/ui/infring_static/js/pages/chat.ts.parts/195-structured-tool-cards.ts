@@ -422,9 +422,9 @@
       var actionableWeb = rows.find(function(tool) {
         if (!tool || tool.running || !this.isWebLikeToolName(tool.name || '')) return false;
         return (
-          this.textMentionsContextGuard(tool.result || '') ||
-          this.textLooksNoFindingsPlaceholder(tool.result || '') ||
-          this.textLooksToolAckWithoutFindings(tool.result || '')
+          this.textMentionsContextGuard(this.toolProjectionPreviewText(tool) || '') ||
+          this.textLooksNoFindingsPlaceholder(this.toolProjectionPreviewText(tool) || '') ||
+          this.textLooksToolAckWithoutFindings(this.toolProjectionPreviewText(tool) || '')
         );
       }, this);
       if (actionableWeb) {
