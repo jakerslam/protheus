@@ -629,6 +629,10 @@ fn permission_trit_code(value: PermissionTrit) -> i8 {
 
 fn file_tool_permission(tool: &str) -> Option<&'static str> {
     match tool.trim().to_ascii_lowercase().as_str() {
+        "file_list" | "list_files" | "workspace.list" | "workspace_list" | "file_stat"
+        | "stat_file" | "file_exists" | "workspace.stat" | "workspace_stat" => {
+            Some("file.read")
+        }
         "file_read" | "file_read_many" | "read_file" | "read_many_files" | "workspace.read"
         | "workspace.read_many" | "workspace_read" | "workspace_read_many" => Some("file.read"),
         "file_write" | "write_file" | "workspace.write" | "workspace_write" => {
@@ -658,10 +662,34 @@ fn native_success_contract_violation(
         .get("requires_successful_mutation_receipt")
         .and_then(Value::as_bool)
         .unwrap_or(false);
+    let requires_successful_discovery_receipt = criteria
+        .get("requires_successful_discovery_receipt")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let min_successful_tool_receipts = criteria
         .get("min_successful_tool_receipts")
         .and_then(Value::as_u64)
         .unwrap_or(0);
+    let min_successful_discovery_receipts = criteria
+        .get("min_successful_discovery_receipts")
+        .and_then(Value::as_u64)
+        .unwrap_or(if requires_successful_discovery_receipt {
+            1
+        } else {
+            0
+        });
+    let successful_discovery_tools = criteria
+        .get("successful_discovery_tools")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(normalize_native_tool_name)
+                .collect::<Vec<_>>()
+        })
+        .filter(|items| !items.is_empty())
+        .unwrap_or_else(|| vec!["file_list".to_string(), "file_stat".to_string()]);
     let successful_mutation_tools = criteria
         .get("successful_mutation_tools")
         .and_then(Value::as_array)
@@ -688,6 +716,18 @@ fn native_success_contract_violation(
         .iter()
         .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
         .count() as u64;
+    let successful_discovery_receipt_count = receipts
+        .iter()
+        .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
+        .filter(|receipt| {
+            receipt
+                .get("tool_name")
+                .and_then(Value::as_str)
+                .map(normalize_native_tool_name)
+                .map(|tool| successful_discovery_tools.iter().any(|allowed| allowed == &tool))
+                .unwrap_or(false)
+        })
+        .count() as u64;
     let successful_mutation_receipt_count = receipts
         .iter()
         .filter(|receipt| receipt.get("status").and_then(Value::as_str) == Some("ok"))
@@ -706,6 +746,7 @@ fn native_success_contract_violation(
             "criteria": criteria,
             "native_tool_call_count": receipt_count,
             "successful_tool_receipt_count": successful_tool_receipt_count,
+            "successful_discovery_receipt_count": successful_discovery_receipt_count,
             "successful_mutation_receipt_count": successful_mutation_receipt_count,
             "native_tool_receipt_summary": native_tool_receipt_summary(&receipts),
             "agent_output_preview": output.chars().take(1200).collect::<String>(),
@@ -717,6 +758,14 @@ fn native_success_contract_violation(
     if requires_native_tool_use && receipt_count == 0 {
         return Some((
             "runtime_lane_required_native_tool_use_missing".to_string(),
+            details(),
+        ));
+    }
+    if min_successful_discovery_receipts > 0
+        && successful_discovery_receipt_count < min_successful_discovery_receipts
+    {
+        return Some((
+            "runtime_lane_required_native_discovery_receipt_missing".to_string(),
             details(),
         ));
     }
@@ -757,6 +806,10 @@ fn native_tool_receipt_summary(receipts: &[Value]) -> Vec<Value> {
 
 fn normalize_native_tool_name(raw: &str) -> String {
     match raw.trim().to_ascii_lowercase().as_str() {
+        "list_files" | "workspace.list" | "workspace_list" => "file_list".to_string(),
+        "stat_file" | "file_exists" | "workspace.stat" | "workspace_stat" => {
+            "file_stat".to_string()
+        }
         "write_file" | "workspace.write" | "workspace_write" => "file_write".to_string(),
         "patch_file" | "apply_patch" | "workspace.patch" | "workspace_patch" => {
             "file_patch".to_string()

@@ -68,12 +68,16 @@
     "purpose": "Bind the coding workflow to native file tools and the safe-file workflow capabilities it delegates to.",
     "capability_pack": "local-coding-files",
     "required_native_tools": [
+      "file_list",
+      "file_stat",
       "file_read",
       "file_read_many",
       "file_write",
       "file_patch"
     ],
     "tool_to_workflow_capability": {
+      "file_list": "safe_file_read",
+      "file_stat": "safe_file_read",
       "file_read": "safe_file_read",
       "file_read_many": "safe_file_read",
       "file_write": "safe_file_write",
@@ -100,13 +104,26 @@
     ],
     "native_success_criteria": {
       "requires_native_tool_use": true,
+      "requires_successful_discovery_receipt": false,
       "requires_successful_mutation_receipt": true,
+      "successful_discovery_tools": [
+        "file_list",
+        "file_stat"
+      ],
       "successful_mutation_tools": [
         "file_write",
         "file_patch"
       ],
       "min_successful_tool_receipts": 1,
+      "min_successful_discovery_receipts": 0,
+      "max_context_only_turns": 2,
+      "micro_direct_write_enabled": true,
+      "micro_direct_write_max_target_files": 1,
+      "synthesize_final_after_successful_micro_mutation": true,
+      "completion_evidence_required_for_multi_requirement_tasks": true,
+      "synthesize_completion_evidence_on_finalization_timeout": true,
       "empty_tool_retry_limit": 1,
+      "force_discovery_first_turn": false,
       "provider_timeout_seconds": 300,
       "native_wall_timeout_seconds": 900,
       "partial_progress_on_timeout": true,
@@ -117,8 +134,101 @@
     "non_goals": [
       "do_not_count_process_exit_zero_as_software_success",
       "do_not_count_original_tests_passing_without_mutation_as_success",
+      "do_not_count_failed_reads_of_missing_create_targets_as_project_discovery",
+      "do_not_repeat_context_only_tool_turns_when_mutation_is_required",
       "do_not_expose_raw_file_contents_in_failure_summaries"
     ]
+  },
+  "coding_context_mode_policy": {
+    "version": "coding_context_mode_policy_v1",
+    "purpose": "Let the higher-level coding workflow decide whether local context discovery is required instead of forcing discovery inside every primitive coding run.",
+    "decision_owner": "coding_project_operator",
+    "modes": {
+      "greenfield_or_isolated_create": {
+        "applies_when": [
+          "task_names_an_explicit_new_target_file_or_small_file_set",
+          "task_defines_required_behavior_inline",
+          "task_does_not_require_integrating_with_unknown_existing_project_code"
+        ],
+        "preferred_first_action": "file_write_or_file_patch",
+        "discovery_required": false,
+        "required_receipts": [
+          "successful_mutation_receipt"
+        ]
+      },
+      "existing_project_change": {
+        "applies_when": [
+          "task_modifies_existing_capability",
+          "task_mentions_existing_project_behavior",
+          "task_requires_preserving_style_api_tests_or_architecture"
+        ],
+        "preferred_first_action": "file_list_or_file_stat_then_relevant_file_read",
+        "discovery_required": true,
+        "required_receipts": [
+          "successful_discovery_receipt",
+          "successful_mutation_receipt"
+        ]
+      },
+      "unclear_context": {
+        "applies_when": [
+          "target_files_are_not_named",
+          "project_shape_or_stack_is_unknown",
+          "safe_mutation_depends_on_local_structure"
+        ],
+        "preferred_first_action": "file_list_or_file_stat",
+        "discovery_required": true,
+        "required_receipts": [
+          "successful_discovery_receipt_before_mutation_or_structured_blocker"
+        ]
+      }
+    },
+    "non_goals": [
+      "do_not_force_project_discovery_for_obvious_one_file_greenfield_tasks",
+      "do_not_hardcode_specific_filenames_as_required_context",
+      "do_not_allow_final_success_without_mutation_receipts_for_mutation_tasks"
+    ]
+  },
+  "completion_evidence_contract": {
+    "version": "completion_evidence_contract_v1",
+    "purpose": "Prevent false success on multi-requirement coding tasks by requiring receipt-backed evidence coverage for user-stated requirements.",
+    "applies_when": [
+      "task_contains_numbered_requirements",
+      "task_contains_multiple_requested_capabilities",
+      "task_requires_changes_across_source_tests_docs_or_configuration",
+      "task_is_existing_project_change"
+    ],
+    "checklist_derivation_policy": {
+      "source": "user_prompt_and_normalized_task_plan",
+      "derive_from": [
+        "numbered_items",
+        "bulleted_items",
+        "explicit_must_should_require_phrases",
+        "requested_outputs",
+        "validation_or_documentation_requirements"
+      ],
+      "item_shape": {
+        "id": "stable_short_requirement_id",
+        "requirement": "concise user-visible requirement",
+        "evidence_needed": [
+          "changed_file_receipt",
+          "readback_or_validation_receipt_when_available",
+          "final_summary_reference"
+        ],
+        "status": "covered_or_uncovered_or_blocked"
+      },
+      "non_goals": [
+        "do_not_hardcode_domain_specific_file_names",
+        "do_not_infer_hidden_requirements_not_supported_by_prompt_or_project_context"
+      ]
+    },
+    "finalization_requirements": [
+      "final_public_reasoning_trace_must_include_task_requirement_checklist_for_multi_requirement_tasks",
+      "each_checklist_item_must_include_status_and_evidence_refs_or_blocker_reason",
+      "completion_status_success_requires_all_checklist_items_covered",
+      "if_any_item_is_uncovered_return_partial_or_structured_blocker_not_success"
+    ],
+    "parent_visibility": "summary_plus_requirement_coverage_refs",
+    "redaction_policy": "no_hidden_chain_of_thought"
   },
   "coding_persistence_safety_contract": {
     "version": "coding_persistence_safety_contract_v1",

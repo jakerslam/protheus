@@ -610,6 +610,10 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         .cloned()
         .unwrap_or(Value::Null);
     let reasoning_summary = compact_public_reasoning_summary(&public_reasoning_contract);
+    let completion_evidence_contract = workflow_spec
+        .get("completion_evidence_contract")
+        .cloned()
+        .unwrap_or(Value::Null);
     let persistence_safety_contract = workflow_spec
         .get("coding_persistence_safety_contract")
         .cloned()
@@ -642,6 +646,7 @@ fn load_workflow_context(raw_workflow_id: Option<&String>) -> Result<Option<(Str
         "native_permission_template": native_permission_template,
         "native_success_criteria": native_success_criteria,
         "public_reasoning_trace_contract": public_reasoning_contract,
+        "completion_evidence_contract": completion_evidence_contract,
         "coding_persistence_safety_contract": persistence_safety_contract,
     });
     Ok(Some((preamble, metadata)))
@@ -660,6 +665,13 @@ fn compact_success_criteria_summary(criteria: &Value) -> String {
         parts.push("requires native tool use".to_string());
     }
     if criteria
+        .get("requires_successful_discovery_receipt")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("requires successful file_list/file_stat discovery receipt".to_string());
+    }
+    if criteria
         .get("requires_successful_mutation_receipt")
         .and_then(Value::as_bool)
         .unwrap_or(false)
@@ -667,10 +679,58 @@ fn compact_success_criteria_summary(criteria: &Value) -> String {
         parts.push("requires successful file_write/file_patch receipt".to_string());
     }
     if let Some(limit) = criteria
+        .get("max_context_only_turns")
+        .and_then(Value::as_u64)
+    {
+        parts.push(format!("max context-only tool turns {limit}"));
+    }
+    if criteria
+        .get("micro_direct_write_enabled")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("allows micro direct-write lane".to_string());
+    }
+    if criteria
+        .get("synthesize_final_after_successful_micro_mutation")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("synthesizes final after successful micro mutation".to_string());
+    }
+    if criteria
+        .get("completion_evidence_required_for_multi_requirement_tasks")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("requires completion evidence for multi-requirement tasks".to_string());
+    }
+    if criteria
+        .get("synthesize_completion_evidence_on_finalization_timeout")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("synthesizes completion evidence on finalization timeout".to_string());
+    }
+    if let Some(limit) = criteria
         .get("empty_tool_retry_limit")
         .and_then(Value::as_u64)
     {
         parts.push(format!("empty-tool retry limit {limit}"));
+    }
+    if criteria
+        .get("force_discovery_first_turn")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("forces discovery-first native tool turn".to_string());
+    }
+    if criteria
+        .get("force_read_first_turn")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        parts.push("forces read-first native tool turn".to_string());
     }
     if let Some(limit) = criteria
         .get("provider_timeout_seconds")

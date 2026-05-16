@@ -138,8 +138,11 @@ impl StaticCapabilityPack for LocalCodingFilesCapabilityPack {
     fn spec() -> CapabilityPackSpec {
         CapabilityPackSpec {
             id: "local-coding-files".to_string(),
-            description: "Native local coding file read, write, and patch tools".to_string(),
+            description: "Native local coding file discovery, read, write, and patch tools"
+                .to_string(),
             tools: vec![
+                "file_list".to_string(),
+                "file_stat".to_string(),
                 "file_read".to_string(),
                 "file_read_many".to_string(),
                 "file_write".to_string(),
