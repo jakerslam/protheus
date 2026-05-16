@@ -206,6 +206,39 @@
       "requires_detail_refs": true
     },
     {
+      "name": "SubmitMessageResultProjection",
+      "description": "Bounded assistant result projection for browser-style HTTP fallback rendering; raw execution state and full tool payloads remain outside shell plugs.",
+      "allowed_top_level_fields": [
+        "ok",
+        "response",
+        "content",
+        "input_tokens",
+        "output_tokens",
+        "cost_usd",
+        "iterations",
+        "agent_id",
+        "agent_name",
+        "auto_route",
+        "route",
+        "context_tokens",
+        "context_used_tokens",
+        "context_total_tokens",
+        "context_window",
+        "context_window_tokens",
+        "context_ratio",
+        "context_pressure",
+        "context_pool",
+        "tools",
+        "detail_refs",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 65536,
+      "max_array_items": 16,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "BoundedSearchResults",
       "description": "Bounded search hits over indexed projections, not raw payload mirrors.",
       "allowed_top_level_fields": [
@@ -521,6 +554,38 @@
         "execution_admission_truth",
         "retry_policy",
         "workflow_plan"
+      ]
+    },
+    {
+      "id": "submit_message_result",
+      "purpose": "Submit a chat message through Gateway and return only the bounded display result needed by browser-style shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ShellMessageSubmission",
+      "response_shape": "SubmitMessageResultProjection",
+      "default_projection": "SubmitMessageResultProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "orchestration_message_execution",
+      "shell_may_hold": [
+        "response",
+        "display_tool_previews",
+        "token_counts",
+        "route_preview",
+        "context_pressure",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "execution_admission_truth",
+        "retry_policy",
+        "workflow_plan",
+        "raw_tool_result",
+        "trace_body",
+        "execution_observation",
+        "runtime_quality"
       ]
     },
     {

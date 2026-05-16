@@ -173,6 +173,24 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
     } else if (route === 'POST /api/shell-socket/input') {
       capabilityId = 'submit_input';
       payload = makeIngressAck(String(body.kind || 'input'));
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/message$/.test(pathName)) {
+      capabilityId = 'submit_message_result';
+      payload = {
+        ok: true,
+        response: 'Headless socket message response.',
+        input_tokens: 4,
+        output_tokens: 5,
+        cost_usd: 0,
+        iterations: 1,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        agent_name: 'Probe Agent',
+        route: { provider: 'probe', model: 'auto', reason: 'fixture' },
+        context_pressure: 'low',
+        tools: [{ id: 'tool-probe', name: 'headless_probe', status: 'ok', result_preview: 'complete' }],
+        detail_refs: ['detail:message-result:probe'],
+        receipt_ref: 'receipt:message-result:probe',
+        correlation_id: 'probe-message-result',
+      };
     } else if (method === 'GET' && /^\/api\/shell-socket\/sessions\/[^/]+\/events$/.test(pathName)) {
       capabilityId = 'subscribe_events';
       payload = {
@@ -464,6 +482,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const detailRef = String((windowProjection.detail_refs || [])[0] || 'detail:message:agent-probe');
   const detail = await client.getMessageDetail<any>(detailRef, { view: 'summary', limit: 1 });
   const inputAck = await client.submitInput<any>({ kind: 'operator-message', session_id: sessionId, text: 'Probe input' });
+  const messageResult = await client.submitMessageResult<any>(agentId, { message: 'Probe input' });
   const event = await client.subscribeEvents<any>(sessionId, { cursor: 'event-cursor-0' });
   const search = await client.search<any>({ q: 'probe', scope: sessionId, limit: 10 });
   const issueAck = await client.submitIssue<any>({ kind: 'internal-eval', detail_refs: [detailRef] });
@@ -503,6 +522,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       session_id: sessionId,
       detail_id: detail.detail_id,
       input_receipt: inputAck.receipt_ref,
+      message_result_receipt: messageResult.receipt_ref,
       event_id: event.event_id,
       search_query_id: search.query_id,
       issue_receipt: issueAck.receipt_ref,

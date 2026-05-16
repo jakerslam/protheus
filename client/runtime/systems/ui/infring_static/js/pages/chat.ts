@@ -15982,7 +15982,7 @@ function chatPage() {
         if (uploadedFiles && uploadedFiles.length) httpBody.attachments = uploadedFiles;
         var httpAutoSwitchPrevious = String(this._pendingAutoModelSwitchBaseline || '').trim();
         if (!httpAutoSwitchPrevious) httpAutoSwitchPrevious = this.captureAutoModelSwitchBaseline();
-        var res = await InfringAPI.post('/api/agents/' + targetAgentId + '/message', httpBody);
+        var res = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(targetAgentId) + '/message', httpBody);
         this.applyContextTelemetry(res);
         var httpRoute = this.applyAutoRouteTelemetry(res);
         typeof this.clearTransientThinkingRows === 'function' ? this.clearTransientThinkingRows({ force: true }) : (this.messages = this.messages.filter(function(m) { return !m.thinking; }));

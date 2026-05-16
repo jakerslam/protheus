@@ -8,6 +8,7 @@ export type ShellSocketCapabilityId =
   | 'get_message_window'
   | 'get_message_detail'
   | 'submit_input'
+  | 'submit_message_result'
   | 'subscribe_events'
   | 'search'
   | 'submit_issue'
@@ -57,6 +58,7 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'get_message_window', method: 'GET', path: '/api/shell-socket/sessions/{session_id}/messages', pathParams: ['session_id'], queryParams: ['cursor', 'limit'] },
   { capabilityId: 'get_message_detail', method: 'GET', path: '/api/shell-socket/details/{detail_ref}', pathParams: ['detail_ref'], queryParams: ['view', 'limit'] },
   { capabilityId: 'submit_input', method: 'POST', path: '/api/shell-socket/input' },
+  { capabilityId: 'submit_message_result', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/message', pathParams: ['agent_id'] },
   { capabilityId: 'subscribe_events', method: 'GET', path: '/api/shell-socket/sessions/{session_id}/events', pathParams: ['session_id'], queryParams: ['cursor'] },
   { capabilityId: 'search', method: 'GET', path: '/api/shell-socket/search', queryParams: ['q', 'scope', 'cursor', 'limit'] },
   { capabilityId: 'submit_issue', method: 'POST', path: '/api/shell-socket/issues' },
@@ -191,6 +193,10 @@ export class ShellSocketGatewayClient {
     return this.request<T>('submit_input', { body: input });
   }
 
+  submitMessageResult<T = unknown>(agentId: string, input: unknown): Promise<T> {
+    return this.request<T>('submit_message_result', { query: { agent_id: agentId }, body: input });
+  }
+
   subscribeEvents<T = unknown>(sessionId: string, query: { cursor?: string } = {}): Promise<T> {
     return this.request<T>('subscribe_events', { query: { ...query, session_id: sessionId } });
   }
@@ -287,7 +293,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 27,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 28,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

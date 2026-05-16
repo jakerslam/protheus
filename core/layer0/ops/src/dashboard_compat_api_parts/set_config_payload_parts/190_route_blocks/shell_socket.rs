@@ -735,4 +735,97 @@ fn shell_socket_ack_from_legacy(capability: &str, legacy: CompatApiResponse) -> 
     }
 }
 
+fn shell_socket_message_tool_projection(tool: &Value, idx: usize) -> Value {
+    let row = tool.as_object();
+    let read_text = |key: &str, limit: usize| -> String {
+        clean_text(row.and_then(|map| map.get(key)).and_then(Value::as_str).unwrap_or(""), limit)
+    };
+    let name = read_text("name", 120);
+    let tool_name = read_text("tool", 120);
+    json!({
+        "id": read_text("id", 160),
+        "name": if name.is_empty() { tool_name.clone() } else { name },
+        "tool": tool_name,
+        "status": read_text("status", 80),
+        "input_preview": clean_text(
+            row.and_then(|map| map.get("input_preview").or_else(|| map.get("arguments_preview")).or_else(|| map.get("args_preview")))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            2000,
+        ),
+        "result_preview": clean_text(
+            row.and_then(|map| map.get("result_preview").or_else(|| map.get("output_preview")).or_else(|| map.get("summary")))
+                .and_then(Value::as_str)
+                .unwrap_or(""),
+            4000,
+        ),
+        "is_error": row.and_then(|map| map.get("is_error")).and_then(Value::as_bool).unwrap_or(false),
+        "blocked": row.and_then(|map| map.get("blocked")).and_then(Value::as_bool).unwrap_or(false),
+        "attempt_id": read_text("attempt_id", 160),
+        "attempt_sequence": row
+            .and_then(|map| map.get("attempt_sequence"))
+            .and_then(Value::as_u64)
+            .unwrap_or((idx + 1) as u64)
+    })
+}
+
+fn shell_socket_message_result_projection(legacy: CompatApiResponse) -> CompatApiResponse {
+    let payload = legacy.payload;
+    let ok = legacy.status < 400 && payload.get("ok").and_then(Value::as_bool).unwrap_or(true);
+    let mut out = Map::<String, Value>::new();
+    out.insert("ok".to_string(), json!(ok));
+    for key in [
+        "response",
+        "content",
+        "input_tokens",
+        "output_tokens",
+        "cost_usd",
+        "iterations",
+        "agent_id",
+        "agent_name",
+        "auto_route",
+        "route",
+        "context_tokens",
+        "context_used_tokens",
+        "context_total_tokens",
+        "context_window",
+        "context_window_tokens",
+        "context_ratio",
+        "context_pressure",
+        "context_pool",
+    ] {
+        if let Some(value) = payload.get(key) {
+            out.insert(key.to_string(), value.clone());
+        }
+    }
+    let tools = payload
+        .get("tools")
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .take(16)
+                .enumerate()
+                .map(|(idx, tool)| shell_socket_message_tool_projection(tool, idx))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    out.insert("tools".to_string(), json!(tools));
+    out.insert(
+        "detail_refs".to_string(),
+        json!({"message_result": shell_socket_receipt_ref("submit_message_result_detail", &payload)}),
+    );
+    out.insert(
+        "receipt_ref".to_string(),
+        json!(shell_socket_receipt_ref("submit_message_result", &payload)),
+    );
+    out.insert(
+        "correlation_id".to_string(),
+        json!("shell_socket.submit_message_result"),
+    );
+    CompatApiResponse {
+        status: if ok { 200 } else { legacy.status.max(400) },
+        payload: Value::Object(out),
+    }
+}
+
 include!("shell_socket_parts/020-routes.rs");

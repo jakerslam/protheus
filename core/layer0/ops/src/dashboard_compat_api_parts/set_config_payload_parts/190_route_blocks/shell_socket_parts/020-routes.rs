@@ -401,6 +401,26 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, &legacy_body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_ack_from_legacy("submit_input", legacy));
     }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "message" {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let agent_id = clean_agent_id(&parts[1]);
+        let message = clean_chat_text(
+            request.get("message").or_else(|| request.get("text")).or_else(|| request.get("input")).and_then(Value::as_str).unwrap_or(""),
+            24_000,
+        );
+        if agent_id.is_empty() || message.is_empty() {
+            return Some(CompatApiResponse {
+                status: 400,
+                payload: shell_socket_ingress_ack("submit_message_result", false, "agent_id_and_message_required", &request),
+            });
+        }
+        let mut legacy_request = request.as_object().cloned().unwrap_or_default();
+        legacy_request.insert("message".to_string(), json!(message));
+        let legacy_path = format!("/api/agents/{agent_id}/message");
+        let legacy_body = serde_json::to_vec(&Value::Object(legacy_request)).unwrap_or_default();
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, &legacy_body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_message_result_projection(legacy));
+    }
     if method == "POST" && parts == ["issues"] {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let agent_id = clean_agent_id(request.get("agent_id").and_then(Value::as_str).unwrap_or(""));
