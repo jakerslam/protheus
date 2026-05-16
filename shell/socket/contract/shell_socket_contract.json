@@ -302,6 +302,26 @@
       "requires_detail_refs": true
     },
     {
+      "name": "ProviderOAuthProjection",
+      "description": "Bounded provider OAuth device-flow status for shell display; access tokens and raw provider responses remain outside the shell.",
+      "allowed_top_level_fields": [
+        "ok",
+        "provider",
+        "status",
+        "poll_id",
+        "user_code",
+        "verification_uri",
+        "interval",
+        "expires_in",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -839,6 +859,67 @@
         "raw_provider_response",
         "routing_policy_truth",
         "model_policy_truth"
+      ]
+    },
+    {
+      "id": "start_provider_oauth",
+      "purpose": "Start a provider OAuth/device flow through Gateway controls without exposing tokens or OAuth authority to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ProviderOAuthStartRequest",
+      "response_shape": "ProviderOAuthProjection",
+      "default_projection": "ProviderOAuthProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_provider_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "poll_id",
+        "user_code",
+        "verification_uri",
+        "interval",
+        "expires_in",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "oauth_access_token",
+        "oauth_refresh_token",
+        "raw_provider_response",
+        "secret_storage_truth"
+      ]
+    },
+    {
+      "id": "poll_provider_oauth",
+      "purpose": "Poll provider OAuth/device-flow status through Gateway controls without exposing tokens or raw provider responses to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ProviderOAuthPollRequest",
+      "response_shape": "ProviderOAuthProjection",
+      "default_projection": "ProviderOAuthProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_provider_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "poll_id",
+        "status",
+        "interval",
+        "error",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "oauth_access_token",
+        "oauth_refresh_token",
+        "raw_provider_response",
+        "secret_storage_truth"
       ]
     },
     {

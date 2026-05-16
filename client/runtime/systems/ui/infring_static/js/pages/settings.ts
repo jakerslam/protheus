@@ -430,7 +430,7 @@ function settingsPage() {
       this.copilotOAuth.polling = true;
       this.copilotOAuth.userCode = '';
       try {
-        var resp = await InfringAPI.post('/api/providers/github-copilot/oauth/start', {});
+        var resp = await InfringAPI.post('/api/shell-socket/providers/github-copilot/oauth/start', {});
         this.copilotOAuth.userCode = resp.user_code;
         this.copilotOAuth.verificationUri = resp.verification_uri;
         this.copilotOAuth.pollId = resp.poll_id;
@@ -448,7 +448,7 @@ function settingsPage() {
       setTimeout(async function() {
         if (!self.copilotOAuth.pollId) return;
         try {
-          var resp = await InfringAPI.get('/api/providers/github-copilot/oauth/poll/' + self.copilotOAuth.pollId);
+          var resp = await InfringAPI.post('/api/shell-socket/providers/github-copilot/oauth/poll', { poll_id: self.copilotOAuth.pollId });
           if (resp.status === 'complete') {
             InfringToast.success('GitHub Copilot authenticated successfully!');
             self.copilotOAuth = { polling: false, userCode: '', verificationUri: '', pollId: '', interval: 5 };

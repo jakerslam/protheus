@@ -295,6 +295,32 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:provider-url:probe',
         correlation_id: 'probe-provider-url',
       };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/providers\/[^/]+\/oauth\/start$/.test(pathName)) {
+      capabilityId = 'start_provider_oauth';
+      payload = {
+        ok: true,
+        provider: decodeURIComponent(pathName.split('/')[4] || 'github-copilot'),
+        status: 'pending',
+        poll_id: 'poll-probe',
+        user_code: 'PROBE-CODE',
+        verification_uri: 'https://github.com/login/device',
+        interval: 5,
+        expires_in: 900,
+        receipt_ref: 'receipt:provider-oauth-start:probe',
+        correlation_id: 'probe-provider-oauth-start',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/providers\/[^/]+\/oauth\/poll$/.test(pathName)) {
+      capabilityId = 'poll_provider_oauth';
+      payload = {
+        ok: true,
+        provider: decodeURIComponent(pathName.split('/')[4] || 'github-copilot'),
+        status: 'complete',
+        poll_id: String(body.poll_id || 'poll-probe'),
+        interval: 5,
+        error: null,
+        receipt_ref: 'receipt:provider-oauth-poll:probe',
+        correlation_id: 'probe-provider-oauth-poll',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/model$/.test(pathName)) {
       capabilityId = 'set_model';
       payload = makeIngressAck('model');
@@ -437,6 +463,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const providerKeyRemove = await client.removeProviderKey<any>('probe');
   const providerTest = await client.testProvider<any>('probe');
   const providerUrl = await client.setProviderUrl<any>('probe', { base_url: 'http://127.0.0.1:11434' });
+  const providerOAuthStart = await client.startProviderOAuth<any>('github-copilot');
+  const providerOAuthPoll = await client.pollProviderOAuth<any>('github-copilot', { poll_id: providerOAuthStart.poll_id });
   const modelAck = await client.setModel<any>(agentId, { model_ref: 'model:auto' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
@@ -473,6 +501,8 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       provider_key_remove_receipt: providerKeyRemove.receipt_ref,
       provider_test_receipt: providerTest.receipt_ref,
       provider_url_receipt: providerUrl.receipt_ref,
+      provider_oauth_start_receipt: providerOAuthStart.receipt_ref,
+      provider_oauth_poll_receipt: providerOAuthPoll.receipt_ref,
       model_receipt: modelAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,

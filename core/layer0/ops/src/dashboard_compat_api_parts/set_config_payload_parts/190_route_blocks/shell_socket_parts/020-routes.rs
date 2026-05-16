@@ -273,6 +273,83 @@ fn handle_shell_socket_routes(
             }),
         });
     }
+    if method == "POST" && parts.len() == 4 && parts[0] == "providers" && parts[2] == "oauth" && parts[3] == "start" {
+        let provider_id = normalize_provider_route_id(&parts[1]);
+        if provider_id != "github-copilot" {
+            return Some(CompatApiResponse {
+                status: 400,
+                payload: json!({
+                    "ok": false,
+                    "provider": provider_id,
+                    "status": "error",
+                    "error": "provider_oauth_unsupported",
+                    "receipt_ref": shell_socket_receipt_ref("start_provider_oauth", &json!({"provider": provider_id})),
+                    "correlation_id": "shell_socket.start_provider_oauth"
+                }),
+            });
+        }
+        let legacy = dashboard_compat_api_settings_ops::handle(
+            root,
+            "POST",
+            "/api/providers/github-copilot/oauth/start",
+            body,
+        );
+        let authority = legacy.map(|response| response.payload).unwrap_or_else(|| json!({"ok": false, "status": "error", "error": "provider_oauth_unavailable"}));
+        let ok = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload: json!({
+                "ok": ok,
+                "provider": authority.get("provider").cloned().unwrap_or_else(|| json!("github-copilot")),
+                "status": authority.get("status").cloned().unwrap_or_else(|| if ok { json!("pending") } else { json!("error") }),
+                "poll_id": authority.get("poll_id").cloned().unwrap_or(Value::Null),
+                "user_code": authority.get("user_code").cloned().unwrap_or(Value::Null),
+                "verification_uri": authority.get("verification_uri").cloned().unwrap_or(Value::Null),
+                "interval": authority.get("interval").cloned().unwrap_or_else(|| json!(5)),
+                "expires_in": authority.get("expires_in").cloned().unwrap_or(Value::Null),
+                "error": authority.get("error").cloned().unwrap_or(Value::Null),
+                "receipt_ref": shell_socket_receipt_ref("start_provider_oauth", &json!({"provider": "github-copilot"})),
+                "correlation_id": "shell_socket.start_provider_oauth"
+            }),
+        });
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "providers" && parts[2] == "oauth" && parts[3] == "poll" {
+        let provider_id = normalize_provider_route_id(&parts[1]);
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let poll_id = clean_text(request.get("poll_id").and_then(Value::as_str).unwrap_or(""), 120);
+        if provider_id != "github-copilot" || poll_id.is_empty() {
+            return Some(CompatApiResponse {
+                status: 400,
+                payload: json!({
+                    "ok": false,
+                    "provider": provider_id,
+                    "status": "error",
+                    "poll_id": poll_id,
+                    "error": if poll_id.is_empty() { "poll_id_required" } else { "provider_oauth_unsupported" },
+                    "receipt_ref": shell_socket_receipt_ref("poll_provider_oauth", &json!({"provider": provider_id, "poll_id": poll_id})),
+                    "correlation_id": "shell_socket.poll_provider_oauth"
+                }),
+            });
+        }
+        let legacy_path = format!("/api/providers/github-copilot/oauth/poll/{poll_id}");
+        let authority = dashboard_compat_api_settings_ops::handle(root, "GET", &legacy_path, body)
+            .map(|response| response.payload)
+            .unwrap_or_else(|| json!({"ok": false, "status": "error", "error": "provider_oauth_unavailable"}));
+        let ok = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload: json!({
+                "ok": ok,
+                "provider": "github-copilot",
+                "status": authority.get("status").cloned().unwrap_or_else(|| if ok { json!("pending") } else { json!("error") }),
+                "poll_id": poll_id,
+                "interval": authority.get("interval").cloned().unwrap_or_else(|| json!(5)),
+                "error": authority.get("error").cloned().unwrap_or(Value::Null),
+                "receipt_ref": shell_socket_receipt_ref("poll_provider_oauth", &json!({"provider": "github-copilot", "poll_id": poll_id})),
+                "correlation_id": "shell_socket.poll_provider_oauth"
+            }),
+        });
+    }
     if method == "POST" && parts == ["input"] {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let agent_id = clean_agent_id(request.get("agent_id").or_else(|| request.get("target_agent_id")).and_then(Value::as_str).unwrap_or(""));
