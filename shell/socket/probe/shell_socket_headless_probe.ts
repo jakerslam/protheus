@@ -251,6 +251,50 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
     } else if (route === 'POST /api/shell-socket/models/custom/delete') {
       capabilityId = 'delete_custom_model';
       payload = makeIngressAck('custom-model-delete');
+    } else if (method === 'POST' && /^\/api\/shell-socket\/providers\/[^/]+\/key$/.test(pathName)) {
+      capabilityId = 'save_provider_key';
+      payload = {
+        ok: true,
+        provider: decodeURIComponent(pathName.split('/')[4] || 'probe'),
+        auth_status: 'configured',
+        switched_default: false,
+        message: null,
+        error: null,
+        receipt_ref: 'receipt:provider-key:probe',
+        correlation_id: 'probe-provider-key',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/providers\/[^/]+\/key\/remove$/.test(pathName)) {
+      capabilityId = 'remove_provider_key';
+      payload = {
+        ok: true,
+        provider: decodeURIComponent(pathName.split('/')[4] || 'probe'),
+        auth_status: 'not_set',
+        error: null,
+        receipt_ref: 'receipt:provider-key-remove:probe',
+        correlation_id: 'probe-provider-key-remove',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/providers\/[^/]+\/test$/.test(pathName)) {
+      capabilityId = 'test_provider';
+      payload = {
+        ok: true,
+        status: 'ok',
+        provider: decodeURIComponent(pathName.split('/')[4] || 'probe'),
+        latency_ms: 1,
+        error: null,
+        receipt_ref: 'receipt:provider-test:probe',
+        correlation_id: 'probe-provider-test',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/providers\/[^/]+\/url$/.test(pathName)) {
+      capabilityId = 'set_provider_url';
+      payload = {
+        ok: true,
+        provider: decodeURIComponent(pathName.split('/')[4] || 'probe'),
+        reachable: true,
+        latency_ms: 1,
+        error: null,
+        receipt_ref: 'receipt:provider-url:probe',
+        correlation_id: 'probe-provider-url',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/model$/.test(pathName)) {
       capabilityId = 'set_model';
       payload = makeIngressAck('model');
@@ -389,6 +433,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const download = await client.downloadModel<any>({ provider: 'probe', model: 'probe/auto' });
   const customModelAck = await client.upsertCustomModel<any>({ provider: 'probe', model: 'probe/custom' });
   const customModelDeleteAck = await client.deleteCustomModel<any>({ model_ref: 'probe/custom' });
+  const providerKey = await client.saveProviderKey<any>('probe', { key: 'probe-key' });
+  const providerKeyRemove = await client.removeProviderKey<any>('probe');
+  const providerTest = await client.testProvider<any>('probe');
+  const providerUrl = await client.setProviderUrl<any>('probe', { base_url: 'http://127.0.0.1:11434' });
   const modelAck = await client.setModel<any>(agentId, { model_ref: 'model:auto' });
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
@@ -421,6 +469,10 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       model_download_receipt: download.receipt_ref,
       custom_model_receipt: customModelAck.receipt_ref,
       custom_model_delete_receipt: customModelDeleteAck.receipt_ref,
+      provider_key_receipt: providerKey.receipt_ref,
+      provider_key_remove_receipt: providerKeyRemove.receipt_ref,
+      provider_test_receipt: providerTest.receipt_ref,
+      provider_url_receipt: providerUrl.receipt_ref,
       model_receipt: modelAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,

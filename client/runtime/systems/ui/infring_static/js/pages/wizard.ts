@@ -388,7 +388,7 @@ function wizardPage() {
       }
       this.savingKey = true;
       try {
-        await InfringAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/key', { key: key });
+        await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(provider.id) + '/key', { key: key });
         this.apiKeyInput = '';
         this.keySaved = true;
         this.setupSummary.provider = provider.display_name;
@@ -409,7 +409,7 @@ function wizardPage() {
       this.testingProvider = true;
       this.testResult = null;
       try {
-        var result = await InfringAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/test', {});
+        var result = await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(provider.id) + '/test', {});
         this.testResult = result;
         if (result.status === 'ok') {
           InfringToast.success(provider.display_name + ' connected (' + (result.latency_ms || '?') + 'ms)');
@@ -427,7 +427,7 @@ function wizardPage() {
       this.testingProvider = true;
       this.testResult = null;
       try {
-        var result = await InfringAPI.post('/api/providers/claude-code/test', {});
+        var result = await InfringAPI.post('/api/shell-socket/providers/claude-code/test', {});
         this.testResult = result;
         if (result.status === 'ok') {
           this.claudeCodeDetected = true;

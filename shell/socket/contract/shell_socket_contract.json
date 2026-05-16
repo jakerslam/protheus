@@ -282,6 +282,26 @@
       "requires_detail_refs": true
     },
     {
+      "name": "ProviderMutationProjection",
+      "description": "Bounded provider configuration/test acknowledgement for shell display; secrets and raw provider probe bodies remain outside the shell.",
+      "allowed_top_level_fields": [
+        "ok",
+        "status",
+        "provider",
+        "auth_status",
+        "switched_default",
+        "message",
+        "reachable",
+        "latency_ms",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -709,6 +729,116 @@
         "model_catalog_truth",
         "model_policy_truth",
         "raw_provider_response"
+      ]
+    },
+    {
+      "id": "save_provider_key",
+      "purpose": "Submit a provider key to the Gateway so provider secret storage remains authority-owned outside shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ProviderKeySetRequest",
+      "response_shape": "ProviderMutationProjection",
+      "default_projection": "ProviderMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_provider_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "auth_status",
+        "switched_default",
+        "message",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "secret_storage_truth",
+        "raw_provider_response",
+        "model_policy_truth"
+      ]
+    },
+    {
+      "id": "remove_provider_key",
+      "purpose": "Request provider key removal through Gateway controls without exposing secret storage authority to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ProviderKeyRemoveRequest",
+      "response_shape": "ProviderMutationProjection",
+      "default_projection": "ProviderMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_provider_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "auth_status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "secret_storage_truth",
+        "raw_provider_response",
+        "model_policy_truth"
+      ]
+    },
+    {
+      "id": "test_provider",
+      "purpose": "Request a provider connectivity probe through Gateway and return only bounded display status.",
+      "route_class": "request_ingress",
+      "request_shape": "ProviderTestRequest",
+      "response_shape": "ProviderMutationProjection",
+      "default_projection": "ProviderMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_provider_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "status",
+        "latency_ms",
+        "error",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "raw_provider_response",
+        "probe_body",
+        "routing_policy_truth"
+      ]
+    },
+    {
+      "id": "set_provider_url",
+      "purpose": "Request provider base URL update through Gateway controls and return only bounded reachability status.",
+      "route_class": "request_ingress",
+      "request_shape": "ProviderUrlSetRequest",
+      "response_shape": "ProviderMutationProjection",
+      "default_projection": "ProviderMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_provider_config_authority",
+      "shell_may_hold": [
+        "provider",
+        "reachable",
+        "latency_ms",
+        "error",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "provider_secret",
+        "raw_provider_response",
+        "routing_policy_truth",
+        "model_policy_truth"
       ]
     },
     {

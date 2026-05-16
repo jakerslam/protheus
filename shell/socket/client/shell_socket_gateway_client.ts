@@ -17,6 +17,10 @@ export type ShellSocketCapabilityId =
   | 'download_model'
   | 'upsert_custom_model'
   | 'delete_custom_model'
+  | 'save_provider_key'
+  | 'remove_provider_key'
+  | 'test_provider'
+  | 'set_provider_url'
   | 'set_model'
   | 'set_git_tree'
   | 'fresh_session'
@@ -59,6 +63,10 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'download_model', method: 'POST', path: '/api/shell-socket/models/download' },
   { capabilityId: 'upsert_custom_model', method: 'POST', path: '/api/shell-socket/models/custom' },
   { capabilityId: 'delete_custom_model', method: 'POST', path: '/api/shell-socket/models/custom/delete' },
+  { capabilityId: 'save_provider_key', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/key', pathParams: ['provider_id'] },
+  { capabilityId: 'remove_provider_key', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/key/remove', pathParams: ['provider_id'] },
+  { capabilityId: 'test_provider', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/test', pathParams: ['provider_id'] },
+  { capabilityId: 'set_provider_url', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/url', pathParams: ['provider_id'] },
   { capabilityId: 'set_model', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/model', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
@@ -213,6 +221,22 @@ export class ShellSocketGatewayClient {
     return this.request<T>('delete_custom_model', { body: request });
   }
 
+  saveProviderKey<T = unknown>(providerId: string, request: unknown): Promise<T> {
+    return this.request<T>('save_provider_key', { query: { provider_id: providerId }, body: request });
+  }
+
+  removeProviderKey<T = unknown>(providerId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('remove_provider_key', { query: { provider_id: providerId }, body: request });
+  }
+
+  testProvider<T = unknown>(providerId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('test_provider', { query: { provider_id: providerId }, body: request });
+  }
+
+  setProviderUrl<T = unknown>(providerId: string, request: unknown): Promise<T> {
+    return this.request<T>('set_provider_url', { query: { provider_id: providerId }, body: request });
+  }
+
   setModel<T = unknown>(agentId: string, modelSelection: unknown): Promise<T> {
     return this.request<T>('set_model', { query: { agent_id: agentId }, body: modelSelection });
   }
@@ -245,7 +269,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 20,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 24,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

@@ -201,6 +201,78 @@ fn handle_shell_socket_routes(
             ),
         });
     }
+    if method == "POST" && parts.len() == 3 && parts[0] == "providers" && parts[2] == "key" {
+        let provider_id = normalize_provider_route_id(&parts[1]);
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let key = clean_text(request.get("key").and_then(Value::as_str).unwrap_or(""), 4096);
+        let authority = crate::dashboard_provider_runtime::save_provider_key(root, &provider_id, &key);
+        let ok = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload: json!({
+                "ok": ok,
+                "provider": authority.get("provider").cloned().unwrap_or_else(|| json!(provider_id)),
+                "auth_status": authority.get("auth_status").cloned().unwrap_or(Value::Null),
+                "switched_default": authority.get("switched_default").cloned().unwrap_or_else(|| json!(false)),
+                "message": authority.get("message").cloned().unwrap_or(Value::Null),
+                "error": authority.get("error").cloned().unwrap_or(Value::Null),
+                "receipt_ref": shell_socket_receipt_ref("save_provider_key", &json!({"provider": provider_id})),
+                "correlation_id": "shell_socket.save_provider_key"
+            }),
+        });
+    }
+    if method == "POST" && parts.len() == 4 && parts[0] == "providers" && parts[2] == "key" && parts[3] == "remove" {
+        let provider_id = normalize_provider_route_id(&parts[1]);
+        let authority = crate::dashboard_provider_runtime::remove_provider_key(root, &provider_id);
+        let ok = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload: json!({
+                "ok": ok,
+                "provider": authority.get("provider").cloned().unwrap_or_else(|| json!(provider_id)),
+                "auth_status": authority.get("auth_status").cloned().unwrap_or(Value::Null),
+                "error": authority.get("error").cloned().unwrap_or(Value::Null),
+                "receipt_ref": shell_socket_receipt_ref("remove_provider_key", &json!({"provider": provider_id})),
+                "correlation_id": "shell_socket.remove_provider_key"
+            }),
+        });
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "providers" && parts[2] == "test" {
+        let provider_id = normalize_provider_route_id(&parts[1]);
+        let authority = crate::dashboard_provider_runtime::test_provider(root, &provider_id);
+        let ok = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: 200,
+            payload: json!({
+                "ok": ok,
+                "status": authority.get("status").cloned().unwrap_or_else(|| if ok { json!("ok") } else { json!("error") }),
+                "provider": authority.get("provider").cloned().unwrap_or_else(|| json!(provider_id)),
+                "latency_ms": authority.get("latency_ms").cloned().unwrap_or_else(|| json!(0)),
+                "error": authority.get("error").cloned().unwrap_or(Value::Null),
+                "receipt_ref": shell_socket_receipt_ref("test_provider", &json!({"provider": provider_id})),
+                "correlation_id": "shell_socket.test_provider"
+            }),
+        });
+    }
+    if method == "POST" && parts.len() == 3 && parts[0] == "providers" && parts[2] == "url" {
+        let provider_id = normalize_provider_route_id(&parts[1]);
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let base_url = clean_text(request.get("base_url").and_then(Value::as_str).unwrap_or(""), 400);
+        let authority = crate::dashboard_provider_runtime::set_provider_url(root, &provider_id, &base_url);
+        let ok = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload: json!({
+                "ok": ok,
+                "provider": authority.get("provider").cloned().unwrap_or_else(|| json!(provider_id)),
+                "reachable": authority.get("reachable").cloned().unwrap_or_else(|| json!(false)),
+                "latency_ms": authority.get("latency_ms").cloned().unwrap_or_else(|| json!(0)),
+                "error": authority.get("error").cloned().unwrap_or(Value::Null),
+                "receipt_ref": shell_socket_receipt_ref("set_provider_url", &json!({"provider": provider_id})),
+                "correlation_id": "shell_socket.set_provider_url"
+            }),
+        });
+    }
     if method == "POST" && parts == ["input"] {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let agent_id = clean_agent_id(request.get("agent_id").or_else(|| request.get("target_agent_id")).and_then(Value::as_str).unwrap_or(""));

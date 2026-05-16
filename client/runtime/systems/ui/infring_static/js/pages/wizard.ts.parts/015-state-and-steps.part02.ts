@@ -168,7 +168,7 @@
       }
       this.savingKey = true;
       try {
-        await InfringAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/key', { key: key });
+        await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(provider.id) + '/key', { key: key });
         this.apiKeyInput = '';
         this.keySaved = true;
         this.setupSummary.provider = provider.display_name;
@@ -179,4 +179,3 @@
       } catch(e) {
         InfringToast.error('Failed to save key: ' + e.message);
       }
-

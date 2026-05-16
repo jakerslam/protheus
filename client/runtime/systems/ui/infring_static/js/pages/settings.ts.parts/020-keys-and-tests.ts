@@ -1,7 +1,7 @@
       var key = this.providerKeyInputs[provider.id];
       if (!key || !key.trim()) { InfringToast.error('Please enter an API key'); return; }
       try {
-        var resp = await InfringAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/key', { key: key.trim() });
+        var resp = await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(provider.id) + '/key', { key: key.trim() });
         if (resp && resp.switched_default) {
           InfringToast.warning(resp.message || 'Default provider was switched to ' + provider.display_name);
         } else {
@@ -17,7 +17,7 @@
 
     async removeProviderKey(provider) {
       try {
-        await InfringAPI.del('/api/providers/' + encodeURIComponent(provider.id) + '/key');
+        await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(provider.id) + '/key/remove', {});
         InfringToast.success('API key removed for ' + provider.display_name);
         await this.loadProviders();
         await this.loadModels();
@@ -78,7 +78,7 @@
       this.providerTesting[provider.id] = true;
       this.providerTestResults[provider.id] = null;
       try {
-        var result = await InfringAPI.post('/api/providers/' + encodeURIComponent(provider.id) + '/test', {});
+        var result = await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(provider.id) + '/test', {});
         this.providerTestResults[provider.id] = result;
         if (result.status === 'ok') {
           InfringToast.success(provider.display_name + ' connected (' + (result.latency_ms || '?') + 'ms)');
@@ -101,7 +101,7 @@
       }
       this.providerUrlSaving[provider.id] = true;
       try {
-        var result = await InfringAPI.put('/api/providers/' + encodeURIComponent(provider.id) + '/url', { base_url: url });
+        var result = await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(provider.id) + '/url', { base_url: url });
         if (result.reachable) {
           InfringToast.success(provider.display_name + ' URL saved &mdash; reachable (' + (result.latency_ms || '?') + 'ms)');
         } else {
@@ -125,9 +125,9 @@
       this.addingCustomProvider = true;
       this.customProviderStatus = '';
       try {
-        var result = await InfringAPI.put('/api/providers/' + encodeURIComponent(name) + '/url', { base_url: url });
+        var result = await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(name) + '/url', { base_url: url });
         if (this.customProviderKey.trim()) {
-          await InfringAPI.post('/api/providers/' + encodeURIComponent(name) + '/key', { key: this.customProviderKey.trim() });
+          await InfringAPI.post('/api/shell-socket/providers/' + encodeURIComponent(name) + '/key', { key: this.customProviderKey.trim() });
         }
         this.customProviderName = '';
         this.customProviderUrl = '';
@@ -152,4 +152,3 @@
       }
       this.secLoading = false;
     },
-
