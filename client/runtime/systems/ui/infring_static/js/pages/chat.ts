@@ -74,6 +74,9 @@ function chatPage() {
     gatewaySearchThreshold: 250,
     _gatewaySearchTimer: null,
     _gatewaySearchSeq: 0,
+    shellDetailCache: {},
+    shellDetailCacheOrder: [],
+    shellDetailCacheLimit: 80,
     messageDisplayInitialLimit: 10,
     messageDisplayStep: 5,
     messageDisplayCount: 10,
@@ -5409,6 +5412,92 @@ function chatPage() {
         }
       } finally {
         if (seq === Number(this._gatewaySearchSeq || 0)) this.gatewaySearchPending = false;
+      }
+    },
+
+    shellDetailRefForTool: function(tool) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      return String(row.detail_ref || row.result_ref || row.input_ref || '').trim();
+    },
+
+    rememberShellDetailProjection: function(detailRef, payload) {
+      var ref = String(detailRef || '').trim();
+      if (!ref) return null;
+      if (!this.shellDetailCache || typeof this.shellDetailCache !== 'object') this.shellDetailCache = {};
+      if (!Array.isArray(this.shellDetailCacheOrder)) this.shellDetailCacheOrder = [];
+      var projection = payload && typeof payload === 'object'
+        ? (payload.detail_projection || payload)
+        : {};
+      this.shellDetailCache[ref] = projection;
+      var idx = this.shellDetailCacheOrder.indexOf(ref);
+      if (idx >= 0) this.shellDetailCacheOrder.splice(idx, 1);
+      this.shellDetailCacheOrder.push(ref);
+      var limit = Number(this.shellDetailCacheLimit || 80);
+      if (!Number.isFinite(limit) || limit < 10) limit = 80;
+      while (this.shellDetailCacheOrder.length > limit) {
+        var oldRef = this.shellDetailCacheOrder.shift();
+        if (oldRef) delete this.shellDetailCache[oldRef];
+      }
+      return projection;
+    },
+
+    applyShellDetailToTool: function(tool, detailProjection) {
+      if (!tool || typeof tool !== 'object' || !detailProjection || typeof detailProjection !== 'object') return;
+      var projection = detailProjection.detail_projection && typeof detailProjection.detail_projection === 'object'
+        ? detailProjection.detail_projection
+        : detailProjection;
+      var value = projection.value && typeof projection.value === 'object' ? projection.value : projection;
+      if (projection.value_preview && !tool.result) tool.result = String(projection.value_preview || '');
+      if (value.summary && !tool.summary) tool.summary = String(value.summary || '');
+      if (value.input && !tool.input) tool.input = typeof value.input === 'string' ? value.input : JSON.stringify(value.input);
+      if (value.result && !tool.result) tool.result = typeof value.result === 'string' ? value.result : JSON.stringify(value.result);
+      if (value.output && !tool.result) tool.result = typeof value.output === 'string' ? value.output : JSON.stringify(value.output);
+      if (value.name && !tool.name) tool.name = String(value.name || '');
+      tool._detail_loaded = true;
+      tool._detail_loading = false;
+      tool._detail_error = '';
+    },
+
+    fetchShellDetailProjection: async function(detailRef) {
+      var ref = String(detailRef || '').trim();
+      if (!ref) return null;
+      if (this.shellDetailCache && this.shellDetailCache[ref]) return this.shellDetailCache[ref];
+      var response = await fetch('/api/shell-socket/details/' + encodeURIComponent(ref) + '?view=summary', {
+        headers: { Accept: 'application/json' }
+      });
+      var payload = await response.json().catch(function() { return {}; });
+      if (!response.ok || !payload || payload.ok === false) {
+        throw new Error(String((payload && (payload.error || payload.reason_code)) || 'detail_fetch_failed'));
+      }
+      return this.rememberShellDetailProjection(ref, payload);
+    },
+
+    syncChatStoreAfterDetailLoad: function() {
+      var chatStore = window.InfringChatStore;
+      if (chatStore && typeof chatStore.syncMessages === 'function') {
+        chatStore.syncMessages(this.messages, this.allFilteredMessages);
+      }
+    },
+
+    toggleToolExpansion: async function(tool) {
+      if (!tool || typeof tool !== 'object') return;
+      var expanding = !tool.expanded;
+      tool.expanded = expanding;
+      this.syncChatStoreAfterDetailLoad();
+      if (!expanding) return;
+      var detailRef = this.shellDetailRefForTool(tool);
+      if (!detailRef || tool._detail_loaded || tool._detail_loading || tool.result || tool.input) return;
+      tool._detail_loading = true;
+      tool._detail_error = '';
+      this.syncChatStoreAfterDetailLoad();
+      try {
+        var detail = await this.fetchShellDetailProjection(detailRef);
+        this.applyShellDetailToTool(tool, detail);
+      } catch (err) {
+        tool._detail_loading = false;
+        tool._detail_error = 'Unable to load detail right now.';
+      } finally {
+        this.syncChatStoreAfterDetailLoad();
       }
     },
 
@@ -14177,6 +14266,29 @@ function chatPage() {
       var preview = allLines.slice(0, maxLines).join('\n');
       if (preview.length > maxChars) return preview.slice(0, maxChars).trimEnd() + '…';
       return allLines.length > maxLines ? preview.trimEnd() + '…' : preview;
+    },
+
+    toolProjectionSections: function(tool) {
+      var row = tool && typeof tool === 'object' ? tool : {};
+      var sections = [];
+      if (row._detail_loading) {
+        sections.push({ id: 'loading', label: 'Detail', text: 'Loading detail…' });
+        return sections;
+      }
+      if (row._detail_error) {
+        sections.push({ id: 'error', label: 'Detail', text: String(row._detail_error || 'Unable to load detail right now.') });
+        return sections;
+      }
+      var summary = String(row.summary || row.display_text || '').trim();
+      if (summary) sections.push({ id: 'summary', label: 'Summary', text: summary });
+      var input = String(row.input || row.input_preview || '').trim();
+      if (input) sections.push({ id: 'input', label: 'Input', text: this.formatToolOutputForClipboard(input) || input });
+      var result = String(row.result || row.result_preview || '').trim();
+      if (result) sections.push({ id: 'result', label: 'Result', text: this.formatToolOutputForClipboard(result) || result });
+      if (!sections.length && this.shellDetailRefForTool(row)) {
+        sections.push({ id: 'detail-ref', label: 'Detail', text: 'Open the tool to load detail from the gateway.' });
+      }
+      return sections;
     },
 
     messageCopyMarkdown: function(msg) {

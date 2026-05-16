@@ -70,7 +70,12 @@ const COMPONENT_SOURCE = String.raw`<svelte:options customElement={{ tag: 'infri
     if (p && typeof p.clearHoveredMessage === 'function') p.clearHoveredMessage();
   }
   function toggleTool(tool) {
-    tool.expanded = !tool.expanded;
+    var p = cp();
+    if (p && typeof p.toggleToolExpansion === 'function') {
+      p.toggleToolExpansion(tool);
+    } else {
+      tool.expanded = !tool.expanded;
+    }
     messages = messages;
   }
   function onMetaAction(e, msg, idx) {
