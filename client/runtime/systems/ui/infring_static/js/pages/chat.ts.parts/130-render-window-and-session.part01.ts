@@ -323,7 +323,7 @@
       this.freshInitEmojiPickerOpen = false;
       try {
         if (resolvedModelRef) {
-          await InfringAPI.put('/api/agents/' + agentId + '/model', {
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/model', {
             model: resolvedModelRef
           });
         }

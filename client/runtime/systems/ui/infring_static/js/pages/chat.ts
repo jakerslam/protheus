@@ -6730,7 +6730,7 @@ function chatPage() {
           return null;
         })
         .then(function() {
-          return InfringAPI.put('/api/agents/' + encodeURIComponent(agentId) + '/model', {
+          return InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/model', {
             model: requestedModel
           });
         })
@@ -9209,7 +9209,7 @@ function chatPage() {
       this.freshInitEmojiPickerOpen = false;
       try {
         if (resolvedModelRef) {
-          await InfringAPI.put('/api/agents/' + agentId + '/model', {
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/model', {
             model: resolvedModelRef
           });
         }

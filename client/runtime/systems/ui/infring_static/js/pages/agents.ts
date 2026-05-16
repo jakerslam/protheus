@@ -1110,7 +1110,7 @@ function agentsPage() {
       if (!agentId || !this.newModelValue.trim()) return;
       this.modelSaving = true;
       try {
-        var resp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: this.newModelValue.trim() });
+        var resp = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/model', { model: this.newModelValue.trim() });
         var providerInfo = (resp && resp.provider) ? ' (provider: ' + resp.provider + ')' : '';
         InfringToast.success('Model changed' + providerInfo + ' (memory reset)');
         this.editingModel = false;
@@ -1130,7 +1130,7 @@ function agentsPage() {
       this.modelSaving = true;
       try {
         var combined = this.newProviderValue.trim() + '/' + this.detailAgent.model_name;
-        var resp = await InfringAPI.put('/api/agents/' + agentId + '/model', { model: combined });
+        var resp = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/model', { model: combined });
         InfringToast.success('Provider changed to ' + (resp && resp.provider ? resp.provider : this.newProviderValue.trim()));
         this.editingProvider = false;
         await Alpine.store('app').refreshAgents();

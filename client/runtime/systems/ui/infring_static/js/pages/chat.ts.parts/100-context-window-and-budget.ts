@@ -128,7 +128,7 @@
           return null;
         })
         .then(function() {
-          return InfringAPI.put('/api/agents/' + encodeURIComponent(agentId) + '/model', {
+          return InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/model', {
             model: requestedModel
           });
         })
