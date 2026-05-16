@@ -497,6 +497,94 @@ mod quality_tests {
                 plan.queries
             );
         }
+        for expected in [
+            "\"AI browser agents\" \"prompt injection\"",
+            "\"AI browser agents\" \"credential handling\"",
+            "\"AI browser agents\" \"approval boundaries\"",
+        ] {
+            assert!(
+                plan.queries.iter().any(|row| row == expected),
+                "{:#?}",
+                plan.queries
+            );
+        }
+    }
+
+    #[test]
+    fn inferred_query_pack_preserves_project_entities_without_context_suffixes() {
+        let query = "Research browser-use, Playwright-based browser agents, and OpenHands for browser task automation. Which is most appropriate for repeatable QA-style workflows?";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        for expected in ["browser-use", "Playwright", "OpenHands"] {
+            assert!(
+                plan.query_metadata.entities.iter().any(|row| row == expected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+        for unexpected in ["Playwright-based", "QA-style", "QA"] {
+            assert!(
+                !plan
+                    .query_metadata
+                    .entities
+                    .iter()
+                    .any(|row| row == unexpected),
+                "{:#?}",
+                plan.query_metadata
+            );
+        }
+    }
+
+    #[test]
+    fn coverage_entity_lanes_precede_generic_recovery_queries() {
+        let query = "Research LlamaIndex workflows versus LangChain/LangGraph for document-heavy research assistants.";
+        let request = json!({
+            "source": "web",
+            "query": query,
+            "aperture": "medium"
+        });
+        let budget = aperture_budget("medium").expect("budget");
+        let plan = resolve_query_plan(&json!({}), &request, query, budget);
+
+        assert!(
+            plan.query_metadata
+                .entities
+                .iter()
+                .any(|row| row == "LlamaIndex"),
+            "{:#?}",
+            plan.query_metadata
+        );
+        assert!(
+            plan.query_metadata
+                .entities
+                .iter()
+                .any(|row| row == "LangChain"),
+            "{:#?}",
+            plan.query_metadata
+        );
+
+        let llama_lane = plan
+            .queries
+            .iter()
+            .position(|row| row == "LlamaIndex official source")
+            .expect("LlamaIndex official source lane");
+        let generic_recovery = plan
+            .queries
+            .iter()
+            .position(|row| row.ends_with("primary source evidence"))
+            .expect("generic primary source recovery lane");
+
+        assert!(
+            llama_lane < generic_recovery,
+            "{:#?}",
+            plan.queries
+        );
     }
 
     #[test]
@@ -2775,6 +2863,97 @@ mod quality_tests {
         assert!(!selected
             .iter()
             .any(|(candidate, _)| candidate.locator.contains("general-deployment")), "{selected:#?}");
+    }
+
+    #[test]
+    fn facet_backfill_replaces_redundant_coverage_with_missing_lane() {
+        let query = "Compare Alpha Runtime with Beta Search for deployment readiness";
+        let mut facets = vec![
+            research_facet_from_metadata_text("Alpha Runtime", 0, "entity").unwrap(),
+            research_facet_from_metadata_text("Beta Search", 1, "entity").unwrap(),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let alpha_docs = Candidate {
+            source_kind: "web".to_string(),
+            title: "Alpha Runtime deployment guide".to_string(),
+            locator: "https://docs.alpha.example.com/deployment".to_string(),
+            snippet: "Alpha Runtime deployment readiness evidence describes release controls, monitoring, and operational support for production teams.".to_string(),
+            excerpt_hash: "alpha-docs".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let alpha_blog = Candidate {
+            source_kind: "web".to_string(),
+            title: "Alpha Runtime production notes".to_string(),
+            locator: "https://blog.alpha.example.com/production".to_string(),
+            snippet: "Alpha Runtime production notes summarize deployment ownership and rollout practices.".to_string(),
+            excerpt_hash: "alpha-blog".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let beta = Candidate {
+            source_kind: "web".to_string(),
+            title: "Beta Search deployment readiness".to_string(),
+            locator: "https://docs.beta.example.com/deployment".to_string(),
+            snippet: "Beta Search deployment readiness evidence describes indexing controls, review workflows, and operational safeguards for production teams.".to_string(),
+            excerpt_hash: "beta-docs".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let mut selected = vec![(alpha_docs, 0.82), (alpha_blog, 0.68)];
+        let supplemental = vec![(beta, 0.76)];
+        let added = backfill_missing_facet_ranked_candidates(
+            query,
+            &mut selected,
+            &supplemental,
+            &facets,
+            2,
+            1,
+            false,
+        );
+
+        assert_eq!(added, 1, "{selected:#?}");
+        assert_eq!(selected.len(), 2, "{selected:#?}");
+        assert!(selected
+            .iter()
+            .any(|(candidate, _)| candidate.locator.contains("docs.beta.example.com")), "{selected:#?}");
+        let covered = evidence_coverage_from_ranked_candidates(&facets, &selected, 1);
+        assert_eq!(
+            covered
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|row| row.get("status").and_then(Value::as_str) == Some("covered"))
+                .count(),
+            2,
+            "{covered:#?}"
+        );
+    }
+
+    #[test]
+    fn coverage_facets_match_simple_plural_variants() {
+        let mut facets = vec![
+            research_facet_from_metadata_text("credential handling", 0, "facet").unwrap(),
+            research_facet_from_metadata_text("approval boundary", 1, "facet").unwrap(),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let candidate = Candidate {
+            source_kind: "web".to_string(),
+            title: "Agent security controls".to_string(),
+            locator: "https://security.example.org/agent-controls".to_string(),
+            snippet: "The report discusses credentials handling, approval boundaries, and review controls for autonomous browser agents.".to_string(),
+            excerpt_hash: "agent-controls".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+
+        let coverage = candidate_coverage_facets(&facets, &candidate, 2);
+
+        assert_eq!(coverage, vec!["facet_01".to_string(), "facet_02".to_string()]);
     }
 
     #[test]

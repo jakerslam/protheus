@@ -1107,10 +1107,21 @@ fn entity_phrase_stop_edge(raw: &str) -> bool {
             | "and"
             | "are"
             | "as"
+            | "assistant"
+            | "assistants"
+            | "automation"
             | "current"
+            | "docs"
+            | "documentation"
             | "latest"
             | "new"
+            | "option"
+            | "options"
             | "recent"
+            | "source"
+            | "sources"
+            | "task"
+            | "tasks"
             | "the"
             | "this"
             | "that"
@@ -1135,6 +1146,8 @@ fn entity_phrase_stop_edge(raw: &str) -> bool {
             | "use"
             | "evaluate"
             | "assess"
+            | "workflow"
+            | "workflows"
     )
 }
 
@@ -1179,6 +1192,26 @@ fn query_entity_noise_token(raw: &str) -> bool {
     )
 }
 
+fn normalized_named_entity_token_piece(raw: &str) -> Option<String> {
+    let mut cleaned = query_metadata_token(raw);
+    if cleaned.is_empty() {
+        return None;
+    }
+    let lowered = cleaned.to_ascii_lowercase();
+    if lowered.ends_with("-style") {
+        return None;
+    }
+    if lowered.ends_with("-based") && cleaned.len() > "-based".len() + 1 {
+        cleaned.truncate(cleaned.len() - "-based".len());
+    }
+    let cleaned = clean_text(&cleaned, 80);
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
+    }
+}
+
 fn normalized_entity_phrase_from_tokens(tokens: &[String]) -> Option<String> {
     let mut start = 0usize;
     let mut end = tokens.len();
@@ -1193,9 +1226,9 @@ fn normalized_entity_phrase_from_tokens(tokens: &[String]) -> Option<String> {
     }
     let phrase = tokens[start..end]
         .iter()
+        .filter_map(|token| normalized_named_entity_token_piece(token))
         .filter(|token| token_has_letter_or_number(token))
         .take(5)
-        .cloned()
         .collect::<Vec<_>>()
         .join(" ");
     let phrase = clean_text(&phrase, 160);
@@ -1207,7 +1240,9 @@ fn normalized_entity_phrase_from_tokens(tokens: &[String]) -> Option<String> {
 }
 
 fn token_looks_like_named_entity_piece(raw: &str) -> bool {
-    let cleaned = query_metadata_token(raw);
+    let Some(cleaned) = normalized_named_entity_token_piece(raw) else {
+        return false;
+    };
     if cleaned.is_empty() || entity_phrase_stop_edge(&cleaned) || query_entity_noise_token(&cleaned) {
         return false;
     }
@@ -1219,7 +1254,12 @@ fn token_looks_like_named_entity_piece(raw: &str) -> bool {
         return false;
     }
     let uppercase_count = letters.iter().filter(|ch| ch.is_ascii_uppercase()).count();
+    let has_project_punct = cleaned.contains('-')
+        || cleaned.contains('_')
+        || cleaned.contains('+')
+        || cleaned.contains('#');
     uppercase_count >= 2
+        || (has_project_punct && letters.len() >= 3)
         || cleaned.chars().next().map(|ch| ch.is_ascii_uppercase()).unwrap_or(false)
             && !raw_query_metadata_stop_token(&cleaned.to_ascii_lowercase())
 }
@@ -1312,7 +1352,7 @@ fn infer_named_entity_terms_from_query(query: &str, max_terms: usize) -> Vec<Str
     let mut seen = HashSet::<String>::new();
     let mut current = Vec::<String>::new();
     for raw in query.split_whitespace() {
-        let token = query_metadata_token(raw);
+        let token = normalized_named_entity_token_piece(raw).unwrap_or_default();
         let boundary = query_metadata_token_has_entity_boundary(raw);
         if token_looks_like_named_entity_piece(&token) {
             current.push(token);
@@ -1668,6 +1708,65 @@ fn quote_exact_query_term(raw: &str) -> Option<String> {
     }
 }
 
+fn query_prefix_before_focus_clause(query: &str) -> String {
+    let lowered = query.to_ascii_lowercase();
+    let cut = [
+        " focus on ",
+        " focused on ",
+        " focusing on ",
+        " include ",
+        " including ",
+    ]
+    .iter()
+    .filter_map(|marker| lowered.find(marker))
+    .min()
+    .unwrap_or(query.len());
+    clean_text(query.get(..cut).unwrap_or(query), 360)
+}
+
+fn query_context_subjects(query: &str, max_terms: usize) -> Vec<String> {
+    let prefix = query_prefix_before_focus_clause(query);
+    if prefix.is_empty() {
+        return Vec::new();
+    }
+    let lowered = prefix.to_ascii_lowercase();
+    let mut out = Vec::<String>::new();
+    let mut seen = HashSet::<String>::new();
+    for marker in [" around ", " about ", " regarding ", " into "] {
+        let Some(index) = lowered.rfind(marker) else {
+            continue;
+        };
+        let tail = prefix.get(index + marker.len()..).unwrap_or("");
+        let subject = tail
+            .split(['.', '?', '!', ';', ':', ','])
+            .next()
+            .unwrap_or("")
+            .split_whitespace()
+            .map(query_metadata_token)
+            .filter(|token| {
+                let lowered = token.to_ascii_lowercase();
+                !lowered.is_empty()
+                    && token_has_letter_or_number(&lowered)
+                    && !raw_query_metadata_stop_token(&lowered)
+                    && !query_metadata_keyword_noise_token(&lowered)
+            })
+            .take(5)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let subject = clean_text(&subject, 160);
+        if subject.is_empty() || entity_phrase_is_too_generic(&subject) {
+            continue;
+        }
+        if seen.insert(subject.to_ascii_lowercase()) {
+            out.push(subject);
+        }
+        if out.len() >= max_terms {
+            break;
+        }
+    }
+    out
+}
+
 fn plain_query_term(raw: &str) -> Option<String> {
     let cleaned = clean_text(raw, 120).replace('"', "");
     if cleaned.is_empty() {
@@ -1735,10 +1834,23 @@ fn compile_keyword_pack_queries(
         .chain(pack.aliases.iter())
         .filter_map(|term| quote_exact_query_term(term))
         .collect::<Vec<_>>();
+    let context_subjects = if exact_subjects.is_empty() {
+        query_context_subjects(primary_query, 2)
+            .iter()
+            .filter_map(|term| quote_exact_query_term(term))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let facets = pack
         .facets
         .iter()
         .filter_map(|term| plain_query_term(term))
+        .collect::<Vec<_>>();
+    let exact_facets = pack
+        .facets
+        .iter()
+        .filter_map(|term| quote_exact_query_term(term))
         .collect::<Vec<_>>();
     let keywords = pack
         .keywords
@@ -1762,11 +1874,51 @@ fn compile_keyword_pack_queries(
                 }
             }
         }
+    } else if !context_subjects.is_empty() && !exact_facets.is_empty() {
+        for facet in &exact_facets {
+            for subject in &context_subjects {
+                let candidate = clean_text(&format!("{subject} {facet}"), 600);
+                push_compiled_metadata_query(
+                    candidate,
+                    pack,
+                    &mut dedup,
+                    &mut queries,
+                    max_queries,
+                );
+                if queries.len() >= max_queries {
+                    return queries;
+                }
+            }
+        }
     } else {
         for subject in &exact_subjects {
             let tail = keywords.iter().take(3).cloned().collect::<Vec<_>>().join(" ");
-            let candidate = clean_text(&format!("{subject} {tail}"), 600);
-            push_compiled_metadata_query(candidate, pack, &mut dedup, &mut queries, max_queries);
+            if !tail.is_empty() {
+                let candidate = clean_text(&format!("{subject} {tail}"), 600);
+                push_compiled_metadata_query(
+                    candidate,
+                    pack,
+                    &mut dedup,
+                    &mut queries,
+                    max_queries,
+                );
+                if queries.len() >= max_queries {
+                    return queries;
+                }
+            }
+            for source_lane in ["official source", "primary source evidence"] {
+                let candidate = clean_text(&format!("{subject} {source_lane}"), 600);
+                push_compiled_metadata_query(
+                    candidate,
+                    pack,
+                    &mut dedup,
+                    &mut queries,
+                    max_queries,
+                );
+                if queries.len() >= max_queries {
+                    return queries;
+                }
+            }
             if queries.len() >= max_queries {
                 return queries;
             }
@@ -1889,7 +2041,7 @@ fn merge_recovery_queries_with_metadata(
     }
 
     let compiled_metadata = compile_keyword_pack_queries(primary_query, keyword_pack, budget);
-    if query_pack_has_facet_terms(keyword_pack) {
+    if query_pack_has_coverage_terms(keyword_pack) {
         for value in &compiled_metadata {
             if queries.len() >= max_queries {
                 return queries;

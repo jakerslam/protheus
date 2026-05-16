@@ -354,18 +354,48 @@ fn infer_research_facets(
 }
 
 fn candidate_facet_overlap(facet: &ResearchFacet, candidate: &Candidate) -> usize {
-    let haystack = tokenize_relevance(
+    let haystack = candidate_facet_haystack_terms(candidate);
+    let haystack_stems = haystack
+        .iter()
+        .map(|term| relevance_term_stem(term))
+        .collect::<HashSet<_>>();
+    facet
+        .terms
+        .iter()
+        .filter(|term| facet_term_present(term, &haystack, &haystack_stems))
+        .count()
+}
+
+fn candidate_facet_haystack_terms(candidate: &Candidate) -> HashSet<String> {
+    tokenize_relevance(
         &format!(
             "{} {} {}",
             candidate.title, candidate.snippet, candidate.locator
         ),
-        160,
-    );
-    facet
-        .terms
-        .iter()
-        .filter(|term| haystack.contains(term.as_str()))
-        .count()
+        360,
+    )
+}
+
+fn relevance_term_stem(term: &str) -> String {
+    let lower = term.to_ascii_lowercase();
+    if lower.len() > 5 && lower.ends_with("ies") {
+        return format!("{}y", &lower[..lower.len().saturating_sub(3)]);
+    }
+    if lower.len() > 4 && lower.ends_with("es") {
+        return lower[..lower.len().saturating_sub(2)].to_string();
+    }
+    if lower.len() > 3 && lower.ends_with('s') && !lower.ends_with("ss") {
+        return lower[..lower.len().saturating_sub(1)].to_string();
+    }
+    lower
+}
+
+fn facet_term_present(
+    term: &str,
+    haystack: &HashSet<String>,
+    haystack_stems: &HashSet<String>,
+) -> bool {
+    haystack.contains(term) || haystack_stems.contains(&relevance_term_stem(term))
 }
 
 fn candidate_matches_facet(facet: &ResearchFacet, candidate: &Candidate, min_terms: usize) -> bool {
@@ -374,17 +404,15 @@ fn candidate_matches_facet(facet: &ResearchFacet, candidate: &Candidate, min_ter
         return false;
     }
     if !facet.distinctive_terms.is_empty() {
-        let haystack = tokenize_relevance(
-            &format!(
-                "{} {} {}",
-                candidate.title, candidate.snippet, candidate.locator
-            ),
-            160,
-        );
+        let haystack = candidate_facet_haystack_terms(candidate);
+        let haystack_stems = haystack
+            .iter()
+            .map(|term| relevance_term_stem(term))
+            .collect::<HashSet<_>>();
         if !facet
             .distinctive_terms
             .iter()
-            .any(|term| haystack.contains(term.as_str()))
+            .any(|term| facet_term_present(term, &haystack, &haystack_stems))
         {
             return false;
         }
@@ -471,14 +499,64 @@ fn ranked_candidate_already_selected(
     selected_keys.contains(&candidate_identity_key(candidate))
 }
 
-fn selected_candidate_has_coverage(
+fn selected_candidate_coverage_ids(
     facets: &[ResearchFacet],
     candidate: &Candidate,
     min_terms: usize,
-) -> bool {
+) -> Vec<String> {
     facets
         .iter()
-        .any(|facet| candidate_matches_facet(facet, candidate, min_terms))
+        .filter(|facet| candidate_matches_facet(facet, candidate, min_terms))
+        .map(|facet| facet.id.clone())
+        .collect::<Vec<_>>()
+}
+
+fn redundant_facet_backfill_replacement_index(
+    selected: &[(Candidate, f64)],
+    facets: &[ResearchFacet],
+    min_terms: usize,
+) -> Option<usize> {
+    let mut counts = HashMap::<String, usize>::new();
+    let coverage_by_index = selected
+        .iter()
+        .map(|(candidate, _)| {
+            let ids = selected_candidate_coverage_ids(facets, candidate, min_terms);
+            for id in &ids {
+                *counts.entry(id.clone()).or_insert(0) += 1;
+            }
+            ids
+        })
+        .collect::<Vec<_>>();
+    selected
+        .iter()
+        .enumerate()
+        .filter(|(idx, _)| {
+            let ids = &coverage_by_index[*idx];
+            ids.is_empty()
+                || ids
+                    .iter()
+                    .all(|id| counts.get(id).copied().unwrap_or(0) > 1)
+        })
+        .min_by(|(_, left), (_, right)| {
+            let left_rank = facet_backfill_replacement_rank(&left.0, left.1);
+            let right_rank = facet_backfill_replacement_rank(&right.0, right.1);
+            left_rank.total_cmp(&right_rank)
+        })
+        .map(|(idx, _)| idx)
+}
+
+fn facet_backfill_replacement_rank(candidate: &Candidate, score: f64) -> f64 {
+    let low_confidence_penalty = if candidate_is_low_confidence_retained(candidate) {
+        -2.0
+    } else {
+        0.0
+    };
+    let thin_penalty = if content_rich_text(&candidate.snippet) {
+        0.0
+    } else {
+        -1.0
+    };
+    score + low_confidence_penalty + thin_penalty
 }
 
 fn backfill_missing_facet_ranked_candidates(
@@ -532,9 +610,9 @@ fn backfill_missing_facet_ranked_candidates(
             continue;
         };
         if selected.len() >= max_evidence {
-            let Some(replace_index) = selected.iter().position(|(existing, _)| {
-                !selected_candidate_has_coverage(facets, existing, min_terms)
-            }) else {
+            let Some(replace_index) =
+                redundant_facet_backfill_replacement_index(selected, facets, min_terms)
+            else {
                 continue;
             };
             selected_keys.remove(&candidate_identity_key(&selected[replace_index].0));
