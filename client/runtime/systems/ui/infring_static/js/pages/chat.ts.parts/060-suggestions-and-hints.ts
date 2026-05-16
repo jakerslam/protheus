@@ -305,7 +305,7 @@
         var reboundAgent = this.ensureValidCurrentAgent({ clear_when_missing: true });
         if (!reboundAgent || !reboundAgent.id) return;
         try {
-          await InfringAPI.post('/api/agents/' + reboundAgent.id + '/message', {
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(reboundAgent.id) + '/message', {
             message: text,
             attachments: files,
             steer: true,
