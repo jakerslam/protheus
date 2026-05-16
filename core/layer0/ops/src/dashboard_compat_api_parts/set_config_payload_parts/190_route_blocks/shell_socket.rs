@@ -309,6 +309,19 @@ fn shell_socket_detail_projection(root: &Path, detail_ref: &str, path: &str) -> 
     if parts.len() != 3 || parts[0] != "details" {
         return None;
     }
+    if parts[2].starts_with("session_artifact:") {
+        let legacy = session_artifact_detail_payload(root, &parts[2])?;
+        return Some(json!({
+            "detail_id": clean_text(legacy.get("detail_id").and_then(Value::as_str).unwrap_or(&parts[2]), 180),
+            "detail_kind": clean_text(legacy.get("detail_kind").and_then(Value::as_str).unwrap_or("session_artifact"), 80),
+            "requested_view": requested_view,
+            "detail_projection": legacy.get("detail_projection").cloned().unwrap_or_else(|| json!({})),
+            "size_bound": legacy.get("size_bound").cloned().unwrap_or_else(|| json!({"max_response_bytes": 65536})),
+            "next_cursor": Value::Null,
+            "receipt_ref": legacy.get("receipt_ref").cloned().unwrap_or_else(|| json!(shell_socket_receipt_ref("get_message_detail", &legacy))),
+            "correlation_id": legacy.get("correlation_id").cloned().unwrap_or_else(|| json!("shell_socket.message_detail"))
+        }));
+    }
     let legacy = session_detail_payload(root, &agent_id, &parts[1], &parts[2]);
     Some(json!({
         "detail_id": clean_text(legacy.get("detail_id").and_then(Value::as_str).unwrap_or(&parts[2]), 180),

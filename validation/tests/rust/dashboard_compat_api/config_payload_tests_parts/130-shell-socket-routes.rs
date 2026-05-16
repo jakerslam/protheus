@@ -54,9 +54,19 @@ fn contains_forbidden_socket_field(value: &Value) -> bool {
             matches!(
                 key.as_str(),
                 "raw" | "root" | "raw_payload" | "raw_runtime_state" | "all_messages" | "conversation_tree" | "tool_result" | "trace_body" | "workflow_graph"
+                    | "decision_trace" | "execution_observation" | "raw_tool_result" | "raw_tool_input"
             ) || contains_forbidden_socket_field(child)
         }),
         Value::Array(rows) => rows.iter().any(contains_forbidden_socket_field),
+        _ => false,
+    }
+}
+
+fn socket_payload_contains_text(value: &Value, needle: &str) -> bool {
+    match value {
+        Value::String(text) => text.contains(needle),
+        Value::Array(rows) => rows.iter().any(|row| socket_payload_contains_text(row, needle)),
+        Value::Object(map) => map.values().any(|child| socket_payload_contains_text(child, needle)),
         _ => false,
     }
 }
@@ -122,6 +132,45 @@ fn shell_socket_search_returns_bounded_message_projections_without_raw_tool_payl
             .pointer("/counts/total_hits")
             .and_then(Value::as_u64),
         Some(0)
+    );
+}
+
+#[test]
+fn shell_socket_default_message_rows_do_not_expose_raw_tool_payloads() {
+    let root = shell_socket_fixture_root();
+    let snapshot = json!({"ok": true});
+    let messages = handle(
+        root.path(),
+        "GET",
+        "/api/shell-socket/sessions/probe%3A%3Adefault/messages?limit=10",
+        &[],
+        &snapshot,
+    )
+    .expect("messages");
+    assert_eq!(messages.status, 200);
+    assert!(!contains_forbidden_socket_field(&messages.payload));
+    assert!(
+        !socket_payload_contains_text(&messages.payload, "SECRET_RAW_INPUT_TERM"),
+        "default shell message rows must not expose raw tool input"
+    );
+    assert!(
+        !socket_payload_contains_text(&messages.payload, "SECRET_RAW_RESULT_TERM"),
+        "default shell message rows must not expose raw tool result"
+    );
+    let detail_ref = messages
+        .payload
+        .pointer("/message_window/rows/1/tools/0/detail_ref")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    assert!(detail_ref.starts_with("/api/agents/probe/details/tool-result/"));
+    assert!(detail_ref.contains("session_artifact:"));
+
+    let detail_path = format!("/api/shell-socket/details/{}?view=summary", urlencoding::encode(detail_ref));
+    let detail = handle(root.path(), "GET", &detail_path, &[], &snapshot).expect("tool detail");
+    assert_eq!(detail.status, 200);
+    assert!(
+        socket_payload_contains_text(&detail.payload, "SECRET_RAW_RESULT_TERM"),
+        "raw tool result should be available only through explicit detail fetch"
     );
 }
 

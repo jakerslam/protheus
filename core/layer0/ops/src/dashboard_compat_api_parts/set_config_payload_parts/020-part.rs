@@ -637,19 +637,8 @@ fn compact_session_tool_rows(root: &Path, agent_id: &str, tools: &Value) -> Valu
         let blocked = tool.get("blocked").and_then(Value::as_bool).unwrap_or(false);
         let result_preview = clean_text(
             tool.get("summary")
-                .or_else(|| tool.get("result"))
-                .or_else(|| tool.get("output"))
-                .map(Value::to_string)
-                .as_deref()
-                .unwrap_or(""),
-            SESSION_TOOL_PREVIEW_MAX_CHARS,
-        );
-        let input_preview = clean_text(
-            tool.get("input")
-                .or_else(|| tool.get("arguments"))
-                .or_else(|| tool.get("payload"))
-                .map(Value::to_string)
-                .as_deref()
+                .or_else(|| tool.get("display_text"))
+                .and_then(Value::as_str)
                 .unwrap_or(""),
             SESSION_TOOL_PREVIEW_MAX_CHARS,
         );
@@ -660,7 +649,6 @@ fn compact_session_tool_rows(root: &Path, agent_id: &str, tools: &Value) -> Valu
             "is_error": is_error,
             "blocked": blocked,
             "result_preview": result_preview,
-            "input_preview": input_preview,
             "detail_ref": detail_ref.get("ref").cloned().unwrap_or(Value::Null)
         })
     }).collect::<Vec<_>>())
