@@ -765,6 +765,31 @@ pub fn api_batch_query(root: &Path, request: &Value) -> Value {
             evidence_ranked = low_confidence_ranked;
         }
     }
+    let low_confidence_count_before_backfill = evidence_ranked
+        .iter()
+        .filter(|(row, _)| candidate_is_low_confidence_retained(row))
+        .count();
+    let facet_backfill_count = backfill_missing_facet_ranked_candidates(
+        &rerank_query,
+        &mut evidence_ranked,
+        &ranked_pool,
+        &research_facets,
+        budget.max_evidence,
+        facet_min_terms,
+        low_confidence_retention_enabled(&policy),
+    );
+    if facet_backfill_count > 0 {
+        partial_failures.push(format!(
+            "facet_coverage_backfill_used:{facet_backfill_count}"
+        ));
+        let low_confidence_count_after_backfill = evidence_ranked
+            .iter()
+            .filter(|(row, _)| candidate_is_low_confidence_retained(row))
+            .count();
+        if low_confidence_count_after_backfill > low_confidence_count_before_backfill {
+            partial_failures.push("low_confidence_facet_backfill_used".to_string());
+        }
+    }
 
     let evidence_refs = evidence_ranked
         .iter()

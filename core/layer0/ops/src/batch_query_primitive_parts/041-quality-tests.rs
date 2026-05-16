@@ -2658,6 +2658,67 @@ mod quality_tests {
     }
 
     #[test]
+    fn facet_backfill_replaces_uncovered_row_with_available_missing_lane() {
+        let query = "Compare Alpha Runtime with Beta Search for deployment readiness";
+        let mut facets = vec![
+            research_facet_from_metadata_text("Alpha Runtime", 0, "entity").unwrap(),
+            research_facet_from_metadata_text("Beta Search", 1, "entity").unwrap(),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+        let alpha = Candidate {
+            source_kind: "web".to_string(),
+            title: "Alpha Runtime deployment guide".to_string(),
+            locator: "https://docs.alpha.example.com/deployment".to_string(),
+            snippet: "Alpha Runtime deployment readiness evidence describes release controls, monitoring, and operational support for production teams.".to_string(),
+            excerpt_hash: "alpha".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let unrelated = Candidate {
+            source_kind: "web".to_string(),
+            title: "General deployment article".to_string(),
+            locator: "https://example.org/general-deployment".to_string(),
+            snippet: "General deployment guidance describes planning, rollout, ownership, and monitoring practices for software teams.".to_string(),
+            excerpt_hash: "general".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let beta = Candidate {
+            source_kind: "web_low_confidence_raw".to_string(),
+            title: "Beta Search deployment readiness".to_string(),
+            locator: "https://docs.beta.example.com/deployment".to_string(),
+            snippet: "Beta Search deployment readiness evidence describes indexing controls, review workflows, and operational safeguards for production teams.".to_string(),
+            excerpt_hash: "beta".to_string(),
+            timestamp: None,
+            permissions: Some("low_confidence_raw".to_string()),
+            status_code: 200,
+        };
+        let mut selected = vec![(alpha, 0.78), (unrelated, 0.7)];
+        let supplemental = vec![(beta, 0.74)];
+        let added = backfill_missing_facet_ranked_candidates(
+            query,
+            &mut selected,
+            &supplemental,
+            &facets,
+            2,
+            1,
+            true,
+        );
+
+        assert_eq!(added, 1, "{selected:#?}");
+        assert_eq!(selected.len(), 2, "{selected:#?}");
+        assert!(selected.iter().any(|(candidate, _)| {
+            candidate.locator.contains("docs.beta.example.com")
+                && candidate_coverage_facets(&facets, candidate, 1).len() == 1
+        }), "{selected:#?}");
+        assert!(!selected
+            .iter()
+            .any(|(candidate, _)| candidate.locator.contains("general-deployment")), "{selected:#?}");
+    }
+
+    #[test]
     fn coverage_gap_recovery_runs_when_candidate_volume_misses_facets() {
         let tmp = tempfile::tempdir().expect("tempdir");
         write_test_batch_policy(tmp.path(), true);

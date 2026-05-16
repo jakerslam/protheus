@@ -463,6 +463,90 @@ fn select_facet_covered_ranked_candidates(
     selected
 }
 
+fn ranked_candidate_already_selected(
+    selected_keys: &HashSet<String>,
+    candidate: &Candidate,
+) -> bool {
+    selected_keys.contains(&candidate_identity_key(candidate))
+}
+
+fn selected_candidate_has_coverage(
+    facets: &[ResearchFacet],
+    candidate: &Candidate,
+    min_terms: usize,
+) -> bool {
+    facets
+        .iter()
+        .any(|facet| candidate_matches_facet(facet, candidate, min_terms))
+}
+
+fn backfill_missing_facet_ranked_candidates(
+    query: &str,
+    selected: &mut Vec<(Candidate, f64)>,
+    supplemental_pool: &[(Candidate, f64)],
+    facets: &[ResearchFacet],
+    max_evidence: usize,
+    min_terms: usize,
+    allow_low_confidence: bool,
+) -> usize {
+    if facets.is_empty() || supplemental_pool.is_empty() || max_evidence == 0 {
+        return 0;
+    }
+    let mut added = 0usize;
+    let mut selected_keys = selected
+        .iter()
+        .map(|(candidate, _)| candidate_identity_key(candidate))
+        .collect::<HashSet<_>>();
+    for facet in facets {
+        let already_covered = selected
+            .iter()
+            .any(|(candidate, _)| candidate_matches_facet(facet, candidate, min_terms));
+        if already_covered {
+            continue;
+        }
+        let mut candidates = supplemental_pool
+            .iter()
+            .filter(|(candidate, score)| {
+                !ranked_candidate_already_selected(&selected_keys, candidate)
+                    && candidate_matches_facet(facet, candidate, min_terms)
+                    && (allow_low_confidence || !candidate_is_low_confidence_retained(candidate))
+                    && candidate_retention_preview_eligible(query, candidate, *score)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        candidates.sort_by(|left, right| {
+            let left_low = candidate_is_low_confidence_retained(&left.0);
+            let right_low = candidate_is_low_confidence_retained(&right.0);
+            left_low
+                .cmp(&right_low)
+                .then_with(|| {
+                    content_rich_text(&right.0.snippet).cmp(&content_rich_text(&left.0.snippet))
+                })
+                .then_with(|| right.1.total_cmp(&left.1))
+                .then_with(|| {
+                    candidate_domain_hint(&left.0).cmp(&candidate_domain_hint(&right.0))
+                })
+        });
+        let Some(candidate) = candidates.into_iter().next() else {
+            continue;
+        };
+        if selected.len() >= max_evidence {
+            let Some(replace_index) = selected.iter().position(|(existing, _)| {
+                !selected_candidate_has_coverage(facets, existing, min_terms)
+            }) else {
+                continue;
+            };
+            selected_keys.remove(&candidate_identity_key(&selected[replace_index].0));
+            selected[replace_index] = candidate.clone();
+        } else {
+            selected.push(candidate.clone());
+        }
+        selected_keys.insert(candidate_identity_key(&candidate.0));
+        added += 1;
+    }
+    added
+}
+
 fn truncate_candidates_preserving_facet_coverage(
     query: &str,
     facets: &[ResearchFacet],
