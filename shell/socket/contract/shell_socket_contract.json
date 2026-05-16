@@ -394,6 +394,29 @@
       "requires_detail_refs": true
     },
     {
+      "name": "AgentLifecycleProjection",
+      "description": "Bounded acknowledgement for agent lifecycle ingress; shell plugs receive ids/receipts, not full agent profiles or contracts.",
+      "allowed_top_level_fields": [
+        "ok",
+        "id",
+        "agent_id",
+        "name",
+        "role",
+        "state",
+        "type",
+        "archived",
+        "reason",
+        "removed_history_entries",
+        "deleted_archived_agents",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 16384,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -1154,6 +1177,131 @@
         "execution_policy_truth",
         "authorization_truth",
         "full_tool_registry"
+      ]
+    },
+    {
+      "id": "create_agent",
+      "purpose": "Request agent creation through Gateway and return only a bounded lifecycle acknowledgement.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentCreateRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "name",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "full_agent_profile",
+        "agent_contract",
+        "permissions_manifest",
+        "policy_truth"
+      ]
+    },
+    {
+      "id": "archive_agent",
+      "purpose": "Request agent archive/stop lifecycle through Gateway without shell ownership of registry state.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentArchiveRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "archived",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "registry_truth",
+        "termination_policy_truth",
+        "full_agent_profile"
+      ]
+    },
+    {
+      "id": "revive_agent",
+      "purpose": "Request archived agent revival through Gateway without shell-owned lifecycle authority.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentReviveRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "state",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "registry_truth",
+        "revival_policy_truth",
+        "full_agent_profile"
+      ]
+    },
+    {
+      "id": "clone_agent",
+      "purpose": "Request agent cloning through Gateway and return only the created child id/name receipt.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentCloneRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_agent_registry",
+      "shell_may_hold": [
+        "agent_id",
+        "name",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "source_agent_profile",
+        "child_agent_contract",
+        "permissions_manifest"
+      ]
+    },
+    {
+      "id": "clear_agent_history",
+      "purpose": "Request conversation-history clearing through Gateway without exposing session-store mutation authority to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "AgentHistoryClearRequest",
+      "response_shape": "AgentLifecycleProjection",
+      "default_projection": "AgentLifecycleProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_session_store",
+      "shell_may_hold": [
+        "agent_id",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "conversation_tree",
+        "raw_messages",
+        "session_store_truth"
       ]
     },
     {

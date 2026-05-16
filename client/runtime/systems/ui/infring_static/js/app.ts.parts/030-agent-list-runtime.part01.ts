@@ -536,7 +536,7 @@
             return String(id || '').trim() !== pendingId;
           });
           this.persistChatSidebarTopologyOrder();
-          InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
+          InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(pendingId) + '/archive', { reason: 'discard_pending_fresh_agent' }).catch(function() {});
           if (store && typeof store.refreshAgents === 'function') setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
         }
       }

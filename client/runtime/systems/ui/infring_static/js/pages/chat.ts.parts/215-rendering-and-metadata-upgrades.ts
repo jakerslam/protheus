@@ -535,7 +535,7 @@
       try {
         this.cacheCurrentConversation();
         var created = await InfringAPI.post(
-          '/api/agents/' + encodeURIComponent(sourceAgentId) + '/clone',
+          '/api/shell-socket/agents/' + encodeURIComponent(sourceAgentId) + '/clone',
           {}
         );
         var forkedAgentId = String(

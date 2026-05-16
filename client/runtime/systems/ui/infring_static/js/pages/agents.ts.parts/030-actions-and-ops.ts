@@ -139,7 +139,7 @@
     async cloneAgent(agent) {
       var newName = (agent.name || 'agent') + '-copy';
       try {
-        var res = await InfringAPI.post('/api/agents/' + agent.id + '/clone', { new_name: newName });
+        var res = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/clone', { new_name: newName });
         if (res.agent_id) {
           InfringToast.success('Cloned as "' + res.name + '"');
           await Alpine.store('app').refreshAgents();
@@ -159,7 +159,7 @@
           var tpl = data && data.template && typeof data.template === 'object' ? data.template : {};
           var createPayload = { manifest_toml: data.manifest_toml };
           if (tpl.system_prompt) createPayload.system_prompt = String(tpl.system_prompt || '');
-          var res = await InfringAPI.post('/api/agents', createPayload);
+          var res = await InfringAPI.post('/api/shell-socket/agents/create', createPayload);
           if (res.agent_id) {
             var launchedName = String((res && (res.name || res.agent_id)) || name || 'agent').trim() || 'agent';
             var launchedRole = String(name || 'agent').trim() || 'agent';
@@ -179,7 +179,7 @@
       var self = this;
       InfringToast.confirm('Clear History', 'Clear all conversation history for "' + agent.name + '"? This cannot be undone.', async function() {
         try {
-          await InfringAPI.del('/api/agents/' + agent.id + '/history');
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/history/clear', {});
           InfringToast.success('History cleared for "' + agent.name + '"');
         } catch(e) {
           InfringToast.error('Failed to clear history: ' + e.message);
@@ -410,7 +410,7 @@
       toml += 'system_prompt = """\n' + tomlMultilineEscape(t.system_prompt) + '\n"""\n';
 
       try {
-        var res = await InfringAPI.post('/api/agents', { manifest_toml: toml });
+        var res = await InfringAPI.post('/api/shell-socket/agents/create', { manifest_toml: toml });
         if (res.agent_id) {
           var builtinName = String((res && (res.name || res.agent_id)) || t.name || 'agent').trim() || 'agent';
           var builtinRole = String((t && (t.profile || t.name)) || 'agent').trim() || 'agent';

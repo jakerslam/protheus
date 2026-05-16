@@ -584,7 +584,7 @@ function agentsPage() {
       var agentId = String(row.agent_id || '').trim();
       if (!agentId) return;
       try {
-        await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/revive', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/revive', {
           role: row.role || 'analyst'
         });
         InfringToast.success('Revived ' + agentId);
@@ -710,7 +710,7 @@ function agentsPage() {
             for (var idx = 0; idx < survivors.length; idx += 1) {
               var survivorId = survivors[idx];
               try {
-                await InfringAPI.del('/api/agents/' + encodeURIComponent(survivorId));
+                await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(survivorId) + '/archive', { reason: 'user_archive_all' });
               } catch (e) {
                 if (!self.isAgentMissingError(e)) failures.push(survivorId);
               }
@@ -769,7 +769,7 @@ function agentsPage() {
           if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
           else store.activeAgentId = null;
         }
-        InfringAPI.del('/api/agents/' + encodeURIComponent(pendingFreshId)).catch(function() {});
+        InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(pendingFreshId) + '/archive', { reason: 'discard_pending_fresh_agent' }).catch(function() {});
         if (typeof store.refreshAgents === 'function') {
           setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
         }
@@ -863,7 +863,7 @@ function agentsPage() {
       var self = this;
       InfringToast.confirm('Stop Agent', 'Stop agent "' + agent.name + '"? The agent will be shut down.', async function() {
         try {
-          await InfringAPI.del('/api/agents/' + agent.id);
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/archive', { reason: 'user_archive' });
           InfringToast.success('Agent "' + agent.name + '" stopped');
           self.showDetailModal = false;
           await Alpine.store('app').refreshAgents();
@@ -889,7 +889,7 @@ function agentsPage() {
         var errors = [];
         for (var i = 0; i < list.length; i++) {
           try {
-            await InfringAPI.del('/api/agents/' + list[i].id);
+            await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(list[i].id) + '/archive', { reason: 'user_archive' });
           } catch(e) {
             if (!self.isAgentMissingError(e)) errors.push(list[i].name + ': ' + e.message);
           }
@@ -1056,7 +1056,7 @@ function agentsPage() {
     async cloneAgent(agent) {
       var newName = (agent.name || 'agent') + '-copy';
       try {
-        var res = await InfringAPI.post('/api/agents/' + agent.id + '/clone', { new_name: newName });
+        var res = await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/clone', { new_name: newName });
         if (res.agent_id) {
           InfringToast.success('Cloned as "' + res.name + '"');
           await Alpine.store('app').refreshAgents();
@@ -1076,7 +1076,7 @@ function agentsPage() {
           var tpl = data && data.template && typeof data.template === 'object' ? data.template : {};
           var createPayload = { manifest_toml: data.manifest_toml };
           if (tpl.system_prompt) createPayload.system_prompt = String(tpl.system_prompt || '');
-          var res = await InfringAPI.post('/api/agents', createPayload);
+          var res = await InfringAPI.post('/api/shell-socket/agents/create', createPayload);
           if (res.agent_id) {
             var launchedName = String((res && (res.name || res.agent_id)) || name || 'agent').trim() || 'agent';
             var launchedRole = String(name || 'agent').trim() || 'agent';
@@ -1096,7 +1096,7 @@ function agentsPage() {
       var self = this;
       InfringToast.confirm('Clear History', 'Clear all conversation history for "' + agent.name + '"? This cannot be undone.', async function() {
         try {
-          await InfringAPI.del('/api/agents/' + agent.id + '/history');
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/history/clear', {});
           InfringToast.success('History cleared for "' + agent.name + '"');
         } catch(e) {
           InfringToast.error('Failed to clear history: ' + e.message);
@@ -1327,7 +1327,7 @@ function agentsPage() {
       toml += 'system_prompt = """\n' + tomlMultilineEscape(t.system_prompt) + '\n"""\n';
 
       try {
-        var res = await InfringAPI.post('/api/agents', { manifest_toml: toml });
+        var res = await InfringAPI.post('/api/shell-socket/agents/create', { manifest_toml: toml });
         if (res.agent_id) {
           var builtinName = String((res && (res.name || res.agent_id)) || t.name || 'agent').trim() || 'agent';
           var builtinRole = String((t && (t.profile || t.name)) || 'agent').trim() || 'agent';

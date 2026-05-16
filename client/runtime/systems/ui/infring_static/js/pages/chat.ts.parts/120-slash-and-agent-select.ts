@@ -446,7 +446,7 @@
       if (!targetId || targetId === pendingId) return;
       store.pendingFreshAgentId = null;
       store.pendingAgent = null;
-      InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
+      InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(pendingId) + '/archive', { reason: 'discard_pending_fresh_agent' }).catch(function() {});
       if (typeof store.refreshAgents === 'function') {
         setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
       }

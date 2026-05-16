@@ -461,7 +461,7 @@
       var agentId = String(agent.id || '').trim();
       if (!agentId) return;
       try {
-        await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/revive', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/revive', {
           role: String(agent.role || 'analyst')
         });
         this.currentAgent = Object.assign({}, agent, {

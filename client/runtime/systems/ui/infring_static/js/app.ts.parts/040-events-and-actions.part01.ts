@@ -142,7 +142,7 @@
       this.confirmArchiveAgentId = '';
       var missingPurged = false;
       try {
-        await InfringAPI.del('/api/agents/' + encodeURIComponent(agentId));
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/archive', { reason: 'user_archive' });
       } catch(e) {
         var msg = String(e && e.message ? e.message : '');
         if (msg.indexOf('agent_not_found') >= 0) {
@@ -177,7 +177,7 @@
       this.confirmArchiveAgentId = '';
       this.sidebarSpawningAgent = true;
       try {
-        var res = await InfringAPI.post('/api/agents', {
+        var res = await InfringAPI.post('/api/shell-socket/agents/create', {
           role: 'analyst'
         });
         var createdId = String((res && (res.id || res.agent_id)) || '').trim();
@@ -318,7 +318,7 @@
       if (agent.revive_recommended === true) {
         var reviveId = String(agent.id || '').trim();
         if (reviveId) {
-          InfringAPI.post('/api/agents/' + encodeURIComponent(reviveId) + '/revive', {
+          InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(reviveId) + '/revive', {
             reason: 'sidebar_contract_revival'
           }).then(function() {
             if (store && typeof store.refreshAgents === 'function') {

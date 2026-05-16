@@ -386,6 +386,55 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
         receipt_ref: 'receipt:agent-tools:probe',
         correlation_id: 'probe-agent-tools',
       };
+    } else if (route === 'POST /api/shell-socket/agents/create') {
+      capabilityId = 'create_agent';
+      payload = {
+        ok: true,
+        id: 'agent-created-probe',
+        agent_id: 'agent-created-probe',
+        name: 'Created Probe Agent',
+        role: String(body.role || 'analyst'),
+        state: 'Running',
+        receipt_ref: 'receipt:agent-create:probe',
+        correlation_id: 'probe-agent-create',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/archive$/.test(pathName)) {
+      capabilityId = 'archive_agent';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        archived: true,
+        reason: String(body.reason || 'headless_probe'),
+        receipt_ref: 'receipt:agent-archive:probe',
+        correlation_id: 'probe-agent-archive',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/revive$/.test(pathName)) {
+      capabilityId = 'revive_agent';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        state: 'Running',
+        receipt_ref: 'receipt:agent-revive:probe',
+        correlation_id: 'probe-agent-revive',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/clone$/.test(pathName)) {
+      capabilityId = 'clone_agent';
+      payload = {
+        ok: true,
+        agent_id: 'agent-clone-probe',
+        name: String(body.new_name || 'Clone Probe Agent'),
+        receipt_ref: 'receipt:agent-clone:probe',
+        correlation_id: 'probe-agent-clone',
+      };
+    } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/history\/clear$/.test(pathName)) {
+      capabilityId = 'clear_agent_history';
+      payload = {
+        ok: true,
+        agent_id: decodeURIComponent(pathName.split('/')[4] || 'agent-probe'),
+        type: 'agent_history_cleared',
+        receipt_ref: 'receipt:agent-history-clear:probe',
+        correlation_id: 'probe-agent-history-clear',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/agents\/[^/]+\/git-tree$/.test(pathName)) {
       capabilityId = 'set_git_tree';
       payload = makeIngressAck('git-tree');
@@ -533,6 +582,11 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const agentConfigAck = await client.updateAgentConfig<any>(agentId, { name: 'Probe Agent' });
   const agentModeAck = await client.updateAgentMode<any>(agentId, { mode: 'normal' });
   const agentToolsAck = await client.updateAgentTools<any>(agentId, { tool_allowlist: [], tool_blocklist: [] });
+  const agentCreateAck = await client.createAgent<any>({ role: 'analyst' });
+  const agentArchiveAck = await client.archiveAgent<any>(agentId, { reason: 'headless_probe' });
+  const agentReviveAck = await client.reviveAgent<any>(agentId, { role: 'analyst' });
+  const agentCloneAck = await client.cloneAgent<any>(agentId, { new_name: 'Clone Probe Agent' });
+  const agentHistoryClearAck = await client.clearAgentHistory<any>(agentId);
   const gitAck = await client.setGitTree<any>(agentId, { tree_ref: 'git-tree:current' });
   const freshSessionAck = await client.freshSession<any>(agentId, { reason: 'headless_probe' });
   const compactSessionAck = await client.compactSession<any>(agentId, { reason: 'headless_probe' });
@@ -576,6 +630,11 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       agent_config_receipt: agentConfigAck.receipt_ref,
       agent_mode_receipt: agentModeAck.receipt_ref,
       agent_tools_receipt: agentToolsAck.receipt_ref,
+      agent_create_receipt: agentCreateAck.receipt_ref,
+      agent_archive_receipt: agentArchiveAck.receipt_ref,
+      agent_revive_receipt: agentReviveAck.receipt_ref,
+      agent_clone_receipt: agentCloneAck.receipt_ref,
+      agent_history_clear_receipt: agentHistoryClearAck.receipt_ref,
       git_receipt: gitAck.receipt_ref,
       fresh_session_receipt: freshSessionAck.receipt_ref,
       compact_session_receipt: compactSessionAck.receipt_ref,

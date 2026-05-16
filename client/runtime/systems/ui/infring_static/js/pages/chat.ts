@@ -8392,7 +8392,7 @@ function chatPage() {
         store.pendingFreshAgentId = null;
         store.pendingAgent = null;
       }
-      InfringAPI.del('/api/agents/' + encodeURIComponent(pendingId)).catch(function() {});
+      InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(pendingId) + '/archive', { reason: 'discard_pending_fresh_agent' }).catch(function() {});
       var refreshAgents = bridge && typeof bridge.method === 'function'
         ? bridge.method('refreshAgents')
         : null;
@@ -13190,7 +13190,7 @@ function chatPage() {
       var agentId = String(agent.id || '').trim();
       if (!agentId) return;
       try {
-        await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/revive', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/revive', {
           role: String(agent.role || 'analyst')
         });
         this.currentAgent = Object.assign({}, agent, {
@@ -16232,7 +16232,7 @@ function chatPage() {
       InfringToast.confirm('Stop Agent', 'Stop agent "' + name + '"? The agent will be shut down.', async function() {
         try {
           self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id, 'idle', { optimistic: true, source: 'shell_display_hint' });
-          await InfringAPI.del('/api/agents/' + self.currentAgent.id);
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(self.currentAgent.id) + '/archive', { reason: 'user_archive' });
           InfringAPI.wsDisconnect();
           self._wsAgent = null;
           self.currentAgent = null;
@@ -17581,7 +17581,7 @@ function chatPage() {
       try {
         this.cacheCurrentConversation();
         var created = await InfringAPI.post(
-          '/api/agents/' + encodeURIComponent(sourceAgentId) + '/clone',
+          '/api/shell-socket/agents/' + encodeURIComponent(sourceAgentId) + '/clone',
           {}
         );
         var forkedAgentId = String(

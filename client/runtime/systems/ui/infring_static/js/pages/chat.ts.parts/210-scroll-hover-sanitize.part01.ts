@@ -45,7 +45,7 @@
       InfringToast.confirm('Stop Agent', 'Stop agent "' + name + '"? The agent will be shut down.', async function() {
         try {
           self.setAgentLiveActivity(self.currentAgent && self.currentAgent.id, 'idle');
-          await InfringAPI.del('/api/agents/' + self.currentAgent.id);
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(self.currentAgent.id) + '/archive', { reason: 'user_archive' });
           InfringAPI.wsDisconnect();
           self._wsAgent = null;
           self.currentAgent = null;

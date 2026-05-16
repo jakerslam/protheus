@@ -84,7 +84,7 @@
       var agentId = String(row.agent_id || '').trim();
       if (!agentId) return;
       try {
-        await InfringAPI.post('/api/agents/' + encodeURIComponent(agentId) + '/revive', {
+        await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agentId) + '/revive', {
           role: row.role || 'analyst'
         });
         InfringToast.success('Revived ' + agentId);
@@ -210,7 +210,7 @@
             for (var idx = 0; idx < survivors.length; idx += 1) {
               var survivorId = survivors[idx];
               try {
-                await InfringAPI.del('/api/agents/' + encodeURIComponent(survivorId));
+                await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(survivorId) + '/archive', { reason: 'user_archive_all' });
               } catch (e) {
                 if (!self.isAgentMissingError(e)) failures.push(survivorId);
               }
@@ -269,7 +269,7 @@
           if (typeof store.setActiveAgentId === 'function') store.setActiveAgentId(null);
           else store.activeAgentId = null;
         }
-        InfringAPI.del('/api/agents/' + encodeURIComponent(pendingFreshId)).catch(function() {});
+        InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(pendingFreshId) + '/archive', { reason: 'discard_pending_fresh_agent' }).catch(function() {});
         if (typeof store.refreshAgents === 'function') {
           setTimeout(function() { store.refreshAgents({ force: true }).catch(function() {}); }, 0);
         }
@@ -363,7 +363,7 @@
       var self = this;
       InfringToast.confirm('Stop Agent', 'Stop agent "' + agent.name + '"? The agent will be shut down.', async function() {
         try {
-          await InfringAPI.del('/api/agents/' + agent.id);
+          await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(agent.id) + '/archive', { reason: 'user_archive' });
           InfringToast.success('Agent "' + agent.name + '" stopped');
           self.showDetailModal = false;
           await Alpine.store('app').refreshAgents();
@@ -389,7 +389,7 @@
         var errors = [];
         for (var i = 0; i < list.length; i++) {
           try {
-            await InfringAPI.del('/api/agents/' + list[i].id);
+            await InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(list[i].id) + '/archive', { reason: 'user_archive' });
           } catch(e) {
             if (!self.isAgentMissingError(e)) errors.push(list[i].name + ': ' + e.message);
           }
