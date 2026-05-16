@@ -7,6 +7,8 @@
           self.messages.push({
             id: ++msgId,
             role: 'system',
+            is_notice: true,
+            notice_type: 'info',
             text: (function(rows) {
               var commands = Array.isArray(rows) ? rows : [];
               var groups = { navigation: [], session: [], tooling: [], other: [] };
@@ -32,7 +34,8 @@
             })(self.slashCommands),
             meta: '',
             tools: [],
-            system_origin: 'slash:help'
+            system_origin: 'slash:help',
+            notice_label: 'Slash Help'
           });
           self.scrollToBottom();
           break;
@@ -49,9 +52,9 @@
           break;
         case '/compact':
           if (self.currentAgent) {
-            self.messages.push({ id: ++msgId, role: 'system', text: 'Compacting session...', meta: '', tools: [], system_origin: 'slash:compact' });
+            self.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Compacting session...', text: 'Compacting session...', meta: '', tools: [], system_origin: 'slash:compact' });
             InfringAPI.post('/api/agents/' + self.currentAgent.id + '/session/compact', {}).then(function(res) {
-              self.messages.push({ id: ++msgId, role: 'system', text: res.message || 'Compaction complete', meta: '', tools: [], system_origin: 'slash:compact' });
+              self.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: res.message || 'Compaction complete', text: res.message || 'Compaction complete', meta: '', tools: [], system_origin: 'slash:compact' });
               self.scrollToBottom();
             }).catch(function(e) { InfringToast.error('Compaction failed: ' + e.message); });
           }
@@ -62,7 +65,7 @@
         case '/usage':
           if (self.currentAgent) {
             var approxTokens = self.messages.reduce(function(sum, m) { return sum + Math.round((m.text || '').length / 4); }, 0);
-            self.messages.push({ id: ++msgId, role: 'system', text: '**Session Usage**\n- Messages: ' + self.messages.length + '\n- Approx tokens: ~' + approxTokens, meta: '', tools: [], system_origin: 'slash:usage' });
+            self.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Session Usage', text: '**Session Usage**\n- Messages: ' + self.messages.length + '\n- Approx tokens: ~' + approxTokens, meta: '', tools: [], system_origin: 'slash:usage' });
             self.scrollToBottom();
           }
           break;
@@ -80,7 +83,7 @@
             else self.thinkingMode = 'off';
           }
           var modeLabel = self.thinkingMode === 'stream' ? 'enabled (streaming reasoning)' : (self.thinkingMode === 'on' ? 'enabled' : 'disabled');
-          self.messages.push({ id: ++msgId, role: 'system', text: 'Extended thinking **' + modeLabel + '**. ' +
+          self.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Extended thinking ' + modeLabel, text: 'Extended thinking **' + modeLabel + '**. ' +
             (self.thinkingMode === 'stream' ? 'Reasoning tokens will appear in a collapsible panel.' :
              self.thinkingMode === 'on' ? 'The agent will show its reasoning when supported by the model.' :
              'Normal response mode.'), meta: '', tools: [], system_origin: 'slash:think' });

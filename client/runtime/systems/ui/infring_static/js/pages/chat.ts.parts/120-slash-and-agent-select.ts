@@ -11,14 +11,14 @@
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'verbose', args: cmdArgs });
           } else {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Not connected. Connect to an agent first.', meta: '', tools: [], system_origin: 'slash:verbose' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Not connected. Connect to an agent first.', text: 'Not connected. Connect to an agent first.', meta: '', tools: [], system_origin: 'slash:verbose' });
           }
           break;
         case '/queue':
           if (self.currentAgent && InfringAPI.isWsConnected()) {
             InfringAPI.wsSend({ type: 'command', command: 'queue', args: '' });
           } else {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Not connected.', meta: '', tools: [], system_origin: 'slash:queue' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Not connected.', text: 'Not connected.', meta: '', tools: [], system_origin: 'slash:queue' });
           }
           break;
         case '/status':
@@ -29,7 +29,7 @@
             var lines = ['**Runtime Status**', '- State: ' + (statusLabel || 'unknown')];
             if (degradedReason) lines.push('- Degraded: ' + degradedReason);
             if (Number.isFinite(ageSeconds)) lines.push('- Age: ' + Math.max(0, Math.round(ageSeconds)) + 's');
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: lines.join('\n'), meta: '', tools: [], system_origin: 'slash:status' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Runtime Status', text: lines.join('\n'), meta: '', tools: [], system_origin: 'slash:status' });
           }).catch(function() {});
           break;
         case '/alerts':
@@ -96,6 +96,9 @@
               self.pushSystemMessage({
                 id: ++msgId,
                 role: 'system',
+                is_notice: true,
+                notice_type: 'info',
+                notice_label: 'Current Model',
                 text: '**Current Model**\n' +
                   '- Provider: `' + (self.currentAgent.model_provider || '?') + '`\n' +
                   '- Selected: `' + (selectedDisplay || selectedModelRef || '?') + '`\n' +
@@ -108,7 +111,7 @@
               });
             }
           } else {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:model' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'No agent selected.', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:model' });
           }
           break;
         case '/apikey':
@@ -116,11 +119,11 @@
           break;
         case '/file':
           if (!self.currentAgent) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:file' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'No agent selected.', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:file' });
             break;
           }
           if (!cmdArgs || !String(cmdArgs).trim()) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Usage: `/file <path>`', meta: '', tools: [], system_origin: 'slash:file' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Usage: /file <path>', text: 'Usage: `/file <path>`', meta: '', tools: [], system_origin: 'slash:file' });
             break;
           }
           try {
@@ -129,7 +132,7 @@
             });
             var fileMeta = fileRes && fileRes.file ? fileRes.file : null;
             if (!fileMeta || !fileMeta.ok) {
-              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: failed to read file output.', meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
+              self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'error', notice_label: 'Error: failed to read file output.', text: 'Error: failed to read file output.', meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
             } else {
               var bytes = Number(fileMeta.bytes || 0);
               var fileMetaText = (bytes > 0 ? (bytes + ' bytes') : '');
@@ -144,16 +147,16 @@
             }
             self.scrollToBottom();
           } catch (e) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: ' + (e && e.message ? e.message : 'file read failed'), meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'error', notice_label: 'File read failed', text: 'Error: ' + (e && e.message ? e.message : 'file read failed'), meta: '', tools: [], system_origin: 'slash:file', ts: Date.now() });
           }
           break;
         case '/folder':
           if (!self.currentAgent) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:folder' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'No agent selected.', text: 'No agent selected.', meta: '', tools: [], system_origin: 'slash:folder' });
             break;
           }
           if (!cmdArgs || !String(cmdArgs).trim()) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Usage: `/folder <path>`', meta: '', tools: [], system_origin: 'slash:folder' });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Usage: /folder <path>', text: 'Usage: `/folder <path>`', meta: '', tools: [], system_origin: 'slash:folder' });
             break;
           }
           try {
@@ -163,7 +166,7 @@
             var folderMeta = folderRes && folderRes.folder ? folderRes.folder : null;
             var archiveMeta = folderRes && folderRes.archive ? folderRes.archive : null;
             if (!folderMeta || !folderMeta.ok) {
-              self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: failed to export folder output.', meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
+              self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'error', notice_label: 'Error: failed to export folder output.', text: 'Error: failed to export folder output.', meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
             } else {
               var entryCount = Number(folderMeta.entries || 0);
               var folderMetaText = (entryCount > 0 ? (entryCount + ' entries') : '');
@@ -180,7 +183,7 @@
             }
             self.scrollToBottom();
           } catch (e2) {
-            self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Error: ' + (e2 && e2.message ? e2.message : 'folder export failed'), meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
+            self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'error', notice_label: 'Folder export failed', text: 'Error: ' + (e2 && e2.message ? e2.message : 'folder export failed'), meta: '', tools: [], system_origin: 'slash:folder', ts: Date.now() });
           }
           break;
         case '/clear':
@@ -195,13 +198,13 @@
           window.dispatchEvent(new Event('close-chat'));
           break;
         case '/budget':
-          self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Budget status is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:budget' });
+          self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Budget status is not exposed through a Shell Socket projection yet.', text: 'Budget status is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:budget' });
           break;
         case '/peers':
-          self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'Peer status is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:peers' });
+          self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Peer status is not exposed through a Shell Socket projection yet.', text: 'Peer status is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:peers' });
           break;
         case '/a2a':
-          self.pushSystemMessage({ id: ++msgId, role: 'system', text: 'A2A agent discovery is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:a2a' });
+          self.pushSystemMessage({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'A2A agent discovery is not exposed through a Shell Socket projection yet.', text: 'A2A agent discovery is not exposed through a Shell Socket projection yet.', meta: '', tools: [], system_origin: 'slash:a2a' });
           break;
         case '/memprobe':
           // Heap diagnostic: snapshots the chat page's memory footprint and
@@ -262,6 +265,9 @@
       this.pushSystemMessage({
         id: msgIdLocal,
         role: 'system',
+        is_notice: true,
+        notice_type: 'info',
+        notice_label: 'memprobe ' + report.capture_index,
         text: lines.join('\n'),
         meta: '',
         tools: [],
