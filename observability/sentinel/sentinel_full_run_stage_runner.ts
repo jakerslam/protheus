@@ -27,6 +27,7 @@ const compactReportRel = `observability/reports/sentinel_staged_compact_report_$
 const compactReportPath = path.join(root, compactReportRel);
 const phaseMode = readFlag("phase") || "next";
 const cadence = readFlag("cadence") || "dream";
+const resetState = ["1", "true", "yes", "on"].includes(String(readFlag("reset") || "").toLowerCase());
 const maxRuntimeMs = Math.max(1000, Number(readFlag("max-runtime-ms") || 30000));
 const timingPolicyRel = "observability/sentinel/sentinel_timing_trend_policy.json";
 
@@ -558,15 +559,19 @@ function runPhase(id: string, prior: Json): PhaseResult {
   autoRunAgeMs = generatedAgeMs(autoRun);
   const autoRunStatus = String(autoRun?.status || "");
   const autoRunFailureKind = String(autoRun?.failure_kind || "");
-  const timeoutObserved =
+  const timeoutCurrentMaxAgeMs = Number((readJson(policyRel) || {}).monolithic_timeout_current_max_age_ms || 86_400_000);
+  const monolithicTimeoutObserved =
     autoRunStatus === "timeout" ||
     autoRunFailureKind === "sentinel_auto_timeout" ||
     autoRunFailureKind === "sentinel_auto_worker_disconnected";
+  const timeoutObserved = monolithicTimeoutObserved && autoRunAgeMs != null && autoRunAgeMs <= timeoutCurrentMaxAgeMs;
+  const staleTimeoutObserved = monolithicTimeoutObserved && !timeoutObserved;
   const runningObserved = autoRunStatus === "running";
   const finalReportStale = finalReportAgeMs != null && finalReportAgeMs > 86_400_000;
   const artifactBudgetMs = numericField(autoRun, "max_runtime_ms") || maxRuntimeMs;
   const signals = [
     ...(timeoutObserved ? ["sentinel_auto_timeout"] : []),
+    ...(staleTimeoutObserved ? ["sentinel_auto_timeout_historical"] : []),
     ...(runningObserved && autoRunAgeMs != null && autoRunAgeMs > artifactBudgetMs ? ["sentinel_auto_stale_running"] : []),
     ...(staleRepair.repaired ? ["sentinel_auto_stale_running_repaired"] : []),
     ...(finalReportStale ? ["final_report_stale"] : []),
@@ -577,6 +582,7 @@ function runPhase(id: string, prior: Json): PhaseResult {
     summary = {
       evidence_refs: inputRefs.map((rel) => ({ rel, exists: exists(rel), size_bytes: size(rel) })),
       timeout_observed: Boolean(timeoutObserved),
+      stale_timeout_observed: Boolean(staleTimeoutObserved),
       running_observed: Boolean(runningObserved),
       stale_running_repaired: staleRepair.repaired,
       auto_run_age_ms: autoRunAgeMs,
@@ -586,6 +592,7 @@ function runPhase(id: string, prior: Json): PhaseResult {
   } else if (id === "freshness_filter") {
     summary = {
       retained_signals: signals,
+      dropped_historical_signals: staleTimeoutObserved ? ["sentinel_auto_timeout_historical"] : [],
       dropped_reason: "raw evidence remains in source streams; phase output keeps refs only",
     };
   } else if (id === "root_cause_cluster") {
@@ -602,17 +609,6 @@ function runPhase(id: string, prior: Json): PhaseResult {
               },
             ]
           : []),
-        ...(signals.includes("final_report_stale")
-          ? [
-              {
-                id: "kernel_sentinel_canonical_truth_stale",
-                owner_guess: "observability/sentinel",
-                hypothesis:
-                  "The canonical Sentinel report can remain stale after bounded repair work when only the staged runner refreshes compact evidence.",
-                next_action: "Publish staged refresh output into canonical Sentinel truth artifacts.",
-              },
-            ]
-          : []),
       ],
     };
   } else if (id === "report_synthesis") {
@@ -625,19 +621,6 @@ function runPhase(id: string, prior: Json): PhaseResult {
               severity: "yellow",
               evidence_refs: ["core/local/artifacts/kernel_sentinel_auto_run_current.json"],
               next_action: "Use staged Sentinel runner for dream cadence before invoking full self-study.",
-            },
-          ]
-        : []),
-      ...(signals.includes("final_report_stale")
-        ? [
-            {
-              id: "kernel_sentinel_canonical_truth_stale",
-              severity: "yellow",
-              evidence_refs: [
-                "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
-                "observability/reports/sentinel_full_run_stage_runner_current.json",
-              ],
-              next_action: "Treat staged Sentinel refresh as current truth and repair monolithic auto-run separately.",
             },
           ]
         : []),
@@ -687,6 +670,7 @@ function runPhase(id: string, prior: Json): PhaseResult {
 
 const policy = readJson(policyRel) || {};
 const phases = phaseIds(policy);
+if (resetState && fs.existsSync(statePath)) fs.unlinkSync(statePath);
 const state = latestState();
 const completed = new Set(Array.isArray(state.completed_phases) ? state.completed_phases.map(String) : []);
 const selected =
