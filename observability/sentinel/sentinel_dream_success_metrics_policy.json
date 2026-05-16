@@ -1,0 +1,24 @@
+{
+  "id": "sentinel_dream_success_metrics_policy",
+  "version": 1,
+  "owner": "observability/sentinel",
+  "status": "active",
+  "purpose": "Score whether the latest Sentinel dream cycle is useful, fresh, bounded, trace-complete, and safe to read.",
+  "output_path": "core/local/artifacts/kernel_sentinel_dream_success_metrics_current.json",
+  "inputs": {
+    "stage_runner_report": "observability/reports/sentinel_full_run_stage_runner_current.json",
+    "issue_quality_report": "core/local/artifacts/sentinel_issue_quality_score_current.json",
+    "feedback_summary": "core/local/artifacts/kernel_sentinel_feedback_summary_current.json",
+    "fresh_evidence_guard": "core/local/artifacts/kernel_sentinel_fresh_evidence_guard_current.json",
+    "trace_completeness_guard": "core/local/artifacts/kernel_sentinel_trace_completeness_guard_current.json",
+    "retention_report": "core/local/artifacts/kernel_sentinel_report_retention_current.json"
+  },
+  "success_threshold": 85,
+  "policy": {
+    "dream_success_requires_all_stages_complete": true,
+    "dream_success_requires_freshness_guard": true,
+    "dream_success_requires_trace_guard": true,
+    "dream_success_requires_compact_feedback_summary": true,
+    "dream_success_is_observational_not_authority_to_mutate": true
+  }
+}

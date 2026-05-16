@@ -1,0 +1,22 @@
+{
+  "id": "sentinel_feedback_summary_policy",
+  "version": 1,
+  "owner": "observability/sentinel",
+  "status": "active",
+  "purpose": "Publish a compact operator-facing Sentinel status summary from scored findings, staged dream output, and freshness guards.",
+  "output_path": "core/local/artifacts/kernel_sentinel_feedback_summary_current.json",
+  "inputs": {
+    "issue_quality_report": "core/local/artifacts/sentinel_issue_quality_score_current.json",
+    "stage_runner_report": "observability/reports/sentinel_full_run_stage_runner_current.json",
+    "fresh_evidence_guard": "core/local/artifacts/kernel_sentinel_fresh_evidence_guard_current.json",
+    "trace_completeness_guard": "core/local/artifacts/kernel_sentinel_trace_completeness_guard_current.json"
+  },
+  "max_summary_findings": 5,
+  "freshness_budget_ms": 604800000,
+  "policy": {
+    "actionable_feedback_requires_fresh_quality_scored_candidates": true,
+    "operator_summary_is_compact_and_ref_only": true,
+    "raw_evidence_must_stay_in_source_streams": true,
+    "human_review_is_required_before_todo_or_issue_promotion": true
+  }
+}

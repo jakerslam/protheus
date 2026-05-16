@@ -497,7 +497,7 @@
     "ops:kernel-sentinel:auto": "npm run -s ops:kernel-sentinel:stage-run:dream",
     "ops:kernel-sentinel:auto:legacy": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- kernel-sentinel auto --strict=0 --cadence=maintenance --auto-artifact=core/local/artifacts/kernel_sentinel_auto_run_current.json",
     "ops:kernel-sentinel:heartbeat": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- kernel-sentinel heartbeat --strict=0 --cadence=heartbeat --schedule-artifact=core/local/artifacts/kernel_sentinel_heartbeat_current.json --auto-artifact=core/local/artifacts/kernel_sentinel_auto_run_current.json --quiet-success=1",
-    "ops:kernel-sentinel:release-gate": "npm run -s ops:kernel-sentinel:stage-run:release && npm run -s ops:ksent:issue-quality:refresh && npm run -s ops:ksent:fresh-evidence:guard && npm run -s ops:ksent:trace-completeness:guard",
+    "ops:kernel-sentinel:release-gate": "npm run -s ops:kernel-sentinel:stage-run:release && npm run -s ops:ksent:issue-quality:refresh && npm run -s ops:ksent:fresh-evidence:guard && npm run -s ops:ksent:trace-completeness:guard && npm run -s ops:ksent:report-retention:guard && npm run -s ops:ksent:dream-success:metrics",
     "ops:kernel-sentinel:schedule": "cargo run --quiet --manifest-path core/layer0/ops/Cargo.toml --bin infring-ops -- kernel-sentinel schedule --strict=0 --cadence=maintenance --schedule-artifact=core/local/artifacts/kernel_sentinel_schedule_current.json --auto-artifact=core/local/artifacts/kernel_sentinel_auto_run_current.json --quiet-success=1",
     "ops:kernel-sentinel:stage-run:dream": "npm run -s ops:ksent:collector:refresh || true; node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --phase=all --cadence=dream --reset=1 --max-runtime-ms=120000",
     "ops:kernel-sentinel:stage-run:release": "npm run -s ops:ksent:collector:refresh || true; node client/runtime/lib/ts_entrypoint.ts observability/sentinel/sentinel_full_run_stage_runner.ts --phase=all --cadence=release --reset=1 --max-runtime-ms=120000",
@@ -506,7 +506,7 @@
     "ops:ksent:empty-response-repair:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_empty_response_repair_lane_guard.ts --strict=1",
     "ops:ksent:release-bridge-repair:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_release_bridge_repair_lane_guard.ts --strict=1",
     "ops:ksent:collector:refresh": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_collector_refresh.ts --timeout-ms=120000 --collector-artifact=core/local/artifacts/kernel_sentinel_collector_current.json",
-    "ops:ksent:issue-quality:refresh": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_report.ts && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_guard.ts",
+    "ops:ksent:issue-quality:refresh": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_report.ts && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/sentinel_issue_quality_score_guard.ts && npm run -s ops:ksent:feedback-summary",
     "ops:ksent:trace-completeness:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_trace_completeness_guard.ts --strict=1",
     "ops:layer-placement:check": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer_placement_check.ts",
     "ops:layer0-ops:authority:audit": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/layer0_ops_authority_domain_audit.ts --strict=1 --out=core/local/artifacts/layer0_ops_authority_domain_audit_current.json",
@@ -1201,7 +1201,10 @@
     "ops:real-work:workflow-proof:guard": "npm run -s ops:real-work:workflow-proof && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/real_work_workflow_proof_guard.ts",
     "ops:ci-branch-protection:apply": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_branch_protection_apply.ts",
     "ops:githooks:install": "git config core.hooksPath .githooks",
-    "ops:commit-message:check-file": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --message-file"
+    "ops:commit-message:check-file": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --message-file",
+    "ops:ksent:feedback-summary": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_feedback_summary.ts --strict=1",
+    "ops:ksent:report-retention:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_report_retention.ts --strict=1",
+    "ops:ksent:dream-success:metrics": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_dream_success_metrics.ts --strict=1"
   },
   "version": "0.4.0"
 }

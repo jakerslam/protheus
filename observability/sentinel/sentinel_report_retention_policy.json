@@ -1,0 +1,24 @@
+{
+  "id": "sentinel_report_retention_policy",
+  "version": 1,
+  "owner": "observability/sentinel",
+  "status": "active",
+  "purpose": "Keep Sentinel reports bounded by retaining current/latest refs and moving old report snapshots out of the active surface.",
+  "output_path": "core/local/artifacts/kernel_sentinel_report_retention_current.json",
+  "archive_dir": "observability/reports/archive/sentinel",
+  "targets": [
+    {
+      "dir": "observability/reports",
+      "prefix": "sentinel_staged_compact_report_",
+      "suffix": ".json",
+      "retain_latest": 7,
+      "max_age_ms": 2592000000
+    }
+  ],
+  "policy": {
+    "dry_run_by_default": true,
+    "apply_requires_explicit_flag": true,
+    "current_reports_are_never_archived": true,
+    "retention_report_must_be_compact": true
+  }
+}

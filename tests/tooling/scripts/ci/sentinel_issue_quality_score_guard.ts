@@ -72,9 +72,14 @@ for (const candidate of candidates) {
   const failures = Array.isArray(candidate.quality_failure_reasons)
     ? candidate.quality_failure_reasons.map(String)
     : [];
+  const confidenceBand = String(candidate.confidence_band || "");
+  const clusterKey = String(candidate.root_cause_cluster_key || "");
   const score = Number(candidate.score || 0);
   const state = String(candidate.promotion_state || "");
+  if (!confidenceBand) violations.push(`candidate_${id}_missing_confidence_band`);
+  if (!clusterKey) violations.push(`candidate_${id}_missing_root_cause_cluster_key`);
   if (state === "promotion_ready") {
+    if (confidenceBand !== "issue_ready") violations.push(`candidate_${id}_promotion_wrong_confidence_band`);
     if (score < promotionThreshold) violations.push(`candidate_${id}_promotion_below_threshold`);
     if (failures.length > 0) violations.push(`candidate_${id}_promotion_has_quality_failures`);
     if (evidenceRefs.length === 0) violations.push(`candidate_${id}_promotion_missing_evidence`);
@@ -86,6 +91,9 @@ for (const candidate of candidates) {
   }
   if (state === "human_review" && traceIds.length === 0) {
     violations.push(`candidate_${id}_review_missing_trace`);
+  }
+  if (state === "human_review" && confidenceBand !== "human_review") {
+    violations.push(`candidate_${id}_review_wrong_confidence_band`);
   }
   if (state === "human_review" && score < reviewThreshold) {
     violations.push(`candidate_${id}_review_below_threshold`);

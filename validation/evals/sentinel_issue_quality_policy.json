@@ -54,6 +54,8 @@
     "id",
     "score",
     "promotion_state",
+    "confidence_band",
+    "root_cause_cluster_key",
     "evidence_refs",
     "owner_guess",
     "root_cause_hypothesis",
@@ -67,6 +69,9 @@
     "promotion_ready_findings_require_evidence_and_next_action": true,
     "low_quality_findings_remain_observations_not_todos": true,
     "quality_report_must_be_compact_and_ref_only": true,
+    "freshness_required_for_actionable_feedback": true,
+    "compact_report_promotion_requires_refs_only": true,
+    "compact_reports_are_promoted_only_after_quality_scoring": true,
     "quality_report_must_append_history": true,
     "promotion_ready_findings_require_root_cause_and_owner": true,
     "promotion_ready_findings_require_current_trace": true

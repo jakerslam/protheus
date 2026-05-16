@@ -15,6 +15,7 @@ type Candidate = {
   source_refs: string[];
   first_seen_source: string | null;
   last_seen_source: string | null;
+  root_cause_cluster_key: string | null;
 };
 
 const root = process.cwd();
@@ -159,6 +160,7 @@ function upsert(map: Map<string, Candidate>, rawId: string, sourceRef: string): 
     source_refs: [sourceRef],
     first_seen_source: sourceRef,
     last_seen_source: sourceRef,
+    root_cause_cluster_key: null,
   };
   map.set(id, created);
   return created;
@@ -174,6 +176,9 @@ function mergeCandidate(candidate: Candidate, row: Json, sourceRef: string): voi
   candidate.next_action =
     stringValue(row, ["next_action", "recommended_fix", "recommended_action", "suggested_change"]) ||
     candidate.next_action;
+  candidate.root_cause_cluster_key =
+    stringValue(row, ["root_cause_cluster_key", "cluster_key", "feedback_family_fingerprint", "finding_fingerprint"]) ||
+    candidate.root_cause_cluster_key;
   candidate.evidence_refs.push(...evidenceValues(row));
   candidate.trace_ids.push(...traceValues(row));
   candidate.evidence_refs = [...new Set(candidate.evidence_refs)];
@@ -181,6 +186,32 @@ function mergeCandidate(candidate: Candidate, row: Json, sourceRef: string): voi
   candidate.recurrence_count += 1;
   if (!candidate.source_refs.includes(sourceRef)) candidate.source_refs.push(sourceRef);
   candidate.last_seen_source = sourceRef;
+}
+
+function inferOwner(candidate: Candidate): string {
+  const haystack = [candidate.id, candidate.owner_guess || "", ...candidate.source_refs].join(" ").toLowerCase();
+  if (haystack.includes("gateway")) return "gateways";
+  if (haystack.includes("install") || haystack.includes("windows")) return "installer";
+  if (haystack.includes("validation") || haystack.includes("eval") || haystack.includes("guard")) return "validation";
+  if (haystack.includes("kernel") || haystack.includes("memory")) return "kernel";
+  if (haystack.includes("trace") || haystack.includes("sentinel") || haystack.includes("collector")) {
+    return "observability/sentinel";
+  }
+  return "observability/sentinel";
+}
+
+function inferRootCauseClusterKey(candidate: Candidate): string {
+  if (candidate.root_cause_cluster_key) return candidate.root_cause_cluster_key;
+  const haystack = [candidate.id, candidate.root_cause_hypothesis || "", candidate.next_action || "", ...candidate.source_refs]
+    .join(" ")
+    .toLowerCase();
+  if (haystack.includes("monolithic") || haystack.includes("timeout") || haystack.includes("collector") || haystack.includes("stale")) {
+    return "sentinel_cadence_and_feedback_freshness";
+  }
+  if (haystack.includes("trace")) return "sentinel_trace_integrity";
+  if (haystack.includes("report") || haystack.includes("size") || haystack.includes("bounded")) return "sentinel_report_boundedness";
+  if (haystack.includes("quality") || haystack.includes("promotion") || haystack.includes("todo")) return "sentinel_issue_quality_promotion";
+  return `sentinel_${crypto.createHash("sha256").update(candidate.id).digest("hex").slice(0, 12)}`;
 }
 
 function candidateId(row: Json): string | null {
@@ -271,6 +302,8 @@ const traceId = `validation:${generatedAt}:sentinel-issue-quality:${crypto
   .digest("hex")
   .slice(0, 12)}`;
 for (const candidate of candidates.values()) {
+  if (!candidate.owner_guess) candidate.owner_guess = inferOwner(candidate);
+  candidate.root_cause_cluster_key = inferRootCauseClusterKey(candidate);
   if (candidate.evidence_refs.length === 0) {
     candidate.evidence_refs.push(...supportingEvidence.filter(exists));
   }
@@ -320,6 +353,12 @@ function score(candidate: Candidate) {
         : total >= reviewThreshold
           ? "human_review"
           : "observation_only",
+    confidence_band:
+      total >= promotionThreshold && failureReasons.length === 0
+        ? "issue_ready"
+        : total >= reviewThreshold
+          ? "human_review"
+          : "observation_only",
   };
 }
 
@@ -333,6 +372,7 @@ const scored = [...candidates.values()]
       evidence_existing_count: quality.evidence_existing_count,
       freshest_evidence_age_ms: quality.freshest_evidence_age_ms,
       promotion_state: quality.promotion_state,
+      confidence_band: quality.confidence_band,
       quality_failure_reasons: quality.quality_failure_reasons,
     };
   })
