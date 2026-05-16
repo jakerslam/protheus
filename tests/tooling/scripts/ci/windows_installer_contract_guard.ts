@@ -224,6 +224,18 @@ function run(argv: string[]): number {
   });
 
   checks.push({
+    id: 'windows_install_script_runtime_pending_does_not_print_quickstart',
+    ok:
+      source.includes('if ($runtimeInstalled) {')
+      && source.includes('quickstart now (direct path): $InstallDir\\\\infring.cmd gateway')
+      && source.includes('runtime pending: gateway/dashboard quickstart is deferred until runtime binaries are installed.')
+      && source.includes('installed bootstrap commands: infring, infringctl, infringd')
+      && source.includes('status now (direct path): $InstallDir\\\\infring.cmd setup status --json'),
+    detail:
+      'bootstrap-only installs must not print gateway quickstart as if the runtime is installed; they must print runtime-pending recovery/status guidance',
+  });
+
+  checks.push({
     id: 'windows_install_script_repair_wrapper_map_covers_three_entrypoints',
     ok:
       source.includes('@{ cmd = "infring.cmd"; ps1 = "infring.ps1" }')

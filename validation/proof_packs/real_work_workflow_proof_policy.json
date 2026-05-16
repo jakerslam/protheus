@@ -184,6 +184,34 @@
         "tests/tooling/scripts/ci/sentinel_timing_trend_guard.ts"
       ],
       "max_age_hours": 720
+    },
+    {
+      "id": "sentinel_worktree_danger",
+      "work_class": "workspace_safety",
+      "capability_domain": "observability",
+      "user_visible": true,
+      "live_proof": false,
+      "purpose": "Prove Sentinel can detect dangerous local workspace state and convert it into compact actionable operator feedback.",
+      "evidence_paths_any": [
+        "core/local/artifacts/kernel_sentinel_worktree_danger_current.json"
+      ],
+      "guard_artifact_paths_any": [
+        "core/local/artifacts/kernel_sentinel_feedback_summary_current.json",
+        "core/local/artifacts/kernel_sentinel_worktree_danger_current.json"
+      ],
+      "source_guard_paths_any": [
+        "tests/tooling/scripts/ci/kernel_sentinel_worktree_danger_report.ts",
+        "tests/tooling/scripts/ci/kernel_sentinel_feedback_summary.ts"
+      ],
+      "evidence_ok_equals": false,
+      "guard_artifact_ok_equals": false,
+      "max_age_hours": 24,
+      "required_evidence_fields": [
+        {
+          "path": "type",
+          "equals": "kernel_sentinel_worktree_danger_report"
+        }
+      ]
     }
   ],
   "required_lane_fields": [
@@ -222,7 +250,8 @@
     "user_recovery",
     "developer_workflow",
     "operator_navigation",
-    "security_repair"
+    "security_repair",
+    "workspace_safety"
   ],
   "policy": {
     "proof_must_be_evidence_backed": true,
@@ -237,5 +266,6 @@
     "proof_must_include_distinct_work_classes": true,
     "proof_must_include_distinct_capability_domains": true,
     "proof_summary_must_name_capability_outcomes": true
+    ,"diagnostic_lanes_may_expect_failing_artifacts_when_their_user_value_is_detection": true
   }
 }

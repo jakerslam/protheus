@@ -119,12 +119,13 @@
     "compatibility_aliases_allowed": true,
     "new_package_scripts_require_policy_update": true,
     "goal": "structured command runner is the default operator surface; compatibility aliases are hidden unless explicitly requested",
-    "operator_surface_target_count": 100,
+    "operator_surface_target_count": 75,
     "operator_surface_contract": "validation/conformance/contracts/command_metadata_curated_overrides.json",
-    "default_operator_surface_count": 100,
+    "default_operator_surface_count": 75,
     "command_runner_first_policy": "validation/conformance/contracts/command_runner_first_policy.json",
     "package_json_role": "compatibility_backing_store",
-    "sentinel_full_sample_refresh_command": "ops:kernel-sentinel:timing:refresh"
+    "sentinel_full_sample_refresh_command": "ops:kernel-sentinel:timing:refresh",
+    "default_operator_surface_policy": "Only the top 75 ranked commands appear in the default runner list; all other package scripts are compatibility/internal backing commands."
   },
   "entries": [
     {
@@ -2724,9 +2725,11 @@
       "work_gate": "reliability",
       "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 99,
-      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "memory:backfill:xml:apply",
@@ -2739,9 +2742,11 @@
       "work_gate": "reliability",
       "description": "Operate or validate Kernel memory/runtime diagnostics without routing through Shell-owned mirrors.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 100,
-      "operator_surface_reason": "top_100_operator_surface:reliability:kernel"
+      "operator_surface_reason": "top_100_operator_surface:reliability:kernel",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "memory:causal-graph:build",
@@ -4135,9 +4140,11 @@
       "work_gate": "simplification",
       "description": "Curated operator command for ops / command surface / guard; selected for simplification work in the workspace_ops domain.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 90,
-      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops"
+      "operator_surface_reason": "top_100_operator_surface:simplification:workspace_ops",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:commit-message:check-file",
@@ -4161,9 +4168,11 @@
       "work_gate": "reliability",
       "description": "Validate commit messages against the standard conventional prefix policy used by release automation.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 91,
-      "operator_surface_reason": "top_100_operator_surface:reliability:workspace_ops"
+      "operator_surface_reason": "top_100_operator_surface:reliability:workspace_ops",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:compat-tail:run",
@@ -5920,9 +5929,11 @@
       "work_gate": "reliability",
       "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 95,
-      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:layer0-ops:authority:audit",
@@ -6538,9 +6549,11 @@
       "work_gate": "reliability",
       "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 96,
-      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:nexus:checkpoint-policy:guard",
@@ -6569,9 +6582,11 @@
       "work_gate": "reliability",
       "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 97,
-      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:nexus:kernel-coupling:guard",
@@ -6600,9 +6615,11 @@
       "work_gate": "reliability",
       "description": "Guard layer and Nexus boundary contracts so cross-domain coupling remains explicit and enforceable.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 98,
-      "operator_surface_reason": "top_100_operator_surface:reliability:validation"
+      "operator_surface_reason": "top_100_operator_surface:reliability:validation",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:nightly:turn-loop-analytics",
@@ -6637,9 +6654,11 @@
       "work_gate": "reliability",
       "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 82,
-      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:observability:current-truth:guard",
@@ -6652,9 +6671,11 @@
       "work_gate": "reliability",
       "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 92,
-      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:offsite:diagnose",
@@ -7199,9 +7220,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 76,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:proof-pack:gate:docker",
@@ -7214,9 +7237,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 77,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:proof-pack:gate:status",
@@ -7229,9 +7254,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 78,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:public-platform:contract",
@@ -7318,9 +7345,11 @@
       "work_gate": "simplification",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 83,
-      "operator_surface_reason": "top_100_operator_surface:simplification:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:simplification:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:release-contract:gate",
@@ -7333,9 +7362,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 84,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:release-hardening-window:guard",
@@ -7380,9 +7411,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 85,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:release-semver:status",
@@ -7395,9 +7428,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 86,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:release:policy:gate",
@@ -7410,9 +7445,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 87,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:release:proof-pack",
@@ -7440,9 +7477,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 88,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:release:scorecard:gate",
@@ -7455,9 +7494,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 89,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:release:verdict",
@@ -7692,9 +7733,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 79,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:runtime-proof:reality:guard",
@@ -7707,9 +7750,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 80,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:runtime-proof:release-gate",
@@ -7738,9 +7783,11 @@
       "work_gate": "reliability",
       "description": "Produce or guard release-confidence evidence across proof packs, boundedness, runtime proof, and release verdicts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 81,
-      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance"
+      "operator_surface_reason": "top_100_operator_surface:reliability:release_governance",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:runtime-retention:run",
@@ -9491,9 +9538,11 @@
       "work_gate": "reliability",
       "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 93,
-      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:trace-contract:verify",
@@ -9506,9 +9555,11 @@
       "work_gate": "reliability",
       "description": "Validate observability trace identity and live-evidence contracts across runtime, validation, and Sentinel artifacts.",
       "metadata_curated": true,
-      "operator_surface": true,
+      "operator_surface": false,
       "operator_surface_rank": 94,
-      "operator_surface_reason": "top_100_operator_surface:reliability:observability"
+      "operator_surface_reason": "top_100_operator_surface:reliability:observability",
+      "operator_surface_demoted_at": "2026-05-16",
+      "operator_surface_demotion_reason": "default operator surface compressed to 75 commands; command remains available through explicit registry search/include-compat"
     },
     {
       "id": "ops:trace:substrate:guard",
@@ -13552,7 +13603,7 @@
   "metadata_policy": "validation/conformance/contracts/command_registry_metadata_policy.json",
   "metadata_curated_count": 41,
   "metadata_curated_at": "2026-05-11T00:00:00Z",
-  "operator_surface_count": 100,
+  "operator_surface_count": 75,
   "operator_surface_policy": "validation/conformance/contracts/command_operator_surface_policy.json",
   "operator_surface_updated_at": "2026-05-11T00:00:00Z",
   "commands": [
@@ -13580,5 +13631,6 @@
       "default_visible": true,
       "safe_for_agents": true
     }
-  ]
+  ],
+  "operator_surface_compressed_at": "2026-05-16T00:00:00.000Z"
 }

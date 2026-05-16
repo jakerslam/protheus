@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "name": "kernel_sentinel_anti_entropy_observer_policy",
+  "purpose": "Define the compact anti-entropy observation surface for Kernel Sentinel so it can identify system decay without owning fixes or runtime authority.",
+  "authority_boundary": {
+    "may_observe": true,
+    "may_write_reports": true,
+    "may_create_issue_candidates": false,
+    "may_modify_runtime_state": false,
+    "may_modify_shell": false,
+    "may_modify_orchestration": false
+  },
+  "observation_domains": [
+    "worktree_risk",
+    "architecture_anchor_health",
+    "stale_artifacts",
+    "ci_surface_sprawl",
+    "install_health",
+    "command_surface_entropy",
+    "real_work_proof_health"
+  ],
+  "freshness_budgets_hours": {
+    "kernel_sentinel_worktree_danger_current.json": 24,
+    "kernel_sentinel_feedback_summary_current.json": 24,
+    "windows_installer_contract_guard_current.json": 168,
+    "command_operator_surface_guard_current.json": 168,
+    "real_work_workflow_proof_guard_current.json": 168
+  },
+  "thresholds": {
+    "maximum_required_ci_workflows": 30,
+    "maximum_total_ci_workflows": 45,
+    "maximum_package_scripts_before_entropy_finding": 1000,
+    "maximum_default_operator_commands": 80,
+    "minimum_architecture_anchor_count": 4,
+    "minimum_real_work_ready_operator_journeys": 2
+  },
+  "canonical_architecture_anchors": [
+    "README.md",
+    "ARCHITECTURE.md",
+    "observability/README.md",
+    "validation/README.md"
+  ],
+  "severity_weights": {
+    "critical": 35,
+    "high": 20,
+    "medium": 10,
+    "low": 5,
+    "info": 0
+  },
+  "release_policy": {
+    "final_report_must_be_compact": true,
+    "raw_evidence_must_remain_in_source_artifacts": true,
+    "findings_require_next_action": true,
+    "findings_require_evidence_refs": true,
+    "human_review_required_before_todo_or_issue_promotion": true
+  }
+}

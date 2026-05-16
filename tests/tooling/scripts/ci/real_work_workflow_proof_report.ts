@@ -14,6 +14,8 @@ type LanePolicy = {
   guard_artifact_paths_any?: string[];
   source_guard_paths_any?: string[];
   required_evidence_fields?: { path: string; equals: any }[];
+  evidence_ok_equals?: boolean;
+  guard_artifact_ok_equals?: boolean;
 };
 
 type Policy = {
@@ -82,8 +84,11 @@ function ageHours(generatedAt: string | null): number | null {
   return Number(((Date.now() - parsed) / 3_600_000).toFixed(3));
 }
 
-function payloadOk(payload: Json | null): boolean {
+function payloadOk(payload: Json | null, expectedOk: boolean | null = null): boolean {
   if (!payload) return false;
+  if (typeof expectedOk === 'boolean') {
+    return payload.ok === expectedOk || payload.pass === expectedOk || payload.summary?.pass === expectedOk || payload.summary?.ok === expectedOk;
+  }
   if (payload.ok === true) return true;
   if (payload.pass === true) return true;
   if (payload.summary?.pass === true) return true;
@@ -120,6 +125,12 @@ function markdownFor(report: Json): string {
   lines.push('');
   for (const outcome of report.capability_outcomes || []) {
     lines.push(`- ${markdownEscape(outcome.capability_domain)}: ${outcome.ready_lane_count} ready lanes; work_classes=${markdownEscape((outcome.work_classes || []).join(', '))}`);
+  }
+  lines.push('');
+  lines.push('## Operator Journeys');
+  lines.push('');
+  for (const journey of report.operator_journeys || []) {
+    lines.push(`- ${markdownEscape(journey.id)}: ${markdownEscape(journey.outcome)}; lanes=${markdownEscape((journey.lane_ids || []).join(', '))}`);
   }
   lines.push('');
   lines.push('## Lanes');
@@ -172,8 +183,10 @@ function laneReport(lane: LanePolicy) {
   const guardArtifactPath = firstExisting(lane.guard_artifact_paths_any);
   const guardArtifactPayload = readJson(guardArtifactPath);
   const sourceGuardPath = firstExisting(lane.source_guard_paths_any);
-  const evidenceOk = payloadOk(evidencePayload);
-  const guardArtifactOk = payloadOk(guardArtifactPayload);
+  const expectedEvidenceOk = typeof lane.evidence_ok_equals === 'boolean' ? lane.evidence_ok_equals : null;
+  const expectedGuardArtifactOk = typeof lane.guard_artifact_ok_equals === 'boolean' ? lane.guard_artifact_ok_equals : null;
+  const evidenceOk = payloadOk(evidencePayload, expectedEvidenceOk);
+  const guardArtifactOk = payloadOk(guardArtifactPayload, expectedGuardArtifactOk);
   const evidenceGeneratedAt = generatedAtOf(evidencePath, evidencePayload);
   const guardGeneratedAt = generatedAtOf(guardArtifactPath, guardArtifactPayload);
   const evidenceAge = ageHours(evidenceGeneratedAt);
@@ -214,8 +227,10 @@ function laneReport(lane: LanePolicy) {
     evidence_generated_at: evidenceGeneratedAt,
     evidence_age_hours: evidenceAge,
     evidence_compact: compactEvidence(evidencePayload),
+    expected_evidence_ok: expectedEvidenceOk,
     guard_artifact_path: guardArtifactPath,
     guard_artifact_ok: guardArtifactOk,
+    expected_guard_artifact_ok: expectedGuardArtifactOk,
     guard_generated_at: guardGeneratedAt,
     guard_age_hours: guardAge,
     source_guard_path: sourceGuardPath,
@@ -261,6 +276,26 @@ function run(argv: string[]) {
       evidence_paths: domainLanes.map((lane) => lane.evidence_path).filter(Boolean),
     };
   });
+  const operatorJourneys = [
+    {
+      id: 'recover_windows_install',
+      outcome: 'Operator can diagnose a Windows install failure and receive runtime-pending recovery guidance instead of false success.',
+      lane_ids: lanes.filter((lane) => ['windows_installer_repair'].includes(lane.id) && lane.ready).map((lane) => lane.id),
+      ready: lanes.some((lane) => lane.id === 'windows_installer_repair' && lane.ready),
+    },
+    {
+      id: 'operate_gateway',
+      outcome: 'Operator can prove Gateway lifecycle/status behavior with guarded evidence.',
+      lane_ids: lanes.filter((lane) => ['gateway_disposable_live_lifecycle', 'gateway_status_diagnosis'].includes(lane.id) && lane.ready).map((lane) => lane.id),
+      ready: lanes.some((lane) => lane.id === 'gateway_disposable_live_lifecycle' && lane.ready),
+    },
+    {
+      id: 'navigate_large_repo_safely',
+      outcome: 'Agent/operator can use a compressed command entrypoint and safe commit/worktree signals instead of guessing among package scripts.',
+      lane_ids: lanes.filter((lane) => ['command_navigation', 'safe_commit_workflow', 'sentinel_worktree_danger'].includes(lane.id) && lane.ready).map((lane) => lane.id),
+      ready: lanes.some((lane) => lane.id === 'command_navigation' && lane.ready) && lanes.some((lane) => lane.id === 'sentinel_worktree_danger' && lane.ready),
+    },
+  ];
   const report = {
     trace_id: traceId,
     span_id: `span:${traceId}`,
@@ -284,6 +319,8 @@ function run(argv: string[]) {
     ready_capability_domains: readyCapabilityDomains,
     total_lane_count: lanes.length,
     capability_outcomes: capabilityOutcomes,
+    operator_journeys: operatorJourneys,
+    ready_operator_journey_count: operatorJourneys.filter((journey) => journey.ready).length,
     lanes,
     summary: ok
       ? 'Real-work proof has fresh passing evidence across live Gateway operation, workspace/tooling work, installer recovery, security remediation, and operator workflows.'

@@ -29,6 +29,8 @@ if (Number(report.distinct_ready_capability_domain_count || 0) < Number(policy.m
 if (policy?.policy?.proof_summary_must_name_capability_outcomes === true && !Array.isArray(report.capability_outcomes)) {
   violations.push('missing_capability_outcomes');
 }
+if (!Array.isArray(report.operator_journeys)) violations.push('missing_operator_journeys');
+if (Number(report.ready_operator_journey_count || 0) < 2) violations.push('ready_operator_journey_count_below_minimum');
 for (const row of lanes) {
   for (const field of (policy.required_lane_fields as string[]) || []) {
     if (!(field in row)) violations.push(`lane_${row.id || 'unknown'}_missing_${field}`);
@@ -78,6 +80,7 @@ const result = {
   distinct_ready_capability_domain_count: report.distinct_ready_capability_domain_count || 0,
   ready_work_classes: report.ready_work_classes || [],
   ready_capability_domains: report.ready_capability_domains || [],
+  ready_operator_journey_count: report.ready_operator_journey_count || 0,
   total_lane_count: report.total_lane_count || 0,
   violation_count: violations.length,
   violations,

@@ -33,6 +33,7 @@ const issueQuality = readJson(inputs.issue_quality_report);
 const stageRunner = readJson(inputs.stage_runner_report);
 const freshGuard = readJson(inputs.fresh_evidence_guard);
 const traceGuard = readJson(inputs.trace_completeness_guard);
+const worktreeDanger = readJson(inputs.worktree_danger_report);
 const candidates = Array.isArray(issueQuality?.candidates) ? (issueQuality.candidates as Json[]) : [];
 const maxFindings = Math.max(1, Number(policy.max_summary_findings || 5));
 const freshnessBudgetMs = Number(policy.freshness_budget_ms || 604_800_000);
@@ -50,6 +51,18 @@ if (issueAgeMs === null || issueAgeMs > freshnessBudgetMs) violations.push("issu
 if (stageAgeMs === null || stageAgeMs > freshnessBudgetMs) violations.push("stage_runner_report_stale");
 if (freshGuard && freshGuard.ok === false) violations.push("fresh_evidence_guard_failed");
 if (traceGuard && traceGuard.ok === false) violations.push("trace_completeness_guard_failed");
+if (worktreeDanger && worktreeDanger.ok === false) violations.push("worktree_danger_detected");
+
+const worktreeFindings = Array.isArray(worktreeDanger?.findings) ? (worktreeDanger.findings as Json[]) : [];
+const topWorktreeFindings = worktreeFindings.slice(0, maxFindings).map((row) => ({
+  id: row.id,
+  severity: row.severity,
+  owner_guess: row.owner_guess,
+  root_cause_cluster_key: row.root_cause_cluster_key,
+  evidence_refs: Array.isArray(row.evidence_refs) ? row.evidence_refs.slice(0, 5) : [],
+  next_action: row.next_action,
+}));
+const actionableWorktreeCount = worktreeFindings.filter((row) => row.actionable === true).length;
 
 const result = {
   trace_id: `observability:${new Date().toISOString()}:kernel-sentinel-feedback-summary`,
@@ -60,7 +73,9 @@ const result = {
   ok: violations.length === 0,
   policy_path: policyRel,
   status:
-    violations.length > 0
+    worktreeDanger?.ok === false
+      ? "worktree_danger_needs_attention"
+      : violations.length > 0
       ? "needs_attention"
       : actionable.length > 0
         ? "actionable_feedback_ready_for_human_review"
@@ -70,6 +85,8 @@ const result = {
   human_review_count: humanReview.length,
   observation_only_count: observationOnly.length,
   actionable_feedback_count: actionable.length,
+  worktree_danger_count: Number(worktreeDanger?.finding_count || worktreeFindings.length || 0),
+  actionable_worktree_danger_count: actionableWorktreeCount,
   stage_completed: stageRunner?.ok === true && Number(stageRunner?.remaining_phase_count || 0) === 0,
   stage_remaining_phase_count: Number(stageRunner?.remaining_phase_count ?? -1),
   average_score: issueQuality?.average_score ?? null,
@@ -87,11 +104,13 @@ const result = {
     evidence_refs: Array.isArray(row.evidence_refs) ? row.evidence_refs.slice(0, 5) : [],
     next_action: row.next_action,
   })),
+  top_worktree_danger_findings: topWorktreeFindings,
   source_refs: {
     issue_quality_report: inputs.issue_quality_report,
     stage_runner_report: inputs.stage_runner_report,
     fresh_evidence_guard: inputs.fresh_evidence_guard,
     trace_completeness_guard: inputs.trace_completeness_guard,
+    worktree_danger_report: inputs.worktree_danger_report,
   },
   violations,
 };

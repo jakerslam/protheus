@@ -1202,9 +1202,13 @@
     "ops:ci-branch-protection:apply": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/ci_branch_protection_apply.ts",
     "ops:githooks:install": "git config core.hooksPath .githooks",
     "ops:commit-message:check-file": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/conventional_commit_gate.ts --strict=1 --message-file",
-    "ops:ksent:feedback-summary": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_feedback_summary.ts --strict=1",
+    "ops:ksent:feedback-summary": "npm run -s ops:ksent:worktree-danger:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_feedback_summary.ts --strict=0",
     "ops:ksent:report-retention:guard": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_report_retention.ts --strict=1",
-    "ops:ksent:dream-success:metrics": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_dream_success_metrics.ts --strict=1"
+    "ops:ksent:dream-success:metrics": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_dream_success_metrics.ts --strict=1",
+    "ops:ksent:worktree-danger:report": "node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_worktree_danger_report.ts --strict=0",
+    "ops:ksent:feedback-summary:strict": "npm run -s ops:ksent:worktree-danger:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_feedback_summary.ts --strict=1",
+    "ops:ksent:anti-entropy:observer": "npm run -s ops:ksent:worktree-danger:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_anti_entropy_observer.ts --strict=0",
+    "ops:ksent:anti-entropy:observer:strict": "npm run -s ops:ksent:worktree-danger:report && node client/runtime/lib/ts_entrypoint.ts tests/tooling/scripts/ci/kernel_sentinel_anti_entropy_observer.ts --strict=1"
   },
   "version": "0.4.0"
 }

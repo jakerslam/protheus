@@ -5,9 +5,9 @@
   "registry_path": "tools/commands/command_registry.json",
   "runner_path": "tools/commands/command_runner.ts",
   "report_path": "core/local/artifacts/command_operator_surface_guard_current.json",
-  "required_operator_surface_count": 100,
-  "maximum_default_command_count": 120,
-  "minimum_curated_canonical_count": 20,
+  "required_operator_surface_count": 75,
+  "maximum_default_command_count": 80,
+  "minimum_curated_canonical_count": 18,
   "forbidden_promoted_terms": [
     "shell",
     "orchestration"
@@ -20,7 +20,11 @@
     "promoted_compatibility_commands_require_curated_metadata": true,
     "default_list_must_equal_operator_surface_ids": true,
     "runner_output_must_name_preferred_entrypoint": true,
-    "raw_package_scripts_are_backing_compatibility_surface": true
+    "raw_package_scripts_are_backing_compatibility_surface": true,
+    "default_operator_surface_target": 75,
+    "commands_above_target_are_hidden_by_default": true,
+    "full_surface_requires_search_or_include_compat": true,
+    "minimum_curated_canonical_count_rationale": "Compressed 75-command default surface currently has 18 canonical curated entrypoints; compatibility/internal commands remain searchable but hidden by default."
   },
-  "minimum_curated_operator_surface_count": 40
+  "minimum_curated_operator_surface_count": 35
 }

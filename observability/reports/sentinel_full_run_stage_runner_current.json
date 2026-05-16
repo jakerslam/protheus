@@ -1,52 +1,30 @@
 {
-  "trace_id": "observability:2026-05-11T04:53:05.480Z:sentinel-stage-runner",
+  "trace_id": "observability:2026-05-16T18:02:47.518Z:sentinel-stage-runner",
   "source_domain": "observability",
   "ok": true,
   "type": "sentinel_full_run_stage_runner",
-  "generated_at": "2026-05-11T04:53:05.480Z",
+  "generated_at": "2026-05-16T18:02:47.518Z",
   "policy_path": "observability/sentinel/sentinel_full_run_stage_split_policy.json",
-  "cadence": "dream",
+  "cadence": "release",
   "state_path": "local/state/observability/sentinel/full_run_stage_state_current.json",
-  "phase_mode": "report_synthesis",
+  "phase_mode": "all",
   "selected_phases": [
-    "report_synthesis"
+    "evidence_collect",
+    "freshness_filter",
+    "root_cause_cluster",
+    "report_synthesis",
+    "self_study"
   ],
-  "executed_phase_count": 1,
+  "executed_phase_count": 5,
   "completed_phase_count": 5,
   "remaining_phase_count": 0,
   "phase_results": [
     {
-      "id": "report_synthesis",
-      "ok": true,
-      "started_at": "2026-05-11T04:53:05.478Z",
-      "finished_at": "2026-05-11T04:53:05.480Z",
-      "duration_ms": 2,
-      "input_refs": [
-        "local/state/observability/sentinel/full_run_stage_state_current.json"
-      ],
-      "output_refs": [
-        "local/state/observability/sentinel/full_run_stage_state_current.json",
-        "observability/reports/sentinel_staged_compact_report_2026-05-11.json",
-        "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
-        "local/state/kernel_sentinel/kernel_sentinel_report_current.json",
-        "local/state/kernel_sentinel/kernel_sentinel_verdict.json",
-        "local/state/kernel_sentinel/kernel_sentinel_health_current.json"
-      ],
-      "resume_cursor": "report_synthesis",
-      "summary": {
-        "compact_report": "observability/reports/sentinel_staged_compact_report_2026-05-11.json",
-        "finding_count": 0,
-        "canonical_truth_refreshed": true
-      }
-    }
-  ],
-  "all_phase_results": [
-    {
       "id": "evidence_collect",
       "ok": true,
-      "started_at": "2026-05-11T02:08:46.727Z",
-      "finished_at": "2026-05-11T02:08:46.728Z",
-      "duration_ms": 1,
+      "started_at": "2026-05-16T18:02:47.505Z",
+      "finished_at": "2026-05-16T18:02:47.508Z",
+      "duration_ms": 3,
       "input_refs": [
         "core/local/artifacts/kernel_sentinel_auto_run_current.json",
         "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json"
@@ -60,31 +38,29 @@
           {
             "rel": "core/local/artifacts/kernel_sentinel_auto_run_current.json",
             "exists": true,
-            "size_bytes": 1544
+            "size_bytes": 1493
           },
           {
             "rel": "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
             "exists": true,
-            "size_bytes": 5459
+            "size_bytes": 2185
           }
         ],
-        "timeout_observed": true,
-        "running_observed": true,
-        "auto_run_age_ms": 201072,
-        "final_report_age_ms": 214139919.27368164,
-        "signals": [
-          "sentinel_auto_timeout",
-          "sentinel_auto_stale_running",
-          "final_report_stale"
-        ]
+        "timeout_observed": false,
+        "stale_timeout_observed": false,
+        "running_observed": false,
+        "stale_running_repaired": false,
+        "auto_run_age_ms": 481998076,
+        "final_report_age_ms": 122282.69091796875,
+        "signals": []
       }
     },
     {
       "id": "freshness_filter",
       "ok": true,
-      "started_at": "2026-05-11T02:08:47.669Z",
-      "finished_at": "2026-05-11T02:08:47.669Z",
-      "duration_ms": 0,
+      "started_at": "2026-05-16T18:02:47.508Z",
+      "finished_at": "2026-05-16T18:02:47.509Z",
+      "duration_ms": 1,
       "input_refs": [
         "local/state/observability/sentinel/full_run_stage_state_current.json"
       ],
@@ -93,19 +69,16 @@
       ],
       "resume_cursor": "freshness_filter",
       "summary": {
-        "retained_signals": [
-          "sentinel_auto_timeout",
-          "sentinel_auto_stale_running",
-          "final_report_stale"
-        ],
+        "retained_signals": [],
+        "dropped_historical_signals": [],
         "dropped_reason": "raw evidence remains in source streams; phase output keeps refs only"
       }
     },
     {
       "id": "root_cause_cluster",
       "ok": true,
-      "started_at": "2026-05-11T02:08:48.158Z",
-      "finished_at": "2026-05-11T02:08:48.158Z",
+      "started_at": "2026-05-16T18:02:47.509Z",
+      "finished_at": "2026-05-16T18:02:47.509Z",
       "duration_ms": 0,
       "input_refs": [
         "local/state/observability/sentinel/full_run_stage_state_current.json"
@@ -115,34 +88,21 @@
       ],
       "resume_cursor": "root_cause_cluster",
       "summary": {
-        "clusters": [
-          {
-            "id": "sentinel_monolithic_full_run_timeout",
-            "owner_guess": "observability/sentinel",
-            "hypothesis": "Full Sentinel dream/self-study is too monolithic for bounded automation and needs resumable phase checkpoints.",
-            "next_action": "Run staged phases and persist timing after each phase."
-          },
-          {
-            "id": "kernel_sentinel_canonical_truth_stale",
-            "owner_guess": "observability/sentinel",
-            "hypothesis": "The canonical Sentinel report can remain stale after bounded repair work when only the staged runner refreshes compact evidence.",
-            "next_action": "Publish staged refresh output into canonical Sentinel truth artifacts."
-          }
-        ]
+        "clusters": []
       }
     },
     {
       "id": "report_synthesis",
       "ok": true,
-      "started_at": "2026-05-11T04:53:05.478Z",
-      "finished_at": "2026-05-11T04:53:05.480Z",
-      "duration_ms": 2,
+      "started_at": "2026-05-16T18:02:47.509Z",
+      "finished_at": "2026-05-16T18:02:47.518Z",
+      "duration_ms": 9,
       "input_refs": [
         "local/state/observability/sentinel/full_run_stage_state_current.json"
       ],
       "output_refs": [
         "local/state/observability/sentinel/full_run_stage_state_current.json",
-        "observability/reports/sentinel_staged_compact_report_2026-05-11.json",
+        "observability/reports/sentinel_staged_compact_report_2026-05-16.json",
         "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
         "local/state/kernel_sentinel/kernel_sentinel_report_current.json",
         "local/state/kernel_sentinel/kernel_sentinel_verdict.json",
@@ -150,7 +110,7 @@
       ],
       "resume_cursor": "report_synthesis",
       "summary": {
-        "compact_report": "observability/reports/sentinel_staged_compact_report_2026-05-11.json",
+        "compact_report": "observability/reports/sentinel_staged_compact_report_2026-05-16.json",
         "finding_count": 0,
         "canonical_truth_refreshed": true
       }
@@ -158,11 +118,130 @@
     {
       "id": "self_study",
       "ok": true,
-      "started_at": "2026-05-11T02:08:49.091Z",
-      "finished_at": "2026-05-11T02:08:49.091Z",
+      "started_at": "2026-05-16T18:02:47.518Z",
+      "finished_at": "2026-05-16T18:02:47.518Z",
       "duration_ms": 0,
       "input_refs": [
-        "observability/reports/sentinel_staged_compact_report_2026-05-11.json"
+        "observability/reports/sentinel_staged_compact_report_2026-05-16.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "self_study",
+      "summary": {
+        "recommendations": [
+          "Keep heartbeat Sentinel checks lightweight.",
+          "Reserve full self-study for dream/release cadence.",
+          "Prefer compact findings with evidence refs over raw evidence dumps."
+        ]
+      }
+    }
+  ],
+  "all_phase_results": [
+    {
+      "id": "evidence_collect",
+      "ok": true,
+      "started_at": "2026-05-16T18:02:47.505Z",
+      "finished_at": "2026-05-16T18:02:47.508Z",
+      "duration_ms": 3,
+      "input_refs": [
+        "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+        "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "evidence_collect",
+      "summary": {
+        "evidence_refs": [
+          {
+            "rel": "core/local/artifacts/kernel_sentinel_auto_run_current.json",
+            "exists": true,
+            "size_bytes": 1493
+          },
+          {
+            "rel": "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
+            "exists": true,
+            "size_bytes": 2185
+          }
+        ],
+        "timeout_observed": false,
+        "stale_timeout_observed": false,
+        "running_observed": false,
+        "stale_running_repaired": false,
+        "auto_run_age_ms": 481998076,
+        "final_report_age_ms": 122282.69091796875,
+        "signals": []
+      }
+    },
+    {
+      "id": "freshness_filter",
+      "ok": true,
+      "started_at": "2026-05-16T18:02:47.508Z",
+      "finished_at": "2026-05-16T18:02:47.509Z",
+      "duration_ms": 1,
+      "input_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "freshness_filter",
+      "summary": {
+        "retained_signals": [],
+        "dropped_historical_signals": [],
+        "dropped_reason": "raw evidence remains in source streams; phase output keeps refs only"
+      }
+    },
+    {
+      "id": "root_cause_cluster",
+      "ok": true,
+      "started_at": "2026-05-16T18:02:47.509Z",
+      "finished_at": "2026-05-16T18:02:47.509Z",
+      "duration_ms": 0,
+      "input_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "resume_cursor": "root_cause_cluster",
+      "summary": {
+        "clusters": []
+      }
+    },
+    {
+      "id": "report_synthesis",
+      "ok": true,
+      "started_at": "2026-05-16T18:02:47.509Z",
+      "finished_at": "2026-05-16T18:02:47.518Z",
+      "duration_ms": 9,
+      "input_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json"
+      ],
+      "output_refs": [
+        "local/state/observability/sentinel/full_run_stage_state_current.json",
+        "observability/reports/sentinel_staged_compact_report_2026-05-16.json",
+        "local/state/kernel_sentinel/kernel_sentinel_final_report_current.json",
+        "local/state/kernel_sentinel/kernel_sentinel_report_current.json",
+        "local/state/kernel_sentinel/kernel_sentinel_verdict.json",
+        "local/state/kernel_sentinel/kernel_sentinel_health_current.json"
+      ],
+      "resume_cursor": "report_synthesis",
+      "summary": {
+        "compact_report": "observability/reports/sentinel_staged_compact_report_2026-05-16.json",
+        "finding_count": 0,
+        "canonical_truth_refreshed": true
+      }
+    },
+    {
+      "id": "self_study",
+      "ok": true,
+      "started_at": "2026-05-16T18:02:47.518Z",
+      "finished_at": "2026-05-16T18:02:47.518Z",
+      "duration_ms": 0,
+      "input_refs": [
+        "observability/reports/sentinel_staged_compact_report_2026-05-16.json"
       ],
       "output_refs": [
         "local/state/observability/sentinel/full_run_stage_state_current.json"
@@ -184,12 +263,12 @@
   "stage_timings": [
     {
       "stage": "evidence_collect",
-      "elapsed_ms": 1,
+      "elapsed_ms": 3,
       "ok": true
     },
     {
       "stage": "freshness_filter",
-      "elapsed_ms": 0,
+      "elapsed_ms": 1,
       "ok": true
     },
     {
@@ -199,7 +278,7 @@
     },
     {
       "stage": "report_synthesis",
-      "elapsed_ms": 2,
+      "elapsed_ms": 9,
       "ok": true
     },
     {

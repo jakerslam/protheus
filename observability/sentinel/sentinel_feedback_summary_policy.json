@@ -9,7 +9,8 @@
     "issue_quality_report": "core/local/artifacts/sentinel_issue_quality_score_current.json",
     "stage_runner_report": "observability/reports/sentinel_full_run_stage_runner_current.json",
     "fresh_evidence_guard": "core/local/artifacts/kernel_sentinel_fresh_evidence_guard_current.json",
-    "trace_completeness_guard": "core/local/artifacts/kernel_sentinel_trace_completeness_guard_current.json"
+    "trace_completeness_guard": "core/local/artifacts/kernel_sentinel_trace_completeness_guard_current.json",
+    "worktree_danger_report": "core/local/artifacts/kernel_sentinel_worktree_danger_current.json"
   },
   "max_summary_findings": 5,
   "freshness_budget_ms": 604800000,
@@ -17,6 +18,9 @@
     "actionable_feedback_requires_fresh_quality_scored_candidates": true,
     "operator_summary_is_compact_and_ref_only": true,
     "raw_evidence_must_stay_in_source_streams": true,
-    "human_review_is_required_before_todo_or_issue_promotion": true
+    "human_review_is_required_before_todo_or_issue_promotion": true,
+    "worktree_danger_must_override_healthy_feedback_status": true,
+    "canonical_doc_deletions_are_actionable_sentinel_findings": true,
+    "push_blocking_churn_is_actionable_sentinel_finding": true
   }
 }

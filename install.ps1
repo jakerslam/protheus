@@ -4544,18 +4544,26 @@ if ($InstallJson) {
 }
 
 Write-InstallCompletionCard -Version $version -InstallDir $InstallDir -RuntimeInstalled $runtimeInstalled -RuntimeMode $runtimeContractMode -BootstrapOnlyReason $script:InstallBootstrapOnlyReason
-Write-Host "[infring install] installed commands: infring, infringctl, infringd"
-Write-Host "[infring install] run now (direct path): $InstallDir\\infring.cmd --help"
-Write-Host "[infring install] quickstart now (direct path): $InstallDir\\infring.cmd gateway"
-Write-Host "[infring install] run in this shell: infring --help"
-Write-Host "[infring install] quickstart: infring gateway"
-Write-Host "[infring install] stop: infring gateway stop"
-if ($dashboardSmokeStatus -eq "passed") {
-  Write-Host "[infring install] dashboard smoke passed (ephemeral check). Use 'infring gateway' for persistent runtime."
-} elseif ($dashboardSmokeStatus -eq "skipped") {
-  Write-Host "[infring install] dashboard smoke skipped in this install mode. Use 'infring gateway' to launch persistent runtime."
+if ($runtimeInstalled) {
+  Write-Host "[infring install] installed commands: infring, infringctl, infringd"
+  Write-Host "[infring install] run now (direct path): $InstallDir\\infring.cmd --help"
+  Write-Host "[infring install] quickstart now (direct path): $InstallDir\\infring.cmd gateway"
+  Write-Host "[infring install] run in this shell: infring --help"
+  Write-Host "[infring install] quickstart: infring gateway"
+  Write-Host "[infring install] stop: infring gateway stop"
+  if ($dashboardSmokeStatus -eq "passed") {
+    Write-Host "[infring install] dashboard smoke passed (ephemeral check). Use 'infring gateway' for persistent runtime."
+  } elseif ($dashboardSmokeStatus -eq "skipped") {
+    Write-Host "[infring install] dashboard smoke skipped in this install mode. Use 'infring gateway' to launch persistent runtime."
+  }
+  Write-Host "[infring install] if command isn't found immediately, run: $InstallDir\\infring.cmd --help"
+} else {
+  Write-Host "[infring install] installed bootstrap commands: infring, infringctl, infringd"
+  Write-Host "[infring install] runtime pending: gateway/dashboard quickstart is deferred until runtime binaries are installed."
+  Write-Host "[infring install] recovery: infring recover"
+  Write-Host "[infring install] repair rerun: powershell.exe -NoProfile -ExecutionPolicy Bypass -File install.ps1 -Repair -Full"
+  Write-Host "[infring install] status now (direct path): $InstallDir\\infring.cmd setup status --json"
 }
-Write-Host "[infring install] if command isn't found immediately, run: $InstallDir\\infring.cmd --help"
 Write-Host "[infring install] if `Remove-Item` prints nothing, that's expected success behavior in PowerShell."
 Write-Host "[infring install] README Windows install command: $ReadmeWindowsInstallCommand"
 
