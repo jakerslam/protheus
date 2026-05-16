@@ -68,7 +68,7 @@ function approvalsPage() {
       if (!id || this.isDecisionBusy(id)) return;
       this.setDecisionBusy(id, true);
       try {
-        await InfringAPI.post('/api/approvals/' + id + '/' + action, {});
+        await InfringAPI.post('/api/shell-socket/approvals/' + encodeURIComponent(id) + '/decision', { decision: action });
         InfringToast.success(action === 'approve' ? 'Approved' : 'Rejected');
         await this.loadData();
       } catch(e) {
