@@ -8504,27 +8504,6 @@ function chatPage() {
       }
       this._reconcileSendingState();
       this.connectWs(resolved.id);
-      // Show welcome tips on first use
-      if (!restored && !this.showFreshArchetypeTiles && !localStorage.getItem('of-chat-tips-seen')) {
-        this.messages.push({
-          id: ++msgId,
-          role: 'system',
-          text: '**Welcome to Infring Chat!**\n\n' +
-            '- Type `/` to see available commands\n' +
-            '- `/help` shows all commands\n' +
-            '- `/think on` enables extended reasoning\n' +
-            '- `/context` shows context window usage\n' +
-            '- `/verbose off` hides tool details\n' +
-            '- `Ctrl+Shift+F` toggles focus mode\n' +
-            '- `Ctrl+F` opens file picker\n' +
-            '- Drag & drop files to attach them\n' +
-            '- `Ctrl+/` opens the command palette',
-          meta: '',
-          tools: [],
-          system_origin: 'chat:welcome'
-        });
-        localStorage.setItem('of-chat-tips-seen', 'true');
-      }
       if (!forceFreshSession) {
         this.loadSession(resolved.id, false);
       }
