@@ -23,6 +23,7 @@ export type ShellSocketCapabilityId =
   | 'set_provider_url'
   | 'start_provider_oauth'
   | 'poll_provider_oauth'
+  | 'set_config'
   | 'set_model'
   | 'set_git_tree'
   | 'fresh_session'
@@ -71,6 +72,7 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'set_provider_url', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/url', pathParams: ['provider_id'] },
   { capabilityId: 'start_provider_oauth', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/oauth/start', pathParams: ['provider_id'] },
   { capabilityId: 'poll_provider_oauth', method: 'POST', path: '/api/shell-socket/providers/{provider_id}/oauth/poll', pathParams: ['provider_id'] },
+  { capabilityId: 'set_config', method: 'POST', path: '/api/shell-socket/config/set' },
   { capabilityId: 'set_model', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/model', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
@@ -249,6 +251,10 @@ export class ShellSocketGatewayClient {
     return this.request<T>('poll_provider_oauth', { query: { provider_id: providerId }, body: request });
   }
 
+  setConfig<T = unknown>(request: unknown): Promise<T> {
+    return this.request<T>('set_config', { body: request });
+  }
+
   setModel<T = unknown>(agentId: string, modelSelection: unknown): Promise<T> {
     return this.request<T>('set_model', { query: { agent_id: agentId }, body: modelSelection });
   }
@@ -281,7 +287,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 26,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 27,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

@@ -300,7 +300,7 @@ function settingsPage() {
       var path = (sectionMeta && sectionMeta.root_level) ? field : key;
       this.configSaving[key] = true;
       try {
-        await InfringAPI.post('/api/config/set', { path: path, value: value });
+        await InfringAPI.post('/api/shell-socket/config/set', { path: path, value: value });
         this.configDirty[key] = false;
         InfringToast.success('Saved ' + field);
       } catch(e) {

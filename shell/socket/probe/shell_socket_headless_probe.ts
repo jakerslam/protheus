@@ -251,6 +251,20 @@ function makeHeadlessGatewayFetch(calls: CallRecord[], includeControlledViolatio
     } else if (route === 'POST /api/shell-socket/models/custom/delete') {
       capabilityId = 'delete_custom_model';
       payload = makeIngressAck('custom-model-delete');
+    } else if (route === 'POST /api/shell-socket/config/set') {
+      capabilityId = 'set_config';
+      payload = {
+        ok: true,
+        path: String(body.path || 'display.theme'),
+        value: body.value ?? 'auto',
+        provider: null,
+        auth_status: null,
+        switched_default: null,
+        message: null,
+        error: null,
+        receipt_ref: 'receipt:config-set:probe',
+        correlation_id: 'probe-config-set',
+      };
     } else if (method === 'POST' && /^\/api\/shell-socket\/providers\/[^/]+\/key$/.test(pathName)) {
       capabilityId = 'save_provider_key';
       payload = {
@@ -459,6 +473,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
   const download = await client.downloadModel<any>({ provider: 'probe', model: 'probe/auto' });
   const customModelAck = await client.upsertCustomModel<any>({ provider: 'probe', model: 'probe/custom' });
   const customModelDeleteAck = await client.deleteCustomModel<any>({ model_ref: 'probe/custom' });
+  const configSet = await client.setConfig<any>({ path: 'display.theme', value: 'auto' });
   const providerKey = await client.saveProviderKey<any>('probe', { key: 'probe-key' });
   const providerKeyRemove = await client.removeProviderKey<any>('probe');
   const providerTest = await client.testProvider<any>('probe');
@@ -497,6 +512,7 @@ async function runProbe(options: ProbeOptions): Promise<Record<string, unknown>>
       model_download_receipt: download.receipt_ref,
       custom_model_receipt: customModelAck.receipt_ref,
       custom_model_delete_receipt: customModelDeleteAck.receipt_ref,
+      config_set_receipt: configSet.receipt_ref,
       provider_key_receipt: providerKey.receipt_ref,
       provider_key_remove_receipt: providerKeyRemove.receipt_ref,
       provider_test_receipt: providerTest.receipt_ref,

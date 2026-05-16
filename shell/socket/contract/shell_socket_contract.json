@@ -322,6 +322,25 @@
       "requires_detail_refs": true
     },
     {
+      "name": "ConfigMutationProjection",
+      "description": "Bounded configuration mutation acknowledgement for shell display; canonical settings truth remains outside shell plugs.",
+      "allowed_top_level_fields": [
+        "ok",
+        "path",
+        "value",
+        "provider",
+        "auth_status",
+        "switched_default",
+        "message",
+        "error",
+        "receipt_ref",
+        "correlation_id"
+      ],
+      "max_response_bytes": 8192,
+      "requires_cursor": false,
+      "requires_detail_refs": true
+    },
+    {
       "name": "IngressAck",
       "description": "Bounded acknowledgement or receipt for a shell-submitted request.",
       "allowed_top_level_fields": [
@@ -920,6 +939,35 @@
         "oauth_refresh_token",
         "raw_provider_response",
         "secret_storage_truth"
+      ]
+    },
+    {
+      "id": "set_config",
+      "purpose": "Request a bounded configuration mutation through Gateway controls without exposing canonical settings authority to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "ConfigMutationRequest",
+      "response_shape": "ConfigMutationProjection",
+      "default_projection": "ConfigMutationProjection",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_config_authority",
+      "shell_may_hold": [
+        "path",
+        "value",
+        "provider",
+        "auth_status",
+        "receipt_ref"
+      ],
+      "shell_must_not_hold": [
+        "canonical_config_truth",
+        "provider_secret",
+        "secret_storage_truth",
+        "raw_settings",
+        "full_config"
       ]
     },
     {

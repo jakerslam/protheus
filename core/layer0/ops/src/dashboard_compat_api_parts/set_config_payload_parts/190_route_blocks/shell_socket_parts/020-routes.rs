@@ -350,6 +350,39 @@ fn handle_shell_socket_routes(
             }),
         });
     }
+    if method == "POST" && parts == ["config", "set"] {
+        let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
+        let authority = set_config_payload(root, snapshot, &request);
+        let ok = authority.get("ok").and_then(Value::as_bool).unwrap_or(false);
+        let path_value = clean_text(
+            request
+                .get("path")
+                .and_then(Value::as_str)
+                .or_else(|| authority.get("path").and_then(Value::as_str))
+                .unwrap_or(""),
+            120,
+        );
+        let display_value = authority
+            .get("value")
+            .cloned()
+            .or_else(|| request.get("value").cloned())
+            .unwrap_or(Value::Null);
+        return Some(CompatApiResponse {
+            status: if ok { 200 } else { 400 },
+            payload: json!({
+                "ok": ok,
+                "path": path_value,
+                "value": display_value,
+                "provider": authority.get("provider").cloned().unwrap_or(Value::Null),
+                "auth_status": authority.get("auth_status").cloned().unwrap_or(Value::Null),
+                "switched_default": authority.get("switched_default").cloned().unwrap_or(Value::Null),
+                "message": authority.get("message").cloned().unwrap_or(Value::Null),
+                "error": authority.get("error").cloned().unwrap_or(Value::Null),
+                "receipt_ref": shell_socket_receipt_ref("set_config", &json!({"path": path_value})),
+                "correlation_id": "shell_socket.set_config"
+            }),
+        });
+    }
     if method == "POST" && parts == ["input"] {
         let request = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
         let agent_id = clean_agent_id(request.get("agent_id").or_else(|| request.get("target_agent_id")).and_then(Value::as_str).unwrap_or(""));
