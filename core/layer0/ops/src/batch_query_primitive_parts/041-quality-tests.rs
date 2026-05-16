@@ -310,6 +310,133 @@ mod quality_tests {
     }
 
     #[test]
+    fn query_lane_attribution_distinguishes_provider_rerank_and_selected_coverage() {
+        let mut facets = vec![
+            research_facet_from_metadata_text("Alpha Runtime", 0, "entity").unwrap(),
+            research_facet_from_metadata_text("Beta Search", 1, "entity").unwrap(),
+        ];
+        assign_distinctive_facet_terms(&mut facets);
+
+        let alpha = Candidate {
+            source_kind: "web".to_string(),
+            title: "Alpha Runtime deployment evidence".to_string(),
+            locator: "https://alpha.example/docs".to_string(),
+            snippet: "Alpha Runtime release notes describe deployment readiness and operations evidence."
+                .to_string(),
+            excerpt_hash: "alpha".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+        let beta = Candidate {
+            source_kind: "web".to_string(),
+            title: "Beta Search overview".to_string(),
+            locator: "https://beta.example/docs".to_string(),
+            snippet: "Beta Search documentation covers query integrations and search relevance."
+                .to_string(),
+            excerpt_hash: "beta".to_string(),
+            timestamp: None,
+            permissions: None,
+            status_code: 200,
+        };
+
+        let lane_sources = vec![
+            query_lane_source(
+                "alpha runtime evidence",
+                "initial",
+                &[alpha.clone()],
+                &[],
+                &[json!({
+                    "provider": "fixture",
+                    "stage": "search",
+                    "provider_transport_ok": true,
+                    "result_quality": "usable",
+                    "provider_raw_count": 1,
+                    "synthesis_candidate_count": 1
+                })],
+            ),
+            query_lane_source(
+                "empty provider lane",
+                "initial",
+                &[],
+                &["fixture_provider_empty".to_string()],
+                &[json!({
+                    "provider": "fixture",
+                    "stage": "search",
+                    "provider_transport_ok": true,
+                    "result_quality": "empty",
+                    "provider_raw_count": 0,
+                    "synthesis_candidate_count": 0,
+                    "failure_reasons": ["fixture_provider_empty"]
+                })],
+            ),
+            query_lane_source(
+                "beta search evidence",
+                "initial",
+                &[beta],
+                &[],
+                &[json!({
+                    "provider": "fixture",
+                    "stage": "search",
+                    "provider_transport_ok": true,
+                    "result_quality": "usable",
+                    "provider_raw_count": 1,
+                    "synthesis_candidate_count": 1
+                })],
+            ),
+        ];
+
+        let report = query_lane_attribution_report(&lane_sources, &[(alpha, 0.92)], &facets, 1);
+        assert_eq!(report.get("status").and_then(Value::as_str), Some("mixed"));
+        assert_eq!(
+            report
+                .get("selected_lane_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            report
+                .get("unselected_lane_count")
+                .and_then(Value::as_u64),
+            Some(2)
+        );
+        assert_eq!(
+            report
+                .get("provider_empty_or_failed_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+        assert_eq!(
+            report
+                .get("candidates_not_selected_after_rerank_count")
+                .and_then(Value::as_u64),
+            Some(1)
+        );
+
+        let rows = report.get("rows").and_then(Value::as_array).unwrap();
+        assert_eq!(
+            rows[0].get("status").and_then(Value::as_str),
+            Some("selected_covered")
+        );
+        assert!(
+            rows[0]
+                .get("covered_requested_texts")
+                .and_then(Value::as_array)
+                .map(|values| values.iter().any(|value| value.as_str() == Some("Alpha Runtime")))
+                .unwrap_or(false),
+            "{report:#?}"
+        );
+        assert_eq!(
+            rows[1].get("status").and_then(Value::as_str),
+            Some("provider_empty_or_failed")
+        );
+        assert_eq!(
+            rows[2].get("status").and_then(Value::as_str),
+            Some("candidates_not_selected_after_rerank")
+        );
+    }
+
+    #[test]
     fn named_entity_query_splits_punctuated_series_and_ignores_command_words() {
         let query = "Use web research to compare Infring with LangGraph, CrewAI, AutoGen, and OpenHands as of May 2026.";
         let request = json!({

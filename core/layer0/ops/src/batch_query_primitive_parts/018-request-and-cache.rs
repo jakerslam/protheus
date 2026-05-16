@@ -2580,6 +2580,253 @@ fn retrieval_telemetry_row(
     })
 }
 
+#[derive(Clone, Debug)]
+struct QueryLaneSource {
+    query: String,
+    phase: String,
+    candidates: Vec<Candidate>,
+    issues: Vec<String>,
+    artifacts: Vec<Value>,
+}
+
+fn query_lane_source(
+    query: &str,
+    phase: &str,
+    rows: &[Candidate],
+    issues: &[String],
+    artifacts: &[Value],
+) -> QueryLaneSource {
+    QueryLaneSource {
+        query: clean_text(query, 600),
+        phase: clean_text(phase, 80),
+        candidates: rows.to_vec(),
+        issues: issues.to_vec(),
+        artifacts: artifacts.to_vec(),
+    }
+}
+
+fn provider_artifact_summaries(artifacts: &[Value]) -> Vec<Value> {
+    artifacts
+        .iter()
+        .map(|artifact| {
+            json!({
+                "provider": artifact.get("provider").cloned().unwrap_or_else(|| json!("unknown")),
+                "stage": artifact.get("stage").cloned().unwrap_or_else(|| json!("unknown")),
+                "transport_ok": artifact
+                    .get("provider_transport_ok")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+                "result_quality": artifact
+                    .get("result_quality")
+                    .cloned()
+                    .unwrap_or_else(|| json!("unknown")),
+                "provider_raw_rows": provider_artifact_count_field(artifact, "provider_raw_count"),
+                "synthesis_candidate_rows": provider_artifact_count_field(
+                    artifact,
+                    "synthesis_candidate_count",
+                ),
+                "filtered_or_rejected_rows": provider_artifact_count_field(
+                    artifact,
+                    "provider_filtered_count",
+                ),
+                "failure_reasons": artifact
+                    .get("failure_reasons")
+                    .cloned()
+                    .unwrap_or_else(|| json!([]))
+            })
+        })
+        .collect()
+}
+
+fn query_lane_attribution_status(
+    provider_count: usize,
+    provider_raw_rows: usize,
+    candidate_rows: usize,
+    synthesis_rows: usize,
+    selected_evidence_count: usize,
+    selected_covered_facet_count: usize,
+    issue_count: usize,
+) -> &'static str {
+    if selected_evidence_count > 0 && selected_covered_facet_count > 0 {
+        "selected_covered"
+    } else if selected_evidence_count > 0 {
+        "selected_without_requested_facet"
+    } else if synthesis_rows > 0 {
+        "candidates_not_selected_after_rerank"
+    } else if candidate_rows > 0 {
+        "candidates_filtered_or_low_confidence"
+    } else if provider_raw_rows > 0 {
+        "provider_raw_rows_filtered"
+    } else if provider_count > 0 || issue_count > 0 {
+        "provider_empty_or_failed"
+    } else {
+        "not_recorded"
+    }
+}
+
+fn query_lane_attribution_report(
+    lane_sources: &[QueryLaneSource],
+    evidence_ranked: &[(Candidate, f64)],
+    facets: &[ResearchFacet],
+    min_terms: usize,
+) -> Value {
+    let mut selected_keys = HashSet::<String>::new();
+    let mut selected_coverage = HashMap::<String, Vec<String>>::new();
+    let mut selected_low_confidence = HashSet::<String>::new();
+    for (candidate, _) in evidence_ranked {
+        let key = candidate_identity_key(candidate);
+        selected_keys.insert(key.clone());
+        selected_coverage.insert(key.clone(), candidate_coverage_facets(facets, candidate, min_terms));
+        if candidate_is_low_confidence_retained(candidate) {
+            selected_low_confidence.insert(key);
+        }
+    }
+
+    let requested_text_by_facet = facets
+        .iter()
+        .map(|facet| (facet.id.clone(), facet.requested_text.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let mut selected_lane_count = 0usize;
+    let mut provider_empty_or_failed_count = 0usize;
+    let mut candidates_not_selected_count = 0usize;
+    let mut candidates_filtered_or_low_confidence_count = 0usize;
+    let mut provider_raw_rows_filtered_count = 0usize;
+    let mut rows = Vec::<Value>::new();
+
+    for source in lane_sources {
+        let telemetry = retrieval_telemetry_row(
+            &source.query,
+            &source.phase,
+            &source.candidates,
+            &source.issues,
+            &source.artifacts,
+        );
+        let provider_count = source.artifacts.len();
+        let provider_raw_rows = telemetry
+            .get("provider_raw_rows")
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as usize;
+        let candidate_rows = source.candidates.len();
+        let synthesis_rows = source
+            .candidates
+            .iter()
+            .filter(|candidate| !candidate_is_low_confidence_retained(candidate))
+            .count();
+        let issue_count = source.issues.len();
+        let mut selected_evidence_count = 0usize;
+        let mut selected_low_confidence_count = 0usize;
+        let mut covered_facet_ids = HashSet::<String>::new();
+
+        for candidate in &source.candidates {
+            let key = candidate_identity_key(candidate);
+            if !selected_keys.contains(&key) {
+                continue;
+            }
+            selected_evidence_count += 1;
+            if selected_low_confidence.contains(&key) {
+                selected_low_confidence_count += 1;
+            }
+            if let Some(facet_ids) = selected_coverage.get(&key) {
+                for facet_id in facet_ids {
+                    covered_facet_ids.insert(facet_id.clone());
+                }
+            }
+        }
+
+        let mut covered_facet_ids = covered_facet_ids.into_iter().collect::<Vec<_>>();
+        covered_facet_ids.sort();
+        let covered_requested_texts = covered_facet_ids
+            .iter()
+            .filter_map(|facet_id| requested_text_by_facet.get(facet_id).cloned())
+            .collect::<Vec<_>>();
+        let status = query_lane_attribution_status(
+            provider_count,
+            provider_raw_rows,
+            candidate_rows,
+            synthesis_rows,
+            selected_evidence_count,
+            covered_facet_ids.len(),
+            issue_count,
+        );
+        if selected_evidence_count > 0 {
+            selected_lane_count += 1;
+        }
+        if status == "provider_empty_or_failed" {
+            provider_empty_or_failed_count += 1;
+        }
+        if status == "candidates_not_selected_after_rerank" {
+            candidates_not_selected_count += 1;
+        }
+        if status == "candidates_filtered_or_low_confidence" {
+            candidates_filtered_or_low_confidence_count += 1;
+        }
+        if status == "provider_raw_rows_filtered" {
+            provider_raw_rows_filtered_count += 1;
+        }
+
+        rows.push(json!({
+            "query": source.query,
+            "phase": source.phase,
+            "status": status,
+            "provider_count": provider_count,
+            "provider_raw_rows": provider_raw_rows,
+            "candidate_rows": candidate_rows,
+            "synthesis_candidate_rows": synthesis_rows,
+            "low_confidence_raw_rows": candidate_rows.saturating_sub(synthesis_rows),
+            "filtered_or_rejected_rows": issue_count,
+            "selected_evidence_count": selected_evidence_count,
+            "selected_usable_evidence_count": selected_evidence_count
+                .saturating_sub(selected_low_confidence_count),
+            "selected_low_confidence_count": selected_low_confidence_count,
+            "covered_facet_ids": covered_facet_ids,
+            "covered_requested_texts": covered_requested_texts,
+            "provider_results": provider_artifact_summaries(&source.artifacts),
+            "failure_reasons": source
+                .issues
+                .iter()
+                .map(|issue| clean_text(issue, 180))
+                .filter(|issue| !issue.is_empty())
+                .take(12)
+                .collect::<Vec<_>>()
+        }));
+    }
+
+    let status = if rows.is_empty() {
+        "not_recorded"
+    } else if selected_lane_count == 0 {
+        "no_selected_evidence"
+    } else if selected_lane_count < rows.len()
+        || provider_empty_or_failed_count > 0
+        || candidates_not_selected_count > 0
+        || candidates_filtered_or_low_confidence_count > 0
+        || provider_raw_rows_filtered_count > 0
+    {
+        "mixed"
+    } else {
+        "attributed"
+    };
+
+    json!({
+        "version": "query_lane_attribution_v1",
+        "status": status,
+        "lane_count": rows.len(),
+        "selected_lane_count": selected_lane_count,
+        "unselected_lane_count": rows.len().saturating_sub(selected_lane_count),
+        "provider_empty_or_failed_count": provider_empty_or_failed_count,
+        "candidates_not_selected_after_rerank_count": candidates_not_selected_count,
+        "candidates_filtered_or_low_confidence_count": candidates_filtered_or_low_confidence_count,
+        "provider_raw_rows_filtered_count": provider_raw_rows_filtered_count,
+        "rows": rows,
+        "diagnostic_use": "telemetry_only",
+        "non_goals": [
+            "do_not_use_as_final_answer_text",
+            "do_not_treat_query_lane_success_as_truth",
+            "do_not_expose_raw_provider_payloads_to_chat"
+        ]
+    })
+}
+
 fn resolve_query_plan(
     policy: &Value,
     request: &Value,
