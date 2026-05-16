@@ -59,6 +59,16 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function unescapeHtml(text: string): string {
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#34;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+}
+
 function syntheticRow(index: number): any {
   return {
     id: `long-chat-row-${index}`,
@@ -177,16 +187,24 @@ function runBrowserMetrics(html: string, driverPath: string): any {
     `--user-data-dir=${profilePath}`,
     '--dump-dom',
     pathToFileURL(htmlPath).toString(),
-  ], { encoding: 'utf8', maxBuffer: 24 * 1024 * 1024, timeout: 30000 });
+  ], { encoding: 'utf8', maxBuffer: 24 * 1024 * 1024, timeout: 12000 });
   fs.rmSync(tempDir, { recursive: true, force: true });
-  if (result.error || result.status !== 0) {
-    return { ok: false, error: result.error?.message || result.stderr || `status_${result.status}` };
+  let parsed: any = null;
+  for (const match of String(result.stdout || '').matchAll(/__INFRING_METRICS__(.*?)__END__/gs)) {
+    try {
+      const candidate = JSON.parse(unescapeHtml(match[1]));
+      parsed = typeof candidate === 'string' ? JSON.parse(unescapeHtml(candidate)) : candidate;
+      if (parsed && typeof parsed === 'object') break;
+    } catch (_) {
+      parsed = null;
+    }
   }
-  const match = result.stdout.match(/__INFRING_METRICS__(.*?)__END__/s);
-  if (!match) return { ok: false, error: 'browser_metrics_marker_missing' };
-  const parsed = JSON.parse(match[1]);
+  if (!parsed) return { ok: false, error: 'browser_metrics_marker_missing' };
   for (const field of ['dom_nodes', 'custom_elements', 'storage_bytes']) {
     if (!Number.isFinite(Number(parsed[field]))) return { ok: false, error: `browser_metric_missing_${field}` };
+  }
+  if (result.error || result.status !== 0) {
+    parsed.browser_warning = result.error?.message || result.stderr || `status_${result.status}`;
   }
   return { ok: true, ...parsed };
 }
