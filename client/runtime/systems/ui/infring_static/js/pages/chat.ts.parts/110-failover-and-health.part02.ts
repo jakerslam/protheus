@@ -53,8 +53,10 @@
         case '/compact':
           if (self.currentAgent) {
             self.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: 'Compacting session...', text: 'Compacting session...', meta: '', tools: [], system_origin: 'slash:compact' });
-            InfringAPI.post('/api/agents/' + self.currentAgent.id + '/session/compact', {}).then(function(res) {
-              self.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: 'info', notice_label: res.message || 'Compaction complete', text: res.message || 'Compaction complete', meta: '', tools: [], system_origin: 'slash:compact' });
+            InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(self.currentAgent.id) + '/compact-session', {}).then(function(res) {
+              var accepted = !res || res.accepted !== false;
+              var label = accepted ? 'Compaction accepted' : 'Compaction rejected';
+              self.messages.push({ id: ++msgId, role: 'system', is_notice: true, notice_type: accepted ? 'info' : 'warn', notice_label: label, text: label, meta: '', tools: [], system_origin: 'slash:compact' });
               self.scrollToBottom();
             }).catch(function(e) { InfringToast.error('Compaction failed: ' + e.message); });
           }

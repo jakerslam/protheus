@@ -160,6 +160,12 @@ fn handle_shell_socket_routes(
         let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
         return Some(shell_socket_ack_from_legacy("fresh_session", legacy));
     }
+    if method == "POST" && parts.len() == 3 && parts[0] == "agents" && parts[2] == "compact-session" {
+        let agent_id = clean_agent_id(&parts[1]);
+        let legacy_path = format!("/api/agents/{agent_id}/session/compact");
+        let legacy = handle_agent_scope_routes(root, "POST", &legacy_path, &legacy_path, body, headers, snapshot, requester_agent)?;
+        return Some(shell_socket_ack_from_legacy("compact_session", legacy));
+    }
     if method == "POST"
         && parts.len() == 4
         && parts[0] == "agents"

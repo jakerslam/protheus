@@ -15,6 +15,7 @@ export type ShellSocketCapabilityId =
   | 'set_model'
   | 'set_git_tree'
   | 'fresh_session'
+  | 'compact_session'
   | 'submit_terminal_command';
 
 export type ShellSocketRouteDefinition = {
@@ -51,6 +52,7 @@ export const SHELL_SOCKET_ROUTES: ReadonlyArray<ShellSocketRouteDefinition> = Ob
   { capabilityId: 'set_model', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/model', pathParams: ['agent_id'] },
   { capabilityId: 'set_git_tree', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/git-tree', pathParams: ['agent_id'] },
   { capabilityId: 'fresh_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/fresh-session', pathParams: ['agent_id'] },
+  { capabilityId: 'compact_session', method: 'POST', path: '/api/shell-socket/agents/{agent_id}/compact-session', pathParams: ['agent_id'] },
   { capabilityId: 'submit_terminal_command', method: 'POST', path: '/api/shell-socket/terminal/commands' },
 ]);
 
@@ -193,6 +195,10 @@ export class ShellSocketGatewayClient {
     return this.request<T>('fresh_session', { query: { agent_id: agentId }, body: request });
   }
 
+  compactSession<T = unknown>(agentId: string, request: unknown = {}): Promise<T> {
+    return this.request<T>('compact_session', { query: { agent_id: agentId }, body: request });
+  }
+
   submitTerminalCommand<T = unknown>(command: unknown): Promise<T> {
     return this.request<T>('submit_terminal_command', { body: command });
   }
@@ -209,7 +215,7 @@ export function shellSocketClientSelfTest(): Record<string, unknown> {
     fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
   });
   return {
-    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 14,
+    ok: routeIds.length === uniqueRouteIds.size && routeIds.length === 15,
     type: 'shell_socket_gateway_client_self_test',
     route_count: routeIds.length,
     unique_route_count: uniqueRouteIds.size,

@@ -75,11 +75,6 @@ function mtimeAgeMs(rel: string): number | null {
   }
 }
 
-function generatedAgeMs(payload: Json | null): number | null {
-  const parsed = Date.parse(String(payload?.generated_at || ""));
-  return Number.isFinite(parsed) ? Math.max(0, Date.now() - parsed) : null;
-}
-
 function compactReportRefs(): string[] {
   const explicit = Array.isArray(inputs.compact_reports) ? inputs.compact_reports.map(String) : [];
   const glob = String(inputs.compact_report_glob || "");
@@ -102,15 +97,7 @@ function compactReportRefs(): string[] {
       // Static policy may point at a directory that does not exist in early bootstrap.
     }
   }
-  const freshnessBudget = Number(policy.freshness_budget_ms || 604_800_000);
-  return [...new Set([...discovered, ...explicit])]
-    .filter(exists)
-    .filter((rel) => {
-      const payload = readJson(rel);
-      const age = generatedAgeMs(payload) ?? mtimeAgeMs(rel);
-      return age !== null && age <= freshnessBudget;
-    })
-    .slice(0, maxCount);
+  return [...new Set([...discovered, ...explicit])].filter(exists).slice(0, maxCount);
 }
 
 function stringValue(row: Json, keys: string[]): string | null {
@@ -199,15 +186,10 @@ function collectCompactReports(map: Map<string, Candidate>): string[] {
   const refs = compactReportRefs();
   for (const rel of refs) {
     const report = readJson(rel);
-    const reportAge = generatedAgeMs(report) ?? mtimeAgeMs(rel);
-    const monolithicTimeoutCurrentMaxAgeMs = Number(policy.monolithic_timeout_current_max_age_ms || 86_400_000);
     const findings = Array.isArray(report?.findings) ? (report.findings as Json[]) : [];
     for (const finding of findings) {
       const id = candidateId(finding);
       if (!id) continue;
-      if (id === "sentinel_monolithic_full_run_timeout" && (reportAge === null || reportAge > monolithicTimeoutCurrentMaxAgeMs)) {
-        continue;
-      }
       mergeCandidate(upsert(map, id, rel), { ...finding, trace_id: report?.trace_id }, rel);
     }
   }
@@ -264,20 +246,11 @@ const stageRunnerRef = collectStageRunnerClusters(candidates);
 const streamRefs = collectIssueStreams(candidates);
 const projectionRefs = collectProjectionReports(candidates);
 const supportingEvidence = Array.isArray(inputs.supporting_evidence) ? inputs.supporting_evidence.map(String) : [];
-const generatedAt = new Date().toISOString();
-const traceId = `validation:${generatedAt}:sentinel-issue-quality:${crypto
-  .createHash("sha256")
-  .update([...candidates.values()].map((row) => row.id).sort().join("|"))
-  .digest("hex")
-  .slice(0, 12)}`;
 for (const candidate of candidates.values()) {
   if (candidate.evidence_refs.length === 0) {
     candidate.evidence_refs.push(...supportingEvidence.filter(exists));
   }
   candidate.evidence_refs = [...new Set(candidate.evidence_refs)];
-  if (candidate.trace_ids.length === 0) {
-    candidate.trace_ids.push(traceId);
-  }
 }
 
 function score(candidate: Candidate) {
@@ -340,6 +313,12 @@ const scored = [...candidates.values()]
 
 const priorHistory = readJsonl(historyRel).slice(-Number(policy.history_retention_rows || 100));
 const previousSummary = priorHistory[priorHistory.length - 1] || null;
+const generatedAt = new Date().toISOString();
+const traceId = `validation:${generatedAt}:sentinel-issue-quality:${crypto
+  .createHash("sha256")
+  .update(scored.map((row) => `${row.id}:${row.score}:${row.promotion_state}`).join("|"))
+  .digest("hex")
+  .slice(0, 12)}`;
 const averageScore =
   scored.length === 0 ? 100 : Math.round(scored.reduce((sum, row) => sum + Number(row.score || 0), 0) / scored.length);
 const historyRow = {

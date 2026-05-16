@@ -592,6 +592,34 @@
       ]
     },
     {
+      "id": "compact_session",
+      "purpose": "Request authority-owned session compaction through Gateway admission without exposing direct compaction authority to shell plugs.",
+      "route_class": "request_ingress",
+      "request_shape": "CompactSessionRequest",
+      "response_shape": "IngressAck",
+      "default_projection": "IngressAck",
+      "cursor_required": false,
+      "detail_ref_required": true,
+      "capability_or_lease_required": true,
+      "audit_receipt_required": true,
+      "nexus_checkpoint_required": true,
+      "conduit_scrambler_posture": "strong_scrambler",
+      "owner_of_truth": "kernel_session_store",
+      "shell_may_hold": [
+        "agent_id",
+        "target_context_window",
+        "target_ratio",
+        "receipt_ref",
+        "follow_up_ref"
+      ],
+      "shell_must_not_hold": [
+        "session_compaction_authority",
+        "conversation_tree",
+        "all_messages",
+        "raw_compaction_result"
+      ]
+    },
+    {
       "id": "submit_terminal_command",
       "purpose": "Submit a capability-gated terminal command request without shell-owned execution authority.",
       "route_class": "request_ingress",

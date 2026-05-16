@@ -9,10 +9,6 @@
   "max_final_report_findings": 5,
   "requires_partial_timing_artifact": true,
   "requires_resume_cursor": true,
-  "canonical_dream_entrypoint": "ops:kernel-sentinel:stage-run:dream",
-  "legacy_monolithic_entrypoint": "ops:kernel-sentinel:auto:legacy",
-  "monolithic_timeout_current_max_age_ms": 86400000,
-  "stale_monolithic_timeout_policy": "historical_reference_only_until_reproduced_by_fresh_staged_or_legacy_run",
   "requires_raw_evidence_stream_not_final_report": true,
   "required_phase_count": 5,
   "required_phases": [
@@ -57,6 +53,5 @@
     "Each completed phase records timing, input refs, output refs, and a resume cursor.",
     "The final report remains small and references evidence streams instead of embedding raw evidence.",
     "Dream cadence can resume from the last successful phase."
-    ,"Stale monolithic timeout artifacts do not become current findings unless reproduced by fresh evidence."
   ]
 }

@@ -57,18 +57,14 @@
       }
       var targetTokens = Math.max(1, Math.floor(targetWindow * targetRatio));
       InfringToast.info('Switching to a model with smaller context may degrade performance.');
-      return InfringAPI.post('/api/agents/' + encodeURIComponent(id) + '/session/compact', {
+      return InfringAPI.post('/api/shell-socket/agents/' + encodeURIComponent(id) + '/compact-session', {
         target_context_window: targetWindow,
         target_ratio: targetRatio,
         min_recent_messages: 12,
         max_messages: 200
       }).then(function(resp) {
-        var beforeTokens = Number(
-          resp && resp.before_tokens != null ? resp.before_tokens : usedTokens
-        );
-        var afterTokens = Number(
-          resp && resp.after_tokens != null ? resp.after_tokens : Math.min(usedTokens, targetTokens)
-        );
+        var beforeTokens = usedTokens;
+        var afterTokens = Math.min(usedTokens, targetTokens);
         if (Number.isFinite(afterTokens) && afterTokens >= 0) {
           self.contextApproxTokens = Math.max(0, Math.round(afterTokens));
         }
@@ -88,7 +84,12 @@
           notice_type: 'info',
           ts: Date.now()
         });
-        return resp || {};
+        return {
+          compacted: !!(resp && resp.accepted !== false),
+          receipt_ref: resp && resp.receipt_ref,
+          before_tokens: beforeTokens,
+          after_tokens: afterTokens
+        };
       });
     },
 
